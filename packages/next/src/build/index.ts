@@ -1215,6 +1215,8 @@ export default async function build(
         .map((file) => path.join(rootDir, file).replace(dir, ''))
 
       let instrumentationHookFilePath: string | undefined
+      let rootInstrumentationHookFilePath: string | undefined
+      let srcInstrumentationHookFilePath: string | undefined
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
 
@@ -1235,8 +1237,29 @@ export default async function build(
           isAtConventionLevel &&
           fileBaseName === INSTRUMENTATION_HOOK_FILENAME
         ) {
+          if (normalizedFileDir === '/') {
+            rootInstrumentationHookFilePath = rootPath
+          } else if (normalizedFileDir === '/src') {
+            srcInstrumentationHookFilePath = rootPath
+          }
           instrumentationHookFilePath = rootPath
         }
+      }
+
+      if (rootInstrumentationHookFilePath && srcInstrumentationHookFilePath) {
+        const cwd = process.cwd()
+        const absoluteRootPath = path.join(
+          rootDir,
+          rootInstrumentationHookFilePath
+        )
+        const absoluteSrcPath = path.join(
+          rootDir,
+          srcInstrumentationHookFilePath
+        )
+
+        throw new Error(
+          `Conflicting instrumentation files detected: "./${path.relative(cwd, absoluteRootPath)}" and "./${path.relative(cwd, absoluteSrcPath)}". Please remove one of them.`
+        )
       }
 
       if (middlewareFilePath) {

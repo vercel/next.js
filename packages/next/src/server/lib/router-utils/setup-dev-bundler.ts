@@ -591,6 +591,15 @@ async function startWatcher(
           continue
         }
         if (isInstrumentationHookFile(rootFile)) {
+          if (
+            serverFields.actualInstrumentationHookFile &&
+            serverFields.actualInstrumentationHookFile !== rootFile
+          ) {
+            const existingFile = serverFields.actualInstrumentationHookFile
+            throw new Error(
+              `Conflicting instrumentation files detected: "${existingFile}" and "${rootFile}". Please remove one of them.`
+            )
+          }
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             opts,
