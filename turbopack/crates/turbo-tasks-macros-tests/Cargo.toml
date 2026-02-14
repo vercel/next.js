@@ -10,7 +10,7 @@ anyhow = { workspace = true }
 bincode = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
-trybuild = { version = "1.0.104" }
+trybuild = { version = "1.0.116" }
 turbo-tasks = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
