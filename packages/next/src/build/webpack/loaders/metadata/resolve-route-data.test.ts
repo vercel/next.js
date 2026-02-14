@@ -225,5 +225,105 @@ describe('resolveRouteData', () => {
         "
       `)
     })
+    it('should escape XML special characters in URLs', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com?a=1&b=2',
+            lastModified: '2021-01-01',
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+        "<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        <url>
+        <loc>https://example.com?a=1&amp;b=2</loc>
+        <lastmod>2021-01-01</lastmod>
+        </url>
+        </urlset>
+        "
+      `)
+    })
+    it('should escape XML special characters in alternate URLs', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com?a=1&b=2',
+            alternates: {
+              languages: {
+                es: 'https://example.com/es?a=1&b=2',
+                de: 'https://example.com/de?x=1&y=2',
+              },
+            },
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+        "<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+        <url>
+        <loc>https://example.com?a=1&amp;b=2</loc>
+        <xhtml:link rel="alternate" hreflang="es" href="https://example.com/es?a=1&amp;b=2" />
+        <xhtml:link rel="alternate" hreflang="de" href="https://example.com/de?x=1&amp;y=2" />
+        </url>
+        </urlset>
+        "
+      `)
+    })
+    it('should escape XML special characters in image URLs', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com',
+            images: ['https://example.com/image?w=100&h=200'],
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+        "<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+        <url>
+        <loc>https://example.com</loc>
+        <image:image>
+        <image:loc>https://example.com/image?w=100&amp;h=200</image:loc>
+        </image:image>
+        </url>
+        </urlset>
+        "
+      `)
+    })
+    it('should escape XML special characters in video fields', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com',
+            videos: [
+              {
+                title: 'A & B <video>',
+                thumbnail_loc: 'https://example.com/thumb?a=1&b=2',
+                description: 'Description with "quotes" & <special> chars',
+                content_loc: 'https://example.com/video?id=1&fmt=mp4',
+                player_loc: 'https://example.com/player?v=1&autoplay=true',
+                tag: 'tag1&tag2',
+              },
+            ],
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+        "<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+        <url>
+        <loc>https://example.com</loc>
+        <video:video>
+        <video:title>A &amp; B &lt;video&gt;</video:title>
+        <video:thumbnail_loc>https://example.com/thumb?a=1&amp;b=2</video:thumbnail_loc>
+        <video:description>Description with &quot;quotes&quot; &amp; &lt;special&gt; chars</video:description>
+        <video:content_loc>https://example.com/video?id=1&amp;fmt=mp4</video:content_loc>
+        <video:player_loc>https://example.com/player?v=1&amp;autoplay=true</video:player_loc>
+        <video:tag>tag1&amp;tag2</video:tag>
+        </video:video>
+        </url>
+        </urlset>
+        "
+      `)
+    })
   })
 })
