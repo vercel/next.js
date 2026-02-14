@@ -4,6 +4,8 @@ import fs from 'fs'
 import path from 'path'
 import { Response } from 'node-fetch'
 
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+
 interface LogEntry {
   timestamp: number
   entry: string
@@ -128,6 +130,14 @@ describe('deferred-entries', () => {
     } catch (e) {
       // Ignore
     }
+
+    if (isCacheComponentsEnabled) {
+      // Cache Components does not allow route segment runtime configs.
+      await next.patchFile('app/edge-runtime/page.tsx', (content) =>
+        content.replace(/export const runtime = 'edge'[\r\n]+/, '')
+      )
+    }
+
     await next.start()
   })
 
@@ -440,7 +450,7 @@ describe('deferred-entries', () => {
     }
   })
 
-  it('should run instrumentation hooks for node and edge runtimes with deferred entries', async () => {
+  it('should run instrumentation hooks with deferred entries', async () => {
     await retry(async () => {
       const homeRes = await next.fetch('/')
       expect(homeRes.status).toBe(200)
@@ -458,11 +468,13 @@ describe('deferred-entries', () => {
       expect(await edgeRes.text()).toContain('Edge Runtime App Router Page')
     })
 
-    await retry(async () => {
-      expect(next.cliOutput).toContain(
-        '[TEST] deferred-entries instrumentation register (edge)'
-      )
-    })
+    if (!isCacheComponentsEnabled) {
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          '[TEST] deferred-entries instrumentation register (edge)'
+        )
+      })
+    }
   })
 
   it('should call onBeforeDeferredEntries before building deferred entry', async () => {
