@@ -123,7 +123,7 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
           video.platform &&
             `<video:platform relationship="${escapeXml(video.platform.relationship)}">${escapeXml(video.platform.content)}</video:platform>`,
           video.uploader &&
-            `<video:uploader${video.uploader.info && ` info="${escapeXml(video.uploader.info)}"`}>${escapeXml(video.uploader.content)}</video:uploader>`,
+            `<video:uploader${video.uploader.info ? ` info="${escapeXml(video.uploader.info)}"` : ""}>${escapeXml(video.uploader.content ?? "")}</video:uploader>`,
           `</video:video>\n`,
         ].filter(Boolean)
         content += videoFields.join('\n')
