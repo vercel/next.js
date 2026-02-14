@@ -83,7 +83,9 @@ export async function resolveBuildPaths(
     throw new Error(`Pattern "${patterns.join(',')}" did not match any files`)
   }
 
-  Log.info(`Pattern "${patterns.join(',')}" did match ${matches.length} files`)
+  Log.info(
+    `Pattern "${patterns.join(',')}" did match ${matches.length} file(s)`
+  )
 
   for (const file of matches) {
     if (!fs.statSync(path.join(projectDir, file)).isDirectory()) {
