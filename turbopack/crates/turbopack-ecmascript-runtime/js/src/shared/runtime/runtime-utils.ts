@@ -551,7 +551,6 @@ function installCompressedModuleFactories(
 ) {
   let i = offset
   while (i < chunkModules.length) {
-    let moduleId = chunkModules[i] as ModuleId
     let end = i + 1
     // Find our factory function
     while (
@@ -565,19 +564,33 @@ function installCompressedModuleFactories(
     }
 
     // Install the factory for each module ID that doesn't already have one.
-    // This handles both the normal case and the case where some IDs in a group
-    // may have been registered separately (e.g., from another chunk or HMR update).
+    // When some IDs in this group already have a factory, reuse that existing
+    // group factory for the missing IDs to keep all IDs in the group consistent.
+    // Otherwise, install the factory from this chunk.
     const moduleFactoryFn = chunkModules[end] as Function
+    let existingGroupFactory: Function | undefined = undefined
+    for (let j = i; j < end; j++) {
+      const id = chunkModules[j] as ModuleId
+      const existingFactory = moduleFactories.get(id)
+      if (existingFactory) {
+        existingGroupFactory = existingFactory
+        break
+      }
+    }
+    const factoryToInstall = existingGroupFactory ?? moduleFactoryFn
+
     let didInstallFactory = false
     for (let j = i; j < end; j++) {
       const id = chunkModules[j] as ModuleId
       if (!moduleFactories.has(id)) {
         if (!didInstallFactory) {
-          applyModuleFactoryName(moduleFactoryFn)
-          newModuleId?.(moduleId)
+          if (factoryToInstall === moduleFactoryFn) {
+            applyModuleFactoryName(moduleFactoryFn)
+          }
           didInstallFactory = true
         }
-        moduleFactories.set(id, moduleFactoryFn)
+        moduleFactories.set(id, factoryToInstall)
+        newModuleId?.(id)
       }
     }
     i = end + 1 // end is pointing at the last factory advance to the next id or the end of the array.
