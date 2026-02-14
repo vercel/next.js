@@ -78,6 +78,7 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
 import {
+  INSTRUMENTATION_HOOK_FILENAME,
   JSON_CONTENT_TYPE_HEADER,
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
@@ -465,6 +466,8 @@ async function startWatcher(
 
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
+      let rootInstrumentationFilePath: string | undefined
+      let srcInstrumentationFilePath: string | undefined
 
       for (const fileName of sortedKnownFiles) {
         if (
@@ -484,6 +487,25 @@ async function startWatcher(
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
           proxyFilePath = fileName
+        }
+        if (
+          isAtConventionLevel &&
+          fileBaseName === INSTRUMENTATION_HOOK_FILENAME
+        ) {
+          const isInSrc = fileDir === path.join(dir, 'src')
+          if (isInSrc) {
+            srcInstrumentationFilePath = fileName
+          } else {
+            rootInstrumentationFilePath = fileName
+          }
+        }
+
+        if (rootInstrumentationFilePath && srcInstrumentationFilePath) {
+          const cwd = process.cwd()
+
+          throw new Error(
+            `Conflicting instrumentation files detected: "./${path.relative(cwd, rootInstrumentationFilePath)}" and "./${path.relative(cwd, srcInstrumentationFilePath)}". Please remove one of them.`
+          )
         }
 
         if (middlewareFilePath) {
@@ -591,15 +613,6 @@ async function startWatcher(
           continue
         }
         if (isInstrumentationHookFile(rootFile)) {
-          if (
-            serverFields.actualInstrumentationHookFile &&
-            serverFields.actualInstrumentationHookFile !== rootFile
-          ) {
-            const existingFile = serverFields.actualInstrumentationHookFile
-            throw new Error(
-              `Conflicting instrumentation files detected: "${existingFile}" and "${rootFile}". Please remove one of them.`
-            )
-          }
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             opts,
