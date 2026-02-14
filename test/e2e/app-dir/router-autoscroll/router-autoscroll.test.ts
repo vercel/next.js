@@ -2,6 +2,9 @@ import type { Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
 
+const enableNewScrollHandler =
+  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true'
+
 describe('router autoscrolling on navigation', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -236,5 +239,28 @@ describe('router autoscrolling on navigation', () => {
         expect(await browser.eval(`window.scrollY`)).toBe(0)
       })
     })
+  })
+
+  it('should scroll to top even if React hoists children', async () => {
+    const browser = await next.browser('/')
+
+    // scroll to bottom
+    await browser.eval(
+      `window.scrollTo(0, ${await browser.eval('document.documentElement.scrollHeight')})`
+    )
+    // Just need to scroll by something
+    expect(await getTopScroll(browser)).toBeGreaterThan(0)
+
+    await browser.elementByCss('[href="/hoisted"]').click()
+    expect(
+      await browser.eval('document.documentElement.scrollHeight')
+    ).toBeGreaterThan(0)
+    if (enableNewScrollHandler) {
+      await waitForScrollToComplete(browser, { x: 0, y: 0 })
+    } else {
+      await expect(
+        waitForScrollToComplete(browser, { x: 0, y: 0 })
+      ).rejects.toThrow()
+    }
   })
 })
