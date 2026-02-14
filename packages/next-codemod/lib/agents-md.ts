@@ -33,6 +33,12 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
     const nextVersion = dependencies.next || devDependencies.next
 
     if (nextVersion) {
+      // Prefer package-lock.json version (exact) over package.json (may be a range)
+      const lockVersion = getVersionFromPackageLock(cwd)
+      if (lockVersion) {
+        return { version: lockVersion }
+      }
+
       const cleanVersion = nextVersion.replace(/^[\^~>=<]+/, '')
       return { version: cleanVersion }
     }
@@ -61,6 +67,30 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
       version: null,
       error: `Failed to parse package.json: ${err instanceof Error ? err.message : String(err)}`,
     }
+  }
+}
+
+function getVersionFromPackageLock(cwd: string): string | null {
+  const lockPath = path.join(cwd, 'package-lock.json')
+  if (!fs.existsSync(lockPath)) return null
+
+  try {
+    const lockfile = JSON.parse(fs.readFileSync(lockPath, 'utf-8'))
+
+    // lockfileVersion 2/3: packages field
+    if (lockfile.packages) {
+      const nextPkg = lockfile.packages['node_modules/next']
+      if (nextPkg?.version) return nextPkg.version
+    }
+
+    // lockfileVersion 1: dependencies field
+    if (lockfile.dependencies?.next?.version) {
+      return lockfile.dependencies.next.version
+    }
+
+    return null
+  } catch {
+    return null
   }
 }
 
@@ -266,10 +296,23 @@ interface ClaudeMdIndexData {
   docsPath: string
   sections: DocSection[]
   outputFile?: string
+  packageTag?: string
+}
+
+/**
+ * Derive an npm dist-tag suffix from a package version string.
+ * e.g. "15.2.0-canary.47" → "@canary", "15.2.0-rc.1" → "@rc", "15.2.0" → ""
+ */
+export function derivePackageTag(packageVersion: string): string {
+  const match = packageVersion.match(/-(canary|rc|alpha|beta)\./)
+  if (match) {
+    return `@${match[1]}`
+  }
+  return ''
 }
 
 export function generateClaudeMdIndex(data: ClaudeMdIndexData): string {
-  const { docsPath, sections, outputFile } = data
+  const { docsPath, sections, outputFile, packageTag } = data
 
   const parts: string[] = []
 
@@ -279,8 +322,9 @@ export function generateClaudeMdIndex(data: ClaudeMdIndexData): string {
     'STOP. What you remember about Next.js is WRONG for this project. Always search docs and read before any task.'
   )
   const targetFile = outputFile || 'CLAUDE.md'
+  const tagSuffix = packageTag ?? ''
   parts.push(
-    `If docs missing, run this command first: npx @next/codemod agents-md --output ${targetFile}`
+    `If docs missing, run this command first: npx @next/codemod${tagSuffix} agents-md --output ${targetFile}`
   )
 
   const allFiles = collectAllFilesFromSections(sections)
