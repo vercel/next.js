@@ -86,7 +86,6 @@ async fn emit_assets_internal(
             let node_root = node_root.clone();
             let client_relative_path = client_relative_path.clone();
             let client_output_path = client_output_path.clone();
-            let preserve_existing = preserve_existing;
 
             async move {
                 let path = asset.path().owned().await?;
