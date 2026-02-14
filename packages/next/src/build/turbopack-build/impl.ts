@@ -329,10 +329,18 @@ export async function turbopackBuild(): Promise<{
     : NextBuildContext.debugBuildPaths
   const firstPassDebugBuildPaths = firstPassBuildPaths ?? undefined
 
+  // In deferred mode we do a final full write pass after the callback.
+  // Keep project-level debugBuildPaths unset (or user-provided) so the final
+  // pass can emit a consistent module graph and avoid overwriting shared chunks
+  // with a deferred-only graph.
+  const projectDebugBuildPaths = hasDeferredEntries
+    ? NextBuildContext.debugBuildPaths
+    : firstPassDebugBuildPaths
+
   const project = await bindings.turbo.createProject(
     {
       ...sharedProjectOptions,
-      debugBuildPaths: firstPassDebugBuildPaths,
+      debugBuildPaths: projectDebugBuildPaths,
     },
     sharedTurboOptions
   )
@@ -376,10 +384,11 @@ export async function turbopackBuild(): Promise<{
         await onBeforeDeferredEntries()
       }
 
-      // Second build: only build deferred entries
+      // Second build: write the full graph after the callback so emitted
+      // shared chunks stay consistent with all routes.
       const deferredEntrypoints = await project.writeAllEntrypointsToDisk(
         appDirOnly,
-        deferredBuildPaths
+        projectDebugBuildPaths
       )
       printBuildErrors(deferredEntrypoints, dev)
 
@@ -387,17 +396,8 @@ export async function turbopackBuild(): Promise<{
       if (!deferredRoutes) {
         throw new Error(`Turbopack build failed`)
       }
-
-      // Merge deferred routes into the main routes
-      for (const [key, value] of deferredRoutes) {
-        routes.set(key, value)
-      }
-
-      // Update entrypoints to include merged routes for manifest processing
-      entrypoints = {
-        ...entrypoints,
-        routes,
-      }
+      routes = deferredRoutes
+      entrypoints = deferredEntrypoints
     }
 
     const hasPagesEntries = Array.from(routes.values()).some((route) => {
