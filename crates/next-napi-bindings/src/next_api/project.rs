@@ -1123,7 +1123,12 @@ async fn output_assets_operation(
 
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
 
-    project.whole_app_module_graphs().as_side_effect().await?;
+    // Per-write debug_build_paths are partial writes (used by deferred entries
+    // first pass). Avoid eagerly computing the whole app graph there so deferred
+    // modules are not loaded before the callback gate.
+    if debug_build_paths.is_none() {
+        project.whole_app_module_graphs().as_side_effect().await?;
+    }
 
     Ok(Vc::cell(
         output_assets

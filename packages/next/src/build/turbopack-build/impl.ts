@@ -244,7 +244,7 @@ export async function turbopackBuild(): Promise<{
   }
 
   // For deferred entries, we use debugBuildPaths to control which routes are built
-  // First build excludes deferred entries, second build includes only deferred entries
+  // in two phases around onBeforeDeferredEntries.
   const nonDeferredBuildPaths =
     hasDeferredEntries && NextBuildContext.appDir
       ? getNonDeferredBuildPaths(
@@ -309,14 +309,13 @@ export async function turbopackBuild(): Promise<{
     : NextBuildContext.debugBuildPaths
   const firstPassDebugBuildPaths = firstPassBuildPaths ?? undefined
 
-  // In deferred mode, keep the first pass filter on the project and apply the
-  // deferred filter as a per-write override in the second pass.
+  // In deferred mode, the first-pass filter must be a per-write override so the
+  // native layer can treat it as a partial write and avoid eager full-app graph
+  // work before onBeforeDeferredEntries is called.
   const projectDebugBuildPaths = hasDeferredEntries
-    ? firstPassDebugBuildPaths
-    : NextBuildContext.debugBuildPaths
-  const firstPassWriteDebugBuildPaths = hasDeferredEntries
     ? undefined
-    : firstPassDebugBuildPaths
+    : NextBuildContext.debugBuildPaths
+  const firstPassWriteDebugBuildPaths = firstPassDebugBuildPaths
 
   const project = await bindings.turbo.createProject(
     {
