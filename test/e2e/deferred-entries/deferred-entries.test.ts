@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import fs from 'fs'
 import path from 'path'
+import { Response } from 'node-fetch'
 
 interface LogEntry {
   timestamp: number
@@ -107,7 +108,7 @@ async function waitForCallbackTimestampToStabilize(
   )
 }
 
-describe('deferred-entries webpack', () => {
+describe('deferred-entries', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
