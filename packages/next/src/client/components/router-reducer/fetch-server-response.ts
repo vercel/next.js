@@ -156,6 +156,14 @@ export async function fetchServerResponse(
         url = new URL(url)
         if (url.pathname.endsWith('/')) {
           url.pathname += 'index.txt'
+        } else if (
+          process.env.__NEXT_ROUTER_BASEPATH &&
+          url.pathname === process.env.__NEXT_ROUTER_BASEPATH
+        ) {
+          // When basePath is set, the root page URL is `/basePath` without
+          // a trailing slash. The static export outputs the RSC payload for
+          // the root page as `/basePath/index.txt`, not `/basePath.txt`.
+          url.pathname += '/index.txt'
         } else {
           url.pathname += '.txt'
         }
