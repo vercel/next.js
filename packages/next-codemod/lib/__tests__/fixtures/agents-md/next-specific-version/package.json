@@ -1,0 +1,6 @@
+{
+  "name": "next-specific-version",
+  "dependencies": {
+    "next": "15.4.0"
+  }
+}
