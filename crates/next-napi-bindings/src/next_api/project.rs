@@ -989,20 +989,34 @@ pub struct NapiDebugBuildPaths {
     pub pages: Vec<RcStr>,
 }
 
+impl From<NapiDebugBuildPaths> for DebugBuildPaths {
+    fn from(value: NapiDebugBuildPaths) -> Self {
+        Self {
+            app: value.app,
+            pages: value.pages,
+        }
+    }
+}
+
 #[tracing::instrument(level = "info", name = "write all entrypoints to disk", skip_all)]
 #[napi]
 pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
+    debug_build_paths: Option<NapiDebugBuildPaths>,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let ctx = &project.turbopack_ctx;
     let container = project.container;
+    let debug_build_paths = debug_build_paths.map(DebugBuildPaths::from);
     let tt = ctx.turbo_tasks();
 
     let (entrypoints, issues, diags) = tt
         .run(async move {
-            let entrypoints_with_issues_op =
-                get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
+            let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
+                container,
+                app_dir_only,
+                debug_build_paths,
+            );
 
             // Read and compile the files
             let AllWrittenEntrypointsWithIssues {
@@ -1040,10 +1054,12 @@ pub async fn project_write_all_entrypoints_to_disk(
 async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
+    debug_build_paths: Option<DebugBuildPaths>,
 ) -> Result<Vc<AllWrittenEntrypointsWithIssues>> {
     let entrypoints_operation = EntrypointsOperation::new(all_entrypoints_write_to_disk_operation(
         container,
         app_dir_only,
+        debug_build_paths,
     ));
     let filter = issue_filter_from_container(container);
     let (entrypoints, issues, diagnostics, effects) =
@@ -1059,12 +1075,14 @@ async fn get_all_written_entrypoints_with_issues_operation(
 
 #[turbo_tasks::function(operation)]
 pub async fn all_entrypoints_write_to_disk_operation(
-    project: ResolvedVc<ProjectContainer>,
+    container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
+    debug_build_paths: Option<DebugBuildPaths>,
 ) -> Result<Vc<Entrypoints>> {
-    let output_assets_operation = output_assets_operation(project, app_dir_only);
+    let output_assets_operation =
+        output_assets_operation(container, app_dir_only, debug_build_paths.clone());
+    let project = container.project_with_debug_build_paths(debug_build_paths.clone());
     project
-        .project()
         .emit_all_output_assets(output_assets_operation)
         .as_side_effect()
         .await?;
@@ -1076,9 +1094,9 @@ pub async fn all_entrypoints_write_to_disk_operation(
 async fn output_assets_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
+    debug_build_paths: Option<DebugBuildPaths>,
 ) -> Result<Vc<OutputAssets>> {
-    let project = container.project();
-    let whole_app_module_graphs = project.whole_app_module_graphs();
+    let project = container.project_with_debug_build_paths(debug_build_paths.clone());
     let endpoint_assets = project
         .get_all_endpoints(app_dir_only)
         .await?
@@ -1096,7 +1114,7 @@ async fn output_assets_operation(
 
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
 
-    whole_app_module_graphs.as_side_effect().await?;
+    project.whole_app_module_graphs().as_side_effect().await?;
 
     Ok(Vc::cell(
         output_assets

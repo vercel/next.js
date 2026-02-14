@@ -319,17 +319,20 @@ export async function turbopackBuild(): Promise<{
 
   const sharedTurboOptions = {
     memoryLimit: config.experimental?.turbopackMemoryLimit,
-    dependencyTracking: persistentCaching,
+    dependencyTracking: persistentCaching || hasDeferredEntries,
     isCi: isCI,
     isShortSession: true,
   }
 
+  const firstPassBuildPaths = hasDeferredEntries
+    ? nonDeferredBuildPaths
+    : NextBuildContext.debugBuildPaths
+  const firstPassDebugBuildPaths = firstPassBuildPaths ?? undefined
+
   const project = await bindings.turbo.createProject(
     {
       ...sharedProjectOptions,
-      // For deferred entries, first build only non-deferred routes
-      debugBuildPaths:
-        nonDeferredBuildPaths ?? NextBuildContext.debugBuildPaths,
+      debugBuildPaths: firstPassDebugBuildPaths,
     },
     sharedTurboOptions
   )
@@ -353,7 +356,10 @@ export async function turbopackBuild(): Promise<{
     let appDirOnly = NextBuildContext.appDirOnly!
 
     // First build: without deferred entries (they're renamed to .deferred)
-    let entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    let entrypoints = await project.writeAllEntrypointsToDisk(
+      appDirOnly,
+      firstPassDebugBuildPaths
+    )
     printBuildErrors(entrypoints, dev)
 
     let routes = entrypoints.routes
@@ -363,9 +369,6 @@ export async function turbopackBuild(): Promise<{
       throw new Error(`Turbopack build failed`)
     }
 
-    // Track which project to shutdown at the end
-    let activeProject = project
-
     // Handle deferred entries: call callback and do second build
     if (deferredBuildPaths) {
       // Call onBeforeDeferredEntries callback after first build completes
@@ -373,24 +376,11 @@ export async function turbopackBuild(): Promise<{
         await onBeforeDeferredEntries()
       }
 
-      // Shutdown the first project instance
-      await project.shutdown()
-
-      // Create a new project instance with debugBuildPaths for only deferred routes
-      // A new project is needed because turbo_tasks caches entrypoints discovery
-      activeProject = await bindings.turbo.createProject(
-        {
-          ...sharedProjectOptions,
-          debugBuildPaths: deferredBuildPaths,
-        },
-        sharedTurboOptions
-      )
-
-      backgroundLogCompilationEvents(activeProject)
-
       // Second build: only build deferred entries
-      const deferredEntrypoints =
-        await activeProject.writeAllEntrypointsToDisk(appDirOnly)
+      const deferredEntrypoints = await project.writeAllEntrypointsToDisk(
+        appDirOnly,
+        deferredBuildPaths
+      )
       printBuildErrors(deferredEntrypoints, dev)
 
       const deferredRoutes = deferredEntrypoints.routes
@@ -492,10 +482,10 @@ export async function turbopackBuild(): Promise<{
     })
 
     if (NextBuildContext.analyze) {
-      await activeProject.writeAnalyzeData(appDirOnly)
+      await project.writeAnalyzeData(appDirOnly)
     }
 
-    const shutdownPromise = activeProject.shutdown()
+    const shutdownPromise = project.shutdown()
 
     const time = process.hrtime(startTime)
     return {

@@ -542,6 +542,12 @@ fn should_include_pages_route(route_key: &RcStr, route_keys: &FxHashSet<RcStr>) 
     route_keys.contains(route_key)
 }
 
+fn debug_build_paths_to_route_keys(
+    debug_build_paths: Option<&DebugBuildPaths>,
+) -> Option<DebugBuildPathsRouteKeys> {
+    debug_build_paths.map(DebugBuildPathsRouteKeys::from_debug_build_paths)
+}
+
 impl ProjectContainer {
     pub async fn initialize(self: ResolvedVc<Self>, options: ProjectOptions) -> Result<()> {
         let span = tracing::info_span!(
@@ -709,7 +715,15 @@ impl ProjectContainer {
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub async fn project(&self) -> Result<Vc<Project>> {
+    pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
+        Ok(self.project_with_debug_build_paths(None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn project_with_debug_build_paths(
+        &self,
+        debug_build_paths_override: Option<DebugBuildPaths>,
+    ) -> Result<Vc<Project>> {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
@@ -724,7 +738,7 @@ impl ProjectContainer {
         let no_mangling;
         let write_routes_hashes_manifest;
         let current_node_js_version;
-        let debug_build_paths;
+        let default_debug_build_paths;
         let is_persistent_caching_enabled;
         {
             let options = self.options_state.get();
@@ -750,9 +764,10 @@ impl ProjectContainer {
             no_mangling = options.no_mangling;
             write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
-            debug_build_paths = options.debug_build_paths.clone();
+            default_debug_build_paths = options.debug_build_paths.clone();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
         }
+        let debug_build_paths = debug_build_paths_override.or(default_debug_build_paths);
 
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
@@ -1179,9 +1194,20 @@ impl Project {
         self: Vc<Self>,
         app_dir_only: bool,
     ) -> Result<Vc<EndpointGroups>> {
+        Ok(self.get_all_endpoint_groups_with_debug_build_paths(app_dir_only, None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_all_endpoint_groups_with_debug_build_paths(
+        self: Vc<Self>,
+        app_dir_only: bool,
+        debug_build_paths: Option<DebugBuildPaths>,
+    ) -> Result<Vc<EndpointGroups>> {
         let mut endpoint_groups = Vec::new();
 
-        let entrypoints = self.entrypoints().await?;
+        let entrypoints = self
+            .entrypoints_with_debug_build_paths(debug_build_paths)
+            .await?;
         let mut add_pages_entries = false;
 
         if let Some(middleware) = &entrypoints.middleware {
@@ -1288,8 +1314,21 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
+        Ok(self.get_all_endpoints_with_debug_build_paths(app_dir_only, None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_all_endpoints_with_debug_build_paths(
+        self: Vc<Self>,
+        app_dir_only: bool,
+        debug_build_paths: Option<DebugBuildPaths>,
+    ) -> Result<Vc<Endpoints>> {
         let mut endpoints = Vec::new();
-        for (_key, group) in self.get_all_endpoint_groups(app_dir_only).await?.iter() {
+        for (_key, group) in self
+            .get_all_endpoint_groups_with_debug_build_paths(app_dir_only, debug_build_paths)
+            .await?
+            .iter()
+        {
             for entry in group.primary.iter() {
                 endpoints.push(entry.endpoint);
             }
@@ -1624,6 +1663,16 @@ impl Project {
     /// provided page_extensions).
     #[turbo_tasks::function]
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
+        Ok(self.entrypoints_with_debug_build_paths(None))
+    }
+
+    /// Scans app/pages directories for entry points files and optionally
+    /// filters routes by debug build paths.
+    #[turbo_tasks::function]
+    pub async fn entrypoints_with_debug_build_paths(
+        self: Vc<Self>,
+        debug_build_paths: Option<DebugBuildPaths>,
+    ) -> Result<Vc<Entrypoints>> {
         self.collect_project_feature_telemetry().await?;
 
         let this = self.await?;
@@ -1631,11 +1680,13 @@ impl Project {
         let app_project = self.app_project();
         let pages_project = self.pages_project();
 
-        // Convert debug build paths to route keys once for O(1) lookups
-        let debug_build_paths_route_keys = this
-            .debug_build_paths
+        // Use per-call override when provided, otherwise fall back to
+        // project-wide debug build paths.
+        let effective_debug_build_paths = debug_build_paths
             .as_ref()
-            .map(DebugBuildPathsRouteKeys::from_debug_build_paths);
+            .or(this.debug_build_paths.as_ref());
+        let debug_build_paths_route_keys =
+            debug_build_paths_to_route_keys(effective_debug_build_paths);
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes();
