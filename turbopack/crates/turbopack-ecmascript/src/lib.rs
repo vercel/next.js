@@ -1371,26 +1371,30 @@ async fn merge_modules(
         fn visit_mut_span(&mut self, span: &mut Span) {
             // Encode the module index into the span, to be able to retrieve the module later for
             // finding the correct Comments and SourceMap.
-            span.lo = CodeGenResultComments::encode_bytepos_with_vec(
-                self.modules_header_width,
-                self.current_module_idx,
-                span.lo,
-                self.lookup_table,
-            )
-            .unwrap_or_else(|err| {
-                self.error = Err(err);
-                span.lo
-            });
-            span.hi = CodeGenResultComments::encode_bytepos_with_vec(
-                self.modules_header_width,
-                self.current_module_idx,
-                span.hi,
-                self.lookup_table,
-            )
-            .unwrap_or_else(|err| {
-                self.error = Err(err);
-                span.hi
-            });
+            if !(span.lo.is_pure() || span.lo.is_placeholder() || span.lo == BytePos::SYNTHESIZED) {
+                span.lo = CodeGenResultComments::encode_bytepos_with_vec(
+                    self.modules_header_width,
+                    self.current_module_idx,
+                    span.lo,
+                    self.lookup_table,
+                )
+                .unwrap_or_else(|err| {
+                    self.error = Err(err);
+                    span.lo
+                });
+            }
+            if !(span.hi.is_pure() || span.hi.is_placeholder() || span.hi == BytePos::SYNTHESIZED) {
+                span.hi = CodeGenResultComments::encode_bytepos_with_vec(
+                    self.modules_header_width,
+                    self.current_module_idx,
+                    span.hi,
+                    self.lookup_table,
+                )
+                .unwrap_or_else(|err| {
+                    self.error = Err(err);
+                    span.hi
+                });
+            }
         }
     }
 
@@ -2817,6 +2821,10 @@ impl CodeGenResultComments {
         if pos.is_dummy() {
             // nothing to decode
             panic!("Cannot decode dummy BytePos");
+        }
+
+        if pos.is_pure() || pos.is_placeholder() || pos == BytePos::SYNTHESIZED {
+            return (0, pos);
         }
 
         let header_width = modules_header_width + 2;

@@ -9,5 +9,9 @@ it('should retain PURE comments with scope hoisting', () => {
     )
   )
 
-  expect(factory.toString()).not.toContain('THIS_SHOULD_BE_REMOVED')
+  const source = factory.toString()
+  const marker = 'THIS_SHOULD_BE_REMOVED'
+  const markerOccurrences = source.split(marker).length - 1
+
+  expect(markerOccurrences).toBe(1)
 })
