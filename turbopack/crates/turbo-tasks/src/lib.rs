@@ -45,9 +45,10 @@ mod capture_future;
 mod collectibles;
 mod completion;
 pub mod debug;
-mod display;
+pub mod display;
 pub mod duration_span;
 mod effect;
+mod error;
 pub mod event;
 pub mod graph;
 mod id;
@@ -103,6 +104,7 @@ pub use crate::{
     completion::{Completion, Completions},
     display::ValueToString,
     effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
+    error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
@@ -119,7 +121,7 @@ pub use crate::{
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
+    raw_vc::{CellId, RawVc, ReadRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,

@@ -1,4 +1,4 @@
-import { CACHE_ONE_YEAR } from '../../lib/constants'
+import { CACHE_ONE_YEAR_SECONDS } from '../../lib/constants'
 
 /**
  * The revalidate option used internally for pages. A value of `false` means
@@ -31,5 +31,5 @@ export function getCacheControlHeader({
     return `s-maxage=${revalidate}${swrHeader}`
   }
 
-  return `s-maxage=${CACHE_ONE_YEAR}${swrHeader}`
+  return `s-maxage=${CACHE_ONE_YEAR_SECONDS}${swrHeader}`
 }

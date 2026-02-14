@@ -90,6 +90,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_INSTANT_TEST_COOKIE,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -325,6 +326,7 @@ export default abstract class Server<
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
   protected readonly deploymentId: string
+  protected readonly dev: boolean
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
@@ -443,6 +445,7 @@ export default abstract class Server<
       experimentalTestProxy,
     } = options
 
+    this.dev = dev
     this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
@@ -576,6 +579,9 @@ export default abstract class Server<
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
+      logServerFunctions:
+        typeof this.nextConfig.logging === 'object' &&
+        Boolean(this.nextConfig.logging.serverFunctions),
     }
 
     this.pagesManifest = this.getPagesManifest()
@@ -1589,11 +1595,7 @@ export default abstract class Server<
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (
-        this.minimalMode ||
-        this.renderOpts.dev ||
-        (isBubbledError(err) && err.bubble)
-      ) {
+      if (this.minimalMode || this.dev || (isBubbledError(err) && err.bubble)) {
         throw err
       }
       this.logError(getProperError(err))
@@ -1784,10 +1786,10 @@ export default abstract class Server<
     const { body } = payload
     let { cacheControl } = payload
     if (!res.sent) {
-      const { generateEtags, poweredByHeader, dev } = this.renderOpts
+      const { generateEtags, poweredByHeader } = this.renderOpts
 
       // In dev, we should not cache pages for any reason.
-      if (dev) {
+      if (this.dev) {
         res.setHeader(
           'Cache-Control',
           this.nextConfig.experimental.devCacheControlNoCache
@@ -2118,7 +2120,7 @@ export default abstract class Server<
       req.headers['x-now-route-matches']
     ) {
       isSSG = true
-    } else if (!this.renderOpts.dev) {
+    } else if (!this.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
     }
 
@@ -2193,6 +2195,22 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
+    // Whether the testing API is exposed (dev mode or explicit flag)
+    const exposeTestingApi =
+      this.dev === true ||
+      this.nextConfig.experimental.exposeTestingApiInProductionBuild === true
+
+    // Check for the instant test cookie for MPA navigations (page reload, full
+    // page load) in the Instant Navigation Testing API. Only applies to
+    // document requests (no RSC header) - RSC requests should proceed normally
+    // even during a locked scope, with blocking happening on the client side.
+    const hasInstantTestCookie =
+      exposeTestingApi &&
+      req.headers[RSC_HEADER] === undefined &&
+      typeof req.headers.cookie === 'string' &&
+      req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+      couldSupportPPR
+
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
@@ -2204,10 +2222,9 @@ export default abstract class Server<
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it
-        // but only during development.
-        (hasDebugStaticShellQuery &&
-          (this.renderOpts.dev === true ||
-            this.experimentalTestProxy === true)))
+        // but only during development or when the testing API is exposed.
+        ((hasDebugStaticShellQuery || hasInstantTestCookie) &&
+          (exposeTestingApi || this.experimentalTestProxy === true)))
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -2273,7 +2290,7 @@ export default abstract class Server<
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (!isNextDataRequest && isAppPath && opts.dev) {
+    if (!isNextDataRequest && isAppPath && this.dev) {
       opts.supportsDynamicResponse = true
     }
 
@@ -2310,7 +2327,7 @@ export default abstract class Server<
       (components.getStaticPaths || isAppPath)
     ) {
       let getStaticPathsStart: bigint | undefined
-      if (opts.dev) {
+      if (this.dev) {
         getStaticPathsStart = process.hrtime.bigint()
       }
 
@@ -2322,7 +2339,7 @@ export default abstract class Server<
         isAppPath,
       })
 
-      if (opts.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
+      if (this.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
         addRequestMeta(
           req,
           'devGenerateStaticParamsDuration',
@@ -2657,7 +2674,7 @@ export default abstract class Server<
       const isWrappedError = err instanceof WrappedBuildError
 
       if (!isWrappedError) {
-        if (this.minimalMode || this.renderOpts.dev) {
+        if (this.minimalMode || this.dev) {
           if (isError(err)) err.page = page
           throw err
         }
@@ -2779,7 +2796,7 @@ export default abstract class Server<
   ): Promise<ResponsePayload | null> {
     // Short-circuit favicon.ico in development to avoid compiling 404 page when the app has no favicon.ico.
     // Since favicon.ico is automatically requested by the browser.
-    if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
+    if (this.dev && ctx.pathname === '/favicon.ico') {
       return {
         body: RenderResult.EMPTY,
       }
@@ -2831,7 +2848,7 @@ export default abstract class Server<
       ) {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
-        if (statusPage !== '/500' || !this.renderOpts.dev) {
+        if (statusPage !== '/500' || !this.dev) {
           if (!result && hasAppDir) {
             // Otherwise if app router present, load app router built-in 500 page
             result = await this.findPageComponents({
@@ -2888,7 +2905,7 @@ export default abstract class Server<
       if (!result) {
         // this can occur when a project directory has been moved/deleted
         // which is handled in the parent process in development
-        if (this.renderOpts.dev) {
+        if (this.dev) {
           return {
             // wait for dev-server to restart before refreshing
             body: RenderResult.fromStatic(

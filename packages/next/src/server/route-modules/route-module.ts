@@ -137,7 +137,7 @@ export abstract class RouteModule<
   }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
-    this.isDev = process.env.NODE_ENV === 'development'
+    this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
   }
@@ -228,6 +228,7 @@ export abstract class RouteModule<
           },
           redirects: [],
           headers: [],
+          onMatchHeaders: [],
           i18n:
             (process.env.__NEXT_I18N_CONFIG as any as I18NConfig) || undefined,
           skipProxyUrlNormalize: Boolean(
@@ -346,6 +347,7 @@ export abstract class RouteModule<
           : loadManifestFromRelativePath<RequiredServerFilesManifest>({
               projectDir,
               distDir: this.distDir,
+              shouldCache: true,
               manifest: `${SERVER_FILES_MANIFEST}.json`,
             }),
         this.isDev
@@ -355,11 +357,13 @@ export abstract class RouteModule<
               distDir: this.distDir,
               manifest: BUILD_ID_FILE,
               skipParse: true,
+              shouldCache: true,
             }),
         loadManifestFromRelativePath<any>({
           projectDir,
           distDir: this.distDir,
           manifest: DYNAMIC_CSS_MANIFEST,
+          shouldCache: !this.isDev,
           handleMissing: true,
         }),
       ]
@@ -627,7 +631,7 @@ export abstract class RouteModule<
       // onRequestError below
       ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = await this.loadManifests(srcPage, absoluteProjectDir)
+    const manifests = this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest

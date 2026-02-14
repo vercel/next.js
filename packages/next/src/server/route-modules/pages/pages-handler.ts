@@ -28,9 +28,10 @@ import {
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
 } from '../../../lib/constants'
 import path from 'path'
 import { sendRenderResult } from '../../send-payload'
@@ -338,7 +339,6 @@ export const getHandler = ({
 
                     ErrorDebug: getRequestMeta(req, 'PagesErrorDebug'),
                     err: getRequestMeta(req, 'invokeError'),
-                    dev: routeModule.isDev,
 
                     // needed for experimental.optimizeCss feature
                     distDir: path.join(
@@ -607,7 +607,7 @@ export const getHandler = ({
           } else {
             // revalidate: false
             cacheControl = {
-              revalidate: CACHE_ONE_YEAR,
+              revalidate: CACHE_ONE_YEAR_SECONDS,
               expire: undefined,
             }
           }
@@ -634,6 +634,10 @@ export const getHandler = ({
           res.statusCode = 404
 
           if (isNextDataRequest) {
+            const deploymentId = getDeploymentId()
+            if (deploymentId) {
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+            }
             res.end('{"notFound":true}')
             return
           }
@@ -642,6 +646,10 @@ export const getHandler = ({
 
         if (result.value.kind === CachedRouteKind.REDIRECT) {
           if (isNextDataRequest) {
+            const deploymentId = getDeploymentId()
+            if (deploymentId) {
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+            }
             res.setHeader('content-type', JSON_CONTENT_TYPE_HEADER)
             res.end(JSON.stringify(result.value.props))
             return
@@ -712,6 +720,14 @@ export const getHandler = ({
           (isErrorPage && isMinimalMode && res.statusCode === 500)
         ) {
           return null
+        }
+
+        // Add deployment ID header for data requests
+        if (isNextDataRequest && !isErrorPage && !is500Page) {
+          const deploymentId = getDeploymentId()
+          if (deploymentId) {
+            res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+          }
         }
 
         await sendRenderResult({

@@ -33,8 +33,8 @@ Cache Components eliminates these tradeoffs by prerendering routes into a **stat
 
 At build time, Next.js renders your route's component tree. As long as components don't access network resources, certain system APIs, or require an incoming request to render, their output is **automatically added to the static shell**. Otherwise, you must choose how to handle them:
 
-- Defer rendering to request time by wrapping components in React's [`<Suspense>`](https://react.dev/reference/react/Suspense), [showing fallback UI](#defer-rendering-to-request-time) until the content is ready, or
-- Cache the result using the [`use cache`](/docs/app/api-reference/directives/use-cache) directive to [include it in the static shell](#using-use-cache) (if no request data is needed)
+- Either defer rendering to request time by wrapping components in React's [`<Suspense>`](https://react.dev/reference/react/Suspense), [showing fallback UI](#defer-rendering-to-request-time) until the content is ready
+- Or cache the result using the [`use cache`](/docs/app/api-reference/directives/use-cache) directive to [include it in the static shell](#using-use-cache) (if no request data is needed)
 
 Because this happens ahead of time, before a request arrives, we refer to it as prerendering. This generates a static shell consisting of HTML for initial page loads and a serialized [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation, ensuring the browser receives fully rendered content instantly whether users navigate directly to the URL or transition from another page.
 
@@ -310,6 +310,8 @@ export default async function Page() {
 }
 ```
 
+> **Good to know:** A cache is considered "short-lived" when it uses the `seconds` profile, `revalidate: 0`, or `expire` under 5 minutes. Short-lived caches are automatically excluded from prerenders and become dynamic holes instead. If such a cache is nested inside another `use cache` without an explicit `cacheLife`, Next.js will throw an error during prerendering to prevent accidental misconfigurations. See [Prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for details.
+
 See the [`cacheLife` API reference](/docs/app/api-reference/functions/cacheLife) for available profiles and custom configuration options.
 
 ### With runtime data
@@ -551,6 +553,8 @@ Rather than unmounting the previous route when you navigate away, Next.js sets t
 This behavior improves the navigation experience by maintaining UI state (form inputs, or expanded sections) when users navigate back and forth between routes.
 
 > **Good to know**: Next.js uses heuristics to keep a few recently visited routes `"hidden"`, while older routes are removed from the DOM to prevent excessive growth.
+
+Some UI patterns behave differently when components stay mounted instead of unmounting. See the [Activity with Cache Components guide](/docs/app/guides/activity-cache-components) for handling common patterns like dropdowns, dialogs, and testing.
 
 ## Migrating route segment configs
 

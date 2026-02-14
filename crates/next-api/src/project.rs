@@ -57,8 +57,8 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
-        StyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage,
+        OptionStyledString, StyledString,
     },
     module::Module,
     module_graph::{
@@ -164,6 +164,51 @@ pub struct WatchOptions {
 pub struct DebugBuildPaths {
     pub app: Vec<RcStr>,
     pub pages: Vec<RcStr>,
+}
+
+/// Target for HMR operations - client-side (browser) or server-side (Node.js).
+#[derive(
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub enum HmrTarget {
+    #[default]
+    Client,
+    Server,
+}
+
+impl std::fmt::Display for HmrTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HmrTarget::Client => write!(f, "client"),
+            HmrTarget::Server => write!(f, "server"),
+        }
+    }
+}
+
+impl std::str::FromStr for HmrTarget {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "client" => Ok(HmrTarget::Client),
+            "server" => Ok(HmrTarget::Server),
+            _ => Err(format!(
+                "Invalid HMR target: '{}'. Expected 'client' or 'server'",
+                s
+            )),
+        }
+    }
 }
 
 /// Pre-converted route keys from debug build paths for O(1) lookups.
@@ -275,6 +320,9 @@ pub struct ProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
+
+    /// Whether to enable persistent caching
+    pub is_persistent_caching_enabled: bool,
 }
 
 pub struct PartialProjectOptions {
@@ -677,6 +725,7 @@ impl ProjectContainer {
         let write_routes_hashes_manifest;
         let current_node_js_version;
         let debug_build_paths;
+        let is_persistent_caching_enabled;
         {
             let options = self.options_state.get();
             let options = options
@@ -702,6 +751,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
             debug_build_paths = options.debug_build_paths.clone();
+            is_persistent_caching_enabled = options.is_persistent_caching_enabled;
         }
 
         let dist_dir = next_config.dist_dir().owned().await?;
@@ -729,6 +779,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest,
             current_node_js_version,
             debug_build_paths,
+            is_persistent_caching_enabled,
         }
         .cell())
     }
@@ -739,10 +790,10 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
-    /// See [Project::hmr_identifiers].
+    /// See [Project::hmr_chunk_names].
     #[turbo_tasks::function]
-    pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<RcStr>> {
-        self.project().hmr_identifiers()
+    pub fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Vc<Vec<RcStr>> {
+        self.project().hmr_chunk_names(target)
     }
 
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
@@ -823,6 +874,9 @@ pub struct Project {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     debug_build_paths: Option<DebugBuildPaths>,
+
+    /// Whether to enable persistent caching
+    is_persistent_caching_enabled: bool,
 }
 
 #[turbo_tasks::value]
@@ -1032,6 +1086,21 @@ impl Project {
         *self.next_config
     }
 
+    /// Build the `IssueFilter` for this project, incorporating any
+    /// `turbopack.ignoreIssue` rules from the Next.js config.
+    #[turbo_tasks::function]
+    pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
+        let ignore_rules = self.next_config().turbopack_ignore_issue_rules().await?;
+        Ok(IssueFilter::warnings_and_foreign_errors()
+            .with_ignore_rules(ignore_rules.to_vec())
+            .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn is_persistent_caching_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.is_persistent_caching_enabled)
+    }
+
     #[turbo_tasks::function]
     pub(super) fn next_mode(&self) -> Vc<NextMode> {
         *self.mode
@@ -1098,7 +1167,11 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
+        get_client_compile_time_info(
+            self.browserslist_query.clone(),
+            self.define_env.client(),
+            self.next_config.report_system_env_inlining(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -1336,6 +1409,7 @@ impl Project {
             self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
+            this.next_config.report_system_env_inlining(),
         ))
     }
 
@@ -1346,6 +1420,7 @@ impl Project {
             self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
+            this.next_config.report_system_env_inlining(),
         ))
     }
 
@@ -1365,6 +1440,7 @@ impl Project {
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1384,6 +1460,7 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), true),
             debug_ids: self.next_config().turbopack_debug_ids(),
             should_use_absolute_url_references: self.next_config().inline_css(),
+            css_url_suffix,
         }))
     }
 
@@ -1392,6 +1469,7 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
         let options = ServerChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1411,6 +1489,7 @@ impl Project {
             debug_ids: self.next_config().turbopack_debug_ids(),
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
+            css_url_suffix,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1424,6 +1503,7 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
         let options = EdgeChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1442,6 +1522,7 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), false),
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
+            css_url_suffix,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
@@ -1493,7 +1574,7 @@ impl Project {
         );
         emit_event(
             "persistentCaching",
-            *config.persistent_caching_enabled().await?,
+            *self.is_persistent_caching_enabled().await?,
         );
 
         emit_event(
@@ -1780,7 +1861,7 @@ impl Project {
     async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new()));
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -1964,7 +2045,7 @@ impl Project {
     ) -> Result<Vc<Box<dyn Endpoint>>> {
         let instrumentation = self.find_instrumentation();
         let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new()));
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -2030,19 +2111,39 @@ impl Project {
         .await
     }
 
+    /// Returns the root path for HMR content based on the target.
+    /// Client uses client_relative_path, Server uses node_root.
     #[turbo_tasks::function]
-    async fn hmr_content(self: Vc<Self>, identifier: RcStr) -> Result<Vc<OptionVersionedContent>> {
+    async fn hmr_root_path(self: Vc<Self>, target: HmrTarget) -> Result<Vc<FileSystemPath>> {
+        Ok(match target {
+            HmrTarget::Client => self.client_relative_path(),
+            HmrTarget::Server => self.node_root(),
+        })
+    }
+
+    /// Get HMR content by chunk_name for the specified target.
+    #[turbo_tasks::function]
+    async fn hmr_content(
+        self: Vc<Self>,
+        chunk_name: RcStr,
+        target: HmrTarget,
+    ) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            let content = map.get(self.client_relative_path().await?.join(&identifier)?);
+            let content = map.get(self.hmr_root_path(target).await?.join(&chunk_name)?);
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
         }
     }
 
+    /// Get HMR version for the specified target.
     #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.hmr_content(identifier).await?;
+    async fn hmr_version(
+        self: Vc<Self>,
+        chunk_name: RcStr,
+        target: HmrTarget,
+    ) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.hmr_content(chunk_name, target).await?;
         if let Some(content) = &*content {
             Ok(content.version())
         } else {
@@ -2050,15 +2151,16 @@ impl Project {
         }
     }
 
-    /// Get the version state for a session. Initialized with the first seen
+    /// Get the version state for an HMR session. Initialized with the first seen
     /// version in that session.
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
+        target: HmrTarget,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
-        let version = self.hmr_version(identifier);
+        let version = self.hmr_version(chunk_name, target);
 
         // The session argument is important to avoid caching this function between
         // sessions.
@@ -2079,15 +2181,16 @@ impl Project {
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
-    /// internally known as `identifier`.
+    /// internally known as `chunk_name` for the specified target.
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
+        target: HmrTarget,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        let content = self.hmr_content(identifier).await?;
+        let content = self.hmr_content(chunk_name, target).await?;
         if let Some(content) = *content {
             Ok(content.update(from))
         } else {
@@ -2095,12 +2198,13 @@ impl Project {
         }
     }
 
-    /// Gets a list of all HMR identifiers that can be subscribed to. This is
-    /// only needed for testing purposes and isn't used in real apps.
+    /// Gets a list of all HMR chunk names that can be subscribed to for the
+    /// specified target. This is only needed for testing purposes and isn't
+    /// used in real apps.
     #[turbo_tasks::function]
-    pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
-            Ok(map.keys_in_path(self.client_relative_path().owned().await?))
+            Ok(map.keys_in_path(self.hmr_root_path(target).owned().await?))
         } else {
             bail!("must be in dev mode to hmr")
         }

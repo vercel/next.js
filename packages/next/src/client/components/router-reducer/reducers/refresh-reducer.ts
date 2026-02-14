@@ -1,6 +1,7 @@
 import type {
   ReadonlyReducerState,
   ReducerState,
+  RefreshAction,
 } from '../router-reducer-types'
 import {
   convertServerPatchToFullTree,
@@ -11,14 +12,25 @@ import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-c
 import { FreshnessPolicy } from '../ppr-navigations'
 import { invalidateBfCache } from '../../segment-cache/bfcache'
 
-export function refreshReducer(state: ReadonlyReducerState): ReducerState {
+export function refreshReducer(
+  state: ReadonlyReducerState,
+  action: RefreshAction
+): ReducerState {
   // During a refresh, we invalidate the segment cache but not the route cache.
   // The route cache contains the tree structure (which segments exist at a
   // given URL) which doesn't change during a refresh. The segment cache
   // contains the actual RSC data which needs to be re-fetched.
-  const currentNextUrl = state.nextUrl
-  const currentRouterState = state.tree
-  invalidateSegmentCacheEntries(currentNextUrl, currentRouterState)
+  //
+  // The Instant Navigation Testing API can bypass cache invalidation to
+  // preserve prefetched data when refreshing after an MPA navigation. This is
+  // only used for testing and is not exposed in production builds by default.
+  const bypassCacheInvalidation =
+    process.env.__NEXT_EXPOSE_TESTING_API && action.devBypassCacheInvalidation
+  if (!bypassCacheInvalidation) {
+    const currentNextUrl = state.nextUrl
+    const currentRouterState = state.tree
+    invalidateSegmentCacheEntries(currentNextUrl, currentRouterState)
+  }
   return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
 }
 

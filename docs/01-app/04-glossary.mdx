@@ -270,3 +270,9 @@ A special React directive that marks the boundary between server and client code
 ## `"use server"` Directive
 
 A directive that marks a function as a [Server Function](#server-function) that can be called from client-side code. It can be placed at the top of a file to indicate that all exports in the file are Server Functions, or inline at the top of a function to mark that specific function. Learn more in the [`"use server"` reference](/docs/app/api-reference/directives/use-server).
+
+# V
+
+## Version skew
+
+After a new version of your application is deployed, clients that are still active may reference JavaScript, CSS, or data from an older build. This mismatch between client and server versions is called version skew, and it can cause missing assets, Server Action errors, and navigation failures. Next.js uses [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) to detect and handle version skew. Learn more in [Self-Hosting - Version Skew](/docs/app/guides/self-hosting#version-skew).

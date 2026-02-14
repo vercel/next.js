@@ -8,6 +8,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
+
 import {
   addRequestMeta,
   getRequestMeta,
@@ -39,7 +40,12 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
-import { type Span, setGlobal, trace } from '../../trace'
+import {
+  type Span,
+  hrtimeToEpochNanoseconds,
+  setGlobal,
+  trace,
+} from '../../trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
@@ -180,7 +186,6 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache(
       // 5MB
@@ -532,6 +537,20 @@ export default class DevServer extends Server {
               getRequestMeta(req, 'devRequestTimingInternalsEnd'),
               getRequestMeta(req, 'devGenerateStaticParamsDuration')
             )
+
+            // Create trace span for render phase
+            const devRequestTimingInternalsEnd = getRequestMeta(
+              req,
+              'devRequestTimingInternalsEnd'
+            )
+            if (devRequestTimingInternalsEnd) {
+              this.startServerSpan.manualTraceChild(
+                'render-path',
+                hrtimeToEpochNanoseconds(devRequestTimingInternalsEnd),
+                hrtimeToEpochNanoseconds(requestEnd),
+                { path: req.url || '' }
+              )
+            }
           })
         }
       }

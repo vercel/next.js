@@ -92,7 +92,10 @@ import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
-import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
+import {
+  walkTreeWithFlightRouterState,
+  createFullTreeFlightDataForNavigation,
+} from './walk-tree-with-flight-router-state'
 import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import {
@@ -136,6 +139,9 @@ import {
   trackDynamicHoleInRuntimeShell,
   trackDynamicHoleInStaticShell,
   getStaticShellDisallowedDynamicReasons,
+  getNavigationDisallowedDynamicReasons,
+  trackDynamicHoleInNavigation,
+  DynamicHoleKind,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -220,8 +226,20 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
-import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
+import {
+  anySegmentHasRuntimePrefetchEnabled,
+  isPageAllowedToBlock,
+  anySegmentNeedsInstantValidation,
+} from './instant-validation/instant-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+import {
+  createDebugChannel,
+  type DebugChannelPair,
+} from './debug-channel-server'
+import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
+
+// NOTE: Only use this for types, access implementations via ComponentMod
+import type * as InstantValidation from './instant-validation/instant-validation'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -269,6 +287,23 @@ export type AppRenderContext = {
    * work unit store.
    */
   implicitTags: ImplicitTags
+}
+
+function maybeAppendBuildIdToRSCPayload<T extends RSCPayload>(
+  ctx: AppRenderContext,
+  payload: T
+): T {
+  if (!ctx.sharedContext.deploymentId) {
+    // When using the build id, we need to initialize the id on initial page load, so a build id
+    // header wouldn't be enough.
+    return {
+      ...payload,
+      b: ctx.sharedContext.buildId,
+    }
+  } else {
+    // We rely on a response header
+    return payload
+  }
 }
 
 interface ParseRequestHeadersOptions {
@@ -345,8 +380,8 @@ function parseRequestHeaders(
   let requestId: string | undefined
   let htmlRequestId: string | undefined
 
-  if (process.env.NODE_ENV !== 'production') {
-    // The request IDs are only used in development mode to send debug
+  if (process.env.__NEXT_DEV_SERVER) {
+    // The request IDs are only used for the dev server to send debug
     // information to the matching client (identified by the HTML request ID
     // that was sent to the client with the HTML document) for the current
     // request (identified by the request ID, as defined by the client).
@@ -500,6 +535,14 @@ async function generateDynamicRSCPayload(
   if (!options?.skipPageRendering) {
     const preloadCallbacks: PreloadCallbacks = []
 
+    // If we're performing instant validation, we need to render the whole tree,
+    // without skipping shared layouts.
+    const needsFullTree =
+      process.env.__NEXT_DEV_SERVER &&
+      ctx.renderOpts.cacheComponents &&
+      !options?.actionResult && // Only for navigations
+      (await anySegmentNeedsInstantValidation(loaderTree))
+
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
@@ -510,38 +553,50 @@ async function generateDynamicRSCPayload(
       serveStreamingMetadata,
     })
 
-    flightData = (
-      await walkTreeWithFlightRouterState({
-        ctx,
-        loaderTreeToFilter: loaderTree,
-        parentParams: {},
-        flightRouterState,
-        // For flight, render metadata inside leaf page
-        rscHead: createElement(
-          Fragment,
-          {
-            key: flightDataPathHeadKey,
-          },
-          createElement(NonIndex, {
-            createElement,
-            pagePath: ctx.pagePath,
-            statusCode: ctx.res.statusCode,
-            isPossibleServerAction: ctx.isPossibleServerAction,
-          }),
-          createElement(Viewport, {
-            key: getFlightViewportKey(requestId),
-          }),
-          createElement(Metadata, {
-            key: getFlightMetadataKey(requestId),
-          })
-        ),
-        injectedCSS: new Set(),
-        injectedJS: new Set(),
-        injectedFontPreloadTags: new Set(),
-        rootLayoutIncluded: false,
-        preloadCallbacks,
-        MetadataOutlet,
+    const rscHead = createElement(
+      Fragment,
+      {
+        key: flightDataPathHeadKey,
+      },
+      createElement(NonIndex, {
+        createElement,
+        pagePath: ctx.pagePath,
+        statusCode: ctx.res.statusCode,
+        isPossibleServerAction: ctx.isPossibleServerAction,
+      }),
+      createElement(Viewport, {
+        key: getFlightViewportKey(requestId),
+      }),
+      createElement(Metadata, {
+        key: getFlightMetadataKey(requestId),
       })
+    )
+
+    flightData = (
+      needsFullTree
+        ? await createFullTreeFlightDataForNavigation({
+            ctx,
+            loaderTree,
+            rscHead,
+            injectedCSS: new Set(),
+            injectedJS: new Set(),
+            injectedFontPreloadTags: new Set(),
+            preloadCallbacks,
+            MetadataOutlet,
+          })
+        : await walkTreeWithFlightRouterState({
+            ctx,
+            loaderTreeToFilter: loaderTree,
+            parentParams: {},
+            flightRouterState,
+            rscHead,
+            injectedCSS: new Set(),
+            injectedJS: new Set(),
+            injectedFontPreloadTags: new Set(),
+            rootLayoutIncluded: false,
+            preloadCallbacks,
+            MetadataOutlet,
+          })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
 
@@ -553,24 +608,22 @@ async function generateDynamicRSCPayload(
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
   if (options?.actionResult) {
-    return {
+    return maybeAppendBuildIdToRSCPayload(ctx, {
       a: options.actionResult,
       f: flightData,
-      b: ctx.sharedContext.buildId,
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
-    }
+    })
   }
 
   // Otherwise, it's a regular RSC response.
-  const baseResponse = {
-    b: ctx.sharedContext.buildId,
+  const baseResponse = maybeAppendBuildIdToRSCPayload(ctx, {
     f: flightData,
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
     S: workStore.isStaticGeneration,
     h: getMetadataVaryParamsThenable(),
-  }
+  })
 
   // For runtime prefetches, we encode the stale time and isPartial flag in the response body
   // rather than relying on response headers. Both of these values will be transformed
@@ -625,7 +678,6 @@ async function generateDynamicFlightRenderResult(
   } = ctx
 
   const {
-    dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
     isBuildTimePrerendering = false,
@@ -641,7 +693,7 @@ async function generateDynamicFlightRenderResult(
   }
 
   const onError = createReactServerErrorHandler(
-    dev,
+    process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
@@ -776,12 +828,16 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     renderOpts,
     requestId,
     workStore,
-    componentMod: { createElement },
+    componentMod: {
+      createElement,
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
     url,
   } = ctx
 
   const {
-    dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
     setCacheStatus,
@@ -798,17 +854,19 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   }
 
   const onError = createReactServerErrorHandler(
-    dev,
+    process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
   )
 
-  // We only validate RSC requests if it is for HMR refreshes since we know we
-  // will render all the layouts necessary to perform the validation.
+  // We validate RSC requests for HMR refreshes and client navigations when
+  // instant configs exist, since we render all the layouts necessary to perform
+  // the validation in those cases.
   const shouldValidate =
-    !isBypassingCachesInDev(renderOpts, initialRequestStore) &&
-    initialRequestStore.isHmrRefresh === true
+    !isBypassingCachesInDev(initialRequestStore) &&
+    (initialRequestStore.isHmrRefresh === true ||
+      (await anySegmentNeedsInstantValidation(loaderTree)))
 
   const getPayload = async (requestStore: RequestStore) => {
     const payload: RSCPayload &
@@ -820,7 +878,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       undefined
     )
 
-    if (isBypassingCachesInDev(renderOpts, requestStore)) {
+    if (isBypassingCachesInDev(requestStore)) {
       // Mark the RSC payload to indicate that caches were bypassed in dev.
       // This lets the client know not to cache anything based on this render.
       payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
@@ -844,7 +902,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     createRequestStore &&
     // We only do this flow if we're not bypassing caches in dev using
     // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-    !isBypassingCachesInDev(renderOpts, initialRequestStore)
+    !isBypassingCachesInDev(initialRequestStore)
   ) {
     // Before we kick off the render, we set the cache status back to it's initial state
     // in case a previous render bypassed the cache.
@@ -857,6 +915,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       accumulatedChunksPromise,
       staticInterruptReason,
       runtimeInterruptReason,
+      startTime,
       staticStageEndTime,
       runtimeStageEndTime,
       debugChannel: returnedDebugChannel,
@@ -882,6 +941,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         accumulatedChunksPromise,
         staticInterruptReason,
         runtimeInterruptReason,
+        startTime,
         staticStageEndTime,
         runtimeStageEndTime,
         ctx,
@@ -1448,7 +1508,7 @@ async function getRSCPayload(
   let missingSlots: Set<string> | undefined
 
   // We only track missing parallel slots in development
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.__NEXT_DEV_SERVER) {
     missingSlots = new Set<string>()
   }
 
@@ -1544,12 +1604,11 @@ async function getRSCPayload(
     workStore.isStaticGeneration &&
     ctx.renderOpts.experimental.isRoutePPREnabled === true
 
-  return {
+  return maybeAppendBuildIdToRSCPayload(ctx, {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: createElement(Preloads, {
       preloadCallbacks: preloadCallbacks,
     }),
-    b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
@@ -1565,7 +1624,7 @@ async function getRSCPayload(
     G: [GlobalError, globalErrorStyles],
     S: workStore.isStaticGeneration,
     h: getMetadataVaryParamsThenable(),
-  }
+  })
 }
 
 /**
@@ -1618,7 +1677,7 @@ async function getErrorRSCPayload(
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
     createElement(Viewport, null),
-    process.env.NODE_ENV === 'development' &&
+    process.env.__NEXT_DEV_SERVER &&
       createElement('meta', {
         name: 'next-error',
         content: 'not-found',
@@ -1649,7 +1708,7 @@ async function getErrorRSCPayload(
       createElement(
         'body',
         null,
-        process.env.NODE_ENV !== 'production' && err
+        process.env.__NEXT_DEV_SERVER && err
           ? createElement('template', {
               'data-next-error-message': err.message,
               'data-next-error-digest': 'digest' in err ? err.digest : '',
@@ -1674,8 +1733,7 @@ async function getErrorRSCPayload(
     workStore.isStaticGeneration &&
     ctx.renderOpts.experimental.isRoutePPREnabled === true
 
-  return {
-    b: ctx.sharedContext.buildId,
+  return maybeAppendBuildIdToRSCPayload(ctx, {
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     m: undefined,
@@ -1691,7 +1749,7 @@ async function getErrorRSCPayload(
     G: [GlobalError, globalErrorStyles],
     S: workStore.isStaticGeneration,
     h: getMetadataVaryParamsThenable(),
-  } satisfies InitialRSCPayload
+  } satisfies InitialRSCPayload)
 }
 
 // This component must run in an SSR context. It will render the RSC root component
@@ -1856,6 +1914,7 @@ async function renderToHTMLOrFlightImpl(
     assetPrefix = '',
     enableTainting,
     cacheComponents,
+    setIsrStatus,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -1872,7 +1931,7 @@ async function renderToHTMLOrFlightImpl(
       if (!cacheComponents) {
         return false
       }
-      if (renderOpts.dev) {
+      if (process.env.__NEXT_DEV_SERVER) {
         return true
       }
       const workUnitStore = workUnitAsyncStorage.getStore()
@@ -1920,14 +1979,10 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    renderOpts.setIsrStatus &&
-    !cacheComponents
-  ) {
+  if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
     // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setIsrStatus(
+    setIsrStatus(
       pathname,
       // Only pages using the Node runtime can use ISR, Edge is always dynamic.
       process.env.NEXT_RUNTIME === 'edge' ? false : undefined
@@ -2192,8 +2247,8 @@ async function renderToHTMLOrFlightImpl(
     const requestStore = createRequestStore()
 
     if (
-      process.env.NODE_ENV === 'development' &&
-      renderOpts.setIsrStatus &&
+      process.env.__NEXT_DEV_SERVER &&
+      setIsrStatus &&
       !cacheComponents &&
       // Only pages using the Node runtime can use ISR, so we only need to
       // update the status for those.
@@ -2202,7 +2257,6 @@ async function renderToHTMLOrFlightImpl(
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req)
     ) {
-      const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
         const { pathname } = new URL(req.url || '/', 'http://n')
         const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
@@ -2215,7 +2269,7 @@ async function renderToHTMLOrFlightImpl(
         return generateRuntimePrefetchResult(req, ctx, requestStore)
       } else {
         if (
-          process.env.NODE_ENV === 'development' &&
+          process.env.__NEXT_DEV_SERVER &&
           process.env.NEXT_RUNTIME !== 'edge' &&
           cacheComponents
         ) {
@@ -2311,7 +2365,7 @@ async function renderToHTMLOrFlightImpl(
     // Invalid dynamic usages should only error the request in development.
     // In production, it's better to produce a result.
     // (the dynamic error will still be thrown inside the component tree, but it's catchable by error boundaries)
-    if (workStore.invalidDynamicUsageError && workStore.dev) {
+    if (workStore.invalidDynamicUsageError && process.env.__NEXT_DEV_SERVER) {
       throw workStore.invalidDynamicUsageError
     }
 
@@ -2533,7 +2587,6 @@ async function renderToStream(
       renderToReadableStream: serverRenderToReadableStream,
     },
     crossOrigin,
-    dev = false,
     experimental,
     isBuildTimePrerendering = false,
     onInstrumentationRequestError,
@@ -2586,10 +2639,9 @@ async function renderToStream(
 
   // In development mode, set the request ID as a global variable, before the
   // bootstrap script is executed, which depends on it during hydration.
-  const bootstrapScriptContent =
-    process.env.NODE_ENV !== 'production'
-      ? `self.__next_r=${JSON.stringify(requestId)}`
-      : undefined
+  const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
+    ? `self.__next_r=${JSON.stringify(requestId)}`
+    : undefined
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
@@ -2633,7 +2685,7 @@ async function renderToStream(
       )
     }
     const serverComponentsErrorHandler = createReactServerErrorHandler(
-      dev,
+      process.env.NODE_ENV === 'development',
       isBuildTimePrerendering,
       reactServerErrorsByDigest,
       onHTMLRenderRSCError,
@@ -2654,7 +2706,7 @@ async function renderToStream(
 
     const allCapturedErrors: Array<unknown> = []
     const htmlRendererErrorHandler = createHTMLErrorHandler(
-      dev,
+      process.env.NODE_ENV === 'development',
       isBuildTimePrerendering,
       reactServerErrorsByDigest,
       allCapturedErrors,
@@ -2671,10 +2723,7 @@ async function renderToStream(
 
     try {
       if (
-        // We only want this behavior when we have React's dev builds available
-        process.env.NODE_ENV === 'development' &&
-        // We only want this behavior when running `next dev`
-        dev &&
+        process.env.__NEXT_DEV_SERVER &&
         // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
         process.env.NEXT_RUNTIME !== 'edge' &&
         // We only have a Prerender environment for projects opted into cacheComponents
@@ -2695,7 +2744,7 @@ async function renderToStream(
               res.statusCode === 404
             )
 
-          if (isBypassingCachesInDev(renderOpts, requestStore)) {
+          if (isBypassingCachesInDev(requestStore)) {
             // Mark the RSC payload to indicate that caches were bypassed in dev.
             // This lets the client know not to cache anything based on this render.
             if (renderOpts.setCacheStatus) {
@@ -2719,13 +2768,14 @@ async function renderToStream(
           createRequestStore &&
           // We only do this flow if we're not bypassing caches in dev using
           // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-          !isBypassingCachesInDev(renderOpts, requestStore)
+          !isBypassingCachesInDev(requestStore)
         ) {
           const {
             stream: serverStream,
             accumulatedChunksPromise,
             staticInterruptReason,
             runtimeInterruptReason,
+            startTime,
             staticStageEndTime,
             runtimeStageEndTime,
             debugChannel: returnedDebugChannel,
@@ -2751,6 +2801,7 @@ async function renderToStream(
             accumulatedChunksPromise,
             staticInterruptReason,
             runtimeInterruptReason,
+            startTime,
             staticStageEndTime,
             runtimeStageEndTime,
             ctx,
@@ -2985,12 +3036,10 @@ async function renderToStream(
           formState
         ),
         isStaticGeneration: generateStaticHTML,
-        isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
-        buildId: ctx.workStore.buildId,
         deploymentId: ctx.sharedContext.deploymentId,
         getServerInsertedHTML,
         getServerInsertedMetadata,
-        validateRootLayout: dev,
+        validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
       })
     } catch (err) {
       if (
@@ -3154,9 +3203,6 @@ async function renderToStream(
             formState
           ),
           isStaticGeneration: generateStaticHTML,
-          isBuildTimePrerendering:
-            ctx.workStore.isBuildTimePrerendering === true,
-          buildId: ctx.workStore.buildId,
           deploymentId: ctx.sharedContext.deploymentId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
@@ -3166,11 +3212,11 @@ async function renderToStream(
             tracingMetadata: tracingMetadata,
           }),
           getServerInsertedMetadata,
-          validateRootLayout: dev,
+          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
         })
       } catch (finalErr: any) {
         if (
-          process.env.NODE_ENV === 'development' &&
+          process.env.__NEXT_DEV_SERVER &&
           isHTTPAccessFallbackError(finalErr)
         ) {
           const { bailOnRootNotFound } =
@@ -3206,6 +3252,8 @@ async function renderWithRestartOnCacheMissInDev(
 
   const hasRuntimePrefetch =
     await anySegmentHasRuntimePrefetchEnabled(loaderTree)
+
+  let startTime = -Infinity
 
   // If the render is restarted, we'll recreate a fresh request store
   let requestStore: RequestStore = initialRequestStore
@@ -3247,9 +3295,11 @@ async function renderWithRestartOnCacheMissInDev(
 
   const initialReactController = new AbortController()
   const initialDataController = new AbortController() // Controls hanging promises we create
+  const initialAbandonController = new AbortController() // Controls whether this render is abandoned
   const initialStageController = new StagedRenderingController(
     initialDataController.signal,
-    hasRuntimePrefetch
+    hasRuntimePrefetch,
+    initialAbandonController
   )
 
   requestStore.prerenderResumeDataCache = prerenderResumeDataCache
@@ -3279,6 +3329,7 @@ async function renderWithRestartOnCacheMissInDev(
         () => {
           // Static stage
           initialStageController.advanceStage(RenderStage.Static)
+          startTime = performance.now() + performance.timeOrigin
 
           const stream = ComponentMod.renderToReadableStream(
             initialRscPayload,
@@ -3286,6 +3337,7 @@ async function renderWithRestartOnCacheMissInDev(
             {
               onError,
               environmentName,
+              startTime,
               filterStackFrame,
               debugChannel: debugChannel?.serverSide,
               signal: initialReactController.signal,
@@ -3322,7 +3374,7 @@ async function renderWithRestartOnCacheMissInDev(
             // Regardless of whether we are going to abandon this
             // render we need the unblock runtime b/c it's essential
             // filling caches.
-            initialStageController.abandonRender()
+            initialAbandonController.abort()
             return null
           }
 
@@ -3344,7 +3396,7 @@ async function renderWithRestartOnCacheMissInDev(
           // We won't advance the stage, and thus leave dynamic APIs hanging,
           // because they won't be cached anyway, so it'd be wasted work.
           if (cacheSignal.hasPendingReads()) {
-            initialStageController.abandonRender()
+            initialAbandonController.abort()
             return null
           }
 
@@ -3366,6 +3418,7 @@ async function renderWithRestartOnCacheMissInDev(
       staticInterruptReason: initialStageController.getStaticInterruptReason(),
       runtimeInterruptReason:
         initialStageController.getRuntimeInterruptReason(),
+      startTime,
       staticStageEndTime: initialStageController.getStaticStageEndTime(),
       runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
       debugChannel,
@@ -3373,7 +3426,7 @@ async function renderWithRestartOnCacheMissInDev(
     }
   }
 
-  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
     setCacheStatus('filling', htmlRequestId)
   }
 
@@ -3432,6 +3485,7 @@ async function renderWithRestartOnCacheMissInDev(
       () => {
         // Static stage
         finalStageController.advanceStage(RenderStage.Static)
+        startTime = performance.now() + performance.timeOrigin
 
         const stream = ComponentMod.renderToReadableStream(
           finalRscPayload,
@@ -3439,6 +3493,7 @@ async function renderWithRestartOnCacheMissInDev(
           {
             onError,
             environmentName,
+            startTime,
             filterStackFrame,
             debugChannel: debugChannel?.serverSide,
           }
@@ -3465,7 +3520,7 @@ async function renderWithRestartOnCacheMissInDev(
     )
   )
 
-  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
     setCacheStatus('filled', htmlRequestId)
   }
 
@@ -3474,6 +3529,7 @@ async function renderWithRestartOnCacheMissInDev(
     accumulatedChunksPromise: finalStreamResult.accumulatedChunksPromise,
     staticInterruptReason: finalStageController.getStaticInterruptReason(),
     runtimeInterruptReason: finalStageController.getRuntimeInterruptReason(),
+    startTime,
     staticStageEndTime: finalStageController.getStaticStageEndTime(),
     runtimeStageEndTime: finalStageController.getRuntimeStageEndTime(),
     debugChannel,
@@ -3588,51 +3644,6 @@ function createAsyncApiPromisesInDev(
   }
 }
 
-type DebugChannelPair = {
-  serverSide: DebugChannelServer
-  clientSide: DebugChannelClient
-}
-
-type DebugChannelServer = {
-  readable?: ReadableStream<Uint8Array>
-  writable: WritableStream<Uint8Array>
-}
-type DebugChannelClient = {
-  readable: ReadableStream<Uint8Array>
-  writable?: WritableStream<Uint8Array>
-}
-
-function createDebugChannel(): DebugChannelPair | undefined {
-  if (process.env.NODE_ENV === 'production') {
-    return undefined
-  }
-
-  let readableController: ReadableStreamDefaultController | undefined
-
-  let clientSideReadable = new ReadableStream<Uint8Array>({
-    start(controller) {
-      readableController = controller
-    },
-  })
-
-  return {
-    serverSide: {
-      writable: new WritableStream<Uint8Array>({
-        write(chunk) {
-          readableController?.enqueue(chunk)
-        },
-        close() {
-          readableController?.close()
-        },
-        abort(err) {
-          readableController?.error(err)
-        },
-      }),
-    },
-    clientSide: { readable: clientSideReadable },
-  }
-}
-
 /**
  * Logs the given messages, and sends the error instances to the browser as an
  * RSC stream, where they can be deserialized and logged (or otherwise presented
@@ -3696,6 +3707,7 @@ async function spawnStaticShellValidationInDev(
   accumulatedChunksPromise: Promise<AccumulatedStreamChunks>,
   staticInterruptReason: Error | null,
   runtimeInterruptReason: Error | null,
+  startTime: number,
   staticStageEndTime: number,
   runtimeStageEndTime: number,
   ctx: AppRenderContext,
@@ -3703,6 +3715,9 @@ async function spawnStaticShellValidationInDev(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   debugChannelClient: Readable | undefined
 ): Promise<void> {
+  const debug =
+    process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
+
   const {
     componentMod: ComponentMod,
     getDynamicParamFromSegment,
@@ -3710,14 +3725,15 @@ async function spawnStaticShellValidationInDev(
     workStore,
   } = ctx
 
-  const { allowEmptyStaticShell = false } = renderOpts
+  const loaderTree = ComponentMod.routeModule.userland.loaderTree
 
-  const rootParams = getRootParams(
-    ComponentMod.routeModule.userland.loaderTree,
-    getDynamicParamFromSegment
-  )
+  const allowEmptyStaticShell =
+    (renderOpts.allowEmptyStaticShell ?? false) ||
+    (await isPageAllowedToBlock(loaderTree))
 
-  const hmrRefreshHash = getHmrRefreshHash(workStore, requestStore)
+  const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
+
+  const hmrRefreshHash = getHmrRefreshHash(requestStore)
 
   // We don't need to continue the prerender process if we already
   // detected invalid dynamic usage in the initial prerender phase.
@@ -3734,14 +3750,27 @@ async function spawnStaticShellValidationInDev(
     return logMessagesAndSendErrorsToBrowser([runtimeInterruptReason], ctx)
   }
 
-  const { staticChunks, runtimeChunks, dynamicChunks } =
-    await accumulatedChunksPromise
+  let debugChunks: Uint8Array[] | null = null
+  if (debugChannelClient) {
+    debugChunks = []
+    debugChannelClient.on('data', (c) => {
+      debugChunks!.push(c)
+    })
+  }
+
+  const accumulatedChunks = await accumulatedChunksPromise
+  const { staticChunks, runtimeChunks, dynamicChunks } = accumulatedChunks
+
+  const needsInstantValidation =
+    await anySegmentNeedsInstantValidation(loaderTree)
 
   // First we warmup SSR with the runtime chunks. This ensures that when we do
   // the full prerender pass with dynamic tracking module loading won't
   // interrupt the prerender and can properly observe the entire content
-  await warmupModuleCacheForRuntimeValidationInDev(
-    runtimeChunks,
+  await warmupClientModulesForStagedValidationInDev(
+    // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
+    // otherwise, for static shell validation, we only need to warm up to the runtime stage.
+    needsInstantValidation ? dynamicChunks : runtimeChunks,
     dynamicChunks,
     rootParams,
     fallbackRouteParams,
@@ -3749,11 +3778,7 @@ async function spawnStaticShellValidationInDev(
     ctx
   )
 
-  let debugChunks: Uint8Array[] | null = null
-  if (debugChannelClient) {
-    debugChunks = []
-    debugChannelClient.on('data', (c) => debugChunks!.push(c))
-  }
+  debug?.(`Starting static shell validation...`)
 
   const runtimeResult = await validateStagedShell(
     runtimeChunks,
@@ -3769,8 +3794,9 @@ async function spawnStaticShellValidationInDev(
   )
 
   if (runtimeResult.length > 0) {
+    debug?.(`❌ Failed - ${runtimeResult.length} errors from runtime stage`)
     // We have something to report from the runtime validation
-    // We can skip the static validation
+    // We can skip the rest
     return logMessagesAndSendErrorsToBrowser(runtimeResult, ctx)
   }
 
@@ -3787,11 +3813,33 @@ async function spawnStaticShellValidationInDev(
     trackDynamicHoleInStaticShell
   )
 
-  return logMessagesAndSendErrorsToBrowser(staticResult, ctx)
+  if (staticResult.length > 0) {
+    debug?.(`❌ Failed - ${staticResult.length} errors from static stage`)
+    // We have something to report from the static validation
+    // We can skip the rest
+    return logMessagesAndSendErrorsToBrowser(staticResult, ctx)
+  }
+  debug?.(`✅ Passed`)
+
+  if (needsInstantValidation) {
+    const instantConfigsResult = await validateInstantConfigs(
+      accumulatedChunks,
+      debugChunks,
+      startTime,
+      rootParams,
+      fallbackRouteParams,
+      allowEmptyStaticShell,
+      ctx,
+      hmrRefreshHash
+    )
+    if (instantConfigsResult.length > 0) {
+      return logMessagesAndSendErrorsToBrowser(instantConfigsResult, ctx)
+    }
+  }
 }
 
-async function warmupModuleCacheForRuntimeValidationInDev(
-  runtimeServerChunks: Array<Uint8Array>,
+async function warmupClientModulesForStagedValidationInDev(
+  partialServerChunks: Array<Uint8Array>,
   allServerChunks: Array<Uint8Array>,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3833,8 +3881,10 @@ async function warmupModuleCacheForRuntimeValidationInDev(
     varyParamsAccumulator: null,
   }
 
-  const runtimeServerStream = createNodeStreamFromChunks(
-    runtimeServerChunks,
+  // TODO: maybe conditionally switch between runtime chunks and all chunks?
+  // but warming too much should always be fine, just not always necessary
+  const serverStream = createNodeStreamWithLateRelease(
+    partialServerChunks,
     allServerChunks,
     initialClientReactController.signal
   )
@@ -3847,7 +3897,7 @@ async function warmupModuleCacheForRuntimeValidationInDev(
     prerender,
     // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
     <App
-      reactServerStream={runtimeServerStream}
+      reactServerStream={serverStream}
       reactDebugStream={undefined}
       debugEndTime={undefined}
       preinitScripts={preinitScripts}
@@ -3978,16 +4028,16 @@ async function validateStagedShell(
     varyParamsAccumulator: null,
   }
 
-  let runtimeDynamicValidation = createDynamicValidationState()
+  const dynamicValidation = createDynamicValidationState()
 
-  const serverStream = createNodeStreamFromChunks(
+  const serverStream = createNodeStreamWithLateRelease(
     stageChunks,
     allServerChunks,
     clientReactController.signal
   )
 
   const debugChannelClient = debugChunks
-    ? createNodeStreamFromChunks(
+    ? createNodeStreamWithLateRelease(
         debugChunks,
         debugChunks,
         clientReactController.signal
@@ -4026,7 +4076,7 @@ async function validateStagedShell(
                     trackDynamicHole(
                       workStore,
                       componentStack,
-                      runtimeDynamicValidation,
+                      dynamicValidation,
                       clientDynamicTracking
                     )
                   }
@@ -4068,7 +4118,10 @@ async function validateStagedShell(
     return getStaticShellDisallowedDynamicReasons(
       workStore,
       preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
-      runtimeDynamicValidation
+      dynamicValidation,
+      // TODO(instant-validation): if allowEmptyStaticShell is true (likely due to blocking configs),
+      // we should probably just skip this altogether
+      allowEmptyStaticShell
     )
   } catch (thrownValue) {
     // Even if the root errors we still want to report any cache components errors
@@ -4076,7 +4129,10 @@ async function validateStagedShell(
     let errors: Array<unknown> = getStaticShellDisallowedDynamicReasons(
       workStore,
       PreludeState.Errored,
-      runtimeDynamicValidation
+      dynamicValidation,
+      // TODO(instant-validation): if allowEmptyStaticShell is true (likely due to blocking configs),
+      // we should probably just skip this altogether
+      allowEmptyStaticShell
     )
 
     if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
@@ -4087,6 +4143,319 @@ async function validateStagedShell(
     }
 
     return errors
+  }
+}
+
+async function validateInstantConfigs(
+  accumulatedChunks: AccumulatedStreamChunks,
+  debugChunks: null | Array<Uint8Array>,
+  startTime: number,
+  rootParams: Params,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  allowEmptyStaticShell: boolean,
+  ctx: AppRenderContext,
+  hmrRefreshHash: string | undefined
+): Promise<Array<unknown>> {
+  const debug =
+    process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
+
+  const { findNavigationsToValidate, collectStagedSegmentData } =
+    ctx.componentMod.InstantValidation!
+
+  debug?.('\nStarting instant validation...')
+
+  let init: Awaited<ReturnType<typeof findNavigationsToValidate>>
+  // We throw for invalid configurations, so errors should be surfaced.
+  try {
+    init = await findNavigationsToValidate(
+      ctx.componentMod.routeModule.userland.loaderTree,
+      ctx.getDynamicParamFromSegment,
+      ctx.query
+    )
+  } catch (err) {
+    debug?.('Error while planning validations.')
+    return [err]
+  }
+  const {
+    tree: validationRouteTree,
+    treeNodes,
+    navigationParents,
+    segmentsWithInstantConfigs,
+  } = init
+
+  const hasRuntimePrefetch = segmentsWithInstantConfigs.some((segmentPath) => {
+    const treeNode = treeNodes.get(segmentPath)!
+    const instantConfig = treeNode.module!.instantConfig!
+    return instantConfig && typeof instantConfig === 'object'
+      ? instantConfig.prefetch === 'runtime'
+      : false
+  })
+  const clientReferenceManifest = getClientReferenceManifest()
+
+  const {
+    cache,
+    payload: initialRscPayload,
+    stageEndTimes,
+  } = await collectStagedSegmentData(
+    {
+      [RenderStage.Static]: accumulatedChunks.staticChunks,
+      [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
+      [RenderStage.Dynamic]: accumulatedChunks.dynamicChunks,
+    },
+    debugChunks,
+    startTime,
+    hasRuntimePrefetch,
+    clientReferenceManifest
+  )
+
+  const getFilepathForSegment = (segmentPath: InstantValidation.SegmentPath) =>
+    treeNodes.get(segmentPath)?.module?.conventionPath
+
+  for (const navigationParent of navigationParents) {
+    // TODO(instant-validation): report which segment had errors
+    debug?.(
+      `-------------------------------\n` +
+        `Validating navigation\n` +
+        `  from '${navigationParent}/*' (${getFilepathForSegment(navigationParent) ?? '<no file>'})\n` +
+        `  to   '${workAsyncStorage.getStore()!.route}'`
+    )
+    const initialResults = await validateInstantConfigNavigation(
+      initialRscPayload,
+      cache,
+      startTime,
+      stageEndTimes,
+      rootParams,
+      fallbackRouteParams,
+      allowEmptyStaticShell,
+      ctx,
+      hmrRefreshHash,
+      validationRouteTree,
+      navigationParent,
+      false // use static stage for static segments
+    )
+    if (initialResults.errors.length === 0) {
+      debug?.(`  ✅ Validation successful`)
+    }
+
+    if (initialResults.errors.length > 0) {
+      if (initialResults.dynamicHoleKind !== DynamicHoleKind.Dynamic) {
+        debug?.('  Retrying to gather more info...')
+        const runtimeResults = await validateInstantConfigNavigation(
+          initialRscPayload,
+          cache,
+          startTime,
+          stageEndTimes,
+          rootParams,
+          fallbackRouteParams,
+          allowEmptyStaticShell,
+          ctx,
+          hmrRefreshHash,
+          validationRouteTree,
+          navigationParent,
+          true // use runtime stage for static segments instead
+        )
+        if (runtimeResults.errors.length > 0) {
+          // The errors remained in the runtime stage, so they were caused by a dynamic access.
+          debug?.(
+            `  ❌ Failed after runtime retry (${runtimeResults.errors.length} errors)`
+          )
+          return runtimeResults.errors
+        }
+        // Otherwise, the errors disappeared in the runtime stage, so they were caused
+        // by a runtime access. report the original errors.
+      }
+
+      debug?.(`  ❌ Failed (${initialResults.errors.length} errors)`)
+      return initialResults.errors
+    }
+  }
+
+  debug?.(`✅ Passed`)
+  return []
+}
+
+async function validateInstantConfigNavigation(
+  initialRscPayload: InitialRSCPayload,
+  cache: InstantValidation.SegmentCache,
+  startTime: number,
+  stageEndTimes: InstantValidation.StageEndTimes,
+  rootParams: Params,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  allowEmptyStaticShell: boolean,
+  ctx: AppRenderContext,
+  hmrRefreshHash: string | undefined,
+  routeTree: InstantValidation.RouteTree,
+  navigationParent: InstantValidation.SegmentPath,
+  useRuntimeStageForPartialSegments: boolean
+): Promise<{ dynamicHoleKind: DynamicHoleKind; errors: Array<unknown> }> {
+  const { implicitTags, nonce, workStore } = ctx
+  const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
+  const { createCombinedPayload, createCombinedPayloadStream } =
+    ctx.componentMod.InstantValidation!
+
+  const clientDynamicTracking = createDynamicTrackingState(
+    false //isDebugDynamicAccesses
+  )
+  const clientReactController = new AbortController()
+  const clientRenderController = new AbortController()
+
+  const preinitScripts = () => {}
+  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
+
+  const finalClientPrerenderStore: PrerenderStore = {
+    type: 'prerender-client',
+    phase: 'render',
+    rootParams,
+    fallbackRouteParams,
+    implicitTags,
+    renderSignal: clientRenderController.signal,
+    controller: clientReactController,
+    // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
+    cacheSignal: null,
+    dynamicTracking: clientDynamicTracking,
+    allowEmptyStaticShell,
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+    // TODO should this be removed from client stores?
+    prerenderResumeDataCache: null,
+    renderResumeDataCache: null,
+    hmrRefreshHash,
+    // We don't need to track vary params during validation.
+    varyParamsAccumulator: null,
+  }
+
+  const dynamicValidation = createDynamicValidationState()
+
+  const clientReferenceManifest = getClientReferenceManifest()
+
+  const usedSegmentKinds = new Set<InstantValidation.SegmentStage>()
+  const { stream: serverStream, debugStream } =
+    await createCombinedPayloadStream(
+      (extraChunksReleaseSignal) =>
+        createCombinedPayload(
+          initialRscPayload,
+          cache,
+          routeTree,
+          navigationParent,
+          extraChunksReleaseSignal,
+          clientReferenceManifest,
+          stageEndTimes,
+          useRuntimeStageForPartialSegments,
+          usedSegmentKinds
+        ),
+      clientReactController.signal, // release chunks before the abort
+      clientReferenceManifest,
+      startTime,
+      isDebugChannelEnabled
+    )
+
+  // If we have static segments, we don't know if the error comes from a runtime or dynamic access.
+  // In that case, we report messages as if the failure is a runtime access.
+  // if we get errors, we'll retry this validation, forcing all the static segements into runtime stage.
+  // If the error disappears in the runtime stage, then we'll use the original runtime message.
+  // If it doesn't disappears, it has to come from a dynamic access, so we'll use the message from the retry.
+  const dynamicHoleKind = usedSegmentKinds.has(RenderStage.Static)
+    ? DynamicHoleKind.Runtime
+    : DynamicHoleKind.Dynamic
+
+  const prerender = (
+    require('react-dom/static') as typeof import('react-dom/static')
+  ).prerender
+  try {
+    let { prelude: unprocessedPrelude } =
+      await prerenderAndAbortInSequentialTasks(
+        () => {
+          const pendingFinalClientResult = workUnitAsyncStorage.run(
+            finalClientPrerenderStore,
+            prerender,
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
+            <App
+              reactServerStream={serverStream}
+              reactDebugStream={debugStream ?? undefined}
+              // Debug info is already filtered when constructing the combined payload.
+              debugEndTime={undefined}
+              preinitScripts={preinitScripts}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              nonce={nonce}
+              images={ctx.renderOpts.images}
+            />,
+            {
+              signal: clientReactController.signal,
+              onError: (err: unknown, errorInfo: ErrorInfo) => {
+                if (
+                  isPrerenderInterruptedError(err) ||
+                  clientReactController.signal.aborted
+                ) {
+                  const componentStack = errorInfo.componentStack
+                  if (typeof componentStack === 'string') {
+                    trackDynamicHoleInNavigation(
+                      workStore,
+                      componentStack,
+                      dynamicValidation,
+                      clientDynamicTracking,
+                      dynamicHoleKind
+                    )
+                  }
+                  return
+                }
+
+                if (isReactLargeShellError(err)) {
+                  // TODO: Aggregate
+                  console.error(err)
+                  return undefined
+                }
+
+                return getDigestForWellKnownError(err)
+              },
+              // We don't need bootstrap scripts in this prerender
+              // bootstrapScripts: [bootstrapScript],
+            }
+          )
+
+          // The listener to abort our own render controller must be added after
+          // React has added its listener, to ensure that pending I/O is not
+          // aborted/rejected too early.
+          clientReactController.signal.addEventListener(
+            'abort',
+            () => {
+              clientRenderController.abort()
+            },
+            { once: true }
+          )
+
+          return pendingFinalClientResult
+        },
+        () => {
+          clientReactController.abort()
+        }
+      )
+
+    const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
+    const reasons = getNavigationDisallowedDynamicReasons(
+      workStore,
+      preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+      dynamicValidation
+    )
+    return { dynamicHoleKind, errors: reasons } as const
+  } catch (thrownValue) {
+    // Even if the root errors we still want to report any cache components errors
+    // that were discovered before the root errored.
+    let errors: Array<unknown> = getNavigationDisallowedDynamicReasons(
+      workStore,
+      PreludeState.Errored,
+      dynamicValidation
+    )
+
+    if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
+      errors.unshift(
+        'During dynamic validation the root of the page errored. The next logged error is the thrown value. It may be a duplicate of errors reported during the normal development mode render.',
+        thrownValue
+      )
+    }
+
+    return { dynamicHoleKind, errors }
   }
 }
 
@@ -4136,12 +4505,10 @@ async function prerenderToStream(
   } = ctx
 
   const {
-    allowEmptyStaticShell = false,
     basePath,
     buildManifest,
     ComponentMod,
     crossOrigin,
-    dev = false,
     experimental,
     isDebugDynamicAccesses,
     isBuildTimePrerendering = false,
@@ -4151,6 +4518,10 @@ async function prerenderToStream(
     subresourceIntegrityManifest,
     cacheComponents,
   } = renderOpts
+
+  const allowEmptyStaticShell =
+    (renderOpts.allowEmptyStaticShell ?? false) ||
+    (await isPageAllowedToBlock(tree))
 
   const rootParams = getRootParams(tree, getDynamicParamFromSegment)
 
@@ -4206,7 +4577,7 @@ async function prerenderToStream(
     }
   }
   const serverComponentsErrorHandler = createReactServerErrorHandler(
-    dev,
+    process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
     onHTMLRenderRSCError
@@ -4227,7 +4598,7 @@ async function prerenderToStream(
   }
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
-    dev,
+    process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
     allCapturedErrors,
@@ -4987,9 +5358,6 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            isBuildTimePrerendering:
-              ctx.workStore.isBuildTimePrerendering === true,
-            buildId: ctx.workStore.buildId,
             deploymentId: ctx.sharedContext.deploymentId,
           })
         } else {
@@ -5002,9 +5370,6 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            isBuildTimePrerendering:
-              ctx.workStore.isBuildTimePrerendering === true,
-            buildId: ctx.workStore.buildId,
             deploymentId: ctx.sharedContext.deploymentId,
           })
         }
@@ -5265,9 +5630,6 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            isBuildTimePrerendering:
-              ctx.workStore.isBuildTimePrerendering === true,
-            buildId: ctx.workStore.buildId,
             deploymentId: ctx.sharedContext.deploymentId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
@@ -5364,9 +5726,6 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
-          isBuildTimePrerendering:
-            ctx.workStore.isBuildTimePrerendering === true,
-          buildId: ctx.workStore.buildId,
           getServerInsertedHTML,
           getServerInsertedMetadata,
           deploymentId: ctx.sharedContext.deploymentId,
@@ -5543,9 +5902,6 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
-          isBuildTimePrerendering:
-            ctx.workStore.isBuildTimePrerendering === true,
-          buildId: ctx.workStore.buildId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,
@@ -5554,7 +5910,7 @@ async function prerenderToStream(
             tracingMetadata: tracingMetadata,
           }),
           getServerInsertedMetadata,
-          validateRootLayout: dev,
+          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
           deploymentId: ctx.sharedContext.deploymentId,
         }),
         dynamicAccess: null,
@@ -5569,7 +5925,7 @@ async function prerenderToStream(
       }
     } catch (finalErr: any) {
       if (
-        process.env.NODE_ENV === 'development' &&
+        process.env.__NEXT_DEV_SERVER &&
         isHTTPAccessFallbackError(finalErr)
       ) {
         const { bailOnRootNotFound } =
@@ -5611,7 +5967,7 @@ const getGlobalErrorStyles = async (
 
   let globalErrorStyles: ReactNode = styles
 
-  if (ctx.renderOpts.dev) {
+  if (process.env.__NEXT_DEV_SERVER) {
     const dir =
       (process.env.NEXT_RUNTIME === 'edge'
         ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -5697,13 +6053,9 @@ async function collectSegmentData(
   )
 }
 
-function isBypassingCachesInDev(
-  renderOpts: RenderOpts,
-  requestStore: RequestStore
-): boolean {
+function isBypassingCachesInDev(requestStore: RequestStore): boolean {
   return (
-    process.env.NODE_ENV === 'development' &&
-    !!renderOpts.dev &&
+    !!process.env.__NEXT_DEV_SERVER &&
     requestStore.headers.get('cache-control') === 'no-cache'
   )
 }
@@ -5739,54 +6091,5 @@ function nodeStreamFromReadableStream<T>(stream: ReadableStream<T>) {
           .catch((err) => this.destroy(err))
       },
     })
-  }
-}
-
-function createNodeStreamFromChunks(
-  partialChunks: Array<Uint8Array>,
-  allChunks: Array<Uint8Array>,
-  signal: AbortSignal
-): Readable {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      'createNodeStreamFromChunks cannot be used in the edge runtime'
-    )
-  } else {
-    const { Readable } = require('node:stream') as typeof import('node:stream')
-
-    let nextIndex = 0
-
-    const readable = new Readable({
-      read() {
-        while (nextIndex < partialChunks.length) {
-          this.push(partialChunks[nextIndex])
-          nextIndex++
-        }
-      },
-    })
-
-    signal.addEventListener(
-      'abort',
-      () => {
-        // Flush any remaining chunks from the original set
-        while (nextIndex < partialChunks.length) {
-          readable.push(partialChunks[nextIndex])
-          nextIndex++
-        }
-        // Flush all chunks since we're now aborted and can't schedule
-        // any new work but these chunks might unblock debugInfo
-        while (nextIndex < allChunks.length) {
-          readable.push(allChunks[nextIndex])
-          nextIndex++
-        }
-
-        setImmediate(() => {
-          readable.push(null)
-        })
-      },
-      { once: true }
-    )
-
-    return readable
   }
 }

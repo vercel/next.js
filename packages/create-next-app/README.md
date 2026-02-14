@@ -61,10 +61,6 @@ Options:
 
     Initialize inside a `src/` directory.
 
-  --turbopack
-
-    Enable Turbopack by default for development.
-
   --import-alias <alias-to-configure>
 
     Specify import alias to use (default "@/*").

@@ -273,6 +273,8 @@ function processReply(
                 "$T"
               );
           }
+          if (void 0 !== temporaryReferences && modelRoot === value)
+            return (modelRoot = null), "$T";
           throw Error(
             "React Element cannot be passed to Server Functions from the Client without a temporary reference set. Pass a TemporaryReferenceSet to the options."
           );
@@ -752,6 +754,9 @@ function readChunk(chunk) {
       throw chunk.reason;
   }
 }
+function createPendingChunk() {
+  return new ReactPromise("pending", null, null);
+}
 function wakeChunk(response, listeners, value, chunk) {
   for (var i = 0; i < listeners.length; i++) {
     var listener = listeners[i];
@@ -968,9 +973,14 @@ function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
   chunk ||
-    ((chunk = response._closed
-      ? new ReactPromise("rejected", null, response._closedReason)
-      : new ReactPromise("pending", null, null)),
+    (response._closed
+      ? response._allowPartialStream
+        ? ((response = chunk = createPendingChunk()),
+          (response.status = "halted"),
+          (response.value = null),
+          (response.reason = null))
+        : (chunk = new ReactPromise("rejected", null, response._closedReason))
+      : (chunk = createPendingChunk()),
     chunks.set(id, chunk));
   return chunk;
 }
@@ -1499,7 +1509,8 @@ function ResponseInstance(
   callServer,
   encodeFormAction,
   nonce,
-  temporaryReferences
+  temporaryReferences,
+  allowPartialStream
 ) {
   var chunks = new Map();
   this._bundlerConfig = bundlerConfig;
@@ -1513,6 +1524,7 @@ function ResponseInstance(
   this._fromJSON = null;
   this._closed = !1;
   this._closedReason = null;
+  this._allowPartialStream = allowPartialStream;
   this._tempRefs = temporaryReferences;
   this._fromJSON = createFromJSONCallback(this);
 }
@@ -1603,7 +1615,7 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$55 = new ReactPromise("pending", null, null);
+        var chunk$55 = createPendingChunk();
         chunk$55.then(
           function (v) {
             return controller.enqueue(v);
@@ -1671,7 +1683,7 @@ function startAsyncIterable(response, id, iterator) {
             { done: !0, value: void 0 },
             null
           );
-        buffer[nextReadIndex] = new ReactPromise("pending", null, null);
+        buffer[nextReadIndex] = createPendingChunk();
       }
       return buffer[nextReadIndex++];
     });
@@ -1752,11 +1764,7 @@ function startAsyncIterable(response, id, iterator) {
           for (
             closed = !0,
               nextWriteIndex === buffer.length &&
-                (buffer[nextWriteIndex] = new ReactPromise(
-                  "pending",
-                  null,
-                  null
-                ));
+                (buffer[nextWriteIndex] = createPendingChunk());
             nextWriteIndex < buffer.length;
 
           )
@@ -1991,7 +1999,18 @@ function createFromJSONCallback(response) {
   };
 }
 function close(weakResponse) {
-  reportGlobalError(weakResponse, Error("Connection closed."));
+  weakResponse._allowPartialStream
+    ? ((weakResponse._closed = !0),
+      weakResponse._chunks.forEach(function (chunk) {
+        "pending" === chunk.status
+          ? ((chunk.status = "halted"),
+            (chunk.value = null),
+            (chunk.reason = null))
+          : "fulfilled" === chunk.status &&
+            null !== chunk.reason &&
+            chunk.reason.close('"$undefined"');
+      }))
+    : reportGlobalError(weakResponse, Error("Connection closed."));
 }
 function noServerCall() {
   throw Error(
@@ -2008,7 +2027,10 @@ function createResponseFromOptions(options) {
     "string" === typeof options.nonce ? options.nonce : void 0,
     options && options.temporaryReferences
       ? options.temporaryReferences
-      : void 0
+      : void 0,
+    options && options.unstable_allowPartialStream
+      ? options.unstable_allowPartialStream
+      : !1
   );
 }
 function startReadingFromStream(response, stream, onDone) {

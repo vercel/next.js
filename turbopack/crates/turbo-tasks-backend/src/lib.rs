@@ -7,6 +7,7 @@ mod backend;
 mod backing_storage;
 mod data;
 mod database;
+mod error;
 mod kv_backing_storage;
 mod utils;
 
