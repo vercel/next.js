@@ -1,3 +1,0 @@
-'use server'
-
-export default () => {}

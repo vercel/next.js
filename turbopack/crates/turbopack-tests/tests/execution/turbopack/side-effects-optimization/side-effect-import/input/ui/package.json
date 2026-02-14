@@ -1,5 +1,0 @@
-{
-  "sideEffects": [
-    "./src/side-effect.js"
-  ]
-}

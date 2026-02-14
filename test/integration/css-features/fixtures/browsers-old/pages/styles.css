@@ -1,8 +1,0 @@
-a {
-  all: initial;
-}
-@media (min-resolution: 2dppx) {
-  .image {
-    background-image: url(data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==);
-  }
-}
