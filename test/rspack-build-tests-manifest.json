@@ -852,7 +852,8 @@
       "app-dir with proxy should ignore x-middleware-set-cookie as a request header",
       "app-dir with proxy should not incorrectly treat a Location header as a rewrite",
       "app-dir with proxy should omit internal headers for proxy cookies",
-      "app-dir with proxy should respect cookie options of merged proxy cookies"
+      "app-dir with proxy should respect cookie options of merged proxy cookies",
+      "app-dir with proxy should support unstable_cache in proxy"
     ],
     "failed": [],
     "pending": [
@@ -901,6 +902,7 @@
       "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies",
+      "app-dir with middleware should support unstable_cache in middleware",
       "app-dir with middleware should warn when deprecated middleware file is used"
     ],
     "failed": [],
@@ -1977,12 +1979,8 @@
       "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
       "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
       "Cache Components Errors Build With --prerender-debug IO accessed in Client Components should error the build if IO is accessed in a Client Component",
-      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes microtasky cache should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes nested should error the build",
-      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes slow cache should error the build",
-      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 microtasky cache should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 nested should error the build",
-      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 slow cache should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` catching an error at runtime should log an error at runtime",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cookies should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` draftMode should error the build",
@@ -2012,7 +2010,6 @@
       "Cache Components Errors Build With --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
-      "Cache Components Errors Build With --prerender-debug With `use cache: private` without Suspense should error the build",
       "Cache Components Errors Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
       "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
       "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a cache components violation alongside dynamic metadata",
@@ -2063,7 +2060,13 @@
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` without Suspense should error the build"
     ],
-    "failed": [],
+    "failed": [
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes microtasky cache should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes slow cache should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 microtasky cache should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 slow cache should error the build",
+      "Cache Components Errors Build With --prerender-debug With `use cache: private` without Suspense should error the build"
+    ],
     "pending": [
       "Cache Components Errors Build With --prerender-debug Unhandled Rejection Suppression should suppress unhandled rejections after prerender abort",
       "Cache Components Errors Build Without --prerender-debug Unhandled Rejection Suppression should suppress unhandled rejections after prerender abort"
@@ -3732,7 +3735,9 @@
     "passed": [
       "app-dir - metadata-icons-parallel-routes should inherit parent apple icon when child does not present but parent contain static apple icon",
       "app-dir - metadata-icons-parallel-routes should override parent icon when both static icon presented",
-      "app-dir - metadata-icons-parallel-routes should present favicon with other icons when parallel routes are presented"
+      "app-dir - metadata-icons-parallel-routes should present favicon with other icons when parallel routes are presented",
+      "app-dir - metadata-icons-parallel-routes should render both icon.png and icon.svg when both are present",
+      "app-dir - metadata-icons-parallel-routes should serve both icon formats"
     ],
     "failed": [],
     "pending": [],
@@ -4210,7 +4215,6 @@
       "app dir - navigation SEO should emit refresh meta tag (permanent) for redirect page when streaming",
       "app dir - navigation SEO should emit refresh meta tag for redirect page when streaming",
       "app dir - navigation SEO should not log 404 errors in ipc server",
-      "app dir - navigation bots should block rendering for bots and return 404 status",
       "app dir - navigation browser back to a revalidated page should load the page",
       "app dir - navigation external push should push external url without affecting hooks",
       "app dir - navigation hash should not scroll to hash when scroll={false} is set",
@@ -4249,9 +4253,6 @@
       "app dir - navigation redirect middleware redirects should redirect from middleware with link navigation",
       "app dir - navigation redirect next.config.js redirects should redirect from next.config.js",
       "app dir - navigation redirect next.config.js redirects should redirect from next.config.js with link navigation",
-      "app dir - navigation redirect status code should respond with 307 status code in client component",
-      "app dir - navigation redirect status code should respond with 307 status code in server component",
-      "app dir - navigation redirect status code should respond with 308 status code if permanent flag is set",
       "app dir - navigation relative hashes and queries should work with a hash-only `router.push(...)`",
       "app dir - navigation relative hashes and queries should work with a hash-only href",
       "app dir - navigation relative hashes and queries should work with a query-only href",
@@ -5211,8 +5212,11 @@
   },
   "test/e2e/app-dir/not-found-with-pages-i18n/not-found-with-pages.test.ts": {
     "passed": [
-      "not-found-with-pages should prefer the app router 404 over the pages router 404 when both are present",
-      "not-found-with-pages should write all locales to the pages manifest"
+      "not-found-with-pages-i18n should prefer the app router 404 over the pages router 404 when both are present - SSR /app-dir/foo",
+      "not-found-with-pages-i18n should prefer the app router 404 over the pages router 404 when both are present - SSR /foo",
+      "not-found-with-pages-i18n should prefer the app router 404 over the pages router 404 when both are present - browser /app-dir/foo",
+      "not-found-with-pages-i18n should prefer the app router 404 over the pages router 404 when both are present - browser /foo",
+      "not-found-with-pages-i18n should write all locales to the pages manifest"
     ],
     "failed": [],
     "pending": [],
@@ -5229,9 +5233,11 @@
       "app dir - not-found - basic with default runtime should create the 404 mapping and copy the file to pages",
       "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
+      "app dir - not-found - basic with default runtime should return 404 status if notFound() is called in shell",
       "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
       "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
+      "app dir - not-found - basic with runtime = edge should return 404 status if notFound() is called in shell",
       "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
     ],
     "failed": [],
@@ -7116,6 +7122,7 @@
   },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": [
+      "segment cache memory pressure does not leak memory when repeatedly triggering prefetches",
       "segment cache memory pressure evicts least recently used prefetch data once cache size exceeds limit"
     ],
     "failed": [],
@@ -7461,9 +7468,11 @@
   },
   "test/e2e/app-dir/static-generation-status/index.test.ts": {
     "passed": [
+      "app-dir static-generation-status should render the client page using redirect with status 307",
       "app-dir static-generation-status should render the non existed route redirect with status 404",
       "app-dir static-generation-status should render the page using notFound with status 404",
-      "app-dir static-generation-status should render the page using redirect with status 307"
+      "app-dir static-generation-status should render the page using redirect with status 307",
+      "app-dir static-generation-status should respond with 308 status code if permanent flag is set"
     ],
     "failed": [],
     "pending": [],
@@ -8515,6 +8524,7 @@
       "deferred-entries webpack should build app router dynamic route with generateStaticParams when using deferred entries",
       "deferred-entries webpack should build app router metadata routes when using deferred entries",
       "deferred-entries webpack should build app router route handler when using deferred entries",
+      "deferred-entries webpack should build app router route in a route group when using deferred entries",
       "deferred-entries webpack should build deferred entry successfully",
       "deferred-entries webpack should build pages router API routes when using deferred entries",
       "deferred-entries webpack should build pages router dynamic getStaticPaths/getStaticProps route when using deferred entries",
@@ -11140,10 +11150,12 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/turbopack-import-type-bytes/index.test.ts": {
+  "test/e2e/turbopack-import-with-type/index.test.ts": {
     "passed": [],
     "failed": [],
-    "pending": ["turbopack-import-type-bytes support import type: bytes"],
+    "pending": [
+      "turbopack-import-with-type supports import with type: text and type: bytes"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -12266,6 +12278,8 @@
   },
   "test/integration/create-next-app/index.test.ts": {
     "passed": [
+      "create-next-app should create AGENTS.md and CLAUDE.md with --agents-md flag",
+      "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
       "create-next-app should not install dependencies if --skip-install"
@@ -12348,9 +12362,7 @@
       "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag"
     ],
     "failed": [],
-    "pending": [
-      "create-next-app --api (Headless App) should enable webpack dev with --webpack flag"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12364,62 +12376,60 @@
       "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
     ],
     "failed": [],
-    "pending": [
-      "create-next-app --app (App Router) should enable webpack dev with --webpack flag"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/matrix.test.ts": {
     "passed": [
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --tailwind"
+      "CNA options matrix - app --app --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --js --import-alias=@/* --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --js --import-alias=@/* --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --js --import-alias=@acme/* --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --js --import-alias=@acme/* --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --js --no-import-alias --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --js --no-import-alias --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --js --no-import-alias --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --js --no-import-alias --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --ts --import-alias=@/* --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --ts --import-alias=@/* --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - app --app --ts --no-import-alias --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - app --app --ts --no-import-alias --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --js --import-alias=@/* --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --js --import-alias=@/* --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --js --import-alias=@acme/* --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --js --import-alias=@acme/* --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --js --no-import-alias --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --js --no-import-alias --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --js --no-import-alias --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --js --no-import-alias --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --ts --import-alias=@/* --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --ts --import-alias=@/* --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --no-agents-md --tailwind",
+      "CNA options matrix - pages --no-app --ts --no-import-alias --eslint --src-dir --react-compiler --no-agents-md --no-tailwind",
+      "CNA options matrix - pages --no-app --ts --no-import-alias --eslint --src-dir --react-compiler --no-agents-md --tailwind"
     ],
     "failed": [],
     "pending": [],
@@ -12436,9 +12446,7 @@
       "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
     "failed": [],
-    "pending": [
-      "create-next-app --no-app (Pages Router) should enable webpack dev with --webpack flag"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -20982,13 +20990,13 @@
   "test/production/app-dir/build-output-prerender/build-output-prerender.test.ts": {
     "passed": [
       "build-output-prerender with a next config file with --debug-prerender shows all prerender errors with readable stacks and code frames",
-      "build-output-prerender with a next config file without --debug-prerender shows only a single prerender error with a mangled stack",
-      "build-output-prerender without a next config file without --debug-prerender prints no experimental flags (unless enabled via env variable)"
+      "build-output-prerender with a next config file without --debug-prerender shows only a single prerender error with a mangled stack"
     ],
     "failed": [
       "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
       "build-output-prerender with a next config file without --debug-prerender prints only the user-selected experimental flags (and the ones enabled via env variable)",
-      "build-output-prerender without a next config file with --debug-prerender prints a warning and the customized experimental flags"
+      "build-output-prerender without a next config file with --debug-prerender prints a warning and the customized experimental flags",
+      "build-output-prerender without a next config file without --debug-prerender prints no experimental flags (unless enabled via env variable)"
     ],
     "pending": [],
     "flakey": [],
@@ -21534,6 +21542,16 @@
   "test/production/config-validation-warnings/index.test.ts": {
     "passed": [
       "config validation - warnings only should show warnings but not block the build"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/css-url-deployment-id/css-url-deployment-id.test.ts": {
+    "passed": [
+      "css-url-deployment-id should include dpl query in CSS module url() references",
+      "css-url-deployment-id should include dpl query in CSS url() references for images and fonts"
     ],
     "failed": [],
     "pending": [],
