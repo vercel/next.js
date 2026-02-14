@@ -1270,12 +1270,22 @@ export async function resolveMetadata(
     getDynamicParamFromSegment,
     workStore
   )
-  return accumulateMetadata(
+  const resolved = await accumulateMetadata(
     workStore.route,
     metadataItems,
     pathname,
     metadataContext
   )
+
+  // When rendering an error page (not-found, forbidden, unauthorized),
+  // clear any robots metadata inherited from parent layouts to prevent
+  // conflicting robots meta tags. The error boundary will independently
+  // render <meta name="robots" content="noindex" />.
+  if (errorConvention) {
+    resolved.robots = null
+  }
+
+  return resolved
 }
 
 // Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.
