@@ -1082,8 +1082,9 @@ pub async fn all_entrypoints_write_to_disk_operation(
     let output_assets_operation =
         output_assets_operation(container, app_dir_only, debug_build_paths.clone());
     let project = container.project_with_debug_build_paths(debug_build_paths.clone());
+    let preserve_existing_output_assets = debug_build_paths.is_some();
     project
-        .emit_all_output_assets(output_assets_operation)
+        .emit_all_output_assets(output_assets_operation, preserve_existing_output_assets)
         .as_side_effect()
         .await?;
 

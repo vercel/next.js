@@ -201,7 +201,7 @@ pub async fn endpoint_write_to_disk(
     } = *output_op.connect().await?;
 
     project
-        .emit_all_output_assets(endpoint_output_assets_operation(output_op))
+        .emit_all_output_assets(endpoint_output_assets_operation(output_op), false)
         .as_side_effect()
         .await?;
 

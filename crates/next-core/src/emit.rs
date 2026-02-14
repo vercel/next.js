@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_tasks::{TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{FileSystemPath, rebase};
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, rebase};
 use turbopack_core::{
     asset::Asset,
     output::{ExpandedOutputAssets, OutputAsset, OutputAssets},
@@ -43,6 +43,41 @@ pub async fn emit_assets(
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,
 ) -> Result<()> {
+    emit_assets_internal(
+        assets,
+        node_root,
+        client_relative_path,
+        client_output_path,
+        false,
+    )
+    .await
+}
+
+/// Same as [`emit_assets`], but does not overwrite files that already exist.
+#[turbo_tasks::function]
+pub async fn emit_assets_preserving_existing(
+    assets: Vc<ExpandedOutputAssets>,
+    node_root: FileSystemPath,
+    client_relative_path: FileSystemPath,
+    client_output_path: FileSystemPath,
+) -> Result<()> {
+    emit_assets_internal(
+        assets,
+        node_root,
+        client_relative_path,
+        client_output_path,
+        true,
+    )
+    .await
+}
+
+async fn emit_assets_internal(
+    assets: Vc<ExpandedOutputAssets>,
+    node_root: FileSystemPath,
+    client_relative_path: FileSystemPath,
+    client_output_path: FileSystemPath,
+    preserve_existing: bool,
+) -> Result<()> {
     let _: Vec<()> = assets
         .await?
         .iter()
@@ -51,21 +86,27 @@ pub async fn emit_assets(
             let node_root = node_root.clone();
             let client_relative_path = client_relative_path.clone();
             let client_output_path = client_output_path.clone();
+            let preserve_existing = preserve_existing;
 
             async move {
                 let path = asset.path().owned().await?;
                 let span = tracing::info_span!("emit asset", name = %path.value_to_string().await?);
                 async move {
                     Ok(if path.is_inside_ref(&node_root) {
-                        Some(emit(*asset).as_side_effect().await?)
+                        Some(emit(*asset, preserve_existing).as_side_effect().await?)
                     } else if path.is_inside_ref(&client_relative_path) {
                         // Client assets are emitted to the client output path, which is prefixed
                         // with _next. We need to rebase them to remove that
                         // prefix.
                         Some(
-                            emit_rebase(*asset, client_relative_path, client_output_path)
-                                .as_side_effect()
-                                .await?,
+                            emit_rebase(
+                                *asset,
+                                client_relative_path,
+                                client_output_path,
+                                preserve_existing,
+                            )
+                            .as_side_effect()
+                            .await?,
                         )
                     } else {
                         None
@@ -81,12 +122,16 @@ pub async fn emit_assets(
 }
 
 #[turbo_tasks::function]
-async fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
+async fn emit(asset: Vc<Box<dyn OutputAsset>>, preserve_existing: bool) -> Result<()> {
+    let path = asset.path().owned().await?;
+    if preserve_existing && !matches!(*path.get_type().await?, FileSystemEntryType::NotFound) {
+        return Ok(());
+    }
     asset
         .content()
         .resolve()
         .await?
-        .write(asset.path().owned().await?)
+        .write(path)
         .as_side_effect()
         .await?;
     Ok(())
@@ -97,10 +142,14 @@ async fn emit_rebase(
     asset: Vc<Box<dyn OutputAsset>>,
     from: FileSystemPath,
     to: FileSystemPath,
+    preserve_existing: bool,
 ) -> Result<()> {
     let path = rebase(asset.path().owned().await?, from, to)
         .owned()
         .await?;
+    if preserve_existing && !matches!(*path.get_type().await?, FileSystemEntryType::NotFound) {
+        return Ok(());
+    }
     let content = asset.content();
     content
         .resolve()

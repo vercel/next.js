@@ -5,8 +5,9 @@ use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use next_core::{
     app_structure::find_app_dir,
-    emit_assets, get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
-    get_edge_compile_time_info, get_edge_resolve_options_context,
+    emit_assets, emit_assets_preserving_existing, get_edge_chunking_context,
+    get_edge_chunking_context_with_client_assets, get_edge_compile_time_info,
+    get_edge_resolve_options_context,
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
@@ -2126,6 +2127,7 @@ impl Project {
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
         output_assets: OperationVc<OutputAssets>,
+        preserve_existing: bool,
     ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
@@ -2146,14 +2148,25 @@ impl Project {
 
                 Ok(())
             } else {
-                emit_assets(
-                    all_output_assets.connect(),
-                    node_root.clone(),
-                    client_relative_path.clone(),
-                    node_root.clone(),
-                )
-                .as_side_effect()
-                .await?;
+                if preserve_existing {
+                    emit_assets_preserving_existing(
+                        all_output_assets.connect(),
+                        node_root.clone(),
+                        client_relative_path.clone(),
+                        node_root.clone(),
+                    )
+                    .as_side_effect()
+                    .await?;
+                } else {
+                    emit_assets(
+                        all_output_assets.connect(),
+                        node_root.clone(),
+                        client_relative_path.clone(),
+                        node_root.clone(),
+                    )
+                    .as_side_effect()
+                    .await?;
+                }
 
                 Ok(())
             }

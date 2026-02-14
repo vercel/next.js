@@ -45,7 +45,7 @@ async fn write_analyze_data_with_issues_operation_inner(
 
     project
         .project()
-        .emit_all_output_assets(analyze_data_op)
+        .emit_all_output_assets(analyze_data_op, false)
         .as_side_effect()
         .await?;
 
