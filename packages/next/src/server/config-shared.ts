@@ -1183,6 +1183,13 @@ export interface NextConfig {
   cacheMaxMemorySize?: number
 
   /**
+   * Configure the on-disk cache size in bytes.
+   * If undefined (default) auto-detect based on 50% of available disk space.
+   * If 0, this disables on-disk caching entirely.
+   */
+  cacheMaxDiskSize?: number
+
+  /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
    * To disable this behavior and prevent routing based set this to `true`.
    *
@@ -1532,6 +1539,7 @@ export const defaultConfig = Object.freeze({
   cacheHandler: process.env.NEXT_CACHE_HANDLER_PATH,
   // default to 50MB limit
   cacheMaxMemorySize: 50 * 1024 * 1024,
+  cacheMaxDiskSize: undefined,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
@@ -1757,6 +1765,7 @@ export interface NextConfigRuntime {
   cacheHandler: NextConfigComplete['cacheHandler']
   cacheHandlers: NextConfigComplete['cacheHandlers']
   cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize']
+  cacheMaxDiskSize: NextConfigComplete['cacheMaxDiskSize']
   compress: NextConfigComplete['compress']
   i18n: NextConfigComplete['i18n']
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
@@ -1900,6 +1909,7 @@ export function getNextConfigRuntime(
     cacheHandler: config.cacheHandler,
     cacheHandlers: config.cacheHandlers,
     cacheMaxMemorySize: config.cacheMaxMemorySize,
+    cacheMaxDiskSize: config.cacheMaxDiskSize,
     compress: config.compress,
     i18n: config.i18n,
     httpAgentOptions: config.httpAgentOptions,

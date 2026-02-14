@@ -134,13 +134,6 @@ export type ImageConfigComplete = {
   unoptimized: boolean
 
   /**
-   * Maximum size in bytes for the on-disk image optimization cache.
-   * When the cache exceeds this limit, the least recently used entries are deleted.
-   * Set to `0` (default) to auto-detect based on 50% of available disk space.
-   */
-  maximumDiskCacheSize: number
-
-  /**
    * When true, the `cacheHandler` configured in next.config.js will also be used
    * for caching optimized images. When false, images use the default filesystem cache.
    * @see [Image Optimization Caching](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler#image-optimization-caching)
@@ -173,6 +166,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   remotePatterns: [], // default: allow no remote images
   qualities: [75],
   unoptimized: false,
-  maximumDiskCacheSize: 0,
   customCacheHandler: false,
 }

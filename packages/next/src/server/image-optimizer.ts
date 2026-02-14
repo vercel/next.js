@@ -30,7 +30,7 @@ import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { isPrivateIp } from './is-private-ip'
-import { LRUCache } from './lib/lru-cache'
+import { getOrInitDiskLRU } from './lib/disk-lru-cache.external'
 import { parseUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -62,63 +62,20 @@ const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let _sharp: typeof import('sharp')
 
-// Module-level LRU singleton for disk cache eviction.
-// Initialized once on first `set()`, shared across all ImageOptimizerCache instances.
-// Once resolved, the promise stays resolved — subsequent calls just await the cached result.
-let _imageDiskLRUPromise: Promise<LRUCache<number>> | null = null
-
-/**
- * Initialize or return the module-level LRU for image disk cache eviction.
- * Concurrent calls are deduplicated via the shared promise.
- */
-export async function getOrInitImageDiskLRU(
-  cacheDir: string,
-  configMaxSize: number
-): Promise<LRUCache<number>> {
-  if (!_imageDiskLRUPromise) {
-    _imageDiskLRUPromise = (async () => {
-      let maxSize = configMaxSize
-      if (!maxSize) {
-        // If config is not provided, default to 50% of available disk space
-        const { bavail, bsize } = await promises.statfs(cacheDir)
-        maxSize = Math.floor((bavail * bsize) / 2)
-      }
-
-      const lru = new LRUCache<number>(
-        maxSize,
-        (size) => size,
-        (cacheKey) => {
-          // Fire-and-forget: intentionally don't await rm to avoid blocking
-          promises
-            .rm(join(/* turbopackIgnore: true */ cacheDir, cacheKey), {
-              recursive: true,
-              force: true,
-            })
-            .catch((err) => {
-              Log.error(`Failed to delete image cache key ${cacheKey}`, err)
-            })
-        }
-      )
-
-      const entries = await getExistingCacheEntries(cacheDir)
-      for (const entry of entries) {
-        lru.set(entry.key, entry.buffer.byteLength)
-      }
-
-      return lru
-    })()
-  }
-  return _imageDiskLRUPromise
-}
-
-async function getExistingCacheEntries(cacheDir: string) {
+async function initCacheEntries(
+  cacheDir: string
+): Promise<Array<{ key: string; size: number; expireAt: number }>> {
   const cacheKeys = await promises.readdir(cacheDir).catch(() => [])
-  const entries: Array<{ key: string; expireAt: number; buffer: Buffer }> = []
+  const entries: Array<{ key: string; size: number; expireAt: number }> = []
 
   for (const cacheKey of cacheKeys) {
     try {
       const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
-      entries.push({ key: cacheKey, expireAt, buffer })
+      entries.push({
+        key: cacheKey,
+        size: buffer.byteLength,
+        expireAt,
+      })
     } catch {
       // Skip entries that can't be read from disk
     }
@@ -126,13 +83,6 @@ async function getExistingCacheEntries(cacheDir: string) {
 
   // Sort oldest-first so we can replay them chronologically into LRU
   return entries.sort((a, b) => a.expireAt - b.expireAt)
-}
-
-/**
- * Reset the module-level LRU singleton. Exported for testing only.
- */
-export function resetImageDiskLRU(): void {
-  _imageDiskLRUPromise = null
 }
 
 export function getSharp(concurrency: number | null | undefined) {
@@ -215,7 +165,6 @@ export function getImageEtag(image: Buffer) {
 async function writeToCacheDir(
   cacheDir: string,
   cacheKey: string,
-  maximumDiskCacheSize: number,
   extension: string,
   maxAge: number,
   expireAt: number,
@@ -234,10 +183,6 @@ async function writeToCacheDir(
 
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
-
-  // Track in LRU for disk eviction (initializes on first set)
-  const lru = await getOrInitImageDiskLRU(cacheDir, maximumDiskCacheSize)
-  lru.set(cacheKey, buffer.byteLength)
 }
 
 async function readFromCacheDir(cacheDir: string, cacheKey: string) {
@@ -419,6 +364,7 @@ export class ImageOptimizerCache {
   private cacheDir: string
   private nextConfig: NextConfigRuntime
   private cacheHandler?: CacheHandler
+  private cacheDiskLRU?: ReturnType<typeof getOrInitDiskLRU>
 
   static validateParams(
     req: IncomingMessage,
@@ -608,6 +554,15 @@ export class ImageOptimizerCache {
     this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
     this.cacheHandler = cacheHandler
+
+    // Eagerly start LRU initialization for filesystem cache
+    if (!cacheHandler) {
+      this.cacheDiskLRU = getOrInitDiskLRU(
+        this.cacheDir,
+        nextConfig.cacheMaxDiskSize,
+        initCacheEntries
+      )
+    }
   }
 
   async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
@@ -652,15 +607,12 @@ export class ImageOptimizerCache {
 
     // Fall back to filesystem cache
     try {
+      const now = Date.now()
       const { maxAge, expireAt, etag, upstreamEtag, buffer, extension } =
         await readFromCacheDir(this.cacheDir, cacheKey)
-      const now = Date.now()
 
-      // Promote entry in LRU if initialized (don't trigger init from get)
-      if (_imageDiskLRUPromise) {
-        const lru = await _imageDiskLRUPromise
-        lru.get(cacheKey)
-      }
+      // Promote entry in LRU (mark as recently used)
+      ;(await this.cacheDiskLRU)?.get(cacheKey)
 
       return {
         value: {
@@ -737,7 +689,6 @@ export class ImageOptimizerCache {
       await writeToCacheDir(
         this.cacheDir,
         cacheKey,
-        this.nextConfig.images.maximumDiskCacheSize,
         value.extension,
         revalidate,
         expireAt,
@@ -745,6 +696,7 @@ export class ImageOptimizerCache {
         value.etag,
         value.upstreamEtag
       )
+      ;(await this.cacheDiskLRU)?.set(cacheKey, value.buffer.byteLength)
     } catch (err) {
       Log.error(`Failed to write image to cache ${cacheKey}`, err)
     }
