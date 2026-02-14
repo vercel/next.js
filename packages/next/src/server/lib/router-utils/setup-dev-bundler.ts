@@ -391,6 +391,31 @@ async function startWatcher(
     ]
     let nestedMiddleware: string[] = []
 
+    // Check for conflicting instrumentation files before starting watch
+    const possibleInstrumentationFiles =
+      getPossibleInstrumentationHookFilenames(
+        path.join(rootDir!, '..'),
+        nextConfig.pageExtensions
+      )
+    let rootInstrumentationExists: string | undefined
+    let srcInstrumentationExists: string | undefined
+    for (const file of possibleInstrumentationFiles) {
+      if (fs.existsSync(file)) {
+        const isInSrc = file.includes(path.join(path.sep, 'src', path.sep))
+        if (isInSrc) {
+          srcInstrumentationExists = file
+        } else {
+          rootInstrumentationExists = file
+        }
+      }
+    }
+    if (rootInstrumentationExists && srcInstrumentationExists) {
+      const cwd = process.cwd()
+      throw new Error(
+        `Conflicting instrumentation files detected: "./${path.relative(cwd, rootInstrumentationExists)}" and "./${path.relative(cwd, srcInstrumentationExists)}". Please remove one of them.`
+      )
+    }
+
     const envFiles = [
       '.env.development.local',
       '.env.local',
