@@ -119,24 +119,31 @@ function getAppDebugPaths(
 }
 
 /**
- * Collect all app routes for the second pass in debugBuildPaths format.
- * Pages routes are intentionally excluded from the second pass.
+ * Collect deferred app routes for the second pass in debugBuildPaths format.
+ * Pages routes are intentionally excluded from deferred second-pass filtering.
  */
-function getSecondPassBuildPaths(
+function getDeferredBuildPaths(
   appPaths: string[],
+  deferredEntries: string[],
   pageExtensions: string[]
 ): {
   app: string[]
   pages: string[]
 } {
-  const secondPassAppPaths: string[] = []
+  const deferredAppPaths: string[] = []
   for (const appPath of appPaths) {
-    const { debugPaths } = getAppDebugPaths(appPath, pageExtensions)
-    secondPassAppPaths.push(...debugPaths)
+    const { isPageRoute, isRouteHandler, normalizedRoute, debugPaths } =
+      getAppDebugPaths(appPath, pageExtensions)
+    const isDeferredAppEntry =
+      (isPageRoute || isRouteHandler) &&
+      isDeferredAppRoute(normalizedRoute, deferredEntries)
+    if (isDeferredAppEntry) {
+      deferredAppPaths.push(...debugPaths)
+    }
   }
 
   return {
-    app: [...new Set(secondPassAppPaths)],
+    app: [...new Set(deferredAppPaths)],
     pages: [],
   }
 }
@@ -256,7 +263,7 @@ export async function turbopackBuild(): Promise<{
       : null
   const secondPassBuildPaths =
     hasDeferredEntries && NextBuildContext.appDir
-      ? getSecondPassBuildPaths(appPaths, config.pageExtensions!)
+      ? getDeferredBuildPaths(appPaths, deferredEntries, config.pageExtensions!)
       : null
 
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
@@ -364,10 +371,17 @@ export async function turbopackBuild(): Promise<{
         await onBeforeDeferredEntries()
       }
 
-      // Second build: rebuild app routes as a single final graph.
+      // Deferred callbacks can rewrite generated route files (e.g. stubs ->
+      // real handlers). Update project debug paths before the second pass so
+      // the native layer can invalidate stale source reads from pass 1.
       await project.update({
         debugBuildPaths: secondPassBuildPaths,
       })
+
+      // Second build: compile deferred entries only after callback.
+      // Use the project-level debugBuildPaths configured above (via update)
+      // instead of a per-write override. This keeps deferred filtering while
+      // avoiding partial-write stale chunk lists.
       const secondPassEntrypoints =
         await project.writeAllEntrypointsToDisk(appDirOnly)
       printBuildErrors(secondPassEntrypoints, dev)

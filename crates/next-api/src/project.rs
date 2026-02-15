@@ -662,12 +662,15 @@ impl ProjectContainer {
         if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
             new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
         }
+        let force_project_fs_invalidation_for_debug_build_paths = debug_build_paths.is_some();
         if let Some(debug_build_paths) = debug_build_paths {
             new_options.debug_build_paths = Some(debug_build_paths);
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
         let watch = new_options.watch;
+        let force_project_fs_invalidation_for_debug_build_paths =
+            force_project_fs_invalidation_for_debug_build_paths && !watch.enable;
 
         let project = project_operation(resolved_self)
             .resolve_strongly_consistent()
@@ -702,6 +705,14 @@ impl ProjectContainer {
                     path: RcStr::from(path.to_string_lossy()),
                 });
             }
+        } else if force_project_fs_invalidation_for_debug_build_paths {
+            // Deferred entry writes can rewrite source files between passes
+            // (for example, replacing generated stubs with real route handlers).
+            // In build mode we don't watch for file changes, so force a project
+            // filesystem invalidation when debug_build_paths are updated.
+            project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                path: RcStr::from(path.to_string_lossy()),
+            });
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
             prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {

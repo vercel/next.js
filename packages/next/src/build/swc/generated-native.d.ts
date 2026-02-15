@@ -211,6 +211,11 @@ export interface NapiPartialProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling?: boolean
+  /**
+   * Debug build paths for selective builds.
+   * When set, only routes matching these paths will be included in the build.
+   */
+  debugBuildPaths?: NapiDebugBuildPaths
 }
 export interface NapiDefineEnv {
   client: Array<NapiOptionEnvVar>
