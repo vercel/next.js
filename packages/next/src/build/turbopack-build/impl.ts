@@ -160,6 +160,33 @@ function getDeferredBuildPaths(
   }
 }
 
+function getDeferredRouteKeys(
+  appPaths: string[],
+  deferredEntries: string[],
+  pageExtensions: string[]
+): Set<string> {
+  const deferredRouteKeys = new Set<string>()
+
+  for (const appPath of appPaths) {
+    const { isPageRoute, isRouteHandler, isMetadataRoute, normalizedRoutes } =
+      getAppDebugPaths(appPath, pageExtensions)
+
+    const isDeferredAppEntry =
+      (isPageRoute || isRouteHandler || isMetadataRoute) &&
+      normalizedRoutes.some((route) =>
+        isDeferredAppRoute(route, deferredEntries)
+      )
+
+    if (isDeferredAppEntry) {
+      for (const route of normalizedRoutes) {
+        deferredRouteKeys.add(route)
+      }
+    }
+  }
+
+  return deferredRouteKeys
+}
+
 /**
  * Collect all app routes for a full app-router second pass.
  * Pages routes are intentionally excluded from this filter.
@@ -314,6 +341,10 @@ export async function turbopackBuild(): Promise<{
             config.pageExtensions!
           )
       : null
+  const deferredRouteKeys =
+    hasDeferredEntries && NextBuildContext.appDir
+      ? getDeferredRouteKeys(appPaths, deferredEntries, config.pageExtensions!)
+      : new Set<string>()
 
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
@@ -449,7 +480,13 @@ export async function turbopackBuild(): Promise<{
       }
       // Merge second-pass app routes into the main routes.
       for (const [key, value] of secondPassRoutes) {
-        routes.set(key, value)
+        if (
+          useFullAppSecondPassForDeferredEntries ||
+          !routes.has(key) ||
+          deferredRouteKeys.has(key)
+        ) {
+          routes.set(key, value)
+        }
       }
 
       // Update entrypoints to include merged routes for manifest processing
