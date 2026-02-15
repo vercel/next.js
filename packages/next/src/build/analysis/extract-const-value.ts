@@ -210,8 +210,28 @@ function extractValue(node: Node, path?: string[]): any {
 }
 
 /**
+ * Tries to extract the value of a const from a VariableDeclaration node.
+ * Returns undefined if the name doesn't match or there's no init.
+ */
+function tryExtractConstFromVariableDeclaration(
+  declaration: VariableDeclaration,
+  exportedName: string
+): any {
+  if (declaration.kind !== 'const') {
+    return undefined
+  }
+  for (const decl of declaration.declarations) {
+    if (isIdentifier(decl.id) && decl.id.value === exportedName && decl.init) {
+      return extractValue(decl.init, [exportedName])
+    }
+  }
+  return undefined
+}
+
+/**
  * Extracts the value of an exported const variable named `exportedName`
- * (e.g. "export const config = { runtime: 'edge' }") from swc's AST.
+ * (e.g. "export const config = { runtime: 'edge' }" or "const config = {}; export { config }")
+ * from swc's AST.
  * The value must be one of (or throws UnsupportedValueError):
  *   - string
  *   - boolean
@@ -228,27 +248,45 @@ export function extractExportedConstValue(
   exportedName: string
 ): any {
   for (const moduleItem of module.body) {
-    if (!isExportDeclaration(moduleItem)) {
-      continue
-    }
-
-    const declaration = moduleItem.declaration
-    if (!isVariableDeclaration(declaration)) {
-      continue
-    }
-
-    if (declaration.kind !== 'const') {
-      continue
-    }
-
-    for (const decl of declaration.declarations) {
-      if (
-        isIdentifier(decl.id) &&
-        decl.id.value === exportedName &&
-        decl.init
-      ) {
-        return extractValue(decl.init, [exportedName])
+    // "export const config = ..."
+    if (isExportDeclaration(moduleItem)) {
+      const declaration = moduleItem.declaration
+      if (isVariableDeclaration(declaration)) {
+        const value = tryExtractConstFromVariableDeclaration(
+          declaration,
+          exportedName
+        )
+        if (value !== undefined) return value
       }
+      continue
+    }
+
+    // "export const config = ..." (some parsers) or "export { config }" with declaration
+    if ((moduleItem as Node).type === 'ExportNamedDeclaration') {
+      const named = moduleItem as {
+        declaration?: VariableDeclaration
+        specifiers?: Array<{
+          orig?: { value?: string }
+          exported?: { value?: string }
+        }>
+      }
+      if (named.declaration && isVariableDeclaration(named.declaration)) {
+        const value = tryExtractConstFromVariableDeclaration(
+          named.declaration,
+          exportedName
+        )
+        if (value !== undefined) return value
+      }
+      continue
+    }
+
+    // Top-level "const config = ..." (e.g. before "export { middleware, config }")
+    if (isVariableDeclaration(moduleItem as Node)) {
+      const value = tryExtractConstFromVariableDeclaration(
+        moduleItem as VariableDeclaration,
+        exportedName
+      )
+      if (value !== undefined) return value
     }
   }
 

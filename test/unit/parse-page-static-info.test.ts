@@ -76,4 +76,22 @@ describe('parse page static info', () => {
     expect(getStaticProps).toBe(false)
     expect(getServerSideProps).toBe(true)
   })
+
+  it('should parse middleware config from grouped export (const config; export { middleware, config })', async () => {
+    const { middleware: middlewareConfig } = await getPagesPageStaticInfo({
+      page: 'middleware',
+      pageFilePath: join(
+        fixtureDir,
+        'page-runtime/middleware-grouped-export.js'
+      ),
+      nextConfig: createNextConfig(),
+      pageType: PAGE_TYPES.PAGES,
+      isDev: false,
+    })
+    expect(middlewareConfig?.matchers).toBeDefined()
+    expect(Array.isArray(middlewareConfig?.matchers)).toBe(true)
+    expect(middlewareConfig!.matchers!.length).toBeGreaterThan(0)
+    expect(middlewareConfig!.matchers![0]).toHaveProperty('originalSource')
+    expect(middlewareConfig!.matchers![0].originalSource).toBe('/api/:path*')
+  })
 })
