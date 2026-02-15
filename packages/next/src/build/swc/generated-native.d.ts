@@ -312,6 +312,13 @@ export declare function projectWriteAllEntrypointsToDisk(
   debugBuildPaths?: NapiDebugBuildPaths | undefined | null,
   materializeWholeAppGraph?: boolean | undefined | null
 ): Promise<TurbopackResult>
+export declare function projectWriteDeferredEntrypointsToDisk(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean,
+  deferredRouteKeys: Array<RcStr>,
+  writeDeferredRoutes: boolean,
+  includeSupportAssets: boolean
+): Promise<TurbopackResult>
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult>

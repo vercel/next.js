@@ -1,4 +1,6 @@
-use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{
+    borrow::Cow, collections::HashSet, io::Write, path::PathBuf, sync::Arc, thread, time::Duration,
+};
 
 use anyhow::{Context, Result, anyhow, bail};
 use bincode::{Decode, Encode};
@@ -21,7 +23,7 @@ use next_api::{
         DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
         ProjectContainer, ProjectOptions, WatchOptions,
     },
-    route::Endpoint,
+    route::{Endpoint, EndpointGroupKey},
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
 };
 use next_core::tracing_presets::{
@@ -1061,6 +1063,59 @@ pub async fn project_write_all_entrypoints_to_disk(
     })
 }
 
+#[tracing::instrument(level = "info", name = "write deferred entrypoints to disk", skip_all)]
+#[napi]
+pub async fn project_write_deferred_entrypoints_to_disk(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    app_dir_only: bool,
+    deferred_route_keys: Vec<RcStr>,
+    write_deferred_routes: bool,
+    include_support_assets: bool,
+) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+    let tt = ctx.turbo_tasks();
+
+    let (entrypoints, issues, diags) = tt
+        .run(async move {
+            let write_operation = get_selected_written_entrypoints_with_issues_operation(
+                container,
+                app_dir_only,
+                deferred_route_keys,
+                write_deferred_routes,
+                include_support_assets,
+            );
+
+            let AllWrittenEntrypointsWithIssues {
+                entrypoints,
+                issues,
+                diagnostics,
+                effects,
+            } = &*write_operation.read_strongly_consistent().await?;
+
+            effects.apply().await?;
+            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+
+    Ok(TurbopackResult {
+        result: if let Some(entrypoints) = entrypoints {
+            Some(NapiEntrypoints::from_entrypoints_op(
+                &entrypoints,
+                &project.turbopack_ctx,
+            )?)
+        } else {
+            None
+        },
+        issues: issues
+            .iter()
+            .map(|issue| NapiIssue::from(&**issue))
+            .collect(),
+        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+    })
+}
+
 #[turbo_tasks::function(operation)]
 async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
@@ -1103,6 +1158,30 @@ pub async fn all_entrypoints_write_to_disk_operation(
     let preserve_existing_output_assets = debug_build_paths.is_some();
     project
         .emit_all_output_assets(output_assets_operation, preserve_existing_output_assets)
+        .as_side_effect()
+        .await?;
+
+    Ok(project.entrypoints())
+}
+
+#[turbo_tasks::function(operation)]
+pub async fn selected_entrypoints_write_to_disk_operation(
+    container: ResolvedVc<ProjectContainer>,
+    app_dir_only: bool,
+    deferred_route_keys: Vec<RcStr>,
+    write_deferred_routes: bool,
+    include_support_assets: bool,
+) -> Result<Vc<Entrypoints>> {
+    let output_assets_operation = selected_output_assets_operation(
+        container,
+        app_dir_only,
+        deferred_route_keys,
+        write_deferred_routes,
+        include_support_assets,
+    );
+    let project = container.project();
+    project
+        .emit_all_output_assets(output_assets_operation, write_deferred_routes)
         .as_side_effect()
         .await?;
 
@@ -1162,6 +1241,90 @@ async fn output_assets_operation(
             .chain(routes_hashes_manifest.iter().copied())
             .collect(),
     ))
+}
+
+#[turbo_tasks::function(operation)]
+async fn selected_output_assets_operation(
+    container: ResolvedVc<ProjectContainer>,
+    app_dir_only: bool,
+    deferred_route_keys: Vec<RcStr>,
+    write_deferred_routes: bool,
+    include_support_assets: bool,
+) -> Result<Vc<OutputAssets>> {
+    let project = container.project();
+    let endpoint_groups = project.get_all_endpoint_groups(app_dir_only).await?;
+    let deferred_route_keys: HashSet<RcStr> = deferred_route_keys.into_iter().collect();
+
+    let selected_endpoints = endpoint_groups
+        .iter()
+        .filter(|(key, _)| match key {
+            EndpointGroupKey::Route(route_key) => {
+                deferred_route_keys.contains(route_key) == write_deferred_routes
+            }
+            _ => !write_deferred_routes,
+        })
+        .flat_map(|(_, group)| {
+            group
+                .primary
+                .iter()
+                .chain(group.additional.iter())
+                .map(|entry| entry.endpoint)
+        })
+        .collect::<Vec<_>>();
+
+    let endpoint_assets = selected_endpoints
+        .iter()
+        .map(|endpoint| async move { endpoint.output().await?.output_assets.await })
+        .try_join()
+        .await?;
+
+    let output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = endpoint_assets
+        .iter()
+        .flat_map(|assets| assets.iter().copied())
+        .collect();
+
+    if include_support_assets {
+        let nft = next_server_nft_assets(project).await?;
+        let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
+
+        return Ok(Vc::cell(
+            output_assets
+                .into_iter()
+                .chain(nft.iter().copied())
+                .chain(routes_hashes_manifest.iter().copied())
+                .collect(),
+        ));
+    }
+
+    Ok(Vc::cell(output_assets.into_iter().collect()))
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_selected_written_entrypoints_with_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+    app_dir_only: bool,
+    deferred_route_keys: Vec<RcStr>,
+    write_deferred_routes: bool,
+    include_support_assets: bool,
+) -> Result<Vc<AllWrittenEntrypointsWithIssues>> {
+    let entrypoints_operation =
+        EntrypointsOperation::new(selected_entrypoints_write_to_disk_operation(
+            container,
+            app_dir_only,
+            deferred_route_keys,
+            write_deferred_routes,
+            include_support_assets,
+        ));
+    let filter = issue_filter_from_container(container);
+    let (entrypoints, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
+    Ok(AllWrittenEntrypointsWithIssues {
+        entrypoints,
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
 }
 
 #[tracing::instrument(level = "info", name = "get entrypoints", skip_all)]

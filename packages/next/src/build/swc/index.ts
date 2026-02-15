@@ -723,6 +723,52 @@ function bindingToApi(
       }
     }
 
+    async writeDeferredEntrypointsToDisk(
+      appDirOnly: boolean,
+      deferredRouteKeys: string[],
+      nonDeferredBuildPaths?: ProjectOptions['debugBuildPaths'],
+      onBeforeDeferredEntries?: (() => Promise<void>) | (() => void)
+    ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
+      const firstPhase = await this.writeAllEntrypointsToDisk(
+        appDirOnly,
+        nonDeferredBuildPaths
+      )
+
+      if (onBeforeDeferredEntries) {
+        await onBeforeDeferredEntries()
+      }
+
+      const secondPhase = (await binding.projectWriteDeferredEntrypointsToDisk(
+        this._nativeProject,
+        appDirOnly,
+        deferredRouteKeys,
+        true,
+        true
+      )) as TurbopackResult<Partial<NapiEntrypoints>>
+
+      const combinedIssues = [...firstPhase.issues, ...secondPhase.issues]
+      const combinedDiagnostics = [
+        ...firstPhase.diagnostics,
+        ...secondPhase.diagnostics,
+      ]
+
+      if ('routes' in secondPhase) {
+        const nextEntrypoints = await napiEntrypointsToRawEntrypoints(
+          secondPhase as TurbopackResult<NapiEntrypoints>
+        )
+        return {
+          ...nextEntrypoints,
+          issues: combinedIssues,
+          diagnostics: combinedDiagnostics,
+        }
+      }
+
+      return {
+        issues: combinedIssues,
+        diagnostics: combinedDiagnostics,
+      }
+    }
+
     entrypointsSubscribe() {
       const subscription = subscribe<TurbopackResult<NapiEntrypoints | {}>>(
         false,

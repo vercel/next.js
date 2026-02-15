@@ -123,43 +123,6 @@ function getAppDebugPaths(
   }
 }
 
-/**
- * Collect deferred app routes for the second pass in debugBuildPaths format.
- * Pages routes are intentionally excluded from deferred second-pass filtering.
- */
-function getDeferredBuildPaths(
-  appPaths: string[],
-  deferredEntries: string[],
-  pageExtensions: string[]
-): {
-  app: string[]
-  pages: string[]
-} {
-  const deferredAppPaths: string[] = []
-  for (const appPath of appPaths) {
-    const {
-      isPageRoute,
-      isRouteHandler,
-      isMetadataRoute,
-      normalizedRoutes,
-      debugPaths,
-    } = getAppDebugPaths(appPath, pageExtensions)
-    const isDeferredAppEntry =
-      (isPageRoute || isRouteHandler || isMetadataRoute) &&
-      normalizedRoutes.some((route) =>
-        isDeferredAppRoute(route, deferredEntries)
-      )
-    if (isDeferredAppEntry) {
-      deferredAppPaths.push(...debugPaths)
-    }
-  }
-
-  return {
-    app: [...new Set(deferredAppPaths)],
-    pages: [],
-  }
-}
-
 function getDeferredRouteKeys(
   appPaths: string[],
   deferredEntries: string[],
@@ -185,29 +148,6 @@ function getDeferredRouteKeys(
   }
 
   return deferredRouteKeys
-}
-
-/**
- * Collect all app routes for a full app-router second pass.
- * Pages routes are intentionally excluded from this filter.
- */
-function getAllAppBuildPaths(
-  appPaths: string[],
-  pageExtensions: string[]
-): {
-  app: string[]
-  pages: string[]
-} {
-  const appDebugPaths: string[] = []
-  for (const appPath of appPaths) {
-    const { debugPaths } = getAppDebugPaths(appPath, pageExtensions)
-    appDebugPaths.push(...debugPaths)
-  }
-
-  return {
-    app: [...new Set(appDebugPaths)],
-    pages: [],
-  }
 }
 
 /**
@@ -293,7 +233,6 @@ export async function turbopackBuild(): Promise<{
   const deferredEntries = config.experimental.deferredEntries || []
   const hasDeferredEntries = deferredEntries.length > 0
   const onBeforeDeferredEntries = config.experimental.onBeforeDeferredEntries
-  const useFullAppSecondPassForDeferredEntries = !!config.cacheComponents
 
   // Collect all pages paths when using deferred entries to ensure pages routes
   // are not filtered out (deferred entries only affects app routes)
@@ -320,8 +259,10 @@ export async function turbopackBuild(): Promise<{
     ))
   }
 
-  // For deferred entries, we use debugBuildPaths to control which routes are built
-  // in two phases around onBeforeDeferredEntries.
+  const deferredRouteKeys =
+    hasDeferredEntries && NextBuildContext.appDir
+      ? getDeferredRouteKeys(appPaths, deferredEntries, config.pageExtensions!)
+      : new Set<string>()
   const nonDeferredBuildPaths =
     hasDeferredEntries && NextBuildContext.appDir
       ? getNonDeferredBuildPaths(
@@ -331,20 +272,6 @@ export async function turbopackBuild(): Promise<{
           pagesPaths
         )
       : null
-  const secondPassBuildPaths =
-    hasDeferredEntries && NextBuildContext.appDir
-      ? useFullAppSecondPassForDeferredEntries
-        ? getAllAppBuildPaths(appPaths, config.pageExtensions!)
-        : getDeferredBuildPaths(
-            appPaths,
-            deferredEntries,
-            config.pageExtensions!
-          )
-      : null
-  const deferredRouteKeys =
-    hasDeferredEntries && NextBuildContext.appDir
-      ? getDeferredRouteKeys(appPaths, deferredEntries, config.pageExtensions!)
-      : new Set<string>()
 
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
@@ -391,18 +318,11 @@ export async function turbopackBuild(): Promise<{
     isShortSession: true,
   }
 
-  const firstPassBuildPaths = hasDeferredEntries
-    ? nonDeferredBuildPaths
-    : NextBuildContext.debugBuildPaths
-  const firstPassDebugBuildPaths = firstPassBuildPaths ?? undefined
-
-  // In deferred mode, the first-pass filter must be a per-write override so the
-  // native layer can treat it as a partial write and avoid eager full-app graph
-  // work before onBeforeDeferredEntries is called.
+  // Deferred entries are emitted through a single project session in native
+  // code, so we keep project-level debug paths unset in deferred mode.
   const projectDebugBuildPaths = hasDeferredEntries
     ? undefined
     : NextBuildContext.debugBuildPaths
-  const firstPassWriteDebugBuildPaths = firstPassDebugBuildPaths
 
   const project = await bindings.turbo.createProject(
     {
@@ -430,11 +350,24 @@ export async function turbopackBuild(): Promise<{
 
     let appDirOnly = NextBuildContext.appDirOnly!
 
-    // First build: without deferred entries (they're renamed to .deferred)
-    let entrypoints = await project.writeAllEntrypointsToDisk(
-      appDirOnly,
-      firstPassWriteDebugBuildPaths
-    )
+    const useNativeDeferredBuild =
+      hasDeferredEntries &&
+      NextBuildContext.appDir &&
+      deferredRouteKeys.size > 0
+
+    // Build entrypoints. In deferred mode this performs non-deferred emission,
+    // runs onBeforeDeferredEntries, then emits deferred routes in one project.
+    let entrypoints = useNativeDeferredBuild
+      ? await project.writeDeferredEntrypointsToDisk(
+          appDirOnly,
+          Array.from(deferredRouteKeys),
+          nonDeferredBuildPaths ?? undefined,
+          onBeforeDeferredEntries
+        )
+      : await project.writeAllEntrypointsToDisk(
+          appDirOnly,
+          NextBuildContext.debugBuildPaths
+        )
     printBuildErrors(entrypoints, dev)
 
     let routes = entrypoints.routes
@@ -442,58 +375,6 @@ export async function turbopackBuild(): Promise<{
       // This should never ever happen, there should be an error issue, or the bindings call should
       // have thrown.
       throw new Error(`Turbopack build failed`)
-    }
-
-    // Handle deferred entries: call callback and do second build
-    if (secondPassBuildPaths) {
-      // Call onBeforeDeferredEntries callback after first build completes
-      if (onBeforeDeferredEntries) {
-        await onBeforeDeferredEntries()
-      }
-
-      // Deferred callbacks can rewrite generated route files (e.g. stubs ->
-      // real handlers). Update project debug paths before the second pass so
-      // the native layer can invalidate stale source reads from pass 1.
-      await project.update({
-        debugBuildPaths: secondPassBuildPaths,
-      })
-
-      // Second build: compile deferred entries only after callback.
-      //
-      // In Cache Components mode, module id/chunk maps need a full app-router
-      // second pass to keep runtime module factories coherent.
-      //
-      // In non-cache mode we can keep a partial write so first-pass outputs are
-      // preserved and deferred entries are emitted incrementally.
-      const secondPassEntrypoints = useFullAppSecondPassForDeferredEntries
-        ? await project.writeAllEntrypointsToDisk(appDirOnly)
-        : await project.writeAllEntrypointsToDisk(
-            appDirOnly,
-            secondPassBuildPaths,
-            true
-          )
-      printBuildErrors(secondPassEntrypoints, dev)
-
-      const secondPassRoutes = secondPassEntrypoints.routes
-      if (!secondPassRoutes) {
-        throw new Error(`Turbopack build failed`)
-      }
-      // Merge second-pass app routes into the main routes.
-      for (const [key, value] of secondPassRoutes) {
-        if (
-          useFullAppSecondPassForDeferredEntries ||
-          !routes.has(key) ||
-          deferredRouteKeys.has(key)
-        ) {
-          routes.set(key, value)
-        }
-      }
-
-      // Update entrypoints to include merged routes for manifest processing
-      entrypoints = {
-        ...entrypoints,
-        routes,
-      }
     }
 
     const hasPagesEntries = Array.from(routes.values()).some((route) => {

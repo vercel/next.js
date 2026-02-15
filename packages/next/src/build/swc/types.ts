@@ -266,6 +266,13 @@ export interface Project {
     materializeWholeAppGraph?: boolean
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
+  writeDeferredEntrypointsToDisk(
+    appDirOnly: boolean,
+    deferredRouteKeys: string[],
+    nonDeferredBuildPaths?: ProjectOptions['debugBuildPaths'],
+    onBeforeDeferredEntries?: (() => Promise<void>) | (() => void)
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
+
   entrypointsSubscribe(): AsyncIterableIterator<
     TurbopackResult<RawEntrypoints | {}>
   >
