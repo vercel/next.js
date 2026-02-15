@@ -437,6 +437,8 @@ async function createComponentTreeInternal(
       Component: NotFound,
       styles: notFoundStyles,
       tree,
+      moduleLoader: notFound ? notFound[0] : undefined,
+      params: currentParams,
     })
 
   const [forbiddenElement] = await createBoundaryConventionElement({
@@ -445,6 +447,8 @@ async function createComponentTreeInternal(
     Component: Forbidden,
     styles: forbiddenStyles,
     tree,
+    moduleLoader: forbidden ? forbidden[0] : undefined,
+    params: currentParams,
   })
 
   const [unauthorizedElement] = await createBoundaryConventionElement({
@@ -453,6 +457,8 @@ async function createComponentTreeInternal(
     Component: Unauthorized,
     styles: unauthorizedStyles,
     tree,
+    moduleLoader: unauthorized ? unauthorized[0] : undefined,
+    params: currentParams,
   })
 
   // TODO: Combine this `map` traversal with the loop below that turns the array
@@ -1172,12 +1178,72 @@ function getRootParamsImpl(
   }
 }
 
+/**
+ * Resolve metadata exported from a boundary convention module (not-found, forbidden, unauthorized).
+ * Returns React elements for title and meta tags that React will hoist to <head>.
+ */
+async function resolveBoundaryMetadataElements(
+  mod: any,
+  params: Params,
+  createElement: AppRenderContext['componentMod']['createElement'],
+  Fragment: AppRenderContext['componentMod']['Fragment']
+): Promise<React.ReactNode> {
+  if (!mod) return null
+
+  let metadata: Record<string, any> | null = null
+
+  if (typeof mod.generateMetadata === 'function') {
+    try {
+      // generateMetadata receives { params } as a Promise (Next.js 15+ convention)
+      metadata = await mod.generateMetadata({
+        params: Promise.resolve(params),
+      })
+    } catch {
+      // If generateMetadata throws, fall back to static metadata
+      metadata = mod.metadata || null
+    }
+  } else if (mod.metadata) {
+    metadata = mod.metadata
+  }
+
+  if (!metadata) return null
+
+  const elements: React.ReactNode[] = []
+
+  if (metadata.title) {
+    const titleValue =
+      typeof metadata.title === 'string'
+        ? metadata.title
+        : typeof metadata.title === 'object' && metadata.title !== null
+          ? metadata.title.absolute || metadata.title.default || ''
+          : ''
+    if (titleValue) {
+      elements.push(createElement('title', null, titleValue))
+    }
+  }
+
+  if (metadata.description) {
+    elements.push(
+      createElement('meta', {
+        name: 'description',
+        content: metadata.description,
+      })
+    )
+  }
+
+  if (elements.length === 0) return null
+
+  return createElement(Fragment, null, ...elements)
+}
+
 async function createBoundaryConventionElement({
   ctx,
   conventionName,
   Component,
   styles,
   tree,
+  moduleLoader,
+  params,
 }: {
   ctx: AppRenderContext
   conventionName:
@@ -1189,6 +1255,8 @@ async function createBoundaryConventionElement({
   Component: ComponentType<any> | undefined
   styles: React.ReactNode | undefined
   tree: LoaderTree
+  moduleLoader?: () => Promise<any>
+  params?: Params
 }) {
   const {
     componentMod: { createElement, Fragment },
@@ -1199,8 +1267,39 @@ async function createBoundaryConventionElement({
       ? process.env.__NEXT_EDGE_PROJECT_DIR
       : ctx.renderOpts.dir) || ''
   const { SegmentViewNode } = ctx.componentMod
+
+  // For HTTP access fallback conventions (not-found, forbidden, unauthorized),
+  // resolve metadata from the module and render as React elements.
+  // React will hoist <title> and <meta> elements to <head>, overriding
+  // previously rendered metadata when the error boundary activates.
+  let metadataElements: React.ReactNode = null
+  const isHTTPAccessFallback =
+    conventionName === 'not-found' ||
+    conventionName === 'forbidden' ||
+    conventionName === 'unauthorized'
+
+  if (isHTTPAccessFallback && moduleLoader && Component) {
+    try {
+      const mod = await moduleLoader()
+      metadataElements = await resolveBoundaryMetadataElements(
+        mod,
+        params || {},
+        createElement,
+        Fragment
+      )
+    } catch {
+      // If metadata resolution fails, continue without boundary metadata
+    }
+  }
+
   const element = Component
-    ? createElement(Fragment, null, createElement(Component, null), styles)
+    ? createElement(
+        Fragment,
+        null,
+        metadataElements,
+        createElement(Component, null),
+        styles
+      )
     : undefined
 
   const pagePath = getConventionPathByType(tree, dir, conventionName)
