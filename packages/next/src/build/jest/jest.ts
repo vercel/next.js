@@ -105,15 +105,9 @@ export default function nextJest(options: { dir?: string } = {}) {
 
       const transpiled = (nextConfig?.transpilePackages ?? [])
         .concat(DEFAULT_TRANSPILED_PACKAGES)
-        // Only transpile the runtime modules that need the image-config replacement
-        // instead of the entire `next` package. This limits SWC transforms to the
-        // specific distributed image modules so we avoid unnecessary work and
-        // potential perf impact.
-        .concat([
-          'next/dist/client/image',
-          'next/dist/client/legacy/image',
-          'next/dist/shared/lib/image-external',
-        ])
+        // Include the entire `next` package in Jest transform so SWC
+        // can run compile-time replacements for define-env for image tests.
+        .concat(['next'])
         .join('|')
 
       // In production, webpack DefinePlugin replaces process.env.__NEXT_IMAGE_OPTS
