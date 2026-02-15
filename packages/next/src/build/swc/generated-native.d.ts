@@ -309,7 +309,8 @@ export interface NapiDebugBuildPaths {
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean,
-  debugBuildPaths?: NapiDebugBuildPaths | undefined | null
+  debugBuildPaths?: NapiDebugBuildPaths | undefined | null,
+  materializeWholeAppGraph?: boolean | undefined | null
 ): Promise<TurbopackResult>
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'

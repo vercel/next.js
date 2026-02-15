@@ -1012,10 +1012,12 @@ pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
     debug_build_paths: Option<NapiDebugBuildPaths>,
+    materialize_whole_app_graph: Option<bool>,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let ctx = &project.turbopack_ctx;
     let container = project.container;
     let debug_build_paths = debug_build_paths.map(DebugBuildPaths::from);
+    let materialize_whole_app_graph = materialize_whole_app_graph.unwrap_or(false);
     let tt = ctx.turbo_tasks();
 
     let (entrypoints, issues, diags) = tt
@@ -1024,6 +1026,7 @@ pub async fn project_write_all_entrypoints_to_disk(
                 container,
                 app_dir_only,
                 debug_build_paths,
+                materialize_whole_app_graph,
             );
 
             // Read and compile the files
@@ -1063,11 +1066,13 @@ async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
     debug_build_paths: Option<DebugBuildPaths>,
+    materialize_whole_app_graph: bool,
 ) -> Result<Vc<AllWrittenEntrypointsWithIssues>> {
     let entrypoints_operation = EntrypointsOperation::new(all_entrypoints_write_to_disk_operation(
         container,
         app_dir_only,
         debug_build_paths,
+        materialize_whole_app_graph,
     ));
     let filter = issue_filter_from_container(container);
     let (entrypoints, issues, diagnostics, effects) =
@@ -1086,9 +1091,14 @@ pub async fn all_entrypoints_write_to_disk_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
     debug_build_paths: Option<DebugBuildPaths>,
+    materialize_whole_app_graph: bool,
 ) -> Result<Vc<Entrypoints>> {
-    let output_assets_operation =
-        output_assets_operation(container, app_dir_only, debug_build_paths.clone());
+    let output_assets_operation = output_assets_operation(
+        container,
+        app_dir_only,
+        debug_build_paths.clone(),
+        materialize_whole_app_graph,
+    );
     let project = container.project_with_debug_build_paths(debug_build_paths.clone());
     let preserve_existing_output_assets = debug_build_paths.is_some();
     project
@@ -1104,6 +1114,7 @@ async fn output_assets_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
     debug_build_paths: Option<DebugBuildPaths>,
+    materialize_whole_app_graph: bool,
 ) -> Result<Vc<OutputAssets>> {
     let project = container.project_with_debug_build_paths(debug_build_paths.clone());
     let endpoint_assets = project
@@ -1126,7 +1137,7 @@ async fn output_assets_operation(
     // Per-write debug_build_paths are partial writes (used by deferred entries
     // first pass). Avoid eagerly computing the whole app graph there so deferred
     // modules are not loaded before the callback gate.
-    if debug_build_paths.is_none() {
+    if materialize_whole_app_graph || debug_build_paths.is_none() {
         project.whole_app_module_graphs().as_side_effect().await?;
     }
 

@@ -83,7 +83,7 @@ function getAppDebugPaths(
 ): {
   isPageRoute: boolean
   isRouteHandler: boolean
-  normalizedRoute: string
+  normalizedRoutes: string[]
   isMetadataRoute: boolean
   debugPaths: string[]
 } {
@@ -108,11 +108,16 @@ function getAppDebugPaths(
       )
     )
   )
+  const normalizedRoutes = Array.from(
+    new Set(
+      routeCandidates.map((routeCandidate) => normalizeAppPath(routeCandidate))
+    )
+  )
 
   return {
     isPageRoute: !isMetadataRoute && page.endsWith('/page'),
     isRouteHandler: !isMetadataRoute && page.endsWith('/route'),
-    normalizedRoute: normalizeAppPath(page),
+    normalizedRoutes,
     isMetadataRoute,
     debugPaths,
   }
@@ -132,11 +137,18 @@ function getDeferredBuildPaths(
 } {
   const deferredAppPaths: string[] = []
   for (const appPath of appPaths) {
-    const { isPageRoute, isRouteHandler, normalizedRoute, debugPaths } =
-      getAppDebugPaths(appPath, pageExtensions)
+    const {
+      isPageRoute,
+      isRouteHandler,
+      isMetadataRoute,
+      normalizedRoutes,
+      debugPaths,
+    } = getAppDebugPaths(appPath, pageExtensions)
     const isDeferredAppEntry =
-      (isPageRoute || isRouteHandler) &&
-      isDeferredAppRoute(normalizedRoute, deferredEntries)
+      (isPageRoute || isRouteHandler || isMetadataRoute) &&
+      normalizedRoutes.some((route) =>
+        isDeferredAppRoute(route, deferredEntries)
+      )
     if (isDeferredAppEntry) {
       deferredAppPaths.push(...debugPaths)
     }
@@ -173,7 +185,7 @@ function getAllAppBuildPaths(
 
 /**
  * Collect app entries for the first pass by excluding deferred app routes.
- * Deferred entries can target both page routes and route handlers.
+ * Deferred entries can target page routes, route handlers, and metadata routes.
  * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
  */
 function getNonDeferredBuildPaths(
@@ -188,11 +200,18 @@ function getNonDeferredBuildPaths(
 
   const nonDeferredAppPaths: string[] = []
   for (const appPath of appPaths) {
-    const { isPageRoute, isRouteHandler, normalizedRoute, debugPaths } =
-      getAppDebugPaths(appPath, pageExtensions)
+    const {
+      isPageRoute,
+      isRouteHandler,
+      isMetadataRoute,
+      normalizedRoutes,
+      debugPaths,
+    } = getAppDebugPaths(appPath, pageExtensions)
     const isDeferredAppEntry =
-      (isPageRoute || isRouteHandler) &&
-      isDeferredAppRoute(normalizedRoute, deferredEntries)
+      (isPageRoute || isRouteHandler || isMetadataRoute) &&
+      normalizedRoutes.some((route) =>
+        isDeferredAppRoute(route, deferredEntries)
+      )
     if (!isDeferredAppEntry) {
       nonDeferredAppPaths.push(...debugPaths)
     }
@@ -419,7 +438,8 @@ export async function turbopackBuild(): Promise<{
         ? await project.writeAllEntrypointsToDisk(appDirOnly)
         : await project.writeAllEntrypointsToDisk(
             appDirOnly,
-            secondPassBuildPaths
+            secondPassBuildPaths,
+            true
           )
       printBuildErrors(secondPassEntrypoints, dev)
 

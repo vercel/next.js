@@ -701,12 +701,14 @@ function bindingToApi(
 
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean,
-      debugBuildPaths?: ProjectOptions['debugBuildPaths']
+      debugBuildPaths?: ProjectOptions['debugBuildPaths'],
+      materializeWholeAppGraph?: boolean
     ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
         appDirOnly,
-        debugBuildPaths
+        debugBuildPaths,
+        materializeWholeAppGraph
       )) as TurbopackResult<Partial<NapiEntrypoints>>
 
       if ('routes' in napiEndpoints) {

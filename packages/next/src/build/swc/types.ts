@@ -262,7 +262,8 @@ export interface Project {
 
   writeAllEntrypointsToDisk(
     appDirOnly: boolean,
-    debugBuildPaths?: ProjectOptions['debugBuildPaths']
+    debugBuildPaths?: ProjectOptions['debugBuildPaths'],
+    materializeWholeAppGraph?: boolean
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
   entrypointsSubscribe(): AsyncIterableIterator<
