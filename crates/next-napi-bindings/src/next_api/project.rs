@@ -1117,6 +1117,27 @@ async fn output_assets_operation(
     materialize_whole_app_graph: bool,
 ) -> Result<Vc<OutputAssets>> {
     let project = container.project_with_debug_build_paths(debug_build_paths.clone());
+
+    // Per-write debug_build_paths are partial writes (used by deferred entries
+    // first pass). Avoid eagerly computing the whole app graph there so deferred
+    // modules are not loaded before the callback gate.
+    //
+    // When materialization is requested (deferred second pass), do it before
+    // endpoint output collection so chunk/module ids are allocated consistently
+    // with the graph that endpoint outputs will use.
+    if materialize_whole_app_graph {
+        // Second-pass deferred writes still run with debug_build_paths filtering
+        // for output emission, but module/chunk id allocation must be based on
+        // the full app graph to keep runtime module factories coherent.
+        container
+            .project()
+            .whole_app_module_graphs()
+            .as_side_effect()
+            .await?;
+    } else if debug_build_paths.is_none() {
+        project.whole_app_module_graphs().as_side_effect().await?;
+    }
+
     let endpoint_assets = project
         .get_all_endpoints(app_dir_only)
         .await?
@@ -1133,13 +1154,6 @@ async fn output_assets_operation(
     let nft = next_server_nft_assets(project).await?;
 
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
-
-    // Per-write debug_build_paths are partial writes (used by deferred entries
-    // first pass). Avoid eagerly computing the whole app graph there so deferred
-    // modules are not loaded before the callback gate.
-    if materialize_whole_app_graph || debug_build_paths.is_none() {
-        project.whole_app_module_graphs().as_side_effect().await?;
-    }
 
     Ok(Vc::cell(
         output_assets
