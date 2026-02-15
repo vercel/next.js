@@ -213,6 +213,14 @@ describe('deferred-entries webpack', () => {
     })
   })
 
+  it('should build app router route in a route group when using deferred entries', async () => {
+    await retry(async () => {
+      const groupedRouteRes = await next.fetch('/grouped')
+      expect(groupedRouteRes.status).toBe(200)
+      expect(await groupedRouteRes.text()).toContain('Grouped App Router Page')
+    })
+  })
+
   it('should build app router route handler when using deferred entries', async () => {
     await retry(async () => {
       const routeHandlerRes = await next.fetch('/route-handler')

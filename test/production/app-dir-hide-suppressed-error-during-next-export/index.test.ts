@@ -20,9 +20,7 @@ describe('app-dir-hide-suppressed-error-during-next-export', () => {
     await expect(next.start()).rejects.toThrow('next build failed')
     expect(next.cliOutput).toInclude('Page build time error')
     expect(next.cliOutput).toInclude('occurred prerendering page "/"')
-    expect(next.cliOutput).toInclude(
-      'Export encountered errors on following paths'
-    )
+    expect(next.cliOutput).toInclude('Export encountered errors on 1 path')
     expect(next.cliOutput).not.toInclude(
       'The specific message is omitted in production builds to avoid leaking sensitive details.'
     )

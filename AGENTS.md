@@ -246,6 +246,13 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 - Use `DEBUG=next:*` for debug logging
 - Use `NEXT_TELEMETRY_DISABLED=1` when testing locally
 
+### `NODE_ENV` vs `__NEXT_DEV_SERVER`
+
+Both `next dev` and `next build --debug-prerender` produce bundles with `NODE_ENV=development`. Use `process.env.__NEXT_DEV_SERVER` to distinguish between them:
+
+- `process.env.NODE_ENV !== 'production'` — code that should exist in dev bundles but be eliminated from prod bundles. This is a build-time check.
+- `process.env.__NEXT_DEV_SERVER` — code that should only run with the dev server (`next dev`), not during `next build --debug-prerender` or `next start`.
+
 ## Commit and PR Style
 
 - Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs

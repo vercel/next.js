@@ -18,16 +18,19 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
+    loader::ResolvedWebpackLoaderItem,
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
-    reference_type::EcmaScriptModulesReferenceSubType,
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
         ModuleResolveResultItem, RequestKey, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
+        resolve,
     },
+    source::Source,
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
@@ -408,7 +411,32 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if let Some(module_type) = self.annotations.module_type() {
+        let ty = if let Some(loader) = self.annotations.turbopack_loader() {
+            // Resolve the loader path relative to the importing file
+            let origin = self.get_origin();
+            let origin_path = origin.origin_path().await?;
+            let loader_request = Request::parse(loader.loader.clone().into());
+            let resolved = resolve(
+                origin_path.parent(),
+                ReferenceType::Loader,
+                loader_request,
+                origin.resolve_options(),
+            );
+            let loader_fs_path = if let Some(source) = *resolved.first_source().await? {
+                (*source.ident().path().await?).clone()
+            } else {
+                bail!("Unable to resolve turbopackLoader '{}'", loader.loader);
+            };
+
+            EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
+                loader: ResolvedWebpackLoaderItem {
+                    loader: loader_fs_path,
+                    options: loader.options.clone(),
+                },
+                rename_as: self.annotations.turbopack_rename_as().cloned(),
+                module_type: self.annotations.turbopack_module_type().cloned(),
+            }
+        } else if let Some(module_type) = self.annotations.module_type() {
             EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
                 &*module_type.to_string_lossy(),
             ))

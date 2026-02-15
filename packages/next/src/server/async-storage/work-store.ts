@@ -58,8 +58,6 @@ export type WorkStoreContext = {
     | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
-    | 'dev'
-    | 'hasReadableErrorStacks'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -105,10 +103,8 @@ export function createWorkStore({
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction
 
-  const isDevelopment = renderOpts.dev ?? false
-
   const shouldTrackFetchMetrics =
-    isDevelopment ||
+    !!process.env.__NEXT_DEV_SERVER ||
     // The only times we want to track fetch metrics outside of development is
     // when we are performing a static generation and we either are in debug
     // mode, or tracking fetch metrics was specifically opted into.
@@ -126,7 +122,6 @@ export function createWorkStore({
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
     isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
-    hasReadableErrorStacks: renderOpts.hasReadableErrorStacks,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
@@ -140,7 +135,6 @@ export function createWorkStore({
 
     afterContext: createAfterContext(renderOpts),
     cacheComponentsEnabled: renderOpts.cacheComponents,
-    dev: isDevelopment,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),

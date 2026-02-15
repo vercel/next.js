@@ -328,6 +328,7 @@ const nextDev = async (
         env: {
           ...defaultEnv,
           ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
+          __NEXT_DEV_SERVER: '1',
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
