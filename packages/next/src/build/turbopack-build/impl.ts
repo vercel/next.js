@@ -149,6 +149,29 @@ function getDeferredBuildPaths(
 }
 
 /**
+ * Collect all app routes for a full app-router second pass.
+ * Pages routes are intentionally excluded from this filter.
+ */
+function getAllAppBuildPaths(
+  appPaths: string[],
+  pageExtensions: string[]
+): {
+  app: string[]
+  pages: string[]
+} {
+  const appDebugPaths: string[] = []
+  for (const appPath of appPaths) {
+    const { debugPaths } = getAppDebugPaths(appPath, pageExtensions)
+    appDebugPaths.push(...debugPaths)
+  }
+
+  return {
+    app: [...new Set(appDebugPaths)],
+    pages: [],
+  }
+}
+
+/**
  * Collect app entries for the first pass by excluding deferred app routes.
  * Deferred entries can target both page routes and route handlers.
  * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
@@ -224,6 +247,7 @@ export async function turbopackBuild(): Promise<{
   const deferredEntries = config.experimental.deferredEntries || []
   const hasDeferredEntries = deferredEntries.length > 0
   const onBeforeDeferredEntries = config.experimental.onBeforeDeferredEntries
+  const useFullAppSecondPassForDeferredEntries = !!config.cacheComponents
 
   // Collect all pages paths when using deferred entries to ensure pages routes
   // are not filtered out (deferred entries only affects app routes)
@@ -263,7 +287,13 @@ export async function turbopackBuild(): Promise<{
       : null
   const secondPassBuildPaths =
     hasDeferredEntries && NextBuildContext.appDir
-      ? getDeferredBuildPaths(appPaths, deferredEntries, config.pageExtensions!)
+      ? useFullAppSecondPassForDeferredEntries
+        ? getAllAppBuildPaths(appPaths, config.pageExtensions!)
+        : getDeferredBuildPaths(
+            appPaths,
+            deferredEntries,
+            config.pageExtensions!
+          )
       : null
 
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
@@ -379,11 +409,18 @@ export async function turbopackBuild(): Promise<{
       })
 
       // Second build: compile deferred entries only after callback.
-      // Use the project-level debugBuildPaths configured above (via update)
-      // instead of a per-write override. This keeps deferred filtering while
-      // avoiding partial-write stale chunk lists.
-      const secondPassEntrypoints =
-        await project.writeAllEntrypointsToDisk(appDirOnly)
+      //
+      // In Cache Components mode, module id/chunk maps need a full app-router
+      // second pass to keep runtime module factories coherent.
+      //
+      // In non-cache mode we can keep a partial write so first-pass outputs are
+      // preserved and deferred entries are emitted incrementally.
+      const secondPassEntrypoints = useFullAppSecondPassForDeferredEntries
+        ? await project.writeAllEntrypointsToDisk(appDirOnly)
+        : await project.writeAllEntrypointsToDisk(
+            appDirOnly,
+            secondPassBuildPaths
+          )
       printBuildErrors(secondPassEntrypoints, dev)
 
       const secondPassRoutes = secondPassEntrypoints.routes
