@@ -210,6 +210,47 @@ function extractValue(node: Node, path?: string[]): any {
 }
 
 /**
+ * Returns the set of local names that are exported from the module.
+ * Used to ensure we only extract from top-level consts that are actually exported.
+ */
+function getExportedNames(module: Module): Set<string> {
+  const names = new Set<string>()
+  for (const moduleItem of module.body) {
+    if (isExportDeclaration(moduleItem)) {
+      const declaration = moduleItem.declaration
+      if (isVariableDeclaration(declaration)) {
+        for (const decl of declaration.declarations) {
+          if (isIdentifier(decl.id)) names.add(decl.id.value)
+        }
+      }
+      continue
+    }
+    if ((moduleItem as Node).type === 'ExportNamedDeclaration') {
+      const named = moduleItem as {
+        declaration?: VariableDeclaration
+        specifiers?: Array<{ type?: string; orig?: { type?: string; value?: string } }>
+      }
+      if (named.declaration && isVariableDeclaration(named.declaration)) {
+        for (const decl of named.declaration.declarations) {
+          if (isIdentifier(decl.id)) names.add(decl.id.value)
+        }
+      }
+      for (const spec of named.specifiers ?? []) {
+        if (
+          spec.type === 'ExportSpecifier' &&
+          spec.orig &&
+          (spec.orig as { type?: string }).type === 'Identifier'
+        ) {
+          const value = (spec.orig as Identifier).value
+          if (value !== undefined) names.add(value)
+        }
+      }
+    }
+  }
+  return names
+}
+
+/**
  * Tries to extract the value of a const from a VariableDeclaration node.
  * Returns undefined if the name doesn't match or there's no init.
  */
@@ -242,11 +283,14 @@ function tryExtractConstFromVariableDeclaration(
  *   - object containing values listed in this list
  *
  * Throws NoSuchDeclarationError if the declaration is not found.
+ * Only extracts from declarations that are actually exported (never from non-exported consts).
  */
 export function extractExportedConstValue(
   module: Module,
   exportedName: string
 ): any {
+  const exportedNames = getExportedNames(module)
+
   for (const moduleItem of module.body) {
     // "export const config = ..."
     if (isExportDeclaration(moduleItem)) {
@@ -280,8 +324,12 @@ export function extractExportedConstValue(
       continue
     }
 
-    // Top-level "const config = ..." (e.g. before "export { middleware, config }")
-    if (isVariableDeclaration(moduleItem as Node)) {
+    // Top-level "const config = ..." only when that name is actually exported
+    // (e.g. "const config = {}; export { middleware, config }")
+    if (
+      exportedNames.has(exportedName) &&
+      isVariableDeclaration(moduleItem as Node)
+    ) {
       const value = tryExtractConstFromVariableDeclaration(
         moduleItem as VariableDeclaration,
         exportedName
