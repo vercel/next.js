@@ -419,17 +419,25 @@ export function processMessage(
         return window.location.reload()
       }
 
-      startTransition(() => {
-        publicAppRouterInstance.hmrRefresh()
-        dispatcher.onRefresh()
-      })
+      // Wait for any pending webpack HMR to finish before refreshing server
+      // components. The BUILT message (which triggers module.hot.apply()) is
+      // sent before SERVER_COMPONENT_CHANGES, so there may be a pending
+      // webpack update in progress. If we call hmrRefresh() before modules
+      // are fully applied, __webpack_require__ can fail for modules that are
+      // temporarily absent from __webpack_modules__ during the swap.
+      pendingHotUpdateWebpack.then(() => {
+        startTransition(() => {
+          publicAppRouterInstance.hmrRefresh()
+          dispatcher.onRefresh()
+        })
 
-      if (process.env.__NEXT_TEST_MODE) {
-        if (self.__NEXT_HMR_CB) {
-          self.__NEXT_HMR_CB()
-          self.__NEXT_HMR_CB = null
+        if (process.env.__NEXT_TEST_MODE) {
+          if (self.__NEXT_HMR_CB) {
+            self.__NEXT_HMR_CB()
+            self.__NEXT_HMR_CB = null
+          }
         }
-      }
+      })
 
       return
     }
