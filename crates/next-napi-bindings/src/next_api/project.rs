@@ -21,7 +21,7 @@ use next_api::{
         DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
         ProjectContainer, ProjectOptions, WatchOptions,
     },
-    route::Endpoint,
+    route::{Endpoint, EndpointGroupKey, Route},
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
 };
 use next_core::tracing_presets::{
@@ -192,6 +192,9 @@ pub struct NapiProjectOptions {
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<NapiDebugBuildPaths>,
 
+    /// App-router page routes that should be built after non-deferred routes.
+    pub deferred_entries: Option<Vec<RcStr>>,
+
     // Whether persistent caching is enabled
     pub is_persistent_caching_enabled: bool,
 }
@@ -298,6 +301,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             write_routes_hashes_manifest,
             current_node_js_version,
             debug_build_paths,
+            deferred_entries,
             is_persistent_caching_enabled,
         } = val;
         ProjectOptions {
@@ -319,6 +323,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 app: p.app,
                 pages: p.pages,
             }),
+            deferred_entries,
             is_persistent_caching_enabled,
         }
     }
@@ -989,6 +994,238 @@ pub struct NapiDebugBuildPaths {
     pub pages: Vec<RcStr>,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    NonLocalValue,
+    OperationValue,
+    PartialEq,
+    TaskInput,
+    TraceRawVcs,
+    Encode,
+    Decode,
+)]
+enum EntrypointsWritePhase {
+    All,
+    NonDeferred,
+    Deferred,
+}
+
+fn normalize_deferred_route(route: &str) -> String {
+    let with_leading_slash = if route.starts_with('/') {
+        route.to_owned()
+    } else {
+        format!("/{route}")
+    };
+
+    if with_leading_slash.len() > 1 && with_leading_slash.ends_with('/') {
+        with_leading_slash
+            .strip_suffix('/')
+            .unwrap_or_default()
+            .to_owned()
+    } else {
+        with_leading_slash
+    }
+}
+
+fn is_deferred_app_route(route: &str, deferred_entries: &[RcStr]) -> bool {
+    let normalized_route = normalize_deferred_route(route);
+
+    deferred_entries.iter().any(|entry| {
+        let normalized_entry = normalize_deferred_route(entry);
+        normalized_route == normalized_entry
+            || normalized_route.starts_with(&format!("{normalized_entry}/"))
+    })
+}
+
+#[derive(Clone, Debug, TraceRawVcs)]
+struct DeferredPhaseBuildPaths {
+    non_deferred: DebugBuildPaths,
+    all: DebugBuildPaths,
+}
+
+fn to_app_debug_path(route: &str, leaf: &'static str) -> RcStr {
+    let with_leading_slash = if route.starts_with('/') {
+        route.to_owned()
+    } else {
+        format!("/{route}")
+    };
+
+    let normalized_route = if with_leading_slash.len() > 1 && with_leading_slash.ends_with('/') {
+        with_leading_slash.trim_end_matches('/').to_owned()
+    } else {
+        with_leading_slash
+    };
+
+    if normalized_route == "/" {
+        format!("/{leaf}").into()
+    } else {
+        format!("{normalized_route}/{leaf}").into()
+    }
+}
+
+fn compute_deferred_phase_build_paths(
+    entrypoints: &Entrypoints,
+    deferred_entries: &[RcStr],
+) -> DeferredPhaseBuildPaths {
+    let mut non_deferred_app = FxIndexSet::default();
+    let mut deferred_app = FxIndexSet::default();
+    let mut pages = FxIndexSet::default();
+
+    for (route_key, route) in entrypoints.routes.iter() {
+        match route {
+            Route::Page { .. } | Route::PageApi { .. } => {
+                pages.insert(route_key.clone());
+            }
+            Route::AppPage(_) => {
+                let app_debug_path = to_app_debug_path(route_key.as_str(), "page");
+                if is_deferred_app_route(route_key.as_str(), deferred_entries) {
+                    deferred_app.insert(app_debug_path);
+                } else {
+                    non_deferred_app.insert(app_debug_path);
+                }
+            }
+            Route::AppRoute { .. } => {
+                let app_debug_path = to_app_debug_path(route_key.as_str(), "route");
+                if is_deferred_app_route(route_key.as_str(), deferred_entries) {
+                    deferred_app.insert(app_debug_path);
+                } else {
+                    non_deferred_app.insert(app_debug_path);
+                }
+            }
+            Route::Conflict => {}
+        }
+    }
+
+    let pages_vec = pages.into_iter().collect::<Vec<_>>();
+    let all_app_vec = non_deferred_app
+        .iter()
+        .chain(deferred_app.iter())
+        .cloned()
+        .collect::<FxIndexSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    DeferredPhaseBuildPaths {
+        non_deferred: DebugBuildPaths {
+            app: non_deferred_app.into_iter().collect::<Vec<_>>(),
+            pages: pages_vec.clone(),
+        },
+        all: DebugBuildPaths {
+            app: all_app_vec,
+            pages: pages_vec,
+        },
+    }
+}
+
+fn partial_project_options_with_debug_build_paths(
+    debug_build_paths: DebugBuildPaths,
+) -> PartialProjectOptions {
+    PartialProjectOptions {
+        root_path: None,
+        project_path: None,
+        next_config: None,
+        env: None,
+        define_env: None,
+        watch: None,
+        dev: None,
+        encryption_key: None,
+        build_id: None,
+        preview_props: None,
+        browserslist_query: None,
+        no_mangling: None,
+        write_routes_hashes_manifest: None,
+        debug_build_paths: Some(debug_build_paths),
+    }
+}
+
+fn is_deferred_endpoint_group(key: &EndpointGroupKey, deferred_entries: &[RcStr]) -> bool {
+    if deferred_entries.is_empty() {
+        return false;
+    }
+
+    let EndpointGroupKey::Route(route_key) = key else {
+        return false;
+    };
+
+    is_deferred_app_route(route_key.as_str(), deferred_entries)
+}
+
+fn should_include_endpoint_group(
+    write_phase: EntrypointsWritePhase,
+    key: &EndpointGroupKey,
+    deferred_entries: &[RcStr],
+) -> bool {
+    let is_deferred = is_deferred_endpoint_group(key, deferred_entries);
+
+    match write_phase {
+        EntrypointsWritePhase::All => true,
+        EntrypointsWritePhase::NonDeferred => !is_deferred,
+        EntrypointsWritePhase::Deferred => is_deferred,
+    }
+}
+
+async fn app_route_filter_for_write_phase(
+    project: Vc<Project>,
+    write_phase: EntrypointsWritePhase,
+    deferred_entries: &[RcStr],
+) -> Result<Option<Vec<RcStr>>> {
+    if matches!(write_phase, EntrypointsWritePhase::All) || deferred_entries.is_empty() {
+        return Ok(None);
+    }
+
+    let include_deferred = write_phase == EntrypointsWritePhase::Deferred;
+    let app_project = project.app_project().await?;
+    let app_route_keys = if let Some(app_project) = &*app_project {
+        app_project
+            .route_keys()
+            .await?
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+
+    Ok(Some(
+        app_route_keys
+            .iter()
+            .filter(|route| {
+                is_deferred_app_route(route.as_str(), deferred_entries) == include_deferred
+            })
+            .cloned()
+            .collect::<Vec<_>>(),
+    ))
+}
+
+#[turbo_tasks::function(operation)]
+async fn has_deferred_entrypoints_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<bool>> {
+    let project = container.project();
+    let deferred_entries = project.deferred_entries().owned().await?;
+
+    if deferred_entries.is_empty() {
+        return Ok(Vc::cell(false));
+    }
+
+    let app_project = project.app_project().await?;
+    let has_deferred = if let Some(app_project) = &*app_project {
+        app_project
+            .route_keys()
+            .await?
+            .iter()
+            .any(|route_key| is_deferred_app_route(route_key.as_str(), &deferred_entries))
+    } else {
+        false
+    };
+
+    Ok(Vc::cell(has_deferred))
+}
+
 #[tracing::instrument(level = "info", name = "write all entrypoints to disk", skip_all)]
 #[napi]
 pub async fn project_write_all_entrypoints_to_disk(
@@ -999,10 +1236,61 @@ pub async fn project_write_all_entrypoints_to_disk(
     let container = project.container;
     let tt = ctx.turbo_tasks();
 
-    let (entrypoints, issues, diags) = tt
+    let has_deferred_entrypoints = tt
         .run(async move {
-            let entrypoints_with_issues_op =
-                get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
+            Ok(*has_deferred_entrypoints_operation(container)
+                .read_strongly_consistent()
+                .await?)
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+
+    let phase_build_paths = if has_deferred_entrypoints {
+        Some(
+            tt.run(async move {
+                let project = container.project();
+                let deferred_entries = project.deferred_entries().owned().await?;
+                let entrypoints = project.entrypoints().await?;
+
+                Ok(compute_deferred_phase_build_paths(
+                    &entrypoints,
+                    &deferred_entries,
+                ))
+            })
+            .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+            .await?,
+        )
+    } else {
+        None
+    };
+
+    if let Some(phase_build_paths) = phase_build_paths.as_ref() {
+        let non_deferred_build_paths = phase_build_paths.non_deferred.clone();
+        tt.run(async move {
+            container
+                .update(partial_project_options_with_debug_build_paths(
+                    non_deferred_build_paths,
+                ))
+                .await?;
+            Ok(())
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+    }
+
+    let first_phase = if has_deferred_entrypoints {
+        EntrypointsWritePhase::NonDeferred
+    } else {
+        EntrypointsWritePhase::All
+    };
+
+    let (mut entrypoints, mut issues, mut diags) = tt
+        .run(async move {
+            let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
+                container,
+                app_dir_only,
+                first_phase,
+            );
 
             // Read and compile the files
             let AllWrittenEntrypointsWithIssues {
@@ -1017,10 +1305,66 @@ pub async fn project_write_all_entrypoints_to_disk(
             // Write the files to disk
             effects.apply().await?;
 
-            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+            Ok((
+                entrypoints.clone(),
+                issues.iter().cloned().collect::<Vec<_>>(),
+                diagnostics.iter().cloned().collect::<Vec<_>>(),
+            ))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
+
+    if has_deferred_entrypoints {
+        ctx.on_before_deferred_entries().await?;
+
+        if let Some(phase_build_paths) = phase_build_paths.as_ref() {
+            let all_build_paths = phase_build_paths.all.clone();
+            tt.run(async move {
+                container
+                    .update(partial_project_options_with_debug_build_paths(
+                        all_build_paths,
+                    ))
+                    .await?;
+                Ok(())
+            })
+            .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+            .await?;
+        }
+
+        let (deferred_entrypoints, deferred_issues, deferred_diags) = tt
+            .run(async move {
+                let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
+                    container,
+                    app_dir_only,
+                    EntrypointsWritePhase::Deferred,
+                );
+
+                let AllWrittenEntrypointsWithIssues {
+                    entrypoints,
+                    issues,
+                    diagnostics,
+                    effects,
+                } = &*entrypoints_with_issues_op
+                    .read_strongly_consistent()
+                    .await?;
+
+                effects.apply().await?;
+
+                Ok((
+                    entrypoints.clone(),
+                    issues.iter().cloned().collect::<Vec<_>>(),
+                    diagnostics.iter().cloned().collect::<Vec<_>>(),
+                ))
+            })
+            .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+            .await?;
+
+        if deferred_entrypoints.is_some() {
+            entrypoints = deferred_entrypoints;
+        }
+        issues.extend(deferred_issues);
+        diags.extend(deferred_diags);
+    }
 
     Ok(TurbopackResult {
         result: if let Some(entrypoints) = entrypoints {
@@ -1040,10 +1384,12 @@ pub async fn project_write_all_entrypoints_to_disk(
 async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
+    write_phase: EntrypointsWritePhase,
 ) -> Result<Vc<AllWrittenEntrypointsWithIssues>> {
     let entrypoints_operation = EntrypointsOperation::new(all_entrypoints_write_to_disk_operation(
         container,
         app_dir_only,
+        write_phase,
     ));
     let filter = issue_filter_from_container(container);
     let (entrypoints, issues, diagnostics, effects) =
@@ -1061,8 +1407,9 @@ async fn get_all_written_entrypoints_with_issues_operation(
 pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
+    write_phase: EntrypointsWritePhase,
 ) -> Result<Vc<Entrypoints>> {
-    let output_assets_operation = output_assets_operation(project, app_dir_only);
+    let output_assets_operation = output_assets_operation(project, app_dir_only, write_phase);
     project
         .project()
         .emit_all_output_assets(output_assets_operation)
@@ -1076,12 +1423,30 @@ pub async fn all_entrypoints_write_to_disk_operation(
 async fn output_assets_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
+    write_phase: EntrypointsWritePhase,
 ) -> Result<Vc<OutputAssets>> {
     let project = container.project();
-    let whole_app_module_graphs = project.whole_app_module_graphs();
-    let endpoint_assets = project
-        .get_all_endpoints(app_dir_only)
-        .await?
+    let deferred_entries = project.deferred_entries().owned().await?;
+    let app_route_filter =
+        app_route_filter_for_write_phase(project, write_phase, &deferred_entries).await?;
+
+    let endpoint_groups = project
+        .get_all_endpoint_groups_with_app_route_filter(app_dir_only, app_route_filter)
+        .await?;
+
+    let endpoints = endpoint_groups
+        .iter()
+        .filter(|(key, _)| should_include_endpoint_group(write_phase, key, &deferred_entries))
+        .flat_map(|(_, group)| {
+            group
+                .primary
+                .iter()
+                .chain(group.additional.iter())
+                .map(|entry| entry.endpoint)
+        })
+        .collect::<Vec<_>>();
+
+    let endpoint_assets = endpoints
         .iter()
         .map(|endpoint| async move { endpoint.output().await?.output_assets.await })
         .try_join()
@@ -1092,8 +1457,12 @@ async fn output_assets_operation(
         .flat_map(|assets| assets.iter().copied())
         .collect();
 
-    let nft = next_server_nft_assets(project).await?;
+    if write_phase == EntrypointsWritePhase::NonDeferred {
+        return Ok(Vc::cell(output_assets.into_iter().collect()));
+    }
 
+    let whole_app_module_graphs = project.whole_app_module_graphs();
+    let nft = next_server_nft_assets(project).await?;
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
 
     whole_app_module_graphs.as_side_effect().await?;
