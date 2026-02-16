@@ -1302,7 +1302,7 @@ pub async fn project_write_all_entrypoints_to_disk(
                 .read_strongly_consistent()
                 .await?;
 
-            // Write the files to disk
+            // Apply phase side effects. Asset emission is performed once at the end.
             effects.apply().await?;
 
             Ok((
@@ -1348,6 +1348,7 @@ pub async fn project_write_all_entrypoints_to_disk(
                     .read_strongly_consistent()
                     .await?;
 
+                // Apply phase side effects. Asset emission is performed once at the end.
                 effects.apply().await?;
 
                 Ok((
@@ -1365,6 +1366,32 @@ pub async fn project_write_all_entrypoints_to_disk(
         issues.extend(deferred_issues);
         diags.extend(deferred_diags);
     }
+
+    let (emit_issues, emit_diags) = tt
+        .run(async move {
+            let emit_result_op = emit_all_output_assets_once_with_issues_operation(
+                container,
+                app_dir_only,
+                has_deferred_entrypoints,
+            );
+            let OperationResult {
+                issues,
+                diagnostics,
+                effects,
+            } = &*emit_result_op.read_strongly_consistent().await?;
+
+            effects.apply().await?;
+
+            Ok((
+                issues.iter().cloned().collect::<Vec<_>>(),
+                diagnostics.iter().cloned().collect::<Vec<_>>(),
+            ))
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+
+    issues.extend(emit_issues);
+    diags.extend(emit_diags);
 
     Ok(TurbopackResult {
         result: if let Some(entrypoints) = entrypoints {
@@ -1409,14 +1436,82 @@ pub async fn all_entrypoints_write_to_disk_operation(
     app_dir_only: bool,
     write_phase: EntrypointsWritePhase,
 ) -> Result<Vc<Entrypoints>> {
+    // Compute all outputs for this phase but do not emit to disk yet.
     let output_assets_operation = output_assets_operation(project, app_dir_only, write_phase);
-    project
+    let _ = output_assets_operation.connect().await?;
+
+    Ok(project.entrypoints())
+}
+
+#[turbo_tasks::function(operation)]
+async fn output_assets_for_single_emit_operation(
+    container: ResolvedVc<ProjectContainer>,
+    app_dir_only: bool,
+    has_deferred_entrypoints: bool,
+) -> Result<Vc<OutputAssets>> {
+    if !has_deferred_entrypoints {
+        return Ok(
+            output_assets_operation(container, app_dir_only, EntrypointsWritePhase::All).connect(),
+        );
+    }
+
+    let non_deferred_output_assets =
+        output_assets_operation(container, app_dir_only, EntrypointsWritePhase::NonDeferred)
+            .connect()
+            .await?;
+    let deferred_output_assets =
+        output_assets_operation(container, app_dir_only, EntrypointsWritePhase::Deferred)
+            .connect()
+            .await?;
+
+    let merged_output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> =
+        non_deferred_output_assets
+            .iter()
+            .chain(deferred_output_assets.iter())
+            .copied()
+            .collect();
+
+    Ok(Vc::cell(merged_output_assets.into_iter().collect()))
+}
+
+#[turbo_tasks::function(operation)]
+async fn emit_all_output_assets_once_operation(
+    container: ResolvedVc<ProjectContainer>,
+    app_dir_only: bool,
+    has_deferred_entrypoints: bool,
+) -> Result<Vc<Entrypoints>> {
+    let output_assets_operation =
+        output_assets_for_single_emit_operation(container, app_dir_only, has_deferred_entrypoints);
+    container
         .project()
         .emit_all_output_assets(output_assets_operation)
         .as_side_effect()
         .await?;
 
-    Ok(project.entrypoints())
+    Ok(container.entrypoints())
+}
+
+#[turbo_tasks::function(operation)]
+async fn emit_all_output_assets_once_with_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+    app_dir_only: bool,
+    has_deferred_entrypoints: bool,
+) -> Result<Vc<OperationResult>> {
+    let entrypoints_operation = EntrypointsOperation::new(emit_all_output_assets_once_operation(
+        container,
+        app_dir_only,
+        has_deferred_entrypoints,
+    ));
+    let filter = issue_filter_from_container(container);
+    let (_, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
+
+    Ok(OperationResult {
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
 }
 
 #[turbo_tasks::function(operation)]
