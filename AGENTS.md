@@ -133,12 +133,6 @@ pnpm test-dev-turbo test/development/
 - `pnpm test-start-turbo` - Production build+start with Turbopack
 - `pnpm test-start-webpack` - Production build+start with Webpack
 
-**Run tests headless** (no browser window): Set `HEADLESS=true` when running e2e tests unless you need visual browser debugging:
-
-```bash
-HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts
-```
-
 **Other test commands:**
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
