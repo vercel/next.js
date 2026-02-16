@@ -249,9 +249,10 @@ impl AppPage {
         if let Some(last) = app_page.0.last_mut()
             && let PageSegment::Static(last_name) = &*last
         {
-            if last_name.starts_with("page.") {
+            // Next.js internals sometimes omit extensions when creating synthetic page entries
+            if last_name == "page" || last_name.starts_with("page.") {
                 *last = PageSegment::PageType(PageType::Page);
-            } else if last_name.starts_with("route") {
+            } else if last_name == "route" || last_name.starts_with("route.") {
                 *last = PageSegment::PageType(PageType::Route);
             }
             // can also be metadata (and be neither Page nor Route)
@@ -557,9 +558,29 @@ mod test {
                 PageSegment::PageType(PageType::Page),
             ])
         );
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/page").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Page),
+            ])
+        );
 
         assert_eq!(
             AppPage::parse("(group)/foo/@par/bar/route.tsx").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Route),
+            ])
+        );
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/route").unwrap(),
             AppPage(vec![
                 PageSegment::Group("group".into()),
                 PageSegment::Static("foo".into()),
