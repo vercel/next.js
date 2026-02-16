@@ -320,6 +320,8 @@ export class NextDeployInstance extends NextInstance {
     }
     if (process.env.NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
+    } else {
+      additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
     }
 
     const deployRes = await execa(
