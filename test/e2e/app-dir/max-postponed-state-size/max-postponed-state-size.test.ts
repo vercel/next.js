@@ -12,7 +12,7 @@ describe('app-dir - max postponed state size', () => {
         'next-action': 'abc123',
         'next-resume': '1',
       },
-      body: Buffer.alloc(101 * 1024 * 1024, 'x'),
+      body: Buffer.alloc(1025, 'x'),
     })
 
     expect(res.status).toBe(413)
