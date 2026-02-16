@@ -166,6 +166,8 @@ export interface NapiProjectOptions {
    * When set, only routes matching these paths will be included in the build.
    */
   debugBuildPaths?: NapiDebugBuildPaths
+  /** App-router page routes that should be built after non-deferred routes. */
+  deferredEntries?: Array<RcStr>
   isPersistentCachingEnabled: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
@@ -409,6 +411,8 @@ export interface NapiNextTurbopackCallbacksJsObject {
     conversionError: Error | null,
     opts: TurbopackInternalErrorOpts
   ) => never
+  /** Called before deferred entries are processed in a production build. */
+  onBeforeDeferredEntries?: () => Promise<void>
 }
 /** Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`. */
 export interface TurbopackInternalErrorOpts {

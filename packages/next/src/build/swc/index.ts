@@ -1220,7 +1220,8 @@ function bindingToApi(
 
   return async function createProject(
     options: ProjectOptions,
-    turboEngineOptions
+    turboEngineOptions,
+    callbacks?: import('./types').TurbopackProjectCallbacks
   ) {
     return new ProjectImpl(
       await binding.projectNew(
@@ -1228,6 +1229,7 @@ function bindingToApi(
         turboEngineOptions || {},
         {
           throwTurbopackInternalError,
+          onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
       )
     )
@@ -1352,7 +1354,8 @@ async function loadWasm(importPath = '') {
     turbo: {
       createProject(
         _options: ProjectOptions,
-        _turboEngineOptions?: TurboEngineOptions | undefined
+        _turboEngineOptions?: TurboEngineOptions | undefined,
+        _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
       ): Promise<Project> {
         throw new Error(
           `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +

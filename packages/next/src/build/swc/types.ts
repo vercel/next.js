@@ -13,12 +13,17 @@ export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
+export interface TurbopackProjectCallbacks {
+  onBeforeDeferredEntries?: () => Promise<void>
+}
+
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions,
+      callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
     startTurbopackTraceServer(
       traceFilePath: string,
