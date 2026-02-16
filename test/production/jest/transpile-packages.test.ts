@@ -12,10 +12,19 @@ describe('next/jest', () => {
           return capitalize('test')
         }`,
         'index.test.ts': `import capitalize from '@hashicorp/platform-util/text/capitalize'
-        it('should work', () => {
+        import lodashEs from 'lodash-es/camelCase'
+        it('should work with next.config transpilePackages', () => {
           expect(capitalize('test')).toEqual('Test')
+        })
+        it('should work with additionalTranspilePackages in Jest only', () => {
+          expect(lodashEs('hello-world')).toEqual('helloWorld')
         })`,
-        'jest.config.js': `module.exports = require('next/jest')({ dir: './' })()`,
+        'jest.config.js': `const nextJest = require('next/jest')
+        const createJestConfig = nextJest({ 
+          dir: './',
+          additionalTranspilePackages: ['lodash-es']
+        })
+        module.exports = createJestConfig()`,
         'next.config.js': `module.exports = {
           transpilePackages: ['@hashicorp/platform-util'],
         }`,
@@ -30,6 +39,7 @@ describe('next/jest', () => {
       buildCommand: `pnpm build`,
       dependencies: {
         '@hashicorp/platform-util': '0.2.0',
+        'lodash-es': '4.17.21',
         '@types/react': 'latest',
         jest: '27.4.7',
       },

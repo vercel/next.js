@@ -45,7 +45,11 @@ function setUpEnv(dir: string) {
  * const nextJest = require('next/jest');
  *
  * // Optionally provide path to Next.js app which will enable loading next.config.js and .env files
- * const createJestConfig = nextJest({ dir })
+ * const createJestConfig = nextJest({
+ *   dir,
+ *   // Additional packages to transpile for testing (e.g., ESM packages)
+ *   additionalTranspilePackages: ['@faker-js/faker', 'lodash-es']
+ * })
  *
  * // Any custom config you want to pass to Jest
  * const customJestConfig = {
@@ -58,7 +62,17 @@ function setUpEnv(dir: string) {
  *
  * Read more: [Next.js Docs: Setting up Jest with Next.js](https://nextjs.org/docs/app/building-your-application/testing/jest)
  */
-export default function nextJest(options: { dir?: string } = {}) {
+export default function nextJest(
+  options: {
+    dir?: string
+    /**
+     * Additional packages to transpile in addition to those specified in next.config.js transpilePackages.
+     * Useful for packages that need to be transformed in Jest tests but don't need to be added to
+     * the main transpilePackages (e.g., test-only dependencies).
+     */
+    additionalTranspilePackages?: string[]
+  } = {}
+) {
   // createJestConfig
   return (
     customJestConfig?:
@@ -103,9 +117,15 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
-      const transpiled = (nextConfig?.transpilePackages ?? [])
-        .concat(DEFAULT_TRANSPILED_PACKAGES)
-        .join('|')
+      const allTranspiledPackages = [
+        ...(nextConfig?.transpilePackages ?? []),
+        ...DEFAULT_TRANSPILED_PACKAGES,
+        ...(options.additionalTranspilePackages || []),
+      ]
+        .map((pkg) => pkg.trim())
+        .filter(Boolean)
+
+      const transpiled = [...new Set(allTranspiledPackages)].join('|')
 
       const jestTransformerConfig: JestTransformerConfig = {
         modularizeImports: nextConfig?.modularizeImports,
