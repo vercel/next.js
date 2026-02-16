@@ -329,6 +329,10 @@ impl TurboTasksApi for VcStorage {
     fn is_tracking_dependencies(&self) -> bool {
         false
     }
+
+    fn wait_foreground_done(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async {})
+    }
 }
 
 impl VcStorage {

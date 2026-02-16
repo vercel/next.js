@@ -2749,10 +2749,10 @@ impl TaskIdWithOptionalCount for (TaskId, u32) {
 struct RetryTimeout;
 
 const MAX_YIELD_DURATION: Duration = Duration::from_millis(1);
-#[cfg(not(feature = "test_aggregation_race"))]
+// #[cfg(not(feature = "test_aggregation_race"))]
 const MAX_RETRIES: u16 = 60000;
-#[cfg(feature = "test_aggregation_race")]
-const MAX_RETRIES: u16 = 100;
+// #[cfg(feature = "test_aggregation_race")]
+// const MAX_RETRIES: u16 = 100;
 
 /// Retry the passed function for a few milliseconds, while yielding to other threads.
 /// Returns an error if the function was not able to complete and the timeout was reached.

@@ -199,6 +199,10 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     // Returns true if TurboTasks is configured to track dependencies.
     fn is_tracking_dependencies(&self) -> bool;
+
+    /// Waits until all currently scheduled foreground jobs have completed.
+    /// This includes task executions and their associated aggregation update processing.
+    fn wait_foreground_done(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 }
 
 /// A wrapper around a value that is unused.
@@ -1079,6 +1083,19 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
     }
 
+    pub async fn wait_foreground_done(&self) {
+        let listener = self
+            .event_foreground_done
+            .listen_with_note(|| || "wait for foreground done".to_string());
+        if self
+            .currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            != 0
+        {
+            listener.await;
+        }
+    }
+
     pub async fn stop_and_wait(&self) {
         turbo_tasks_future_scope(self.pin(), async move {
             self.backend.stopping(self);
@@ -1600,6 +1617,12 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         let this = self.pin();
         Box::pin(async move {
             this.stop_and_wait().await;
+        })
+    }
+
+    fn wait_foreground_done(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            self.wait_foreground_done().await;
         })
     }
 
