@@ -458,12 +458,10 @@ export async function renderToHTMLImpl(
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
-  const metadata: PagesRenderResultMetadata = {}
-
-  metadata.assetQueryString =
+  let baseAssetQueryString =
     (process.env.__NEXT_DEV_SERVER && renderOpts.assetQueryString) || ''
 
-  if (process.env.__NEXT_DEV_SERVER && !metadata.assetQueryString) {
+  if (process.env.__NEXT_DEV_SERVER && !baseAssetQueryString) {
     const userAgent = (req.headers['user-agent'] || '').toLowerCase()
     if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
       // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -471,15 +469,23 @@ export async function renderToHTMLImpl(
       // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
       // Note: The workaround breaks breakpoints on reload since the script url always changes,
       // so we only apply it to Safari.
-      metadata.assetQueryString = `?ts=${Date.now()}`
+      baseAssetQueryString = `?ts=${Date.now()}`
     }
   }
 
-  // if deploymentId is provided we append it to all asset requests
-  if (sharedContext.immutableAssetToken) {
-    metadata.assetQueryString += `${metadata.assetQueryString ? '&' : '?'}dpl=${
-      sharedContext.immutableAssetToken
-    }`
+  const mutableAssetQueryString =
+    baseAssetQueryString +
+    (sharedContext.deploymentId
+      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.deploymentId}`
+      : '')
+  const assetQueryString =
+    baseAssetQueryString +
+    (sharedContext.immutableAssetToken
+      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.immutableAssetToken}`
+      : '')
+  const metadata: PagesRenderResultMetadata = {
+    assetQueryString,
+    mutableAssetQueryString,
   }
 
   // don't modify original query object
@@ -504,8 +510,6 @@ export async function renderToHTMLImpl(
     expireTime,
   } = renderOpts
   const { App } = extra
-
-  const assetQueryString = metadata.assetQueryString
 
   let Document = extra.Document
 
@@ -1522,7 +1526,8 @@ export async function renderToHTMLImpl(
         ? pageConfig.unstable_runtimeJS
         : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
-    assetQueryString,
+    assetQueryString: assetQueryString || '',
+    mutableAssetQueryString: mutableAssetQueryString || '',
     scriptLoader,
     locale,
     disableOptimizedLoading,
