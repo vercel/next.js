@@ -44,7 +44,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
 };
 use turbo_unix_path::{get_relative_path_to, sys_to_unix};
 use turbopack_core::{
@@ -1316,6 +1316,19 @@ pub async fn project_write_all_entrypoints_to_disk(
 
     if has_deferred_entrypoints {
         ctx.on_before_deferred_entries().await?;
+
+        // onBeforeDeferredEntries can materialize deferred route source files on disk.
+        // Build mode does not run a filesystem watcher, so force an invalidation before
+        // compiling deferred entrypoints to avoid reusing stale stub route contents.
+        tt.run(async move {
+            let project_fs = container.project().project_fs().await?;
+            project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                path: RcStr::from(path.to_string_lossy()),
+            });
+            Ok(())
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
 
         if let Some(phase_build_paths) = phase_build_paths.as_ref() {
             let all_build_paths = phase_build_paths.all.clone();
