@@ -154,11 +154,12 @@ type RouteTreeShared = {
   // like any other Suspense boundary.)
   hasLoadingBoundary: HasLoadingBoundary
 
-  // Indicates whether this route has a runtime prefetch that we can request.
-  // This is determined by the server; it's not purely a user configuration
-  // because the server may determine that a route is fully static and doesn't
-  // need runtime prefetching regardless of the configuration.
-  hasRuntimePrefetch: boolean
+  // Bitmask of PrefetchHint flags. Indicates whether this segment has a
+  // runtime prefetch, and whether the subtree contains any instant configs.
+  // Determined by the server; not purely a user configuration because the
+  // server may determine that a route is fully static and doesn't need
+  // runtime prefetching regardless of the configuration.
+  prefetchHints: number
 }
 
 export type RefreshState = {
@@ -722,7 +723,7 @@ function deprecated_createOptimisticRouteTree(
       slots: clonedSlots,
       isRootLayout: tree.isRootLayout,
       hasLoadingBoundary: tree.hasLoadingBoundary,
-      hasRuntimePrefetch: tree.hasRuntimePrefetch,
+      prefetchHints: tree.prefetchHints,
     }
   }
 
@@ -735,7 +736,7 @@ function deprecated_createOptimisticRouteTree(
     slots: clonedSlots,
     isRootLayout: tree.isRootLayout,
     hasLoadingBoundary: tree.hasLoadingBoundary,
-    hasRuntimePrefetch: tree.hasRuntimePrefetch,
+    prefetchHints: tree.prefetchHints,
   }
 }
 
@@ -1018,7 +1019,7 @@ export function createMetadataRouteTree(
     slots: null,
     isRootLayout: false,
     hasLoadingBoundary: HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
-    hasRuntimePrefetch: false,
+    prefetchHints: 0,
   }
   return metadata
 }
@@ -1321,7 +1322,7 @@ function convertTreePrefetchToRouteTree(
     // This field is only relevant to dynamic routes. For a PPR/static route,
     // there's always some partial loading state we can fetch.
     hasLoadingBoundary: HasLoadingBoundary.SegmentHasLoadingBoundary,
-    hasRuntimePrefetch: prefetch.hasRuntimePrefetch,
+    prefetchHints: prefetch.prefetchHints,
   }
 }
 
@@ -1507,8 +1508,8 @@ function convertFlightRouterStateToRouteTree(
         : HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
 
     // Non-static tree responses are only used by apps that haven't adopted
-    // Cache Components. So this is always false.
-    hasRuntimePrefetch: false,
+    // Cache Components. So this is always 0.
+    prefetchHints: 0,
   }
 }
 

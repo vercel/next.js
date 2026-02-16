@@ -162,6 +162,16 @@ export const enum HasLoadingBoundary {
   SubtreeHasNoLoadingBoundary = 3,
 }
 
+export const enum PrefetchHint {
+  // This segment has a runtime prefetch enabled (via unstable_instant with
+  // prefetch: 'runtime'). Per-segment only, does not propagate to ancestors.
+  HasRuntimePrefetch = 0b01,
+  // This segment or one of its descendants has an instant config defined
+  // (any truthy unstable_instant, regardless of prefetch mode). Propagates
+  // upward so the root segment reflects the entire subtree.
+  SubtreeHasInstant = 0b10,
+}
+
 /**
  * Individual Flight response path
  */
@@ -194,7 +204,7 @@ export type CacheNodeSeedData = [
   loading: null,
   isPartial: boolean,
   /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
-  hasRuntimePrefetch: boolean,
+  prefetchHints: number,
   /**
    * A thenable that resolves to the set of route params this segment accessed
    * during server rendering. Used by the client router to determine cache key

@@ -66,8 +66,8 @@ export type TreePrefetch = {
     [parallelRouteKey: string]: TreePrefetch
   }
 
-  /** Whether this segment should be fetched using a runtime prefetch */
-  hasRuntimePrefetch: boolean
+  /** Bitmask of PrefetchHint flags for this segment and its subtree */
+  prefetchHints: number
 
   // Extra fields that only exist so we can reconstruct a FlightRouterState on
   // the client. We may be able to unify TreePrefetch and FlightRouterState
@@ -345,7 +345,7 @@ function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
-  const hasRuntimePrefetch = seedData !== null ? seedData[4] : false
+  const prefetchHints = seedData !== null ? seedData[4] : 0
 
   // Determine which params this segment varies on.
   // Read the vary params thenable directly from the seed data. By the time
@@ -402,7 +402,7 @@ function collectSegmentDataImpl(
   return {
     name,
     param,
-    hasRuntimePrefetch,
+    prefetchHints,
     slots: slotMetadata,
     isRootLayout: route[4] === true,
   }

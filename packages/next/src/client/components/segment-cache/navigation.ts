@@ -764,7 +764,7 @@ function convertServerPatchToFullTreeImpl(
     newSeedDataChildren,
     null,
     isEmptySeedDataPartial,
-    false,
+    0,
     null,
   ]
 

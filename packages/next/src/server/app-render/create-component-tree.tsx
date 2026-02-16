@@ -1,7 +1,8 @@
 import type { ComponentType } from 'react'
-import type {
-  CacheNodeSeedData,
-  LoadingModuleData,
+import {
+  PrefetchHint,
+  type CacheNodeSeedData,
+  type LoadingModuleData,
 } from '../../shared/lib/app-router-types'
 import type { PreloadCallbacks } from './types'
 import {
@@ -228,11 +229,13 @@ async function createComponentTreeInternal(
   const instantConfig = layoutOrPageMod
     ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
     : undefined
-  /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
-  const hasRuntimePrefetch =
-    instantConfig && typeof instantConfig === 'object'
-      ? instantConfig.prefetch === 'runtime'
-      : false
+  let prefetchHints = 0
+  if (instantConfig && typeof instantConfig === 'object') {
+    prefetchHints |= PrefetchHint.SubtreeHasInstant
+    if (instantConfig.prefetch === 'runtime') {
+      prefetchHints |= PrefetchHint.HasRuntimePrefetch
+    }
+  }
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
@@ -694,7 +697,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
+      prefetchHints,
       // No user-provided component, so no params will be accessed. Use the
       // pre-resolved empty tracker.
       emptyVaryParamsAccumulator
@@ -734,7 +737,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
-      hasRuntimePrefetch,
+      prefetchHints,
       // force-dynamic postpones without rendering the component, so no params
       // are accessed. The vary params are empty.
       emptyVaryParamsAccumulator
@@ -862,7 +865,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
+      prefetchHints,
       varyParamsAccumulator
     )
   } else {
@@ -1077,7 +1080,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
+      prefetchHints,
       varyParamsAccumulator
     )
   }
@@ -1229,7 +1232,7 @@ function createSeedData(
   parallelRoutes: Record<string, CacheNodeSeedData | null>,
   loading: LoadingModuleData | null,
   isPossiblyPartialResponse: boolean,
-  hasRuntimePrefetch: boolean,
+  prefetchHints: number,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): CacheNodeSeedData {
   if (loading !== null) {
@@ -1245,12 +1248,22 @@ function createSeedData(
       children: rsc,
     })
   }
+  // Propagate SubtreeHasInstant from children so the root reflects the
+  // entire subtree.
+  // TODO: We should send the prefetch hints bitmask as part of the route tree,
+  // rather than the CacheNodeSeedData.
+  for (const key in parallelRoutes) {
+    const child = parallelRoutes[key]
+    if (child !== null) {
+      prefetchHints |= child[4] & PrefetchHint.SubtreeHasInstant
+    }
+  }
   return [
     rsc,
     parallelRoutes,
     null,
     isPossiblyPartialResponse,
-    hasRuntimePrefetch,
+    prefetchHints,
     varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
   ]
 }
