@@ -24,9 +24,12 @@ use next_api::{
     route::{Endpoint, EndpointGroupKey, Route},
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
 };
-use next_core::tracing_presets::{
-    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
-    TRACING_NEXT_TURBOPACK_TARGETS,
+use next_core::{
+    app_structure::find_app_dir,
+    tracing_presets::{
+        TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+        TRACING_NEXT_TURBOPACK_TARGETS,
+    },
 };
 use once_cell::sync::Lazy;
 use rand::Rng;
@@ -44,9 +47,10 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation,
+    to_sys_path as fs_path_to_sys_path, util::uri_from_file,
 };
-use turbo_unix_path::{get_relative_path_to, sys_to_unix};
+use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
@@ -1045,6 +1049,7 @@ fn is_deferred_app_route(route: &str, deferred_entries: &[RcStr]) -> bool {
 struct DeferredPhaseBuildPaths {
     non_deferred: DebugBuildPaths,
     all: DebugBuildPaths,
+    deferred_invalidation_dirs: Vec<RcStr>,
 }
 
 fn to_app_debug_path(route: &str, leaf: &'static str) -> RcStr {
@@ -1067,12 +1072,32 @@ fn to_app_debug_path(route: &str, leaf: &'static str) -> RcStr {
     }
 }
 
+fn app_entry_source_dir_from_original_name(original_name: &str) -> RcStr {
+    let normalized_name = normalize_deferred_route(original_name);
+    let mut segments = normalized_name
+        .trim_start_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+
+    if !segments.is_empty() {
+        segments.pop();
+    }
+
+    if segments.is_empty() {
+        rcstr!("/")
+    } else {
+        format!("/{}", segments.join("/")).into()
+    }
+}
+
 fn compute_deferred_phase_build_paths(
     entrypoints: &Entrypoints,
     deferred_entries: &[RcStr],
 ) -> DeferredPhaseBuildPaths {
     let mut non_deferred_app = FxIndexSet::default();
     let mut deferred_app = FxIndexSet::default();
+    let mut deferred_invalidation_dirs = FxIndexSet::default();
     let mut pages = FxIndexSet::default();
 
     for (route_key, route) in entrypoints.routes.iter() {
@@ -1080,18 +1105,24 @@ fn compute_deferred_phase_build_paths(
             Route::Page { .. } | Route::PageApi { .. } => {
                 pages.insert(route_key.clone());
             }
-            Route::AppPage(_) => {
+            Route::AppPage(app_page_routes) => {
                 let app_debug_path = to_app_debug_path(route_key.as_str(), "page");
                 if is_deferred_app_route(route_key.as_str(), deferred_entries) {
                     deferred_app.insert(app_debug_path);
+                    deferred_invalidation_dirs.extend(app_page_routes.iter().map(|route| {
+                        app_entry_source_dir_from_original_name(route.original_name.as_str())
+                    }));
                 } else {
                     non_deferred_app.insert(app_debug_path);
                 }
             }
-            Route::AppRoute { .. } => {
+            Route::AppRoute { original_name, .. } => {
                 let app_debug_path = to_app_debug_path(route_key.as_str(), "route");
                 if is_deferred_app_route(route_key.as_str(), deferred_entries) {
                     deferred_app.insert(app_debug_path);
+                    deferred_invalidation_dirs.insert(app_entry_source_dir_from_original_name(
+                        original_name.as_str(),
+                    ));
                 } else {
                     non_deferred_app.insert(app_debug_path);
                 }
@@ -1118,7 +1149,61 @@ fn compute_deferred_phase_build_paths(
             app: all_app_vec,
             pages: pages_vec,
         },
+        deferred_invalidation_dirs: deferred_invalidation_dirs.into_iter().collect::<Vec<_>>(),
     }
+}
+
+async fn invalidate_deferred_entry_source_dirs_after_callback(
+    container: ResolvedVc<ProjectContainer>,
+    deferred_invalidation_dirs: Vec<RcStr>,
+) -> Result<()> {
+    if deferred_invalidation_dirs.is_empty() {
+        return Ok(());
+    }
+
+    let project = container.project();
+    let app_dir = find_app_dir(project.project_path().owned().await?).await?;
+
+    let Some(app_dir) = &*app_dir else {
+        return Ok(());
+    };
+
+    let paths_to_invalidate =
+        if let Some(app_dir_sys_path) = fs_path_to_sys_path(app_dir.clone()).await? {
+            deferred_invalidation_dirs
+                .into_iter()
+                .map(|dir| {
+                    let normalized_dir = normalize_deferred_route(dir.as_str());
+                    let relative_dir = normalized_dir.trim_start_matches('/');
+                    if relative_dir.is_empty() {
+                        app_dir_sys_path.clone()
+                    } else {
+                        app_dir_sys_path.join(unix_to_sys(relative_dir).as_ref())
+                    }
+                })
+                .collect::<FxIndexSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+
+    let project_fs = project.project_fs().await?;
+
+    if paths_to_invalidate.is_empty() {
+        // Fallback to full invalidation when app dir paths are unavailable.
+        project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+            path: RcStr::from(path.to_string_lossy()),
+        });
+    } else {
+        project_fs.invalidate_path_and_children_with_reason(paths_to_invalidate, |path| {
+            invalidation::Initialize {
+                path: RcStr::from(path.to_string_lossy()),
+            }
+        });
+    }
+
+    Ok(())
 }
 
 fn partial_project_options_with_debug_build_paths(
@@ -1318,13 +1403,19 @@ pub async fn project_write_all_entrypoints_to_disk(
         ctx.on_before_deferred_entries().await?;
 
         // onBeforeDeferredEntries can materialize deferred route source files on disk.
-        // Build mode does not run a filesystem watcher, so force an invalidation before
-        // compiling deferred entrypoints to avoid reusing stale stub route contents.
+        // Build mode does not run a filesystem watcher, so force invalidation for the
+        // deferred source subtrees before compiling deferred entrypoints.
+        let deferred_invalidation_dirs = phase_build_paths
+            .as_ref()
+            .map(|paths| paths.deferred_invalidation_dirs.clone())
+            .unwrap_or_default();
+
         tt.run(async move {
-            let project_fs = container.project().project_fs().await?;
-            project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                path: RcStr::from(path.to_string_lossy()),
-            });
+            invalidate_deferred_entry_source_dirs_after_callback(
+                container,
+                deferred_invalidation_dirs,
+            )
+            .await?;
             Ok(())
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
