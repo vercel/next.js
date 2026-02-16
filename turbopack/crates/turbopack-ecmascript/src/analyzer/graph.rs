@@ -23,7 +23,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::ResolvedVc;
-use turbopack_core::source::Source;
+use turbopack_core::{resolve::ExportUsage, source::Source};
 
 use super::{
     ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind,
@@ -204,8 +204,8 @@ pub enum Effect {
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
-    /// A dynamic import() call, potentially with export names extracted from
-    /// usage patterns. Export names are detected from these patterns:
+    /// A dynamic import() call, potentially with export usage extracted from
+    /// usage patterns. Export usage is detected from these patterns:
     ///
     /// - `const { a, b } = await import('./lib')` (destructured await)
     /// - `(await import('./lib')).a` (member access on await)
@@ -218,11 +218,8 @@ pub enum Effect {
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
-        /// The export names extracted from the usage pattern, if any.
-        /// `None` means no pattern was found (use All).
-        /// `Some([])` means empty destructuring (use Evaluation).
-        /// `Some([name, ...])` means specific named exports are used.
-        export_names: Option<SmallVec<[RcStr; 1]>>,
+        /// The export usage extracted from the usage pattern.
+        export_usage: ExportUsage,
     },
     /// Unreachable code, e.g. after a `return` statement.
     Unreachable { start_ast_path: Vec<AstParentKind> },
@@ -1358,15 +1355,16 @@ pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstPa
 /// Extracts export names from usage patterns on a dynamic import.
 ///
 /// Supports two patterns:
-/// 1. Destructuring: `const { cat, dog } = await import('./lib')` → `Some(["cat", "dog"])`
-/// 2. Member access: `(await import('./lib')).cat` → `Some(["cat"])`
+/// 1. Destructuring: `const { cat, dog } = await import('./lib')` → `PartialNamespaceObject(["cat",
+///    "dog"])`
+/// 2. Member access: `(await import('./lib')).cat` → `PartialNamespaceObject(["cat"])`
 ///
-/// For `const {} = await import('./lib')`, returns `Some([])`.
-/// For `const mod = await import('./lib')` or non-recognized patterns, returns `None`.
-/// For patterns with rest elements or computed keys, returns `None` (conservative).
-fn extract_dynamic_import_export_names(
+/// For `const {} = await import('./lib')`, returns `Evaluation`.
+/// For `const mod = await import('./lib')` or non-recognized patterns, returns `All`.
+/// For patterns with rest elements or computed keys, returns `All` (conservative).
+fn extract_dynamic_import_export_usage(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-) -> Option<SmallVec<[RcStr; 1]>> {
+) -> ExportUsage {
     // Walk up the AST path from the import() call to find usage patterns that
     // reveal which exports are needed. Supported patterns:
     //
@@ -1379,43 +1377,52 @@ fn extract_dynamic_import_export_names(
     // nodes to ensure the import result flows directly into the usage site.
     let mut seen_await = false;
     let mut seen_then = false;
-    for node_ref in ast_path.iter().rev() {
-        match node_ref {
-            AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) => {
-                return extract_names_from_object_pat(&decl.name);
-            }
-            // Member access: (await import('./lib')).someExport
-            // Only valid after AwaitExpr — without await, it's a Promise method
-            AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) if seen_await => {
-                return extract_name_from_member_prop(&member.prop);
-            }
-            // Promise .then() pattern: import('./lib').then(({ name }) => {})
-            // Without await, check if this is a .then() call and extract from callback
-            AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) => {
-                if matches!(&member.prop, MemberProp::Ident(ident) if &*ident.sym == "then") {
-                    seen_then = true;
+    let names = 'outer: {
+        for node_ref in ast_path.iter().rev() {
+            match node_ref {
+                // Only extract names when `await` is present — without await, the
+                // destructuring targets the Promise, not the module namespace.
+                AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) if seen_await => {
+                    break 'outer extract_names_from_object_pat(&decl.name);
+                }
+                // Member access: (await import('./lib')).someExport
+                // Only valid after AwaitExpr — without await, it's a Promise method
+                AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) if seen_await => {
+                    break 'outer extract_name_from_member_prop(&member.prop);
+                }
+                // Promise .then() pattern: import('./lib').then(({ name }) => {})
+                // Without await, check if this is a .then() call and extract from callback
+                AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) => {
+                    if matches!(&member.prop, MemberProp::Ident(ident) if &*ident.sym == "then") {
+                        seen_then = true;
+                        continue;
+                    }
+                    break 'outer None;
+                }
+                // After seeing .then MemberExpr, the next CallExpr is the .then() call
+                // — extract destructured parameter names from the first callback argument
+                AstParentNodeRef::CallExpr(call, CallExprField::Callee) if seen_then => {
+                    break 'outer extract_names_from_then_callback(call);
+                }
+                AstParentNodeRef::AwaitExpr(_, AwaitExprField::Arg) => {
+                    seen_await = true;
                     continue;
                 }
-                return None;
+                // Allowed intermediate nodes
+                AstParentNodeRef::Expr(..)
+                | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
+                | AstParentNodeRef::Callee(_, CalleeField::Expr) => continue,
+                // Any other node means the import is nested in something else
+                _ => break 'outer None,
             }
-            // After seeing .then MemberExpr, the next CallExpr is the .then() call
-            // — extract destructured parameter names from the first callback argument
-            AstParentNodeRef::CallExpr(call, CallExprField::Callee) if seen_then => {
-                return extract_names_from_then_callback(call);
-            }
-            AstParentNodeRef::AwaitExpr(_, AwaitExprField::Arg) => {
-                seen_await = true;
-                continue;
-            }
-            // Allowed intermediate nodes
-            AstParentNodeRef::Expr(..)
-            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
-            | AstParentNodeRef::Callee(_, CalleeField::Expr) => continue,
-            // Any other node means the import is nested in something else
-            _ => return None,
         }
+        None
+    };
+    match names {
+        Some(names) if names.is_empty() => ExportUsage::Evaluation,
+        Some(names) => ExportUsage::PartialNamespaceObject(names),
+        None => ExportUsage::All,
     }
-    None
 }
 
 /// Extract export names from the first argument of a `.then()` callback.
@@ -1829,18 +1836,22 @@ impl Analyzer<'_> {
             Callee::Import(_) => {
                 // Prefer webpackExports/turbopackExports comment (authoritative when present)
                 let attrs = self.eval_context.imports.get_attributes(span);
-                let export_names = if let Some(names) = &attrs.export_names {
-                    Some(names.clone())
+                let export_usage = if let Some(names) = &attrs.export_names {
+                    if names.is_empty() {
+                        ExportUsage::Evaluation
+                    } else {
+                        ExportUsage::PartialNamespaceObject(names.clone())
+                    }
                 } else {
                     // Fall back to AST path walking (works when import is not wrapped)
-                    extract_dynamic_import_export_names(ast_path)
+                    extract_dynamic_import_export_usage(ast_path)
                 };
                 self.add_effect(Effect::DynamicImport {
                     args,
                     ast_path: as_parent_path(ast_path),
                     span,
                     in_try: self.is_in_try(),
-                    export_names,
+                    export_usage,
                 });
             }
             Callee::Expr(box expr) => {

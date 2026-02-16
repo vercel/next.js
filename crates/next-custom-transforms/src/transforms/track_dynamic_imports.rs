@@ -1,15 +1,15 @@
 use rustc_hash::FxHashMap;
 use swc_core::{
     common::{
+        BytePos, DUMMY_SP, Mark, Span, Spanned, SyntaxContext,
         comments::{Comment, CommentKind, Comments},
         source_map::PURE_SP,
         util::take::Take,
-        BytePos, Mark, Span, Spanned, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
         utils::{prepend_stmt, private_ident, quote_ident, quote_str},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
@@ -42,19 +42,31 @@ impl<C: Comments> ImportReplacer<C> {
     }
 }
 
-/// Try to find the `import(...)` CallExpr inside an expression, unwrapping
-/// optional `await` and parentheses. Returns the span of the import call
-/// if found.
-fn find_import_call_span(expr: &Expr) -> Option<Span> {
-    match expr {
-        Expr::Call(CallExpr {
-            callee: Callee::Import(_),
-            span,
-            ..
-        }) => Some(*span),
-        Expr::Await(AwaitExpr { arg, .. }) => find_import_call_span(arg),
-        Expr::Paren(ParenExpr { expr, .. }) => find_import_call_span(expr),
-        _ => None,
+/// Try to find an `await import(...)` CallExpr inside an expression,
+/// unwrapping parentheses. Returns the span of the import call only if
+/// `await` is present — without await, the destructuring targets the
+/// Promise, not the module namespace.
+fn find_awaited_import_call_span(expr: &Expr) -> Option<Span> {
+    let mut current: &Expr = expr;
+    let mut seen_await = false;
+    loop {
+        match current {
+            Expr::Call(CallExpr {
+                callee: Callee::Import(_),
+                span,
+                ..
+            }) if seen_await => {
+                break Some(*span);
+            }
+            Expr::Await(AwaitExpr { arg, .. }) => {
+                seen_await = true;
+                current = arg;
+            }
+            Expr::Paren(ParenExpr { expr, .. }) => {
+                current = expr;
+            }
+            _ => break None,
+        }
     }
 }
 
@@ -114,8 +126,11 @@ impl<C: Comments> VisitMut for ImportReplacer<C> {
         // Collect export names BEFORE visiting children, because visit_mut_expr
         // (triggered by visit_mut_children_with) will wrap the import and look up
         // the names from the map.
+        //
+        // Only extract names when `await` is present — without await, the
+        // destructuring targets the Promise, not the module namespace.
         if let Some(init) = &decl.init {
-            if let Some(import_span) = find_import_call_span(init) {
+            if let Some(import_span) = find_awaited_import_call_span(init) {
                 if let Pat::Object(obj_pat) = &decl.name {
                     if let Some(names) = extract_export_names_from_pat(obj_pat) {
                         self.import_export_names.insert(import_span.lo, names);

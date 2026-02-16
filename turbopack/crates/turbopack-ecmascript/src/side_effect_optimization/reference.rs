@@ -179,9 +179,9 @@ impl EcmascriptModulePartReference {
                     chunking_context,
                     match &*export_usage {
                         ExportUsage::Named(export) => Some(export.clone()),
-                        ExportUsage::NamedSet(_) | ExportUsage::All | ExportUsage::Evaluation => {
-                            None
-                        }
+                        ExportUsage::PartialNamespaceObject(_)
+                        | ExportUsage::All
+                        | ExportUsage::Evaluation => None,
                     },
                     scope_hoisting_context,
                 )

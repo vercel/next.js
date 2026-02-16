@@ -38,7 +38,6 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use smallvec::SmallVec;
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
@@ -79,7 +78,8 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode, find_context_file,
+        ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
+        find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
         pattern::Pattern,
@@ -1330,7 +1330,7 @@ async fn analyze_ecmascript_module_internal(
                     ast_path,
                     span,
                     in_try,
-                    export_names,
+                    export_usage,
                 } => {
                     if let Some(ignored) = &ignore_effect_span
                         && *ignored == span
@@ -1347,7 +1347,7 @@ async fn analyze_ecmascript_module_internal(
                         &mut analysis,
                         in_try,
                         eval_context.imports.get_attributes(span),
-                        export_names,
+                        export_usage,
                     )
                     .await?;
                 }
@@ -1848,7 +1848,7 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
     attributes: &ImportAttributes,
-    export_names: Option<SmallVec<[RcStr; 1]>>,
+    export_usage: ExportUsage,
 ) -> Result<()> {
     // If the import has a webpackIgnore/turbopackIgnore comment, skip processing
     // so the import expression is preserved as-is in the output.
@@ -1903,7 +1903,7 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
         analysis,
         error_mode,
         state.import_externals,
-        export_names,
+        export_usage,
     )
     .await
 }
@@ -1919,7 +1919,7 @@ async fn handle_dynamic_import_with_linked_args(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     error_mode: ResolveErrorMode,
     import_externals: bool,
-    export_names: Option<SmallVec<[RcStr; 1]>>,
+    export_usage: ExportUsage,
 ) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
@@ -1966,7 +1966,7 @@ async fn handle_dynamic_import_with_linked_args(
                 import_annotations,
                 error_mode,
                 import_externals,
-                export_names,
+                export_usage,
             ),
             ast_path.to_vec().into(),
         );
@@ -2194,7 +2194,11 @@ where
     match func {
         WellKnownFunctionKind::Import => {
             let args = linked_args().await?;
-            let export_names = attributes.export_names.clone();
+            let export_usage = match &attributes.export_names {
+                Some(names) if names.is_empty() => ExportUsage::Evaluation,
+                Some(names) => ExportUsage::PartialNamespaceObject(names.clone()),
+                None => ExportUsage::All,
+            };
             handle_dynamic_import_with_linked_args(
                 ast_path,
                 span,
@@ -2206,7 +2210,7 @@ where
                 analysis,
                 error_mode,
                 state.import_externals,
-                export_names,
+                export_usage,
             )
             .await?;
         }

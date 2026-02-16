@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use smallvec::SmallVec;
 use swc_core::{
     common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
@@ -43,13 +42,10 @@ pub struct EsmAsyncAssetReference {
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
-    /// The export names extracted from the dynamic import usage pattern.
+    /// The export usage extracted from the dynamic import usage pattern.
     /// Detected from destructured await, member access on await, .then()
     /// callback destructuring, or webpackExports/turbopackExports comments.
-    /// `None` means no pattern found (all exports used).
-    /// `Some([])` means empty destructuring (only side effects).
-    /// `Some([name, ...])` means specific named exports are used.
-    pub export_names: Option<SmallVec<[RcStr; 1]>>,
+    pub export_usage: ExportUsage,
 }
 
 impl EsmAsyncAssetReference {
@@ -70,7 +66,7 @@ impl EsmAsyncAssetReference {
         annotations: ImportAnnotations,
         error_mode: ResolveErrorMode,
         import_externals: bool,
-        export_names: Option<SmallVec<[RcStr; 1]>>,
+        export_usage: ExportUsage,
     ) -> Self {
         EsmAsyncAssetReference {
             origin,
@@ -79,7 +75,7 @@ impl EsmAsyncAssetReference {
             annotations,
             error_mode,
             import_externals,
-            export_names,
+            export_usage,
         }
     }
 }
@@ -105,15 +101,9 @@ impl ModuleReference for EsmAsyncAssetReference {
 
     #[turbo_tasks::function]
     fn binding_usage(&self) -> Vc<BindingUsage> {
-        let export = match &self.export_names {
-            None => ExportUsage::All,
-            Some(names) if names.is_empty() => ExportUsage::Evaluation,
-            Some(names) if names.len() == 1 => ExportUsage::Named(names[0].clone()),
-            Some(names) => ExportUsage::NamedSet(names.clone()),
-        };
         BindingUsage {
             import: Default::default(),
-            export,
+            export: self.export_usage.clone(),
         }
         .cell()
     }
