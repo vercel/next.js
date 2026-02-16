@@ -226,14 +226,13 @@ impl DebugBuildPathsRouteKeys {
             .filter(|segment| !segment.is_empty())
             .collect::<Vec<_>>();
 
-        if let Some(last_segment) = segments.last() {
-            if *last_segment == "page"
+        if let Some(last_segment) = segments.last()
+            && (*last_segment == "page"
                 || last_segment.starts_with("page.")
                 || *last_segment == "route"
-                || last_segment.starts_with("route.")
-            {
-                segments.pop();
-            }
+                || last_segment.starts_with("route."))
+        {
+            segments.pop();
         }
 
         let normalized_path = segments.join("/");
