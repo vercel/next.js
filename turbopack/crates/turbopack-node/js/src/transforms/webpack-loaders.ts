@@ -16,7 +16,7 @@ import {
   type TransformIpc,
 } from './transforms'
 import {
-  executeModules,
+  evaluateBundle,
   type ImportModuleResult,
 } from './webpack-loaders-runtime'
 import fs from 'fs'
@@ -394,7 +394,7 @@ const transform = (
                 request: actualRequest,
               })) as ImportModuleResult
 
-              return executeModules(result, contextDir)
+              return evaluateBundle(result)
             }
 
             if (!callback) {

@@ -23,7 +23,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext},
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset},
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
@@ -32,6 +32,7 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
         ResolveErrorMode,
@@ -46,7 +47,6 @@ use turbopack_core::{
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkItem;
 use turbopack_resolve::{
     ecmascript::{esm_resolve, get_condition_maps},
     resolve::resolve_options,
@@ -458,17 +458,14 @@ pub enum RequestMessage {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ImportModuleItem {
-    id: RcStr,
-    code: RcStr,
+pub struct ImportModuleChunk {
+    path: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    code: Option<RcStr>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    binary: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     source_map: Option<RcStr>,
-    module_and_exports: bool,
-    /// For async modules (wasm imports, top-level await, etc.), whether
-    /// the module itself contains a top-level `await`. `None` if the
-    /// module is not async.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    has_top_level_await: Option<bool>,
 }
 
 #[derive(Serialize, Debug)]
@@ -481,8 +478,8 @@ pub enum ResponseMessage {
     TrackFileRead {},
     #[serde(rename_all = "camelCase")]
     ImportModule {
-        entry_id: RcStr,
-        modules: Vec<ImportModuleItem>,
+        entry_path: RcStr,
+        chunks: Vec<ImportModuleChunk>,
     },
 }
 
@@ -706,6 +703,10 @@ impl EvaluateContext for WebpackLoaderContext {
                     );
                 };
 
+                // Cast to evaluatable asset for bundle generation
+                let evaluatable = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module)
+                    .context("importModule: module is not evaluatable")?;
+
                 // Build a module graph from the resolved module and its
                 // transitive dependencies
                 let single_graph = SingleModuleGraph::new_with_entry(
@@ -718,73 +719,77 @@ impl EvaluateContext for WebpackLoaderContext {
                     .to_resolved()
                     .await?;
 
-                let import_mg_vc = *import_module_graph;
+                // Generate a full Node.js bundle using the real runtime
+                let output_root = self.chunking_context.output_root().owned().await?;
+                let entry_path = output_root.join("importModule.js")?;
 
-                // Get the entry module's chunk item ID
-                let entry_chunkable = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module)
-                    .context("importModule: entry module is not chunkable")?;
-                let entry_chunk_item =
-                    entry_chunkable.as_chunk_item(import_mg_vc, *self.chunking_context);
-                let entry_id: RcStr = entry_chunk_item.id().await?.to_string().into();
+                let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
+                    entry_path.clone(),
+                    Vc::cell(vec![evaluatable]),
+                    *import_module_graph,
+                    OutputAssets::empty(),
+                    OutputAssets::empty(),
+                );
 
-                // Generate code for all modules in the graph,
-                // computing async module info so that modules with
-                // top-level await (e.g. WebAssembly imports) get
-                // the proper ctx.a() wrapper in their generated code.
-                let import_mg_ref = import_mg_vc.await?;
-                let async_modules_info = import_mg_vc.async_module_info().await?;
-                let mut module_items = Vec::new();
-                for m in import_mg_ref.iter_nodes() {
-                    let Some(chunkable) = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(m)
-                    else {
+                // Collect all internal assets as {path, code} pairs
+                let bootstrap_resolved = bootstrap.to_resolved().await?;
+                let all_assets = expand_output_assets(
+                    std::iter::once(ExpandOutputAssetsInput::Asset(bootstrap_resolved)),
+                    true,
+                )
+                .await?;
+
+                let mut chunks = Vec::new();
+                for asset in all_assets {
+                    let asset_path = asset.path().owned().await?;
+                    if !asset_path.is_inside_ref(&output_root) {
+                        continue;
+                    }
+                    let Some(rel_path) = output_root.get_path_to(&asset_path) else {
+                        continue;
+                    };
+                    // Skip source map files
+                    if rel_path.ends_with(".map") {
+                        continue;
+                    }
+                    let content = asset.content().await?;
+                    let AssetContent::File(file_vc) = *content else {
+                        continue;
+                    };
+                    let file_content = file_vc.await?;
+                    let FileContent::Content(file) = &*file_content else {
                         continue;
                     };
 
-                    let chunk_item = chunkable.as_chunk_item(import_mg_vc, *self.chunking_context);
-
-                    let Some(ecma_item) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkItem>>(
-                        chunk_item.to_resolved().await?,
-                    ) else {
-                        continue;
-                    };
-
-                    let async_info = if async_modules_info.contains(&m) {
-                        Some(
-                            import_mg_vc
-                                .referenced_async_modules(*m)
-                                .to_resolved()
-                                .await?,
-                        )
+                    if rel_path.ends_with(".js") {
+                        // JavaScript chunk — send as text
+                        let code: RcStr = file.content().to_str()?.into_owned().into();
+                        chunks.push(ImportModuleChunk {
+                            path: rel_path.into(),
+                            code: Some(code),
+                            binary: None,
+                            source_map: None,
+                        });
                     } else {
-                        None
-                    };
-
-                    let content = ecma_item
-                        .content_with_async_module_info(async_info.map(|v| *v), false)
-                        .await?;
-                    let id: RcStr = chunk_item.id().await?.to_string().into();
-                    let code: RcStr = content.inner_code.to_str()?.into_owned().into();
-                    let source_map = match &content.source_map {
-                        Some(sm) => Some(RcStr::from(sm.to_str()?.into_owned())),
-                        None => None,
-                    };
-
-                    module_items.push(ImportModuleItem {
-                        id,
-                        code,
-                        source_map,
-                        module_and_exports: content.options.module_and_exports,
-                        has_top_level_await: content
-                            .options
-                            .async_module
-                            .as_ref()
-                            .map(|opts| opts.has_top_level_await),
-                    });
+                        // Binary asset (wasm, images, etc.) — send base64-encoded
+                        let bytes = file.content().to_bytes();
+                        let encoded = base64::engine::general_purpose::STANDARD.encode(&*bytes);
+                        chunks.push(ImportModuleChunk {
+                            path: rel_path.into(),
+                            code: None,
+                            binary: Some(encoded),
+                            source_map: None,
+                        });
+                    }
                 }
 
+                let entry_rel = output_root
+                    .get_path_to(&entry_path)
+                    .context("entry path should be inside output root")?;
+
                 Ok(ResponseMessage::ImportModule {
-                    entry_id,
-                    modules: module_items,
+                    entry_path: entry_rel.into(),
+                    chunks,
                 })
             }
         }
