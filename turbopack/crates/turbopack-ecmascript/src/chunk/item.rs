@@ -11,17 +11,21 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+        AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder},
+    ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
+    module::Module,
+    module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
 };
 
 use crate::{
     EcmascriptModuleContent,
+    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
@@ -295,4 +299,91 @@ async fn module_factory_with_code_generation_issue(
             code.build().cell()
         }
     })
+}
+
+/// Generic chunk item that wraps any EcmascriptChunkPlaceable module.
+/// This replaces the need for individual per-module ChunkItem wrapper structs.
+#[turbo_tasks::value]
+pub struct EcmascriptModuleChunkItem {
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+}
+
+/// Factory function to create an EcmascriptModuleChunkItem.
+/// Use this instead of implementing ChunkableModule::as_chunk_item() on each module.
+pub fn ecmascript_chunk_item(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+) -> Vc<Box<dyn ChunkItem>> {
+    Vc::upcast(
+        EcmascriptModuleChunkItem {
+            module,
+            chunking_context,
+            module_graph,
+        }
+        .cell(),
+    )
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn content_ident(&self) -> Vc<AssetIdent> {
+        self.module
+            .chunk_item_content_ident(*self.chunking_context, *self.module_graph)
+    }
+
+    #[turbo_tasks::function]
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(*self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<turbopack_core::output::OutputAssetsWithReferenced> {
+        self.module
+            .chunk_item_output_assets(*self.chunking_context, *self.module_graph)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<EcmascriptChunkItemContent> {
+        self.module
+            .chunk_item_content(*self.chunking_context, *self.module_graph, None, false)
+    }
+
+    #[turbo_tasks::function]
+    fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Vc<EcmascriptChunkItemContent> {
+        self.module.chunk_item_content(
+            *self.chunking_context,
+            *self.module_graph,
+            async_module_info,
+            estimated,
+        )
+    }
 }

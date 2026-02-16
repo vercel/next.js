@@ -44,6 +44,7 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
+import { cleanup } from './lru'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -237,7 +238,7 @@ export function startRevalidationCooldown(): void {
   revalidationCooldownTimeoutHandle = setTimeout(() => {
     revalidationCooldownTimeoutHandle = null
     // Retry the prefetch queue now that the cooldown has expired.
-    ensureWorkIsScheduled()
+    pingPrefetchScheduler()
   }, REVALIDATION_COOLDOWN_MS)
 }
 
@@ -295,7 +296,7 @@ export function schedulePrefetchTask(
   // By deferring to a microtask, we only process the queue once per JS task.
   // If they have different priorities, it also ensures they are processed in
   // the optimal order.
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 
   return task
 }
@@ -358,7 +359,7 @@ export function reschedulePrefetchTask(
   } else {
     heapPush(taskHeap, task)
   }
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 export function isPrefetchTaskDirty(
@@ -397,7 +398,7 @@ function trackMostRecentlyHoveredLink(task: PrefetchTask) {
   }
 }
 
-function ensureWorkIsScheduled() {
+export function pingPrefetchScheduler() {
   if (didScheduleMicrotask) {
     // Already scheduled a task to process the queue
     return
@@ -478,7 +479,7 @@ function onPrefetchConnectionClosed(): void {
 
   // Notify the scheduler that we have more bandwidth, and can continue
   // processing tasks.
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 /**
@@ -498,7 +499,7 @@ export function pingPrefetchTask(task: PrefetchTask) {
   }
   // Add the task back to the queue.
   heapPush(taskHeap, task)
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 function processQueueInMicrotask() {
@@ -562,6 +563,14 @@ function processQueueInMicrotask() {
       default:
         exitStatus satisfies never
     }
+  }
+
+  // Run LRU cleanup only when the scheduler is fully idle: no queued tasks and
+  // no in-progress requests. At that point, all active prefetch tasks have
+  // finished reading from the cache (moving recently used entries to the front
+  // of the list), so only genuinely stale data gets evicted.
+  if (task === null && inProgressRequests === 0) {
+    cleanup()
   }
 }
 

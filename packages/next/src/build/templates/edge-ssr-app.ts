@@ -197,7 +197,6 @@ async function requestHandler(
           silenceLog,
           routerServerContext
         ),
-      dev: pageRouteModule.isDev,
     },
   }
   let finalStatus = 200

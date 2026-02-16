@@ -8,9 +8,7 @@ export type ReadyRuntimeError = {
   id: number
   runtime: true
   error: Error & { environmentName?: string }
-  frames:
-    | readonly OriginalStackFrame[]
-    | (() => Promise<readonly OriginalStackFrame[]>)
+  frames: () => Promise<readonly OriginalStackFrame[]>
   type: 'runtime' | 'console' | 'recoverable'
 }
 
@@ -19,63 +17,29 @@ export const useFrames = (
 ): readonly OriginalStackFrame[] => {
   if (!error) return []
 
-  if ('use' in React) {
-    const frames = error.frames
-
-    if (typeof frames !== 'function') {
-      throw new Error(
-        'Invariant: frames must be a function when the React version has React.use. This is a bug in Next.js.'
-      )
-    }
-
-    return React.use((frames as () => Promise<readonly OriginalStackFrame[]>)())
-  } else {
-    if (!Array.isArray(error.frames)) {
-      throw new Error(
-        'Invariant: frames must be an array when the React version does not have React.use. This is a bug in Next.js.'
-      )
-    }
-
-    return error.frames
-  }
+  const frames = error.frames
+  return React.use(frames())
 }
 
-export async function getErrorByType(
+export function getErrorByType(
   event: SupportedErrorEvent,
   isAppDir: boolean
-): Promise<ReadyRuntimeError> {
-  const baseError = {
+): ReadyRuntimeError {
+  const readyRuntimeError: ReadyRuntimeError = {
     id: event.id,
     runtime: true,
     error: event.error,
     type: event.type,
-  } as const
-
-  if ('use' in React) {
-    const readyRuntimeError: ReadyRuntimeError = {
-      ...baseError,
-      // createMemoizedPromise dedups calls to getOriginalStackFrames
-      frames: createMemoizedPromise(async () => {
-        return await getOriginalStackFrames(
-          event.frames,
-          getErrorSource(event.error),
-          isAppDir
-        )
-      }),
-    }
-    return readyRuntimeError
-  } else {
-    const readyRuntimeError: ReadyRuntimeError = {
-      ...baseError,
-      // createMemoizedPromise dedups calls to getOriginalStackFrames
-      frames: await getOriginalStackFrames(
+    // createMemoizedPromise dedups calls to getOriginalStackFrames
+    frames: createMemoizedPromise(async () => {
+      return await getOriginalStackFrames(
         event.frames,
         getErrorSource(event.error),
         isAppDir
-      ),
-    }
-    return readyRuntimeError
+      )
+    }),
   }
+  return readyRuntimeError
 }
 
 function createMemoizedPromise<T>(

@@ -14,11 +14,14 @@ use turbopack_core::{
     resolve::{ExportUsage, ModulePart},
 };
 
-use super::chunk_item::EcmascriptModuleFacadeChunkItem;
 use crate::{
-    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleContent,
-    EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions,
+    MergedEcmascriptModule, SpecifiedModuleType,
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
+    },
     code_gen::CodeGens,
     export::Liveness,
     references::{
@@ -343,6 +346,25 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
         Ok(Vc::cell(Some(self.async_module().to_resolved().await?)))
     }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let content = self.module_content(chunking_context, async_module_info);
+
+        let async_module_options = self.get_async_module().module_options(async_module_info);
+
+        Ok(EcmascriptChunkItemContent::new(
+            content,
+            chunking_context,
+            async_module_options,
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -350,16 +372,10 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: ResolvedVc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
-            EcmascriptModuleFacadeChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        ))
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 

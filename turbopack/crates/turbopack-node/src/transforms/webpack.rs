@@ -10,8 +10,8 @@ use serde_json::{Map as JsonMap, Value as JsonValue, json};
 use serde_with::serde_as;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc, trace::TraceRawVcs,
+    Completion, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -82,29 +82,7 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-pub struct WebpackLoaderItem {
-    pub loader: RcStr,
-    #[serde(default)]
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    pub options: serde_json::Map<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone)]
-#[turbo_tasks::value(shared, transparent)]
-pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
+pub use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
 
 #[turbo_tasks::value]
 pub struct WebpackLoaders {

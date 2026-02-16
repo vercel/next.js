@@ -10,7 +10,7 @@ use crate::{
         DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
         get_receiver_style, split_function_attributes,
     },
-    global_name::global_name,
+    global_name::{global_name_for_trait_method, global_name_for_type},
     ident::{get_trait_default_impl_function_ident, get_trait_type_ident},
     self_filter::is_self_used,
     value_trait_arguments::ValueTraitArguments,
@@ -203,7 +203,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
             let function_path_string = format!("{trait_ident}::{ident}");
             let native_function = NativeFn {
-                function_global_name: global_name(&function_path_string),
+                function_global_name: global_name_for_trait_method(trait_ident, ident),
                 function_path_string,
                 function_path: quote! {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
@@ -290,7 +290,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         extended_supertraits.push(quote!(turbo_tasks::debug::ValueDebug));
     }
 
-    let trait_name = global_name(quote! {stringify!(#trait_ident)});
+    let trait_name = global_name_for_type(quote! { dyn #trait_ident });
     let expanded = quote! {
         #[must_use]
         #(#attrs)*
