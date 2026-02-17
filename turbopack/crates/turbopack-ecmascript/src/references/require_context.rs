@@ -228,7 +228,6 @@ impl RequireContextMap {
 /// wrapped in `__turbopack_module_context__`;
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("require.context {}/{}", self.dir, {if self.include_subdirs { "**" } else { "*" }})]
 pub struct RequireContextAssetReference {
     pub inner: ResolvedVc<RequireContextAsset>,
     pub dir: RcStr,
@@ -236,6 +235,17 @@ pub struct RequireContextAssetReference {
 
     pub issue_source: Option<IssueSource>,
     pub error_mode: ResolveErrorMode,
+}
+
+impl std::fmt::Display for RequireContextAssetReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "require.context {}/{}",
+            self.dir,
+            if self.include_subdirs { "**" } else { "*" },
+        )
+    }
 }
 
 impl RequireContextAssetReference {

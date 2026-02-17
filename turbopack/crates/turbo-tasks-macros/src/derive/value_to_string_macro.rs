@@ -173,11 +173,6 @@ fn parse_attr(attr: &Attribute) -> syn::Result<AttrForm> {
     }
 }
 
-/// Returns true if the format string has no `{` or `}` and can use `rcstr!` directly.
-fn is_pure_constant(fmt: &str) -> bool {
-    !fmt.contains('{') && !fmt.contains('}')
-}
-
 /// If `fmt` is exactly `{field_name}` (single field, no format specifier, no surrounding text),
 /// returns a `self.field_name` expression. This lets us skip `format!` entirely and delegate
 /// directly to `ValueToStringify::to_stringify`.
@@ -287,12 +282,12 @@ fn struct_format_auto_fields_body(fmt: &str) -> (bool, TokenStream2) {
     let (transformed_fmt, field_refs) = parse_format_fields(fmt);
 
     if field_refs.is_empty() {
-        let value_expr = if is_pure_constant(fmt) {
-            quote! { turbo_rcstr::rcstr!(#transformed_fmt) }
-        } else {
-            quote! { turbo_rcstr::RcStr::from(format!(#transformed_fmt)) }
-        };
-        return (false, quote! { turbo_tasks::Vc::cell(#value_expr) });
+        // No fields to resolve — unescape `{{`/`}}` at compile time and use rcstr!
+        let unescaped = transformed_fmt.replace("{{", "{").replace("}}", "}");
+        return (
+            false,
+            quote! { turbo_tasks::Vc::cell(turbo_rcstr::rcstr!(#unescaped)) },
+        );
     }
 
     let resolves: Vec<TokenStream2> = field_refs
@@ -417,8 +412,9 @@ fn generate_enum_format_auto_fields(
         *needs_async = true;
     }
 
-    let value_expr = if field_refs.is_empty() && is_pure_constant(fmt) {
-        quote! { turbo_rcstr::rcstr!(#transformed_fmt) }
+    let value_expr = if field_refs.is_empty() {
+        let unescaped = transformed_fmt.replace("{{", "{").replace("}}", "}");
+        quote! { turbo_rcstr::rcstr!(#unescaped) }
     } else {
         quote! { turbo_rcstr::RcStr::from(format!(#transformed_fmt)) }
     };
