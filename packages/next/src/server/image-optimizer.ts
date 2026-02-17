@@ -689,6 +689,12 @@ export class ImageOptimizerCache {
       Date.now()
 
     try {
+      const lru = await this.cacheDiskLRU
+      const success = lru?.set(cacheKey, value.buffer.byteLength)
+      if (!success) {
+        throw new Error('image could not be tracked by lru cache')
+      }
+
       await writeToCacheDir(
         this.cacheDir,
         cacheKey,
@@ -699,7 +705,6 @@ export class ImageOptimizerCache {
         value.etag,
         value.upstreamEtag
       )
-      ;(await this.cacheDiskLRU)?.set(cacheKey, value.buffer.byteLength)
     } catch (err) {
       Log.error(`Failed to write image to cache ${cacheKey}`, err)
     }

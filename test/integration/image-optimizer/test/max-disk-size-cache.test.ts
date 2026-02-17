@@ -3,9 +3,9 @@ import { setupTests } from './util'
 
 const appDir = join(__dirname, '../app')
 
-describe('with cacheMaxDiskSize 50KB config', () => {
+describe('with cacheMaxDiskSize 85KB config', () => {
   setupTests({
     appDir,
-    cacheMaxDiskSize: 50_000,
+    cacheMaxDiskSize: 85_000,
   })
 })
