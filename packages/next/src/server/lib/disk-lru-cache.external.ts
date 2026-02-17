@@ -15,12 +15,12 @@ let _diskLRUPromise: Promise<LRUCache<number>> | null = null
  * Concurrent calls are deduplicated via the shared promise.
  *
  * @param cacheDir - The directory where cached files are stored
- * @param cacheMaxDiskSize - Max size in bytes (0 = auto-detect via statfs at 50% available space)
+ * @param cacheMaxDiskSize - Maximum disk cache size in bytes
  * @param readEntries - Callback to scan existing cache entries (format-agnostic)
  */
 export async function getOrInitDiskLRU(
   cacheDir: string,
-  cacheMaxDiskSize: number,
+  cacheMaxDiskSize: number | null,
   readEntries: (
     cacheDir: string
   ) => Promise<Array<{ key: string; size: number; expireAt: number }>>
@@ -28,7 +28,7 @@ export async function getOrInitDiskLRU(
   if (!_diskLRUPromise) {
     _diskLRUPromise = (async () => {
       let maxSize = cacheMaxDiskSize
-      if (maxSize === undefined) {
+      if (maxSize === null) {
         // If config is not provided, default to 50% of available disk space
         const { bavail, bsize } = await promises.statfs(cacheDir)
         maxSize = Math.floor((bavail * bsize) / 2)

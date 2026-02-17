@@ -677,7 +677,10 @@ export class ImageOptimizerCache {
     }
 
     // Fall back to filesystem cache
-    if (!this.nextConfig.experimental.isrFlushToDisk) {
+    if (
+      !this.nextConfig.experimental.isrFlushToDisk ||
+      this.nextConfig.cacheMaxDiskSize === 0
+    ) {
       return
     }
 

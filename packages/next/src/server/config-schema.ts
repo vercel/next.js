@@ -406,7 +406,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       )
       .optional(),
     cacheMaxMemorySize: z.number().optional(),
-    cacheMaxDiskSize: z.number().int().min(0).optional(),
+    cacheMaxDiskSize: z.number().int().min(0).nullable().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
       .strictObject({
