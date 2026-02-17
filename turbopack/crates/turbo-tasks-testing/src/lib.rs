@@ -333,6 +333,8 @@ impl TurboTasksApi for VcStorage {
     fn wait_foreground_done(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {})
     }
+
+    fn verify_graph(&self) {}
 }
 
 impl VcStorage {

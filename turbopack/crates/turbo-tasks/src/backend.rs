@@ -467,6 +467,11 @@ pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
     fn idle_end(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
+    /// Verifies the integrity of the aggregation graph. No-op unless the backend
+    /// is compiled with verification support.
+    #[allow(unused_variables)]
+    fn verify_graph(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>);

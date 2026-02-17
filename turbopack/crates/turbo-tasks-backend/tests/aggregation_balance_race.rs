@@ -163,6 +163,10 @@ async fn balance_edge_race() -> Result<()> {
                 // Wait for all foreground jobs (including aggregation queue
                 // processing) to complete before starting the next round
                 tt.wait_foreground_done().await;
+
+                // Verify aggregation graph integrity (no-op without
+                // verify_aggregation_graph feature)
+                tt.verify_graph();
             }
 
             anyhow::Ok(())

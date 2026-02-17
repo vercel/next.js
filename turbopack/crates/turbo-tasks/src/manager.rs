@@ -203,6 +203,10 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     /// Waits until all currently scheduled foreground jobs have completed.
     /// This includes task executions and their associated aggregation update processing.
     fn wait_foreground_done(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
+
+    /// Verifies the integrity of the aggregation graph. No-op unless the backend
+    /// is compiled with verification support.
+    fn verify_graph(&self);
 }
 
 /// A wrapper around a value that is unused.
@@ -1635,6 +1639,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn is_tracking_dependencies(&self) -> bool {
         self.backend.is_tracking_dependencies()
+    }
+
+    fn verify_graph(&self) {
+        self.backend.verify_graph(self);
     }
 }
 

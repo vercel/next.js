@@ -1479,6 +1479,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.idle_end_event.notify(usize::MAX);
     }
 
+    #[allow(unused_variables)]
+    fn verify_graph(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
+        #[cfg(feature = "verify_aggregation_graph")]
+        self.verify_aggregation_graph(turbo_tasks, false);
+    }
+
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
@@ -3112,7 +3118,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         use std::{collections::VecDeque, env, io::stdout};
 
-        use crate::backend::operation::{get_uppers, is_aggregating_node};
+        use crate::backend::operation::{get_aggregation_number, get_uppers, is_aggregating_node};
 
         let mut ctx = self.execute_context(turbo_tasks);
         let root_tasks = self.root_tasks.lock().clone();
@@ -3184,19 +3190,51 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 if is_aggregating_node(aggregation_number) {
                     aggregated_nodes.insert(task_id);
                 }
-                // println!(
-                //     "{task_id}: {} agg_num = {aggregation_number}, uppers = {:#?}",
-                //     ctx.get_task_description(task_id),
-                //     uppers
-                // );
 
-                for child_id in task.iter_children() {
-                    // println!("{task_id}: child -> {child_id}");
+                let children: Vec<TaskId> = task.iter_children().collect();
+                for &child_id in &children {
                     if visited.insert(child_id) {
                         queue.push_back(child_id);
                     }
                 }
                 drop(task);
+
+                // Verify that each child of this task is accounted for by each
+                // of this task's uppers: for upper U of task T, and child C of
+                // T, either C.upper[U] exists (C is an inner node of U) or
+                // U.followers[C] exists (C is a follower of U).
+                for &child_id in &children {
+                    let child = ctx.task(child_id, TaskDataCategory::All);
+                    let child_uppers: SmallVec<[TaskId; 4]> =
+                        child.iter_upper().map(|(&id, _)| id).collect();
+                    drop(child);
+
+                    for &upper_id in &uppers {
+                        let is_inner = child_uppers.contains(&upper_id);
+                        if !is_inner {
+                            let upper = ctx.task(upper_id, TaskDataCategory::All);
+                            let is_follower = upper.iter_followers().any(|(&id, _)| id == child_id);
+                            drop(upper);
+                            if !is_follower {
+                                let child_desc = ctx
+                                    .task(child_id, TaskDataCategory::Data)
+                                    .get_task_description();
+                                let upper_desc = ctx
+                                    .task(upper_id, TaskDataCategory::Data)
+                                    .get_task_description();
+                                let task_desc = ctx
+                                    .task(task_id, TaskDataCategory::Data)
+                                    .get_task_description();
+                                panic!(
+                                    "Child {child_id} ({child_desc}) of task {task_id} \
+                                     ({task_desc}) is not tracked by upper {upper_id} \
+                                     ({upper_desc}) — neither {child_id}.upper[{upper_id}] nor \
+                                     {upper_id}.followers[{child_id}] exists"
+                                );
+                            }
+                        }
+                    }
+                }
 
                 if should_be_in_upper {
                     for upper_id in uppers {
@@ -3382,6 +3420,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn idle_end(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.idle_end();
+    }
+
+    fn verify_graph(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.verify_graph(turbo_tasks);
     }
 
     fn get_or_create_persistent_task(

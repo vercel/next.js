@@ -1216,17 +1216,7 @@ impl AggregationUpdateQueue {
                 {
                     #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
-                    #[cfg(feature = "test_aggregation_race")]
-                    let jobs_before = self.jobs.len();
                     self.balance_edge(ctx, upper, task);
-                    #[cfg(feature = "test_aggregation_race")]
-                    if self.jobs.len() > jobs_before {
-                        // balance_edge pushed jobs (likely InnerOfUppersLostFollower).
-                        // Stall so a concurrent cleanup on another thread can find
-                        // and consume the newly-created inner edge before our queue
-                        // processes the lost-follower notification.
-                        std::thread::sleep(std::time::Duration::from_millis(5));
-                    }
                     remaining -= 1;
                 } else {
                     break;
@@ -1599,9 +1589,6 @@ impl AggregationUpdateQueue {
             if upper_ids.is_empty() {
                 return ControlFlow::Break(());
             }
-            #[cfg(feature = "test_aggregation_race")]
-            let outer_upper_ids_snapshot: SmallVec<[TaskId; 4]> =
-                upper_ids.iter().copied().collect();
             swap_retain(&mut upper_ids, |&mut upper_id| {
                 let mut upper = ctx.task(
                     upper_id,
@@ -1639,22 +1626,6 @@ impl AggregationUpdateQueue {
                     }
                     // notify uppers about lost follower
                     if !propagation_upper_ids.is_empty() {
-                        #[cfg(feature = "test_aggregation_race")]
-                        {
-                            // Check if any of the propagation targets are also
-                            // in the outer upper_ids list — this would cause a
-                            // double-remove at that target.
-                            for &prop_upper in propagation_upper_ids.iter() {
-                                if outer_upper_ids_snapshot.contains(&prop_upper) {
-                                    eprintln!(
-                                        "[BUG] inner_of_uppers_lost_follower: propagation from \
-                                         removing {upper_id:?}.followers[{lost_follower_id:?}] \
-                                         targets {prop_upper:?}, which is also in the current \
-                                         upper_ids list! This will cause a double-remove."
-                                    );
-                                }
-                            }
-                        }
                         self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
                             upper_ids: propagation_upper_ids,
                             lost_follower_id,
