@@ -322,7 +322,7 @@ jobs:
       # Jest has a global cache, so PRs that poison the cache can bring down CI
       - name: Clean up stray files
         if: ${{ always() }}
-        run: rm -f /tmp/package-lock.json .jest-cache
+        run: rm -f /tmp/package-lock.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

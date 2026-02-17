@@ -102,6 +102,11 @@ export class NextInstance {
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
+    const nextTestWasm =
+      process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
+    if (nextTestWasm) {
+      this.env.NEXT_TEST_WASM = nextTestWasm
+    }
 
     if (!isNextDeploy) {
       this.env = {

@@ -156,7 +156,12 @@ export const isNextDeploy = testMode === 'deploy'
  */
 export const isNextStart = !isNextDev && !isNextDeploy
 
+if (!process.env.NEXT_TEST_WASM && process.env.NEXT_TEST_WASM_AFTER_JEST) {
+  process.env.NEXT_TEST_WASM = process.env.NEXT_TEST_WASM_AFTER_JEST
+}
+
 export const isRspack = !!process.env.NEXT_RSPACK
+const isNextTestWasm = !!process.env.NEXT_TEST_WASM
 
 if (!testMode) {
   throw new Error(
@@ -230,7 +235,7 @@ export async function createNext(
 
     setupTracing()
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
-      const useTurbo = !!process.env.NEXT_TEST_WASM
+      const useTurbo = isNextTestWasm
         ? false
         : (opts?.turbo ?? shouldUseTurbopack())
 
@@ -363,9 +368,7 @@ export function nextTestSetup(
       return isNextStart
     },
     get isTurbopack() {
-      return Boolean(
-        !process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack())
-      )
+      return Boolean(!isNextTestWasm && (options.turbo ?? shouldUseTurbopack()))
     },
     get isRspack() {
       return isRspack
