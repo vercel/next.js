@@ -48,7 +48,7 @@ use crate::{
 
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared, operation)]
-#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize)]
+#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize, ValueToString)]
 #[serde(untagged)]
 pub enum ModuleId {
     Number(u64),
@@ -61,14 +61,6 @@ impl Display for ModuleId {
             ModuleId::Number(i) => write!(f, "{i}"),
             ModuleId::String(s) => write!(f, "{s}"),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleId {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.to_string().into())
     }
 }
 

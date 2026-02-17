@@ -1,4 +1,3 @@
-use anyhow::Result;
 use once_cell::sync::Lazy;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -10,6 +9,8 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("Next.js server utility {}", self.asset.ident())]
 pub struct NextServerUtilityModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
 }
@@ -19,20 +20,6 @@ impl NextServerUtilityModuleReference {
     #[turbo_tasks::function]
     pub fn new(asset: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         NextServerUtilityModuleReference { asset }.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for NextServerUtilityModuleReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "Next.js server utility {}",
-                self.asset.ident().to_string().await?
-            )
-            .into(),
-        ))
     }
 }
 

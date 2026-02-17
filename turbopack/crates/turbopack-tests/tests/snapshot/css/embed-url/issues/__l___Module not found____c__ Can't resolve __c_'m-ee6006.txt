@@ -1,0 +1,23 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css:10:20  Module not found: Can't resolve 'missing3.png'
+  
+       6 | 
+       7 | .style-unresolveable {
+       8 |   cursor: url(./missing1.png);
+       9 |   list-style-image: url(missing2.png);
+         +                     v
+      10 +   background-image: url('missing3.png');
+         +                     ^
+      11 | }
+      12 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'missing3.png'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css
+  | Type of request: url request
+  | 
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/index.js

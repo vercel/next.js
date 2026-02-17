@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
@@ -306,6 +306,8 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 }
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("{} module", self.worker_type.friendly_str())]
 struct WorkerModuleReference {
     module: ResolvedVc<Box<dyn Module>>,
     worker_type: WorkerType,
@@ -338,17 +340,5 @@ impl ModuleReference for WorkerModuleReference {
             },
             merge_tag: None,
         }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for WorkerModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(match self.worker_type {
-            WorkerType::WebWorker => rcstr!("web worker module"),
-            WorkerType::NodeWorkerThread => rcstr!("node worker thread module"),
-            WorkerType::SharedWebWorker => rcstr!("shared web worker module"),
-        })
     }
 }
