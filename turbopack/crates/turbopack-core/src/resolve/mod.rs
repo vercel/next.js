@@ -1891,8 +1891,8 @@ async fn resolve_internal_inline(
                     // Typescript resolution algorithm does in case an alias match
                     // doesn't resolve to anything: fall back to resolving the request normally.
                     if let Some(resolved_result) = resolved_result {
-                        let result = resolved_result.into_cell();
-                        if !*result.is_unresolvable().await? {
+                        let resolved_result = resolved_result.into_cell_if_resolvable().await?;
+                        if let Some(result) = resolved_result {
                             return Ok(result);
                         }
                     }
@@ -2165,8 +2165,8 @@ async fn resolve_internal_inline(
                 )
                 .await?;
                 if let Some(resolved_result) = resolved_result {
-                    let result = resolved_result.into_cell();
-                    if !*result.is_unresolvable().await? {
+                    let resolved_result = resolved_result.into_cell_if_resolvable().await?;
+                    if let Some(result) = resolved_result {
                         return Ok(result);
                     }
                 }
@@ -3052,6 +3052,22 @@ impl ResolveResultOrCell {
             ResolveResultOrCell::Cell(vc) => vc,
             ResolveResultOrCell::Value(value) => value.cell(),
         }
+    }
+
+    async fn into_cell_if_resolvable(self) -> Result<Option<Vc<ResolveResult>>> {
+        match self {
+            ResolveResultOrCell::Cell(resolved_result) => {
+                if !*resolved_result.is_unresolvable().await? {
+                    return Ok(Some(resolved_result));
+                }
+            }
+            ResolveResultOrCell::Value(resolve_result) => {
+                if !resolve_result.is_unresolvable_ref() {
+                    return Ok(Some(resolve_result.cell()));
+                }
+            }
+        }
+        Ok(None)
     }
 }
 
