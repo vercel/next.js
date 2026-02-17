@@ -10,7 +10,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
 import {
-  pipelineInSequentialTasks,
+  runInSequentialTasks,
   scheduleInSequentialTasks,
 } from '../app-render-render-utils'
 import { workAsyncStorage } from '../work-async-storage.external'
@@ -441,7 +441,7 @@ export async function collectStagedSegmentData(
     [RenderStage.Runtime]: -1,
   }
 
-  await pipelineInSequentialTasks(
+  await runInSequentialTasks(
     () => {
       for (const [segmentPath, segmentData] of segments) {
         const segmentCacheItem: SegmentCacheItem = {

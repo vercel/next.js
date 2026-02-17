@@ -174,7 +174,7 @@ import {
   printDebugThrownValueForProspectiveRender,
 } from './prospective-render-utils'
 import {
-  pipelineInSequentialTasks,
+  runInSequentialTasks,
   scheduleInSequentialTasks,
 } from './app-render-render-utils'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
@@ -3323,99 +3323,75 @@ async function renderWithRestartOnCacheMissInDev(
   // where sync IO does not cause aborts, so it's okay if it happens before render.
   const initialRscPayload = await getPayload(requestStore)
 
-  const maybeInitialStreamResult = await workUnitAsyncStorage.run(
+  const initialStreamResult = await workUnitAsyncStorage.run(
     requestStore,
-    () =>
-      pipelineInSequentialTasks(
-        () => {
-          // Static stage
-          initialStageController.advanceStage(RenderStage.Static)
-          startTime = performance.now() + performance.timeOrigin
+    runInSequentialTasks,
+    () => {
+      initialStageController.advanceStage(RenderStage.Static)
+      startTime = performance.now() + performance.timeOrigin
 
-          const stream = ComponentMod.renderToReadableStream(
-            initialRscPayload,
-            clientModules,
-            {
-              onError,
-              environmentName,
-              startTime,
-              filterStackFrame,
-              debugChannel: debugChannel?.serverSide,
-              signal: initialReactController.signal,
-            }
-          )
-          // If we abort the render, we want to reject the stage-dependent promises as well.
-          // Note that we want to install this listener after the render is started
-          // so that it runs after react is finished running its abort code.
-          initialReactController.signal.addEventListener('abort', () => {
-            initialDataController.abort(initialReactController.signal.reason)
-          })
-
-          const [continuationStream, accumulatingStream] = stream.tee()
-          const accumulatedChunksPromise = accumulateStreamChunks(
-            accumulatingStream,
-            initialStageController,
-            initialDataController.signal
-          )
-          return { stream: continuationStream, accumulatedChunksPromise }
-        },
-        ({ stream, accumulatedChunksPromise }) => {
-          // Runtime stage
-
-          if (initialStageController.currentStage === RenderStage.Abandoned) {
-            // If we abandoned the render in the static stage, we won't proceed further.
-            return null
-          }
-
-          // If we had a cache miss in the static stage, we'll have to discard this stream
-          // and render again once the caches are warm.
-          // If we already advanced stages we similarly had sync IO that might be from module loading
-          // and need to render again once the caches are warm.
-          if (cacheSignal.hasPendingReads()) {
-            // Regardless of whether we are going to abandon this
-            // render we need the unblock runtime b/c it's essential
-            // filling caches.
-            initialAbandonController.abort()
-            return null
-          }
-
-          initialStageController.advanceStage(RenderStage.Runtime)
-          return { stream, accumulatedChunksPromise }
-        },
-        (result) => {
-          // Dynamic stage
-          if (
-            result === null ||
-            initialStageController.currentStage === RenderStage.Abandoned
-          ) {
-            // If we abandoned the render in the static or runtime stage, we won't proceed further.
-            return null
-          }
-
-          // If we had cache misses in either of the previous stages,
-          // then we'll only use this render for filling caches.
-          // We won't advance the stage, and thus leave dynamic APIs hanging,
-          // because they won't be cached anyway, so it'd be wasted work.
-          if (cacheSignal.hasPendingReads()) {
-            initialAbandonController.abort()
-            return null
-          }
-
-          // Regardless of whether we are going to abandon this
-          // render we need the unblock runtime b/c it's essential
-          // filling caches.
-          initialStageController.advanceStage(RenderStage.Dynamic)
-          return result
+      const streamPair = ComponentMod.renderToReadableStream(
+        initialRscPayload,
+        clientModules,
+        {
+          onError,
+          environmentName,
+          startTime,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+          signal: initialReactController.signal,
         }
+      ).tee()
+
+      // If we abort the render, we want to reject the stage-dependent promises as well.
+      // Note that we want to install this listener after the render is started
+      // so that it runs after react is finished running its abort code.
+      initialReactController.signal.addEventListener('abort', () => {
+        initialDataController.abort(initialReactController.signal.reason)
+      })
+
+      const stream = streamPair[0]
+      const accumulatedChunksPromise = accumulateStreamChunks(
+        streamPair[1],
+        initialStageController,
+        initialDataController.signal
       )
+
+      initialDataController.signal.addEventListener('abort', () => {
+        accumulatedChunksPromise.catch(() => {})
+        stream.cancel()
+      })
+
+      return {
+        stream,
+        accumulatedChunksPromise,
+      }
+    },
+    () => {
+      if (initialAbandonController.signal.aborted === true) {
+        return
+      } else if (cacheSignal.hasPendingReads()) {
+        initialAbandonController.abort()
+      } else {
+        initialStageController.advanceStage(RenderStage.Runtime)
+      }
+    },
+    () => {
+      if (initialAbandonController.signal.aborted === true) {
+        return
+      } else if (cacheSignal.hasPendingReads()) {
+        initialAbandonController.abort()
+      } else {
+        initialStageController.advanceStage(RenderStage.Dynamic)
+      }
+    }
   )
 
-  if (maybeInitialStreamResult !== null) {
+  if (initialStageController.currentStage !== RenderStage.Abandoned) {
     // No cache misses. We can use the result as-is.
     return {
-      stream: maybeInitialStreamResult.stream,
-      accumulatedChunksPromise:
-        maybeInitialStreamResult.accumulatedChunksPromise,
+      stream: initialStreamResult.stream,
+      accumulatedChunksPromise: initialStreamResult.accumulatedChunksPromise,
       staticInterruptReason: initialStageController.getStaticInterruptReason(),
       runtimeInterruptReason:
         initialStageController.getRuntimeInterruptReason(),
@@ -3481,44 +3457,42 @@ async function renderWithRestartOnCacheMissInDev(
   // where sync IO does not cause aborts, so it's okay if it happens before render.
   const finalRscPayload = await getPayload(requestStore)
 
-  const finalStreamResult = await workUnitAsyncStorage.run(requestStore, () =>
-    pipelineInSequentialTasks(
-      () => {
-        // Static stage
-        finalStageController.advanceStage(RenderStage.Static)
-        startTime = performance.now() + performance.timeOrigin
+  const finalStreamResult = await workUnitAsyncStorage.run(
+    requestStore,
+    runInSequentialTasks,
+    () => {
+      finalStageController.advanceStage(RenderStage.Static)
+      startTime = performance.now() + performance.timeOrigin
 
-        const stream = ComponentMod.renderToReadableStream(
-          finalRscPayload,
-          clientModules,
-          {
-            onError,
-            environmentName,
-            startTime,
-            filterStackFrame,
-            debugChannel: debugChannel?.serverSide,
-          }
-        )
+      const streamPair = ComponentMod.renderToReadableStream(
+        finalRscPayload,
+        clientModules,
+        {
+          onError,
+          environmentName,
+          startTime,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+        }
+      ).tee()
 
-        const [continuationStream, accumulatingStream] = stream.tee()
-        const accumulatedChunksPromise = accumulateStreamChunks(
-          accumulatingStream,
+      return {
+        stream: streamPair[0],
+        accumulatedChunksPromise: accumulateStreamChunks(
+          streamPair[1],
           finalStageController,
           null
-        )
-        return { stream: continuationStream, accumulatedChunksPromise }
-      },
-      (result) => {
-        // Runtime stage
-        finalStageController.advanceStage(RenderStage.Runtime)
-        return result
-      },
-      (result) => {
-        // Dynamic stage
-        finalStageController.advanceStage(RenderStage.Dynamic)
-        return result
+        ),
       }
-    )
+    },
+    () => {
+      // Runtime stage
+      finalStageController.advanceStage(RenderStage.Runtime)
+    },
+    () => {
+      // Dynamic stage
+      finalStageController.advanceStage(RenderStage.Dynamic)
+    }
   )
 
   if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
