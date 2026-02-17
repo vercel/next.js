@@ -70,6 +70,9 @@ tempfile = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 rstest = { workspace = true }
 turbo-tasks-testing = { workspace = true }
+# Enable features in our tests by default.
+# This is a well known hack: https://github.com/rust-lang/cargo/issues/2911
+turbo-tasks-backend = { path = ".", features = ["verify_aggregation_graph"] }
 
 
 [[bench]]
