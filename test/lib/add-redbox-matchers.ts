@@ -12,7 +12,6 @@ import {
   getRedboxTotalErrorCount,
   openRedbox,
 } from './next-test-utils'
-import type { RedboxCauseEntry } from './next-test-utils'
 import type { Playwright } from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
 
@@ -142,8 +141,7 @@ function focusSource(
     // e.g. "next-app-loader?<SEARCH PARAMS>" (in rspack, the loader doesn't seem to be prefixed with node_modules)
     /^next-[a-zA-Z0-9\-_]+?-loader\?/.test(sourceLines[0])
   ) {
-    focusedSource =
-      `<FIXME-nextjs-internal-source>` + '\n' + sourceLines.slice(1).join('\n')
+    focusedSource = `<FIXME-nextjs-internal-source>\n${sourceLines.slice(1).join('\n')}`
   }
 
   return focusedSource
