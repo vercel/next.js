@@ -2364,8 +2364,8 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(self: Vc<Self>) -> Result<Vc<u64>> {
-        Ok(Vc::cell(hash_xxh3_hash64(&self.await?)))
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        Ok(Vc::cell(hash_xxh3_hash64(self)))
     }
 }
 

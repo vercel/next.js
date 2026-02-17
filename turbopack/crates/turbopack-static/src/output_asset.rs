@@ -39,9 +39,9 @@ impl OutputAsset for StaticOutputAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let content = self.source.content();
-        let content_hash = if let AssetContent::File(file) = &*content.await? {
-            if let FileContent::Content(file) = &*file.await? {
-                turbo_tasks_hash::hash_xxh3_hash64(file.content())
+        let content_hash = if let AssetContent::File(file_vc) = &*content.await? {
+            if let FileContent::Content(_) = &*file_vc.await? {
+                *file_vc.hash().await?
             } else {
                 anyhow::bail!("StaticAsset::path: not found")
             }

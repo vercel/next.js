@@ -7,7 +7,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
+use turbo_tasks_hash::encode_hex;
 
 use crate::asset::AssetContent;
 
@@ -233,8 +233,8 @@ impl FileHashVersion {
     pub async fn compute(asset_content: &AssetContent) -> Result<Vc<Self>> {
         match asset_content {
             AssetContent::File(file_vc) => match &*file_vc.await? {
-                FileContent::Content(file) => {
-                    let hash = hash_xxh3_hash64(file.content());
+                FileContent::Content(_) => {
+                    let hash = *file_vc.hash().await?;
                     let hex_hash = encode_hex(hash);
                     Ok(Self::cell(FileHashVersion {
                         hash: hex_hash.into(),

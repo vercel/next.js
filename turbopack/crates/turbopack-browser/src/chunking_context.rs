@@ -7,7 +7,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash64};
+use turbo_tasks_hash::DeterministicHash;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -579,7 +579,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 };
                 let content = asset.content().await?;
                 if let AssetContent::File(file) = &*content {
-                    let hash = hash_xxh3_hash64(&file.await?);
+                    let hash = *file.hash().await?;
                     let length = length as usize;
                     if let Some(prefix) = prefix {
                         format!("{prefix}-{hash:0length$x}{extension}").into()
