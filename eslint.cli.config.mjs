@@ -10,7 +10,13 @@ export default defineConfig([
     // This override adds type-checked rules.
     // Linting with type-checked rules is very slow and needs a lot of memory,
     // so we exclude non-essential files.
-    ignores: ['examples/**/*', 'test/**/*', '**/*.d.ts', 'turbopack/**/*'],
+    ignores: [
+      'bench/**/*',
+      'examples/**/*',
+      'test/**/*',
+      '**/*.d.ts',
+      'turbopack/**/*',
+    ],
     languageOptions: {
       parserOptions: {
         project: true,

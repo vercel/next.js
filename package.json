@@ -12,6 +12,8 @@
     "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
     "dev": "turbo run dev --parallel --filter=\"!@next/bundle-analyzer-ui\"",
+    "bench:render-pipeline": "tsx bench/render-pipeline/benchmark.ts",
+    "bench:render-pipeline:analyze": "tsx bench/render-pipeline/analyze-profiles.ts",
     "pack-next": "tsx scripts/pack-next.ts",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",
