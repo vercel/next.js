@@ -296,7 +296,7 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
   await exec(
-    `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
+    `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false --package-import-method=copy`,
     false
   )
 }
