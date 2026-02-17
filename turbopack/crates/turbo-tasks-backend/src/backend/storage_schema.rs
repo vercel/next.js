@@ -393,11 +393,34 @@ impl TaskStorage {
     ///
     /// The `extract` closure should return `Some(&mut T)` for the matching variant,
     /// or `None` for non-matching variants.
-    pub fn find_lazy_mut<T>(
+    fn find_lazy_mut<T>(
         &mut self,
         extract: impl Fn(&mut LazyField) -> Option<&mut T>,
     ) -> Option<&mut T> {
         self.lazy.iter_mut().find_map(extract)
+    }
+
+    /// Find and extract a lazy field, returning its index and a reference to the inner value.
+    ///
+    /// Combines index lookup and extraction into a single scan. The returned index
+    /// can be used with `lazy_at_mut` for subsequent mutation without re-scanning.
+    fn find_lazy_ref<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<(usize, &T)> {
+        self.lazy
+            .iter()
+            .enumerate()
+            .find_map(|(idx, field)| extract(field).map(|val| (idx, val)))
+    }
+
+    /// Access a lazy field by index (mutable), extracting the inner value.
+    ///
+    /// # Panics
+    /// Panics if `idx` is out of bounds or the extractor returns `None`.
+    fn lazy_at_mut<T>(
+        &mut self,
+        idx: usize,
+        extract: impl FnOnce(&mut LazyField) -> Option<&mut T>,
+    ) -> &mut T {
+        extract(&mut self.lazy[idx]).unwrap()
     }
 
     /// Get or create a lazy field, returning a mutable reference.
