@@ -362,7 +362,9 @@ fn inline_definitions() -> Result<Vc<()>> {
     #[turbo_tasks::value_trait]
     trait Trait {
         #[turbo_tasks::function]
-        fn trait_fn(&self) {}
+        fn trait_fn(&self) -> Vc<()> {
+            Vc::cell(())
+        }
     }
 
     #[turbo_tasks::value_impl]

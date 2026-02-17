@@ -381,7 +381,6 @@ function createPromise() {
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
     while(i < chunkModules.length){
-        let moduleId = chunkModules[i];
         let end = i + 1;
         // Find our factory function
         while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
@@ -391,19 +390,32 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
             throw new Error('malformed chunk format, expected a factory function');
         }
         // Install the factory for each module ID that doesn't already have one.
-        // This handles both the normal case and the case where some IDs in a group
-        // may have been registered separately (e.g., from another chunk or HMR update).
+        // When some IDs in this group already have a factory, reuse that existing
+        // group factory for the missing IDs to keep all IDs in the group consistent.
+        // Otherwise, install the factory from this chunk.
         const moduleFactoryFn = chunkModules[end];
+        let existingGroupFactory = undefined;
+        for(let j = i; j < end; j++){
+            const id = chunkModules[j];
+            const existingFactory = moduleFactories.get(id);
+            if (existingFactory) {
+                existingGroupFactory = existingFactory;
+                break;
+            }
+        }
+        const factoryToInstall = existingGroupFactory ?? moduleFactoryFn;
         let didInstallFactory = false;
         for(let j = i; j < end; j++){
             const id = chunkModules[j];
             if (!moduleFactories.has(id)) {
                 if (!didInstallFactory) {
-                    applyModuleFactoryName(moduleFactoryFn);
-                    newModuleId?.(moduleId);
+                    if (factoryToInstall === moduleFactoryFn) {
+                        applyModuleFactoryName(moduleFactoryFn);
+                    }
                     didInstallFactory = true;
                 }
-                moduleFactories.set(id, moduleFactoryFn);
+                moduleFactories.set(id, factoryToInstall);
+                newModuleId?.(id);
             }
         }
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
@@ -544,6 +556,25 @@ contextPrototype.U = relativeURL;
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 /**
+ * Constructs an error message for when a module factory is not available.
+ */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
+    let instantiationReason;
+    switch(sourceType){
+        case 0:
+            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
+            break;
+        case 1:
+            instantiationReason = `because it was required from module ${sourceData}`;
+            break;
+        case 2:
+            instantiationReason = 'because of an HMR update';
+            break;
+        default:
+            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
+    }
+    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -571,23 +602,6 @@ const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
-function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
-    let instantiationReason;
-    switch(sourceType){
-        case SourceType.Runtime:
-            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
-            break;
-        case SourceType.Parent:
-            instantiationReason = `because it was required from module ${sourceData}`;
-            break;
-        case SourceType.Update:
-            instantiationReason = 'because of an HMR update';
-            break;
-        default:
-            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-    }
-    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
-}
 function loadChunk(chunkData) {
     return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
@@ -1179,7 +1193,7 @@ function formatDependencyChain(dependencyChain) {
     const id = moduleId;
     const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
-        throw new Error(`Module ${id} was instantiated, but the module factory is not available.`);
+        throw new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData) + `\nThis is often caused by a stale browser cache, misconfigured Cache-Control headers, or a service worker serving outdated responses.` + `\nTo fix this, make sure your Cache-Control headers allow revalidation of chunks and review your service worker configuration. ` + `As an immediate workaround, try hard-reloading the page, clearing the browser cache, or unregistering any service workers.`);
     }
     // 2. Hot API setup (same in both - works for browser, included for Node.js)
     const hotData = moduleHotData.get(id);

@@ -371,7 +371,6 @@ function createPromise() {
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
     while(i < chunkModules.length){
-        let moduleId = chunkModules[i];
         let end = i + 1;
         // Find our factory function
         while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
@@ -381,19 +380,32 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
             throw new Error('malformed chunk format, expected a factory function');
         }
         // Install the factory for each module ID that doesn't already have one.
-        // This handles both the normal case and the case where some IDs in a group
-        // may have been registered separately (e.g., from another chunk or HMR update).
+        // When some IDs in this group already have a factory, reuse that existing
+        // group factory for the missing IDs to keep all IDs in the group consistent.
+        // Otherwise, install the factory from this chunk.
         const moduleFactoryFn = chunkModules[end];
+        let existingGroupFactory = undefined;
+        for(let j = i; j < end; j++){
+            const id = chunkModules[j];
+            const existingFactory = moduleFactories.get(id);
+            if (existingFactory) {
+                existingGroupFactory = existingFactory;
+                break;
+            }
+        }
+        const factoryToInstall = existingGroupFactory ?? moduleFactoryFn;
         let didInstallFactory = false;
         for(let j = i; j < end; j++){
             const id = chunkModules[j];
             if (!moduleFactories.has(id)) {
                 if (!didInstallFactory) {
-                    applyModuleFactoryName(moduleFactoryFn);
-                    newModuleId?.(moduleId);
+                    if (factoryToInstall === moduleFactoryFn) {
+                        applyModuleFactoryName(moduleFactoryFn);
+                    }
                     didInstallFactory = true;
                 }
-                moduleFactories.set(id, moduleFactoryFn);
+                moduleFactories.set(id, factoryToInstall);
+                newModuleId?.(id);
             }
         }
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
@@ -532,6 +544,25 @@ contextPrototype.U = relativeURL;
  * Utility function to ensure all variants of an enum are handled.
  */ function invariant(never, computeMessage) {
     throw new Error(`Invariant: ${computeMessage(never)}`);
+}
+/**
+ * Constructs an error message for when a module factory is not available.
+ */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
+    let instantiationReason;
+    switch(sourceType){
+        case 0:
+            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
+            break;
+        case 1:
+            instantiationReason = `because it was required from module ${sourceData}`;
+            break;
+        case 2:
+            instantiationReason = 'because of an HMR update';
+            break;
+        default:
+            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
+    }
+    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
  * A stub function to make `require` available but non-functional in ESM.
@@ -798,18 +829,7 @@ function instantiateModule(id, sourceType, sourceData) {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
-        let instantiationReason;
-        switch(sourceType){
-            case SourceType.Runtime:
-                instantiationReason = `as a runtime entry of chunk ${sourceData}`;
-                break;
-            case SourceType.Parent:
-                instantiationReason = `because it was required from module ${sourceData}`;
-                break;
-            default:
-                invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-        }
-        throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`);
+        throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData));
     }
     const module1 = createModuleWithDirection(id);
     const exports = module1.exports;

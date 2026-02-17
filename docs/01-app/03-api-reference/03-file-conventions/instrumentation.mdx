@@ -15,7 +15,7 @@ To use it, place the file in the **root** of your application or inside a [`src`
 
 ### `register` (optional)
 
-The file exports a `register` function that is called **once** when a new Next.js server instance is initiated. `register` can be an async function.
+The file exports a `register` function that is called **once** when a new Next.js server instance is initiated, and must complete before the server is ready to handle requests. `register` can be an async function.
 
 ```ts filename="instrumentation.ts" switcher
 import { registerOTel } from '@vercel/otel'
