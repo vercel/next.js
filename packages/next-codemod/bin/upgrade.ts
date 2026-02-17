@@ -560,9 +560,12 @@ export async function runUpgrade(
             // Check if the installed version is < 8 (v8+ supports ESLint 9)
             let installedVersion = hasPackage
             try {
-              const pkgJsonPath = require.resolve(`${tsEslintPkg}/package.json`, {
-                paths: [cwd],
-              })
+              const pkgJsonPath = require.resolve(
+                `${tsEslintPkg}/package.json`,
+                {
+                  paths: [cwd],
+                }
+              )
               installedVersion = require(pkgJsonPath).version
             } catch {
               // Use the semver range to extract version
@@ -573,9 +576,8 @@ export async function runUpgrade(
             // Only upgrade if current version is < 8
             if (major(installedVersion) < 8) {
               try {
-                const targetTsEslintVersion = await loadHighestNPMVersionMatching(
-                  `${tsEslintPkg}@^8`
-                )
+                const targetTsEslintVersion =
+                  await loadHighestNPMVersionMatching(`${tsEslintPkg}@^8`)
 
                 if (appPackageJson.devDependencies?.[tsEslintPkg]) {
                   addPackageDependency(
@@ -595,7 +597,10 @@ export async function runUpgrade(
                     targetTsEslintVersion,
                     false
                   )
-                  dependenciesToInstall.push([tsEslintPkg, targetTsEslintVersion])
+                  dependenciesToInstall.push([
+                    tsEslintPkg,
+                    targetTsEslintVersion,
+                  ])
                 }
 
                 console.log(
