@@ -15,31 +15,83 @@ interface NextjsVersionResult {
   error?: string
 }
 
+/**
+ * Extract a concrete version from a semver range string.
+ * Strips range operators (^, ~, >=, etc.) and returns the base version.
+ * Returns null if no valid version can be extracted.
+ */
+export function extractVersionFromRange(range: string): string | null {
+  // Match a semver version (with optional pre-release/build metadata) in the range
+  const match = range.match(/(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)/)
+  if (match) {
+    return match[1]
+  }
+  // Handle bare major (e.g. "^16" or "16") or major.minor (e.g. "~16.1")
+  const majorMinor = range.match(/(\d+)(?:\.(\d+))?/)
+  if (majorMinor) {
+    const major = majorMinor[1]
+    const minor = majorMinor[2] ?? '0'
+    return `${major}.${minor}.0`
+  }
+  return null
+}
+
+/**
+ * Try to read the Next.js version from the project's package.json dependencies
+ * (without requiring the package to be installed).
+ */
+function getNextjsVersionFromPackageJson(cwd: string): string | null {
+  try {
+    const packageJsonPath = path.join(cwd, 'package.json')
+    if (!fs.existsSync(packageJsonPath)) return null
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
+    const range =
+      pkg.dependencies?.next ||
+      pkg.devDependencies?.next ||
+      pkg.peerDependencies?.next
+    if (!range) return null
+    return extractVersionFromRange(range)
+  } catch {
+    return null
+  }
+}
+
 export function getNextjsVersion(cwd: string): NextjsVersionResult {
+  // First try to get the exact installed version
   try {
     const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
     const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
     return { version: pkg.version }
   } catch {
-    // Not found at root - check for monorepo workspace
-    const workspace = detectWorkspace(cwd)
-    if (workspace.isMonorepo && workspace.packages.length > 0) {
-      const highestVersion = findNextjsInWorkspace(cwd, workspace.packages)
+    // Not installed at root
+  }
 
-      if (highestVersion) {
-        return { version: highestVersion }
-      }
+  // Check for monorepo workspace
+  const workspace = detectWorkspace(cwd)
+  if (workspace.isMonorepo && workspace.packages.length > 0) {
+    const highestVersion = findNextjsInWorkspace(cwd, workspace.packages)
 
-      return {
-        version: null,
-        error: `No Next.js found in ${workspace.type} workspace packages.`,
-      }
+    if (highestVersion) {
+      return { version: highestVersion }
     }
+  }
 
+  // Fallback: read version range from package.json dependencies
+  const fromPkgJson = getNextjsVersionFromPackageJson(cwd)
+  if (fromPkgJson) {
+    return { version: fromPkgJson }
+  }
+
+  if (workspace.isMonorepo) {
     return {
       version: null,
-      error: 'Next.js is not installed in this project.',
+      error: `No Next.js found in ${workspace.type} workspace packages.`,
     }
+  }
+
+  return {
+    version: null,
+    error: 'Next.js is not installed in this project.',
   }
 }
 
