@@ -1,15 +1,15 @@
 use rustc_hash::FxHashMap;
 use swc_core::{
     common::{
-        BytePos, DUMMY_SP, Mark, Span, Spanned, SyntaxContext,
         comments::{Comment, CommentKind, Comments},
         source_map::PURE_SP,
         util::take::Take,
+        BytePos, Mark, Span, Spanned, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
         utils::{prepend_stmt, private_ident, quote_ident, quote_str},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
     quote,
 };
