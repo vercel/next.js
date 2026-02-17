@@ -3,6 +3,19 @@ import { execSync } from 'child_process'
 import { getEslintConfigSnapshot } from '../utils'
 
 describe('eslint-config-next/core-web-vitals', () => {
+  it('should run linting without runtime errors', () => {
+    expect(() => {
+      execSync(
+        `pnpm eslint --config ${join(__dirname, 'eslint.config.mjs')} ${join(__dirname, 'test.js')}`,
+        {
+          cwd: __dirname,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }
+      )
+    }).not.toThrow()
+  })
+
   it('should match expected resolved configuration', () => {
     const eslintConfigAfterSetupJSON = execSync(
       // Pass explicit absolute path to not get affected by the root eslint config.

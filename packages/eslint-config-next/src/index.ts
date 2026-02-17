@@ -1,4 +1,5 @@
 import type { Linter } from 'eslint'
+import { fixupPluginRules } from '@eslint/compat'
 
 // plugins
 import next from '@next/eslint-plugin-next'
@@ -19,10 +20,12 @@ const config: Linter.Config[] = [
     // Default files, users can overwrite this.
     files: ['**/*.{js,jsx,mjs,ts,tsx,mts,cts}'],
     plugins: {
-      react,
+      // Wrap plugins that use deprecated RuleContext methods removed in ESLint 10.
+      // fixupPluginRules is backward-compatible with ESLint 9.
+      react: fixupPluginRules(react),
       'react-hooks': reactHooks,
-      import: importPlugin,
-      'jsx-a11y': jsxA11yPlugin,
+      import: fixupPluginRules(importPlugin),
+      'jsx-a11y': fixupPluginRules(jsxA11yPlugin),
       '@next/next': next,
     },
     languageOptions: {

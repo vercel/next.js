@@ -12,6 +12,7 @@
     "dist"
   ],
   "dependencies": {
+    "@eslint/compat": "^1.4.0",
     "@next/eslint-plugin-next": "16.2.0-canary.46",
     "eslint-import-resolver-node": "^0.3.6",
     "eslint-import-resolver-typescript": "^3.5.2",
