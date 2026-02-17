@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: true,
   experimental: {
     prerenderEarlyExit: false,
-    reactDebugChannel: process.env.REACT_DEBUG_CHANNEL ? true : false,
   },
   typescript: {
     ignoreBuildErrors: true,

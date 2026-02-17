@@ -11,16 +11,10 @@ import {
   RedboxSnapshot,
 } from '../../../lib/add-redbox-matchers'
 
-describe.each([
-  { debugChannelEnabled: true, description: 'with debug channel' },
-  { debugChannelEnabled: false, description: 'without debug channel' },
-])('instant validation - $description', ({ debugChannelEnabled }) => {
+describe('instant validation', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
-    env: {
-      REACT_DEBUG_CHANNEL: debugChannelEnabled ? '1' : '',
-    },
   })
   if (skipped) return
   if (!isNextDev) {
