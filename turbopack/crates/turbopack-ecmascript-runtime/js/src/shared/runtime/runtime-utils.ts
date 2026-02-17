@@ -796,6 +796,34 @@ function invariant(never: never, computeMessage: (arg: any) => string): never {
 }
 
 /**
+ * Constructs an error message for when a module factory is not available.
+ */
+function factoryNotAvailableMessage(
+  moduleId: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+): string {
+  let instantiationReason: string
+  switch (sourceType) {
+    case SourceType.Runtime:
+      instantiationReason = `as a runtime entry of chunk ${sourceData}`
+      break
+    case SourceType.Parent:
+      instantiationReason = `because it was required from module ${sourceData}`
+      break
+    case SourceType.Update:
+      instantiationReason = 'because of an HMR update'
+      break
+    default:
+      invariant(
+        sourceType,
+        (sourceType) => `Unknown source type: ${sourceType}`
+      )
+  }
+  return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
+}
+
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */
 function requireStub(_moduleId: ModuleId): never {

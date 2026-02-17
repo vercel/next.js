@@ -95,31 +95,6 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
-function factoryNotAvailableMessage(
-  moduleId: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): string {
-  let instantiationReason
-  switch (sourceType) {
-    case SourceType.Runtime:
-      instantiationReason = `as a runtime entry of chunk ${sourceData}`
-      break
-    case SourceType.Parent:
-      instantiationReason = `because it was required from module ${sourceData}`
-      break
-    case SourceType.Update:
-      instantiationReason = 'because of an HMR update'
-      break
-    default:
-      invariant(
-        sourceType,
-        (sourceType) => `Unknown source type: ${sourceType}`
-      )
-  }
-  return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
-}
-
 function loadChunk(
   this: TurbopackBrowserBaseContext<Module>,
   chunkData: ChunkData

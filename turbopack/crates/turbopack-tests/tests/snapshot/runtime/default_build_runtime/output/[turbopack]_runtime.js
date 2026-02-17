@@ -546,6 +546,25 @@ contextPrototype.U = relativeURL;
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 /**
+ * Constructs an error message for when a module factory is not available.
+ */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
+    let instantiationReason;
+    switch(sourceType){
+        case 0:
+            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
+            break;
+        case 1:
+            instantiationReason = `because it was required from module ${sourceData}`;
+            break;
+        case 2:
+            instantiationReason = 'because of an HMR update';
+            break;
+        default:
+            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
+    }
+    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -810,18 +829,7 @@ function instantiateModule(id, sourceType, sourceData) {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
-        let instantiationReason;
-        switch(sourceType){
-            case SourceType.Runtime:
-                instantiationReason = `as a runtime entry of chunk ${sourceData}`;
-                break;
-            case SourceType.Parent:
-                instantiationReason = `because it was required from module ${sourceData}`;
-                break;
-            default:
-                invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-        }
-        throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`);
+        throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData));
     }
     const module1 = createModuleWithDirection(id);
     const exports = module1.exports;
