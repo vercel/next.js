@@ -9,7 +9,7 @@ describe('LRUCache', () => {
     })
 
     it('should set and get values', () => {
-      cache.set('key1', 'value1')
+      expect(cache.set('key1', 'value1')).toBe(true)
       expect(cache.get('key1')).toBe('value1')
     })
 
@@ -109,7 +109,7 @@ describe('LRUCache', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
       const cache = new LRUCache<string>(5, (value) => value.length)
 
-      cache.set('key1', 'toolarge') // size 8 > maxSize 5
+      expect(cache.set('key1', 'toolarge')).toBe(false) // size 8 > maxSize 5
 
       expect(cache.has('key1')).toBe(false)
       expect(cache.size).toBe(0)
@@ -124,10 +124,10 @@ describe('LRUCache', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
       const cache = new LRUCache<string>(5, (value) => value.length)
 
-      cache.set('key1', 'ab') // size 2
-      cache.set('key2', 'cd') // size 2, total = 4
+      expect(cache.set('key1', 'ab')).toBe(true) // size 2
+      expect(cache.set('key2', 'cd')).toBe(true) // size 2, total = 4
 
-      cache.set('key3', 'toolarge') // size 8 > maxSize 5, should be rejected
+      expect(cache.set('key3', 'toolarge')).toBe(false) // size 8 > maxSize 5, should be rejected
 
       expect(cache.has('key1')).toBe(true)
       expect(cache.has('key2')).toBe(true)
@@ -205,7 +205,7 @@ describe('LRUCache', () => {
   describe('Edge Cases', () => {
     it('should handle zero max size', () => {
       const cache = new LRUCache<string>(0)
-      cache.set('key1', 'value1')
+      expect(cache.set('key1', 'value1')).toBe(false)
       expect(cache.has('key1')).toBe(false)
       expect(cache.size).toBe(0)
     })
