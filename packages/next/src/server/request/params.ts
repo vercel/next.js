@@ -63,6 +63,9 @@ export function createParamsFromClient(
           workUnitStore,
           varyParamsAccumulator
         )
+      case 'validation-client':
+        // TODO(instant-validation): in build, this depends on samples
+        return createRenderParamsInProd(underlyingParams)
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -119,7 +122,6 @@ export function createServerParamsForRoute(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
@@ -127,6 +129,11 @@ export function createServerParamsForRoute(
           workStore,
           workUnitStore,
           varyParamsAccumulator
+        )
+      case 'prerender-client':
+      case 'validation-client':
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called in client contexts.'
         )
       case 'cache':
       case 'private-cache':
@@ -180,6 +187,9 @@ export function createServerParamsForServerSegment(
           workUnitStore,
           varyParamsAccumulator
         )
+      case 'validation-client':
+        // TODO(instant-validation): in build, this depends on samples
+        return createRenderParamsInProd(underlyingParams)
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -245,6 +255,9 @@ export function createPrerenderParamsForClientSegment(
             }
           }
         }
+        break
+      case 'validation-client':
+        // TODO(instant-validation): in build, this depends on samples
         break
       case 'cache':
       case 'private-cache':

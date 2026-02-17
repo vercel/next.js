@@ -10,8 +10,8 @@ import {
 import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
+  type PrerenderStoreModernServer,
   type PrerenderStorePPR,
-  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
@@ -65,7 +65,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       )
     }
     case 'prerender':
-    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy': {
       return createPrerenderRootParamPromise(
@@ -73,6 +72,12 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         workStore,
         workUnitStore,
         apiName
+      )
+    }
+    case 'validation-client':
+    case 'prerender-client': {
+      throw new InvariantError(
+        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
       )
     }
     case 'private-cache':
@@ -92,15 +97,13 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
 function createPrerenderRootParamPromise(
   paramName: string,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore,
+  prerenderStore:
+    | PrerenderStorePPR
+    | PrerenderStoreLegacy
+    | PrerenderStoreModernServer,
   apiName: string
 ): Promise<ParamValue> {
   switch (prerenderStore.type) {
-    case 'prerender-client': {
-      throw new InvariantError(
-        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
-      )
-    }
     case 'prerender':
     case 'prerender-legacy':
     case 'prerender-ppr':

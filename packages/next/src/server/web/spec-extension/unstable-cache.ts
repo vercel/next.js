@@ -195,6 +195,7 @@ export function unstable_cache<T extends Callback>(
               isNestedUnstableCache = true
               break
             case 'prerender-client':
+            case 'validation-client':
             case 'request':
               break
             default:
@@ -409,6 +410,7 @@ function getFetchUrlPrefix(
       return `${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch}`
     case 'prerender':
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-runtime':
     case 'prerender-ppr':
     case 'prerender-legacy':

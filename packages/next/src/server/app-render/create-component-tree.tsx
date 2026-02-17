@@ -315,6 +315,7 @@ async function createComponentTreeInternal(
         case 'cache':
         case 'private-cache':
         case 'prerender-client':
+        case 'validation-client':
         case 'unstable-cache':
           break
         default:

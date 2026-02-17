@@ -132,6 +132,7 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
+      case 'validation-client':
       case 'unstable-cache':
         break
       default:
@@ -159,6 +160,7 @@ export function getMetadataVaryParamsAccumulator(): VaryParamsAccumulator | null
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
+      case 'validation-client':
       case 'unstable-cache':
         return null
       default:
@@ -205,6 +207,7 @@ export function getRootParamsVaryParamsAccumulator(): VaryParamsAccumulator | nu
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
+      case 'validation-client':
       case 'unstable-cache':
         return null
       default:

@@ -699,77 +699,19 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-client-api-in-parent/sync-io'
         )
-        // TODO(instant-validation) - this should be valid, but currently isn't
-        // await waitForNoErrorToast(browser)
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Route "/suspense-in-root/static/valid-client-api-in-parent/sync-io": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/suspense-in-root/layout.tsx (26:9) @ Header
-         > 26 |         <div id="root-layout-timestamp">
-              |         ^",
-             "stack": [
-               "div <anonymous>",
-               "Header app/suspense-in-root/layout.tsx (26:9)",
-               "RootLayout app/suspense-in-root/layout.tsx (12:11)",
-             ],
-           },
-           {
-             "description": "Route "/suspense-in-root/static/valid-client-api-in-parent/sync-io": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/suspense-in-root/static/valid-client-api-in-parent/sync-io/layout.tsx (17:9) @ Layout
-         > 17 |         <SyncIOInClient>{children}</SyncIOInClient>
-              |         ^",
-             "stack": [
-               "Layout app/suspense-in-root/static/valid-client-api-in-parent/sync-io/layout.tsx (17:9)",
-             ],
-           },
-         ]
-        `)
+        await waitForNoErrorToast(browser)
       })
       it('valid - parent uses dynamic usePathname() in a client component', async () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/123'
         )
-        // TODO(instant-validation) - this should be valid, but currently isn't
-        // await waitForNoErrorToast(browser)
-        await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
-           "environmentLabel": "Server",
-           "label": "Console Error",
-           "source": "app/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]/client.tsx (6:31) @ ShouldNotSuspendDuringValidation
-         > 6 |   const pathname = usePathname()
-             |                               ^",
-           "stack": [
-             "ShouldNotSuspendDuringValidation app/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]/client.tsx (6:31)",
-             "Layout app/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]/layout.tsx (18:7)",
-           ],
-         }
-        `)
+        await waitForNoErrorToast(browser)
       })
       it('valid - parent uses useSearchPatams() in a client component', async () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-client-api-in-parent/search-params'
         )
-        // TODO(instant-validation) - this should be valid, but currently isn't
-        // await waitForNoErrorToast(browser)
-        await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/suspense-in-root/static/valid-client-api-in-parent/search-params": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
-           "environmentLabel": "Server",
-           "label": "Console Error",
-           "source": "app/suspense-in-root/static/valid-client-api-in-parent/search-params/layout.tsx (19:7) @ Layout
-         > 19 |       <ShouldNotSuspendDuringValidation>
-              |       ^",
-           "stack": [
-             "Layout app/suspense-in-root/static/valid-client-api-in-parent/search-params/layout.tsx (19:7)",
-           ],
-         }
-        `)
+        await waitForNoErrorToast(browser)
       })
     })
 

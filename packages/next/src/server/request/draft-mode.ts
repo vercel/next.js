@@ -59,11 +59,17 @@ export function draftMode(): Promise<DraftMode> {
     // Otherwise, we fall through to providing an empty draft mode.
     // eslint-disable-next-line no-fallthrough
     case 'prerender':
-    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy':
       // Return empty draft mode
       return createOrGetCachedDraftMode(null, workStore)
+    case 'prerender-client':
+    case 'validation-client': {
+      const exportName = '`draftMode`'
+      throw new InvariantError(
+        `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
+      )
+    }
 
     default:
       return workUnitStore satisfies never
@@ -217,6 +223,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           )
         }
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`draftMode`'
           throw new InvariantError(
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`

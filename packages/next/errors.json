@@ -1058,5 +1058,11 @@
   "1057": "Route \"%s\": Could not validate \\`unstable_instant\\` because the target segment was prevented from rendering, likely due to one of the following errors.",
   "1058": "InstantValidationBoundary should only be rendered in SSR",
   "1059": "Route \"%s\": Could not validate \\`unstable_instant\\` because the target segment was prevented from rendering, likely due to the following error.",
-  "1060": "Missing boundary tracking state"
+  "1060": "Missing boundary tracking state",
+  "1061": "createPrerenderSearchParamsForClientPage should not be called in a client validation.",
+  "1062": "\\`import('next/root-params').%s()\\` must not be used within a client component. Next.js should be preventing \\`import('next/root-params').%s()\\` from being included in client components statically, but did not in this case.",
+  "1063": "`connection` must not be used within a Client Component. Next.js should be preventing `connection` from being included in Client Components statically, but did not in this case.",
+  "1064": "createServerParamsForRoute should not be called in client contexts.",
+  "1065": "createServerPathnameForMetadata should not be called in client contexts.",
+  "1066": "createServerSearchParamsForServerPage should not be called in a client validation."
 }

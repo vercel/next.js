@@ -76,6 +76,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           )
         case 'prerender':
         case 'prerender-client':
+        case 'validation-client':
         case 'private-cache':
         case 'prerender-runtime':
         case 'prerender-ppr':
@@ -98,6 +99,7 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'prerender':
           return makeHangingHeaders(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`headers`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`

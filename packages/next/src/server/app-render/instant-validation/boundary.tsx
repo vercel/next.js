@@ -10,9 +10,10 @@ function getValidationBoundaryTracking(): ValidationBoundaryTracking | null {
   const store = workUnitAsyncStorage.getStore()
   if (!store) return null
   switch (store.type) {
-    case 'prerender-client':
-      return store.boundaryState ?? null
+    case 'validation-client':
+      return store.boundaryState
     case 'prerender':
+    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':

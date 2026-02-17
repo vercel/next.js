@@ -76,6 +76,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
         case 'prerender':
           return makeHangingCookies(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`cookies`'
           throw new InvariantError(
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`

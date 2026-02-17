@@ -228,6 +228,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
         // to create a cache scope for arbitrary computation and can move over to cacheSignal exclusively.
         // fallthrough
         case 'prerender-client':
+        case 'validation-client': {
           // This is a react-dom/server render and won't have a cacheSignal until React adds this for the client world.
           const renderSignal = workUnitStore.renderSignal
           if (renderSignal.aborted) {
@@ -242,6 +243,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
               args
             )
           }
+        }
         // intentional fallthrough
         case 'prerender-legacy':
         case 'prerender-ppr':

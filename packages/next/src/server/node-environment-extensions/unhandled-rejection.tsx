@@ -590,6 +590,7 @@ function filteringUnhandledRejectionHandler(
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
+      case 'validation-client':
       case 'prerender-runtime': {
         const signal = workUnitStore.renderSignal
         if (signal.aborted) {
