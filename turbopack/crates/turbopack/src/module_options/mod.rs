@@ -40,7 +40,7 @@ use turbopack_wasm::source::WebAssemblySourceType;
 use crate::evaluate_context::{config_tracing_module_context, node_evaluate_asset_context};
 
 #[turbo_tasks::function]
-fn package_import_map_from_import_mapping(
+pub(crate) fn package_import_map_from_import_mapping(
     package_name: RcStr,
     package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
@@ -53,7 +53,7 @@ fn package_import_map_from_import_mapping(
 }
 
 #[turbo_tasks::function]
-fn package_import_map_from_context(
+pub(crate) fn package_import_map_from_context(
     package_name: RcStr,
     context_path: FileSystemPath,
 ) -> Vc<ImportMap> {

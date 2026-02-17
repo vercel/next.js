@@ -82,6 +82,7 @@ once_cell = { workspace = true }
 
 swc_core = { workspace = true, features = [
     "base",
+    "base_module",
     "common_concurrent",
     "ecma_ast",
     "ecma_ast_serde",

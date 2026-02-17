@@ -350,6 +350,8 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
 }
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string(self.description)]
 pub(crate) struct EcmascriptClientReference {
     module: ResolvedVc<Box<dyn Module>>,
     ty: ChunkGroupType,
@@ -388,13 +390,5 @@ impl ModuleReference for EcmascriptClientReference {
             _ty: self.ty,
             merge_tag: self.merge_tag.clone(),
         }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptClientReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.description.clone())
     }
 }

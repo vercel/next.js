@@ -52,7 +52,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        SourceMapsType, availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::{AssetIdent, Layer},
@@ -806,11 +806,26 @@ impl AppProject {
 
     #[turbo_tasks::function]
     pub async fn routes(self: Vc<Self>) -> Result<Vc<Routes>> {
+        Ok(self.routes_with_filter(None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn routes_with_filter(
+        self: Vc<Self>,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<Vc<Routes>> {
         let app_entrypoints = self.app_entrypoints();
         Ok(Vc::cell(
             app_entrypoints
                 .await?
                 .iter()
+                .filter(|(pathname, _)| {
+                    app_route_filter.as_ref().is_none_or(|app_routes| {
+                        app_routes
+                            .iter()
+                            .any(|route| route.as_str() == pathname.to_string())
+                    })
+                })
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.to_string().into(),
@@ -822,6 +837,18 @@ impl AppProject {
                 .try_join()
                 .await?
                 .into_iter()
+                .collect(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn route_keys(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+        let app_entrypoints = self.app_entrypoints();
+        Ok(Vc::cell(
+            app_entrypoints
+                .await?
+                .iter()
+                .map(|(pathname, _)| pathname.to_string().into())
                 .collect(),
         ))
     }
@@ -1368,13 +1395,19 @@ impl AppEndpoint {
         let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
         client_assets.insert(polyfill_output_asset);
 
-        let polyfill_source_map_asset = SourceMapAsset::new_fixed(
-            polyfill_output_path.clone(),
-            *ResolvedVc::upcast(polyfill_output),
-        )
-        .to_resolved()
-        .await?;
-        client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
+        let client_source_maps = project
+            .next_config()
+            .client_source_maps(project.next_mode())
+            .await?;
+        if *client_source_maps != SourceMapsType::None {
+            let polyfill_source_map_asset = SourceMapAsset::new_fixed(
+                polyfill_output_path.clone(),
+                *ResolvedVc::upcast(polyfill_output),
+            )
+            .to_resolved()
+            .await?;
+            client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
+        }
 
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());

@@ -57,6 +57,11 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
 }
 
+#[proc_macro_derive(ValueToString, attributes(value_to_string))]
+pub fn derive_value_to_string(input: TokenStream) -> TokenStream {
+    derive::value_to_string_macro::derive_value_to_string(input)
+}
+
 /// <!--
 /// Documentation for this macro is available on the re-export:
 /// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.task_storage.html>

@@ -83,6 +83,60 @@ function isBot(username) {
   return username.endsWith('-bot') || username.endsWith('[bot]')
 }
 
+/**
+ * Parses the build_and_test.yml workflow to extract env vars from afterBuild
+ * sections. Returns a map of job display name prefix → env var list.
+ */
+function getJobEnvVarsFromWorkflow() {
+  const workflowPath = path.join(
+    __dirname,
+    '..',
+    '.github',
+    'workflows',
+    'build_and_test.yml'
+  )
+  try {
+    const content = require('fs').readFileSync(workflowPath, 'utf8')
+    const envMap = {}
+    // Match job blocks: "  job-id:\n    name: display name\n" ... "afterBuild: |"
+    const jobRegex =
+      /^ {2}([\w-]+):\s*\n\s+name:\s*(.+)\n[\s\S]*?afterBuild:\s*\|\n([\s\S]*?)(?=\n\s+stepName:)/gm
+    let match
+    while ((match = jobRegex.exec(content)) !== null) {
+      const displayName = match[2].trim()
+      const afterBuild = match[3]
+      const exports = []
+      for (const line of afterBuild.split('\n')) {
+        const exportMatch = line.match(
+          /^\s*export\s+([\w]+)=["']?([^"'\s]+)["']?/
+        )
+        if (exportMatch) {
+          exports.push(`${exportMatch[1]}=${exportMatch[2]}`)
+        }
+      }
+      if (exports.length > 0) {
+        envMap[displayName] = exports
+      }
+    }
+    return envMap
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Given a job name like "test node streams prod (4/7) / build" and the env map,
+ * returns the relevant env vars or null.
+ */
+function getEnvVarsForJob(jobName, envMap) {
+  for (const [prefix, vars] of Object.entries(envMap)) {
+    if (jobName.startsWith(prefix)) {
+      return vars
+    }
+  }
+  return null
+}
+
 // ============================================================================
 // Data Fetching Functions
 // ============================================================================
@@ -413,7 +467,9 @@ function generateIndexMd(
   runMetadata,
   categorizedJobs,
   jobTestCounts,
-  reviewData
+  reviewData,
+  jobEnvMap,
+  flakyTests
 ) {
   const { failed, inProgress, queued, succeeded, cancelled, skipped } =
     categorizedJobs
@@ -493,6 +549,41 @@ function generateIndexMd(
       )
     }
     lines.push('')
+
+    // Show env vars for failed jobs if they differ from defaults
+    if (jobEnvMap && Object.keys(jobEnvMap).length > 0) {
+      const jobEnvGroups = new Map()
+      for (const job of failed) {
+        const envVars = getEnvVarsForJob(job.name, jobEnvMap)
+        if (envVars) {
+          const key = envVars.join(', ')
+          if (!jobEnvGroups.has(key)) {
+            jobEnvGroups.set(key, [])
+          }
+          jobEnvGroups.get(key).push(job.name)
+        }
+      }
+      if (jobEnvGroups.size > 0) {
+        lines.push('### Job Environment Variables', '')
+        for (const [envStr, jobNames] of jobEnvGroups) {
+          const prefix = jobNames[0].replace(/ \(.*/, '')
+          lines.push(`**${prefix}**: \`${envStr}\``, '')
+        }
+      }
+    }
+
+    // Known flaky tests section
+    if (flakyTests && flakyTests.size > 0) {
+      lines.push('### Known Flaky Tests (failing on 2+ branches)', '')
+      lines.push(
+        'These tests also failed in recent CI runs across multiple different branches and are likely pre-existing flakes, not caused by this PR:',
+        ''
+      )
+      for (const testPath of [...flakyTests].sort()) {
+        lines.push(`- \`${testPath}\``)
+      }
+      lines.push('')
+    }
   }
 
   // In-progress jobs section (only when CI is running)
@@ -839,6 +930,146 @@ function generateThreadMd(thread, index) {
 }
 
 // ============================================================================
+// Flaky Test Detection
+// ============================================================================
+
+/**
+ * Fetches recent failed CI runs across all branches and identifies tests that
+ * fail on multiple different branches (indicating flakiness, not branch-specific bugs).
+ * Excludes the current PR's branch to avoid self-matching.
+ * Returns a Set of test file paths that are likely flaky.
+ */
+async function getFlakyTests(currentBranch, runsToCheck = 5) {
+  console.log(
+    `Checking last ${runsToCheck} failed CI runs across all branches for known flaky tests...`
+  )
+
+  // Get recent failed build-and-test runs across ALL branches
+  const jqQuery = `.workflow_runs[] | select(.conclusion == "failure") | {id, head_branch}`
+  let output
+  try {
+    output = exec(
+      `gh api "repos/vercel/next.js/actions/workflows/57419851/runs?status=completed&per_page=30" --jq '${jqQuery}'`
+    )
+  } catch {
+    console.log('  Could not fetch CI runs, skipping flaky check')
+    return new Set()
+  }
+
+  if (!output.trim()) {
+    console.log('  No failed runs found')
+    return new Set()
+  }
+
+  // Filter out the current branch and take up to runsToCheck
+  const allRuns = output
+    .split('\n')
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line))
+    .filter((run) => run.head_branch !== currentBranch)
+    .slice(0, runsToCheck)
+
+  if (allRuns.length === 0) {
+    console.log('  No failed runs from other branches found')
+    return new Set()
+  }
+
+  const branchCount = new Set(allRuns.map((r) => r.head_branch)).size
+  console.log(
+    `  Checking ${allRuns.length} runs from ${branchCount} different branches...`
+  )
+
+  // Fetch failed jobs for all runs in parallel
+  const runJobResults = await Promise.all(
+    allRuns.map(async (run) => {
+      try {
+        const jobsJq = '.jobs[] | select(.conclusion == "failure") | {id, name}'
+        const jobsOutput = exec(
+          `gh api "repos/vercel/next.js/actions/runs/${run.id}/jobs?per_page=100" --jq '${jobsJq}'`
+        )
+        if (!jobsOutput.trim()) return { run, jobs: [] }
+        const jobs = jobsOutput
+          .split('\n')
+          .filter((line) => line.trim())
+          .map((line) => JSON.parse(line))
+        // Skip runs with 20+ failed jobs (likely systemic, not flaky)
+        if (jobs.length > 20) return { run, jobs: [] }
+        return { run, jobs }
+      } catch {
+        return { run, jobs: [] }
+      }
+    })
+  )
+
+  // Collect all (job, branch) pairs, then fetch logs in parallel (batch of 5)
+  const jobBranchPairs = []
+  for (const { run, jobs } of runJobResults) {
+    for (const job of jobs) {
+      jobBranchPairs.push({ job, branch: run.head_branch })
+    }
+  }
+
+  console.log(`  Fetching logs for ${jobBranchPairs.length} failed jobs...`)
+
+  // Map: testPath → Set of branches where it failed
+  const testFailBranches = new Map()
+
+  // Process in batches of 5 to avoid overwhelming the API
+  const BATCH_SIZE = 5
+  for (let i = 0; i < jobBranchPairs.length; i += BATCH_SIZE) {
+    const batch = jobBranchPairs.slice(i, i + BATCH_SIZE)
+    const results = await Promise.all(
+      batch.map(async ({ job, branch }) => {
+        try {
+          const logs = exec(
+            `gh api "repos/vercel/next.js/actions/jobs/${job.id}/logs"`
+          )
+          return { logs, branch }
+        } catch {
+          return { logs: null, branch }
+        }
+      })
+    )
+
+    for (const { logs, branch } of results) {
+      if (!logs) continue
+      const testResults = extractTestOutputJson(logs)
+      for (const result of testResults) {
+        if (result.testResults) {
+          for (const tr of result.testResults) {
+            const hasFailed = tr.assertionResults?.some(
+              (a) => a.status === 'failed'
+            )
+            if (hasFailed) {
+              const shortPath = tr.name?.replace(/.*\/(test\/)/, '$1')
+              if (shortPath) {
+                if (!testFailBranches.has(shortPath)) {
+                  testFailBranches.set(shortPath, new Set())
+                }
+                testFailBranches.get(shortPath).add(branch)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // A test is flaky if it fails on 2+ different branches
+  const flakyTestFiles = new Set()
+  for (const [testPath, branches] of testFailBranches) {
+    if (branches.size >= 2) {
+      flakyTestFiles.add(testPath)
+    }
+  }
+
+  console.log(
+    `  Found ${flakyTestFiles.size} flaky tests (failing on 2+ different branches)`
+  )
+  return flakyTestFiles
+}
+
+// ============================================================================
 // Main Function
 // ============================================================================
 
@@ -972,7 +1203,8 @@ async function main() {
         runMetadata,
         emptyCategorizedJobs,
         {},
-        reviewData
+        reviewData,
+        {}
       )
     )
     process.exit(0)
@@ -1082,19 +1314,34 @@ async function main() {
     }
   }
 
-  // Step 8: Generate index.md
+  // Step 8: Check for known flaky tests across branches (skip with --skip-flaky-check)
+  let flakyTests = new Set()
+  if (!process.argv.includes('--skip-flaky-check')) {
+    flakyTests = await getFlakyTests(branchInfo.branchName, 5)
+    if (flakyTests.size > 0) {
+      await fs.writeFile(
+        path.join(OUTPUT_DIR, 'flaky-tests.json'),
+        JSON.stringify([...flakyTests].sort(), null, 2)
+      )
+    }
+  }
+
+  // Step 9: Generate index.md
   console.log('Generating index.md...')
   // Update categorizedJobs.failed with full processed metadata
   const finalCategorizedJobs = {
     ...categorizedJobs,
     failed: processedFailedJobs,
   }
+  const jobEnvMap = getJobEnvVarsFromWorkflow()
   const indexMd = generateIndexMd(
     branchInfo,
     runMetadata,
     finalCategorizedJobs,
     jobTestCounts,
-    reviewData
+    reviewData,
+    jobEnvMap,
+    flakyTests
   )
   await fs.writeFile(path.join(OUTPUT_DIR, 'index.md'), indexMd)
 

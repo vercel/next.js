@@ -5,6 +5,7 @@ import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import {
   type ModernSourceMapPayload,
+  devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
@@ -201,11 +202,15 @@ function getSourcemappedFrameIfPossible(
     sourceMapPayload = maybeSourceMapPayload
     try {
       // Pass the source map URL as the second parameter so that the consumer
-      // can resolve relative paths in the source map's `sources` array.
-      // This is a guess!  Turbopack places .map files as siblings to the chunks so this is sufficient to compute
-      // relative paths but is actually wrong (the chunk and sourcemap have different content hashes).
-      // We are using the node API to read the sourcemap and it doesn't give us access to the URI.
-      const sourceMapURL = sourceURL + '.map'
+      // can resolve relative paths in the source map's `sources` array. This is
+      // a guess! Turbopack places .map files as siblings to the chunks so this
+      // is sufficient to compute relative paths but is actually wrong (the
+      // chunk and sourcemap have different content hashes). We are using the
+      // node API to read the sourcemap and it doesn't give us access to the
+      // URI. Devirtualize `about://React/Server/file:///path/to/chunk.js?4` to
+      // `file:///path/to/chunk.js` so that relative `sources` in the source map
+      // resolve against the real chunk URL, not the virtual one.
+      const sourceMapURL = devirtualizeReactServerURL(sourceURL) + '.map'
       sourceMapConsumer = new SyncSourceMapConsumer(
         sourceMapPayload,
         // @ts-expect-error: our typings don't include this parameter but it is here.

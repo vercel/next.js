@@ -79,6 +79,7 @@ use crate::{
     invalidator_map::{InvalidatorMap, WriteContent},
     json::UnparsableJson,
     mutex_map::MutexMap,
+    path_map::OrderedPathMapExt,
     read_glob::{read_glob, track_glob},
     retry::{can_retry, retry_blocking, retry_blocking_custom},
     rope::{Rope, RopeReader},
@@ -426,6 +427,75 @@ impl DiskFileSystemInner {
         });
     }
 
+    /// Invalidates tracked files/directories for `paths` and their children.
+    /// Also invalidates tracked directory reads for all parent directories to
+    /// account for file creations/deletions under the deferred subtree.
+    fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) {
+        let _span =
+            tracing::info_span!("invalidate filesystem paths", name = &*self.root).entered();
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+            return;
+        };
+        let _guard = self.tokio_handle.enter();
+
+        let mut invalidator_map = self.invalidator_map.lock().unwrap();
+        let mut dir_invalidator_map = self.dir_invalidator_map.lock().unwrap();
+        let mut invalidators = Vec::new();
+        let mut parent_dirs_to_invalidate = FxHashSet::default();
+
+        for path in paths {
+            let mut current_parent = path.parent();
+            while let Some(parent) = current_parent {
+                parent_dirs_to_invalidate.insert(parent.to_path_buf());
+                current_parent = parent.parent();
+            }
+
+            for (invalidated_path, path_invalidators) in
+                invalidator_map.extract_path_with_children(&path)
+            {
+                let reason_for_path = reason(&invalidated_path);
+                invalidators.extend(
+                    path_invalidators
+                        .into_keys()
+                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
+                );
+            }
+
+            for (invalidated_path, path_invalidators) in
+                dir_invalidator_map.extract_path_with_children(&path)
+            {
+                let reason_for_path = reason(&invalidated_path);
+                invalidators.extend(
+                    path_invalidators
+                        .into_keys()
+                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
+                );
+            }
+        }
+
+        for path in parent_dirs_to_invalidate {
+            if let Some(path_invalidators) = dir_invalidator_map.remove(&path) {
+                let reason_for_path = reason(&path);
+                invalidators.extend(
+                    path_invalidators
+                        .into_keys()
+                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
+                );
+            }
+        }
+
+        drop(invalidator_map);
+        drop(dir_invalidator_map);
+
+        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
+            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
+        });
+    }
+
     fn invalidate_from_write(
         &self,
         full_path: &Path,
@@ -495,6 +565,8 @@ impl DiskFileSystemInner {
     }
 }
 
+#[derive(ValueToString)]
+#[value_to_string(self.inner.name)]
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
@@ -518,6 +590,15 @@ impl DiskFileSystem {
         reason: impl Fn(&Path) -> R + Sync,
     ) {
         self.inner.invalidate_with_reason(reason);
+    }
+
+    pub fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) {
+        self.inner
+            .invalidate_path_and_children_with_reason(paths, reason);
     }
 
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
@@ -1289,16 +1370,9 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for DiskFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.inner.name.clone())
-    }
-}
-
+#[derive(Debug, Clone, Hash, TaskInput, ValueToString)]
+#[value_to_string("[{fs}]/{path}")]
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
@@ -1761,14 +1835,6 @@ impl FileSystemPath {
 
     pub fn realpath_with_links(&self) -> Vc<RealPathResult> {
         realpath_with_links(self.clone())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for FileSystemPath {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        self.value_to_string()
     }
 }
 
@@ -2538,6 +2604,8 @@ impl DirectoryContent {
     }
 }
 
+#[derive(ValueToString)]
+#[value_to_string("null")]
 #[turbo_tasks::value(shared)]
 pub struct NullFileSystem;
 
@@ -2571,14 +2639,6 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPath) -> Vc<FileMeta> {
         FileMeta::default().cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for NullFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("null"))
     }
 }
 

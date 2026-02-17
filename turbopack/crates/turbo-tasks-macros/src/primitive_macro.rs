@@ -3,7 +3,7 @@ use quote::quote;
 use syn::parse_macro_input;
 
 use crate::{
-    global_name::global_name,
+    global_name::global_name_for_type,
     ident::get_type_ident,
     primitive_input::{BincodeWrappers, PrimitiveInput},
     value_macro::value_type_and_register,
@@ -39,7 +39,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         }
     };
 
-    let name = global_name(quote!(stringify!(#ty)));
+    let name = global_name_for_type(&ty);
     let new_value_type = if let Some(bincode_wrappers) = bincode_wrappers {
         let BincodeWrappers {
             encode_ty,

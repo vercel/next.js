@@ -611,6 +611,9 @@ pub struct TurbopackConfig {
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
+    /// Issue patterns to ignore (suppress) from Turbopack output.
+    #[serde(default)]
+    pub ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
 }
 
 #[derive(
@@ -970,7 +973,7 @@ pub enum ReactCompilerOptionsOrBoolean {
 #[turbo_tasks::value(transparent)]
 pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
-/// Serialized representation of a path pattern for `turbopackIgnoreIssue`.
+/// Serialized representation of a path pattern for `turbopack.ignoreIssue`.
 /// Strings are serialized as `{ "type": "glob", "value": "..." }` and
 /// RegExp as `{ "type": "regex", "source": "...", "flags": "..." }`.
 #[derive(
@@ -998,7 +1001,7 @@ impl TurbopackIgnoreIssuePathPattern {
 }
 
 /// Serialized representation of a text pattern (title/description) for
-/// `turbopackIgnoreIssue`. Strings are serialized as
+/// `turbopack.ignoreIssue`. Strings are serialized as
 /// `{ "type": "string", "value": "..." }` and RegExp as
 /// `{ "type": "regex", "source": "...", "flags": "..." }`.
 #[derive(
@@ -1025,7 +1028,7 @@ impl TurbopackIgnoreIssueTextPattern {
     }
 }
 
-/// A single rule in `experimental.turbopackIgnoreIssue`.
+/// A single rule in `turbopack.ignoreIssue`.
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -1169,9 +1172,6 @@ pub struct ExperimentalConfig {
     turbopack_remove_unused_exports: Option<bool>,
     /// Enable local analysis to infer side effect free modules. Defaults to true.
     turbopack_infer_module_side_effects: Option<bool>,
-    /// Issue patterns to ignore (suppress) from Turbopack output.
-    #[serde(default)]
-    turbopack_ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -2211,14 +2211,14 @@ impl NextConfig {
         }
     }
 
-    /// Returns the list of ignore-issue rules from the experimental config,
+    /// Returns the list of ignore-issue rules from the turbopack config,
     /// converted to the `IgnoreIssue` type used by `IssueFilter`.
     #[turbo_tasks::function]
     pub fn turbopack_ignore_issue_rules(&self) -> Result<Vc<IgnoreIssues>> {
         let rules = self
-            .experimental
-            .turbopack_ignore_issue
-            .as_deref()
+            .turbopack
+            .as_ref()
+            .and_then(|tp| tp.ignore_issue.as_deref())
             .unwrap_or_default()
             .iter()
             .map(|rule| {

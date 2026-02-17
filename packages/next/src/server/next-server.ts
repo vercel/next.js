@@ -409,7 +409,7 @@ export default class NextNodeServer extends BaseServer<
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
-    const dev = !!this.renderOpts.dev
+    const dev = !!this.dev
     let CacheHandler: any
     const { cacheHandler } = this.nextConfig
 
@@ -717,7 +717,7 @@ export default class NextNodeServer extends BaseServer<
           )
 
       return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
-        isDev: this.renderOpts.dev,
+        isDev: this.dev,
         previousCacheEntry,
       })
     }
@@ -922,7 +922,7 @@ export default class NextNodeServer extends BaseServer<
             )
           )
           this.imageCacheHandler = new CacheHandler({
-            dev: !!this.renderOpts.dev,
+            dev: !!this.dev,
             flushToDisk: this.nextConfig.experimental.isrFlushToDisk,
             serverDistDir: this.serverDistDir,
             maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
@@ -955,7 +955,7 @@ export default class NextNodeServer extends BaseServer<
         req.originalRequest,
         parsedUrl.query,
         this.nextConfig,
-        !!this.renderOpts.dev
+        !!this.dev
       )
 
       if ('errorMessage' in paramsResult) {
@@ -1015,7 +1015,7 @@ export default class NextNodeServer extends BaseServer<
           cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
           imagesConfig,
           cacheEntry.cacheControl?.revalidate || 0,
-          Boolean(this.renderOpts.dev)
+          Boolean(this.dev)
         )
         return true
       } catch (err) {
@@ -1146,7 +1146,7 @@ export default class NextNodeServer extends BaseServer<
       }
 
       try {
-        if (this.renderOpts.dev) {
+        if (this.dev) {
           const { formatServerError } =
             require('../lib/format-server-error') as typeof import('../lib/format-server-error')
           formatServerError(err)
@@ -1324,7 +1324,7 @@ export default class NextNodeServer extends BaseServer<
     const is404 = res.statusCode === 404
 
     if (is404 && this.enabledDirectories.app) {
-      if (this.renderOpts.dev) {
+      if (this.dev) {
         await this.ensurePage({
           page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           clientOnly: false,
@@ -1512,7 +1512,7 @@ export default class NextNodeServer extends BaseServer<
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
       try {
-        const functionsConfig = this.renderOpts.dev
+        const functionsConfig = this.dev
           ? {}
           : require(
               join(
@@ -1522,10 +1522,7 @@ export default class NextNodeServer extends BaseServer<
               )
             )
 
-        if (
-          this.renderOpts.dev ||
-          functionsConfig?.functions?.['/_middleware']
-        ) {
+        if (this.dev || functionsConfig?.functions?.['/_middleware']) {
           // if used with top level await, this will be a promise
           return require(
             join(
@@ -1720,7 +1717,7 @@ export default class NextNodeServer extends BaseServer<
       })
     }
 
-    if (!this.renderOpts.dev) {
+    if (!this.dev) {
       result.waitUntil.catch((error) => {
         console.error(`Uncaught: middleware waitUntil errored`, error)
       })
@@ -2075,7 +2072,7 @@ export default class NextNodeServer extends BaseServer<
     await super.instrumentationOnRequestError(...args)
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
-    if (!this.renderOpts.dev) {
+    if (!this.dev) {
       const [err, , , silenceLog] = args
       if (!silenceLog) {
         this.logError(err)
