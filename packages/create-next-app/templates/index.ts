@@ -71,8 +71,8 @@ export const installTemplate = async ({
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
   if (!biome) copySource.push("!biome.json");
-  if (!oxlint) copySource.push("!.oxlintrc.json");
-  if (!oxfmt) copySource.push("!.oxfmtrc.json");
+  if (!oxlint) copySource.push("!oxlintrc.json");
+  if (!oxfmt) copySource.push("!oxfmtrc.json");
   if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
@@ -80,7 +80,9 @@ export const installTemplate = async ({
     cwd: templatePath,
     rename(name) {
       switch (name) {
-        case "gitignore": {
+        case "gitignore":
+        case "oxlintrc.json":
+        case "oxfmtrc.json": {
           return `.${name}`;
         }
         // README.md is ignored by webpack-asset-relocator-loader used by ncc:

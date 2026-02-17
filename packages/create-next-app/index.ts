@@ -494,16 +494,20 @@ async function run(): Promise<void> {
     if (!opts.oxfmt && !opts.biome && !noFormatter && !opts.api) {
       if (skipPrompt) {
         // Default to oxfmt when using oxlint, otherwise no formatter
-        opts.oxfmt = opts.oxlint && (getPrefOrDefault('oxfmt') ?? true)
+        // Use saved preference if it exists, otherwise default to true for oxlint users
+        const hasOxfmtPreference = 'oxfmt' in preferences
+        opts.oxfmt =
+          opts.oxlint && (hasOxfmtPreference ? preferences.oxfmt : true)
       } else if (opts.oxlint) {
         // If using oxlint, offer oxfmt as the natural pairing
         const styledOxfmt = blue('Oxfmt')
+        const hasOxfmtPreference = 'oxfmt' in preferences
         const { oxfmt } = await prompts({
           onState: onPromptState,
           type: 'toggle',
           name: 'oxfmt',
           message: `Would you like to use ${styledOxfmt} for formatting? (recommended with Oxlint)`,
-          initial: getPrefOrDefault('oxfmt') ?? true,
+          initial: hasOxfmtPreference ? preferences.oxfmt : true,
           active: 'Yes',
           inactive: 'No',
         })
