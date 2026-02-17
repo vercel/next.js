@@ -497,6 +497,7 @@ ${ENDGROUP}`)
         ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
+        '--no-cache',
         '--verbose',
         ...(isTestJob
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
