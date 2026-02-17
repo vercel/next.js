@@ -72,7 +72,7 @@ interface ErrorSnapshotOptions {
   label?: boolean
 }
 
-interface ErrorSnapshot {
+export interface ErrorSnapshot {
   environmentLabel: string | null
   label: string | null
   description: string | null
@@ -201,9 +201,9 @@ async function createErrorSnapshot(
   return snapshot
 }
 
-type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
+export type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
 
-async function createRedboxSnapshot(
+export async function createRedboxSnapshot(
   browser: Playwright,
   next: NextInstance | null,
   opts?: ErrorSnapshotOptions
