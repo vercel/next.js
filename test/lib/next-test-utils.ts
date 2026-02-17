@@ -1554,6 +1554,52 @@ export async function hasRedboxCallStack(browser: Playwright) {
   })
 }
 
+export interface RedboxCauseEntry {
+  label: string | null
+  message: string | null
+  source: string | null
+  stack: string[]
+}
+
+export async function getRedboxCause(
+  browser: Playwright
+): Promise<RedboxCauseEntry[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    const causeElements = root?.querySelectorAll('[data-nextjs-error-cause]')
+    if (!causeElements || causeElements.length === 0) return null
+
+    const causes: {
+      label: string | null
+      message: string | null
+      source: string | null
+      stack: string[]
+    }[] = []
+    for (const el of causeElements) {
+      const stackFrameElements = el.querySelectorAll(
+        ':scope > [data-nextjs-call-stack-container] > [data-nextjs-call-stack-frame]'
+      )
+      const stack: string[] = []
+      for (const frameEl of stackFrameElements) {
+        stack.push(frameEl.innerText.replace(/\n+/g, ' '))
+      }
+
+      causes.push({
+        label: el.querySelector('.error-cause-label')?.innerText ?? null,
+        message: el.querySelector('.error-cause-message')?.innerText ?? null,
+        source:
+          el.querySelector(':scope > [data-nextjs-codeframe]')?.innerText ??
+          null,
+        stack,
+      })
+    }
+    return causes
+  })
+}
+
 export async function getRedboxCallStack(
   browser: Playwright
 ): Promise<string[] | null> {
@@ -1570,6 +1616,10 @@ export async function getRedboxCallStack(
     if (frameElements !== undefined) {
       let foundInternalFrame = false
       for (const frameElement of frameElements) {
+        // Skip frames that belong to an Error.cause section
+        if (frameElement.closest('[data-nextjs-error-cause]')) {
+          continue
+        }
         // `innerText` will be "${methodName}\n${location}".
         // Ideally `innerText` would be "${methodName} ${location}"
         // so that c&p automatically does the right thing.
