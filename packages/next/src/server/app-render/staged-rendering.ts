@@ -98,7 +98,7 @@ export class StagedRenderingController {
     }
 
     // If Sync IO occurs during an abandonable render, we trigger the abandon.
-    // The abandon listener will call abandonRenderImpl which advances through
+    // The abandon listener will call abandonRender which advances through
     // stages to let caches fill before marking as Abandoned.
     if (this.abandonController) {
       this.abandonController.abort()

@@ -219,23 +219,51 @@ struct DebugBuildPathsRouteKeys {
 }
 
 impl DebugBuildPathsRouteKeys {
+    fn app_route_key_from_debug_path(path: &str) -> Result<RcStr> {
+        let mut segments = path
+            .trim_start_matches('/')
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect::<Vec<_>>();
+
+        if let Some(last_segment) = segments.last()
+            && (*last_segment == "page"
+                || last_segment.starts_with("page.")
+                || *last_segment == "route"
+                || last_segment.starts_with("route."))
+        {
+            segments.pop();
+        }
+
+        let normalized_path = segments.join("/");
+        Ok(AppPath::from(AppPage::parse(&normalized_path)?)
+            .to_string()
+            .into())
+    }
+
     fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
         Ok(Self {
             app: paths
                 .app
                 .iter()
-                .map(|path| Ok(AppPath::from(AppPage::parse(path)?).to_string().into()))
+                .map(|path| Self::app_route_key_from_debug_path(path))
                 .collect::<Result<FxHashSet<_>>>()?,
             pages: paths
                 .pages
                 .iter()
                 .map(|path| {
                     // Pages router: "/foo.tsx" -> "/foo"
-                    if let Some(dot_idx) = path.rfind('.') {
-                        path[..dot_idx].into()
-                    } else {
-                        path.clone()
+                    // Catch-all routes like "/foo/[...slug]" contain dots in the segment name;
+                    // only treat the suffix as an extension when it is a plain alphanumeric token.
+                    let file_name = path.rsplit('/').next().unwrap_or(path);
+                    if let Some(dot_idx) = file_name.rfind('.') {
+                        let ext = &file_name[dot_idx + 1..];
+                        if !ext.is_empty() && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+                            let trimmed_len = path.len() - (file_name.len() - dot_idx);
+                            return path[..trimmed_len].into();
+                        }
                     }
+                    path.clone()
                 })
                 .collect(),
         })
@@ -326,6 +354,9 @@ pub struct ProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
+
+    /// App-router page routes that should be built after non-deferred routes.
+    pub deferred_entries: Option<Vec<RcStr>>,
 
     /// Whether to enable persistent caching
     pub is_persistent_caching_enabled: bool,
@@ -713,6 +744,7 @@ impl ProjectContainer {
         let write_routes_hashes_manifest;
         let current_node_js_version;
         let debug_build_paths;
+        let deferred_entries;
         let is_persistent_caching_enabled;
         {
             let options = self.options_state.get();
@@ -739,6 +771,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
             debug_build_paths = options.debug_build_paths.clone();
+            deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
         }
 
@@ -767,6 +800,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest,
             current_node_js_version,
             debug_build_paths,
+            deferred_entries,
             is_persistent_caching_enabled,
         }
         .cell())
@@ -862,6 +896,9 @@ pub struct Project {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     debug_build_paths: Option<DebugBuildPaths>,
+
+    /// App-router page routes that should be built after non-deferred routes.
+    deferred_entries: Vec<RcStr>,
 
     /// Whether to enable persistent caching
     is_persistent_caching_enabled: bool,
@@ -1105,6 +1142,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub fn deferred_entries(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.deferred_entries.clone())
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
     }
@@ -1167,9 +1209,20 @@ impl Project {
         self: Vc<Self>,
         app_dir_only: bool,
     ) -> Result<Vc<EndpointGroups>> {
+        Ok(self.get_all_endpoint_groups_with_app_route_filter(app_dir_only, None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_all_endpoint_groups_with_app_route_filter(
+        self: Vc<Self>,
+        app_dir_only: bool,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<Vc<EndpointGroups>> {
         let mut endpoint_groups = Vec::new();
 
-        let entrypoints = self.entrypoints().await?;
+        let entrypoints = self
+            .entrypoints_with_app_route_filter(app_route_filter)
+            .await?;
         let mut add_pages_entries = false;
 
         if let Some(middleware) = &entrypoints.middleware {
@@ -1612,6 +1665,14 @@ impl Project {
     /// provided page_extensions).
     #[turbo_tasks::function]
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
+        Ok(self.entrypoints_with_app_route_filter(None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn entrypoints_with_app_route_filter(
+        self: Vc<Self>,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<Vc<Entrypoints>> {
         self.collect_project_feature_telemetry().await?;
 
         let this = self.await?;
@@ -1627,7 +1688,7 @@ impl Project {
             .transpose()?;
 
         if let Some(app_project) = &*app_project.await? {
-            let app_routes = app_project.routes();
+            let app_routes = app_project.routes_with_filter(app_route_filter);
             routes.extend(
                 app_routes
                     .await?

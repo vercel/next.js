@@ -34,7 +34,6 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
-  getRuntimeStagePromise,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
@@ -221,7 +220,6 @@ function createUseCacheStore(
       isHmrRefresh: isHmrRefresh(outerWorkUnitStore),
       serverComponentsHmrCache: getServerComponentsHmrCache(outerWorkUnitStore),
       forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
-      runtimeStagePromise: getRuntimeStagePromise(outerWorkUnitStore),
       draftMode: getDraftModeProviderForCacheScope(
         workStore,
         outerWorkUnitStore
@@ -1055,8 +1053,9 @@ export async function cache(
       case 'prerender-runtime': {
         // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
         // are resolved with a delay, in the runtime stage. Private caches are one of these.
-        if (outerWorkUnitStore.runtimeStagePromise) {
-          await outerWorkUnitStore.runtimeStagePromise
+        const stagedRendering = outerWorkUnitStore.stagedRendering
+        if (stagedRendering) {
+          await stagedRendering.waitForStage(RenderStage.Runtime)
         }
         break
       }
@@ -1365,8 +1364,9 @@ export async function cache(
               // In the final phase of a runtime prerender, we have to make
               // sure that APIs that would hang during a static prerender
               // are resolved with a delay, in the runtime stage.
-              if (workUnitStore.runtimeStagePromise) {
-                await workUnitStore.runtimeStagePromise
+              const stagedRendering = workUnitStore.stagedRendering
+              if (stagedRendering) {
+                await stagedRendering.waitForStage(RenderStage.Runtime)
               }
               break
             }
