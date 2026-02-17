@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -39,21 +39,18 @@ impl OutputAsset for StaticOutputAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let content = self.source.content();
-        let content_hash = if let AssetContent::File(file_vc) = &*content.await? {
-            if let FileContent::Content(_) = &*file_vc.await? {
-                *file_vc.hash().await?
+        let content_hash = if let AssetContent::File(file) = &*content.await? {
+            if file.len().await?.is_some() {
+                file.hash()
             } else {
                 anyhow::bail!("StaticAsset::path: not found")
             }
         } else {
             anyhow::bail!("StaticAsset::path: unsupported file content")
         };
-        let content_hash_b16 = turbo_tasks_hash::encode_hex(content_hash);
-        Ok(self.chunking_context.asset_path(
-            content_hash_b16.into(),
-            self.source.ident(),
-            self.tag.clone(),
-        ))
+        Ok(self
+            .chunking_context
+            .asset_path(content_hash, self.source.ident(), self.tag.clone()))
     }
 }
 

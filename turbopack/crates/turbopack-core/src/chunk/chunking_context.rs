@@ -350,7 +350,7 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn asset_path(
         self: Vc<Self>,
-        content_hash: RcStr,
+        content_hash: Vc<u64>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Vc<FileSystemPath>;

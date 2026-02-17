@@ -7,7 +7,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::DeterministicHash;
+use turbo_tasks_hash::{DeterministicHash, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -646,12 +646,13 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn asset_path(
         &self,
-        content_hash: RcStr,
+        content_hash: Vc<u64>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
+        let content_hash = encode_hex(*content_hash.await?);
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{content_hash}.{ext}",
