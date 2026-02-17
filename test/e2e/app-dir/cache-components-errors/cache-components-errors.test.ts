@@ -3899,7 +3899,7 @@ describe('Cache Components Errors', () => {
                    935 |       // "use cache: private" is dynamic in prerendering contexts.
                    936 |       case 'prerender':
                  > 937 |         return makeHangingPromise(
-                       |                                  ^
+                       |                ^
                    938 |           workUnitStore.renderSignal,
                    939 |           workStore.route,
                    940 |           expression

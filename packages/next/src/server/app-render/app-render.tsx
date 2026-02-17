@@ -142,6 +142,8 @@ import {
   getNavigationDisallowedDynamicReasons,
   trackDynamicHoleInNavigation,
   DynamicHoleKind,
+  trackThrownErrorInNavigation,
+  createInstantValidationState,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -239,6 +241,7 @@ import { createNodeStreamWithLateRelease } from './instant-validation/stream-uti
 
 // NOTE: Only use this for types, access implementations via ComponentMod
 import type * as InstantValidation from './instant-validation/instant-validation'
+import { createValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -4277,6 +4280,9 @@ async function validateInstantConfigNavigation(
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
+  const dynamicValidation = createInstantValidationState()
+  const boundaryState = createValidationBoundaryTracking()
+
   const finalClientPrerenderStore: PrerenderStore = {
     type: 'prerender-client',
     phase: 'render',
@@ -4299,9 +4305,8 @@ async function validateInstantConfigNavigation(
     hmrRefreshHash,
     // We don't need to track vary params during validation.
     varyParamsAccumulator: null,
+    boundaryState,
   }
-
-  const dynamicValidation = createDynamicValidationState()
 
   const clientReferenceManifest = getClientReferenceManifest()
 
@@ -4315,6 +4320,7 @@ async function validateInstantConfigNavigation(
           routeTree,
           navigationParent,
           extraChunksReleaseSignal,
+          boundaryState,
           clientReferenceManifest,
           stageEndTimes,
           useRuntimeStageForPartialSegments,
@@ -4370,10 +4376,20 @@ async function validateInstantConfigNavigation(
                       componentStack,
                       dynamicValidation,
                       clientDynamicTracking,
-                      dynamicHoleKind
+                      dynamicHoleKind,
+                      boundaryState
                     )
                   }
                   return
+                } else if (!clientReactController.signal.aborted) {
+                  const componentStack = errorInfo.componentStack
+                  if (typeof componentStack === 'string') {
+                    trackThrownErrorInNavigation(
+                      dynamicValidation,
+                      err,
+                      componentStack
+                    )
+                  }
                 }
 
                 if (isReactLargeShellError(err)) {
@@ -4408,19 +4424,23 @@ async function validateInstantConfigNavigation(
       )
 
     const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
+
     const reasons = getNavigationDisallowedDynamicReasons(
       workStore,
       preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
-      dynamicValidation
+      dynamicValidation,
+      boundaryState
     )
-    return { dynamicHoleKind, errors: reasons } as const
+
+    return { dynamicHoleKind, errors: reasons }
   } catch (thrownValue) {
     // Even if the root errors we still want to report any cache components errors
     // that were discovered before the root errored.
     let errors: Array<unknown> = getNavigationDisallowedDynamicReasons(
       workStore,
       PreludeState.Errored,
-      dynamicValidation
+      dynamicValidation,
+      boundaryState
     )
 
     if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
