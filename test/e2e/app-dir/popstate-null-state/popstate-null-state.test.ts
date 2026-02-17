@@ -46,4 +46,39 @@ describe('popstate-null-state', () => {
       expect(await browser.elementByCss('#pathname').text()).toBe('/')
     })
   })
+
+  it('should handle back navigation to a hash change without full reload', async () => {
+    const browser = await next.browser('/')
+
+    // Verify the initial page is rendered
+    await retry(async () => {
+      expect(await browser.elementByCss('#pathname').text()).toBe('/')
+    })
+
+    // Click a regular anchor link. The browser pushes a new history entry
+    // with null state for the hash URL.
+    // History stack: [('/', nextjs), ('/#hash', null)]
+    await browser.elementByCss('#hash-link').click()
+
+    await retry(async () => {
+      expect(await browser.url()).toContain('#hash')
+    })
+
+    // Navigate to /other via Link so there's a forward entry.
+    // History stack: [('/', nextjs), ('/#hash', null), ('/other', nextjs)]
+    await browser.elementByCss('#to-other').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#pathname').text()).toBe('/other')
+    })
+
+    // Go back — popstate fires with the hash entry's state (null).
+    // Since only the hash changed, the page should remain functional
+    // without losing client-side state.
+    await browser.back()
+
+    await retry(async () => {
+      expect(await browser.url()).toContain('#hash')
+      expect(await browser.elementByCss('#pathname').text()).toBe('/')
+    })
+  })
 })

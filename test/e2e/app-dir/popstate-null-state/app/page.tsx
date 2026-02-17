@@ -11,6 +11,12 @@ export default function Page() {
       <Link href="/other" id="to-other">
         Go to other
       </Link>
+      <a href="#hash" id="hash-link">
+        Hash link
+      </a>
+      <div id="hash" style={{ marginTop: 1000 }}>
+        Hash target
+      </div>
     </>
   )
 }
