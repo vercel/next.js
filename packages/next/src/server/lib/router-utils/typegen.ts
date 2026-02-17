@@ -610,7 +610,7 @@ export function generateValidatorFile(
 
   const routeImportStatement =
     routeImports.length > 0
-      ? `import type { ${routeImports.join(', ')} } from "./route-types.d.ts"`
+      ? `import type { ${routeImports.join(', ')} } from "./routes.js"`
       : ''
 
   const nextRequestImport = hasAppRouteHandlers
