@@ -75,7 +75,7 @@ use crate::{
     module_graph::{NextDynamicGraphs, validate_pages_css_imports},
     nft_json::NftJsonAsset,
     paths::{
-        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
+        all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -1613,7 +1613,7 @@ impl Endpoint for PageEndpoint {
                 .await?
                 .is_development()
             {
-                let server_paths = all_server_paths(output_assets, node_root.clone())
+                let server_paths = all_asset_paths(output_assets, node_root.clone())
                     .owned()
                     .await?;
 
