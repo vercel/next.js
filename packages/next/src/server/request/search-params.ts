@@ -54,6 +54,9 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
+      case 'validation-client':
+        // TODO(instant-validation): in build, this depends on samples
+        return makeUntrackedSearchParams(underlyingSearchParams)
       case 'prerender-runtime':
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in a runtime prerender.'
@@ -103,6 +106,10 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
+      case 'validation-client':
+        throw new InvariantError(
+          'createServerSearchParamsForServerPage should not be called in a client validation.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -148,6 +155,10 @@ export function createPrerenderSearchParamsForClientPage(
           workUnitStore.renderSignal,
           workStore.route,
           '`searchParams`'
+        )
+      case 'validation-client':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called in a client validation.'
         )
       case 'prerender-runtime':
         throw new InvariantError(

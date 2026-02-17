@@ -3,10 +3,7 @@ import type {
   Segment as FlightRouterStateSegment,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import {
-  HasLoadingBoundary,
-  PrefetchHint,
-} from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
@@ -1107,8 +1104,10 @@ function diffRouteTreeAgainstCurrent(
             // anywhere in the tree, the server will never return any data, so
             // we can skip the request.
             const subtreeHasLoadingBoundary =
-              newTreeChild.hasLoadingBoundary !==
-              HasLoadingBoundary.SubtreeHasNoLoadingBoundary
+              (newTreeChild.prefetchHints &
+                (PrefetchHint.SegmentHasLoadingBoundary |
+                  PrefetchHint.SubtreeHasLoadingBoundary)) !==
+              0
             const requestTreeChild = subtreeHasLoadingBoundary
               ? pingPPRDisabledRouteTreeUpToLoadingBoundary(
                   now,
@@ -1179,7 +1178,6 @@ function diffRouteTreeAgainstCurrent(
     requestTreeChildren,
     null,
     null,
-    newTree.isRootLayout,
   ]
   return requestTree
 }
@@ -1239,7 +1237,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     case EntryStatus.Fulfilled: {
       // The segment is already cached.
       const segmentHasLoadingBoundary =
-        tree.hasLoadingBoundary === HasLoadingBoundary.SegmentHasLoadingBoundary
+        (tree.prefetchHints & PrefetchHint.SegmentHasLoadingBoundary) !== 0
       if (segmentHasLoadingBoundary) {
         // This segment has a loading boundary, which means the server won't
         // render its children. So there's nothing left to prefetch along this
@@ -1287,7 +1285,6 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     requestTreeChildren,
     null,
     refetchMarker,
-    tree.isRootLayout,
   ]
   return requestTree
 }
@@ -1407,7 +1404,6 @@ function pingRouteTreeAndIncludeDynamicData(
     requestTreeChildren,
     null,
     refetchMarker,
-    tree.isRootLayout,
   ]
   return requestTree
 }

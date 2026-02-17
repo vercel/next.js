@@ -8,8 +8,9 @@ on:
 name: Generate Stats
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep cancel-on-update behavior for PRs, but allow canary pushes to run independently.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NAPI_CLI_VERSION: 2.18.4

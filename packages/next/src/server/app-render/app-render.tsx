@@ -17,8 +17,10 @@ import {
   type WorkStore,
 } from '../app-render/work-async-storage.external'
 import type {
+  PrerenderStoreModernClient,
   PrerenderStoreModernRuntime,
   RequestStore,
+  ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -142,6 +144,8 @@ import {
   getNavigationDisallowedDynamicReasons,
   trackDynamicHoleInNavigation,
   DynamicHoleKind,
+  trackThrownErrorInNavigation,
+  createInstantValidationState,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -239,6 +243,7 @@ import { createNodeStreamWithLateRelease } from './instant-validation/stream-uti
 
 // NOTE: Only use this for types, access implementations via ComponentMod
 import type * as InstantValidation from './instant-validation/instant-validation'
+import { createValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -1522,7 +1527,7 @@ async function getRSCPayload(
     workStore,
   } = ctx
 
-  const initialTree = createFlightRouterStateFromLoaderTree(
+  const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     getDynamicParamFromSegment,
     query
@@ -1686,7 +1691,7 @@ async function getErrorRSCPayload(
     createElement(Metadata, null)
   )
 
-  const initialTree = createFlightRouterStateFromLoaderTree(
+  const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     getDynamicParamFromSegment,
     query
@@ -1721,7 +1726,6 @@ async function getErrorRSCPayload(
     {},
     null,
     false,
-    0, // We don't currently support runtime prefetching for error pages.
     null, // varyParams - not tracked for error pages
   ]
 
@@ -1944,6 +1948,7 @@ async function renderToHTMLOrFlightImpl(
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-client':
+        case 'validation-client':
         case 'prerender-runtime':
         case 'cache':
         case 'private-cache':
@@ -3745,6 +3750,8 @@ async function spawnStaticShellValidationInDev(
   await warmupClientModulesForStagedValidationInDev(
     // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
     // otherwise, for static shell validation, we only need to warm up to the runtime stage.
+    // we also need to use a different store type, because instant validation allows more APIs to resolve.
+    needsInstantValidation ? 'validation-client' : 'prerender-client',
     needsInstantValidation ? dynamicChunks : runtimeChunks,
     dynamicChunks,
     rootParams,
@@ -3802,8 +3809,6 @@ async function spawnStaticShellValidationInDev(
       debugChunks,
       startTime,
       rootParams,
-      fallbackRouteParams,
-      allowEmptyStaticShell,
       ctx,
       hmrRefreshHash
     )
@@ -3814,6 +3819,7 @@ async function spawnStaticShellValidationInDev(
 }
 
 async function warmupClientModulesForStagedValidationInDev(
+  storeType: PrerenderStoreModernClient['type'] | ValidationStoreClient['type'],
   partialServerChunks: Array<Uint8Array>,
   allServerChunks: Array<Uint8Array>,
   rootParams: Params,
@@ -3831,29 +3837,59 @@ async function warmupClientModulesForStagedValidationInDev(
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
-  const initialClientPrerenderStore: PrerenderStore = {
-    type: 'prerender-client',
-    phase: 'render',
-    rootParams,
-    fallbackRouteParams,
-    implicitTags,
-    renderSignal: initialClientRenderController.signal,
-    controller: initialClientPrerenderController,
-    // For HTML Generation the only cache tracked activity
-    // is module loading, which has it's own cache signal
-    cacheSignal: null,
-    dynamicTracking: null,
-    allowEmptyStaticShell,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [...implicitTags.tags],
-    // TODO should this be removed from client stores?
-    prerenderResumeDataCache: null,
-    renderResumeDataCache: null,
-    hmrRefreshHash: undefined,
-    // Client prerenders don't track server param access
-    varyParamsAccumulator: null,
+  let initialClientPrerenderStore: PrerenderStore
+  if (storeType === 'prerender-client') {
+    const store: PrerenderStoreModernClient = {
+      type: 'prerender-client',
+      phase: 'render',
+      rootParams,
+      fallbackRouteParams,
+      implicitTags,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
+      // For HTML Generation the only cache tracked activity
+      // is module loading, which has it's own cache signal
+      cacheSignal: null,
+      dynamicTracking: null,
+      allowEmptyStaticShell,
+      revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
+      tags: [...implicitTags.tags],
+      // TODO should this be removed from client stores?
+      prerenderResumeDataCache: null,
+      renderResumeDataCache: null,
+      hmrRefreshHash: undefined,
+      // Client prerenders don't track server param access
+      varyParamsAccumulator: null,
+    }
+    initialClientPrerenderStore = store
+  } else {
+    const store: ValidationStoreClient = {
+      type: 'validation-client',
+      phase: 'render',
+      rootParams,
+      implicitTags,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
+      // For HTML Generation the only cache tracked activity
+      // is module loading, which has it's own cache signal
+      cacheSignal: null,
+      dynamicTracking: null,
+      revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
+      tags: [...implicitTags.tags],
+      // TODO should this be removed from client stores?
+      prerenderResumeDataCache: null,
+      renderResumeDataCache: null,
+      hmrRefreshHash: undefined,
+      // Client prerenders don't track server param access
+      varyParamsAccumulator: null,
+      // We're not rendering any validation boundaries yet.
+      boundaryState: null,
+    }
+    initialClientPrerenderStore = store
   }
 
   // TODO: maybe conditionally switch between runtime chunks and all chunks?
@@ -4126,8 +4162,6 @@ async function validateInstantConfigs(
   debugChunks: null | Array<Uint8Array>,
   startTime: number,
   rootParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  allowEmptyStaticShell: boolean,
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined
 ): Promise<Array<unknown>> {
@@ -4200,8 +4234,6 @@ async function validateInstantConfigs(
       startTime,
       stageEndTimes,
       rootParams,
-      fallbackRouteParams,
-      allowEmptyStaticShell,
       ctx,
       hmrRefreshHash,
       validationRouteTree,
@@ -4221,8 +4253,6 @@ async function validateInstantConfigs(
           startTime,
           stageEndTimes,
           rootParams,
-          fallbackRouteParams,
-          allowEmptyStaticShell,
           ctx,
           hmrRefreshHash,
           validationRouteTree,
@@ -4255,8 +4285,6 @@ async function validateInstantConfigNavigation(
   startTime: number,
   stageEndTimes: InstantValidation.StageEndTimes,
   rootParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  allowEmptyStaticShell: boolean,
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined,
   routeTree: InstantValidation.RouteTree,
@@ -4277,18 +4305,19 @@ async function validateInstantConfigNavigation(
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
+  const dynamicValidation = createInstantValidationState()
+  const boundaryState = createValidationBoundaryTracking()
+
   const finalClientPrerenderStore: PrerenderStore = {
-    type: 'prerender-client',
+    type: 'validation-client',
     phase: 'render',
     rootParams,
-    fallbackRouteParams,
     implicitTags,
     renderSignal: clientRenderController.signal,
     controller: clientReactController,
     // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
     cacheSignal: null,
     dynamicTracking: clientDynamicTracking,
-    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
@@ -4299,9 +4328,8 @@ async function validateInstantConfigNavigation(
     hmrRefreshHash,
     // We don't need to track vary params during validation.
     varyParamsAccumulator: null,
+    boundaryState,
   }
-
-  const dynamicValidation = createDynamicValidationState()
 
   const clientReferenceManifest = getClientReferenceManifest()
 
@@ -4315,6 +4343,7 @@ async function validateInstantConfigNavigation(
           routeTree,
           navigationParent,
           extraChunksReleaseSignal,
+          boundaryState,
           clientReferenceManifest,
           stageEndTimes,
           useRuntimeStageForPartialSegments,
@@ -4370,10 +4399,20 @@ async function validateInstantConfigNavigation(
                       componentStack,
                       dynamicValidation,
                       clientDynamicTracking,
-                      dynamicHoleKind
+                      dynamicHoleKind,
+                      boundaryState
                     )
                   }
                   return
+                } else if (!clientReactController.signal.aborted) {
+                  const componentStack = errorInfo.componentStack
+                  if (typeof componentStack === 'string') {
+                    trackThrownErrorInNavigation(
+                      dynamicValidation,
+                      err,
+                      componentStack
+                    )
+                  }
                 }
 
                 if (isReactLargeShellError(err)) {
@@ -4408,19 +4447,23 @@ async function validateInstantConfigNavigation(
       )
 
     const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
+
     const reasons = getNavigationDisallowedDynamicReasons(
       workStore,
       preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
-      dynamicValidation
+      dynamicValidation,
+      boundaryState
     )
-    return { dynamicHoleKind, errors: reasons } as const
+
+    return { dynamicHoleKind, errors: reasons }
   } catch (thrownValue) {
     // Even if the root errors we still want to report any cache components errors
     // that were discovered before the root errored.
     let errors: Array<unknown> = getNavigationDisallowedDynamicReasons(
       workStore,
       PreludeState.Errored,
-      dynamicValidation
+      dynamicValidation,
+      boundaryState
     )
 
     if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
