@@ -193,7 +193,7 @@
         ],
         span: 11..35,
         in_try: false,
-        export_names: None,
+        export_usage: All,
     },
     Member {
         obj: Member(
@@ -681,7 +681,7 @@
         ],
         span: 47..198,
         in_try: false,
-        export_names: None,
+        export_usage: All,
     },
     Conditional {
         condition: Constant(
@@ -746,7 +746,7 @@
                         ],
                         span: 226..237,
                         in_try: false,
-                        export_names: None,
+                        export_usage: All,
                     },
                 ],
                 range: Exact(
@@ -829,7 +829,7 @@
                         ],
                         span: 254..265,
                         in_try: false,
-                        export_names: None,
+                        export_usage: All,
                     },
                 ],
                 range: Exact(
@@ -1265,7 +1265,7 @@
         ],
         span: 438..449,
         in_try: false,
-        export_names: None,
+        export_usage: All,
     },
     ImportedBinding {
         esm_reference_index: 4,

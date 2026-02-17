@@ -1213,7 +1213,7 @@
         ],
         span: 556..570,
         in_try: false,
-        export_names: Some(
+        export_usage: PartialNamespaceObject(
             [
                 "join",
             ],
