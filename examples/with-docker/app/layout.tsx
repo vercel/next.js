@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Next.js Docker Example - Standalone Mode",
   description:
-    "A production-ready example demonstrating how to Dockerize Next.js applications using standalone mode. Created by Kristiyan Velkov, Docker Captain.",
+    "A production-ready example demonstrating how to Dockerize Next.js applications using standalone mode.",
   keywords: [
     "Next.js",
     "Docker",
@@ -23,12 +23,6 @@ export const metadata: Metadata = {
     "containerization",
     "React",
     "Node.js",
-  ],
-  authors: [
-    {
-      name: "Kristiyan Velkov",
-      url: "https://www.linkedin.com/in/kristiyan-velkov-763130b3/",
-    },
   ],
   openGraph: {
     title: "Next.js Docker Example - Standalone Mode",

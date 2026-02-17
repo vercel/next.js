@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Next.js Docker Example - Standalone & Static Export",
   description:
-    "A production-ready example demonstrating how to Dockerize Next.js applications using standalone mode and static export. Created by Kristiyan Velkov, Docker Captain.",
+    "A production-ready example demonstrating how to Dockerize Next.js applications using standalone mode and static export.",
   keywords: [
     "Next.js",
     "Docker",
