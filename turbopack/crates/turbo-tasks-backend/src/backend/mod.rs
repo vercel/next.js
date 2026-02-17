@@ -1937,6 +1937,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> bool {
@@ -1994,6 +1995,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_id,
             result,
             cell_counters,
+            #[cfg(feature = "verify_determinism")]
+            stateful,
             has_invalidator,
         )
         else {
@@ -2068,6 +2071,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
     ) -> Option<TaskExecutionCompletePrepareResult> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -2131,6 +2135,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
+
+        // handle stateful (only tracked when verify_determinism is enabled)
+        #[cfg(feature = "verify_determinism")]
+        if stateful {
+            task.set_stateful(true);
+        }
 
         // handle has_invalidator
         if has_invalidator {
@@ -2575,7 +2585,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         // Update the dirty state
-        if old_dirtyness != new_dirtyness {
+        let dirty_changed = old_dirtyness != new_dirtyness;
+        if dirty_changed {
             if let Some(value) = new_dirtyness {
                 task.set_dirty(value);
             } else if old_dirtyness.is_some() {
@@ -3139,35 +3150,29 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         "Task {} {} doesn't report to any root but is reachable from one (uppers: \
                          {:?})",
                         task_id,
-                        ctx.get_task_description(task_id),
+                        task.get_task_description(),
                         uppers
                     );
                 }
 
-                let aggregated_collectibles: Vec<_> = task
-                    .iter_aggregated_collectibles()
-                    .map(|(collectible, _)| collectible)
-                    .collect();
-                for collectible in aggregated_collectibles {
+                for (collectible, _) in task.iter_aggregated_collectibles() {
                     collectibles
-                        .entry(collectible)
+                        .entry(*collectible)
                         .or_insert_with(|| (false, Vec::new()))
                         .1
                         .push(task_id);
                 }
 
-                let own_collectibles: Vec<_> = task
-                    .iter_collectibles_entries()
-                    .filter_map(|(&collectible, &value)| (value > 0).then_some(collectible))
-                    .collect::<Vec<_>>();
-                for collectible in own_collectibles {
-                    if let Some((flag, _)) = collectibles.get_mut(&collectible) {
-                        *flag = true
-                    } else {
-                        panic!(
-                            "Task {} has a collectible {:?} that is not in any upper task",
-                            task_id, collectible
-                        );
+                for (&collectible, &value) in task.iter_collectibles() {
+                    if value > 0 {
+                        if let Some((flag, _)) = collectibles.get_mut(&collectible) {
+                            *flag = true
+                        } else {
+                            panic!(
+                                "Task {} has a collectible {:?} that is not in any upper task",
+                                task_id, collectible
+                            );
+                        }
                     }
                 }
 
@@ -3195,22 +3200,25 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                 if should_be_in_upper {
                     for upper_id in uppers {
-                        let task = ctx.task(upper_id, TaskDataCategory::All);
-                        let in_upper = task
+                        let upper = ctx.task(upper_id, TaskDataCategory::All);
+                        let in_upper = upper
                             .get_aggregated_dirty_containers(&task_id)
                             .is_some_and(|&dirty| dirty > 0);
                         if !in_upper {
-                            let containers: Vec<_> = task
-                                .iter_aggregated_dirty_containers_entries()
+                            let containers: Vec<_> = upper
+                                .iter_aggregated_dirty_containers()
                                 .map(|(&k, &v)| (k, v))
                                 .collect();
+                            let upper_task_desc = upper.get_task_description();
+                            drop(upper);
                             panic!(
                                 "Task {} ({}) is dirty, but is not listed in the upper task {} \
                                  ({})\nThese dirty containers are present:\n{:#?}",
                                 task_id,
-                                ctx.get_task_description(task_id),
+                                ctx.task(task_id, TaskDataCategory::Data)
+                                    .get_task_description(),
                                 upper_id,
-                                ctx.get_task_description(upper_id),
+                                upper_task_desc,
                                 containers,
                             );
                         }
@@ -3229,7 +3237,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         collectible,
                         task_ids
                             .iter()
-                            .map(|t| format!("{t} {}", ctx.get_task_description(*t)))
+                            .map(|t| format!(
+                                "{t} {}",
+                                ctx.task(*t, TaskDataCategory::Data).get_task_description()
+                            ))
                             .collect::<Vec<_>>()
                     )
                     .unwrap();
@@ -3245,8 +3256,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         writeln!(stdout, "{task_id:?} -> {upper_id:?}").unwrap();
                     }
                     while let Some(task_id) = queue.pop() {
-                        let desc = ctx.get_task_description(task_id);
                         let task = ctx.task(task_id, TaskDataCategory::All);
+                        let desc = task.get_task_description();
                         let aggregated_collectible = task
                             .get_aggregated_collectibles(&collectible)
                             .copied()
@@ -3436,6 +3447,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool {
@@ -3443,6 +3455,8 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
             task_id,
             result,
             cell_counters,
+            #[cfg(feature = "verify_determinism")]
+            stateful,
             has_invalidator,
             turbo_tasks,
         )

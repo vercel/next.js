@@ -181,6 +181,12 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     prefetched: bool,
 
+    /// Whether this task has allocated a State (has interior mutability).
+    /// Only set when `verify_determinism`` feature is enabled.
+    /// Used to skip determinism checks for stateful tasks.
+    #[field(storage = "flag", category = "transient")]
+    stateful: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================

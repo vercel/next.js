@@ -13,7 +13,7 @@ use tracing::trace_span;
 use crate::{
     Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
     get_serialization_invalidator, manager::with_turbo_tasks, mark_session_dependent,
-    trace::TraceRawVcs,
+    mark_stateful, trace::TraceRawVcs,
 };
 
 #[derive(Encode, Decode)]
@@ -333,6 +333,7 @@ impl<T> Eq for TransientState<T> {}
 
 impl<T> TransientState<T> {
     pub fn new() -> Self {
+        mark_stateful();
         Self {
             inner: Mutex::new(StateInner::new(None)),
         }
