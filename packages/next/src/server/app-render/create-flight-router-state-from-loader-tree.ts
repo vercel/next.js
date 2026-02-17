@@ -30,7 +30,7 @@ function createFlightRouterStateFromLoaderTreeImpl(
 
   let childHasLoadingBoundary = false
   const children: FlightRouterState[1] = {}
-  Object.keys(parallelRoutes).forEach((parallelRouteKey) => {
+  for (const parallelRouteKey in parallelRoutes) {
     const child = createFlightRouterStateFromLoaderTreeImpl(
       parallelRoutes[parallelRouteKey],
       getDynamicParamFromSegment,
@@ -45,7 +45,7 @@ function createFlightRouterStateFromLoaderTreeImpl(
       childHasLoadingBoundary = true
     }
     children[parallelRouteKey] = child
-  })
+  }
   segmentTree[1] = children
 
   if (includeHasLoadingBoundary) {
