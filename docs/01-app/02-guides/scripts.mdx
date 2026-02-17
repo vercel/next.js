@@ -196,13 +196,15 @@ Although the `worker` strategy does not require any additional configuration to 
 If you would like to add additional configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/pages/building-your-application/routing/custom-document):
 
 ```jsx filename="_pages/document.jsx"
+import Script from 'next/script'
+
 import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
   return (
     <Html>
       <Head>
-        <script
+        <Script
           data-partytown-config
           dangerouslySetInnerHTML={{
             __html: `
@@ -355,7 +357,7 @@ Refer to the [`next/script`](/docs/pages/api-reference/components/script#onload)
 
 ### Additional Attributes
 
-There are many DOM attributes that can be assigned to a `<script>` element that are not used by the Script component, like [`nonce`](https://developer.mozilla.org/docs/Web/HTML/Global_attributes/nonce) or [custom data attributes](https://developer.mozilla.org/docs/Web/HTML/Global_attributes/data-*). Including any additional attributes will automatically forward it to the final, optimized `<script>` element that is included in the HTML.
+There are many DOM attributes that can be assigned to a `<script>` element that are not used by the `<Script>` component, like [`nonce`](https://developer.mozilla.org/docs/Web/HTML/Global_attributes/nonce) or [custom data attributes](https://developer.mozilla.org/docs/Web/HTML/Global_attributes/data-*). Including any additional attributes will automatically forward it to the final, optimized `<script>` element that is included in the HTML.
 
 <AppOnly>
 
