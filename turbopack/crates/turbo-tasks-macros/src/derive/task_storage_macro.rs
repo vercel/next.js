@@ -2025,7 +2025,6 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
         let update_positive_crossing_body = if field.is_transient() {
             quote! {
-                #track_modification
                 #mut_expr.update_positive_crossing(key, delta)
             }
         } else {
@@ -2102,6 +2101,37 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     let update_with_body = if field.is_transient() {
         quote! {
             #mut_expr.update_with(key, f)
+        }
+    } else if is_option {
+        let extractor = field.lazy_extractor_closure();
+        let constructor = field.lazy_constructor(quote! {new_map});
+        quote! {
+            let (position, old_value) = if let Some((index, map)) = self.typed().find_lazy_ref(#extractor) {
+                // This copy is very cheap
+                (Some(index), map.get(&key).copied())
+            } else {
+                (None, None)
+            };
+            let new_value = f(old_value);
+            if old_value != new_value {
+                #track_modification
+                match new_value {
+                    Some(value) => {
+                        if let Some(position) = position {
+                            self.typed_mut().lazy_at_mut(position, #extractor).insert(key, value);
+                        } else {
+                            let mut new_map = CounterMap::default();
+                            new_map.insert(key, value);
+                            self.typed_mut().lazy.push(#constructor);
+                        }
+                    }
+                    None => {
+                        // the position must be available, otherwise `f` would have mapped None to None and thus the != check above would have failed.
+                        self.typed_mut().lazy_at_mut(position.unwrap(), #extractor).remove(&key);
+
+                    }
+                }
+            }
         }
     } else {
         quote! {
