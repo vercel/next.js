@@ -1525,7 +1525,7 @@ async function getRSCPayload(
     workStore,
   } = ctx
 
-  const initialTree = createFlightRouterStateFromLoaderTree(
+  const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     getDynamicParamFromSegment,
     query
@@ -1689,7 +1689,7 @@ async function getErrorRSCPayload(
     createElement(Metadata, null)
   )
 
-  const initialTree = createFlightRouterStateFromLoaderTree(
+  const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     getDynamicParamFromSegment,
     query
@@ -1724,7 +1724,6 @@ async function getErrorRSCPayload(
     {},
     null,
     false,
-    0, // We don't currently support runtime prefetching for error pages.
     null, // varyParams - not tracked for error pages
   ]
 

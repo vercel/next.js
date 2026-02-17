@@ -6,6 +6,7 @@ import type {
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import {
   PAGE_SEGMENT_KEY,
   DEFAULT_SEGMENT_KEY,
@@ -315,7 +316,9 @@ function updateCacheNodeOnNavigation(
   // We're currently traversing the part of the tree that was also part of
   // the previous route. If we discover a root layout, then we don't need to
   // trigger an MPA navigation.
-  const childDidFindRootLayout = didFindRootLayout || newRouteTree.isRootLayout
+  const childDidFindRootLayout =
+    didFindRootLayout ||
+    (newRouteTree.prefetchHints & PrefetchHint.IsRootLayout) !== 0
 
   let shouldRefreshDynamicData: boolean = false
   switch (freshness) {
@@ -534,7 +537,7 @@ function updateCacheNodeOnNavigation(
       ? [refreshState.canonicalUrl, refreshState.renderedSearch]
       : null,
     null,
-    newRouteTree.isRootLayout,
+    newRouteTree.prefetchHints,
   ]
 
   return {
@@ -670,7 +673,7 @@ function createCacheNodeOnNavigation(
     patchedRouterStateChildren,
     null,
     null,
-    newRouteTree.isRootLayout,
+    newRouteTree.prefetchHints,
   ]
 
   return {

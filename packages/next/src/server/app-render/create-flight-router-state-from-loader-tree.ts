@@ -1,19 +1,19 @@
 import type { LoaderTree } from '../lib/app-dir-module'
 import {
-  HasLoadingBoundary,
+  PrefetchHint,
   type FlightRouterState,
 } from '../../shared/lib/app-router-types'
 import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
+import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
-function createFlightRouterStateFromLoaderTreeImpl(
+async function createFlightRouterStateFromLoaderTreeImpl(
   loaderTree: LoaderTree,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any,
-  includeHasLoadingBoundary: boolean,
   didFindRootLayout: boolean
-): FlightRouterState {
-  const [segment, parallelRoutes, { layout, loading }] = loaderTree
+): Promise<FlightRouterState> {
+  const [segment, parallelRoutes, { layout, loading, page }] = loaderTree
   const dynamicParam = getDynamicParamFromSegment(loaderTree)
   const treeSegment = dynamicParam ? dynamicParam.treeSegment : segment
 
@@ -22,83 +22,93 @@ function createFlightRouterStateFromLoaderTreeImpl(
     {},
   ]
 
+  // Load the layout or page module to check for unstable_instant config
+  const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
+  const instantConfig = mod
+    ? (mod as AppSegmentConfig).unstable_instant
+    : undefined
+  let prefetchHints = 0
+
   // Mark the first segment that has a layout as the "root" layout
   if (!didFindRootLayout && typeof layout !== 'undefined') {
     didFindRootLayout = true
-    segmentTree[4] = true
+    prefetchHints |= PrefetchHint.IsRootLayout
   }
 
-  let childHasLoadingBoundary = false
+  if (instantConfig && typeof instantConfig === 'object') {
+    prefetchHints |= PrefetchHint.SubtreeHasInstant
+    if (instantConfig.prefetch === 'runtime') {
+      prefetchHints |= PrefetchHint.HasRuntimePrefetch
+    }
+  }
+
+  // Check if this segment has a loading boundary
+  if (loading) {
+    prefetchHints |= PrefetchHint.SegmentHasLoadingBoundary
+  }
+
   const children: FlightRouterState[1] = {}
   for (const parallelRouteKey in parallelRoutes) {
-    const child = createFlightRouterStateFromLoaderTreeImpl(
+    const child = await createFlightRouterStateFromLoaderTreeImpl(
       parallelRoutes[parallelRouteKey],
       getDynamicParamFromSegment,
       searchParams,
-      includeHasLoadingBoundary,
       didFindRootLayout
     )
-    if (
-      includeHasLoadingBoundary &&
-      child[5] !== HasLoadingBoundary.SubtreeHasNoLoadingBoundary
-    ) {
-      childHasLoadingBoundary = true
+    // Propagate subtree flags from children
+    if (child[4] !== undefined) {
+      prefetchHints |=
+        child[4] &
+        (PrefetchHint.SubtreeHasInstant |
+          PrefetchHint.SubtreeHasLoadingBoundary)
+      // If a child has a loading boundary (either directly or in its subtree),
+      // propagate that as SubtreeHasLoadingBoundary to this segment.
+      if (
+        child[4] &
+        (PrefetchHint.SegmentHasLoadingBoundary |
+          PrefetchHint.SubtreeHasLoadingBoundary)
+      ) {
+        prefetchHints |= PrefetchHint.SubtreeHasLoadingBoundary
+      }
     }
     children[parallelRouteKey] = child
   }
   segmentTree[1] = children
 
-  if (includeHasLoadingBoundary) {
-    // During a route tree prefetch, the FlightRouterState includes whether a
-    // tree has a loading boundary. The client uses this to determine if it can
-    // skip the data prefetch request — if `hasLoadingBoundary` is `false`, the
-    // data prefetch response will be empty, so there's no reason to request it.
-    // NOTE: It would be better to accumulate this while building the loader
-    // tree so we don't have to keep re-deriving it, but since this won't be
-    // once PPR is enabled everywhere, it's not that important.
-    segmentTree[5] = loading
-      ? HasLoadingBoundary.SegmentHasLoadingBoundary
-      : childHasLoadingBoundary
-        ? HasLoadingBoundary.SubtreeHasLoadingBoundary
-        : HasLoadingBoundary.SubtreeHasNoLoadingBoundary
+  if (prefetchHints !== 0) {
+    segmentTree[4] = prefetchHints
   }
 
   return segmentTree
 }
 
-export function createFlightRouterStateFromLoaderTree(
+export async function createFlightRouterStateFromLoaderTree(
   loaderTree: LoaderTree,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any
-) {
-  const includeHasLoadingBoundary = false
+): Promise<FlightRouterState> {
   const didFindRootLayout = false
   return createFlightRouterStateFromLoaderTreeImpl(
     loaderTree,
     getDynamicParamFromSegment,
     searchParams,
-    includeHasLoadingBoundary,
     didFindRootLayout
   )
 }
 
-export function createRouteTreePrefetch(
+export async function createRouteTreePrefetch(
   loaderTree: LoaderTree,
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-): FlightRouterState {
+): Promise<FlightRouterState> {
   // Search params should not be added to page segment's cache key during a
   // route tree prefetch request, because they do not affect the structure of
   // the route. The client cache has its own logic to handle search params.
   const searchParams = {}
-  // During a route tree prefetch, we include `hasLoadingBoundary` in
-  // the response.
-  const includeHasLoadingBoundary = true
   const didFindRootLayout = false
   return createFlightRouterStateFromLoaderTreeImpl(
     loaderTree,
     getDynamicParamFromSegment,
     searchParams,
-    includeHasLoadingBoundary,
     didFindRootLayout
   )
 }

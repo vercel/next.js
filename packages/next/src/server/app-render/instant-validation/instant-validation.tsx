@@ -1053,23 +1053,14 @@ function deserializeFromChunks<T>(
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
-  prefetchHints: number
   varyParams: VaryParamsThenable | null
 }
 
 function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
-  const [
-    node,
-    _parallelRoutesData,
-    _unused,
-    isPartial,
-    prefetchHints,
-    varyParams,
-  ] = seedData
+  const [node, _parallelRoutesData, _unused, isPartial, varyParams] = seedData
   return {
     node,
     isPartial,
-    prefetchHints,
     varyParams,
   }
 }
@@ -1084,7 +1075,6 @@ function getCacheNodeSeedDataFromSegment(
     slots,
     /* unused (previously `loading`) */ null,
     data.isPartial,
-    data.prefetchHints,
     data.varyParams,
   ]
 }

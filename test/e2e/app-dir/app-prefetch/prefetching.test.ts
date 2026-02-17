@@ -212,7 +212,7 @@ describe('app dir - prefetching', () => {
             'prefetch-auto',
             {
               children: [
-                ['slug', 'justputit', 'd'],
+                ['slug', 'justputit', 'd', null],
                 { children: ['__PAGE__', {}] },
               ],
             },
@@ -220,7 +220,7 @@ describe('app dir - prefetching', () => {
         },
         null,
         null,
-        true,
+        16, // PrefetchHint.IsRootLayout
       ])
     )
     const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
@@ -255,7 +255,7 @@ describe('app dir - prefetching', () => {
         },
         null,
         null,
-        true,
+        16, // PrefetchHint.IsRootLayout
       ])
     )
 

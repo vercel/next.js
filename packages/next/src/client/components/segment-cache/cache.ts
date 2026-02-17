@@ -11,7 +11,6 @@ import {
   readVaryParams,
   type VaryParams,
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
-import { HasLoadingBoundary } from '../../../shared/lib/app-router-types'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
@@ -145,20 +144,9 @@ type RouteTreeShared = {
   slots: null | {
     [parallelRouteKey: string]: RouteTree
   }
-  isRootLayout: boolean
-
-  // If this is a dynamic route, indicates whether there is a loading boundary
-  // somewhere in the tree. If not, we can skip the prefetch for the data,
-  // because we know it would be an empty response. (For a static/PPR route,
-  // this value is disregarded, because in that model `loading.tsx` is treated
-  // like any other Suspense boundary.)
-  hasLoadingBoundary: HasLoadingBoundary
-
-  // Bitmask of PrefetchHint flags. Indicates whether this segment has a
-  // runtime prefetch, and whether the subtree contains any instant configs.
-  // Determined by the server; not purely a user configuration because the
-  // server may determine that a route is fully static and doesn't need
-  // runtime prefetching regardless of the configuration.
+  // Bitmask of PrefetchHint flags. Encodes route structure metadata:
+  // root layout, loading boundaries, instant configs, and runtime prefetch
+  // hints.
   prefetchHints: number
 }
 
@@ -721,8 +709,7 @@ function deprecated_createOptimisticRouteTree(
       ),
       isPage: true,
       slots: clonedSlots,
-      isRootLayout: tree.isRootLayout,
-      hasLoadingBoundary: tree.hasLoadingBoundary,
+
       prefetchHints: tree.prefetchHints,
     }
   }
@@ -734,8 +721,6 @@ function deprecated_createOptimisticRouteTree(
     varyPath: tree.varyPath,
     isPage: false,
     slots: clonedSlots,
-    isRootLayout: tree.isRootLayout,
-    hasLoadingBoundary: tree.hasLoadingBoundary,
     prefetchHints: tree.prefetchHints,
   }
 }
@@ -1017,8 +1002,6 @@ export function createMetadataRouteTree(
     // one. If this logic ever gets more complex we can change this to an enum.
     isPage: true,
     slots: null,
-    isRootLayout: false,
-    hasLoadingBoundary: HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
     prefetchHints: 0,
   }
   return metadata
@@ -1318,10 +1301,6 @@ function convertTreePrefetchToRouteTree(
     varyPath: varyPath as any,
     isPage: isPage as boolean as any,
     slots,
-    isRootLayout: prefetch.isRootLayout,
-    // This field is only relevant to dynamic routes. For a PPR/static route,
-    // there's always some partial loading state we can fetch.
-    hasLoadingBoundary: HasLoadingBoundary.SegmentHasLoadingBoundary,
     prefetchHints: prefetch.prefetchHints,
   }
 }
@@ -1501,15 +1480,7 @@ function convertFlightRouterStateToRouteTree(
     varyPath: varyPath as any,
     isPage: isPage as boolean as any,
     slots,
-    isRootLayout: flightRouterState[4] === true,
-    hasLoadingBoundary:
-      flightRouterState[5] !== undefined
-        ? flightRouterState[5]
-        : HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
-
-    // Non-static tree responses are only used by apps that haven't adopted
-    // Cache Components. So this is always 0.
-    prefetchHints: 0,
+    prefetchHints: flightRouterState[4] ?? 0,
   }
 }
 
@@ -1529,7 +1500,6 @@ export function convertRouteTreeToFlightRouterState(
     parallelRoutes,
     null,
     null,
-    routeTree.isRootLayout,
   ]
   return flightRouterState
 }
@@ -2349,7 +2319,7 @@ function writeSeedDataIntoCache(
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
   const isPartial = rsc === null || isResponsePartial
-  const varyParamsThenable = seedData[5]
+  const varyParamsThenable = seedData[4]
   // Each segment carries its own vary params thenable in the seed data. The
   // thenable resolves to the set of params the segment accessed during render.
   // A null thenable means tracking was not enabled (not a prerender).

@@ -75,7 +75,7 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
       ])
     )
   ),
-  s.optional(s.boolean()),
+  s.optional(s.number()),
 ])
 
 export type ServerOnInstrumentationRequestError = (

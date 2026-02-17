@@ -1,4 +1,5 @@
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import type { RouteTree } from '../segment-cache/cache'
 
 export function isNavigatingToNewRootLayout(
@@ -26,12 +27,16 @@ export function isNavigatingToNewRootLayout(
   }
 
   // Current tree root layout found
-  if (currentTree[4]) {
+  const currentIsRootLayout =
+    ((currentTree[4] ?? 0) & PrefetchHint.IsRootLayout) !== 0
+  const nextIsRootLayout =
+    (nextTree.prefetchHints & PrefetchHint.IsRootLayout) !== 0
+  if (currentIsRootLayout) {
     // If the next tree doesn't have the root layout flag, it must have changed.
-    return !nextTree.isRootLayout
+    return !nextIsRootLayout
   }
   // Current tree didn't have its root layout here, must have changed.
-  if (nextTree.isRootLayout) {
+  if (nextIsRootLayout) {
     return true
   }
 
