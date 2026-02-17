@@ -1476,8 +1476,8 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                     #check_access
                     let current = self.typed().flags.#field_name();
                     if current != value {
-                        self.typed_mut().flags.#set_name(value);
                         #track_modification
+                        self.typed_mut().flags.#set_name(value);
                     }
                 }
             }
@@ -1592,15 +1592,11 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         }
 
         #[doc = "Take the field value, clearing it"]
-        #[doc = ""]
-        #[doc = "Only tracks modification if there was a value to take."]
         fn #take_name(&mut self) -> Option<#value_type> {
             #check_access
-            let value = #take_expr;
-            if value.is_some() {
-                #track_modification
-            }
-            value
+            // Track before mutation to ensure snapshot captures pre-mutation state
+            #track_modification
+            #take_expr
         }
 
         #get_mut_accessor
@@ -1665,27 +1661,20 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     };
 
     // Remove uses find_lazy_mut for lazy to avoid allocation.
+    // Track modification before mutating to ensure snapshot captures pre-mutation state.
     let remove_body = if is_option {
         let extractor = field.lazy_extractor_closure();
 
         quote! {
-            let Some(set) = self.typed_mut().find_lazy_mut(#extractor) else {
-                return false;
-            };
-            let removed = set.remove(item);
-            if removed {
-                #track_modification
-            }
-            return removed;
-
+            // Track before mutation to ensure snapshot captures pre-mutation state
+            #track_modification
+            self.typed_mut().find_lazy_mut(#extractor).is_some_and(|set| set.remove(item))
         }
     } else {
         quote! {
-            let removed = #mut_expr.remove(item);
-            if removed {
-                #track_modification
-            }
-            removed
+            // Track before mutation to ensure snapshot captures pre-mutation state
+            #track_modification
+            #mut_expr.remove(item)
         }
     };
 
@@ -1713,30 +1702,23 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 
         #[doc = "Add an item to the set."]
         #[doc = "Returns true if the item was newly added, false if it already existed."]
+        #[doc = "Only tracks modification if the item is actually added."]
         #[must_use]
         fn #add_name(&mut self, item: #element_type) -> bool {
             #check_access
-            let added = #mut_expr.insert(item);
-            if added {
-                #track_modification
-            }
-            added
+            // Track before mutation to ensure snapshot captures pre-mutation state
+            #track_modification
+            #mut_expr.insert(item)
         }
 
         #[doc = "Add multiple items to the set from an iterator."]
-        #[doc = "Only tracks modification if at least one item is actually added."]
         fn #extend_name(&mut self, items: impl IntoIterator<Item = #element_type>) {
             #check_access
-            let set = #mut_expr;
-            let mut any_added = false;
-            for item in items {
-                if set.insert(item) {
-                    any_added = true;
-                }
-            }
-            if any_added {
-                #track_modification
-            }
+            // Track before mutation to ensure snapshot captures pre-mutation state
+            // We can't easily check if any items will be new without iterating twice,
+            // so we track conservatively
+            #track_modification
+            #mut_expr.extend(items);
         }
 
         #[doc = "Remove an item from the set."]
@@ -1844,25 +1826,17 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     // Generate remove body - for lazy fields, we need to check if the map exists first
     // without allocating it. For inline fields, we can use the mut_expr directly.
+    // Track modification before mutating to ensure snapshot captures pre-mutation state.
     let remove_body = if is_option {
-        // Lazy: use find_lazy_mut to avoid allocating, only track modification if something was
         let extractor = field.lazy_extractor_closure();
         quote! {
-            let map = self.typed_mut().find_lazy_mut(#extractor)?;
-            let result = map.remove(key);
-            if result.is_some() {
-                #track_modification
-            }
-            result
+            #track_modification
+            self.typed_mut().find_lazy_mut(#extractor).map(|map| map.remove(key)).flatten()
         }
     } else {
-        // Inline: direct access, only track modification if something was removed
         quote! {
-            let result = #mut_expr.remove(key);
-            if result.is_some() {
-                #track_modification
-            }
-            result
+            #track_modification
+            #mut_expr.remove(key)
         }
     };
 
@@ -2055,28 +2029,23 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 
     let take_expression = {
         let take_name = field.take_ident();
-        quote! {self.typed_mut().#take_name();}
+        quote! {self.typed_mut().#take_name()}
     };
 
     // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
-    // Using ? operator to early-return None if map doesn't exist.
+    // Track modification before mutating to ensure snapshot captures pre-mutation state.
     let remove_body = if is_option {
         let extractor = field.lazy_extractor_closure();
         quote! {
-            let map = self.typed_mut().find_lazy_mut(#extractor)?;
-            let result = map.remove(key);
-            if result.is_some() {
-                #track_modification
-            }
-            result
+            // Track before mutation to ensure snapshot captures pre-mutation state
+            #track_modification
+            self.typed_mut().find_lazy_mut(#extractor).map(|map| map.remove(key)).flatten()
         }
     } else {
         quote! {
-            let result = #mut_expr.remove(key);
-            if result.is_some() {
-                #track_modification
-            }
-            result
+            // Track before mutation to ensure snapshot captures pre-mutation state
+            #track_modification
+            #mut_expr.remove(key)
         }
     };
 
@@ -2110,14 +2079,11 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 
 
         #[doc = "Remove the full map and return it"]
-        #[doc = "Only tracks modification if an entry was actually removed."]
         fn #take_name(&mut self) -> Option<#field_type> {
             #check_access
-            let value = #take_expression;
-            if value.is_some() {
-                #track_modification
-            }
-            value
+            // Track before mutation to ensure snapshot captures pre-mutation state
+            #track_modification
+            #take_expression
         }
 
         #[doc = "Iterate over all key-value pairs in the map"]
