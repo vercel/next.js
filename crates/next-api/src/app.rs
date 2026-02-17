@@ -43,6 +43,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack::{
     ModuleAssetContext,
     module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
@@ -74,6 +75,7 @@ use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOut
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
+    asset_hashes_manifest::AssetHashesManifestAsset,
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
@@ -2037,6 +2039,23 @@ impl Endpoint for AppEndpoint {
                     algorithm,
                 );
                 output_assets.concat_asset(sri_manifest)
+            } else {
+                output_assets
+            };
+            let output_assets: Vc<OutputAssets> = if *project.emit_client_hashes().await? {
+                let hashes_manifest = Vc::upcast(AssetHashesManifestAsset::new(
+                    node_root.join(&format!(
+                        "server/app{}/client-hashes.json",
+                        &self.app_endpoint_entry().await?.original_name
+                    ))?,
+                    all_asset_paths(
+                        output_assets,
+                        client_relative_root.clone(),
+                        Some(HashAlgorithm::default()),
+                    ),
+                    None,
+                ));
+                output_assets.concat_asset(hashes_manifest)
             } else {
                 output_assets
             };

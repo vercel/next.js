@@ -36,6 +36,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack::{
     ModuleAssetContext,
     module_options::ModuleOptionsContext,
@@ -67,6 +68,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::{ecmascript::esm_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
+    asset_hashes_manifest::AssetHashesManifestAsset,
     dynamic_imports::{
         DynamicImportedChunks, NextDynamicChunkAvailability, collect_next_dynamic_chunks,
     },
@@ -1622,6 +1624,23 @@ impl Endpoint for PageEndpoint {
                     algorithm,
                 );
                 output_assets.concat_asset(sri_manifest)
+            } else {
+                output_assets
+            };
+            let output_assets: Vc<OutputAssets> = if *project.emit_client_hashes().await? {
+                let hashes_manifest = Vc::upcast(AssetHashesManifestAsset::new(
+                    node_root.join(&format!(
+                        "server/pages{}/client-hashes.json",
+                        get_asset_prefix_from_pathname(&this.pathname)
+                    ))?,
+                    all_asset_paths(
+                        output_assets,
+                        client_relative_root.clone(),
+                        Some(HashAlgorithm::default()),
+                    ),
+                    None,
+                ));
+                output_assets.concat_asset(hashes_manifest)
             } else {
                 output_assets
             };
