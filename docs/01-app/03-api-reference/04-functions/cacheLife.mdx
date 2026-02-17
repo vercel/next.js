@@ -93,6 +93,8 @@ Cache profiles control caching behavior through three timing properties:
 
 During this time, the client-side router displays cached content immediately without any network request. After this period expires, the router must check with the server on the next navigation or request. This provides instant page loads from the client cache, but data may be outdated.
 
+- If omitted, defaults to the `default` profile's `stale` value (5 minutes, see [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes))
+
 ```tsx
 cacheLife({ stale: 300 }) // 5 minutes
 ```
@@ -106,6 +108,7 @@ How often the server regenerates cached content in the background.
   2. Regenerates content in the background
   3. Updates the cache with fresh content
 - Similar to [Incremental Static Regeneration (ISR)](/docs/app/guides/incremental-static-regeneration)
+- If omitted, defaults to the `default` profile's `revalidate` value (15 minutes)
 
 ```tsx
 cacheLife({ revalidate: 900 }) // 15 minutes
@@ -117,6 +120,7 @@ Maximum time before the server must regenerate cached content.
 
 - After this period with no traffic, the server regenerates content synchronously on the next request
 - When you set both `revalidate` and `expire`, `expire` must be longer than `revalidate`. Next.js validates this and raises an error for invalid configurations.
+- If omitted, defaults to the `default` profile's `expire` value (never expires)
 
 ```tsx
 cacheLife({ expire: 3600 }) // 1 hour
@@ -128,7 +132,7 @@ If you don't specify a profile, Next.js uses the `default` profile. We recommend
 
 | **Profile** | **Use Case**                           | `stale`    | `revalidate` | `expire` |
 | ----------- | -------------------------------------- | ---------- | ------------ | -------- |
-| `default`   | Standard content                       | 5 minutes  | 15 minutes   | 1 year   |
+| `default`   | Standard content                       | 5 minutes  | 15 minutes   | never    |
 | `seconds`   | Real-time data                         | 30 seconds | 1 second     | 1 minute |
 | `minutes`   | Frequently updated content             | 5 minutes  | 1 minute     | 1 hour   |
 | `hours`     | Content updated multiple times per day | 5 minutes  | 1 hour       | 1 day    |
@@ -173,6 +177,8 @@ module.exports = nextConfig
 ```
 
 The example above caches for 14 days, checks for updates daily, and expires the cache after 14 days. You can then reference this profile throughout your application by its name:
+
+> **Good to know**: Any omitted properties in a custom profile inherit from the `default` profile. This also applies to inline profile objects passed directly to `cacheLife()`.
 
 ```tsx filename="app/page.tsx" highlight={5}
 'use cache'
@@ -552,7 +558,7 @@ This pattern is useful when different outcomes need different cache durations, f
 
 If you want to calculate cache lifetime at runtime, for example by reading it from the fetched data, use an [inline cache profile](#inline-cache-profiles) object:
 
-```tsx filename="lib/posts.ts" highlight={15,16,17}
+```tsx filename="lib/posts.ts" highlight={15,16,17,18}
 import { cacheLife, cacheTag } from 'next/cache'
 
 async function getPostContent(slug: string) {
@@ -569,6 +575,7 @@ async function getPostContent(slug: string) {
   // Use cache timing from CMS data directly as an object
   cacheLife({
     // Ensure post.revalidateSeconds is a number in seconds
+    // stale and expire inherit from 'default' profile
     revalidate: post.revalidateSeconds ?? 3600,
   })
 

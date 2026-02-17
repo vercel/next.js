@@ -157,6 +157,7 @@ export function getDefineEnv({
       dev || config.experimental.allowDevelopmentBuild
         ? 'development'
         : 'production',
+    'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer

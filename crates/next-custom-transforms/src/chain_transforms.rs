@@ -161,21 +161,17 @@ where
 
         fn_pass(move |program| {
             if let Some(config) = opts.styled_jsx.to_option() {
-                let target_browsers = opts
-                    .css_env
-                    .as_ref()
-                    .map(|env| {
-                        targets_to_versions(env.targets.clone(), None)
-                            .expect("failed to parse env.targets")
-                    })
-                    .unwrap_or_default();
+                let target_browsers = opts.css_env.as_ref().map(|env| {
+                    targets_to_versions(env.targets.clone(), None)
+                        .expect("failed to parse env.targets")
+                });
 
                 program.mutate(styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     &file.name,
                     &styled_jsx::visitor::Config {
                         use_lightningcss: config.use_lightningcss,
-                        browsers: *target_browsers,
+                        browsers: *target_browsers.map(|t| t.versions).unwrap_or_default(),
                     },
                     &styled_jsx::visitor::NativeConfig { process_css: None },
                 ))

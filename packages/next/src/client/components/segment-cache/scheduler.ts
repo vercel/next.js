@@ -3,7 +3,10 @@ import type {
   Segment as FlightRouterStateSegment,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import { HasLoadingBoundary } from '../../../shared/lib/app-router-types'
+import {
+  HasLoadingBoundary,
+  PrefetchHint,
+} from '../../../shared/lib/app-router-types'
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
@@ -710,12 +713,28 @@ function pingRootRouteTree(
       // If it turned out that the route isn't PPR-enabled, we need to use `LoadingBoundary` instead.
       // We don't need to do this for runtime prefetches, because those are only available in
       // `cacheComponents`, where every route is PPR.
-      const fetchStrategy =
-        task.fetchStrategy === FetchStrategy.PPR
-          ? route.isPPREnabled
-            ? FetchStrategy.PPR
-            : FetchStrategy.LoadingBoundary
-          : task.fetchStrategy
+      let fetchStrategy: FetchStrategy
+      if (tree.prefetchHints & PrefetchHint.SubtreeHasInstant) {
+        // If `instant` is defined anywhere on the target route, ignore the
+        // fetch strategy and switch to unified strategy used by Cache
+        // Components (called `PPR` for now, will likely be renamed).
+        //
+        // In practice, this just means that a "full" prefetch (<Link
+        // prefetch={true}>) has no effect. You're meant to use Runtime
+        // Prefetching instead — that's the new pattern that replaces
+        // prefetch={true}.
+        //
+        // The reason we check for `instant` rather than the `cacheComponents`
+        // flag is to support incremental adoption. `prefetch={true}` will
+        // continue to work until you opt into `instant`.
+        fetchStrategy = FetchStrategy.PPR
+      } else if (task.fetchStrategy === FetchStrategy.PPR) {
+        fetchStrategy = route.isPPREnabled
+          ? FetchStrategy.PPR
+          : FetchStrategy.LoadingBoundary
+      } else {
+        fetchStrategy = task.fetchStrategy
+      }
 
       switch (fetchStrategy) {
         case FetchStrategy.PPR: {
@@ -962,7 +981,7 @@ function pingNewPartOfCacheComponentsTree(
   // shared layouts.) Segments in here default to being prefetched statically.
   // However, if the server instructs us to, we may switch to a runtime
   // prefetch instead. Traverse the tree and check at each segment.
-  if (tree.hasRuntimePrefetch) {
+  if (tree.prefetchHints & PrefetchHint.HasRuntimePrefetch) {
     // This route has a runtime prefetch response. Since we're below the shared
     // layout, everything from this point should be prefetched using a single,
     // combined runtime request, rather than using per-segment static requests.

@@ -762,7 +762,6 @@ export async function handler(
               routerServerContext
             ),
           err: getRequestMeta(req, 'invokeError'),
-          dev: routeModule.isDev,
         },
       }
 

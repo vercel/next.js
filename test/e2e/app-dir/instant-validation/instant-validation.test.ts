@@ -267,9 +267,50 @@ describe.each([
        }
       `)
     })
+
     it('valid - runtime prefetch - does not require Suspense around params', async () => {
       const browser = await navigateTo(
-        '/suspense-in-root/runtime/no-suspense-around-params/123'
+        '/suspense-in-root/runtime/valid-no-suspense-around-params/123'
+      )
+      await waitForNoErrorToast(browser)
+    })
+
+    it('invalid - static prefetch - missing suspense around search params', async () => {
+      const browser = await navigateTo(
+        '/suspense-in-root/static/missing-suspense-around-search-params?foo=bar'
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "Runtime data was accessed outside of <Suspense>
+
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+
+       To fix this:
+
+       Provide a fallback UI using <Suspense> around this component.
+
+       or
+
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "environmentLabel": "Server",
+         "label": "Blocking Route",
+         "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (4:18) @ Page
+       > 4 |   const search = await searchParams
+           |                  ^",
+         "stack": [
+           "Page app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (4:18)",
+         ],
+       }
+      `)
+    })
+
+    it('valid - runtime prefetch - does not require Suspense around search params', async () => {
+      const browser = await navigateTo(
+        '/suspense-in-root/runtime/valid-no-suspense-around-search-params?foo=bar'
       )
       await waitForNoErrorToast(browser)
     })

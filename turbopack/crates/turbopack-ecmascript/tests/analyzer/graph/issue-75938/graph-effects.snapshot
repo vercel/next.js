@@ -73,6 +73,9 @@
                     module: "react",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -578,6 +581,9 @@
                     module: "https://esm.sh/preact/jsx-runtime",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -954,6 +960,9 @@
                                         module: "./external",
                                         annotations: ImportAnnotations {
                                             map: {},
+                                            turbopack_loader: None,
+                                            turbopack_rename_as: None,
+                                            turbopack_module_type: None,
                                         },
                                     },
                                 ),
@@ -1077,6 +1086,9 @@
                                                     module: "./external",
                                                     annotations: ImportAnnotations {
                                                         map: {},
+                                                        turbopack_loader: None,
+                                                        turbopack_rename_as: None,
+                                                        turbopack_module_type: None,
                                                     },
                                                 },
                                             ),

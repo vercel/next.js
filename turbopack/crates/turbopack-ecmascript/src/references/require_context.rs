@@ -14,7 +14,7 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_esregex::EsRegex;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -227,7 +227,8 @@ impl RequireContextMap {
 /// A reference for `require.context()`, will replace it with an inlined map
 /// wrapped in `__turbopack_module_context__`;
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("require.context {}/{}", self.dir, {if self.include_subdirs { "**" } else { "*" }})]
 pub struct RequireContextAssetReference {
     pub inner: ResolvedVc<RequireContextAsset>,
     pub dir: RcStr,
@@ -293,21 +294,6 @@ impl ModuleReference for RequireContextAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for RequireContextAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(
-            format!(
-                "require.context {}/{}",
-                self.dir,
-                if self.include_subdirs { "**" } else { "*" },
-            )
-            .into(),
-        )
-    }
-}
-
 impl IntoCodeGenReference for RequireContextAssetReference {
     fn into_code_gen_reference(
         self,
@@ -366,6 +352,8 @@ impl RequireContextAssetReferenceCodeGen {
 }
 
 #[turbo_tasks::value(transparent)]
+#[derive(ValueToString)]
+#[value_to_string("resolved reference")]
 pub struct ResolvedModuleReference(ResolvedVc<ModuleResolveResult>);
 
 #[turbo_tasks::value_impl]
@@ -381,14 +369,6 @@ impl ModuleReference for ResolvedModuleReference {
             inherit_async: false,
             hoisted: false,
         }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ResolvedModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("resolved reference"))
     }
 }
 
