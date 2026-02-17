@@ -13,6 +13,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -21,6 +22,7 @@ import type { NextConfig } from 'next'
 
 type SetupTestsCtx = {
   appDir: string
+  cacheMaxDiskSize?: number
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
   isDev?: boolean
@@ -120,6 +122,22 @@ export async function expectWidth(res, w, { expectAnimated = false } = {}) {
 export const cleanImagesDir = async (imagesDir) => {
   console.warn('Cleaning', imagesDir)
   await fs.remove(imagesDir)
+}
+
+async function getDirSize(dir: string): Promise<number> {
+  let totalSize = 0
+  const entries = await fs.readdir(dir).catch(() => [] as string[])
+  for (const entry of entries) {
+    const entryPath = join(dir, entry)
+    const stat = await fs.stat(entryPath).catch(() => null)
+    if (!stat) continue
+    if (stat.isDirectory()) {
+      totalSize += await getDirSize(entryPath)
+    } else {
+      totalSize += stat.size
+    }
+  }
+  return totalSize
 }
 
 async function expectAvifSmallerThanWebp(
@@ -1597,6 +1615,78 @@ export function runTests(ctx: RunTestsCtx) {
       expect(xCache).toEqual(['MISS', 'MISS', 'MISS'])
     })
   }
+
+  if (ctx.cacheMaxDiskSize) {
+    const opts = { headers: { accept: 'image/webp' } }
+    const requests = [
+      { url: '/test.png', w: largeSize },
+      { url: '/test.jpg', w: largeSize },
+      { url: '/test.gif', w: largeSize },
+      { url: '/test.bmp', w: largeSize },
+      { url: '/test.webp', w: largeSize },
+      { url: '/test.avif', w: largeSize },
+      { url: '/test.tiff', w: largeSize },
+      { url: '/test.ico', w: largeSize },
+      { url: '/animated.gif', w: largeSize },
+      { url: '/animated.png', w: largeSize },
+      { url: '/animated2.png', w: largeSize },
+    ]
+    if (ctx.cacheMaxDiskSize === 0) {
+      it('should not write to disk when cacheMaxDiskSize is 0', async () => {
+        await cleanImagesDir(imagesDir)
+        for (const { url, w } of requests) {
+          const query = { url, w, q: ctx.q }
+          const res = await fetchViaHTTP(
+            ctx.appPort,
+            '/_next/image',
+            query,
+            opts
+          )
+          expect(res.status).toBe(200)
+        }
+        expect(await getDirSize(imagesDir)).toBe(0)
+        expect(await fsToJson(ctx.imagesDir)).toEqual({})
+      })
+    } else {
+      it('should limit disk writes to match cacheMaxDiskSize bytes (lru)', async () => {
+        await cleanImagesDir(imagesDir)
+        const json1 = await fsToJson(ctx.imagesDir)
+        expect(Object.keys(json1).length).toEqual(0)
+        for (const { url, w } of requests) {
+          const res = await fetchViaHTTP(
+            ctx.appPort,
+            '/_next/image',
+            { url, w, q: ctx.q },
+            opts
+          )
+          expect(res.status).toBe(200)
+          await retry(async () => {
+            const size = await getDirSize(imagesDir)
+            expect(size).toBeLessThanOrEqual(ctx.cacheMaxDiskSize)
+          })
+        }
+
+        const json2 = await fsToJson(ctx.imagesDir)
+        expect(Object.keys(json2).length).toBeGreaterThan(0)
+
+        const res = await fetchViaHTTP(
+          ctx.appPort,
+          '/_next/image',
+          { url: '/mountains.jpg', w: ctx.w, q: ctx.q },
+          opts
+        )
+        expect(res.status).toBe(200)
+
+        await retry(async () => {
+          const json3 = await fsToJson(ctx.imagesDir)
+          expect(Object.keys(json3).length).toBeGreaterThan(0)
+          expect(json3).not.toStrictEqual(json2)
+          const size = await getDirSize(imagesDir)
+          expect(size).toBeLessThanOrEqual(ctx.cacheMaxDiskSize)
+        })
+      })
+    }
+  }
 }
 
 export const setupTests = (ctx: SetupTestsCtx) => {
@@ -1631,6 +1721,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         // See https://github.com/vercel/next.js/pull/60972
         outputFileTracingRoot: join(__dirname, '../../../..'),
         experimental: curCtx.nextConfigExperimental,
+        cacheMaxDiskSize: ctx.cacheMaxDiskSize,
       } satisfies NextConfig)
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
@@ -1685,6 +1776,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         outputFileTracingRoot: join(__dirname, '../../../..'),
         images: curCtx.nextConfigImages,
         experimental: curCtx.nextConfigExperimental,
+        cacheMaxDiskSize: ctx.cacheMaxDiskSize,
       } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -1727,6 +1819,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         // See https://github.com/vercel/next.js/pull/60972
         outputFileTracingRoot: join(__dirname, '../../../..'),
         experimental: curCtx.nextConfigExperimental,
+        cacheMaxDiskSize: curCtx.cacheMaxDiskSize,
       } satisfies NextConfig)
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
@@ -1781,6 +1874,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         outputFileTracingRoot: join(__dirname, '../../../..'),
         images: curCtx.nextConfigImages,
         experimental: curCtx.nextConfigExperimental,
+        cacheMaxDiskSize: curCtx.cacheMaxDiskSize,
       } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
