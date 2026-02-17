@@ -41,6 +41,7 @@ The following options are available:
 | `--eslint`                              | Initialize with ESLint config                                         |
 | `--biome`                               | Initialize with Biome config                                          |
 | `--oxlint`                              | Initialize with Oxlint config                                         |
+| `--oxfmt`                               | Initialize with Oxfmt formatter config                                |
 | `--no-linter`                           | Skip linter configuration                                             |
 | `--app`                                 | Initialize as an App Router project                                   |
 | `--api`                                 | Initialize a project with only route handlers                         |
@@ -113,7 +114,7 @@ After the prompts, `create-next-app` will create a folder with your project name
 
 **Biome**: A fast, modern linter and formatter that combines the functionality of ESLint and Prettier. Includes built-in Next.js and React domain support for optimal performance.
 
-**Oxlint**: A fast, Rust-based linter built on the Oxc compiler stack. Provides comprehensive rules with type-aware linting for TypeScript projects and includes built-in Next.js plugin support.
+**Oxlint**: A fast, Rust-based linter built on the Oxc compiler stack. Provides comprehensive rules with type-aware linting for TypeScript projects and includes built-in Next.js plugin support. When Oxlint is selected, you'll be prompted to also enable **Oxfmt**, the companion formatter that's approximately 30x faster than Prettier.
 
 **None**: Skip linter configuration entirely. You can always add a linter later.
 

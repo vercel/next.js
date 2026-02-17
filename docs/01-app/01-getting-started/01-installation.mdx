@@ -359,13 +359,15 @@ Next.js supports linting with either ESLint, Oxlint or Biome. Choose a linter an
 }
 ```
 
-- Use **Oxlint** (fast linter with comprehensive rules):
+- Use **Oxlint** (fast linter with comprehensive rules) and **Oxfmt** (fast formatter):
 
 ```json filename="package.json"
 {
   "scripts": {
     "lint": "oxlint --type-aware",
-    "lint:fix": "oxlint --type-aware --fix"
+    "lint:fix": "oxlint --type-aware --fix",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check"
   }
 }
 ```

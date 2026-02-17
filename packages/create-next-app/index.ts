@@ -54,6 +54,7 @@ const program = new Command(packageJson.name)
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--biome', 'Initialize with Biome config.')
   .option('--oxlint', 'Initialize with Oxlint config.')
+  .option('--oxfmt', 'Initialize with Oxfmt formatter config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
   .option('--rspack', 'Enable Rspack as the bundler.')
@@ -238,6 +239,7 @@ async function run(): Promise<void> {
       typescript: true,
       eslint: false,
       linter: 'eslint',
+      oxfmt: false,
       tailwind: true,
       app: true,
       srcDir: false,
@@ -486,6 +488,35 @@ async function run(): Promise<void> {
       preferences.eslint = false
     }
 
+    // Formatter selection - only prompt if not using Biome (which includes formatting)
+    // and not in API mode
+    const noFormatter = args.includes('--no-oxfmt')
+    if (!opts.oxfmt && !opts.biome && !noFormatter && !opts.api) {
+      if (skipPrompt) {
+        // Default to oxfmt when using oxlint, otherwise no formatter
+        opts.oxfmt = opts.oxlint && (getPrefOrDefault('oxfmt') ?? true)
+      } else if (opts.oxlint) {
+        // If using oxlint, offer oxfmt as the natural pairing
+        const styledOxfmt = blue('Oxfmt')
+        const { oxfmt } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'oxfmt',
+          message: `Would you like to use ${styledOxfmt} for formatting? (recommended with Oxlint)`,
+          initial: getPrefOrDefault('oxfmt') ?? true,
+          active: 'Yes',
+          inactive: 'No',
+        })
+        opts.oxfmt = Boolean(oxfmt)
+        preferences.oxfmt = Boolean(oxfmt)
+      }
+    } else if (opts.oxfmt) {
+      preferences.oxfmt = true
+    } else if (opts.biome || noFormatter) {
+      opts.oxfmt = false
+      preferences.oxfmt = false
+    }
+
     if (
       !opts.reactCompiler &&
       !args.includes('--no-react-compiler') &&
@@ -652,6 +683,7 @@ async function run(): Promise<void> {
       eslint: opts.eslint,
       biome: opts.biome,
       oxlint: opts.oxlint,
+      oxfmt: opts.oxfmt,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
@@ -688,6 +720,7 @@ async function run(): Promise<void> {
       eslint: opts.eslint,
       biome: opts.biome,
       oxlint: opts.oxlint,
+      oxfmt: opts.oxfmt,
       tailwind: opts.tailwind,
       app: opts.app,
       srcDir: opts.srcDir,

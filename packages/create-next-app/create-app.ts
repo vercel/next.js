@@ -35,6 +35,7 @@ export async function createApp({
   eslint,
   biome,
   oxlint,
+  oxfmt,
   app,
   srcDir,
   importAlias,
@@ -55,6 +56,7 @@ export async function createApp({
   eslint: boolean
   biome: boolean
   oxlint: boolean
+  oxfmt: boolean
   app: boolean
   srcDir: boolean
   importAlias: string
@@ -253,6 +255,7 @@ export async function createApp({
       eslint,
       biome,
       oxlint,
+      oxfmt,
       srcDir,
       importAlias,
       skipInstall,

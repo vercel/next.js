@@ -53,6 +53,7 @@ export const installTemplate = async ({
   eslint,
   biome,
   oxlint,
+  oxfmt,
   srcDir,
   importAlias,
   skipInstall,
@@ -71,6 +72,7 @@ export const installTemplate = async ({
   if (!eslint) copySource.push("!eslint.config.mjs");
   if (!biome) copySource.push("!biome.json");
   if (!oxlint) copySource.push("!.oxlintrc.json");
+  if (!oxfmt) copySource.push("!.oxfmtrc.json");
   if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
@@ -226,6 +228,10 @@ export const installTemplate = async ({
       ...(biome && { lint: "biome check", format: "biome format --write" }),
       ...(oxlint &&
         (mode === "ts" ? { lint: "oxlint --type-aware" } : { lint: "oxlint" })),
+      ...(oxfmt && {
+        format: "oxfmt --write",
+        "format:check": "oxfmt --check",
+      }),
     },
     /**
      * Default dependencies.
@@ -305,6 +311,14 @@ export const installTemplate = async ({
     };
   }
 
+  /* Oxfmt dependencies. */
+  if (oxfmt) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      oxfmt: "^0.1.0",
+    };
+  }
+
   if (isApi) {
     delete packageJson.dependencies.react;
     delete packageJson.dependencies["react-dom"];
@@ -316,9 +330,10 @@ export const installTemplate = async ({
     // if a type error was thrown at `distDir/types/app/page.ts`.
     delete packageJson.devDependencies["@types/react-dom"];
 
-    // Remove linting scripts for API-only templates
+    // Remove linting and formatting scripts for API-only templates
     delete packageJson.scripts.lint;
     delete packageJson.scripts.format;
+    delete packageJson.scripts["format:check"];
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;

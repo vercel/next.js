@@ -1,9 +1,9 @@
 import execa from 'execa'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, access } from 'fs/promises'
 import { join } from 'path'
 import { run, useTempDir } from './utils'
 
-describe('create-next-app Oxlint configuration', () => {
+describe('create-next-app Oxlint and Oxfmt configuration', () => {
   let nextTgzFilename: string
 
   beforeAll(() => {
@@ -26,6 +26,7 @@ describe('create-next-app Oxlint configuration', () => {
           projectName,
           '--ts',
           '--oxlint',
+          '--no-oxfmt',
           '--no-tailwind',
           '--no-src-dir',
           '--app',
@@ -57,6 +58,7 @@ describe('create-next-app Oxlint configuration', () => {
           projectName,
           '--ts',
           '--oxlint',
+          '--no-oxfmt',
           '--no-tailwind',
           '--no-src-dir',
           '--app',
@@ -93,6 +95,7 @@ describe('create-next-app Oxlint configuration', () => {
           projectName,
           '--js',
           '--oxlint',
+          '--no-oxfmt',
           '--no-tailwind',
           '--no-src-dir',
           '--app',
@@ -129,6 +132,7 @@ describe('create-next-app Oxlint configuration', () => {
           projectName,
           '--ts',
           '--oxlint',
+          '--no-oxfmt',
           '--no-tailwind',
           '--no-src-dir',
           '--app',
@@ -179,6 +183,176 @@ describe('create-next-app Oxlint configuration', () => {
         const output = error.stdout + error.stderr
         expect(output).toMatch(/debugger|no-debugger/)
       }
+    })
+  })
+
+  it('should create .oxfmtrc.json when --oxfmt flag is used', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'test-oxfmt-config'
+      const { exitCode } = await run(
+        [
+          projectName,
+          '--ts',
+          '--oxlint',
+          '--oxfmt',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--app',
+          '--no-turbopack',
+          '--no-import-alias',
+          '--skip-install',
+        ],
+        nextTgzFilename,
+        { cwd }
+      )
+
+      expect(exitCode).toBe(0)
+
+      const projectDir = join(cwd, projectName)
+
+      // Check that .oxfmtrc.json exists
+      await expect(
+        access(join(projectDir, '.oxfmtrc.json'))
+      ).resolves.not.toThrow()
+
+      const oxfmtConfig = await readFile(
+        join(projectDir, '.oxfmtrc.json'),
+        'utf8'
+      )
+
+      expect(oxfmtConfig).toMatchSnapshot()
+    })
+  })
+
+  it('should match .oxfmtrc.json snapshot with Tailwind config', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'test-oxfmt-tailwind'
+      const { exitCode } = await run(
+        [
+          projectName,
+          '--ts',
+          '--oxlint',
+          '--oxfmt',
+          '--tailwind',
+          '--no-src-dir',
+          '--app',
+          '--no-turbopack',
+          '--no-import-alias',
+          '--skip-install',
+        ],
+        nextTgzFilename,
+        { cwd }
+      )
+
+      expect(exitCode).toBe(0)
+
+      const projectDir = join(cwd, projectName)
+      const oxfmtConfig = await readFile(
+        join(projectDir, '.oxfmtrc.json'),
+        'utf8'
+      )
+
+      // Tailwind config should have experimentalTailwindcss enabled
+      expect(oxfmtConfig).toContain('experimentalTailwindcss')
+      expect(oxfmtConfig).toMatchSnapshot()
+    })
+  })
+
+  it('should not create .oxfmtrc.json when --no-oxfmt flag is used', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'test-no-oxfmt'
+      const { exitCode } = await run(
+        [
+          projectName,
+          '--ts',
+          '--oxlint',
+          '--no-oxfmt',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--app',
+          '--no-turbopack',
+          '--no-import-alias',
+          '--skip-install',
+        ],
+        nextTgzFilename,
+        { cwd }
+      )
+
+      expect(exitCode).toBe(0)
+
+      const projectDir = join(cwd, projectName)
+
+      // Check that .oxfmtrc.json does NOT exist
+      await expect(access(join(projectDir, '.oxfmtrc.json'))).rejects.toThrow()
+    })
+  })
+
+  it('should run oxfmt format check successfully on generated project', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'test-oxfmt-format'
+      const { exitCode } = await run(
+        [
+          projectName,
+          '--ts',
+          '--oxlint',
+          '--oxfmt',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--app',
+          '--no-turbopack',
+          '--no-import-alias',
+        ],
+        nextTgzFilename,
+        { cwd }
+      )
+
+      expect(exitCode).toBe(0)
+
+      const projectDir = join(cwd, projectName)
+
+      // Run oxfmt check on the generated project
+      const { exitCode: oxfmtExitCode } = await execa(
+        'npm',
+        ['run', 'format:check'],
+        {
+          cwd: projectDir,
+        }
+      )
+
+      expect(oxfmtExitCode).toBe(0)
+    })
+  })
+
+  it('should include format scripts in package.json when oxfmt is enabled', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'test-oxfmt-scripts'
+      const { exitCode } = await run(
+        [
+          projectName,
+          '--ts',
+          '--oxlint',
+          '--oxfmt',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--app',
+          '--no-turbopack',
+          '--no-import-alias',
+          '--skip-install',
+        ],
+        nextTgzFilename,
+        { cwd }
+      )
+
+      expect(exitCode).toBe(0)
+
+      const projectDir = join(cwd, projectName)
+      const packageJson = JSON.parse(
+        await readFile(join(projectDir, 'package.json'), 'utf8')
+      )
+
+      expect(packageJson.scripts.format).toBe('oxfmt --write')
+      expect(packageJson.scripts['format:check']).toBe('oxfmt --check')
+      expect(packageJson.devDependencies.oxfmt).toBeDefined()
     })
   })
 })
