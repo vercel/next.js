@@ -175,6 +175,15 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   resolveExtensions: z.array(z.string()).optional(),
   root: z.string().optional(),
   debugIds: z.boolean().optional(),
+  ignoreIssue: z
+    .array(
+      z.object({
+        path: z.union([z.string(), z.instanceof(RegExp)]),
+        title: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+        description: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+      })
+    )
+    .optional(),
 })
 
 export const experimentalSchema = {
@@ -182,6 +191,7 @@ export const experimentalSchema = {
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
+  appNewScrollHandler: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
   staleTimes: z
@@ -325,6 +335,7 @@ export const experimentalSchema = {
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
+  turbopackImportTypeText: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),

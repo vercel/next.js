@@ -34,7 +34,6 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
-  getRuntimeStagePromise,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
@@ -217,14 +216,10 @@ function createUseCacheStore(
       explicitExpire: undefined,
       explicitStale: undefined,
       tags: null,
-      hmrRefreshHash: getHmrRefreshHash(workStore, outerWorkUnitStore),
-      isHmrRefresh: isHmrRefresh(workStore, outerWorkUnitStore),
-      serverComponentsHmrCache: getServerComponentsHmrCache(
-        workStore,
-        outerWorkUnitStore
-      ),
+      hmrRefreshHash: getHmrRefreshHash(outerWorkUnitStore),
+      isHmrRefresh: isHmrRefresh(outerWorkUnitStore),
+      serverComponentsHmrCache: getServerComponentsHmrCache(outerWorkUnitStore),
       forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
-      runtimeStagePromise: getRuntimeStagePromise(outerWorkUnitStore),
       draftMode: getDraftModeProviderForCacheScope(
         workStore,
         outerWorkUnitStore
@@ -267,7 +262,7 @@ function createUseCacheStore(
       explicitStale: undefined,
       tags: null,
       hmrRefreshHash:
-        outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
+        outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
       isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
       serverComponentsHmrCache:
         useCacheOrRequestStore?.serverComponentsHmrCache,
@@ -637,7 +632,7 @@ async function generateCacheEntryImpl(
   // necessary here; the errors are encoded in the stream, and will be reported
   // in the "Server" environment.
   const handleError = createReactServerErrorHandler(
-    workStore.dev,
+    process.env.NODE_ENV === 'development',
     workStore.isBuildTimePrerendering ?? false,
     workStore.reactServerErrorsByDigest,
     (error) => {
@@ -1046,8 +1041,7 @@ export async function cache(
   // components have been edited. This is a very coarse approach. But it's
   // also only a temporary solution until Action IDs are unique per
   // implementation. Remove this once Action IDs hash the implementation.
-  const hmrRefreshHash =
-    workUnitStore && getHmrRefreshHash(workStore, workUnitStore)
+  const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
 
   const hangingInputAbortSignal = workUnitStore
     ? createHangingInputAbortSignal(workUnitStore)
@@ -1059,8 +1053,9 @@ export async function cache(
       case 'prerender-runtime': {
         // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
         // are resolved with a delay, in the runtime stage. Private caches are one of these.
-        if (outerWorkUnitStore.runtimeStagePromise) {
-          await outerWorkUnitStore.runtimeStagePromise
+        const stagedRendering = outerWorkUnitStore.stagedRendering
+        if (stagedRendering) {
+          await stagedRendering.waitForStage(RenderStage.Runtime)
         }
         break
       }
@@ -1369,8 +1364,9 @@ export async function cache(
               // In the final phase of a runtime prerender, we have to make
               // sure that APIs that would hang during a static prerender
               // are resolved with a delay, in the runtime stage.
-              if (workUnitStore.runtimeStagePromise) {
-                await workUnitStore.runtimeStagePromise
+              const stagedRendering = workUnitStore.stagedRendering
+              if (stagedRendering) {
+                await stagedRendering.waitForStage(RenderStage.Runtime)
               }
               break
             }
@@ -1906,7 +1902,7 @@ function shouldForceRevalidate(
     return true
   }
 
-  if (workStore.dev && workUnitStore) {
+  if (process.env.__NEXT_DEV_SERVER && workUnitStore) {
     switch (workUnitStore.type) {
       case 'request':
         return workUnitStore.headers.get('cache-control') === 'no-cache'

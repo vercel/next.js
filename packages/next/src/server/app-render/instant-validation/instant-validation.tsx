@@ -10,7 +10,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
 import {
-  pipelineInSequentialTasks,
+  runInSequentialTasks,
   scheduleInSequentialTasks,
 } from '../app-render-render-utils'
 import { workAsyncStorage } from '../work-async-storage.external'
@@ -41,6 +41,8 @@ import { createDebugChannel } from '../debug-channel-server'
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { renderToReadableStream } from 'react-server-dom-webpack/server'
+import { addSearchParamsIfPageSegment } from '../../../shared/lib/segment'
+import type { NextParsedUrlQuery } from '../../request-meta'
 
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
@@ -94,7 +96,8 @@ export type RouteTree = {
  * */
 export async function findNavigationsToValidate(
   rootLoaderTree: LoaderTree,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  query: NextParsedUrlQuery | null
 ) {
   type ValidationTask = { target: SegmentPath; parents: SegmentPath[] }
 
@@ -104,9 +107,17 @@ export async function findNavigationsToValidate(
   const segmentsWithInstantConfigs: SegmentPath[] = []
   const treeNodes = new Map<SegmentPath, RouteTree>()
 
-  function getSegment(loaderTree: LoaderTree): Segment {
+  function getSegmentFromLoaderTree(loaderTree: LoaderTree): Segment {
     const dynamicParam = getDynamicParamFromSegment(loaderTree)
-    return dynamicParam ? dynamicParam.treeSegment : loaderTree[0]
+    if (dynamicParam) {
+      return dynamicParam.treeSegment
+    }
+    const segment = loaderTree[0]
+    // In dev, the segment paths for all the page segments will include search params (`__PAGE__?{"q":"123"`}
+    // because the payload we're reassembling had them encoded in the router state,
+    // so we need to match that here.
+    // TODO(instant-validation): this will likely need some restructuring for build
+    return query ? addSearchParamsIfPageSegment(segment, query) : segment
   }
 
   async function visit(
@@ -120,7 +131,7 @@ export async function findNavigationsToValidate(
     const { mod: layoutOrPageMod, modType } =
       await getLayoutOrPageModule(loaderTree)
 
-    const segment = getSegment(loaderTree)
+    const segment = getSegmentFromLoaderTree(loaderTree)
     const segmentPath =
       parentPath === null
         ? stringifySegment(segment)
@@ -294,6 +305,8 @@ function traverseCacheNodeSegments(
     }
 
     const childRoute = childRoutes[parallelRouteKey]
+    // NOTE: if this is a __PAGE__ segment, it might have search params appended.
+    // Whoever reads from the cache needs to append them as well.
     const [childSegment] = childRoute
     const childPath = createChildSegmentPath(
       path,
@@ -428,7 +441,7 @@ export async function collectStagedSegmentData(
     [RenderStage.Runtime]: -1,
   }
 
-  await pipelineInSequentialTasks(
+  await runInSequentialTasks(
     () => {
       for (const [segmentPath, segmentData] of segments) {
         const segmentCacheItem: SegmentCacheItem = {
@@ -1028,7 +1041,7 @@ function deserializeFromChunks<T>(
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
-  hasRuntimePrefetch: boolean
+  prefetchHints: number
   varyParams: VaryParamsThenable | null
 }
 
@@ -1038,13 +1051,13 @@ function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
     _parallelRoutesData,
     _unused,
     isPartial,
-    hasRuntimePrefetch,
+    prefetchHints,
     varyParams,
   ] = seedData
   return {
     node,
     isPartial,
-    hasRuntimePrefetch,
+    prefetchHints,
     varyParams,
   }
 }
@@ -1059,7 +1072,7 @@ function getCacheNodeSeedDataFromSegment(
     slots,
     /* unused (previously `loading`) */ null,
     data.isPartial,
-    data.hasRuntimePrefetch,
+    data.prefetchHints,
     data.varyParams,
   ]
 }

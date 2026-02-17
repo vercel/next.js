@@ -154,11 +154,12 @@ type RouteTreeShared = {
   // like any other Suspense boundary.)
   hasLoadingBoundary: HasLoadingBoundary
 
-  // Indicates whether this route has a runtime prefetch that we can request.
-  // This is determined by the server; it's not purely a user configuration
-  // because the server may determine that a route is fully static and doesn't
-  // need runtime prefetching regardless of the configuration.
-  hasRuntimePrefetch: boolean
+  // Bitmask of PrefetchHint flags. Indicates whether this segment has a
+  // runtime prefetch, and whether the subtree contains any instant configs.
+  // Determined by the server; not purely a user configuration because the
+  // server may determine that a route is fully static and doesn't need
+  // runtime prefetching regardless of the configuration.
+  prefetchHints: number
 }
 
 export type RefreshState = {
@@ -722,7 +723,7 @@ function deprecated_createOptimisticRouteTree(
       slots: clonedSlots,
       isRootLayout: tree.isRootLayout,
       hasLoadingBoundary: tree.hasLoadingBoundary,
-      hasRuntimePrefetch: tree.hasRuntimePrefetch,
+      prefetchHints: tree.prefetchHints,
     }
   }
 
@@ -735,7 +736,7 @@ function deprecated_createOptimisticRouteTree(
     slots: clonedSlots,
     isRootLayout: tree.isRootLayout,
     hasLoadingBoundary: tree.hasLoadingBoundary,
-    hasRuntimePrefetch: tree.hasRuntimePrefetch,
+    prefetchHints: tree.prefetchHints,
   }
 }
 
@@ -1018,7 +1019,7 @@ export function createMetadataRouteTree(
     slots: null,
     isRootLayout: false,
     hasLoadingBoundary: HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
-    hasRuntimePrefetch: false,
+    prefetchHints: 0,
   }
   return metadata
 }
@@ -1321,7 +1322,7 @@ function convertTreePrefetchToRouteTree(
     // This field is only relevant to dynamic routes. For a PPR/static route,
     // there's always some partial loading state we can fetch.
     hasLoadingBoundary: HasLoadingBoundary.SegmentHasLoadingBoundary,
-    hasRuntimePrefetch: prefetch.hasRuntimePrefetch,
+    prefetchHints: prefetch.prefetchHints,
   }
 }
 
@@ -1507,8 +1508,8 @@ function convertFlightRouterStateToRouteTree(
         : HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
 
     // Non-static tree responses are only used by apps that haven't adopted
-    // Cache Components. So this is always false.
-    hasRuntimePrefetch: false,
+    // Cache Components. So this is always 0.
+    prefetchHints: 0,
   }
 }
 
@@ -1688,7 +1689,8 @@ export async function fetchRouteOnCacheMiss(
       )
       const serverData = await createFromNextReadableStream<RootTreePrefetch>(
         prefetchStream,
-        headers
+        headers,
+        { allowPartialStream: true }
       )
 
       if (
@@ -1753,7 +1755,8 @@ export async function fetchRouteOnCacheMiss(
       const serverData =
         await createFromNextReadableStream<NavigationFlightResponse>(
           prefetchStream,
-          headers
+          headers,
+          { allowPartialStream: true }
         )
 
       if (
@@ -1899,8 +1902,6 @@ export async function fetchSegmentOnCacheMiss(
     // Track when the network connection closes.
     const closed = createPromiseWithResolvers<void>()
 
-    // Wrap the original stream in a new stream that never closes. That way the
-    // Flight client doesn't error if there's a hanging promise.
     const prefetchStream = createPrefetchResponseStream(
       response.body,
       closed.resolve,
@@ -1910,7 +1911,8 @@ export async function fetchSegmentOnCacheMiss(
     )
     const serverData = await createFromNextReadableStream<SegmentPrefetch>(
       prefetchStream,
-      headers
+      headers,
+      { allowPartialStream: true }
     )
     if (
       (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
@@ -2062,7 +2064,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const serverData =
       await createFromNextReadableStream<NavigationFlightResponse>(
         prefetchStream,
-        headers
+        headers,
+        { allowPartialStream: true }
       )
 
     const isResponsePartial =
@@ -2526,19 +2529,7 @@ function createPrefetchResponseStream(
   onStreamClose: () => void,
   onResponseSizeUpdate: (size: number) => void
 ): ReadableStream<Uint8Array> {
-  // When PPR is enabled, prefetch streams may contain references that never
-  // resolve, because that's how we encode dynamic data access. In the decoded
-  // object returned by the Flight client, these are reified into hanging
-  // promises that suspend during render, which is effectively what we want.
-  // The UI resolves when it switches to the dynamic data stream
-  // (via useDeferredValue(dynamic, static)).
-  //
-  // However, the Flight implementation currently errors if the server closes
-  // the response before all the references are resolved. As a cheat to work
-  // around this, we wrap the original stream in a new stream that never closes,
-  // and therefore doesn't error.
-  //
-  // While processing the original stream, we also incrementally update the size
+  // While processing the original stream, we incrementally update the size
   // of the cache entry in the LRU.
   let totalByteLength = 0
   const reader = originalFlightStream.getReader()
@@ -2559,8 +2550,7 @@ function createPrefetchResponseStream(
           onResponseSizeUpdate(totalByteLength)
           continue
         }
-        // The server stream has closed. Exit, but intentionally do not close
-        // the target stream. We do notify the caller, though.
+        controller.close()
         onStreamClose()
         return
       }

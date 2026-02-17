@@ -5,12 +5,11 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
     environment::ChunkLoading,
     issue::IssueSource,
     reference::ModuleReference,
@@ -34,7 +33,8 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("dynamic import {request}")]
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -87,20 +87,7 @@ impl ModuleReference for EsmAsyncAssetReference {
         )
         .await
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("dynamic import {}", self.request.to_string().await?,).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Async))

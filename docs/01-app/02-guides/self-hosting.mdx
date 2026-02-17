@@ -180,11 +180,55 @@ module.exports = {
 }
 ```
 
+## Multi-Server Deployments
+
+When running Next.js across multiple server instances (for example, containers behind a load balancer), there are additional considerations to ensure consistent behavior.
+
+### Server Functions encryption key
+
+Next.js encrypts [Server Function](/docs/app/getting-started/updating-data) closure variables before sending them to the client. By default, a unique encryption key is generated for each build.
+
+When running multiple server instances, all instances must use the same encryption key. Otherwise, a Server Function encrypted by one instance cannot be decrypted by another, causing "Failed to find Server Action" errors.
+
+Set a consistent encryption key using the `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. The key must be a base64-encoded value with a valid AES key length (16, 24, or 32 bytes). Next.js generates 32-byte keys by default.
+
+```bash
+NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=your-generated-key next build
+```
+
+The key is embedded in the build output and used automatically at runtime. Learn more in the [Data Security guide](/docs/app/guides/data-security#overwriting-encryption-keys-advanced).
+
+### Deployment identifier
+
+Configure a [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) to enable version skew protection during rolling deployments. This ensures clients always receive assets from a consistent deployment version.
+
+### Shared cache
+
+By default, Next.js uses an in-memory cache that is not shared across instances. For consistent caching behavior, use [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) with a [custom cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers) that stores data in external storage.
+
 ## Version Skew
 
-Next.js will automatically mitigate most instances of [version skew](https://www.industrialempathy.com/posts/version-skew/) and automatically reload the application to retrieve new assets when detected. For example, if there is a mismatch in the `deploymentId`, transitions between pages will perform a hard navigation versus using a prefetched value.
+When self-hosting across multiple instances or doing rolling deployments, [version skew](/docs/app/glossary#version-skew) can cause:
 
-When the application is reloaded, there may be a loss of application state if it's not designed to persist between page navigations. For example, using URL state or local storage would persist state after a page refresh. However, component state like `useState` would be lost in such navigations.
+- **Missing assets**: The client requests JavaScript or CSS files that no longer exist on the server
+- **Server Function mismatches**: The client invokes a Server Function using an ID from a previous build that the server no longer recognizes
+- **Navigation failures**: Prefetched page data from an old deployment is incompatible with the new server
+
+Next.js uses the [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) to detect and handle version skew. When a deployment ID is configured:
+
+- Static assets include a `?dpl=<deploymentId>` query parameter
+- Client-side navigation requests include an `x-deployment-id` header
+- The server compares the client's deployment ID with its own
+
+If a mismatch is detected, Next.js triggers a hard navigation (full page reload) instead of a client-side navigation. This ensures the client fetches assets from a consistent deployment version.
+
+```js filename="next.config.js"
+module.exports = {
+  deploymentId: process.env.DEPLOYMENT_VERSION,
+}
+```
+
+> **Good to know:** When the application is reloaded, there may be a loss of application state if it's not designed to persist between page navigations. URL state or local storage would persist, but component state like `useState` would be lost.
 
 <AppOnly>
 
