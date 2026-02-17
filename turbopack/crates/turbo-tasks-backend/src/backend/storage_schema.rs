@@ -423,6 +423,14 @@ impl TaskStorage {
         extract(&mut self.lazy[idx]).unwrap()
     }
 
+    /// Take a lazy field by known index, removing it from the Vec via swap_remove.
+    ///
+    /// # Panics
+    /// Panics if `idx` is out of bounds.
+    fn lazy_take_at<T>(&mut self, idx: usize, extract: impl FnOnce(LazyField) -> T) -> T {
+        extract(self.lazy.swap_remove(idx))
+    }
+
     /// Get or create a lazy field, returning a mutable reference.
     ///
     /// Uses a single `extract` closure that serves as both the matcher (by returning Some/None)

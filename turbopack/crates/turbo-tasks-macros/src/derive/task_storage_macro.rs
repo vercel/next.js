@@ -1573,6 +1573,27 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         quote! {
             #set_expr(value)
         }
+    } else if field.lazy {
+        // For lazy fields, combine equality check and set into one operation to avoid
+        // double-scanning the lazy vec (get_expr scans via find_lazy, then set_expr
+        // scans again via set_lazy).
+        let extractor = field.lazy_extractor_closure();
+        let unwraper = field.lazy_unwrap_closure();
+        let constructor = field.lazy_constructor(quote! { value });
+        quote! {
+            if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
+                if old_ref == &value {
+                    return None;
+                }
+                #track_modification
+                let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #constructor);
+                Some((#unwraper)(old))
+            } else {
+                #track_modification
+                self.typed_mut().lazy.push(#constructor);
+                None
+            }
+        }
     } else {
         quote! {
             if #get_expr.is_some_and(|old| old == &value) {
@@ -1586,6 +1607,17 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
     let take_body = if field.is_transient() {
         quote! {
             #take_expr
+        }
+    } else if field.lazy {
+        // For lazy fields, combine existence check and take into one operation to avoid
+        // double-scanning the lazy vec (get_expr scans via find_lazy, then take_expr
+        // scans again via take_lazy).
+        let extractor = field.lazy_extractor_closure();
+        let unwraper = field.lazy_unwrap_closure();
+        quote! {
+            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
+            #track_modification
+            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
         }
     } else {
         quote! {
@@ -1687,7 +1719,6 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     // For transient fields, track_modification is a no-op so skip all guards.
     let remove_body;
     let add_body;
-    let set_guard;
     let set_body;
     let extend_body;
 
@@ -1698,7 +1729,6 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         add_body = quote! {
             #mut_expr.insert(item)
         };
-        set_guard = quote! {};
         set_body = if is_option {
             let unwraper = field.lazy_unwrap_closure();
             let matches = field.lazy_matches_closure();
@@ -1771,34 +1801,38 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             }
         };
 
-        set_guard = if is_option {
-            quote! {
-                if #ref_expr.is_some_and(|old| old == &set) {
-                    return None;
+        if is_option {
+            // For lazy fields, combine guard and set into one operation to avoid
+            // double-scanning the lazy vec (set_guard would scan via find_lazy,
+            // then set_lazy would scan again via position).
+            let extractor = field.lazy_extractor_closure();
+            let unwraper = field.lazy_unwrap_closure();
+            let ctor = field.lazy_constructor(quote! {set});
+            set_body = quote! {
+                if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
+                    if old_ref == &set {
+                        return None;
+                    }
+                    #track_modification
+                    let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #ctor);
+                    Some((#unwraper)(old))
+                } else {
+                    #track_modification
+                    self.typed_mut().lazy.push(#ctor);
+                    None
                 }
-            }
+            };
         } else {
-            quote! {
+            set_body = quote! {
                 if #ref_expr == &set {
                     return None;
                 }
-            }
-        };
-
-        set_body = if is_option {
-            let unwraper = field.lazy_unwrap_closure();
-            let matches = field.lazy_matches_closure();
-            let ctor = field.lazy_constructor(quote! {set});
-            quote! {
-                self.typed_mut().set_lazy(#matches, #unwraper, #ctor)
-            }
-        } else {
-            quote! {
+                #track_modification
                 let old = #take_expr;
                 *#mut_expr = set;
                 Some(old)
-            }
-        };
+            };
+        }
 
         // Extend: use peekable iterator to avoid Vec allocation.
         // For lazy fields, look up the set once via find_lazy_ref to avoid repeated scans.
@@ -1882,8 +1916,6 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         fn #set_name(&mut self, set: #field_type) -> Option<#field_type>
         {
             #check_access
-            #set_guard
-            #track_modification
             #set_body
         }
 
@@ -2321,6 +2353,19 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let take_body = if field.is_transient() {
         quote! {
             #take_expression
+        }
+    } else if is_option {
+        // For lazy fields, use find_lazy_ref to check existence and emptiness in one scan,
+        // then lazy_take_at to take by known index without re-scanning.
+        let extractor = field.lazy_extractor_closure();
+        let unwraper = field.lazy_unwrap_closure();
+        quote! {
+            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
+            if val.is_empty() {
+                return None;
+            }
+            #track_modification
+            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
         }
     } else {
         quote! {
