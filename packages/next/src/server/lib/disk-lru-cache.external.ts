@@ -1,7 +1,5 @@
 import { promises } from 'fs'
-import { join } from 'path'
 import { LRUCache } from './lru-cache'
-import * as Log from '../../build/output/log'
 
 /**
  * Module-level LRU singleton for disk cache eviction.
@@ -23,7 +21,8 @@ export async function getOrInitDiskLRU(
   cacheMaxDiskSize: number | null,
   readEntries: (
     cacheDir: string
-  ) => Promise<Array<{ key: string; size: number; expireAt: number }>>
+  ) => Promise<Array<{ key: string; size: number; expireAt: number }>>,
+  evictEntry: (cacheDir: string, cacheKey: string) => Promise<void>
 ): Promise<LRUCache<number>> {
   if (!_diskLRUPromise) {
     _diskLRUPromise = (async () => {
@@ -37,17 +36,7 @@ export async function getOrInitDiskLRU(
       const lru = new LRUCache<number>(
         maxSize,
         (size) => size,
-        (cacheKey) => {
-          // Fire-and-forget: intentionally don't await rm to avoid blocking
-          promises
-            .rm(join(/* turbopackIgnore: true */ cacheDir, cacheKey), {
-              recursive: true,
-              force: true,
-            })
-            .catch((err) => {
-              Log.error(`Failed to delete cache key ${cacheKey}`, err)
-            })
-        }
+        (cacheKey) => evictEntry(cacheDir, cacheKey)
       )
 
       const entries = await readEntries(cacheDir)

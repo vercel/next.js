@@ -8,7 +8,7 @@ import {
   resetDiskLRU,
 } from 'next/dist/server/lib/disk-lru-cache.external'
 
-async function writeCacheEntry(
+async function writeEntry(
   cacheDir: string,
   key: string,
   sizeInBytes: number,
@@ -20,7 +20,7 @@ async function writeCacheEntry(
   await promises.writeFile(join(dir, `${expireAt}.bin`), buffer)
 }
 
-async function readCacheEntry(cacheDir: string, key: string) {
+async function readEntry(cacheDir: string, key: string) {
   const dir = join(cacheDir, key)
   const [file] = await promises.readdir(dir)
   const buffer = await promises.readFile(join(dir, file))
@@ -28,19 +28,23 @@ async function readCacheEntry(cacheDir: string, key: string) {
   return { size: buffer.byteLength, expireAt: Number(expireAtStr) }
 }
 
-async function readCacheEntries(
+async function initEntries(
   cacheDir: string
 ): Promise<Array<{ key: string; size: number; expireAt: number }>> {
   const keys = await promises.readdir(cacheDir).catch(() => [])
   const entries: Array<{ key: string; size: number; expireAt: number }> = []
 
   for (const key of keys) {
-    const { size, expireAt } = await readCacheEntry(cacheDir, key)
+    const { size, expireAt } = await readEntry(cacheDir, key)
     entries.push({ key, size, expireAt })
   }
 
   // Sort oldest-first so we can replay them chronologically into LRU
   return entries.sort((a, b) => a.expireAt - b.expireAt)
+}
+
+async function rmEntry(cacheDir: string, cacheKey: string): Promise<void> {
+  await promises.rm(join(cacheDir, cacheKey), { recursive: true, force: true })
 }
 
 describe('LRU disk eviction', () => {
@@ -59,13 +63,13 @@ describe('LRU disk eviction', () => {
   it('should evict oldest entries on initialization', async () => {
     const expireAt = Date.now() + 60_000
     // Write 4 entries of 400 bytes each (total 1600)
-    await writeCacheEntry(cacheDir, 'entry-a', 400, expireAt + 1)
-    await writeCacheEntry(cacheDir, 'entry-b', 400, expireAt + 2)
-    await writeCacheEntry(cacheDir, 'entry-c', 400, expireAt + 3)
-    await writeCacheEntry(cacheDir, 'entry-d', 400, expireAt + 4)
+    await writeEntry(cacheDir, 'entry-a', 400, expireAt + 1)
+    await writeEntry(cacheDir, 'entry-b', 400, expireAt + 2)
+    await writeEntry(cacheDir, 'entry-c', 400, expireAt + 3)
+    await writeEntry(cacheDir, 'entry-d', 400, expireAt + 4)
 
     // Init LRU with 1500 byte limit (less than 1600 current total)
-    const lru = await getOrInitDiskLRU(cacheDir, 1500, readCacheEntries)
+    const lru = await getOrInitDiskLRU(cacheDir, 1500, initEntries, rmEntry)
 
     // entry-a should have been evicted (oldest)
     expect(lru.has('entry-a')).toBe(false)
@@ -80,11 +84,11 @@ describe('LRU disk eviction', () => {
   })
 
   it('should evict old entries when new entries are set', async () => {
-    const lru = await getOrInitDiskLRU(cacheDir, 1000, readCacheEntries)
+    const lru = await getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry)
 
     // Add entries via LRU set (simulating what ImageOptimizerCache.set does)
-    await writeCacheEntry(cacheDir, 'new-a', 400)
-    await writeCacheEntry(cacheDir, 'new-b', 400)
+    await writeEntry(cacheDir, 'new-a', 400)
+    await writeEntry(cacheDir, 'new-b', 400)
     lru.set('new-a', 400)
     lru.set('new-b', 400)
 
@@ -93,7 +97,7 @@ describe('LRU disk eviction', () => {
     expect(lru.has('new-b')).toBe(true)
 
     // Adding a third entry should evict the oldest (new-a)
-    await writeCacheEntry(cacheDir, 'new-c', 400)
+    await writeEntry(cacheDir, 'new-c', 400)
     lru.set('new-c', 400)
 
     expect(lru.has('new-a')).toBe(false)
@@ -107,10 +111,10 @@ describe('LRU disk eviction', () => {
   })
 
   it('should promote entries on get() to prevent eviction', async () => {
-    const lru = await getOrInitDiskLRU(cacheDir, 1000, readCacheEntries)
+    const lru = await getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry)
 
-    await writeCacheEntry(cacheDir, 'x', 400)
-    await writeCacheEntry(cacheDir, 'y', 400)
+    await writeEntry(cacheDir, 'x', 400)
+    await writeEntry(cacheDir, 'y', 400)
     lru.set('x', 400)
     lru.set('y', 400)
 
@@ -118,7 +122,7 @@ describe('LRU disk eviction', () => {
     lru.get('x')
 
     // Add 'z' - should evict 'y' (least recently used) instead of 'x'
-    await writeCacheEntry(cacheDir, 'z', 400)
+    await writeEntry(cacheDir, 'z', 400)
     lru.set('z', 400)
 
     expect(lru.has('x')).toBe(true)
@@ -127,27 +131,27 @@ describe('LRU disk eviction', () => {
   })
 
   it('should return the same LRU instance on subsequent calls', async () => {
-    const lru1 = await getOrInitDiskLRU(cacheDir, 1000, readCacheEntries)
-    const lru2 = await getOrInitDiskLRU(cacheDir, 1000, readCacheEntries)
+    const lru1 = await getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry)
+    const lru2 = await getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry)
     expect(lru1 === lru2).toBeTrue()
   })
 
   it('should deduplicate concurrent init calls', async () => {
     const [lru1, lru2] = await Promise.all([
-      getOrInitDiskLRU(cacheDir, 1000, readCacheEntries),
-      getOrInitDiskLRU(cacheDir, 1000, readCacheEntries),
+      getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry),
+      getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry),
     ])
     expect(lru1 === lru2).toBeTrue()
   })
 
   it('should handle empty cache directory', async () => {
-    const lru = await getOrInitDiskLRU(cacheDir, 1000, readCacheEntries)
+    const lru = await getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry)
     expect(lru.size).toBe(0)
   })
 
   it('should handle non-existent cache directory', async () => {
     const missing = join(cacheDir, 'this-does-not-exist')
-    const lru = await getOrInitDiskLRU(missing, 1000, readCacheEntries)
+    const lru = await getOrInitDiskLRU(missing, 1000, initEntries, rmEntry)
     expect(lru.size).toBe(0)
   })
 })

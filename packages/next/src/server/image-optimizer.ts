@@ -205,6 +205,17 @@ async function readFromCacheDir(cacheDir: string, cacheKey: string) {
   return { maxAge, expireAt, etag, upstreamEtag, buffer, extension }
 }
 
+async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
+  return promises
+    .rm(join(/* turbopackIgnore: true */ cacheDir, cacheKey), {
+      recursive: true,
+      force: true,
+    })
+    .catch((err) => {
+      Log.error(`Failed to delete cache key ${cacheKey}`, err)
+    })
+}
+
 /**
  * Inspects the first few bytes of a buffer to determine if
  * it matches the "magic number" of known file signatures.
@@ -560,7 +571,8 @@ export class ImageOptimizerCache {
       this.cacheDiskLRU = getOrInitDiskLRU(
         this.cacheDir,
         nextConfig.cacheMaxDiskSize,
-        initCacheEntries
+        initCacheEntries,
+        deleteFromCacheDir
       )
     }
   }
