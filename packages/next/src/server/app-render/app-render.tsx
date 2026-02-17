@@ -222,7 +222,6 @@ import {
 } from '../../shared/lib/router/utils/get-dynamic-param'
 import type { ExperimentalConfig } from '../config-shared'
 import type { Params } from '../request/params'
-import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
@@ -1120,8 +1119,8 @@ async function prospectiveRuntimeServerPrerender(
     hmrRefreshHash: undefined,
     // We don't track vary params during initial prerender, only the final one
     varyParamsAccumulator: null,
-    // We only need task sequencing in the final prerender.
-    runtimeStagePromise: null,
+    // No stage sequencing needed for prospective renders.
+    stagedRendering: null,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
     headers,
     cookies,
@@ -1344,8 +1343,10 @@ async function finalRuntimeServerPrerender(
     isDebugDynamicAccesses
   )
 
-  const { promise: runtimeStagePromise, resolve: resolveBlockedRuntimeAPIs } =
-    createPromiseWithResolvers<void>()
+  const finalStageController = new StagedRenderingController(
+    finalServerController.signal,
+    true
+  )
 
   const finalServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
@@ -1369,7 +1370,7 @@ async function finalRuntimeServerPrerender(
     // TODO: Enable vary params tracking for runtime prefetches.
     varyParamsAccumulator: null,
     // Used to separate the "Static" stage from the "Runtime" stage.
-    runtimeStagePromise,
+    stagedRendering: finalStageController,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
     headers,
     cookies,
@@ -1409,7 +1410,7 @@ async function finalRuntimeServerPrerender(
       // We know that they don't contain any incorrect sync IO, because that'd have caused a build error.
       // After we unblock Runtime APIs, if we encounter sync IO (e.g. `await cookies(); Date.now()`),
       // we'll abort, but we'll produce at least as much output as a static prerender would.
-      resolveBlockedRuntimeAPIs()
+      finalStageController.advanceStage(RenderStage.Runtime)
     },
     () => {
       // Abort.

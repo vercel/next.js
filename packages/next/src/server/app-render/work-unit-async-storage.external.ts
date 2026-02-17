@@ -125,16 +125,11 @@ export interface PrerenderStoreModernRuntime
   readonly type: 'prerender-runtime'
 
   /**
-   * A runtime prerender resolves APIs in two tasks:
-   *
-   * 1. Static data (available in a static prerender)
-   * 2. Runtime data (available in a runtime prerender)
-   *
-   * This separation is achieved by awaiting this promise in "runtime" APIs.
-   * In the final prerender, the promise will be resolved during the second task,
-   * and the render will be aborted in the task that follows it.
+   * The staged rendering controller for this prerender. Models stage
+   * transitions (Before → Static → Runtime → Dynamic). Null for prospective
+   * renders where all stages run without sequencing.
    */
-  readonly runtimeStagePromise: Promise<void> | null
+  readonly stagedRendering: StagedRenderingController | null
 
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
@@ -300,18 +295,6 @@ export interface PublicUseCacheStore extends CommonUseCacheStore {
 
 export interface PrivateUseCacheStore extends CommonUseCacheStore {
   readonly type: 'private-cache'
-
-  /**
-   * A runtime prerender resolves APIs in two tasks:
-   *
-   * 1. Static data (available in a static prerender)
-   * 2. Runtime data (available in a runtime prerender)
-   *
-   * This separation is achieved by awaiting this promise in "runtime" APIs.
-   * In the final prerender, the promise will be resolved during the second task,
-   * and the render will be aborted in the task that follows it.
-   */
-  readonly runtimeStagePromise: Promise<void> | null
 
   readonly headers: ReadonlyHeaders
   readonly cookies: ReadonlyRequestCookies
@@ -532,26 +515,6 @@ export function getCacheSignal(
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
-    case 'unstable-cache':
-      return null
-    default:
-      return workUnitStore satisfies never
-  }
-}
-
-export function getRuntimeStagePromise(
-  workUnitStore: WorkUnitStore
-): Promise<void> | null {
-  switch (workUnitStore.type) {
-    case 'prerender-runtime':
-    case 'private-cache':
-      return workUnitStore.runtimeStagePromise
-    case 'prerender':
-    case 'prerender-client':
-    case 'prerender-ppr':
-    case 'prerender-legacy':
-    case 'request':
-    case 'cache':
     case 'unstable-cache':
       return null
     default:
