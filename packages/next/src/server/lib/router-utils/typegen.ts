@@ -610,7 +610,7 @@ export function generateValidatorFile(
 
   const routeImportStatement =
     routeImports.length > 0
-      ? `import type { ${routeImports.join(', ')} } from "./routes.js"`
+      ? `import type { ${routeImports.join(', ')} } from "./route-types.d.ts"`
       : ''
 
   const nextRequestImport = hasAppRouteHandlers
@@ -845,7 +845,7 @@ export function generateValidatorFileStrict(
 
   const routeImportStatement =
     routeImports.length > 0
-      ? `import type { ${routeImports.join(', ')} } from "./routes.js"`
+      ? `import type { ${routeImports.join(', ')} } from "./route-types.d.ts"`
       : ''
 
   const nextRequestImport = hasAppRouteHandlers

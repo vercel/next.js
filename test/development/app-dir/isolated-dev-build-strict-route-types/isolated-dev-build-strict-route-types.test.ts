@@ -49,4 +49,14 @@ describe('isolated-dev-build with strictRouteTypes', () => {
       expect(await next.hasFile('.next/dev/types/validator.ts')).toBe(true)
     })
   })
+
+  it('should generate validator.ts importing route-types.d.ts in dev types dir', async () => {
+    await retry(async () => {
+      // validator.ts should import from route-types.d.ts, not routes.js
+      // since routes.d.ts doesn't exist in .next/dev/types/ (only in .next/types/)
+      const validator = await next.readFile('.next/dev/types/validator.ts')
+      expect(validator).toContain('from "./route-types.d.ts"')
+      expect(validator).not.toContain('from "./routes.js"')
+    })
+  })
 })
