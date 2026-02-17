@@ -556,6 +556,25 @@ contextPrototype.U = relativeURL;
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 /**
+ * Constructs an error message for when a module factory is not available.
+ */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
+    let instantiationReason;
+    switch(sourceType){
+        case 0:
+            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
+            break;
+        case 1:
+            instantiationReason = `because it was required from module ${sourceData}`;
+            break;
+        case 2:
+            instantiationReason = 'because of an HMR update';
+            break;
+        default:
+            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
+    }
+    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -583,23 +602,6 @@ const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
-function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
-    let instantiationReason;
-    switch(sourceType){
-        case SourceType.Runtime:
-            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
-            break;
-        case SourceType.Parent:
-            instantiationReason = `because it was required from module ${sourceData}`;
-            break;
-        case SourceType.Update:
-            instantiationReason = 'because of an HMR update';
-            break;
-        default:
-            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-    }
-    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
-}
 function loadChunk(chunkData) {
     return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
@@ -1191,7 +1193,7 @@ function formatDependencyChain(dependencyChain) {
     const id = moduleId;
     const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
-        throw new Error(`Module ${id} was instantiated, but the module factory is not available.`);
+        throw new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData) + `\nThis is often caused by a stale browser cache, misconfigured Cache-Control headers, or a service worker serving outdated responses.` + `\nTo fix this, make sure your Cache-Control headers allow revalidation of chunks and review your service worker configuration. ` + `As an immediate workaround, try hard-reloading the page, clearing the browser cache, or unregistering any service workers.`);
     }
     // 2. Hot API setup (same in both - works for browser, included for Node.js)
     const hotData = moduleHotData.get(id);
