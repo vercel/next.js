@@ -47,9 +47,6 @@ impl SourceTransform for BytesSourceTransform {
 
         // Generate ES module that decodes base64 to Uint8Array with inline source map.
         // Uses Uint8Array.fromBase64 (ES2024+) with atob fallback for older environments.
-        // The /*#__PURE__*/ annotation marks the decode call as side-effect free for tree shaking.
-        // For binary files, we use an empty string as sourcesContent since the
-        // original content isn't meaningful text.
         let code = format!(
             r#"
 "use turbopack no side effects";
@@ -66,6 +63,8 @@ const decode = Uint8Array.fromBase64 || function(base64) {{
 export default decode({});
 {}"#,
             StringifyJs(&encoded),
+            // For binary files, we use an empty string as sourcesContent since the
+            // original content isn't meaningful text.
             inline_source_map_comment(&path.path, "")
         );
 

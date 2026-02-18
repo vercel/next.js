@@ -15,7 +15,6 @@ use crate::{
         IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString,
     },
     source::Source,
-    source_pos::SourcePos,
 };
 
 /// PackageJson wraps the parsed JSON content of a `package.json` file. The
@@ -51,29 +50,7 @@ pub async fn read_package_json(path: ResolvedVc<Box<dyn Source>>) -> Result<Vc<O
                 e.message
             ));
 
-            let source = match (e.start_location, e.end_location) {
-                (None, None) => IssueSource::from_source_only(path),
-                (Some((line, column)), None) | (None, Some((line, column))) => {
-                    IssueSource::from_line_col(
-                        path,
-                        SourcePos { line, column },
-                        SourcePos { line, column },
-                    )
-                }
-                (Some((start_line, start_column)), Some((end_line, end_column))) => {
-                    IssueSource::from_line_col(
-                        path,
-                        SourcePos {
-                            line: start_line,
-                            column: start_column,
-                        },
-                        SourcePos {
-                            line: end_line,
-                            column: end_column,
-                        },
-                    )
-                }
-            };
+            let source = IssueSource::from_unparsable_json(path, e);
             PackageJsonIssue {
                 error_message,
                 source,

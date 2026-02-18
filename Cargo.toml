@@ -324,7 +324,6 @@ turbopack-ecmascript-runtime = { path = "turbopack/crates/turbopack-ecmascript-r
 turbopack-ecmascript-hmr-protocol = { path = "turbopack/crates/turbopack-ecmascript-hmr-protocol" }
 turbopack-env = { path = "turbopack/crates/turbopack-env" }
 turbopack-image = { path = "turbopack/crates/turbopack-image" }
-turbopack-json = { path = "turbopack/crates/turbopack-json" }
 turbopack-mdx = { path = "turbopack/crates/turbopack-mdx" }
 turbopack-node = { path = "turbopack/crates/turbopack-node" }
 turbopack-resolve = { path = "turbopack/crates/turbopack-resolve" }
