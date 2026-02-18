@@ -1479,7 +1479,10 @@ describe('ReactRefreshLogBox app', () => {
          "source": "./app/module.js (1:1)
        Module not found: Can't resolve 'non-existing-module'
        > 1 | import "non-existing-module"
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found
+       Import trace for requested module:
+       ./app/layout.js",
          "stack": [],
        }
       `)
