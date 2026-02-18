@@ -57,6 +57,11 @@ import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
+import {
+  getMaxPostponedStateSize,
+  getPostponedStateExceededErrorMessage,
+  readBodyWithSizeLimit,
+} from '../../server/lib/postponed-request-body'
 
 // These are injected by the loader afterwards.
 
@@ -227,15 +232,20 @@ export async function handler(
     req.headers[NEXT_RESUME_HEADER] === '1' &&
     req.method === 'POST'
   ) {
+    const { maxPostponedStateSize, maxPostponedStateSizeBytes } =
+      getMaxPostponedStateSize(nextConfig.experimental.maxPostponedStateSize)
+
     // Decode the postponed state from the request body, it will come as
     // an array of buffers, so collect them and then concat them to form
     // the string.
-
-    const body: Array<Buffer> = []
-    for await (const chunk of req) {
-      body.push(chunk)
+    const body = await readBodyWithSizeLimit(req, maxPostponedStateSizeBytes)
+    if (body === null) {
+      res.statusCode = 413
+      res.end(getPostponedStateExceededErrorMessage(maxPostponedStateSize))
+      ctx.waitUntil?.(Promise.resolve())
+      return null
     }
-    const postponed = Buffer.concat(body).toString('utf8')
+    const postponed = body.toString('utf8')
 
     addRequestMeta(req, 'postponed', postponed)
   }
