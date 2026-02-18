@@ -23,7 +23,7 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
-use crate::next_api::{project::NEXT_ISSUE_FILTER, turbopack_ctx::NextTurbopackContext};
+use crate::next_api::turbopack_ctx::NextTurbopackContext;
 
 /// An [`OperationVc`] that can be passed back and forth to JS across the [`napi`][mod@napi]
 /// boundary via [`External`].
@@ -97,7 +97,7 @@ pub fn root_task_dispose(
 
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
-    filter: IssueFilter,
+    filter: Vc<IssueFilter>,
 ) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     Ok(Arc::new(
         source.peek_issues().get_plain_issues(filter).await?,
@@ -360,6 +360,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 // propagate any actual error results.
 pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
+    filter: Vc<IssueFilter>,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
@@ -367,7 +368,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Arc<Effects>,
 )> {
     let result = source_op.read_strongly_consistent().await;
-    let issues = get_issues(source_op, NEXT_ISSUE_FILTER).await?;
+    let issues = get_issues(source_op, filter).await?;
     let diagnostics = get_diagnostics(source_op).await?;
     let effects = Arc::new(get_effects(source_op).await?);
 

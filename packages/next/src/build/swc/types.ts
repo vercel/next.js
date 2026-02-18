@@ -13,12 +13,17 @@ export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
+export interface TurbopackProjectCallbacks {
+  onBeforeDeferredEntries?: () => Promise<void>
+}
+
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions,
+      callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
     startTurbopackTraceServer(
       traceFilePath: string,
@@ -195,8 +200,30 @@ interface PartialUpdate extends BaseUpdate {
 
 export type Update = IssuesUpdate | PartialUpdate
 
-export interface HmrIdentifiers {
-  identifiers: string[]
+/**
+ * IMPORTANT: This type is duplicated in:
+ * turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/hmr-types.d.ts
+ *
+ * The runtime file cannot import from this ES module without triggering module semantics,
+ * so we maintain a copy there. Please keep both definitions in sync.
+ */
+export interface NodeJsPartialHmrUpdate extends BaseUpdate {
+  type: 'partial'
+  instruction: {
+    type: 'EcmascriptMergedUpdate'
+    entries: Record<
+      string,
+      { code: string; url: string; map?: string | undefined }
+    >
+    chunks?: Record<string, { type: 'partial' }>
+  }
+}
+
+export type NodeJsHmrUpdate = IssuesUpdate | NodeJsPartialHmrUpdate
+
+export interface HmrChunkNames {
+  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
+  chunkNames: string[]
 }
 
 /** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
@@ -246,11 +273,18 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrEvents(
+    identifier: string,
+    target: import('./index').HmrTarget.Client
+  ): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrEvents(
+    identifier: string,
+    target: import('./index').HmrTarget.Server
+  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrIdentifiersSubscribe(): AsyncIterableIterator<
-    TurbopackResult<HmrIdentifiers>
-  >
+  hmrChunkNamesSubscribe(
+    target: import('./index').HmrTarget
+  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
 
   getSourceForAsset(filePath: string): Promise<string | null>
 

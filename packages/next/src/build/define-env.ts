@@ -157,6 +157,7 @@ export function getDefineEnv({
       dev || config.experimental.allowDevelopmentBuild
         ? 'development'
         : 'production',
+    'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
@@ -165,6 +166,9 @@ export function getDefineEnv({
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
+    ),
+    'process.env.__NEXT_APP_NEW_SCROLL_HANDLER': Boolean(
+      config.experimental.appNewScrollHandler
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,

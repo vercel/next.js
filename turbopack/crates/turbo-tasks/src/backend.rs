@@ -12,6 +12,8 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use bincode::{
     Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
@@ -26,10 +28,10 @@ use turbo_rcstr::RcStr;
 
 use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
-    TaskPriority, TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcValueTrait, VcValueType,
-    event::EventListener, macro_helpers::NativeFunction, magic_any::MagicAny,
-    manager::TurboTasksBackendApi, raw_vc::CellId, registry,
-    task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi,
+    TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
+    VcValueTrait, VcValueType, event::EventListener, macro_helpers::NativeFunction,
+    magic_any::MagicAny, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
+    task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi, turbo_tasks,
 };
 
 pub type TransientTaskRoot =
@@ -273,7 +275,7 @@ pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>,
 
 // Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
 // of non-static strings potentially containing PII (Personal Identifiable Information).
-#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub enum TurboTasksExecutionErrorMessage {
     PIISafe(#[bincode(with = "turbo_bincode::owned_cow")] Cow<'static, str>),
     NonPIISafe(String),
@@ -294,28 +296,92 @@ pub struct TurboTasksError {
     pub source: Option<TurboTasksExecutionError>,
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+/// Error context indicating that a task's execution failed. Stores a `task_id` and a reference to
+/// the `TurboTasksCallApi` so that the task name can be resolved lazily at display time (via
+/// [`TurboTasksCallApi::get_task_name`]) rather than eagerly at error creation time.
+#[derive(Clone)]
 pub struct TurboTaskContextError {
-    pub task: RcStr,
-    #[cfg(feature = "task_id_details")]
-    pub task_id: Option<TaskId>,
+    pub turbo_tasks: Arc<dyn TurboTasksCallApi>,
+    pub task_id: TaskId,
     pub source: Option<TurboTasksExecutionError>,
 }
 
-#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
+impl PartialEq for TurboTaskContextError {
+    fn eq(&self, other: &Self) -> bool {
+        self.task_id == other.task_id && self.source == other.source
+    }
+}
+impl Eq for TurboTaskContextError {}
+
+impl Encode for TurboTaskContextError {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        Encode::encode(&self.task_id, encoder)?;
+        Encode::encode(&self.source, encoder)?;
+        Ok(())
+    }
+}
+
+impl<Context> Decode<Context> for TurboTaskContextError {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let task_id = Decode::decode(decoder)?;
+        let source = Decode::decode(decoder)?;
+        let turbo_tasks = turbo_tasks();
+        Ok(Self {
+            turbo_tasks,
+            task_id,
+            source,
+        })
+    }
+}
+
+impl_borrow_decode!(TurboTaskContextError);
+
+impl Debug for TurboTaskContextError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TurboTaskContextError")
+            .field("task_id", &self.task_id)
+            .field("source", &self.source)
+            .finish()
+    }
+}
+
+/// Error context for a local task that failed. Unlike [`TurboTaskContextError`],
+/// this stores the task name directly since local tasks don't have a [`TaskId`].
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+pub struct TurboTaskLocalContextError {
+    pub name: RcStr,
+    pub source: Option<TurboTasksExecutionError>,
+}
+
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub enum TurboTasksExecutionError {
     Panic(Arc<TurboTasksPanic>),
     Error(Arc<TurboTasksError>),
     TaskContext(Arc<TurboTaskContextError>),
+    LocalTaskContext(Arc<TurboTaskLocalContextError>),
 }
 
 impl TurboTasksExecutionError {
-    pub fn with_task_context(&self, task: impl Display, _task_id: Option<TaskId>) -> Self {
+    /// Wraps this error in a [`TaskContext`](TurboTasksExecutionError::TaskContext) layer
+    /// identifying the normal task that encountered the error.
+    pub fn with_task_context(
+        self,
+        task_id: TaskId,
+        turbo_tasks: Arc<dyn TurboTasksCallApi>,
+    ) -> Self {
         TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
-            task: RcStr::from(task.to_string()),
-            #[cfg(feature = "task_id_details")]
-            task_id: _task_id,
-            source: Some(self.clone()),
+            task_id,
+            turbo_tasks,
+            source: Some(self),
+        }))
+    }
+
+    /// Wraps this error in a [`LocalTaskContext`](TurboTasksExecutionError::LocalTaskContext) layer
+    /// identifying the local task that encountered the error.
+    pub fn with_local_task_context(self, name: String) -> Self {
+        TurboTasksExecutionError::LocalTaskContext(Arc::new(TurboTaskLocalContextError {
+            name: RcStr::from(name),
+            source: Some(self),
         }))
     }
 }
@@ -330,6 +396,9 @@ impl Error for TurboTasksExecutionError {
             TurboTasksExecutionError::TaskContext(context_error) => {
                 context_error.source.as_ref().map(|s| s as &dyn Error)
             }
+            TurboTasksExecutionError::LocalTaskContext(context_error) => {
+                context_error.source.as_ref().map(|s| s as &dyn Error)
+            }
         }
     }
 }
@@ -342,15 +411,16 @@ impl Display for TurboTasksExecutionError {
                 write!(f, "{}", error.message)
             }
             TurboTasksExecutionError::TaskContext(context_error) => {
-                #[cfg(feature = "task_id_details")]
-                if let Some(task_id) = context_error.task_id {
-                    return write!(
-                        f,
-                        "Execution of {} ({}) failed",
-                        context_error.task, task_id
-                    );
+                let task_id = context_error.task_id;
+                let name = context_error.turbo_tasks.get_task_name(task_id);
+                if cfg!(feature = "task_id_details") {
+                    write!(f, "Execution of {name} ({}) failed", task_id)
+                } else {
+                    write!(f, "Execution of {name} failed")
                 }
-                write!(f, "Execution of {} failed", context_error.task)
+            }
+            TurboTasksExecutionError::LocalTaskContext(context_error) => {
+                write!(f, "Execution of {} failed", context_error.name)
             }
         }
     }
@@ -423,6 +493,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
@@ -566,4 +637,8 @@ pub trait Backend: Sync + Send {
     fn task_statistics(&self) -> &TaskStatisticsApi;
 
     fn is_tracking_dependencies(&self) -> bool;
+
+    /// Returns a human-readable name for the given task. Used by error display formatting
+    /// to lazily resolve task names instead of storing them eagerly in error objects.
+    fn get_task_name(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) -> String;
 }

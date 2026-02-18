@@ -117,7 +117,9 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
               usePnpm
                 ? // --no-frozen-lockfile is used here to tolerate lockfile
                   // changes from merging latest changes
-                  ` && pnpm install --no-frozen-lockfile`
+                  // --package-import-method=copy avoids EXDEV hardlink failures
+                  // on self-hosted runners where pnpm store/workdirs cross devices.
+                  ` && pnpm install --no-frozen-lockfile --package-import-method=copy`
                 : ' && yarn install --network-timeout 1000000'
             }`,
             { env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' } }

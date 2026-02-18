@@ -151,8 +151,11 @@ export async function walkTreeWithFlightRouterState({
 
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
       ? // Route tree prefetch requests contain some extra information
-        createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
-      : createFlightRouterStateFromLoaderTree(
+        await createRouteTreePrefetch(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment
+        )
+      : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           getDynamicParamFromSegment,
           query
@@ -178,8 +181,11 @@ export async function walkTreeWithFlightRouterState({
         ? flightRouterState[0]
         : actualSegment
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
-      ? createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
-      : createFlightRouterStateFromLoaderTree(
+      ? await createRouteTreePrefetch(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment
+        )
+      : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           getDynamicParamFromSegment,
           query
@@ -205,7 +211,7 @@ export async function walkTreeWithFlightRouterState({
         ? flightRouterState[0]
         : actualSegment
 
-    const routerState = createFlightRouterStateFromLoaderTree(
+    const routerState = await createFlightRouterStateFromLoaderTree(
       // Create router state using the slice of the loaderTree
       loaderTreeToFilter,
       getDynamicParamFromSegment,
@@ -292,6 +298,70 @@ export async function walkTreeWithFlightRouterState({
   }
 
   return paths
+}
+
+/**
+ * A simplified version of `walkTreeWithFlightRouterState` that doesn't skip any layouts
+ * but returns a result of the same shape.
+ * Intended to be used for instant validation, where we need the complete tree.
+ */
+export async function createFullTreeFlightDataForNavigation({
+  loaderTree,
+  rscHead,
+  injectedCSS,
+  injectedJS,
+  injectedFontPreloadTags,
+  ctx,
+  preloadCallbacks,
+  MetadataOutlet,
+}: {
+  loaderTree: LoaderTree
+  flightRouterState?: FlightRouterState
+  rscHead: HeadData
+  injectedCSS: Set<string>
+  injectedJS: Set<string>
+  injectedFontPreloadTags: Set<string>
+  ctx: AppRenderContext
+  preloadCallbacks: PreloadCallbacks
+  MetadataOutlet: React.ComponentType
+}): Promise<[rootSegment: FlightDataPath]> {
+  const {
+    renderOpts: { experimental },
+    query,
+    getDynamicParamFromSegment,
+  } = ctx
+
+  const routerState = await createFlightRouterStateFromLoaderTree(
+    loaderTree,
+    getDynamicParamFromSegment,
+    query
+  )
+  const rootSegment = routerState[0]
+
+  const seedData = await createComponentTree({
+    ctx,
+    loaderTree,
+    parentParams: {},
+    injectedCSS,
+    injectedJS,
+    injectedFontPreloadTags,
+    rootLayoutIncluded: false,
+    preloadCallbacks,
+    authInterrupts: experimental.authInterrupts,
+    MetadataOutlet,
+  })
+
+  return [
+    [
+      // TODO: app-render slices this Segment off.
+      // why is that valid, and why are we including it in the first place?
+      rootSegment,
+      routerState,
+      seedData,
+      rscHead,
+      false,
+    ] satisfies FlightDataSegment,
+  ]
 }
 
 /*

@@ -25,33 +25,37 @@ export class StagedRenderingController {
   private runtimeStagePromise = createPromiseWithResolvers<void>()
   private dynamicStagePromise = createPromiseWithResolvers<void>()
 
-  private mayAbandon: boolean = false
-
   constructor(
     private abortSignal: AbortSignal | null = null,
-    private hasRuntimePrefetch: boolean
+    private hasRuntimePrefetch: boolean,
+    private abandonController: AbortController | null = null
   ) {
     if (abortSignal) {
       abortSignal.addEventListener(
         'abort',
         () => {
+          // Reject all stage promises that haven't already been resolved.
+          // If a promise was already resolved via advanceStage, the reject
+          // is a no-op. The ignoreReject handler suppresses unhandled
+          // rejection warnings for promises that no one is awaiting.
           const { reason } = abortSignal
-          if (this.currentStage < RenderStage.Runtime) {
-            this.runtimeStagePromise.promise.catch(ignoreReject) // avoid unhandled rejections
-            this.runtimeStagePromise.reject(reason)
-          }
-          if (
-            this.currentStage < RenderStage.Dynamic ||
-            this.currentStage === RenderStage.Abandoned
-          ) {
-            this.dynamicStagePromise.promise.catch(ignoreReject) // avoid unhandled rejections
-            this.dynamicStagePromise.reject(reason)
-          }
+          this.runtimeStagePromise.promise.catch(ignoreReject)
+          this.runtimeStagePromise.reject(reason)
+          this.dynamicStagePromise.promise.catch(ignoreReject)
+          this.dynamicStagePromise.reject(reason)
         },
         { once: true }
       )
+    }
 
-      this.mayAbandon = true
+    if (abandonController) {
+      abandonController.signal.addEventListener(
+        'abort',
+        () => {
+          this.abandonRender()
+        },
+        { once: true }
+      )
     }
   }
 
@@ -85,11 +89,17 @@ export class StagedRenderingController {
       return
     }
 
-    // If Sync IO occurs during the initial (abandonable) render, we'll retry it,
-    // so we want a slightly different flow.
-    // See the implementation of `abandonRenderImpl` for more explanation.
-    if (this.mayAbandon) {
-      return this.abandonRenderImpl()
+    // If the render has already been abandoned, there's nothing to interrupt.
+    if (this.currentStage === RenderStage.Abandoned) {
+      return
+    }
+
+    // If Sync IO occurs during an abandonable render, we trigger the abandon.
+    // The abandon listener will call abandonRender which advances through
+    // stages to let caches fill before marking as Abandoned.
+    if (this.abandonController) {
+      this.abandonController.abort()
+      return
     }
 
     // If we're in the final render, we cannot abandon it. We need to advance to the Dynamic stage
@@ -114,7 +124,6 @@ export class StagedRenderingController {
         return
       }
       case RenderStage.Dynamic:
-      case RenderStage.Abandoned:
       default:
     }
   }
@@ -135,17 +144,7 @@ export class StagedRenderingController {
     return this.runtimeStageEndTime
   }
 
-  abandonRender() {
-    if (!this.mayAbandon) {
-      throw new InvariantError(
-        '`abandonRender` called on a stage controller that cannot be abandoned.'
-      )
-    }
-
-    this.abandonRenderImpl()
-  }
-
-  private abandonRenderImpl() {
+  private abandonRender() {
     // In staged rendering, only the initial render is abandonable.
     // We can abandon the initial render if
     //   1. We notice a cache miss, and need to wait for caches to fill

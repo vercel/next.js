@@ -20,7 +20,7 @@ impl Registration {
 
 #[macro_export]
 macro_rules! register {
-    ($($other_register_fns:expr),* $(,)?) => {{
+    () => {{
         use std::sync::Arc;
 
         use turbo_tasks::TurboTasksApi;

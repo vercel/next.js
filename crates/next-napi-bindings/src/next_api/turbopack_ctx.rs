@@ -11,14 +11,14 @@ use std::{
 
 use anyhow::Result;
 use either::Either;
-use napi::{JsFunction, threadsafe_function::ThreadsafeFunction};
+use napi::{JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use serde::Serialize;
 use terminal_hyperlink::Hyperlink;
 use turbo_tasks::{
-    PrettyPrintError, TurboTasks, TurboTasksApi,
+    PrettyPrintError, TurboTasks, TurboTasksCallApi,
     backend::TurboTasksExecutionError,
     message_queue::{CompilationEvent, Severity},
 };
@@ -123,6 +123,15 @@ impl NextTurbopackContext {
         let err_fut = self.throw_turbopack_internal_error(err);
         async move { Err(err_fut.await) }
     }
+
+    /// Calls the `onBeforeDeferredEntries` callback in Node.js if one was provided.
+    pub async fn on_before_deferred_entries(&self) -> napi::Result<()> {
+        if let Some(callback) = &self.inner.napi_callbacks.on_before_deferred_entries {
+            let promise = callback.call_async::<Promise<()>>(Ok(())).await?;
+            promise.await?;
+        }
+        Ok(())
+    }
 }
 
 /// A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
@@ -139,6 +148,10 @@ pub struct NapiNextTurbopackCallbacksJsObject {
     /// can throw it instead.
     #[napi(ts_type = "(conversionError: Error | null, opts: TurbopackInternalErrorOpts) => never")]
     pub throw_turbopack_internal_error: JsFunction,
+
+    /// Called before deferred entries are processed in a production build.
+    #[napi(ts_type = "() => Promise<void>")]
+    pub on_before_deferred_entries: Option<JsFunction>,
 }
 
 /// A collection of helper JavaScript functions passed into
@@ -155,6 +168,7 @@ pub struct NapiNextTurbopackCallbacks {
     // think it could be `Send`, as long as `napi::Env` is checked at call-time, which it should be
     // anyways).
     throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts>,
+    on_before_deferred_entries: Option<ThreadsafeFunction<()>>,
 }
 
 /// Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`.
@@ -175,6 +189,12 @@ impl NapiNextTurbopackCallbacks {
                     // PII-containing message in anonymized telemetry.
                     Ok(vec![ctx.value])
                 })?,
+            on_before_deferred_entries: obj
+                .on_before_deferred_entries
+                .map(|callback| {
+                    callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))
+                })
+                .transpose()?,
         })
     }
 }

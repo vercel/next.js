@@ -102,6 +102,11 @@ export class NextInstance {
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
+    const nextTestWasm =
+      process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
+    if (nextTestWasm) {
+      this.env.NEXT_TEST_WASM = nextTestWasm
+    }
 
     if (!isNextDeploy) {
       this.env = {
@@ -438,6 +443,12 @@ export class NextInstance {
           // alias experimental feature flags for deployment compatibility
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
             process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
+            process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER = process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL) {
+            process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL = process.env.NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL
           }
         `
           )
