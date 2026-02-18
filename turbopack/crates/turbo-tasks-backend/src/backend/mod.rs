@@ -3209,6 +3209,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         child.iter_upper().map(|(&id, _)| id).collect();
                     drop(child);
 
+                    // If the child is also an upper of the task, it means the child is an inner
+                    // node of the task and we don't need to check the upper's followers
+                    if child_uppers.contains(&task_id) {
+                        continue;
+                    }
+
                     for &upper_id in &uppers {
                         let is_inner = child_uppers.contains(&upper_id);
                         if !is_inner {

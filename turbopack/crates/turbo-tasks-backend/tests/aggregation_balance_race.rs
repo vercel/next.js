@@ -9,7 +9,7 @@ use std::{future::Future, sync::Arc};
 
 use anyhow::Result;
 use tokio::sync::Notify;
-use turbo_tasks::{Completion, ResolvedVc, State, TryJoinIterExt, Vc, run_once};
+use turbo_tasks::{Completion, ResolvedVc, State, TryJoinIterExt, Vc, run, run_once};
 use turbo_tasks_testing::{Registration, register, run_with_tt};
 
 static REGISTRATION: Registration = register!();
@@ -107,11 +107,12 @@ async fn balance_edge_race() -> Result<()> {
             .await?;
 
             for round in 0..ROUNDS {
+                println!("Starting round {round}");
                 // Set cross-link target to a different interior node each round
                 let target = (round as u32 % (GRID_SIZE - 3)) + 1;
                 race_panic(
                     &panic_event,
-                    run_once(tt.clone(), async move {
+                    run(tt.clone(), async move {
                         cross_link.await?.state.set(target);
                         Ok(Vc::<()>::default())
                     }),
@@ -122,7 +123,7 @@ async fn balance_edge_race() -> Result<()> {
                 let read_futs: Vec<_> = edge_coords
                     .iter()
                     .map(|&(a, b)| {
-                        run_once(tt.clone(), async move {
+                        run(tt.clone(), async move {
                             grid(a, b, *cross_link).strongly_consistent().await?;
                             Ok(Vc::<()>::default())
                         })
@@ -132,7 +133,7 @@ async fn balance_edge_race() -> Result<()> {
                 // Immediately disable cross-links (while reads are still in progress!)
                 race_panic(
                     &panic_event,
-                    run_once(tt.clone(), async move {
+                    run(tt.clone(), async move {
                         cross_link.await?.state.set(0);
                         Ok(Vc::<()>::default())
                     }),
@@ -143,7 +144,7 @@ async fn balance_edge_race() -> Result<()> {
                 let read_futs2: Vec<_> = edge_coords
                     .iter()
                     .map(|&(a, b)| {
-                        run_once(tt.clone(), async move {
+                        run(tt.clone(), async move {
                             grid(a, b, *cross_link).strongly_consistent().await?;
                             Ok(Vc::<()>::default())
                         })
