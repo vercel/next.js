@@ -2,12 +2,11 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-image-loader`
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
-use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::AssetContent,
     context::AssetContext,
@@ -24,23 +23,6 @@ use turbopack_ecmascript::{
 
 use crate::next_app::AppPage;
 
-async fn hash_file_content(path: FileSystemPath) -> Result<u64> {
-    let original_file_content = path.read().await?;
-
-    Ok(match &*original_file_content {
-        FileContent::Content(content) => {
-            let content = content.content().to_bytes();
-            hash_xxh3_hash64(&*content)
-        }
-        FileContent::NotFound => {
-            bail!(
-                "metadata file not found: {}",
-                &path.value_to_string().await?
-            );
-        }
-    })
-}
-
 async fn dynamic_image_metadata_with_generator_source(
     path: FileSystemPath,
     ty: RcStr,
@@ -51,7 +33,13 @@ async fn dynamic_image_metadata_with_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash_query = format!("?{:x}", hash_file_content(path.clone()).await?);
+    let hash_query = format!(
+        "?{:x}",
+        path.read()
+            .content_hash()
+            .await?
+            .context("metadata file not found")?
+    );
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
@@ -125,7 +113,13 @@ async fn dynamic_image_metadata_without_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash_query = format!("?{:x}", hash_file_content(path.clone()).await?);
+    let hash_query = format!(
+        "?{:x}",
+        path.read()
+            .content_hash()
+            .await?
+            .context("metadata file not found")?
+    );
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {

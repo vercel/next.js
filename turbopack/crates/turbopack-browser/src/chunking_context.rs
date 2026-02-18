@@ -7,9 +7,9 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash64};
+use turbo_tasks_hash::{DeterministicHash, encode_hex};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
@@ -577,20 +577,15 @@ impl ChunkingContext for BrowserChunkingContext {
                 let Some(asset) = asset else {
                     bail!("chunk_path requires an asset when content hashing is enabled");
                 };
-                let content = asset.content().await?;
-                if let AssetContent::File(file) = &*content {
-                    let hash = hash_xxh3_hash64(&file.await?);
-                    let length = length as usize;
-                    if let Some(prefix) = prefix {
-                        format!("{prefix}-{hash:0length$x}{extension}").into()
-                    } else {
-                        format!("{hash:0length$x}{extension}").into()
-                    }
+                let hash = asset.content().content_hash().await?.context(
+                    "chunk_path requires an asset with file content when content hashing is \
+                     enabled",
+                )?;
+                let length = length as usize;
+                if let Some(prefix) = prefix {
+                    format!("{prefix}-{hash:0length$x}{extension}").into()
                 } else {
-                    bail!(
-                        "chunk_path requires an asset with file content when content hashing is \
-                         enabled"
-                    );
+                    format!("{hash:0length$x}{extension}").into()
                 }
             }
         };
@@ -646,12 +641,13 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn asset_path(
         &self,
-        content_hash: RcStr,
+        content_hash: Vc<u64>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
+        let content_hash = encode_hex(*content_hash.await?);
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{content_hash}.{ext}",

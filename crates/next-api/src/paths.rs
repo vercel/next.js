@@ -34,7 +34,7 @@ async fn server_path(
 ) -> Result<Vc<OptionServerPath>> {
     Ok(Vc::cell(
         if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
-            let content_hash = *asset.content().file_content().hash().await?;
+            let content_hash = *asset.content().hash().await?;
             Some(ServerPath {
                 path: RcStr::from(path),
                 content_hash,

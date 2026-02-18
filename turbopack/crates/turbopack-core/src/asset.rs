@@ -117,4 +117,14 @@ impl AssetContent {
             }
         }
     }
+
+    /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and nothing
+    /// else. If there is no file content, it returns `None`.
+    #[turbo_tasks::function]
+    pub async fn content_hash(&self) -> Result<Vc<Option<u64>>> {
+        match self {
+            AssetContent::File(content) => Ok(content.content_hash()),
+            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
+        }
+    }
 }
