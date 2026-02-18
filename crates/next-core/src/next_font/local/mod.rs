@@ -115,9 +115,12 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         .resolved_cell()
                         .emit();
 
-                        return Ok(ResolveResultOption::some(*ResolveResult::primary(
-                            ResolveResultItem::Error(ResolvedVc::cell(err.to_string().into())),
-                        )));
+                        return Ok(ResolveResultOption::some(
+                            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
+                                err.to_string().into(),
+                            )))
+                            .cell(),
+                        ));
                     }
                     FontFallbackResult::Ok(font_fallbacks) => *font_fallbacks,
                 };
@@ -166,9 +169,9 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 .to_resolved()
                 .await?;
 
-                Ok(ResolveResultOption::some(*ResolveResult::source(
-                    ResolvedVc::upcast(js_asset),
-                )))
+                Ok(ResolveResultOption::some(
+                    ResolveResult::source(ResolvedVc::upcast(js_asset)).cell(),
+                ))
             }
             "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" => {
                 let request_hash = get_request_hash(query);
@@ -187,9 +190,12 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         .resolved_cell()
                         .emit();
 
-                        return Ok(ResolveResultOption::some(*ResolveResult::primary(
-                            ResolveResultItem::Error(ResolvedVc::cell(err.to_string().into())),
-                        )));
+                        return Ok(ResolveResultOption::some(
+                            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
+                                err.to_string().into(),
+                            )))
+                            .cell(),
+                        ));
                     }
                     FontFallbackResult::Ok(font_fallbacks) => **font_fallbacks,
                 };
@@ -208,9 +214,9 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 .to_resolved()
                 .await?;
 
-                Ok(ResolveResultOption::some(*ResolveResult::source(
-                    ResolvedVc::upcast(css_asset),
-                )))
+                Ok(ResolveResultOption::some(
+                    ResolveResult::source(ResolvedVc::upcast(css_asset)).cell(),
+                ))
             }
             "@vercel/turbopack-next/internal/font/local/font" => {
                 let NextFontLocalFontFileOptions {
@@ -240,9 +246,9 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         .to_resolved()
                         .await?;
 
-                Ok(ResolveResultOption::some(*ResolveResult::source(
-                    ResolvedVc::upcast(font_source),
-                )))
+                Ok(ResolveResultOption::some(
+                    ResolveResult::source(ResolvedVc::upcast(font_source)).cell(),
+                ))
             }
             _ => Ok(ResolveResultOption::none()),
         }

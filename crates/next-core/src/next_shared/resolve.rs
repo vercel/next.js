@@ -148,9 +148,12 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
         .resolved_cell()
         .emit();
 
-        ResolveResultOption::some(*ResolveResult::primary(ResolveResultItem::Error(
-            ResolvedVc::cell(self.message.join("\n").into()),
-        )))
+        ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
+                self.message.join("\n").into(),
+            )))
+            .cell(),
+        )
     }
 }
 
@@ -249,14 +252,15 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         // Replace '/esm/' with '/' to match the CJS version of the file.
         let specifier: RcStr = specifier.replace("/esm/", "/").into();
 
-        Ok(Vc::cell(Some(ResolveResult::primary(
-            ResolveResultItem::External {
+        Ok(Vc::cell(Some(
+            ResolveResult::primary(ResolveResultItem::External {
                 name: specifier.clone(),
                 ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
                 target: None,
-            },
-        ))))
+            })
+            .resolved_cell(),
+        )))
     }
 }
 
@@ -328,9 +332,12 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             .await?
             .join(&format!("{base}/{resource_request}"))?;
 
-        Ok(Vc::cell(Some(ResolveResult::source(ResolvedVc::upcast(
-            FileSource::new(new_path).to_resolved().await?,
-        )))))
+        Ok(Vc::cell(Some(
+            ResolveResult::source(ResolvedVc::upcast(
+                FileSource::new(new_path).to_resolved().await?,
+            ))
+            .resolved_cell(),
+        )))
     }
 }
 
@@ -430,8 +437,11 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
         let raw_fs_path = fs_path.clone();
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
         let new_path = fs_path.root().await?.join(&modified_path)?;
-        Ok(Vc::cell(Some(ResolveResult::source(ResolvedVc::upcast(
-            FileSource::new(new_path).to_resolved().await?,
-        )))))
+        Ok(Vc::cell(Some(
+            ResolveResult::source(ResolvedVc::upcast(
+                FileSource::new(new_path).to_resolved().await?,
+            ))
+            .resolved_cell(),
+        )))
     }
 }
