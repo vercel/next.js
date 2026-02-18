@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Cosmic
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Cosmic](https://cosmicjs.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [Cosmic](https://cosmicjs.com/) as the data source.
 
 ## Demo
 
@@ -83,7 +83,7 @@ Then set each variable on `.env.local`:
 
 - `COSMIC_BUCKET_SLUG` should be the **Bucket slug** key under **API Access**.
 - `COSMIC_READ_KEY` should be the **Read Key** under **API Access**.
-- `COSMIC_PREVIEW_SECRET` can be any random string (but avoid spaces) - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `COSMIC_PREVIEW_SECRET` can be any random string (but avoid spaces) - this is used for [Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode).
 
 Your `.env.local` file should look like this:
 
@@ -127,7 +127,7 @@ On Cosmic, go to one of the posts you've created and:
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - Click **Save Draft**, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.
 
-Now, if you go to the post page directly on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now, if you go to the post page directly on localhost, you won't see the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 Next, click the Preview Link button on the Post to see the updated title. (Screenshot below)
 

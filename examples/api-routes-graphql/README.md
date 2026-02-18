@@ -1,6 +1,6 @@
 # API routes with GraphQL server
 
-Next.js ships with [API routes](https://nextjs.org/docs/api-routes/introduction), which provide an easy solution to build your own `API`.
+Next.js ships with [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes), which provide an easy solution to build your own `API`.
 This example showcases how to build a lightweight and blazing fast GraphQL API with minimum configuration using GraphQL Yoga.
 
 GraphQL Yoga comes with strong defaults:

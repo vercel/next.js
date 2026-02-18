@@ -1,6 +1,6 @@
 # Absolute Imports and Aliases
 
-This example shows how to configure [Absolute imports and Module path aliases](https://nextjs.org/docs/advanced-features/module-path-aliases) in `tsconfig.json` (or `jsconfig.json` for JavaScript projects). These options will allow absolute imports from `.` (the root directory), and allow you to create custom import aliases.
+This example shows how to configure [Absolute imports and Module path aliases](https://nextjs.org/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases) in `tsconfig.json` (or `jsconfig.json` for JavaScript projects). These options will allow absolute imports from `.` (the root directory), and allow you to create custom import aliases.
 
 If you’re working on a large project, your relative import statements might suffer from `../../../` spaghetti:
 

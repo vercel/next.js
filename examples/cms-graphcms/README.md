@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and GraphCMS
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [GraphCMS](https://www.graphcms.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [GraphCMS](https://www.graphcms.com/) as the data source.
 
 ## Demo
 
@@ -87,7 +87,7 @@ Then set each variable in `.env.local`:
 - `GRAPHCMS_PROJECT_API`: Set it to the API endpoint under **Endpoints**, at the top of the page.
 - `GRAPHCMS_PROD_AUTH_TOKEN`: Copy the `NEXT_EXAMPLE_CMS_GCMS_PROD_AUTH_TOKEN` token under **Existing tokens**, at the bottom of the page. This will only query content that is published.
 - `GRAPHCMS_DEV_AUTH_TOKEN`: Copy the `NEXT_EXAMPLE_CMS_GCMS_DEV_AUTH_TOKEN` token under **Existing tokens**, at the bottom of the page. This will only query content that is in draft.
-- `GRAPHCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `GRAPHCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode).
 
 ### Step 4. Run Next.js in development mode
 
@@ -110,7 +110,7 @@ In GraphCMS, go to one of the posts in your project and:
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - After you edit the document save the article as a draft, but **DO NOT** click **Publish**. By doing this, the post will be in the draft stage.
 
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to the post page on localhost, you won't see the updated title. However, if you use **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To view the preview, transform the url to the following format: `http://localhost:3000/api/preview?secret=<YOUR_SECRET_TOKEN>&slug=<SLUG_TO_PREVIEW>` where `<YOUR_SECRET_TOKEN>` is the same secret you defined in the `.env.local` file and `<SLUG_TO_PREVIEW>` is the slug of one of the posts you want to preview.
 

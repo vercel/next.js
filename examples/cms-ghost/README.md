@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Ghost
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Ghost](https://ghost.org/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [Ghost](https://ghost.org/) as the data source.
 
 > This boilerplate demonstrates simple usage and best practices. If you are looking for a more feature rich Next.js generator for Ghost including the Casper theme,
 > check out [next-cms-ghost](https://github.com/styxlab/next-cms-ghost).

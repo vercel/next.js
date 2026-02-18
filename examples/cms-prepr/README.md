@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Prepr
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Prepr](https://prepr.io/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [Prepr](https://prepr.io/) as the data source.
 
 ## Demo
 
@@ -59,7 +59,7 @@ Copy the _GraphQL Production_ access token and paste it as the `PREPRIO_PRODUCTI
 
 Alternatively, you can create access tokens yourself by clicking **Add access token**. If so, make sure to [choose the right GraphQL permissions](https://docs.prepr.io/reference/graphql/v1/authorization) for the access tokens.
 
-**2.3** Set a custom value with no spaces as the `PREPRIO_PREVIEW_SECRET` variable, for example, a UUID. This value will be used to enable [preview mode](https://nextjs.org/docs/advanced-features/preview-mode).
+**2.3** Set a custom value with no spaces as the `PREPRIO_PREVIEW_SECRET` variable, for example, a UUID. This value will be used to enable [preview mode](https://nextjs.org/docs/pages/guides/preview-mode).
 
 Once done, your `.env.local` file should look like this:
 

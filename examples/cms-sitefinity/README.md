@@ -1,7 +1,7 @@
 # A statically generated blog example using Next.js and Sitefinity CMS
 
 This is the existing [cms-sitefinity](https://github.com/vercel/next.js/tree/canary/examples/cms-sitefinity) plus TypeScript.
-This example showcases [Next.js's Static Generation feature](https://nextjs.org/docs/basic-features/pages) using Sitefinity CMS as the data source.
+This example showcases [Next.js's Static Generation feature](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) using Sitefinity CMS as the data source.
 
 ## Demo
 

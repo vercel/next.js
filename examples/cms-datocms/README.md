@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and DatoCMS
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [DatoCMS](https://www.datocms.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [DatoCMS](https://www.datocms.com/) as the data source.
 
 ## Demo
 
@@ -128,7 +128,7 @@ cp .env.local.example .env.local
 Then set each variable on `.env.local`:
 
 - `DATOCMS_API_TOKEN` should be the API token you just copied.
-- `DATOCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `DATOCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode).
 
 Your `.env.local` file should look like this:
 
@@ -160,7 +160,7 @@ On DatoCMS, go to one of the posts you've created and:
 
 (If it doesn't become draft, you need to go to the model settings for `Post`, go to **Additional Settings**, and turn on **Enable draft/published system**.)
 
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 

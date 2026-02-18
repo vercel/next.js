@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Webiny
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Webiny](https://webiny.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [Webiny](https://webiny.com/) as the data source.
 
 ## Demo
 
@@ -87,7 +87,7 @@ You will be able to use the same API token for both published and draft posts.
 
 Copy the `.env.local.example` file to `.env.local`, then set the variables as follows:
 
-- `PREVIEW_API_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `PREVIEW_API_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode).
 - WEBINY_API_SECRET this will be your security token generated in Webiny
 - You can find the values for `NEXT_PUBLIC_WEBINY_API_URL` and `NEXT_PUBLIC_WEBINY_PREVIEW_API_URL` two ways: From your local Webiny project root, run `yarn webiny info`, alternatively go to **API Playground** in the sidebar. At the top of the GraphQL explorer are four tabs, one for each of our APIs, and you'll see both the Read API and the Preview API on those tabs. The URL for your environment is just below the tab. ([More info here if you get stuck](https://www.webiny.com/docs/headless-cms/basics/graphql-api))
 
@@ -111,7 +111,7 @@ The best place to debug is inside the `fetchAPI` function in `lib/api.js`. If yo
 
 ### Step 4. Try preview mode
 
-If you go to the `/posts/draft` page on localhost, you won't see this post because it’s not published. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+If you go to the `/posts/draft` page on localhost, you won't see this post because it’s not published. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 

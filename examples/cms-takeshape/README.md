@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and TakeShape
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [TakeShape](https://www.takeshape.io/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [TakeShape](https://www.takeshape.io/) as the data source.
 
 ## Demo
 
@@ -134,7 +134,7 @@ Then set each variable on `.env.local`:
 
 - `TAKESHAPE_API_KEY` should be the API token you just copied.
 - `TAKESHAPE_PROJECT_ID` should be the project ID, which is a substring in the project page URL: `https://app.takeshape.io/projects/<project-id>/...`
-- `TAKESHAPE_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `TAKESHAPE_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode).
 
 Your `.env.local` file should look like this:
 
@@ -162,7 +162,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 On TakeShape, create a new post like before. But **DO NOT** click **Enabled** under **Workflow Status**.
 
-Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now, if you go to `http://localhost:3000/posts/<slug>` (replace `<slug>`), you won’t see the post. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 

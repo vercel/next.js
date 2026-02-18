@@ -27,4 +27,4 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ## Notes
 
 This example is a basic starting point for using [next-translate](https://github.com/vinissimus/next-translate) with Next.js.
-It's a tool to translate Next.js applications respecting the [Automatic Static Optimization](https://nextjs.org/docs/advanced-features/automatic-static-optimization). Deploy static sites with full i18n support!
+It's a tool to translate Next.js applications respecting the [Automatic Static Optimization](https://nextjs.org/docs/pages/building-your-application/rendering/automatic-static-optimization). Deploy static sites with full i18n support!

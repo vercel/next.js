@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Enterspeed
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Enterspeed](https://www.enterspeed.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [Enterspeed](https://www.enterspeed.com/) as the data source.
 
 ## Demo
 
@@ -304,7 +304,7 @@ ENTERSPEED_PREVIEW_SECRET
 
 ### Step 8. Try preview mode
 
-If you go to `http://localhost:3000`, you won’t see your preview data. However, if you enable **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+If you go to `http://localhost:3000`, you won’t see your preview data. However, if you enable **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To enable Preview Mode, go to this URL:
 

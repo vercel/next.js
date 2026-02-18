@@ -4,7 +4,7 @@ This Next.js starter project fully integrates with dynamic sample content from y
 
 A copy of this starter project can be easily and quickly deployed to Vercel with the click of a button.
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [ButterCMS](https://buttercms.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [ButterCMS](https://buttercms.com/) as the data source.
 
 ## Demo
 
@@ -126,7 +126,7 @@ Most importantly, **do not publish** the blog post. Instead, click **Save Draft*
 If you have not already, set `PREVIEW=false` in your `.env.local` file and restart your local
 development server.
 
-Now, if you go to the your blog list view page on localhost: [http://localhost:3000/#blog](http://localhost:3000/#blog), you won't see this post, as its status has not yet been updated to `published`. However, if you use **Preview Mode** by deleting `PREVIEW=false` from your `.env.local` file, your new post will appear ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now, if you go to the your blog list view page on localhost: [http://localhost:3000/#blog](http://localhost:3000/#blog), you won't see this post, as its status has not yet been updated to `published`. However, if you use **Preview Mode** by deleting `PREVIEW=false` from your `.env.local` file, your new post will appear ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 **Tip**: [You can set a preview URL on ButterCMS](https://buttercms.com/kb/preview-urls) for pages
 deployed to Vercel, allowing you to live-preview changes on the web from within your Butter account! Sweet!
