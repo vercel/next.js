@@ -36,7 +36,9 @@ describe('app-dir edge SSR invalid reexport', () => {
            "source": "./app/export/inherit/page.tsx (1:28)
          Next.js can't recognize the exported \`preferredRegion\` field in route. It mustn't be reexported.
          > 1 | export { default, runtime, preferredRegion } from '../basic/page'
-             |                            ^^^^^^^^^^^^^^^",
+             |                            ^^^^^^^^^^^^^^^
+         The exported configuration object in a source file needs to have a very specific format from which some properties can be statically parsed at compiled-time.
+         https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config",
            "stack": [],
          }
         `)

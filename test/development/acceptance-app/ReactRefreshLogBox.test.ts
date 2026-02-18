@@ -497,7 +497,19 @@ describe('ReactRefreshLogBox app', () => {
          "source": "./index.module.css (1:8)
        Parsing CSS source code failed
        > 1 | .button
-           |        ^",
+           |        ^
+       Unexpected end of input
+       Import traces:
+         Client Component Browser:
+           ./index.module.css [Client Component Browser]
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.module.css [Client Component SSR]
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
@@ -1448,7 +1460,12 @@ describe('ReactRefreshLogBox app', () => {
          "source": "./app/module.js (1:1)
        Module not found: Can't resolve 'non-existing-module'
        > 1 | import "non-existing-module"
-           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       Import trace:
+         Server Component:
+           ./app/module.js
+           ./app/layout.js
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
@@ -1524,7 +1541,13 @@ describe('ReactRefreshLogBox app', () => {
          "source": "./app/styles2.css (1:1)
        Module not found: Can't resolve './boom.css'
        > 1 | @import "./boom.css"
-           | ^",
+           | ^
+       Import trace:
+         Client Component Browser:
+           ./app/styles2.css [Client Component Browser]
+           ./app/styles1.css [Client Component Browser]
+           ./app/layout.js [Server Component]
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)

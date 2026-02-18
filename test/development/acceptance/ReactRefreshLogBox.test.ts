@@ -448,7 +448,15 @@ describe('ReactRefreshLogBox', () => {
          "source": "./index.js (7:1)
        Parsing ecmascript source code failed
        > 7 | }
-           | ^",
+           | ^
+       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+       Import traces:
+         Browser:
+           ./index.js
+           ./pages/index.js
+         SSR:
+           ./index.js
+           ./pages/index.js",
          "stack": [],
        }
       `)
@@ -715,7 +723,17 @@ describe('ReactRefreshLogBox', () => {
          "source": "./index.module.css (1:8)
        Parsing CSS source code failed
        > 1 | .button
-           |        ^",
+           |        ^
+       Unexpected end of input
+       Import traces:
+         Browser:
+           ./index.module.css
+           ./index.js
+           ./pages/index.js
+         SSR:
+           ./index.module.css
+           ./index.js
+           ./pages/index.js",
          "stack": [],
        }
       `)

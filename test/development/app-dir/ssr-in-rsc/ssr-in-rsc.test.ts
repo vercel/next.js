@@ -185,7 +185,9 @@ describe('react-dom/server in React Server environment', () => {
          "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
        Ecmascript file had an error
        > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
-           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering",
          "stack": [],
        }
       `)

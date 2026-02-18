@@ -498,7 +498,8 @@ describe('middleware - development errors', () => {
            "source": "./middleware.js (1:28)
          Parsing ecmascript source code failed
          > 1 | export default function () }
-             |                            ^",
+             |                            ^
+         Expected '{', got '}'",
            "stack": [],
          }
         `)
@@ -583,7 +584,8 @@ describe('middleware - development errors', () => {
            "source": "./middleware.js (1:28)
          Parsing ecmascript source code failed
          > 1 | export default function () }
-             |                            ^",
+             |                            ^
+         Expected '{', got '}'",
            "stack": [],
          }
         `)
