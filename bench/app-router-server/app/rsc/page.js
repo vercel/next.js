@@ -1,4 +1,4 @@
-import * as React from 'react'
+import 'client-only'
 
 export default function page() {
   return <div>hello</div>

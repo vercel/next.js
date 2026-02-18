@@ -11,19 +11,19 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
+        DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
         visit::{
-            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
-            VisitWith,
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
         },
     },
 };
@@ -135,6 +135,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             self.taint_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
+            true,
         );
 
         module.visit_with(&mut validator);
@@ -584,12 +585,15 @@ fn collect_module_info(
 
 /// A visitor to assert given module file is a valid React server component.
 struct ReactServerComponentValidator {
+    // Options
     is_react_server_layer: bool,
     cache_components_enabled: bool,
     use_cache_enabled: bool,
     taint_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
+
+    // State
     invalid_server_imports: Vec<Wtf8Atom>,
     invalid_server_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
     deprecated_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
@@ -610,6 +614,7 @@ impl ReactServerComponentValidator {
         taint_enabled: bool,
         filename: String,
         app_dir: Option<PathBuf>,
+        validate_context_only_import: bool,
     ) -> Self {
         Self {
             is_react_server_layer,
@@ -618,6 +623,7 @@ impl ReactServerComponentValidator {
             taint_enabled,
             filepath: filename,
             app_dir,
+
             module_directive: None,
             export_names: vec![],
             // react -> [apis]
@@ -677,18 +683,26 @@ impl ReactServerComponentValidator {
                 vec!["ImageResponse"],
             )]),
 
-            invalid_server_imports: vec![
-                atom!("client-only").into(),
-                atom!("react-dom/client").into(),
-                atom!("react-dom/server").into(),
-                atom!("next/router").into(),
-            ],
+            invalid_server_imports: if validate_context_only_import {
+                vec![
+                    atom!("client-only").into(),
+                    atom!("react-dom/client").into(),
+                    atom!("react-dom/server").into(),
+                    atom!("next/router").into(),
+                ]
+            } else {
+                vec![]
+            },
 
-            invalid_client_imports: vec![
-                atom!("server-only").into(),
-                atom!("next/headers").into(),
-                atom!("next/root-params").into(),
-            ],
+            invalid_client_imports: if validate_context_only_import {
+                vec![
+                    atom!("server-only").into(),
+                    atom!("next/headers").into(),
+                    atom!("next/root-params").into(),
+                ]
+            } else {
+                vec![]
+            },
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
                 (atom!("next/server").into(), vec!["after"]),
@@ -1162,6 +1176,7 @@ pub fn server_components_assert(
         taint_enabled,
         filename,
         app_dir,
+        false,
     )
 }
 
