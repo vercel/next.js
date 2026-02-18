@@ -1825,6 +1825,14 @@ impl AggregationUpdateQueue {
         new_follower_id: TaskId,
         mut upper_ids: SmallVec<[T; N]>,
     ) {
+        if cfg!(feature = "aggregation_update_no_batch") {
+            for upper_item in upper_ids {
+                let (upper_id, count) = upper_item.task_id_and_count();
+                self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_id, count);
+            }
+            return;
+        }
+
         #[cfg(feature = "trace_aggregation_update")]
         let _span =
             trace_span!("process new follower (n uppers)", uppers = upper_ids.len()).entered();
@@ -2007,6 +2015,14 @@ impl AggregationUpdateQueue {
         new_follower_ids: SmallVec<[T; N]>,
         upper_id: TaskId,
     ) {
+        if cfg!(feature = "aggregation_update_no_batch") {
+            for new_follower_item in new_follower_ids {
+                let (new_follower_id, count) = new_follower_item.task_id_and_count();
+                self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_id, count);
+            }
+            return;
+        }
+
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!(
             "process new follower (n followers)",
