@@ -1841,6 +1841,26 @@
     ],
     "subsets": ["latin", "latin-ext"]
   },
+  "Betania Patmos": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos GDL": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos In": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos In GDL": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Beth Ellen": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -6264,6 +6284,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "telugu"]
   },
+  "Gveret Levin": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["hebrew", "latin"]
+  },
   "Gwendolyn": {
     "weights": ["400", "700"],
     "styles": ["normal"],
@@ -6798,6 +6823,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
+  },
+  "Idiqlat": {
+    "weights": ["200", "300", "400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "syriac"]
   },
   "Imbue": {
     "weights": [
@@ -14955,6 +14985,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "latin", "latin-ext"]
+  },
+  "Ramsina": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "syriac"]
   },
   "Ranchers": {
     "weights": ["400"],
