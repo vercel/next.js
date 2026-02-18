@@ -12,7 +12,6 @@ import {
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
-  delayUntilRuntimeStage,
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -20,6 +19,7 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { delayUntilRuntimeStage } from '../dynamic-rendering-utils'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 export function draftMode(): Promise<DraftMode> {

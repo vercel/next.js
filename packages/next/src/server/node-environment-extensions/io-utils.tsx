@@ -87,7 +87,10 @@ export function io(expression: string, type: ApiType) {
         const stageController = workUnitStore.stagedRendering
         if (stageController && stageController.canSyncInterrupt()) {
           let message: string
-          if (stageController.currentStage === RenderStage.Static) {
+          if (
+            stageController.currentStage === RenderStage.Static ||
+            stageController.currentStage === RenderStage.EarlyStatic
+          ) {
             switch (type) {
               case 'time':
                 message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`

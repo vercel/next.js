@@ -1,7 +1,6 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import {
-  delayUntilRuntimeStage,
   postponeWithTracking,
   type DynamicTrackingState,
 } from '../app-render/dynamic-rendering'
@@ -13,7 +12,10 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  delayUntilRuntimeStage,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createServerPathnameForMetadata(
