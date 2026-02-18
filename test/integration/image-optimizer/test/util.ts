@@ -1489,9 +1489,12 @@ export function runTests(ctx: RunTestsCtx) {
 
   it('should set cache-control to immutable for static images', async () => {
     if (!ctx.isDev) {
-      const filename = 'test'
+      const filename = fs
+        .readdirSync(join(ctx.appDir, '.next/static/media'))
+        .find((f) => /^test\.[0-9a-f]+\.jpg$/.test(f))
+      expect(filename).toBeString()
       const query = {
-        url: `/_next/static/media/${filename}.fab2915d.jpg`,
+        url: `/_next/static/media/${filename}`,
         w: ctx.w,
         q: ctx.q,
       }
@@ -1504,7 +1507,7 @@ export function runTests(ctx: RunTestsCtx) {
       )
       expect(res1.headers.get('Vary')).toBe('Accept')
       expect(res1.headers.get('Content-Disposition')).toBe(
-        `${contentDispositionType}; filename="${filename}.webp"`
+        `${contentDispositionType}; filename="test.webp"`
       )
       await expectWidth(res1, ctx.w)
 
@@ -1516,7 +1519,7 @@ export function runTests(ctx: RunTestsCtx) {
       )
       expect(res2.headers.get('Vary')).toBe('Accept')
       expect(res2.headers.get('Content-Disposition')).toBe(
-        `${contentDispositionType}; filename="${filename}.webp"`
+        `${contentDispositionType}; filename="test.webp"`
       )
       await expectWidth(res2, ctx.w)
     }
