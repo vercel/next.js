@@ -28,6 +28,8 @@ export async function getOrInitDiskLRU(
     _diskLRUPromise = (async () => {
       let maxSize = cacheMaxDiskSize
       if (maxSize === null) {
+        // Ensure cacheDir exists before checking disk space
+        await promises.mkdir(cacheDir, { recursive: true })
         // If config is not provided, default to 50% of available disk space
         const { bavail, bsize } = await promises.statfs(cacheDir)
         maxSize = Math.floor((bavail * bsize) / 2)
