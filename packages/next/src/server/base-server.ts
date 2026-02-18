@@ -63,6 +63,7 @@ import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { parseDataPathname } from '../shared/lib/page-path/normalize-data-path'
 import * as Log from '../build/output/log'
 import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
@@ -117,8 +118,6 @@ import {
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { matchNextDataPathname } from './lib/match-next-data-pathname'
-import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
@@ -685,39 +684,32 @@ export default abstract class Server<
 
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
     async (req, res, parsedUrl) => {
-      const middleware = await this.getMiddleware()
-      const params = matchNextDataPathname(parsedUrl.pathname)
+      const dataPathnameInfo = parseDataPathname(parsedUrl.pathname || '')
 
       // ignore for non-next data URLs
-      if (!params || !params.path) {
+      if (!dataPathnameInfo) {
+        if (parsedUrl.pathname?.startsWith('/_next/data/')) {
+          await this.render404(req, res, parsedUrl)
+          return true
+        }
+
         return false
       }
 
-      if (params.path[0] !== this.buildId) {
+      // show 404 if it doesn't match the expected build id
+      if (dataPathnameInfo.buildId !== this.buildId) {
         // Ignore if its a middleware request when we aren't on edge.
         if (getRequestMeta(req, 'middlewareInvoke')) {
           return false
         }
 
-        // Make sure to 404 if the buildId isn't correct
         await this.render404(req, res, parsedUrl)
         return true
       }
 
-      // remove buildId from URL
-      params.path.shift()
+      const middleware = await this.getMiddleware()
 
-      const lastParam = params.path[params.path.length - 1]
-
-      // show 404 if it doesn't end with .json
-      if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
-        await this.render404(req, res, parsedUrl)
-        return true
-      }
-
-      // re-create page's pathname
-      let pathname = `/${params.path.join('/')}`
-      pathname = getRouteFromAssetPath(pathname, '.json')
+      let pathname = dataPathnameInfo.pathname
 
       // ensure trailing slash is normalized per config
       if (middleware) {
@@ -2465,12 +2457,15 @@ export default abstract class Server<
   }
 
   private stripNextDataPath(filePath: string, stripLocale = true) {
-    if (filePath.includes(this.buildId)) {
-      const splitPath = filePath.substring(
-        filePath.indexOf(this.buildId) + this.buildId.length
-      )
+    const [pathname, ...searchParts] = filePath.split('?')
+    const dataPathnameInfo = parseDataPathname(pathname)
 
-      filePath = denormalizePagePath(splitPath.replace(/\.json$/, ''))
+    if (dataPathnameInfo?.buildId === this.buildId) {
+      filePath = denormalizePagePath(dataPathnameInfo.pathname)
+
+      if (searchParts.length > 0) {
+        filePath += `?${searchParts.join('?')}`
+      }
     }
 
     if (this.localeNormalizer && stripLocale) {

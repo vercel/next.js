@@ -46,6 +46,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
+import { parseDataPathname } from '../../../shared/lib/page-path/normalize-data-path'
 
 export type FsOutput = {
   type:
@@ -582,22 +583,12 @@ export async function setupFsCheck(opts: {
           continue
         }
 
-        const nextDataPrefix = `/_next/data/${buildId}/`
+        const parsedDataPathname =
+          type === 'pageFile' ? parseDataPathname(curItemPath) : undefined
 
-        if (
-          type === 'pageFile' &&
-          curItemPath.startsWith(nextDataPrefix) &&
-          curItemPath.endsWith('.json')
-        ) {
+        if (parsedDataPathname?.buildId === buildId) {
           items = nextDataRoutes
-          // remove _next/data/<build-id> prefix
-          curItemPath = curItemPath.substring(nextDataPrefix.length - 1)
-
-          // remove .json postfix
-          curItemPath = curItemPath.substring(
-            0,
-            curItemPath.length - '.json'.length
-          )
+          curItemPath = parsedDataPathname.pathname
           const curLocaleResult = handleLocale(curItemPath)
           curItemPath =
             curLocaleResult.pathname === '/index'

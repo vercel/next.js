@@ -31,6 +31,7 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
+import { parseDataPathname } from '../../../shared/lib/page-path/normalize-data-path'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -301,6 +302,19 @@ export function getResolveRoutes(
         }
         curPathname = curPathname?.substring(config.basePath.length) || '/'
       }
+
+      // Parse once and reuse for both the guard and isNextDataReq marking.
+      // If the path looks like _next/data but has no valid/matching build ID,
+      // short-circuit before dynamic route matching to avoid catch-all matches
+      // (e.g. pages/[...slug]) returning 200 instead of 404.
+      const isDataPath = curPathname?.startsWith('/_next/data/')
+      const parsedData = isDataPath
+        ? parseDataPathname(curPathname!)
+        : undefined
+      if (isDataPath && parsedData?.buildId !== fsChecker.buildId) {
+        return
+      }
+
       const localeResult = fsChecker.handleLocale(curPathname || '')
 
       for (const route of dynamicRoutes) {
@@ -327,7 +341,7 @@ export function getResolveRoutes(
             continue
           }
 
-          if (pageOutput && curPathname?.startsWith('/_next/data')) {
+          if (pageOutput && parsedData) {
             addRequestMeta(req, 'isNextDataReq', true)
           }
 

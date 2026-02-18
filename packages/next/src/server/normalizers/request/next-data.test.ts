@@ -1,6 +1,35 @@
 import { NextDataPathnameNormalizer } from './next-data'
+import { parseDataPathname } from '../../../shared/lib/page-path/normalize-data-path'
 
 describe('NextDataPathnameNormalizer', () => {
+  describe('parseDataPathname', () => {
+    it('should parse build id and pathname', () => {
+      expect(parseDataPathname('/_next/data/build-id/foo/bar.json')).toEqual({
+        buildId: 'build-id',
+        pathname: '/foo/bar',
+      })
+    })
+
+    it('should normalize index to root', () => {
+      expect(parseDataPathname('/_next/data/build-id/index.json')).toEqual({
+        buildId: 'build-id',
+        pathname: '/',
+      })
+    })
+
+    it('should handle root path with empty route segment', () => {
+      expect(parseDataPathname('/_next/data/build-id/.json')).toEqual({
+        buildId: 'build-id',
+        pathname: '/',
+      })
+    })
+
+    it('should return undefined for malformed data pathnames', () => {
+      expect(parseDataPathname('/_next/data/build-id/foo')).toBeUndefined()
+      expect(parseDataPathname('/_next/data//foo.json')).toBeUndefined()
+    })
+  })
+
   describe('constructor', () => {
     it('should error when no buildID is provided', () => {
       expect(() => {
@@ -37,6 +66,11 @@ describe('NextDataPathnameNormalizer', () => {
       for (const pathname of pathnames) {
         expect(normalizer.match(pathname)).toBe(true)
       }
+    })
+
+    it('should return false when the build id does not match', () => {
+      const normalizer = new NextDataPathnameNormalizer('build-id')
+      expect(normalizer.match('/_next/data/another-build/foo.json')).toBe(false)
     })
   })
 

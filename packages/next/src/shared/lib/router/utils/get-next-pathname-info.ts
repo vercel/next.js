@@ -2,6 +2,7 @@ import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removePathPrefix } from './remove-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
 import type { I18NProvider } from '../../../../server/lib/i18n-provider'
+import { parseDataPathname } from '../../page-path/normalize-data-path'
 
 export interface NextPathnameInfo {
   /**
@@ -66,19 +67,10 @@ export function getNextPathnameInfo(
   }
   let pathnameNoDataPrefix = info.pathname
 
-  if (
-    info.pathname.startsWith('/_next/data/') &&
-    info.pathname.endsWith('.json')
-  ) {
-    const paths = info.pathname
-      .replace(/^\/_next\/data\//, '')
-      .replace(/\.json$/, '')
-      .split('/')
-
-    const buildId = paths[0]
-    info.buildId = buildId
-    pathnameNoDataPrefix =
-      paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
+  const dataPathnameInfo = parseDataPathname(info.pathname)
+  if (dataPathnameInfo) {
+    info.buildId = dataPathnameInfo.buildId
+    pathnameNoDataPrefix = dataPathnameInfo.pathname
 
     // update pathname with normalized if enabled although
     // we use normalized to populate locale info still

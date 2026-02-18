@@ -41,8 +41,7 @@ import type { PreviewData } from '../../types'
 import type { BuildManifest } from '../get-page-files'
 import type { ReactLoadableManifest } from '../load-components'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
-import { normalizeDataPath } from '../../shared/lib/page-path/normalize-data-path'
-import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
+import { parseDataPathname } from '../../shared/lib/page-path/normalize-data-path'
 import {
   addRequestMeta,
   getRequestMeta,
@@ -649,7 +648,8 @@ export abstract class RouteModule<
       ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
     const manifests = this.loadManifests(srcPage, absoluteProjectDir)
-    const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
+    const { buildId, routesManifest, prerenderManifest, serverFilesManifest } =
+      manifests
 
     const { basePath, i18n, rewrites } = routesManifest
 
@@ -683,10 +683,15 @@ export abstract class RouteModule<
       return
     }
     let isNextDataRequest = false
+    const normalizeDataPathname = (pathname: string) => {
+      const info = parseDataPathname(pathname)
+      return info?.buildId === buildId ? info.pathname : pathname
+    }
 
-    if (pathHasPrefix(parsedUrl.pathname || '/', '/_next/data')) {
+    const initialDataPathname = parseDataPathname(parsedUrl.pathname || '/')
+    if (initialDataPathname?.buildId === buildId) {
       isNextDataRequest = true
-      parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
+      parsedUrl.pathname = initialDataPathname.pathname
     }
     this.normalizeUrl(req, parsedUrl)
     let originalPathname = parsedUrl.pathname || '/'
@@ -779,7 +784,7 @@ export abstract class RouteModule<
     // attempt parsing from pathname
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
-        normalizeDataPath(
+        normalizeDataPathname(
           rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
         )
       )
@@ -904,7 +909,7 @@ export abstract class RouteModule<
         } else {
           // use final params from URL matching
           const paramsMatch = serverUtils.dynamicRouteMatcher?.(
-            normalizeDataPath(
+            normalizeDataPathname(
               localeResult?.pathname || parsedUrl.pathname || '/'
             )
           )
