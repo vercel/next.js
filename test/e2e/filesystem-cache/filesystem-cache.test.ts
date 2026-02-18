@@ -97,6 +97,17 @@ for (const cacheEnabled of [false, true]) {
       )
     }
 
+    // Ensure each test starts with a fresh server and no test leaks a
+    // running server into the next one.
+    beforeEach(async () => {
+      // stop() is a no-op if already stopped; start() rebuilds + starts.
+      await stop()
+      await start()
+    })
+    afterEach(async () => {
+      await stop()
+    })
+
     // Very flakey with Webpack enabled
     ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
       'should cache or not cache loaders',
