@@ -4,45 +4,9 @@ import {
   DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
   expectNoPendingImmediates,
 } from '../node-environment-extensions/fast-set-immediate.external'
+import { isThenable } from '../../shared/lib/is-thenable'
 
-/**
- * This is a utility function to make scheduling sequential tasks that run back to back easier.
- * We schedule on the same queue (setTimeout) at the same time to ensure no other events can sneak in between.
- */
-export function scheduleInSequentialTasks<R>(
-  render: () => R | Promise<R>,
-  followup: () => void
-): Promise<R> {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`scheduleInSequentialTasks` should not be called in edge runtime.'
-    )
-  } else {
-    return new Promise((resolve, reject) => {
-      const scheduleTimeout = createAtomicTimerGroup()
-
-      let pendingResult: R | Promise<R>
-      scheduleTimeout(() => {
-        try {
-          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-          pendingResult = render()
-        } catch (err) {
-          reject(err)
-        }
-      })
-
-      scheduleTimeout(() => {
-        try {
-          expectNoPendingImmediates()
-          followup()
-          resolve(pendingResult)
-        } catch (err) {
-          reject(err)
-        }
-      })
-    })
-  }
-}
+function noop() {}
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -54,7 +18,7 @@ export function scheduleInSequentialTasks<R>(
 export function runInSequentialTasks<R>(
   first: () => R,
   ...rest: Array<() => void>
-): Promise<R> {
+): Promise<Awaited<R>> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
       '`runInSequentialTasks` should not be called in edge runtime.'
@@ -70,6 +34,14 @@ export function runInSequentialTasks<R>(
           try {
             DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
             result = first()
+            // If the first function returns a thenable, suppress unhandled
+            // rejections. A later task in the sequence (e.g. an abort) may
+            // cause the promise to reject, and we don't want that to surface
+            // as an unhandled rejection — the caller will observe the
+            // rejection when they await the returned promise.
+            if (isThenable(result)) {
+              result.then(noop, noop)
+            }
           } catch (err) {
             for (let i = 1; i < ids.length; i++) {
               clearTimeout(ids[i])
@@ -104,7 +76,7 @@ export function runInSequentialTasks<R>(
         scheduleTimeout(() => {
           try {
             expectNoPendingImmediates()
-            resolve(result)
+            resolve(result as Awaited<R>)
           } catch (err) {
             reject(err)
           }

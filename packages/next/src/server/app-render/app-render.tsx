@@ -163,24 +163,17 @@ import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import {
-  prerenderAndAbortInSequentialTasksWithStages,
   processPrelude,
-} from './app-render-prerender-utils'
-import {
   type ReactServerPrerenderResult,
   ReactServerResult,
   createReactServerPrerenderResult,
   createReactServerPrerenderResultFromRender,
-  prerenderAndAbortInSequentialTasks,
 } from './app-render-prerender-utils'
 import {
   Phase,
   printDebugThrownValueForProspectiveRender,
 } from './prospective-render-utils'
-import {
-  runInSequentialTasks,
-  scheduleInSequentialTasks,
-} from './app-render-render-utils'
+import { runInSequentialTasks } from './app-render-render-utils'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
   getHmrRefreshHash,
@@ -800,15 +793,19 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   const { clientModules } = getClientReferenceManifest()
   const rscPayload = await getPayload(requestStore)
 
-  return await workUnitAsyncStorage.run(
-    requestStore,
-    scheduleInSequentialTasks,
+  return await runInSequentialTasks(
     () => {
       stageController.advanceStage(RenderStage.Static)
-      return renderToReadableStream(rscPayload, clientModules, {
-        ...options,
-        environmentName,
-      })
+      return workUnitAsyncStorage.run(
+        requestStore,
+        renderToReadableStream,
+        rscPayload,
+        clientModules,
+        {
+          ...options,
+          environmentName,
+        }
+      )
     },
     () => {
       stageController.advanceStage(RenderStage.Dynamic)
@@ -1390,7 +1387,7 @@ async function finalRuntimeServerPrerender(
   )
 
   let prerenderIsPending = true
-  const result = await prerenderAndAbortInSequentialTasksWithStages(
+  const result = await runInSequentialTasks(
     async () => {
       // Static stage
       const prerenderResult = await workUnitAsyncStorage.run(
@@ -3328,25 +3325,27 @@ async function renderWithRestartOnCacheMissInDev(
   // where sync IO does not cause aborts, so it's okay if it happens before render.
   const initialRscPayload = await getPayload(requestStore)
 
-  const initialStreamResult = await workUnitAsyncStorage.run(
-    requestStore,
-    runInSequentialTasks,
+  const initialStreamResult = await runInSequentialTasks(
     () => {
       initialStageController.advanceStage(RenderStage.Static)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = ComponentMod.renderToReadableStream(
-        initialRscPayload,
-        clientModules,
-        {
-          onError,
-          environmentName,
-          startTime,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-          signal: initialReactController.signal,
-        }
-      ).tee()
+      const streamPair = workUnitAsyncStorage
+        .run(
+          requestStore,
+          ComponentMod.renderToReadableStream,
+          initialRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+            signal: initialReactController.signal,
+          }
+        )
+        .tee()
 
       // If we abort the render, we want to reject the stage-dependent promises as well.
       // Note that we want to install this listener after the render is started
@@ -3462,24 +3461,26 @@ async function renderWithRestartOnCacheMissInDev(
   // where sync IO does not cause aborts, so it's okay if it happens before render.
   const finalRscPayload = await getPayload(requestStore)
 
-  const finalStreamResult = await workUnitAsyncStorage.run(
-    requestStore,
-    runInSequentialTasks,
+  const finalStreamResult = await runInSequentialTasks(
     () => {
       finalStageController.advanceStage(RenderStage.Static)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = ComponentMod.renderToReadableStream(
-        finalRscPayload,
-        clientModules,
-        {
-          onError,
-          environmentName,
-          startTime,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-        }
-      ).tee()
+      const streamPair = workUnitAsyncStorage
+        .run(
+          requestStore,
+          ComponentMod.renderToReadableStream,
+          finalRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+          }
+        )
+        .tee()
 
       return {
         stream: streamPair[0],
@@ -4059,71 +4060,70 @@ async function validateStagedShell(
     require('react-dom/static') as typeof import('react-dom/static')
   ).prerender
   try {
-    let { prelude: unprocessedPrelude } =
-      await prerenderAndAbortInSequentialTasks(
-        () => {
-          const pendingFinalClientResult = workUnitAsyncStorage.run(
-            finalClientPrerenderStore,
-            prerender,
-            // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
-            <App
-              reactServerStream={serverStream}
-              reactDebugStream={debugChannelClient}
-              debugEndTime={debugEndTime}
-              preinitScripts={preinitScripts}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              nonce={nonce}
-              images={ctx.renderOpts.images}
-            />,
-            {
-              signal: clientReactController.signal,
-              onError: (err: unknown, errorInfo: ErrorInfo) => {
-                if (
-                  isPrerenderInterruptedError(err) ||
-                  clientReactController.signal.aborted
-                ) {
-                  const componentStack = errorInfo.componentStack
-                  if (typeof componentStack === 'string') {
-                    trackDynamicHole(
-                      workStore,
-                      componentStack,
-                      dynamicValidation,
-                      clientDynamicTracking
-                    )
-                  }
-                  return
+    let { prelude: unprocessedPrelude } = await runInSequentialTasks(
+      () => {
+        const pendingFinalClientResult = workUnitAsyncStorage.run(
+          finalClientPrerenderStore,
+          prerender,
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
+          <App
+            reactServerStream={serverStream}
+            reactDebugStream={debugChannelClient}
+            debugEndTime={debugEndTime}
+            preinitScripts={preinitScripts}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            nonce={nonce}
+            images={ctx.renderOpts.images}
+          />,
+          {
+            signal: clientReactController.signal,
+            onError: (err: unknown, errorInfo: ErrorInfo) => {
+              if (
+                isPrerenderInterruptedError(err) ||
+                clientReactController.signal.aborted
+              ) {
+                const componentStack = errorInfo.componentStack
+                if (typeof componentStack === 'string') {
+                  trackDynamicHole(
+                    workStore,
+                    componentStack,
+                    dynamicValidation,
+                    clientDynamicTracking
+                  )
                 }
+                return
+              }
 
-                if (isReactLargeShellError(err)) {
-                  // TODO: Aggregate
-                  console.error(err)
-                  return undefined
-                }
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
+              }
 
-                return getDigestForWellKnownError(err)
-              },
-              // We don't need bootstrap scripts in this prerender
-              // bootstrapScripts: [bootstrapScript],
-            }
-          )
-
-          // The listener to abort our own render controller must be added after
-          // React has added its listener, to ensure that pending I/O is not
-          // aborted/rejected too early.
-          clientReactController.signal.addEventListener(
-            'abort',
-            () => {
-              clientRenderController.abort()
+              return getDigestForWellKnownError(err)
             },
-            { once: true }
-          )
+            // We don't need bootstrap scripts in this prerender
+            // bootstrapScripts: [bootstrapScript],
+          }
+        )
 
-          return pendingFinalClientResult
-        },
-        () => {
-          clientReactController.abort()
-        }
-      )
+        // The listener to abort our own render controller must be added after
+        // React has added its listener, to ensure that pending I/O is not
+        // aborted/rejected too early.
+        clientReactController.signal.addEventListener(
+          'abort',
+          () => {
+            clientRenderController.abort()
+          },
+          { once: true }
+        )
+
+        return pendingFinalClientResult
+      },
+      () => {
+        clientReactController.abort()
+      }
+    )
 
     const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
     return getStaticShellDisallowedDynamicReasons(
@@ -4368,83 +4368,82 @@ async function validateInstantConfigNavigation(
     require('react-dom/static') as typeof import('react-dom/static')
   ).prerender
   try {
-    let { prelude: unprocessedPrelude } =
-      await prerenderAndAbortInSequentialTasks(
-        () => {
-          const pendingFinalClientResult = workUnitAsyncStorage.run(
-            finalClientPrerenderStore,
-            prerender,
-            // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
-            <App
-              reactServerStream={serverStream}
-              reactDebugStream={debugStream ?? undefined}
-              // Debug info is already filtered when constructing the combined payload.
-              debugEndTime={undefined}
-              preinitScripts={preinitScripts}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              nonce={nonce}
-              images={ctx.renderOpts.images}
-            />,
-            {
-              signal: clientReactController.signal,
-              onError: (err: unknown, errorInfo: ErrorInfo) => {
-                if (
-                  isPrerenderInterruptedError(err) ||
-                  clientReactController.signal.aborted
-                ) {
-                  const componentStack = errorInfo.componentStack
-                  if (typeof componentStack === 'string') {
-                    trackDynamicHoleInNavigation(
-                      workStore,
-                      componentStack,
-                      dynamicValidation,
-                      clientDynamicTracking,
-                      dynamicHoleKind,
-                      boundaryState
-                    )
-                  }
-                  return
-                } else if (!clientReactController.signal.aborted) {
-                  const componentStack = errorInfo.componentStack
-                  if (typeof componentStack === 'string') {
-                    trackThrownErrorInNavigation(
-                      dynamicValidation,
-                      err,
-                      componentStack
-                    )
-                  }
+    let { prelude: unprocessedPrelude } = await runInSequentialTasks(
+      () => {
+        const pendingFinalClientResult = workUnitAsyncStorage.run(
+          finalClientPrerenderStore,
+          prerender,
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
+          <App
+            reactServerStream={serverStream}
+            reactDebugStream={debugStream ?? undefined}
+            // Debug info is already filtered when constructing the combined payload.
+            debugEndTime={undefined}
+            preinitScripts={preinitScripts}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            nonce={nonce}
+            images={ctx.renderOpts.images}
+          />,
+          {
+            signal: clientReactController.signal,
+            onError: (err: unknown, errorInfo: ErrorInfo) => {
+              if (
+                isPrerenderInterruptedError(err) ||
+                clientReactController.signal.aborted
+              ) {
+                const componentStack = errorInfo.componentStack
+                if (typeof componentStack === 'string') {
+                  trackDynamicHoleInNavigation(
+                    workStore,
+                    componentStack,
+                    dynamicValidation,
+                    clientDynamicTracking,
+                    dynamicHoleKind,
+                    boundaryState
+                  )
                 }
-
-                if (isReactLargeShellError(err)) {
-                  // TODO: Aggregate
-                  console.error(err)
-                  return undefined
+                return
+              } else if (!clientReactController.signal.aborted) {
+                const componentStack = errorInfo.componentStack
+                if (typeof componentStack === 'string') {
+                  trackThrownErrorInNavigation(
+                    dynamicValidation,
+                    err,
+                    componentStack
+                  )
                 }
+              }
 
-                return getDigestForWellKnownError(err)
-              },
-              // We don't need bootstrap scripts in this prerender
-              // bootstrapScripts: [bootstrapScript],
-            }
-          )
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
+              }
 
-          // The listener to abort our own render controller must be added after
-          // React has added its listener, to ensure that pending I/O is not
-          // aborted/rejected too early.
-          clientReactController.signal.addEventListener(
-            'abort',
-            () => {
-              clientRenderController.abort()
+              return getDigestForWellKnownError(err)
             },
-            { once: true }
-          )
+            // We don't need bootstrap scripts in this prerender
+            // bootstrapScripts: [bootstrapScript],
+          }
+        )
 
-          return pendingFinalClientResult
-        },
-        () => {
-          clientReactController.abort()
-        }
-      )
+        // The listener to abort our own render controller must be added after
+        // React has added its listener, to ensure that pending I/O is not
+        // aborted/rejected too early.
+        clientReactController.signal.addEventListener(
+          'abort',
+          () => {
+            clientRenderController.abort()
+          },
+          { once: true }
+        )
+
+        return pendingFinalClientResult
+      },
+      () => {
+        clientReactController.abort()
+      }
+    )
 
     const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
 
@@ -5049,7 +5048,7 @@ async function prerenderToStream(
       let prerenderIsPending = true
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResult(
-          prerenderAndAbortInSequentialTasks(
+          runInSequentialTasks(
             async () => {
               const pendingPrerenderResult = workUnitAsyncStorage.run(
                 // The store to scope
@@ -5152,7 +5151,7 @@ async function prerenderToStream(
         require('react-dom/static') as typeof import('react-dom/static')
       ).prerender
       let { prelude: unprocessedPrelude, postponed } =
-        await prerenderAndAbortInSequentialTasks(
+        await runInSequentialTasks(
           () => {
             const pendingFinalClientResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
