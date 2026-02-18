@@ -15,7 +15,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -42,6 +42,10 @@ pub struct EsmAsyncAssetReference {
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
+    /// The export usage extracted from the dynamic import usage pattern.
+    /// Detected from destructured await, member access on await, .then()
+    /// callback destructuring, or webpackExports/turbopackExports comments.
+    pub export_usage: ExportUsage,
 }
 
 impl EsmAsyncAssetReference {
@@ -62,6 +66,7 @@ impl EsmAsyncAssetReference {
         annotations: ImportAnnotations,
         error_mode: ResolveErrorMode,
         import_externals: bool,
+        export_usage: ExportUsage,
     ) -> Self {
         EsmAsyncAssetReference {
             origin,
@@ -70,6 +75,7 @@ impl EsmAsyncAssetReference {
             annotations,
             error_mode,
             import_externals,
+            export_usage,
         }
     }
 }
@@ -91,6 +97,15 @@ impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Async))
+    }
+
+    #[turbo_tasks::function]
+    fn binding_usage(&self) -> Vc<BindingUsage> {
+        BindingUsage {
+            import: Default::default(),
+            export: self.export_usage.clone(),
+        }
+        .cell()
     }
 }
 

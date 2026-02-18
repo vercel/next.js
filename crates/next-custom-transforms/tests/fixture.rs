@@ -954,12 +954,12 @@ fn track_dynamic_imports_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
             (
                 resolver(unresolved_mark, top_level_mark, false),
-                track_dynamic_imports(unresolved_mark),
+                track_dynamic_imports(unresolved_mark, tr.comments.as_ref().clone()),
             )
         },
         &input,

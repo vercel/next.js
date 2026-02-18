@@ -1163,10 +1163,7 @@
         ],
         span: 514..519,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -1216,6 +1213,10 @@
         ],
         span: 556..570,
         in_try: false,
-        new: false,
+        export_usage: PartialNamespaceObject(
+            [
+                "join",
+            ],
+        ),
     },
 ]
