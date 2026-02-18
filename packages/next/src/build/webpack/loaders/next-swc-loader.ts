@@ -31,6 +31,7 @@ import { type WebpackLayerName, WEBPACK_LAYERS } from '../../../lib/constants'
 import { getBindingsSync, transform } from '../../swc'
 import { installBindings } from '../../swc/install-bindings'
 import { getLoaderSWCOptions } from '../../swc/options'
+import fs from 'fs'
 import path, { isAbsolute } from 'path'
 import { babelIncludeRegexes } from '../../webpack-config'
 import { isResourceInPackages } from '../../handle-externals'
@@ -248,14 +249,26 @@ export function pitch(this: any) {
     if (
       // if it might be excluded/no-op we can't use pitch loader
       !shouldMaybeExclude &&
-      // TODO: investigate swc file reading in PnP mode?
-      !process.versions.pnp &&
-      !EXCLUDED_PATHS.test(this.resourcePath) &&
+      (process.versions.pnp || !EXCLUDED_PATHS.test(this.resourcePath)) &&
       this.loaders.length - 1 === this.loaderIndex &&
       isAbsolute(this.resourcePath) &&
       !getBindingsSync().isWasm
     ) {
       this.addDependency(this.resourcePath)
+
+      if (process.versions.pnp) {
+        // PnP: SWC native code cannot read from zip archives,
+        // so read via Node.js fs which Yarn PnP patches.
+        const source = await fs.promises.readFile(this.resourcePath, 'utf-8')
+        let inputSourceMap: any
+        try {
+          inputSourceMap = JSON.parse(
+            await fs.promises.readFile(this.resourcePath + '.map', 'utf-8')
+          )
+        } catch {}
+        return loaderTransform.call(this, source, inputSourceMap)
+      }
+
       return loaderTransform.call(this)
     }
   })().then((r) => {
