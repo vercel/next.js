@@ -32,7 +32,8 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "ReactRefreshLogBox app Call stack for client error",
       "ReactRefreshLogBox app Call stack for server error",
       "ReactRefreshLogBox app Can't resolve @import in CSS file",
@@ -54,7 +55,6 @@
       "ReactRefreshLogBox app should strip whitespace correctly with newline",
       "ReactRefreshLogBox app unterminated JSX"
     ],
-    "failed": [],
     "pending": [
       "ReactRefreshLogBox app internal package errors",
       "ReactRefreshLogBox app non-Error errors are handled properly"
@@ -70,8 +70,8 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshModule.test.ts": {
-    "passed": ["ReactRefreshModule app should allow any variable names"],
-    "failed": [],
+    "passed": [],
+    "failed": ["ReactRefreshModule app should allow any variable names"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -358,7 +358,8 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "ReactRefreshLogBox Call stack count is correct for pages error",
       "ReactRefreshLogBox boundaries",
       "ReactRefreshLogBox conversion to class component (1)",
@@ -371,7 +372,6 @@
       "ReactRefreshLogBox should strip whitespace correctly with newline",
       "ReactRefreshLogBox unterminated JSX"
     ],
-    "failed": [],
     "pending": ["ReactRefreshLogBox internal package errors"],
     "flakey": [],
     "runtimeError": false
@@ -398,7 +398,8 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshRequire.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "ReactRefreshRequire bails out if the update bubbles to the root via one of the paths",
       "ReactRefreshRequire bails out if update bubbles to the root via the only path",
       "ReactRefreshRequire can continue hot updates after module-level errors with ES6 exports",
@@ -416,7 +417,6 @@
       "ReactRefreshRequire runs dependencies before dependents",
       "ReactRefreshRequire stops update propagation after module-level errors"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -569,14 +569,13 @@
   },
   "test/development/app-dir/cache-components-dev-errors/cache-components-dev-errors.test.ts": {
     "passed": [
+      "Cache Components Dev Errors should clear segment errors after correcting them",
       "Cache Components Dev Errors should display error when component accessed data without suspense boundary",
       "Cache Components Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
       "Cache Components Dev Errors should not show a red box error on client navigations",
       "Cache Components Dev Errors should show a red box error on the SSR render"
     ],
-    "failed": [
-      "Cache Components Dev Errors should clear segment errors after correcting them"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -593,7 +592,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/cache-components-dev-warmup/cache-components.dev-warmup.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "cache-components-dev-warmup - with runtime prefetch configs initial load cached data resolves in the correct phase cache reads that reveal more components with more caches",
       "cache-components-dev-warmup - with runtime prefetch configs initial load cached data resolves in the correct phase cached data + cached fetch",
       "cache-components-dev-warmup - with runtime prefetch configs initial load cached data resolves in the correct phase cached data + private cache",
@@ -623,7 +623,6 @@
       "cache-components-dev-warmup - without runtime prefetch configs navigation sync IO in the runtime phase",
       "cache-components-dev-warmup - without runtime prefetch configs navigation sync IO in the static phase"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -801,11 +800,11 @@
     "runtimeError": false
   },
   "test/development/app-dir/enabled-features-trace/enabled-features-trace.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "enabled features in trace should denormalize inherited enabled features during upload",
       "enabled features in trace should record enabled features on root span"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -918,11 +917,11 @@
     "runtimeError": false
   },
   "test/development/app-dir/hmr-symlink/hmr-symlink.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "HMR symlinks tracks updates to symlinked target",
       "HMR symlinks tracks updates to the symlink"
     ],
-    "failed": [],
     "pending": ["HMR symlinks tracks updates to the middle of a symlink chain"],
     "flakey": [],
     "runtimeError": false
@@ -947,13 +946,13 @@
     "runtimeError": false
   },
   "test/development/app-dir/hydration-error-count/hydration-error-count.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "hydration-error-count should display correct hydration info in each hydration error view",
       "hydration-error-count should display runtime error separately from hydration errors",
       "hydration-error-count should have correct hydration error count for bad nesting",
       "hydration-error-count should have correct hydration error count for html diff"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1088,7 +1087,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "segment-explorer should cleanup on soft navigation",
       "segment-explorer should display boundary selector when a segment has only boundary files",
       "segment-explorer should display parallel routes default page when present",
@@ -1104,7 +1104,6 @@
       "segment-explorer should show the custom error boundary when present",
       "segment-explorer should show the loading boundary when it is present"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1318,10 +1317,10 @@
     "runtimeError": true
   },
   "test/development/app-hmr/server-restart.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir server restart should reload the page when the server restarts"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1472,7 +1471,8 @@
     "runtimeError": false
   },
   "test/development/basic/hmr/error-recovery-no-base-path-no-asset-prefix.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
@@ -1489,7 +1489,6 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1541,7 +1540,8 @@
     "runtimeError": false
   },
   "test/development/basic/hmr/error-recovery-yes-base-path-yes-asset-prefix.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
@@ -1558,7 +1558,6 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should show the error on all pages"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1742,7 +1741,8 @@
     "runtimeError": false
   },
   "test/development/basic/next-dynamic/next-dynamic-base-path.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next/dynamic Dynamic import Multiple modules should only include the rendered module script tag",
       "next/dynamic Dynamic import Multiple modules should only load the rendered module in the browser",
       "next/dynamic Dynamic import Multiple modules should only render one bundle if component is used multiple times",
@@ -1762,10 +1762,9 @@
       "next/dynamic Dynamic import ssr:true option Should render the component on the server side",
       "next/dynamic Dynamic import ssr:true option should render the component on client side"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/development/basic/next-dynamic/next-dynamic-custom-document.test.ts": {
     "passed": [
@@ -1988,7 +1987,8 @@
     "runtimeError": false
   },
   "test/development/dev-indicator/dev-indicator.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "dev indicator - route type getInitialProps should be marked dynamic on first load",
       "dev indicator - route type getInitialProps should update when going from dynamic -> static",
       "dev indicator - route type getInitialProps should update when going from static -> dynamic",
@@ -2003,7 +2003,6 @@
       "dev indicator - route type with App Router when loading a static page with Cache Components disabled should be marked static on first load",
       "dev indicator - route type with App Router when loading a static page with Cache Components disabled should update when going from static -> dynamic"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2025,8 +2024,8 @@
     "runtimeError": false
   },
   "test/development/duplicate-pages/duplicate-pages.test.ts": {
-    "passed": ["Handles Duplicate Pages Shows warning in development"],
-    "failed": [],
+    "passed": [],
+    "failed": ["Handles Duplicate Pages Shows warning in development"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2041,10 +2040,13 @@
   "test/development/error-overlay/index.test.tsx": {
     "passed": [
       "DevErrorOverlay can get error code from RSC error thrown by framework",
+      "DevErrorOverlay ignores non-Error cause in the error overlay",
       "DevErrorOverlay loads fonts successfully",
       "DevErrorOverlay sends feedback when clicking helpful button",
       "DevErrorOverlay sends feedback when clicking not helpful button",
-      "DevErrorOverlay should load dev overlay styles successfully"
+      "DevErrorOverlay should load dev overlay styles successfully",
+      "DevErrorOverlay shows Error.cause in the error overlay",
+      "DevErrorOverlay shows nested Error.cause chain in the error overlay"
     ],
     "failed": [],
     "pending": [],
@@ -2156,7 +2158,8 @@
     "runtimeError": false
   },
   "test/development/mcp-server/mcp-server-get-page-metadata.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "mcp-server get_page_metadata tool app router should count multiple browser tabs with the same URL separately",
       "mcp-server get_page_metadata tool app router should handle multiple browser sessions",
       "mcp-server get_page_metadata tool app router should return metadata for basic page",
@@ -2164,7 +2167,6 @@
       "mcp-server get_page_metadata tool pages router should return metadata showing pages router type",
       "mcp-server get_page_metadata tool pages router should show pages router type for about page"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2189,12 +2191,12 @@
     "runtimeError": false
   },
   "test/development/mcp-server/mcp-server-get-server-action-by-id.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "mcp-server get_server_action_by_id tool should return action details via get_server_action_by_id tool",
       "mcp-server get_server_action_by_id tool should return error for non-existent action ID",
       "mcp-server get_server_action_by_id tool should return inline server action details"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2346,7 +2348,8 @@
     "runtimeError": false
   },
   "test/development/pages-dir/client-navigation/head.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "updating <Head /> while client routing should handle boolean async prop in next/head client-side: false",
       "updating <Head /> while client routing should handle boolean async prop in next/head client-side: true",
       "updating <Head /> while client routing should not warn when application/ld+json scripts are in head",
@@ -2357,7 +2360,6 @@
       "updating <Head /> while client routing should warn when scripts are in head",
       "updating <Head /> while client routing should warn when stylesheets or scripts are in head"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2411,12 +2413,12 @@
     "runtimeError": false
   },
   "test/development/pages-dir/client-navigation/on-click.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Client navigation with onClick action should always replace the state and perform additional action",
       "Client navigation with onClick action should not reload if default was prevented",
       "Client navigation with onClick action should reload the page and perform additional action"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2623,27 +2625,28 @@
     "runtimeError": false
   },
   "test/development/start-no-build/start-no-build.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next start without next build should show error when there is no production build"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/tsconfig-path-reloading/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
       "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
-      "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
       "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error",
-      "tsconfig-path-reloading tsconfig should load with initial paths config correctly",
+      "tsconfig-path-reloading tsconfig should load with initial paths config correctly"
+    ],
+    "failed": [
+      "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
       "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/typescript-auto-install/index.test.ts": {
     "passed": [
@@ -2756,12 +2759,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir-export/test/dynamic-missing-gsp.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - with output export - dynamic missing gsp should error when client component has generateStaticParams should work",
       "app dir - with output export - dynamic missing gsp should error when dynamic route is missing generateStaticParams should work",
       "app dir - with output export - dynamic missing gsp should error when dynamic route is set to true should work"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2926,19 +2929,20 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
       "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
       "app-dir action useActionState should support submitting form state with JS",
       "app-dir action useActionState should support submitting form state without JS"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
       "app-dir action handling Edge SSR should allow cookie and header async storages",
       "app-dir action handling Edge SSR should handle basic actions correctly",
@@ -3020,7 +3024,6 @@
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
-    "failed": [],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions",
@@ -3042,14 +3045,14 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/actions/app-action-size-limit-invalid-node-middleware.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should error for requests that exceed the size limit",
       "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that are at the size limit",
       "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that stay below the size limit",
       "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should error for requests that exceed the size limit",
       "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should not error for requests that stay below the size limit"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3268,10 +3271,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - crossOrigin config should render correctly with assetPrefix: \"/\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3343,12 +3346,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-custom-cache-handler/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir - custom-cache-handler - cjs cjs module exports should have logs from cache-handler",
       "app-dir - custom-cache-handler - cjs-default-export cjs default export should have logs from cache-handler",
       "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3503,7 +3506,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-middleware-proxy/app-middleware-proxy.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir with proxy Mutate request headers for Edge Functions Adds new headers",
       "app-dir with proxy Mutate request headers for Edge Functions Deletes headers",
       "app-dir with proxy Mutate request headers for Edge Functions Updates headers",
@@ -3516,15 +3520,13 @@
       "app-dir with proxy retains a link response header from the proxy",
       "app-dir with proxy should be possible to modify cookies & read them in an RSC in a single request",
       "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
+      "app-dir with proxy should filter correctly after proxy rewrite",
       "app-dir with proxy should ignore x-middleware-set-cookie as a request header",
       "app-dir with proxy should log compilation time",
       "app-dir with proxy should not incorrectly treat a Location header as a rewrite",
       "app-dir with proxy should omit internal headers for proxy cookies",
       "app-dir with proxy should respect cookie options of merged proxy cookies",
       "app-dir with proxy should support unstable_cache in proxy"
-    ],
-    "failed": [
-      "app-dir with proxy should filter correctly after proxy rewrite"
     ],
     "pending": [
       "app-dir with proxy Mutate request headers for Edge Functions Supports draft mode",
@@ -3707,7 +3709,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-routes/app-custom-route-base-path.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-custom-routes automatic implementations implements HEAD on routes with GET already implemented",
       "app-custom-routes automatic implementations implements OPTIONS on routes",
       "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/endpoint",
@@ -3776,12 +3779,11 @@
       "app-custom-routes works with generateStaticParams correctly revalidates correctly on /revalidate-1/second/data.json",
       "app-custom-routes works with generateStaticParams correctly revalidates correctly on /revalidate-1/three/data.json"
     ],
-    "failed": [],
     "pending": [
       "app-custom-routes basic fetch request with a response response supports the NextResponse.rewrite() helper"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-routes/app-custom-routes.test.ts": {
     "passed": [
@@ -3964,8 +3966,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-static/app-static.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir static/dynamic handling Incremental cache limits should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode",
       "app-dir static/dynamic handling it should revalidate tag correctly with edge route handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with node route handler",
@@ -4053,6 +4054,7 @@
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
+    "failed": [],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -4277,11 +4279,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/autoscroll-with-css-modules/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "router autoscrolling on navigation with css modules vertical scroll when page imports css modules should scroll to top of document when navigating between to pages without layout when",
       "router autoscrolling on navigation with css modules vertical scroll when page imports css modules should scroll when clicking in JS"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4310,10 +4312,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/binary/rsc-binary.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "RSC binary serialization should correctly encode/decode binaries and hydrate"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4435,7 +4437,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/cache-components-errors/cache-components-errors.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Cache Components Errors Dev Dynamic Boundary should not show a collapsed redbox error",
       "Cache Components Errors Dev Dynamic Metadata - Dynamic Route should not show a collapsed redbox error",
       "Cache Components Errors Dev Dynamic Metadata - Error Route should show a collapsed redbox error",
@@ -4497,7 +4500,6 @@
       "Cache Components Errors Dev With `use cache: private` in `use cache` should show a redbox error",
       "Cache Components Errors Dev With `use cache: private` without Suspense should show a redbox error"
     ],
-    "failed": [],
     "pending": [
       "Cache Components Errors Dev Unhandled Rejection Suppression should suppress unhandled rejections during prerender validation in dev",
       "Cache Components Errors Dev With `use cache: private` with `connection()` should show a redbox error"
@@ -4516,11 +4518,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/cache-components-request-apis/cache-components-request-apis.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Request Promises On Prerender Completion does not run in dev",
       "Request Promises On Prerender Interruption does not run in dev"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4724,12 +4726,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/cache-components/cache-components.web-crypto.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "cache-components should not have route specific errors",
       "cache-components should prerender pages with cached `crypto.getRandomValues(...)` calls",
       "cache-components should prerender pages with cached `crypto.randomUUID()` calls"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4754,13 +4756,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/client-module-with-package-type/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: import cjs",
       "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: require cjs",
       "esm-client-module-without-exports \"type\": \"module\" in package.json should render without errors: import esm",
       "esm-client-module-without-exports \"type\": \"module\" in package.json should render without errors: require esm"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4879,17 +4881,19 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/css-modules-scoping/css-modules-scoping.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "css-modules-scoping should not prefix grid areas",
       "css-modules-scoping should prefix animation"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/css-order/css-order.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
+      "css-order loose should load correct styles navigating first -> first-client",
       "css-order loose should load correct styles navigating first -> second",
       "css-order loose should load correct styles navigating first -> second-client",
       "css-order loose should load correct styles navigating first -> third",
@@ -4936,6 +4940,7 @@
       "css-order loose should load correct styles on second-client",
       "css-order loose should load correct styles on third",
       "css-order loose should load correct styles on vendor",
+      "css-order strict should load correct styles navigating first -> first-client",
       "css-order strict should load correct styles navigating first -> second",
       "css-order strict should load correct styles navigating first -> second-client",
       "css-order strict should load correct styles navigating first -> third",
@@ -4988,10 +4993,6 @@
       "css-order strict should load correct styles on second-client",
       "css-order strict should load correct styles on third",
       "css-order strict should load correct styles on vendor"
-    ],
-    "failed": [
-      "css-order loose should load correct styles navigating first -> first-client",
-      "css-order strict should load correct styles navigating first -> first-client"
     ],
     "pending": [
       "css-order loose should load correct styles navigating big-interleaved-a -> big-interleaved-b",
@@ -5094,8 +5095,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/cssnano-colormin/index.test.ts": {
-    "passed": ["cssnano-colormin should not minify rgb colors to hsla"],
-    "failed": [],
+    "passed": [],
+    "failed": ["cssnano-colormin should not minify rgb colors to hsla"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5252,12 +5253,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-in-generate-params/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir - dynamic in generate params should be able to call fetch while generating multiple dynamic pages",
       "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps",
       "app-dir - dynamic in generate params should render sitemap with generateSitemaps in force-dynamic config dynamically"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5282,7 +5283,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic/dynamic.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
       "app dir - next/dynamic no SSR should support dynamic import with TLA in client components",
@@ -5297,7 +5299,6 @@
       "app dir - next/dynamic should not render loading by default",
       "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5443,10 +5444,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/external-redirect/external-redirect.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "external-redirect regression: Server Action triggered from onClick redirects to external URL"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5619,11 +5620,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/global-not-found/cache-components/cache-components.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "global-not-found - cache-components should render global-not-found for 404 routes",
       "global-not-found - cache-components should render not-found boundary when calling notFound() in a page"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5647,11 +5648,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/global-not-found/no-root-layout/no-root-layout.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "global-not-found - no-root-layout should render global-not-found for 404",
       "global-not-found - no-root-layout should ssr global-not-found for 404"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5806,8 +5807,7 @@
       "instant validation - opting out of static shells does not require a static shell if a layout is configured as blocking",
       "instant validation - opting out of static shells does not require a static shell if a page is configured as blocking",
       "instant validation - opting out of static shells does not require a static shell if a root layouts is configured as blocking",
-      "instant validation - with debug channel requires a static shell if a below a static layout page is configured as blocking errors in dev",
-      "instant validation - without debug channel requires a static shell if a below a static layout page is configured as blocking errors in dev"
+      "instant validation requires a static shell if a below a static layout page is configured as blocking errors in dev"
     ],
     "failed": [],
     "pending": [],
@@ -5815,121 +5815,81 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/instant-validation/instant-validation.test.ts": {
-    "passed": [
-      "instant validation - with debug channel client navigation blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
-      "instant validation - with debug channel client navigation blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
-      "instant validation - with debug channel client navigation blocking invalid - missing suspense inside blocking layout",
-      "instant validation - with debug channel client navigation blocking valid - blocking layout with unstable_instant = false is allowed to block",
-      "instant validation - with debug channel client navigation blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
-      "instant validation - with debug channel client navigation blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
-      "instant validation - with debug channel client navigation disabling validation in a layout",
-      "instant validation - with debug channel client navigation disabling validation in a page",
-      "instant validation - with debug channel client navigation disabling validation in a page with a parent that has a config",
-      "instant validation - with debug channel client navigation invalid - missing suspense around dynamic (with loading.js)",
-      "instant validation - with debug channel client navigation invalid - missing suspense in parallel slot default slot",
-      "instant validation - with debug channel client navigation invalid - missing suspense in parallel slot index",
-      "instant validation - with debug channel client navigation invalid - missing suspense in parallel slot subpage",
-      "instant validation - with debug channel client navigation invalid - runtime prefetch - missing suspense around dynamic",
-      "instant validation - with debug channel client navigation invalid - runtime prefetch - missing suspense around dynamic in a layout",
-      "instant validation - with debug channel client navigation invalid - runtime prefetch - suspense too high",
-      "instant validation - with debug channel client navigation invalid - runtime prefetch - sync IO after runtime API",
-      "instant validation - with debug channel client navigation invalid - static prefetch - missing suspense around dynamic",
-      "instant validation - with debug channel client navigation invalid - static prefetch - missing suspense around dynamic in a layout",
-      "instant validation - with debug channel client navigation invalid - static prefetch - missing suspense around params",
-      "instant validation - with debug channel client navigation invalid - static prefetch - missing suspense around runtime",
-      "instant validation - with debug channel client navigation invalid - static prefetch - missing suspense around search params",
-      "instant validation - with debug channel client navigation invalid - static prefetch - suspense too high",
-      "instant validation - with debug channel client navigation valid - runtime prefetch - does not require Suspense around params",
-      "instant validation - with debug channel client navigation valid - runtime prefetch - does not require Suspense around search params",
-      "instant validation - with debug channel client navigation valid - runtime prefetch - suspense only around dynamic",
-      "instant validation - with debug channel client navigation valid - static prefetch - suspense around runtime and dynamic",
-      "instant validation - with debug channel client navigation valid - target segment not visible in all navigations",
-      "instant validation - with debug channel initial load blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
-      "instant validation - with debug channel initial load blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
-      "instant validation - with debug channel initial load blocking invalid - missing suspense inside blocking layout",
-      "instant validation - with debug channel initial load blocking valid - blocking layout with unstable_instant = false is allowed to block",
-      "instant validation - with debug channel initial load blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
-      "instant validation - with debug channel initial load blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
-      "instant validation - with debug channel initial load disabling validation in a layout",
-      "instant validation - with debug channel initial load disabling validation in a page",
-      "instant validation - with debug channel initial load disabling validation in a page with a parent that has a config",
-      "instant validation - with debug channel initial load invalid - missing suspense around dynamic (with loading.js)",
-      "instant validation - with debug channel initial load invalid - missing suspense in parallel slot default slot",
-      "instant validation - with debug channel initial load invalid - missing suspense in parallel slot index",
-      "instant validation - with debug channel initial load invalid - missing suspense in parallel slot subpage",
-      "instant validation - with debug channel initial load invalid - runtime prefetch - missing suspense around dynamic",
-      "instant validation - with debug channel initial load invalid - runtime prefetch - missing suspense around dynamic in a layout",
-      "instant validation - with debug channel initial load invalid - runtime prefetch - suspense too high",
-      "instant validation - with debug channel initial load invalid - runtime prefetch - sync IO after runtime API",
-      "instant validation - with debug channel initial load invalid - static prefetch - missing suspense around dynamic",
-      "instant validation - with debug channel initial load invalid - static prefetch - missing suspense around dynamic in a layout",
-      "instant validation - with debug channel initial load invalid - static prefetch - missing suspense around params",
-      "instant validation - with debug channel initial load invalid - static prefetch - missing suspense around runtime",
-      "instant validation - with debug channel initial load invalid - static prefetch - missing suspense around search params",
-      "instant validation - with debug channel initial load invalid - static prefetch - suspense too high",
-      "instant validation - with debug channel initial load valid - runtime prefetch - does not require Suspense around params",
-      "instant validation - with debug channel initial load valid - runtime prefetch - does not require Suspense around search params",
-      "instant validation - with debug channel initial load valid - runtime prefetch - suspense only around dynamic",
-      "instant validation - with debug channel initial load valid - static prefetch - suspense around runtime and dynamic",
-      "instant validation - with debug channel initial load valid - target segment not visible in all navigations",
-      "instant validation - without debug channel client navigation blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
-      "instant validation - without debug channel client navigation blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
-      "instant validation - without debug channel client navigation blocking invalid - missing suspense inside blocking layout",
-      "instant validation - without debug channel client navigation blocking valid - blocking layout with unstable_instant = false is allowed to block",
-      "instant validation - without debug channel client navigation blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
-      "instant validation - without debug channel client navigation blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
-      "instant validation - without debug channel client navigation disabling validation in a layout",
-      "instant validation - without debug channel client navigation disabling validation in a page",
-      "instant validation - without debug channel client navigation disabling validation in a page with a parent that has a config",
-      "instant validation - without debug channel client navigation invalid - missing suspense around dynamic (with loading.js)",
-      "instant validation - without debug channel client navigation invalid - missing suspense in parallel slot default slot",
-      "instant validation - without debug channel client navigation invalid - missing suspense in parallel slot index",
-      "instant validation - without debug channel client navigation invalid - missing suspense in parallel slot subpage",
-      "instant validation - without debug channel client navigation invalid - runtime prefetch - missing suspense around dynamic",
-      "instant validation - without debug channel client navigation invalid - runtime prefetch - missing suspense around dynamic in a layout",
-      "instant validation - without debug channel client navigation invalid - runtime prefetch - suspense too high",
-      "instant validation - without debug channel client navigation invalid - runtime prefetch - sync IO after runtime API",
-      "instant validation - without debug channel client navigation invalid - static prefetch - missing suspense around dynamic",
-      "instant validation - without debug channel client navigation invalid - static prefetch - missing suspense around dynamic in a layout",
-      "instant validation - without debug channel client navigation invalid - static prefetch - missing suspense around params",
-      "instant validation - without debug channel client navigation invalid - static prefetch - missing suspense around runtime",
-      "instant validation - without debug channel client navigation invalid - static prefetch - missing suspense around search params",
-      "instant validation - without debug channel client navigation invalid - static prefetch - suspense too high",
-      "instant validation - without debug channel client navigation valid - runtime prefetch - does not require Suspense around params",
-      "instant validation - without debug channel client navigation valid - runtime prefetch - does not require Suspense around search params",
-      "instant validation - without debug channel client navigation valid - runtime prefetch - suspense only around dynamic",
-      "instant validation - without debug channel client navigation valid - static prefetch - suspense around runtime and dynamic",
-      "instant validation - without debug channel client navigation valid - target segment not visible in all navigations",
-      "instant validation - without debug channel initial load blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
-      "instant validation - without debug channel initial load blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
-      "instant validation - without debug channel initial load blocking invalid - missing suspense inside blocking layout",
-      "instant validation - without debug channel initial load blocking valid - blocking layout with unstable_instant = false is allowed to block",
-      "instant validation - without debug channel initial load blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
-      "instant validation - without debug channel initial load blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
-      "instant validation - without debug channel initial load disabling validation in a layout",
-      "instant validation - without debug channel initial load disabling validation in a page",
-      "instant validation - without debug channel initial load disabling validation in a page with a parent that has a config",
-      "instant validation - without debug channel initial load invalid - missing suspense around dynamic (with loading.js)",
-      "instant validation - without debug channel initial load invalid - missing suspense in parallel slot default slot",
-      "instant validation - without debug channel initial load invalid - missing suspense in parallel slot index",
-      "instant validation - without debug channel initial load invalid - missing suspense in parallel slot subpage",
-      "instant validation - without debug channel initial load invalid - runtime prefetch - missing suspense around dynamic",
-      "instant validation - without debug channel initial load invalid - runtime prefetch - missing suspense around dynamic in a layout",
-      "instant validation - without debug channel initial load invalid - runtime prefetch - suspense too high",
-      "instant validation - without debug channel initial load invalid - runtime prefetch - sync IO after runtime API",
-      "instant validation - without debug channel initial load invalid - static prefetch - missing suspense around dynamic",
-      "instant validation - without debug channel initial load invalid - static prefetch - missing suspense around dynamic in a layout",
-      "instant validation - without debug channel initial load invalid - static prefetch - missing suspense around params",
-      "instant validation - without debug channel initial load invalid - static prefetch - missing suspense around runtime",
-      "instant validation - without debug channel initial load invalid - static prefetch - missing suspense around search params",
-      "instant validation - without debug channel initial load invalid - static prefetch - suspense too high",
-      "instant validation - without debug channel initial load valid - runtime prefetch - does not require Suspense around params",
-      "instant validation - without debug channel initial load valid - runtime prefetch - does not require Suspense around search params",
-      "instant validation - without debug channel initial load valid - runtime prefetch - suspense only around dynamic",
-      "instant validation - without debug channel initial load valid - static prefetch - suspense around runtime and dynamic",
-      "instant validation - without debug channel initial load valid - target segment not visible in all navigations"
+    "passed": [],
+    "failed": [
+      "instant validation client navigation blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
+      "instant validation client navigation blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
+      "instant validation client navigation blocking invalid - missing suspense inside blocking layout",
+      "instant validation client navigation blocking valid - blocking layout with unstable_instant = false is allowed to block",
+      "instant validation client navigation blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
+      "instant validation client navigation blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
+      "instant validation client navigation client components unable to validate - parent suspends on client data and blocks children",
+      "instant validation client navigation client components valid - parent suspends on client data but does not block children",
+      "instant validation client navigation client components valid - parent uses dynamic usePathname() in a client component",
+      "instant validation client navigation client components valid - parent uses sync IO in a client component",
+      "instant validation client navigation client components valid - parent uses useSearchPatams() in a client component",
+      "instant validation client navigation client errors unable to validate - client error from sibling of children slot without suspense",
+      "instant validation client navigation client errors unable to validate - client error in parent blocks children",
+      "instant validation client navigation client errors valid - client error from sibling of children slot with suspense",
+      "instant validation client navigation disabling validation in a layout",
+      "instant validation client navigation disabling validation in a page",
+      "instant validation client navigation disabling validation in a page with a parent that has a config",
+      "instant validation client navigation invalid - missing suspense around dynamic (with loading.js)",
+      "instant validation client navigation invalid - missing suspense in parallel slot default slot",
+      "instant validation client navigation invalid - missing suspense in parallel slot index",
+      "instant validation client navigation invalid - missing suspense in parallel slot subpage",
+      "instant validation client navigation invalid - runtime prefetch - missing suspense around dynamic",
+      "instant validation client navigation invalid - runtime prefetch - missing suspense around dynamic in a layout",
+      "instant validation client navigation invalid - runtime prefetch - suspense too high",
+      "instant validation client navigation invalid - runtime prefetch - sync IO after runtime API",
+      "instant validation client navigation invalid - static prefetch - missing suspense around dynamic",
+      "instant validation client navigation invalid - static prefetch - missing suspense around dynamic in a layout",
+      "instant validation client navigation invalid - static prefetch - missing suspense around params",
+      "instant validation client navigation invalid - static prefetch - missing suspense around runtime",
+      "instant validation client navigation invalid - static prefetch - missing suspense around search params",
+      "instant validation client navigation invalid - static prefetch - suspense too high",
+      "instant validation client navigation valid - runtime prefetch - does not require Suspense around params",
+      "instant validation client navigation valid - runtime prefetch - does not require Suspense around search params",
+      "instant validation client navigation valid - runtime prefetch - suspense only around dynamic",
+      "instant validation client navigation valid - static prefetch - suspense around runtime and dynamic",
+      "instant validation client navigation valid - target segment not visible in all navigations",
+      "instant validation initial load blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
+      "instant validation initial load blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
+      "instant validation initial load blocking invalid - missing suspense inside blocking layout",
+      "instant validation initial load blocking valid - blocking layout with unstable_instant = false is allowed to block",
+      "instant validation initial load blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
+      "instant validation initial load blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
+      "instant validation initial load client components unable to validate - parent suspends on client data and blocks children",
+      "instant validation initial load client components valid - parent suspends on client data but does not block children",
+      "instant validation initial load client components valid - parent uses dynamic usePathname() in a client component",
+      "instant validation initial load client components valid - parent uses sync IO in a client component",
+      "instant validation initial load client components valid - parent uses useSearchPatams() in a client component",
+      "instant validation initial load client errors unable to validate - client error from sibling of children slot without suspense",
+      "instant validation initial load client errors unable to validate - client error in parent blocks children",
+      "instant validation initial load client errors valid - client error from sibling of children slot with suspense",
+      "instant validation initial load disabling validation in a layout",
+      "instant validation initial load disabling validation in a page",
+      "instant validation initial load disabling validation in a page with a parent that has a config",
+      "instant validation initial load invalid - missing suspense around dynamic (with loading.js)",
+      "instant validation initial load invalid - missing suspense in parallel slot default slot",
+      "instant validation initial load invalid - missing suspense in parallel slot index",
+      "instant validation initial load invalid - missing suspense in parallel slot subpage",
+      "instant validation initial load invalid - runtime prefetch - missing suspense around dynamic",
+      "instant validation initial load invalid - runtime prefetch - missing suspense around dynamic in a layout",
+      "instant validation initial load invalid - runtime prefetch - suspense too high",
+      "instant validation initial load invalid - runtime prefetch - sync IO after runtime API",
+      "instant validation initial load invalid - static prefetch - missing suspense around dynamic",
+      "instant validation initial load invalid - static prefetch - missing suspense around dynamic in a layout",
+      "instant validation initial load invalid - static prefetch - missing suspense around params",
+      "instant validation initial load invalid - static prefetch - missing suspense around runtime",
+      "instant validation initial load invalid - static prefetch - missing suspense around search params",
+      "instant validation initial load invalid - static prefetch - suspense too high",
+      "instant validation initial load valid - runtime prefetch - does not require Suspense around params",
+      "instant validation initial load valid - runtime prefetch - does not require Suspense around search params",
+      "instant validation initial load valid - runtime prefetch - suspense only around dynamic",
+      "instant validation initial load valid - static prefetch - suspense around runtime and dynamic",
+      "instant validation initial load valid - target segment not visible in all navigations"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5953,19 +5913,18 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-dynamic-segment/interception-dynamic-segment.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "interception-dynamic-segment should intercept consistently with back/forward navigation",
       "interception-dynamic-segment should intercept multiple times from root",
       "interception-dynamic-segment should work when interception route is paired with a dynamic segment"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-dynamic-single-segment/interception-dynamic-single-segment.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "interception-dynamic-single-segment nested navigation - descendants of intercepting route should intercept multiple times from the same route",
       "interception-dynamic-single-segment nested navigation - descendants of intercepting route should intercept when navigating between different dynamic segments",
       "interception-dynamic-single-segment nested navigation - descendants of intercepting route should intercept when navigating from a child route using back navigation",
@@ -5976,6 +5935,7 @@
       "interception-dynamic-single-segment should intercept with programmatic navigation using router.push",
       "interception-dynamic-single-segment should intercept with purely static multi-segment paths"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6015,10 +5975,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-routes-output-export/interception-routes-output-export.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "interception-routes-output-export should error when using interception routes with static export"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6113,7 +6073,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/logging/fetch-logging.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir - fetch logging placeholder to satisfy at least one test when isNextDev is false",
       "app-dir - fetch logging should not log requests for HMR refreshes",
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
@@ -6168,10 +6129,9 @@
       "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
       "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/logging/fetch-warning.test.ts": {
     "passed": [
@@ -6198,20 +6158,19 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/mdx-no-mdx-components/mdx.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "mdx app directory should allow importing client components",
       "mdx app directory should work in initial html",
       "mdx app directory should work using browser",
       "mdx pages directory should work in initial html"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/mdx/mdx.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "mdx with-mdx-rs app directory should allow importing client components",
       "mdx with-mdx-rs app directory should allow overriding components",
       "mdx with-mdx-rs app directory should work in initial html",
@@ -6240,6 +6199,7 @@
       "mdx without-mdx-rs pages directory should work using browser",
       "mdx without-mdx-rs pages directory should work using browser with mdx import"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6383,11 +6343,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/metadata-static-file/metadata-static-file-dynamic-route.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "metadata-files-static-output-dynamic-route should have correct link tags for dynamic page with static placeholder",
       "metadata-files-static-output-dynamic-route should serve static files when requested with placeholder for dynamic page"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6413,11 +6373,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/metadata-static-file/metadata-static-file-parallel-route.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "metadata-files-static-output-parallel-route should have correct link tags for parallel slot page",
       "metadata-files-static-output-parallel-route should serve static files when requested to its route for parallel slot page"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6570,7 +6530,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/metadata/metadata.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - metadata basic should apply metadata when navigating client-side",
       "app dir - metadata basic should handle metadataBase as url string",
       "app dir - metadata basic should handle metadataBase for urls resolved as only URL type",
@@ -6620,7 +6581,6 @@
       "app dir - metadata viewport should skip initial-scale from viewport if it is set to undefined",
       "app dir - metadata viewport should support dynamic viewport export"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6758,14 +6718,15 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/navigation-with-queued-actions/index.test.ts": {
-    "passed": ["actions works"],
-    "failed": [],
+    "passed": [],
+    "failed": ["actions works"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/navigation/navigation.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - navigation SEO should contain default meta tags in error page",
       "app dir - navigation SEO should emit noindex meta tag for not found page when streaming",
       "app dir - navigation SEO should emit refresh meta tag (permanent) for redirect page when streaming",
@@ -6818,7 +6779,6 @@
       "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages",
       "app dir - navigation useRouter identity between navigations should preserve identity when navigating to the same page"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7438,10 +7398,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-config-ts/import-js-extensions-esm/next-config-ts-import-js-extensions-esm.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next-config-ts-import-js-extensions-esm should import js extensions (ESM)"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7569,16 +7529,15 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-font/next-font.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
+      "app dir - next/font app dir - next-font Dev errors should recover on font loader error",
       "app dir - next/font app dir - next-font computed styles should have correct styles at /",
       "app dir - next/font app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app dir - next-font import values should have correct values at /",
       "app dir - next/font app dir - next-font import values should have correct values at /client",
       "app dir - next/font app dir - next-font import values should transform code in node_modules",
       "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation"
-    ],
-    "failed": [
-      "app dir - next/font app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],
@@ -7594,10 +7553,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image-src-with-query-without-local-patterns/next-image-src-with-query-without-local-patterns.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next-image-src-with-query-without-local-patterns should throw error for relative image with query without localPatterns"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7612,14 +7571,14 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-proxy.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next-image-proxy loads images without any errors",
       "next-image-proxy should work with connection upgrade by removing it via filterReqHeaders()"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image.test.ts": {
     "passed": [],
@@ -7776,7 +7735,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/not-found/basic/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - not-found - basic should propagate notFound errors past a segment's error boundary",
       "app dir - not-found - basic should return 404 status code for custom not-found page",
       "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
@@ -7791,10 +7751,9 @@
       "app dir - not-found - basic with runtime = edge should return 404 status if notFound() is called in shell",
       "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/not-found/conflict-route/index.test.ts": {
     "passed": [
@@ -7827,11 +7786,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/not-found/group-route-root-not-found/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - group routes with root not-found should render default 404 with root layout for non-existent page",
       "app dir - group routes with root not-found should render root not found for group routes if hit 404"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7944,7 +7903,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "parallel-routes-and-interception (trailingSlash: false) parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception (trailingSlash: false) parallel routes should display all parallel route params with useParams",
       "parallel-routes-and-interception (trailingSlash: false) parallel routes should handle a loading state",
@@ -8003,19 +7963,18 @@
       "parallel-routes-and-interception (trailingSlash: true) route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-breadcrumbs/parallel-routes-breadcrumbs.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params",
       "parallel-routes-breadcrumbs should render the breadcrumbs correctly with catchall route segments",
       "parallel-routes-breadcrumbs should render the breadcrumbs correctly with optional catchall route segments",
       "parallel-routes-breadcrumbs should render the breadcrumbs correctly with the non-dynamic route segments"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8039,10 +7998,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-catchall-dynamic-segment/parallel-routes-catchall-dynamic-segment.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "parallel-routes-catchall-dynamic-segment should match default and dynamic segment paths before catch-all"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8147,7 +8106,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
       "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
       "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
@@ -8167,7 +8127,6 @@
       "parallel-routes-revalidation should refresh the correct page when a server action triggers a redirect",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
     ],
-    "failed": [],
     "pending": [
       "parallel-routes-revalidation server action revalidation should not trigger a refresh for the page that is being redirected to"
     ],
@@ -8175,7 +8134,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-root-param-dynamic-child/parallel-routes-root-param-dynamic-child.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "parallel-routes-root-param-dynamic-child Base Routes should render a 200 for /en (in generateStaticParams)",
       "parallel-routes-root-param-dynamic-child Base Routes should render a 200 for /fr (in generateStaticParams)",
       "parallel-routes-root-param-dynamic-child Base Routes should render a 404 for /es (not in generateStaticParams)",
@@ -8190,7 +8150,6 @@
       "parallel-routes-root-param-dynamic-child Without generateStaticParams (no-gsp) should render a 200 for /es/no-gsp/stories/dynamic-123",
       "parallel-routes-root-param-dynamic-child Without generateStaticParams (no-gsp) should render a 200 for /fr/no-gsp/stories/dynamic-123"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8227,13 +8186,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/phase-changes/cookies.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "setting cookies stops cookie mutations when changing phases from a route handler to after via closure",
       "setting cookies stops cookie mutations when changing phases from an action to a page render",
       "setting cookies stops cookie mutations when changing phases from an action to after via closure",
       "setting cookies stops cookie mutations when changing phases from middleware to after via closure"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8600,23 +8559,23 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/react-max-headers-length/react-max-headers-length.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "react-max-headers-length reactMaxHeadersLength = 0 should respect reactMaxHeadersLength",
       "react-max-headers-length reactMaxHeadersLength = 10000 should respect reactMaxHeadersLength",
       "react-max-headers-length reactMaxHeadersLength = 400 should respect reactMaxHeadersLength",
       "react-max-headers-length reactMaxHeadersLength = undefined should respect reactMaxHeadersLength"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/reexport-client-component-metadata/reexport-client-component-metadata.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir - reexport-client-component-metadata should render the layout metadata if not override",
       "app-dir - reexport-client-component-metadata should render the page metadata if override"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8642,10 +8601,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/require-context/require-context.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "require-context should get correct require context when using regex filtering"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8771,7 +8730,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/rewrites-redirects/rewrites-redirects.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "redirects and rewrites navigation using button should redirect from middleware correctly",
       "redirects and rewrites navigation using button should redirect from next.config.js correctly",
       "redirects and rewrites navigation using button should redirect from next.config.js correctly with empty query params",
@@ -8787,7 +8747,6 @@
       "redirects and rewrites redirects to exotic url schemes preserving slashes",
       "redirects and rewrites redirects to exotic url schemes without adding unwanted slashes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8800,16 +8759,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/root-layout-render-once/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir root layout render once should only render root layout once"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/root-layout/root-layout.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir root layout Should do a mpa navigation when switching root layout should work with basic routes",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic catchall routes",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic routes",
@@ -8819,7 +8779,6 @@
       "app-dir root layout should correctly handle navigation between multiple root layouts",
       "app-dir root layout should correctly handle navigation between multiple root layouts when redirecting in a server action"
     ],
-    "failed": [],
     "pending": [
       "app-dir root layout Missing required tags should error on page load",
       "app-dir root layout Missing required tags should error on page load on static generation",
@@ -8847,8 +8806,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/router-autoscroll/router-autoscroll.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "router autoscrolling on navigation bugs Should apply scroll when loading.js is used",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is display none",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position fixed",
@@ -8867,6 +8825,7 @@
       "router autoscrolling on navigation vertical scroll should scroll to top of document with new metadata",
       "router autoscrolling on navigation vertical scroll should scroll to top of page when scrolling to phe top of the document wouldn't have the page in the viewport"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9021,21 +8980,21 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/basic-module-prepend-data/basic-module-prepend-data.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Basic Module Prepend Data Support ({\"sass\": \"1.54.0\"}) should render the module",
       "Basic Module Prepend Data Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/basic-module/basic-module.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Basic SCSS Module Support ({\"sass\": \"1.54.0\"}) should render the module",
       "Basic SCSS Module Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9061,11 +9020,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/composes-basic/composes-basic.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "CSS Module Composes Usage (Basic) ({\"sass\": \"1.54.0\"}) should render the module",
       "CSS Module Composes Usage (Basic) ({\"sass-embedded\": \"1.75.0\"}) should render the module"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9170,21 +9129,21 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/loader-order/loader-order.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "SCSS Support loader handling Preprocessor loader order ({\"sass\": \"1.54.0\"}) should render the module",
       "SCSS Support loader handling Preprocessor loader order ({\"sass-embedded\": \"1.75.0\"}) should render the module"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/multi-global-reversed/multi-global-reversed.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "(SCSS) Multi Global Support (reversed) ({\"sass\": \"1.54.0\"}) should render the page",
       "(SCSS) Multi Global Support (reversed) ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9214,11 +9173,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/nested-global/nested-global.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Nested @import() Global Support ({\"sass\": \"1.54.0\"}) should render the page",
       "Nested @import() Global Support ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9318,11 +9277,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/unused/unused.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "unused scss Body is not hidden when broken in Development development only should have body visible",
       "unused scss Body is not hidden when unused in Development ($dependencies) development only should have body visible"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9368,10 +9327,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Valid and Invalid Global CSS with Custom App should show a build error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9479,15 +9438,15 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/force-stale/force-stale.test.ts": {
-    "passed": ["force stale prefetching is disabled in dev"],
-    "failed": [],
+    "passed": [],
+    "failed": ["force stale prefetching is disabled in dev"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
-    "passed": ["segment cache memory pressure disabled in development"],
-    "failed": [],
+    "passed": [],
+    "failed": ["segment cache memory pressure disabled in development"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9605,16 +9564,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/self-importing-package/self-importing-package.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "self-importing-package should resolve self-imports in an external package"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/server-action-logging/server-action-logging.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "server-action-logging should log error action",
       "server-action-logging should log inline action",
       "server-action-logging should log notFound action",
@@ -9627,7 +9587,6 @@
       "server-action-logging should show relative file path in log",
       "server-action-logging when logging.serverFunctions is disabled should not log server actions"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9656,12 +9615,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/server-components-externals/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - server components externals should externalize serversExternalPackages for server rendering layer",
       "app-dir - server components externals should have externals for those in config.serverExternalPackages",
       "app-dir - server components externals uses externals for predefined list in server-external-packages.json"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9780,13 +9739,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/static-siblings/static-siblings.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "static-siblings cross-route-group siblings should navigate to static sibling after visiting dynamic route",
       "static-siblings deeply nested siblings should navigate to static sibling after visiting dynamic route",
       "static-siblings parallel route siblings should navigate to static sibling after visiting dynamic route",
       "static-siblings same-directory siblings should navigate to static sibling after visiting dynamic route"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9806,8 +9765,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts": {
-    "passed": ["syntax-highlighter-crash should render the page"],
-    "failed": [],
+    "passed": [],
+    "failed": ["syntax-highlighter-crash should render the page"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9829,11 +9788,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/temporary-references/temporary-references.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "temporary-references should return the same object that was sent to the action (edge)",
       "temporary-references should return the same object that was sent to the action (node)"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9937,13 +9896,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
       "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
       "typed-routes should update route types file when routes change"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9956,22 +9915,22 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/unauthorized/basic/unauthorized-basic.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - unauthorized - basic should escalate unauthorized to parent layout if no unauthorized boundary present in current layer",
       "app dir - unauthorized - basic should match dynamic route unauthorized boundary correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/unauthorized/default/unauthorized-default.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - unauthorized with default unauthorized boundary should be able to navigate to page calling unauthorized",
       "app dir - unauthorized with default unauthorized boundary should be able to navigate to page with calling unauthorized in metadata",
       "app dir - unauthorized with default unauthorized boundary should render default unauthorized for group routes if unauthorized is not defined"
     ],
-    "failed": [],
     "pending": [
       "app dir - unauthorized with default unauthorized boundary should error on client unauthorized from root layout in browser",
       "app dir - unauthorized with default unauthorized boundary should error on server unauthorized from root layout on server-side"
@@ -10002,11 +9961,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/unstable-rethrow/unstable-rethrow.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "unstable-rethrow should correctly trigger the not found page as not found",
       "unstable-rethrow should handle an internal error that gets propagated to the `cause` field"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10109,14 +10068,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
-    "passed": [
-      "use-cache-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
-      "use-cache-search-params when searchParams are caught inside of \"use cache\" should show an error",
-      "use-cache-search-params when searchParams are unused inside of \"use cache\" should not show an error"
-    ],
+    "passed": [],
     "failed": [
       "use-cache-search-params should show an error when searchParams are used inside of a cached generateMetadata",
       "use-cache-search-params should show an error when searchParams are used inside of a cached generateViewport",
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should show an error",
+      "use-cache-search-params when searchParams are unused inside of \"use cache\" should not show an error",
       "use-cache-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
     "pending": [],
@@ -10133,22 +10091,22 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-unknown-cache-kind/use-cache-unknown-cache-kind.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "use-cache-unknown-cache-kind should not show an error for default cache kinds",
       "use-cache-unknown-cache-kind should recover from the build error if the cache handler is defined",
       "use-cache-unknown-cache-kind should show a build error"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-with-server-function-props/use-cache-with-server-function-props.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "use-cache-with-server-function-props should be able to use inline server actions as props",
       "use-cache-with-server-function-props should be able to use nested cache functions as props"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10211,8 +10169,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-params/use-params.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "use-params should work for catch all params",
       "use-params should work for nested dynamic params",
       "use-params should work for nested dynamic params client navigating",
@@ -10221,6 +10178,7 @@
       "use-params should work on pages router",
       "use-params shouldn't rerender host component when prefetching"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10317,10 +10275,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/webpack-loader-set-environment-variable/webpack-loader-set-environment-variable.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "webpack-loader-set-environment-variable loader that sets an environment variable should work"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10335,17 +10293,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/with-babel/with-babel.test.ts": {
-    "passed": ["with babel should support babel in app dir"],
-    "failed": [],
+    "passed": [],
+    "failed": ["with babel should support babel in app dir"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/with-exported-function-config/with-exported-function-config.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "with-exported-function-config should have correct values in function config manifest"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10378,13 +10336,13 @@
     "runtimeError": false
   },
   "test/e2e/app-document/client.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Document and App - Client side should detect the changes to pages/_app.js and display it",
       "Document and App - Client side should detect the changes to pages/_document.js and display it",
       "Document and App - Client side should keep state between page navigations",
       "Document and App - Client side should share module state with pages"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10543,13 +10501,13 @@
     "runtimeError": false
   },
   "test/e2e/basepath/router-events.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "basePath should use urls with basepath in router events",
       "basePath should use urls with basepath in router events for cancelled routes",
       "basePath should use urls with basepath in router events for failed route change",
       "basePath should use urls with basepath in router events for hash changes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10566,11 +10524,11 @@
     "runtimeError": false
   },
   "test/e2e/browserslist-extends/index.test.ts": {
-    "passed": ["browserslist-extends should work"],
-    "failed": [],
+    "passed": [],
+    "failed": ["browserslist-extends should work"],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/browserslist/browserslist.test.ts": {
     "passed": [],
@@ -10602,8 +10560,7 @@
     "runtimeError": false
   },
   "test/e2e/cancel-request/stream-cancel.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "streaming responses cancel inner stream after disconnect edge app route handler cancels stalled stream",
       "streaming responses cancel inner stream after disconnect edge app route handler cancels stream making progress",
       "streaming responses cancel inner stream after disconnect edge app route handler cancels stream that never sent data",
@@ -10620,6 +10577,7 @@
       "streaming responses cancel inner stream after disconnect node pages api cancels stream making progress",
       "streaming responses cancel inner stream after disconnect node pages api cancels stream that never sent data"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10719,14 +10677,14 @@
     "runtimeError": false
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Conflict between app file and pages file should error again when there is new conflict",
       "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir",
       "Conflict between app file and pages file should show error overlay for /",
       "Conflict between app file and pages file should show error overlay for /another",
       "Conflict between app file and pages file should support hmr with conflicts"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10739,17 +10697,17 @@
     "runtimeError": false
   },
   "test/e2e/cpu-profiling/cpu-profiling-dev.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "CPU Profiling - next dev should create CPU profile files on exit"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/cpu-profiling/cpu-profiling.test.ts": {
-    "passed": ["CPU Profiling - next start skip for development/deploy mode"],
-    "failed": [],
+    "passed": [],
+    "failed": ["CPU Profiling - next start skip for development/deploy mode"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10776,8 +10734,7 @@
     "runtimeError": false
   },
   "test/e2e/deferred-entries/deferred-entries.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "deferred-entries should build app router dynamic and catch-all routes when using deferred entries",
       "deferred-entries should build app router dynamic route with generateStaticParams when using deferred entries",
       "deferred-entries should build app router metadata routes when using deferred entries",
@@ -10802,9 +10759,10 @@
       "deferred-entries should run middleware for app router, pages router, and API routes",
       "deferred-entries should update deferred rendered timestamp during HMR when non-deferred entry changes"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/define/define.test.ts": {
     "passed": [
@@ -10918,16 +10876,17 @@
     "runtimeError": false
   },
   "test/e2e/edge-compiler-module-exports-preference/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Edge compiler module exports preference favors the browser export"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/edge-configurable-runtime/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Configurable runtime for pages and API routes In development mode errors about page using edge runtime",
       "Configurable runtime for pages and API routes In development mode runs with no warning API route on the edge runtime",
       "Configurable runtime for pages and API routes In development mode warns about API route using experimental-edge runtime",
@@ -10937,22 +10896,22 @@
       "Configurable runtime for src/pages and API routes In development mode warns about API route using experimental-edge runtime",
       "Configurable runtime for src/pages and API routes In development mode warns about page using edge runtime"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/edge-pages-support/edge-document.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "edge render - custom _document with edge runtime should render page properly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/edge-pages-support/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "edge-render-getserversideprops should have correct query for pages/api",
       "edge-render-getserversideprops should have correct query for pages/api dynamic",
       "edge-render-getserversideprops should have correct query/params on /[id]",
@@ -10962,7 +10921,6 @@
       "edge-render-getserversideprops should respond to _next/data for [id] correctly",
       "edge-render-getserversideprops should respond to _next/data for index correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10989,10 +10947,10 @@
     "runtimeError": false
   },
   "test/e2e/error-handler-not-found-req-url/error-handler-not-found-req-url.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "error-handler-not-found-req-url should log the correct request url and asPath for not found _error page"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11153,18 +11111,19 @@
     "runtimeError": false
   },
   "test/e2e/i18n-api-support/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "i18n API support should fallback rewrite non-matching API request",
       "i18n API support should respond to normal API request",
       "i18n API support should respond to normal dynamic API request"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/i18n-data-fetching-redirect/redirect-from-context.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect en",
@@ -11178,13 +11137,13 @@
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect sv"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/i18n-data-fetching-redirect/redirect.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
       "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
@@ -11198,13 +11157,13 @@
       "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
       "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/i18n-data-route/i18n-data-route.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "i18n-data-route with locale prefix /en-CA should render /[slug]/about via /en-CA/blog/about",
       "i18n-data-route with locale prefix /en-CA should render /about via /en-CA/about",
       "i18n-data-route with locale prefix /en-CA should serve data for /[slug]/about",
@@ -11218,7 +11177,6 @@
       "i18n-data-route without locale prefix should serve data for /[slug]/about",
       "i18n-data-route without locale prefix should serve data for /about"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11299,8 +11257,7 @@
     "runtimeError": false
   },
   "test/e2e/i18n-fallback-collision/i18n-fallback-collision.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /es/first/non-existent",
       "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /es/first/second/non-existent",
       "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /es/non-existent",
@@ -11313,6 +11270,7 @@
       "i18n-disallow-multiple-locales should render properly for fallback: false prerendered /first/second/third",
       "i18n-disallow-multiple-locales should render properly for fallback: false prerendered /first/second/third/fourth"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11468,17 +11426,18 @@
     "runtimeError": false
   },
   "test/e2e/import-meta/import-meta.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "import-meta import.meta.url should work in browser",
       "import-meta import.meta.url should work on the server"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/instrumentation-client-hook/instrumentation-client-hook.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
       "Instrumentation Client Hook HMR in development mode should reload instrumentation-client when modified",
       "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
@@ -11486,18 +11445,17 @@
       "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a back/forward navigation",
       "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a navigation"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/instrumentation-hook-src/instrumentation-hook-src.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "instrumentation-hook-rsc instrumentation should not overlap with a instrumentation page",
       "instrumentation-hook-rsc instrumentation should run the edge instrumentation compiled version with the edge runtime",
       "instrumentation-hook-rsc instrumentation should run the instrumentation hook"
     ],
-    "failed": [],
     "pending": [
       "instrumentation-hook-rsc instrumentation should reload the server when the instrumentation hook changes"
     ],
@@ -11505,7 +11463,8 @@
     "runtimeError": false
   },
   "test/e2e/instrumentation-hook/instrumentation-hook.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Instrumentation Hook general should not overlap with a instrumentation page",
       "Instrumentation Hook with-async-edge-page with-async-edge-page should run the instrumentation hook",
       "Instrumentation Hook with-async-node-page with-async-node-page should run the instrumentation hook",
@@ -11516,7 +11475,6 @@
       "Instrumentation Hook with-node-api with-node-api should run the instrumentation hook",
       "Instrumentation Hook with-node-page with-node-page should run the instrumentation hook"
     ],
-    "failed": [],
     "pending": [
       "Instrumentation Hook general should reload the server when the instrumentation hook changes"
     ],
@@ -11545,12 +11503,12 @@
     "runtimeError": false
   },
   "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app-base-path.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "invalid-static-asset-404-app-base-path should return 404 with plain text when fetching invalid asset path",
       "invalid-static-asset-404-app-base-path should return correct output with status 200 on valid asset path",
       "invalid-static-asset-404-app-base-path should return custom 404 page when fetching invalid non-asset path"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11685,7 +11643,8 @@
     "runtimeError": false
   },
   "test/e2e/manual-client-base-path/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "manual-client-base-path should navigate correctly from another",
       "manual-client-base-path should navigate correctly from index",
       "manual-client-base-path should not update with basePath on mount /",
@@ -11694,35 +11653,35 @@
       "manual-client-base-path should not update with basePath on mount /dynamic/second",
       "manual-client-base-path should not warn for flag in output"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-base-path/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Middleware base tests router.query must exist when Link clicked page routing",
       "Middleware base tests should allow client-side navigation to the root",
       "Middleware base tests should execute from absolute paths"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-custom-matchers-basepath/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Middleware custom matchers basePath should match",
       "Middleware custom matchers basePath should match has query on client routing",
       "Middleware custom matchers basePath should not match"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Middleware custom matchers i18n should match /en/hello",
       "Middleware custom matchers i18n should match /hello",
       "Middleware custom matchers i18n should match /nl-NL/about",
@@ -11737,7 +11696,6 @@
       "Middleware custom matchers i18n should not match /invalid/hello",
       "Middleware custom matchers with root should not match"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11779,15 +11737,15 @@
     "runtimeError": true
   },
   "test/e2e/middleware-dynamic-basepath-matcher/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Middleware custom matchers basePath should match",
       "Middleware custom matchers basePath should match query path",
       "Middleware custom matchers basePath should not match"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/middleware-fetches-with-any-http-method/index.test.ts": {
     "passed": [
@@ -12126,7 +12084,8 @@
     "runtimeError": false
   },
   "test/e2e/middleware-rewrites/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Middleware Rewrite /fr can rewrite from path with colon",
       "Middleware Rewrite /fr can rewrite from path with colon and retain query parameter",
       "Middleware Rewrite /fr can rewrite to path with colon",
@@ -12184,22 +12143,22 @@
       "Middleware Rewrite should rewrite without hard navigation",
       "Middleware Rewrite support colons in path"
     ],
-    "failed": [],
     "pending": [
       "Middleware Rewrite includes the locale in rewrites by default"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-shallow-link/index.test.ts": {
-    "passed": ["browser-shallow-navigation should render the correct page"],
-    "failed": [],
+    "passed": [],
+    "failed": ["browser-shallow-navigation should render the correct page"],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-static-files/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Middleware Runtime should match middleware correctly for /another%2ffile.svg",
       "Middleware Runtime should match middleware correctly for /another%2fhello",
       "Middleware Runtime should match middleware correctly for /another/file.svg",
@@ -12220,13 +12179,13 @@
       "Middleware Runtime should match middleware correctly for /vercel copy.svg",
       "Middleware Runtime should match middleware correctly for /vercel%20copy.svg"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-trailing-slash/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Middleware Runtime trailing slash allows shallow linking with middleware",
       "Middleware Runtime trailing slash refreshes the page when middleware changes ",
       "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites",
@@ -12252,10 +12211,9 @@
       "Middleware Runtime trailing slash without .html extension should work when navigating",
       "Middleware Runtime trailing slash without .html extension should work when requesting the page directly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [],
@@ -12294,13 +12252,13 @@
     "runtimeError": false
   },
   "test/e2e/new-link-behavior/child-a-tag-error.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "New Link Behavior with <a> child should throw error with <a> child"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/new-link-behavior/index.test.ts": {
     "passed": [
@@ -12407,38 +12365,39 @@
     "runtimeError": false
   },
   "test/e2e/next-font/with-proxy.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next/font/google with proxy should use a proxy agent when proxy environment variable is set"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/next-font/without-preloaded-fonts.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next/font/google no preloads with _app without fonts",
       "next/font/google no preloads with _app without preload",
       "next/font/google without-preloaded-fonts without _app without fonts",
       "next/font/google without-preloaded-fonts without _app without preload"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/next-form/basepath/next-form-basepath.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - form - with basepath should add basePath to `action`",
       "app dir - form - with basepath should not add basePath to a submitter's formAction"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/next-form/default/app-dir.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next-form - app dir does not navigate if preventDefault is called in onSubmit",
       "next-form - app dir does not push a new history entry if `replace` is passed",
       "next-form - app dir functions passed to action runs client action",
@@ -12454,7 +12413,6 @@
       "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
       "next-form - app dir url-encodes file inputs, but warns about them"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12488,17 +12446,17 @@
     "runtimeError": false
   },
   "test/e2e/next-head/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/head should have correct head tags after hydration",
       "next/head should have correct head tags from a fragment",
       "next/head should have correct head tags in initial document",
       "next/head should have current head tags from a _document getInitialProps",
       "next/head should place charset element at the top of <head>"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/next-image-forward-ref/index.test.ts": {
     "passed": [
@@ -12597,7 +12555,8 @@
     "runtimeError": false
   },
   "test/e2e/og-api/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "og-api should respond from index",
       "og-api should throw error when returning a response object in pages/api in node runtime",
       "og-api should work in app route",
@@ -12605,22 +12564,22 @@
       "og-api should work in middleware",
       "og-api should work in pages/api"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/og-routes-custom-font/og-routes-custom-font.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "og-routes-custom-font should render og with custom font for app routes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/on-request-error/basic/basic.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "on-request-error - basic app router should catch app routes error in edge runtime",
       "on-request-error - basic app router should catch app routes error in node runtime",
       "on-request-error - basic app router should catch client component page error in edge runtime",
@@ -12633,20 +12592,19 @@
       "on-request-error - basic pages router should catch pages router page error in edge runtime",
       "on-request-error - basic pages router should catch pages router page error in node runtime"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/on-request-error/dynamic-routes/dynamic-routes.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "on-request-error - dynamic-routes app router should catch app router dynamic page error with search params",
       "on-request-error - dynamic-routes app router should catch app router dynamic routes error with search params",
       "on-request-error - dynamic-routes app router should catch suspense rendering page error in node runtime",
       "on-request-error - dynamic-routes pages router should catch pages router dynamic API route error with search params",
       "on-request-error - dynamic-routes pages router should catch pages router dynamic page error with search params"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12669,13 +12627,13 @@
     "runtimeError": false
   },
   "test/e2e/on-request-error/server-action-error/server-action-error.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "on-request-error - server-action-error should catch server action error in listener callback in edge runtime",
       "on-request-error - server-action-error should catch server action error in listener callback in nodejs runtime",
       "on-request-error - server-action-error should catch the server action form error in edge runtime",
       "on-request-error - server-action-error should catch the server action form error in nodejs runtime"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12825,10 +12783,10 @@
     "runtimeError": false
   },
   "test/e2e/postcss-config-package/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "postcss-config-json works with postcss config specified in package.json"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12846,26 +12804,26 @@
     "runtimeError": false
   },
   "test/e2e/prerender-crawler.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Prerender crawler handling should block for crawler correctly",
       "Prerender crawler handling should return fallback for non-crawler correctly",
       "Prerender crawler handling should return prerendered page for correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/prerender-native-module.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "prerender native module should render /blog/first correctly",
       "prerender native module should render /blog/second correctly",
       "prerender native module should render index correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/prerender.test.ts": {
     "passed": [],
@@ -12949,8 +12907,7 @@
     "runtimeError": true
   },
   "test/e2e/react-compiler/react-compiler.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "react-compiler babelrc should memoize Components",
       "react-compiler babelrc should name functions in dev",
       "react-compiler babelrc should work with a library that uses the react-server condition",
@@ -12962,6 +12919,7 @@
       "react-compiler default should work with a library using use client",
       "react-compiler default throws if the React Compiler is used in a React Server environment"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13085,20 +13043,21 @@
     "runtimeError": false
   },
   "test/e2e/streaming-ssr-edge/streaming-ssr-edge.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "streaming-ssr-edge should not stream to crawlers or google pagerender bot",
       "streaming-ssr-edge should render 500 error from gIP correctly",
       "streaming-ssr-edge should render 500 error from render function correctly",
       "streaming-ssr-edge should render fallback if error raised from suspense during streaming",
       "streaming-ssr-edge should support streaming for fizz response"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/streaming-ssr/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "streaming SSR with custom next configs should match more specific route along with dynamic routes",
       "streaming SSR with custom next configs should redirect paths without trailing-slash and render when slash is appended",
       "streaming SSR with custom next configs should render multi-byte characters correctly in streaming",
@@ -13106,29 +13065,28 @@
       "streaming SSR with custom next configs should render styled-jsx styles in streaming",
       "streaming SSR with custom next configs should work with custom document"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/styled-jsx/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "styled-jsx should contain styled-jsx styles during SSR",
       "styled-jsx should render styles during CSR",
       "styled-jsx should render styles inside TypeScript"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/swc-plugins/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "swcPlugins incompatible plugin version shows a redbox in dev",
       "swcPlugins invalid plugin name shows a redbox in dev",
       "swcPlugins supports swcPlugins basic case"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13167,13 +13125,13 @@
     "runtimeError": true
   },
   "test/e2e/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "{{name}} should work using browser",
       "{{name}} should work using cheerio",
       "{{name}} should work with fetch",
       "{{name}} should work with html"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13360,21 +13318,21 @@
     "runtimeError": false
   },
   "test/e2e/tsconfig-module-preserve/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "tsconfig module: preserve allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/tsconfig-path/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "specified tsconfig app router: allows a user-specific tsconfig via the next config",
       "specified tsconfig middleware: allows a user-specific tsconfig via the next config",
       "specified tsconfig pages router: allows a user-specific tsconfig via the next config"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13389,8 +13347,8 @@
     "runtimeError": false
   },
   "test/e2e/turbopack-loader-config/index.test.ts": {
-    "passed": ["turbopack-loader-config should only run the test in turbopack"],
-    "failed": [],
+    "passed": [],
+    "failed": ["turbopack-loader-config should only run the test in turbopack"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13413,16 +13371,16 @@
     "runtimeError": false
   },
   "test/e2e/type-module-interop/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Type module interop should render client-side",
       "Type module interop should render client-side with modules",
       "Type module interop should render server-side",
       "Type module interop should render server-side with modules"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/typescript-custom-tsconfig/test/index.test.ts": {
     "passed": [
@@ -13564,40 +13522,40 @@
     "runtimeError": false
   },
   "test/e2e/useselectedlayoutsegment-s-in-pages-router/useselectedlayoutsegment-s-in-pages-router.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "useSelectedLayoutSegment(s) in Pages Router Should render with `useSelectedLayoutSegment(s) hooks"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/vary-header/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
       "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/with-router/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "withRouter SSR should show an error when trying to use router methods during SSR",
       "withRouter production mode allows observation of navigation events using top level Router",
       "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
       "withRouter production mode allows observation of navigation events using withRouter"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/worker-react-refresh/worker-react-refresh.test.tsx": {
-    "passed": ["worker-react-refresh does not cause any runtime errors"],
-    "failed": [],
+    "passed": [],
+    "failed": ["worker-react-refresh does not cause any runtime errors"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13621,10 +13579,10 @@
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-sass.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "yarn PnP should compile and serve the index page correctly with-sass"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14463,13 +14421,14 @@
   },
   "test/integration/create-next-app/biome-config.test.ts": {
     "passed": [
+      "create-next-app Biome configuration should match biome.json snapshot"
+    ],
+    "failed": [
       "create-next-app Biome configuration should format code with biome successfully",
-      "create-next-app Biome configuration should match biome.json snapshot",
       "create-next-app Biome configuration should run biome check successfully on generated JavaScript project",
       "create-next-app Biome configuration should run biome check successfully on generated TypeScript project",
       "create-next-app Biome configuration should show errors when biome detects issues"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14662,7 +14621,8 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/pages.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
       "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
@@ -14670,7 +14630,6 @@
       "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
       "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
