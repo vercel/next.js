@@ -2,7 +2,7 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-image-loader`
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -33,7 +33,13 @@ async fn dynamic_image_metadata_with_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash_query = format!("?{:x}", *path.read().hash().await?);
+    let hash_query = format!(
+        "?{:x}",
+        path.read()
+            .content_hash()
+            .await?
+            .context("metadata file not found")?
+    );
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
@@ -107,7 +113,13 @@ async fn dynamic_image_metadata_without_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash_query = format!("?{:x}", *path.read().hash().await?);
+    let hash_query = format!(
+        "?{:x}",
+        path.read()
+            .content_hash()
+            .await?
+            .context("metadata file not found")?
+    );
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {

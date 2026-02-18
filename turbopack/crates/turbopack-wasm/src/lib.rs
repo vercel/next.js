@@ -9,7 +9,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbopack_core::asset::Asset;
@@ -23,8 +23,10 @@ pub mod source;
 
 #[turbo_tasks::function]
 pub async fn wasm_edge_var_name(asset: Vc<Box<dyn Asset>>) -> Result<Vc<RcStr>> {
-    let content = asset.content().file_content();
-    Ok(Vc::cell(
-        format!("wasm_{:08x}", *content.hash().await?).into(),
-    ))
+    let hash = asset
+        .content()
+        .content_hash()
+        .await?
+        .context("Missing content when trying to generate the content hash for a WASM asset")?;
+    Ok(Vc::cell(format!("wasm_{:08x}", hash).into()))
 }

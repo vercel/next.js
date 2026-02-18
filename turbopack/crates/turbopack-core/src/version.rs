@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
@@ -232,16 +232,12 @@ impl FileHashVersion {
     /// Computes a new [`Vc<FileHashVersion>`] from a path.
     pub async fn compute(asset_content: &AssetContent) -> Result<Vc<Self>> {
         match asset_content {
-            AssetContent::File(file_vc) => match &*file_vc.await? {
-                FileContent::Content(_) => {
-                    let hash = *file_vc.hash().await?;
-                    let hex_hash = encode_hex(hash);
-                    Ok(Self::cell(FileHashVersion {
-                        hash: hex_hash.into(),
-                    }))
-                }
-                FileContent::NotFound => Err(anyhow!("file not found")),
-            },
+            AssetContent::File(file_vc) => {
+                let hash = file_vc.content_hash().await?.context("file not found")?;
+                Ok(Self::cell(FileHashVersion {
+                    hash: encode_hex(hash).into(),
+                }))
+            }
             AssetContent::Redirect { .. } => Err(anyhow!("not a file")),
         }
     }

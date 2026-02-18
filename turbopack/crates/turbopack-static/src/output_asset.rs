@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -39,18 +39,14 @@ impl OutputAsset for StaticOutputAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let content = self.source.content();
-        let content_hash = if let AssetContent::File(file) = &*content.await? {
-            if file.len().await?.is_some() {
-                file.hash()
-            } else {
-                anyhow::bail!("StaticAsset::path: not found")
-            }
-        } else {
-            anyhow::bail!("StaticAsset::path: unsupported file content")
-        };
-        Ok(self
-            .chunking_context
-            .asset_path(content_hash, self.source.ident(), self.tag.clone()))
+        let content_hash = content.content_hash().await?.context(
+            "Missing content when trying to generate the content hash for StaticOutputAsset",
+        )?;
+        Ok(self.chunking_context.asset_path(
+            Vc::cell(content_hash),
+            self.source.ident(),
+            self.tag.clone(),
+        ))
     }
 }
 
