@@ -144,7 +144,8 @@ describe('Cache Components Dev Errors', () => {
              "source": "./app/page.tsx (1:14)
            Ecmascript file had an error
            > 1 | export const revalidate = 10
-               |              ^^^^^^^^^^",
+               |              ^^^^^^^^^^
+           Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
              "stack": [],
            }
           `)

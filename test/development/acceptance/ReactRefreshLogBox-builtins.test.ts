@@ -85,7 +85,11 @@ describe('ReactRefreshLogBox', () => {
          "source": "./node_modules/my-package/index.js (1:1)
        Module not found: Can't resolve 'dns'
        > 1 | const dns = require('dns')
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found
+       Import trace for requested module:
+       ./index.js
+       ./pages/index.js",
          "stack": [],
        }
       `)
@@ -154,7 +158,10 @@ describe('ReactRefreshLogBox', () => {
          "source": "./index.js (1:1)
        Module not found: Can't resolve 'b'
        > 1 | import Comp from 'b'
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found
+       Import trace for requested module:
+       ./pages/index.js",
          "stack": [],
        }
       `)
@@ -222,7 +229,8 @@ describe('ReactRefreshLogBox', () => {
          "source": "./pages/index.js (1:1)
        Module not found: Can't resolve 'b'
        > 1 | import Comp from 'b'
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
@@ -295,7 +303,8 @@ describe('ReactRefreshLogBox', () => {
          "source": "./pages/_app.js (1:1)
        Module not found: Can't resolve './non-existent.css'
        > 1 | import './non-existent.css'
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
