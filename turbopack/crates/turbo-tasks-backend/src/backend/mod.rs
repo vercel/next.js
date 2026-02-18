@@ -3123,15 +3123,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut ctx = self.execute_context(turbo_tasks);
         let root_tasks = self.root_tasks.lock().clone();
 
-        for task_id in root_tasks.into_iter() {
+        {
             let mut queue = VecDeque::new();
             let mut visited = FxHashSet::default();
             let mut aggregated_nodes = FxHashSet::default();
             let mut collectibles = FxHashMap::default();
-            let root_task_id = task_id;
-            visited.insert(task_id);
-            aggregated_nodes.insert(task_id);
-            queue.push_back(task_id);
+            visited.extend(root_tasks.iter().copied());
+            aggregated_nodes.extend(root_tasks.iter().copied());
+            queue.extend(root_tasks.iter().copied());
             let mut counter = 0;
             while let Some(task_id) = queue.pop_front() {
                 counter += 1;
@@ -3149,7 +3148,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
 
                 let uppers = get_uppers(&task);
-                if task_id != root_task_id
+                if !root_tasks.contains(&task_id)
                     && !uppers.iter().any(|upper| aggregated_nodes.contains(upper))
                 {
                     panic!(
