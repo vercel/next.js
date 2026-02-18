@@ -6,10 +6,7 @@ import type {
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigRuntime } from './config-shared'
-import {
-  DEFAULT_MAX_POSTPONED_STATE_SIZE,
-  parseMaxPostponedStateSize,
-} from './config-shared'
+import { parseMaxPostponedStateSize } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -155,6 +152,11 @@ import type { PrerenderedRoute } from '../build/static-paths/types'
 import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
+import {
+  getMaxPostponedStateSize,
+  getPostponedStateExceededErrorMessage,
+  readBodyWithSizeLimit,
+} from './lib/postponed-request-body'
 
 export type FindComponentsResult<
   NextModule extends GenericComponentMod = GenericComponentMod,
@@ -1069,37 +1071,28 @@ export default abstract class Server<
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
-            // Get the configured max postponed state size.
-            const maxPostponedStateSize =
-              this.nextConfig.experimental.maxPostponedStateSize ??
-              DEFAULT_MAX_POSTPONED_STATE_SIZE
-            const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
-              this.nextConfig.experimental.maxPostponedStateSize
-            )
-            if (maxPostponedStateSizeBytes === undefined) {
-              throw new Error(
-                'maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+            const { maxPostponedStateSize, maxPostponedStateSizeBytes } =
+              getMaxPostponedStateSize(
+                this.nextConfig.experimental.maxPostponedStateSize
               )
-            }
 
             // Decode the postponed state from the request body, it will come as
             // an array of buffers, so collect them and then concat them to form
             // the string.
-            const body: Array<Buffer> = []
-            let size = 0
-            for await (const chunk of req.body) {
-              size += Buffer.byteLength(chunk)
-              if (size > maxPostponedStateSizeBytes) {
-                res.statusCode = 413
-                const errorMessage =
-                  `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
-                  `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
-                res.body(errorMessage).send()
-                return
-              }
-              body.push(chunk)
+            const body = await readBodyWithSizeLimit(
+              req.body,
+              maxPostponedStateSizeBytes
+            )
+            if (body === null) {
+              res.statusCode = 413
+              res
+                .body(
+                  getPostponedStateExceededErrorMessage(maxPostponedStateSize)
+                )
+                .send()
+              return
             }
-            const postponed = Buffer.concat(body).toString('utf8')
+            const postponed = body.toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
           }
