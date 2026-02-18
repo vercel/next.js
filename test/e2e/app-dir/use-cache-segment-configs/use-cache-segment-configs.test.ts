@@ -87,7 +87,8 @@ describe('use-cache-segment-configs', () => {
            3 | export default function Page() {
            4 |   return <div>This page uses \`export const runtime\`.</div>
 
-         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`.
+         Please remove it.
 
 
              at <unknown> (./app/runtime/page.tsx:1:14)

@@ -72,11 +72,12 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching",
+         "description": "  x "getStaticProps" is not supported in app/.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js
-       Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
+       Error:   x "getStaticProps" is not supported in app/.
+         | Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
          |
           ,-[3:1]
         1 | 'use client'

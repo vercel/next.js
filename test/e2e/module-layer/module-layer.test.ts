@@ -115,23 +115,20 @@ describe('module layer', () => {
             await waitForRedbox(browser)
             const source = await getRedboxSource(browser)
             expect(source).toMatchInlineSnapshot(`
-             "./lib/mixed-lib/client.js (1:1)
-             'client-only' cannot be imported from a Server Component module
-             > 1 | import 'client-only'
-                 | ^^^^^^^^^^^^^^^^^^^^
-               2 |
-               3 | export const client = 'client:module'
-               4 |
+             "./lib/mixed-lib/client.js
+             Error:   x 'client-only' cannot be imported from a Server Component module.
+               | It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+               | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+                ,-[1:1]
+              1 | import 'client-only'
+                : ^^^^^^^^^^^^^^^^^^^^
+              2 |
+              3 | export const client = 'client:module'
+                \`----
 
-             Modules use import 'client-only' to flag they shouldn't be used from Server Components.
-             Usually this is caused by a missing 'use client' in some module in the import chain.
-             Alternatively, an import of the import chain can be removed to avoid referencing this module.
-
-             Import trace:
-               Edge Middleware:
-                 ./lib/mixed-lib/client.js
-                 ./lib/mixed-lib/index.js
-                 ./middleware.js"
+             Import trace for requested module:
+             ./lib/mixed-lib/client.js
+             ./lib/mixed-lib/index.js"
             `)
           }
         )

@@ -62,7 +62,7 @@ _describe('after() - pages', () => {
 
         await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toMatch(
-          /You're importing a component that needs "?after"?\. That only works in a Server Component which is not supported in the pages\/ directory\./
+          /'after' cannot be imported from a Client Component module\.\s*That only works in a Server Component which is not supported in the pages\/ directory\./
         )
         expect(getLogs()).toHaveLength(0)
       })
