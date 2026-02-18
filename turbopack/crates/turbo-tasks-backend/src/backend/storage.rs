@@ -6,6 +6,7 @@ use std::{
 };
 
 use smallvec::SmallVec;
+use thread_local::ThreadLocal;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, parallel};
 
@@ -127,7 +128,10 @@ impl Storage {
             self.start_snapshot();
         }
 
-        let guard = Arc::new(SnapshotGuard { storage: self });
+        let guard = Arc::new(SnapshotGuard {
+            storage: self,
+            scratch_buffers: ThreadLocal::new(),
+        });
 
         // The number of shards is much larger than the number of threads, so the effect of the
         // locks held is negligible.
@@ -163,20 +167,19 @@ impl Storage {
                 return None;
             }
 
-            /// How big of a buffer to allocate initially.  Based on metrics from a large
-            /// application this should cover about 98% of values with no resizes
-            const SCRATCH_BUFFER_SIZE: usize = 4096;
             let shard = SnapshotShard {
-                direct_snapshots,
-                modified,
-                storage: self,
+                inner: SnapshotShardInner {
+                    direct_snapshots,
+                    modified,
+                    storage: self,
+                    process,
+                    process_snapshot,
+                },
                 guard: Some(guard.clone()),
-                process,
-                process_snapshot,
-                scratch_buffer: TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_SIZE),
             };
 
             // Peek to filter out shards that only produce empty items
+            // (SnapshotShard::next already filters empty items internally)
             let mut iter = shard.peekable();
             iter.peek().is_some().then_some(iter)
         })
@@ -382,8 +385,30 @@ impl DerefMut for StorageWriteGuard<'_> {
     }
 }
 
+/// How big of a buffer to allocate initially. Based on metrics from a large
+/// application this should cover about 98% of values with no resizes.
+const SCRATCH_BUFFER_SIZE: usize = 4096;
+
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,
+    /// Per-thread scratch buffers for encoding task data. Buffers are borrowed
+    /// during each `next()` call and returned immediately after, allowing reuse
+    /// across multiple shards processed by the same thread.
+    scratch_buffers: ThreadLocal<std::cell::UnsafeCell<TurboBincodeBuffer>>,
+}
+
+impl SnapshotGuard<'_> {
+    /// Borrows a scratch buffer for the current thread, runs the closure with it,
+    /// and returns the buffer to the pool. This ensures the buffer is always
+    /// borrowed and returned on the same thread.
+    fn with_scratch_buffer<R>(&self, f: impl FnOnce(&mut TurboBincodeBuffer) -> R) -> R {
+        let cell = self.scratch_buffers.get_or(|| {
+            std::cell::UnsafeCell::new(TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_SIZE))
+        });
+        // Safety: ThreadLocal guarantees single-thread access, and with_scratch_buffer's
+        // closure-based API ensures no overlapping borrows within the same thread.
+        f(unsafe { &mut *cell.get() })
+    }
 }
 
 impl Drop for SnapshotGuard<'_> {
@@ -393,33 +418,31 @@ impl Drop for SnapshotGuard<'_> {
 }
 
 pub struct SnapshotShard<'l, P, PS> {
+    inner: SnapshotShardInner<'l, P, PS>,
+    guard: Option<Arc<SnapshotGuard<'l>>>,
+}
+
+struct SnapshotShardInner<'l, P, PS> {
     direct_snapshots: Vec<(TaskId, Box<TaskStorage>)>,
     modified: SmallVec<[TaskId; 4]>,
     storage: &'l Storage,
-    guard: Option<Arc<SnapshotGuard<'l>>>,
     process: &'l P,
     process_snapshot: &'l PS,
-    /// Scratch buffer for encoding task data, reused across iterations to avoid allocations
-    scratch_buffer: TurboBincodeBuffer,
 }
 
-impl<'l, P, PS> SnapshotShard<'l, P, PS>
+impl<'l, P, PS> SnapshotShardInner<'l, P, PS>
 where
     P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
     PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
 {
-    fn next_item(&mut self) -> Option<SnapshotItem> {
+    fn next_item(&mut self, buffer: &mut TurboBincodeBuffer) -> Option<SnapshotItem> {
         if let Some((task_id, snapshot)) = self.direct_snapshots.pop() {
-            return Some((self.process_snapshot)(
-                task_id,
-                snapshot,
-                &mut self.scratch_buffer,
-            ));
+            return Some((self.process_snapshot)(task_id, snapshot, buffer));
         }
         while let Some(task_id) = self.modified.pop() {
             let inner = self.storage.map.get(&task_id).unwrap();
             if !inner.flags.any_snapshot() {
-                return Some((self.process)(task_id, &inner, &mut self.scratch_buffer));
+                return Some((self.process)(task_id, &inner, buffer));
             } else {
                 drop(inner);
                 let maybe_snapshot = {
@@ -430,11 +453,7 @@ where
                     snapshot.take()
                 };
                 if let Some(snapshot) = maybe_snapshot {
-                    return Some((self.process_snapshot)(
-                        task_id,
-                        snapshot,
-                        &mut self.scratch_buffer,
-                    ));
+                    return Some((self.process_snapshot)(task_id, snapshot, buffer));
                 }
             }
         }
@@ -450,12 +469,18 @@ where
     type Item = SnapshotItem;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(item) = self.next_item() {
-            if !item.is_empty() {
-                return Some(item);
+        let guard = self.guard.as_ref()?;
+        let result = guard.with_scratch_buffer(|buffer| {
+            while let Some(item) = self.inner.next_item(buffer) {
+                if !item.is_empty() {
+                    return Some(item);
+                }
             }
+            None
+        });
+        if result.is_none() {
+            self.guard = None;
         }
-        self.guard = None;
-        None
+        result
     }
 }
