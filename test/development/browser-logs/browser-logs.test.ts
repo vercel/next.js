@@ -373,6 +373,52 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
   })
 
+  describe('App Router - Cache Components', () => {
+    let next: NextInstance
+    let logs: string[] = []
+    let logCapture: ReturnType<typeof setupLogCapture>
+
+    beforeAll(async () => {
+      logCapture = setupLogCapture()
+      logs = logCapture.logs
+
+      next = await createNext({
+        files: {
+          app: new FileRef(join(__dirname, 'fixtures/cache-components-app')),
+          'next.config.js': new FileRef(
+            join(__dirname, 'fixtures/cache-components-next.config.js')
+          ),
+        },
+      })
+    })
+
+    afterAll(async () => {
+      logCapture.restore()
+      await next.destroy()
+    })
+
+    beforeEach(() => {
+      logCapture.clearLogs()
+    })
+
+    it('should not log key warnings at SegmentViewNode for shared object refs', async () => {
+      const outputIndex = logs.length
+      const browser = await webdriver(next.url, '/')
+      await browser.waitForElementByCss('p')
+      expect(await browser.elementByCss('p').text()).toBe('Apple: 1 items')
+
+      await retry(() => {
+        const newLogs = logs.slice(outputIndex).join('\n')
+        expect(newLogs).not.toContain(
+          'Each child in a list should have a unique "key" prop'
+        )
+        expect(newLogs).not.toContain('SegmentViewNode')
+      })
+
+      await browser.close()
+    })
+  })
+
   describe('App Router - Edge Runtime', () => {
     let next: NextInstance
     let logs: string[] = []
