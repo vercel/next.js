@@ -128,7 +128,9 @@ Information about a page used by browsers and search engines, such as title, des
 
 ## Memoization
 
-Caching the return value of a function so that calling the same function multiple times during a render pass (request) only executes it once. In Next.js, fetch requests with the same URL and options are automatically memoized. Learn more about [React Cache](https://react.dev/reference/react/cache).
+Caching the return value of a function so that calling the same function multiple times during a render pass (request) only executes it once. In Next.js, `fetch` `GET` requests with the same URL and options are automatically memoized across Server Components, layouts, pages, and `generateMetadata`/`generateStaticParams` (but not [Route Handlers](/docs/app/api-reference/file-conventions/route) since they are not part of the React component tree).
+
+For non-`fetch` operations, use the React [`cache`](https://react.dev/reference/react/cache) function. Learn more in the [`fetch` API reference](/docs/app/api-reference/functions/fetch).
 
 ## Middleware
 
