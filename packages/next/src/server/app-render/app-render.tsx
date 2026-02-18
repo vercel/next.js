@@ -4157,6 +4157,16 @@ async function validateInstantConfigs(
       ? instantConfig.prefetch === 'runtime'
       : false
   })
+
+  // Collect the first debug stack from segments with instant configs so we can
+  // pass it into validation state for setting `cause` on errors.
+  const debugInstantStack =
+    segmentsWithInstantConfigs
+      .map(
+        (segmentPath) => treeNodes.get(segmentPath)?.module?.debugInstantStack
+      )
+      .find((stack): stack is Error => stack != null) ?? null
+
   const clientReferenceManifest = getClientReferenceManifest()
 
   const {
@@ -4196,7 +4206,8 @@ async function validateInstantConfigs(
       hmrRefreshHash,
       validationRouteTree,
       navigationParent,
-      false // use static stage for static segments
+      false, // use static stage for static segments
+      debugInstantStack
     )
     if (initialResults.errors.length === 0) {
       debug?.(`  ✅ Validation successful`)
@@ -4215,7 +4226,8 @@ async function validateInstantConfigs(
           hmrRefreshHash,
           validationRouteTree,
           navigationParent,
-          true // use runtime stage for static segments instead
+          true, // use runtime stage for static segments instead
+          debugInstantStack
         )
         if (runtimeResults.errors.length > 0) {
           // The errors remained in the runtime stage, so they were caused by a dynamic access.
@@ -4247,7 +4259,8 @@ async function validateInstantConfigNavigation(
   hmrRefreshHash: string | undefined,
   routeTree: InstantValidation.RouteTree,
   navigationParent: InstantValidation.SegmentPath,
-  useRuntimeStageForPartialSegments: boolean
+  useRuntimeStageForPartialSegments: boolean,
+  debugInstantStack: Error | null
 ): Promise<{ dynamicHoleKind: DynamicHoleKind; errors: Array<unknown> }> {
   const { implicitTags, nonce, workStore } = ctx
   const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
@@ -4263,7 +4276,7 @@ async function validateInstantConfigNavigation(
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
-  const dynamicValidation = createInstantValidationState()
+  const dynamicValidation = createInstantValidationState(debugInstantStack)
   const boundaryState = createValidationBoundaryTracking()
 
   const finalClientPrerenderStore: PrerenderStore = {

@@ -792,9 +792,12 @@ export type InstantValidationState = {
   dynamicErrors: Array<Error>
   validationPreventingErrors: Array<Error>
   thrownErrorsOutsideBoundary: Array<unknown>
+  debugInstantStack: Error | null
 }
 
-export function createInstantValidationState(): InstantValidationState {
+export function createInstantValidationState(
+  debugInstantStack: Error | null
+): InstantValidationState {
   return {
     hasDynamicMetadata: false,
     hasAllowedClientDynamicAboveBoundary: false,
@@ -804,6 +807,7 @@ export function createInstantValidationState(): InstantValidationState {
     dynamicErrors: [],
     validationPreventingErrors: [],
     thrownErrorsOutsideBoundary: [],
+    debugInstantStack,
   }
 }
 
@@ -826,6 +830,9 @@ export function trackDynamicHoleInNavigation(
         : `Uncached data or \`connection()\` was accessed inside \`generateMetadata\`.`
     const message = `Route "${workStore.route}": ${usageDescription} Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
     const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    if (dynamicValidation.debugInstantStack) {
+      error.cause = dynamicValidation.debugInstantStack
+    }
     dynamicValidation.dynamicMetadata = error
     return
   }
@@ -836,6 +843,9 @@ export function trackDynamicHoleInNavigation(
         : `Uncached data or \`connection()\` was accessed inside \`generateViewport\`.`
     const message = `Route "${workStore.route}": ${usageDescription} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
     const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    if (dynamicValidation.debugInstantStack) {
+      error.cause = dynamicValidation.debugInstantStack
+    }
     dynamicValidation.dynamicErrors.push(error)
     return
   }
@@ -865,6 +875,9 @@ export function trackDynamicHoleInNavigation(
         message,
         componentStack
       )
+      if (dynamicValidation.debugInstantStack) {
+        error.cause = dynamicValidation.debugInstantStack
+      }
       dynamicValidation.validationPreventingErrors.push(error)
       return
     }
@@ -902,9 +915,11 @@ export function trackDynamicHoleInNavigation(
 
   if (clientDynamic.syncDynamicErrorWithStack) {
     // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
+    const syncError = clientDynamic.syncDynamicErrorWithStack
+    if (dynamicValidation.debugInstantStack && syncError.cause === undefined) {
+      syncError.cause = dynamicValidation.debugInstantStack
+    }
+    dynamicValidation.dynamicErrors.push(syncError)
     return
   }
 
@@ -914,6 +929,9 @@ export function trackDynamicHoleInNavigation(
       : `Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`.`
   const message = `Route "${workStore.route}": ${usageDescription} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
   const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+  if (dynamicValidation.debugInstantStack) {
+    error.cause = dynamicValidation.debugInstantStack
+  }
   dynamicValidation.dynamicErrors.push(error)
   return
 }
@@ -1197,24 +1215,28 @@ export function getNavigationDisallowedDynamicReasons(
   }
 
   if (boundaryState.renderedIds.size < boundaryState.expectedIds.size) {
-    const { thrownErrorsOutsideBoundary } = dynamicValidation
+    const { thrownErrorsOutsideBoundary, debugInstantStack } = dynamicValidation
+    const causeOption = debugInstantStack ? { cause: debugInstantStack } : {}
     if (thrownErrorsOutsideBoundary.length === 0) {
       return [
         new Error(
-          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`
+          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`,
+          causeOption
         ),
       ]
     } else if (thrownErrorsOutsideBoundary.length === 1) {
       return [
         new Error(
-          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
+          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`,
+          causeOption
         ),
         thrownErrorsOutsideBoundary[0] as Error,
       ]
     } else {
       return [
         new Error(
-          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
+          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`,
+          causeOption
         ),
         ...(thrownErrorsOutsideBoundary as Error[]),
       ]

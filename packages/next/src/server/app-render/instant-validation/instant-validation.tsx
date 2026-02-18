@@ -86,6 +86,7 @@ export type RouteTree = {
     // TODO(instant-validation): We should know if a layout segment is shared
     instantConfig: InstantConfig | null
     conventionPath: string
+    debugInstantStack: Error | null
   }
 
   slots: { [parallelRouteKey: string]: RouteTree } | null
@@ -143,10 +144,15 @@ export async function findNavigationsToValidate(
       // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
       const instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
+      const debugInstantStack: Error | null =
+        (layoutOrPageMod as any).__debugInstantStack instanceof Error
+          ? (layoutOrPageMod as any).__debugInstantStack
+          : null
       moduleInfo = {
         type: modType!,
         instantConfig,
         conventionPath: conventionPath!,
+        debugInstantStack,
       }
 
       if (isInsideParallelSlot) {
@@ -172,7 +178,8 @@ export async function findNavigationsToValidate(
               const isRootLayout = parentLayoutPath === null
               if (isRootLayout && instantConfig.prefetch === 'runtime') {
                 throw new Error(
-                  `${conventionPath}: \`unstable_instant\` with mode 'runtime' is not supported in root layouts.`
+                  `${conventionPath}: \`unstable_instant\` with mode 'runtime' is not supported in root layouts.`,
+                  debugInstantStack ? { cause: debugInstantStack } : {}
                 )
               }
 
