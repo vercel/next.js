@@ -1,4 +1,5 @@
-  x Route segment config "runtime" is not compatible with `nextConfig.experimental.useCache`. Please remove it.
+  x Route segment config "runtime" is not compatible with `nextConfig.experimental.useCache`.
+  | Please remove it.
    ,-[input.js:1:1]
  1 | export const runtime = 'edge'
    :              ^^^^^^^

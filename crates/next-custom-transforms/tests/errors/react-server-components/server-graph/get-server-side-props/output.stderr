@@ -1,4 +1,5 @@
-  x "getServerSideProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
+  x "getServerSideProps" is not supported in app/.
+  | Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
   | 
   | 
    ,-[input.js:1:1]

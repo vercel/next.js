@@ -1,4 +1,5 @@
-  x You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  x 'client-only' cannot be imported from a Server Component module.
+  | It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
    ,-[input.js:9:1]
  8 | 

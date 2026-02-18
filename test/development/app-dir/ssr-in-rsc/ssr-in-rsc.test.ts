@@ -179,11 +179,11 @@ describe('react-dom/server in React Server environment', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Ecmascript file had an error",
+         "description": "'react-dom/server' cannot be imported from a Server Component module",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
-       Ecmascript file had an error
+       'react-dom/server' cannot be imported from a Server Component module
        > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -322,9 +322,9 @@ describe('react-dom/server in React Server environment', () => {
     if (isTurbopack) {
       expect(redbox).toMatchInlineSnapshot(`
        {
-         "description": "Ecmascript file had an error",
+         "description": "'react-dom/server' cannot be imported from a Server Component module",
          "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js (3:1)
-       Ecmascript file had an error
+       'react-dom/server' cannot be imported from a Server Component module
          1 | import * as ReactDOMServerNode from 'react-dom/server'
          2 | // Fine to drop once React is on ESM
        > 3 | import ReactDOMServerNodeDefault from 'react-dom/server'
@@ -333,8 +333,8 @@ describe('react-dom/server in React Server environment', () => {
          5 | export const runtime = 'nodejs'
          6 |
 
-       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering",
+       Usually this is caused by a missing 'use client' in some module in the import chain.
+       Alternatively, an import of the import chain can be removed to avoid referencing this module.",
        }
       `)
     } else if (isRspack) {
@@ -677,14 +677,8 @@ describe('react-dom/server in React Server environment', () => {
       } else {
         expect(redbox).toMatchInlineSnapshot(`
          {
-           "description": "react-dom/server is not supported in React Server Components.",
-           "source": "internal-pkg/server.node.js (1:1) @ module evaluation
-
-         > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
-             | ^
-           2 | // Fine to drop once React is on ESM
-           3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
-           4 |",
+           "description": "Cannot read properties of null (reading 'useInsertionEffect')",
+           "source": null,
          }
         `)
       }

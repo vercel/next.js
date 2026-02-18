@@ -176,15 +176,16 @@ describe('Error overlay - RSC build errors', () => {
       // turbopack emits the resolve issue first instead of the transform issue.
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./app/server-with-errors/client-only-in-server/client-only-lib.js (1:1)
-       Ecmascript file had an error
+       'client-only' cannot be imported from a Server Component module
        > 1 | import 'client-only'
            | ^^^^^^^^^^^^^^^^^^^^
          2 |
          3 | export default function ClientOnlyLib() {
          4 |   return 'client-only-lib'
 
-       You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+       Modules use import 'client-only' to flag they shouldn't be used from Server Components.
+       Usually this is caused by a missing 'use client' in some module in the import chain.
+       Alternatively, an import of the import chain can be removed to avoid referencing this module.
 
        Import trace:
          Server Component:
@@ -354,7 +355,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs "next/root-params". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+        `'next/root-params' cannot be imported from a Client Component module`
       )
     })
 
@@ -377,7 +378,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component.`
+        `'next/root-params' cannot be imported from a Client Component module`
       )
     })
   })

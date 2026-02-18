@@ -2,7 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   waitForRedbox,
   getRedboxSource,
-  retry,
   waitForNoRedbox,
 } from 'next-test-utils'
 
@@ -113,13 +112,27 @@ describe('module layer', () => {
                 "import './lib/mixed-lib'"
               ),
           async () => {
-            await retry(async () => {
-              await waitForRedbox(browser)
-              const source = await getRedboxSource(browser)
-              expect(source).toContain(
-                `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
-              )
-            })
+            await waitForRedbox(browser)
+            const source = await getRedboxSource(browser)
+            expect(source).toMatchInlineSnapshot(`
+             "./lib/mixed-lib/client.js (1:1)
+             'client-only' cannot be imported from a Server Component module
+             > 1 | import 'client-only'
+                 | ^^^^^^^^^^^^^^^^^^^^
+               2 |
+               3 | export const client = 'client:module'
+               4 |
+
+             Modules use import 'client-only' to flag they shouldn't be used from Server Components.
+             Usually this is caused by a missing 'use client' in some module in the import chain.
+             Alternatively, an import of the import chain can be removed to avoid referencing this module.
+
+             Import trace:
+               Edge Middleware:
+                 ./lib/mixed-lib/client.js
+                 ./lib/mixed-lib/index.js
+                 ./middleware.js"
+            `)
           }
         )
 

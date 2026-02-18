@@ -1,4 +1,5 @@
-  x You're importing a component that needs "cacheLife". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
+  x 'cacheLife' cannot be imported from a Client Component module.
+  | That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
   | 
   | 

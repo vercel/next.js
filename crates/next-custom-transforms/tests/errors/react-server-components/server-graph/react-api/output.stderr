@@ -1,4 +1,5 @@
-  x You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useState' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -7,7 +8,8 @@
  1 | import { useState } from 'react'
    :          ^^^^^^^^
    `----
-  x You're importing a component that needs `createContext`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'createContext' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -17,7 +19,8 @@
  3 | import { createContext } from 'react'
    :          ^^^^^^^^^^^^^
    `----
-  x You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useEffect' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -27,7 +30,8 @@
  5 | import { useEffect, useImperativeHandle } from 'react'
    :          ^^^^^^^^^
    `----
-  x You're importing a component that needs `useImperativeHandle`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useImperativeHandle' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -37,7 +41,8 @@
  5 | import { useEffect, useImperativeHandle } from 'react'
    :                     ^^^^^^^^^^^^^^^^^^^
    `----
-  x You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  x Class components cannot be imported from a Server Component module. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by
+  | default.
   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
   | 
   | 
@@ -47,7 +52,8 @@
    :   ^^^^^^^^^
  9 |   createFactory,
    `----
-  x You're importing a component that needs `createFactory`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'createFactory' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -58,7 +64,8 @@
     :   ^^^^^^^^^^^^^
  10 |   PureComponent,
     `----
-  x You're importing a component that needs `PureComponent`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'PureComponent' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -69,7 +76,8 @@
     :   ^^^^^^^^^^^^^
  11 |   useDeferredValue,
     `----
-  x You're importing a component that needs `useDeferredValue`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useDeferredValue' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -80,7 +88,8 @@
     :   ^^^^^^^^^^^^^^^^
  12 |   useInsertionEffect,
     `----
-  x You're importing a component that needs `useInsertionEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useInsertionEffect' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -91,7 +100,8 @@
     :   ^^^^^^^^^^^^^^^^^^
  13 |   useLayoutEffect,
     `----
-  x You're importing a component that needs `useLayoutEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useLayoutEffect' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -102,7 +112,8 @@
     :   ^^^^^^^^^^^^^^^
  14 |   useReducer,
     `----
-  x You're importing a component that needs `useReducer`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useReducer' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -113,7 +124,8 @@
     :   ^^^^^^^^^^
  15 |   useRef,
     `----
-  x You're importing a component that needs `useRef`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useRef' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -124,7 +136,8 @@
     :   ^^^^^^
  16 |   useSyncExternalStore,
     `----
-  x You're importing a component that needs `useSyncExternalStore`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useSyncExternalStore' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -135,7 +148,8 @@
     :   ^^^^^^^^^^^^^^^^^^^^
  17 | } from 'react'
     `----
-  x You're importing a component that needs `experimental_useOptimistic`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'experimental_useOptimistic' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
