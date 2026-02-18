@@ -3,6 +3,7 @@ use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
+    boundary::{BoundaryInfo, OptionBoundaryInfo},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -20,6 +21,8 @@ use turbopack_ecmascript::{
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
+
+use crate::boundary_types::boundary_type_dynamic_entry;
 
 /// A [`NextDynamicEntryModule`] is a marker asset used to indicate which
 /// dynamic assets should appear in the dynamic manifest.
@@ -70,6 +73,11 @@ impl Module for NextDynamicEntryModule {
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // This just exports another import
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn boundary_info(self: Vc<Self>) -> Vc<OptionBoundaryInfo> {
+        Vc::cell(Some(BoundaryInfo::new(boundary_type_dynamic_entry())))
     }
 }
 

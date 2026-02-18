@@ -22,8 +22,8 @@
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use next_core::{
-    next_app::ClientReferencesChunks, next_client_reference::EcmascriptClientReferenceModule,
-    next_dynamic::NextDynamicEntryModule,
+    boundary_types::boundary_type_dynamic_entry, next_app::ClientReferencesChunks,
+    next_client_reference::EcmascriptClientReferenceModule, next_dynamic::NextDynamicEntryModule,
 };
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
@@ -130,9 +130,12 @@ pub async fn map_next_dynamic(
                 .layer
                 .as_ref()
                 .is_some_and(|layer| layer.name() == "app-client" || layer.name() == "client")
-                && let Some(dynamic_entry_module) =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
+                && let Some(boundary) = &*module.boundary_info().await?
+                && boundary.boundary_type == boundary_type_dynamic_entry()
             {
+                let dynamic_entry_module =
+                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
+                        .expect("dynamic-entry boundary must be NextDynamicEntryModule");
                 return Ok(Some((
                     module,
                     DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
