@@ -63,32 +63,35 @@ impl SourceTransform for JsonSourceTransform {
             FileJsonContent::Content(data) => {
                 let data_str = data.to_string();
 
-                // For large JSON files, wrap in JSON.parse for better performance
-                // https://v8.dev/blog/cost-of-javascript-2019#json
-                let json_expr = if data_str.len() > 10_000 {
-                    format!("JSON.parse({})", serde_json::to_string(&data_str)?)
-                } else {
-                    data_str.clone()
-                };
-
                 // The "use turbopack no side effects" directive marks this module as
                 // side-effect free for tree shaking
-                let prefix = "\"use turbopack no side effects\";\n";
-                let suffix = inline_source_map_comment(&path.path, &data_str);
+                let mut code = String::with_capacity(
+                    "\"use turbopack no side effects\";\nexport default ;\n".len() + data_str.len(),
+                );
+                code.push_str("\"use turbopack no side effects\";\n");
 
-                if this.use_esm {
+                let extension = if this.use_esm {
                     // Spec-compliant ESM: only default export
-                    (
-                        format!("{prefix}export default {json_expr};\n{suffix}"),
-                        "mjs",
-                    )
+                    code.push_str("export default ");
+                    "mjs"
                 } else {
                     // Webpack-compatible CommonJS: allows named property imports
-                    (
-                        format!("{prefix}module.exports = {json_expr};\n{suffix}"),
-                        "cjs",
-                    )
+                    code.push_str("module.exports = ");
+                    "cjs"
+                };
+                // For large JSON files, wrap in JSON.parse for better performance
+                // https://v8.dev/blog/cost-of-javascript-2019#json
+                if data_str.len() > 10_000 {
+                    code.push_str("JSON.parse(");
+                    code.push_str(&serde_json::to_string(&data_str)?);
+                    code.push_str(")");
+                } else {
+                    code.push_str(&data_str);
                 }
+                code.push_str(";\n");
+                code.push_str(&inline_source_map_comment(&path.path, &data_str));
+
+                (code, extension)
             }
             FileJsonContent::Unparsable(e) => {
                 let resolved_source = source.to_resolved().await?;
