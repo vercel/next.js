@@ -112,7 +112,8 @@ describe('ReactRefreshLogBox _app _document', () => {
          "source": "./pages/_app.js (2:10)
        Parsing ecmascript source code failed
        > 2 |   return <<Component {...pageProps} />;
-           |          ^^",
+           |          ^^
+       Expression expected",
          "stack": [],
        }
       `)
@@ -231,7 +232,8 @@ describe('ReactRefreshLogBox _app _document', () => {
          "source": "./pages/_document.js (3:36)
        Parsing ecmascript source code failed
        > 3 | class MyDocument extends Document {{
-           |                                    ^",
+           |                                    ^
+       Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
          "stack": [],
        }
       `)

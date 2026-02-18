@@ -287,7 +287,17 @@ describe('ReactRefreshLogBox app', () => {
          "source": "./index.js (7:1)
        Parsing ecmascript source code failed
        > 7 | }
-           | ^",
+           | ^
+       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+       Import traces:
+         Client Component Browser:
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
