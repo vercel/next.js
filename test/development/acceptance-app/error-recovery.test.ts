@@ -49,7 +49,17 @@ describe('Error recovery app', () => {
          "source": "./index.js (1:27)
        Parsing ecmascript source code failed
        > 1 | export default () => <div/
-           |                           ^",
+           |                           ^
+       Expected '>', got '<eof>'
+       Import traces:
+         Client Component Browser:
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
@@ -142,7 +152,8 @@ describe('Error recovery app', () => {
          "source": "./app/server/page.js (2:28)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                            ^",
+           |                            ^
+       Expected '}', got '<eof>'",
          "stack": [],
        }
       `)
@@ -226,7 +237,15 @@ describe('Error recovery app', () => {
          "source": "./app/client/page.js (2:28)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                            ^",
+           |                            ^
+       Expected '}', got '<eof>'
+       Import traces:
+         Client Component Browser:
+           ./app/client/page.js [Client Component Browser]
+           ./app/client/page.js [Server Component]
+         Client Component SSR:
+           ./app/client/page.js [Client Component SSR]
+           ./app/client/page.js [Server Component]",
          "stack": [],
        }
       `)
@@ -661,7 +680,17 @@ describe('Error recovery app', () => {
          "source": "./index.js (10:42)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                          ^",
+            |                                          ^
+       Expected '}', got '<eof>'
+       Import traces:
+         Client Component Browser:
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
@@ -721,7 +750,17 @@ describe('Error recovery app', () => {
          "source": "./index.js (10:42)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                          ^",
+            |                                          ^
+       Expected '}', got '<eof>'
+       Import traces:
+         Client Component Browser:
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
@@ -913,7 +952,17 @@ describe('Error recovery app', () => {
          "source": "./index.js (5:5)
        Parsing ecmascript source code failed
        > 5 |     return <h1>Default Export</h1>;
-           |     ^^^^^^",
+           |     ^^^^^^
+       Expected '{', got 'return'
+       Import traces:
+         Client Component Browser:
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
@@ -996,7 +1045,17 @@ describe('Error recovery app', () => {
          "source": "./index.js (5:5)
        Parsing ecmascript source code failed
        > 5 |     throw new Error('nooo');
-           |     ^^^^^",
+           |     ^^^^^
+       Expected '{', got 'throw'
+       Import traces:
+         Client Component Browser:
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
@@ -1122,7 +1181,8 @@ describe('Error recovery app', () => {
          "source": "./app/page.js (1:4)
        Parsing ecmascript source code failed
        > 1 | {{{
-           |    ^",
+           |    ^
+       Expected '}', got '<eof>'",
          "stack": [],
        }
       `)
