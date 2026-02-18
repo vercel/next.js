@@ -10,7 +10,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::AssetContent,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    issue::{Issue, IssueSeverity, IssueStage, StyledString},
     reference_type::ReferenceType,
     resolve::{
         ResolveResult, ResolveResultItem, ResolveResultOption,
@@ -108,16 +108,12 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let font_fallbacks = &*get_font_fallbacks(lookup_path.clone(), options_vc).await?;
                 let font_fallbacks = match font_fallbacks {
                     FontFallbackResult::FontFileNotFound(err) => {
-                        FontResolvingIssue {
-                            origin_path: lookup_path.clone(),
-                            font_path: ResolvedVc::cell(err.0.clone()),
-                        }
-                        .resolved_cell()
-                        .emit();
-
                         return Ok(ResolveResultOption::some(
-                            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
-                                err.to_string().into(),
+                            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::upcast(
+                                FontResolvingIssue {
+                                    font_path: ResolvedVc::cell(err.0.clone()),
+                                }
+                                .resolved_cell(),
                             )))
                             .cell(),
                         ));
@@ -183,16 +179,12 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let fallback = &*get_font_fallbacks(lookup_path.clone(), options).await?;
                 let fallback = match fallback {
                     FontFallbackResult::FontFileNotFound(err) => {
-                        FontResolvingIssue {
-                            origin_path: lookup_path.clone(),
-                            font_path: ResolvedVc::cell(err.0.clone()),
-                        }
-                        .resolved_cell()
-                        .emit();
-
                         return Ok(ResolveResultOption::some(
-                            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
-                                err.to_string().into(),
+                            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::upcast(
+                                FontResolvingIssue {
+                                    font_path: ResolvedVc::cell(err.0.clone()),
+                                }
+                                .resolved_cell(),
                             )))
                             .cell(),
                         ));
@@ -320,9 +312,6 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontLocalFontFi
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
     font_path: ResolvedVc<RcStr>,
-    // TODO(PACK-4879): The filepath is incorrect and there should be a fine grained source
-    // location pointing at the import/require
-    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -333,7 +322,7 @@ impl Issue for FontResolvingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.origin_path.clone().cell()
+        panic!("FontResolvingIssue::file_path should not be called");
     }
 
     #[turbo_tasks::function]
