@@ -375,6 +375,8 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
+export type SubresourceIntegrityManifest = Record<string, string>
+
 type ManifestBuiltRoute = {
   /**
    * The route pattern used to match requests for this route.
