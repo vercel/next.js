@@ -66,7 +66,8 @@ impl SourceTransform for JsonSourceTransform {
                 // The "use turbopack no side effects" directive marks this module as
                 // side-effect free for tree shaking
                 let mut code = String::with_capacity(
-                    "\"use turbopack no side effects\";\nexport default ;\n".len() + data_str.len(),
+                    data_str.len() + 100, /* estimate to account for our `use` comment, export
+                                           * overhead and sourcemap comment */
                 );
                 code.push_str("\"use turbopack no side effects\";\n");
 
@@ -84,7 +85,7 @@ impl SourceTransform for JsonSourceTransform {
                 if data_str.len() > 10_000 {
                     code.push_str("JSON.parse(");
                     code.push_str(&serde_json::to_string(&data_str)?);
-                    code.push_str(")");
+                    code.push(')');
                 } else {
                     code.push_str(&data_str);
                 }
