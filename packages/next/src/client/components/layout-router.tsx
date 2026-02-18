@@ -139,12 +139,12 @@ function getHashFragmentDomNode(hashFragment: string) {
     document.getElementsByName(hashFragment)[0]
   )
 }
-interface ScrollAndFocusHandlerProps {
+interface ScrollAndMaybeFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
   segmentPath: FlightSegmentPath
 }
-class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndFocusHandlerProps> {
+class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusHandlerProps> {
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once.
     const { focusAndScrollRef, segmentPath } = this.props
@@ -265,7 +265,11 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndFocusHandle
   }
 }
 
-function InnerScrollAndFocusHandlerNew(props: ScrollAndFocusHandlerProps) {
+/**
+ * Fork of InnerScrollAndFocusHandlerOld using Fragment refs for scrolling.
+ * No longer focuses the first host descendant.
+ */
+function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
   const childrenRef = React.useRef<FragmentInstance>(null)
 
   useLayoutEffect(
@@ -309,6 +313,22 @@ function InnerScrollAndFocusHandlerNew(props: ScrollAndFocusHandlerProps) {
         focusAndScrollRef.hashFragment = null
         focusAndScrollRef.segmentPaths = []
 
+        const activeElement = document.activeElement
+        if (
+          activeElement !== null &&
+          'blur' in activeElement &&
+          typeof activeElement.blur === 'function'
+        ) {
+          // Trying to match hard navigations.
+          // Ideally we'd move the internal focus cursor either to the top
+          // or at least before the segment. But there's no DOM API to do that,
+          // so we just blur.
+          // We could workaround this by moving focus to a temporary element in
+          // the body. But adding elements might trigger layout or other effects
+          // so it should be well motivated.
+          activeElement.blur()
+        }
+
         disableSmoothScrollDuringRouteTransition(
           () => {
             // In case of hash scroll, we only need to scroll the element into view
@@ -348,11 +368,6 @@ function InnerScrollAndFocusHandlerNew(props: ScrollAndFocusHandlerProps) {
 
         // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
         focusAndScrollRef.onlyHashChange = false
-
-        // Set focus on the element but don't scroll since we already did that.
-        // The focus might have targetted a deep element outside of the instances
-        // top edge.
-        instance.focus({ preventScroll: true })
       }
     },
     // Used to run on every commit. We may be able to be smarter about this
@@ -363,11 +378,11 @@ function InnerScrollAndFocusHandlerNew(props: ScrollAndFocusHandlerProps) {
   return <Fragment ref={childrenRef}>{props.children}</Fragment>
 }
 
-const InnerScrollAndFocusHandler = enableNewScrollHandler
-  ? InnerScrollAndFocusHandlerNew
+const InnerScrollAndMaybeFocusHandler = enableNewScrollHandler
+  ? InnerScrollHandlerNew
   : InnerScrollAndFocusHandlerOld
 
-function ScrollAndFocusHandler({
+function ScrollAndMaybeFocusHandler({
   segmentPath,
   children,
 }: {
@@ -380,12 +395,12 @@ function ScrollAndFocusHandler({
   }
 
   return (
-    <InnerScrollAndFocusHandler
+    <InnerScrollAndMaybeFocusHandler
       segmentPath={segmentPath}
       focusAndScrollRef={context.focusAndScrollRef}
     >
       {children}
-    </InnerScrollAndFocusHandler>
+    </InnerScrollAndMaybeFocusHandler>
   )
 }
 
@@ -768,7 +783,7 @@ export default function OuterLayoutRouter({
       <TemplateContext.Provider
         key={stateKey}
         value={
-          <ScrollAndFocusHandler segmentPath={segmentPath}>
+          <ScrollAndMaybeFocusHandler segmentPath={segmentPath}>
             <ErrorBoundary
               errorComponent={error}
               errorStyles={errorStyles}
@@ -809,7 +824,7 @@ export default function OuterLayoutRouter({
               </LoadingBoundary>
             </ErrorBoundary>
             {segmentViewStateNode}
-          </ScrollAndFocusHandler>
+          </ScrollAndMaybeFocusHandler>
         }
       >
         {templateStyles}

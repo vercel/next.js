@@ -16,11 +16,17 @@ describe('navigation-focus', () => {
     await retry(async () => {
       // Good debug info is a moving target. Use Playwright traces to find out
       // what was focused if this fails
-      expect(
-        await browser.eval(() =>
-          document.activeElement.getAttribute('data-testid')
+      if (enableNewScrollHandler) {
+        expect(await browser.eval(() => document.activeElement.localName)).toBe(
+          'body'
         )
-      ).toBe('segment-container')
+      } else {
+        expect(
+          await browser.eval(() =>
+            document.activeElement.getAttribute('data-testid')
+          )
+        ).toBe('segment-container')
+      }
     })
   })
 
@@ -29,11 +35,17 @@ describe('navigation-focus', () => {
     await browser.elementByCss('a[href="/scrollable-segment"]').click()
 
     await retry(async () => {
-      expect(
-        await browser.eval(() =>
-          document.activeElement.getAttribute('data-testid')
+      if (enableNewScrollHandler) {
+        expect(await browser.eval(() => document.activeElement.localName)).toBe(
+          'body'
         )
-      ).toBe('segment-container')
+      } else {
+        expect(
+          await browser.eval(() =>
+            document.activeElement.getAttribute('data-testid')
+          )
+        ).toBe('segment-container')
+      }
     })
   })
 
@@ -46,9 +58,9 @@ describe('navigation-focus', () => {
     await retry(async () => {
       if (enableNewScrollHandler) {
         // Focus goes to the focusable descendant, not the segment itself
-        expect(
-          await browser.eval(() => document.activeElement.textContent)
-        ).toBe('Focusable Button')
+        expect(await browser.eval(() => document.activeElement.localName)).toBe(
+          'body'
+        )
       } else {
         // Focus stays on the original link
         expect(
@@ -63,10 +75,16 @@ describe('navigation-focus', () => {
     await browser.elementByCss('a[href="/uri-fragments#section-2"]').click()
 
     await retry(async () => {
-      // Focus stays on the anchor unlike native behavior
-      expect(
-        await browser.eval(() => document.activeElement.getAttribute('href'))
-      ).toEqual('/uri-fragments#section-2')
+      if (enableNewScrollHandler) {
+        expect(await browser.eval(() => document.activeElement.localName)).toBe(
+          'body'
+        )
+      } else {
+        // Focus stays on the anchor unlike native behavior
+        expect(
+          await browser.eval(() => document.activeElement.getAttribute('href'))
+        ).toEqual('/uri-fragments#section-2')
+      }
     })
     // Fragment URI not targetted unlike native behavior
     expect(await browser.locator(':target').isVisible()).toEqual(false)
@@ -77,10 +95,16 @@ describe('navigation-focus', () => {
     await browser.elementByCss('a[href="#section-1"]').click()
 
     await retry(async () => {
-      // Focus stays on the anchor unlike native behavior
-      expect(
-        await browser.eval(() => document.activeElement.getAttribute('href'))
-      ).toEqual('#section-1')
+      if (enableNewScrollHandler) {
+        expect(await browser.eval(() => document.activeElement.localName)).toBe(
+          'body'
+        )
+      } else {
+        // Focus stays on the anchor unlike native behavior
+        expect(
+          await browser.eval(() => document.activeElement.getAttribute('href'))
+        ).toEqual('#section-1')
+      }
     })
     // Fragment URI not targetted unlike native behavior
     expect(await browser.locator(':target').isVisible()).toEqual(false)
