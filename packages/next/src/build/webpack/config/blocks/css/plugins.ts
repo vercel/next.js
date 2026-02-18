@@ -110,7 +110,73 @@ function getDefaultPlugins(
             },
           },
         ],
+    // Add a small fixup plugin after preset-env to ensure `not` expressions
+    // are parenthesized when necessary.
+    createFixMediaNotPlugin(),
   ].filter(Boolean)
+}
+
+// Small PostCSS plugin to normalize media queries like:
+// `(A) and not (B)` -> `(A) and (not (B))`
+// This addresses a transpilation bug where the outer parentheses around
+// `not` expressions may be dropped by older media-range transforms.
+function createFixMediaNotPlugin() {
+  return createLazyPostCssPlugin(() => {
+    function fixParams(params: string) {
+      if (!/\band\s+not\s*\(/i.test(params)) return params
+
+      let s = params
+      const regex = /\band\s+not\s*\(/gi
+      let match
+      let offset = 0
+      while ((match = regex.exec(params)) !== null) {
+        const idx = match.index + offset
+        // find position of '(' after 'not'
+        const afterNot = params.indexOf('(', match.index)
+        if (afterNot === -1) continue
+
+        // compute matching closing paren in current string 's'
+        const start = params.indexOf('(', match.index)
+        let depth = 0
+        let end = -1
+        for (let i = start; i < params.length; i++) {
+          if (params[i] === '(') depth++
+          else if (params[i] === ')') {
+            depth--
+            if (depth === 0) { end = i; break }
+          }
+        }
+        if (end === -1) continue
+
+        const before = s.slice(0, idx)
+        const inner = params.slice(start + 1, end)
+        const after = s.slice(idx + (params.length - s.length) + (end - match.index) + 1)
+        // Replace the matched portion with `and (not (inner))`
+        // Build new s conservatively using original slices
+        s = before + 'and (not (' + inner + '))' + params.slice(end + 1)
+        // stop after first replacement to avoid re-indexing complexity
+        break
+      }
+      return s
+    }
+
+    const plugin = () => ({
+      postcssPlugin: 'next-fix-media-not',
+      OnceExit(root: any) {
+        root.walkAtRules('media', (atRule: any) => {
+          try {
+            const fixed = fixParams(atRule.params)
+            if (fixed !== atRule.params) atRule.params = fixed
+          } catch (e) {
+            // best-effort: don't crash the build on unexpected input
+          }
+        })
+      },
+    })
+
+    ;(plugin as any).postcss = true
+    return plugin
+  })
 }
 
 export async function getPostCssPlugins(
