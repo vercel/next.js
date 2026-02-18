@@ -2090,12 +2090,41 @@ export async function ncc_webpack_bundle5(task, opts) {
       packageName: 'webpack',
       bundleName: 'webpack',
       customEmit(path) {
-        if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
+        if (path.endsWith('.runtime')) return `'./${basename(path)}.js'`
       },
       externals: bundleExternals,
       target: 'es5',
     })
     .target('src/compiled/webpack')
+
+  // Webpack 5.105+ uses a dynamic require.resolve() with a ternary + template
+  // literal for lazy-compilation client paths. ncc can't statically analyze this
+  // pattern, so it's left as-is in the bundled output. Post-process the bundle to
+  // replace it with ncc's __dirname-based path format (.ab + "filename").
+  const bundlePath = join(__dirname, 'src/compiled/webpack/bundle5.js')
+  let bundleContent = await fs.readFile(bundlePath, 'utf8')
+  // Detect the ncc __dirname variable from the nearby emitter-event-target.js
+  // reference (which ncc correctly transforms via the same mechanism).
+  const abVarMatch = bundleContent.match(
+    /(\w+)\.ab\+"emitter-event-target\.js"/
+  )
+  if (!abVarMatch) {
+    throw new Error('Could not detect ncc __dirname variable in webpack bundle')
+  }
+  const abVar = abVarMatch[1] + '.ab'
+  const beforeReplace = bundleContent
+  bundleContent = bundleContent.replace(
+    /require\.resolve\((\w+)\?"\.\.\/hot\/lazy-compilation-universal\.js":`\.\.\/hot\/lazy-compilation-\$\{(\w+)\.externalsPresets\.node\?"node":"web"\}\.js`\)/,
+    (_, universalVar, optsVar) =>
+      `(${universalVar}?${abVar}+"lazy-compilation-universal.js":${optsVar}.externalsPresets.node?${abVar}+"lazy-compilation-node.js":${abVar}+"lazy-compilation-web.js")`
+  )
+  if (bundleContent === beforeReplace) {
+    throw new Error(
+      'Failed to patch lazy-compilation paths in webpack bundle. ' +
+        'The require.resolve pattern for lazy-compilation may have changed in the webpack source.'
+    )
+  }
+  await fs.writeFile(bundlePath, bundleContent)
 }
 
 const webpackBundlePackages = {
