@@ -185,6 +185,7 @@ fn main() {
                 write_routes_hashes_manifest: false,
                 current_node_js_version: rcstr!("18.0.0"),
                 debug_build_paths: None,
+                deferred_entries: None,
                 is_persistent_caching_enabled: false,
             };
 

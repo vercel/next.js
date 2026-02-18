@@ -1,49 +1,22 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="../hmr-types.d.ts" />
 /// <reference path="../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../shared-node/node-externals-utils.ts" />
 /// <reference path="../../shared-node/node-wasm-utils.ts" />
+/// <reference path="./nodejs-globals.d.ts" />
 
-enum SourceType {
-  /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */
-  Runtime = 0,
-  /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */
-  Parent = 1,
-}
-
-type SourceData = ChunkPath | ModuleId
+/**
+ * Base Node.js runtime shared between production and development.
+ * Contains chunk loading, module caching, and other non-HMR functionality.
+ */
 
 process.env.TURBOPACK = '1'
-
-interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
-  R: ResolvePathFromModule
-  x: ExternalRequire
-  y: ExternalImport
-  q: ExportUrl
-}
-
-const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
-
-type ModuleFactory = (
-  this: Module['exports'],
-  context: TurbopackNodeBuildContext
-) => unknown
 
 const url = require('url') as typeof import('url')
 
 const moduleFactories: ModuleFactories = new Map()
-nodeContextPrototype.M = moduleFactories
 const moduleCache: ModuleCache<Module> = Object.create(null)
-nodeContextPrototype.c = moduleCache
 
 /**
  * Returns an absolute path to the given module's id.
@@ -63,7 +36,6 @@ function resolvePathFromModule(
 
   return url.pathToFileURL(resolved).href
 }
-nodeContextPrototype.R = resolvePathFromModule
 
 /**
  * Exports a URL value. No suffix is added in Node.js runtime.
@@ -75,7 +47,6 @@ function exportUrl(
 ) {
   exportValue.call(this, urlValue, id)
 }
-nodeContextPrototype.q = exportUrl
 
 function loadRuntimeChunk(sourcePath: ChunkPath, chunkData: ChunkData): void {
   if (typeof chunkData === 'string') {
@@ -92,6 +63,7 @@ const chunkCache = new Map<ChunkPath, Promise<void>>()
 
 function clearChunkCache() {
   chunkCache.clear()
+  loadedChunks.clear()
 }
 
 function loadRuntimeChunkPath(
@@ -126,8 +98,8 @@ function loadRuntimeChunkPath(
   }
 }
 
-function loadChunkAsync(
-  this: TurbopackBaseContext<Module>,
+function loadChunkAsync<TModule extends Module>(
+  this: TurbopackBaseContext<TModule>,
   chunkData: ChunkData
 ): Promise<void> {
   const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
@@ -162,8 +134,8 @@ function loadChunkAsync(
 }
 contextPrototype.l = loadChunkAsync
 
-function loadChunkAsyncByUrl(
-  this: TurbopackBaseContext<Module>,
+function loadChunkAsyncByUrl<TModule extends Module>(
+  this: TurbopackBaseContext<TModule>,
   chunkUrl: string
 ) {
   const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath
@@ -224,112 +196,6 @@ function createWorker(
   return new WorkerConstructor(workerPath, options)
 }
 
-nodeContextPrototype.b = createWorker
-
-function instantiateModule(
-  id: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): Module {
-  const moduleFactory = moduleFactories.get(id)
-  if (typeof moduleFactory !== 'function') {
-    // This can happen if modules incorrectly handle HMR disposes/updates,
-    // e.g. when they keep a `setTimeout` around which still executes old code
-    // and contains e.g. a `require("something")` call.
-    let instantiationReason: string
-    switch (sourceType) {
-      case SourceType.Runtime:
-        instantiationReason = `as a runtime entry of chunk ${sourceData}`
-        break
-      case SourceType.Parent:
-        instantiationReason = `because it was required from module ${sourceData}`
-        break
-      default:
-        invariant(
-          sourceType,
-          (sourceType) => `Unknown source type: ${sourceType}`
-        )
-    }
-    throw new Error(
-      `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`
-    )
-  }
-
-  const module: Module = createModuleObject(id)
-  const exports = module.exports
-  moduleCache[id] = module
-
-  const context = new (Context as any as ContextConstructor<Module>)(
-    module,
-    exports
-  )
-  // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
-  try {
-    moduleFactory(context, module, exports)
-  } catch (error) {
-    module.error = error as any
-    throw error
-  }
-
-  module.loaded = true
-  if (module.namespaceObject && module.exports !== module.namespaceObject) {
-    // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-    interopEsm(module.exports, module.namespaceObject)
-  }
-
-  return module
-}
-
-/**
- * Retrieves a module from the cache, or instantiate it if it is not cached.
- */
-// @ts-ignore
-function getOrInstantiateModuleFromParent(
-  id: ModuleId,
-  sourceModule: Module
-): Module {
-  const module = moduleCache[id]
-
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-
-    return module
-  }
-
-  return instantiateModule(id, SourceType.Parent, sourceModule.id)
-}
-
-/**
- * Instantiates a runtime module.
- */
-function instantiateRuntimeModule(
-  chunkPath: ChunkPath,
-  moduleId: ModuleId
-): Module {
-  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
-}
-
-/**
- * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
- */
-// @ts-ignore TypeScript doesn't separate this module space from the browser runtime
-function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
-  moduleId: ModuleId
-): Module {
-  const module = moduleCache[moduleId]
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  return instantiateRuntimeModule(chunkPath, moduleId)
-}
-
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 /**
  * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
@@ -337,18 +203,3 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
   return regexJsUrl.test(chunkUrlOrPath)
 }
-
-function __turbopack_server_hmr_apply__(
-  _update: NodeJsPartialHmrUpdate
-): boolean {
-  // TODO: Implement actual HMR logic to update module factories
-  // For now, just return true to indicate we "accepted" the update
-  return true
-}
-
-globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__
-
-module.exports = (sourcePath: ChunkPath) => ({
-  m: (id: ModuleId) => getOrInstantiateRuntimeModule(sourcePath, id),
-  c: (chunkData: ChunkData) => loadRuntimeChunk(sourcePath, chunkData),
-})

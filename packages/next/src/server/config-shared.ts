@@ -215,6 +215,19 @@ export interface TurbopackOptions {
    * @see https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md TC39 Debug ID Proposal
    */
   debugIds?: boolean
+
+  /**
+   * An array of issue filter rules to ignore specific Turbopack issues.
+   * Each rule must have a `path` field (mandatory) and optionally `title`
+   * and `description`. String paths are treated as glob patterns. String
+   * titles/descriptions are exact matches. RegExp values match anywhere
+   * within the string (use `^` and `$` anchors for full-string matching).
+   */
+  ignoreIssue?: Array<{
+    path: string | RegExp
+    title?: string | RegExp
+    description?: string | RegExp
+  }>
 }
 
 export interface WebpackConfigContext {
@@ -324,6 +337,7 @@ export interface LoggingConfig {
 
 export interface ExperimentalConfig {
   adapterPath?: string
+  appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']
@@ -556,19 +570,6 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
-
-  /**
-   * An array of issue filter rules to ignore specific Turbopack issues.
-   * Each rule must have a `path` field (mandatory) and optionally `title`
-   * and `description`. String paths are treated as glob patterns. String
-   * titles/descriptions are exact matches. RegExp values match anywhere
-   * within the string (use `^` and `$` anchors for full-string matching).
-   */
-  turbopackIgnoreIssue?: Array<{
-    path: string | RegExp
-    title?: string | RegExp
-    description?: string | RegExp
-  }>
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -1617,6 +1618,7 @@ export const defaultConfig = Object.freeze({
   },
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+    appNewScrollHandler: false,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,

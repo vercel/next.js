@@ -362,7 +362,11 @@ function Router({
      */
     const onPopState = (event: PopStateEvent) => {
       if (!event.state) {
-        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+        // This case happens when pushState/replaceState was called outside
+        // of Next.js with a null state, or the initial history entry has no
+        // state. The router tree would be completely out of sync so we need
+        // to do a hard navigation to get back to a consistent state.
+        window.location.reload()
         return
       }
 
@@ -479,7 +483,7 @@ function Router({
     </RedirectBoundary>
   )
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     // In development, we apply few error boundaries and hot-reloader:
     // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
     // - HotReloader:

@@ -41,7 +41,6 @@ import {
   getConventionPathByType,
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
-import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -225,15 +224,6 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const instantConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
-    : undefined
-  /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
-  const hasRuntimePrefetch =
-    instantConfig && typeof instantConfig === 'object'
-      ? instantConfig.prefetch === 'runtime'
-      : false
-
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
       ? await createComponentStylesAndScripts({
@@ -325,6 +315,7 @@ async function createComponentTreeInternal(
         case 'cache':
         case 'private-cache':
         case 'prerender-client':
+        case 'validation-client':
         case 'unstable-cache':
           break
         default:
@@ -424,7 +415,7 @@ async function createComponentTreeInternal(
   }
 
   // Resolve the segment param
-  const isSegmentViewEnabled = !!ctx.renderOpts.dev
+  const isSegmentViewEnabled = !!process.env.__NEXT_DEV_SERVER
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -694,7 +685,6 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
       // No user-provided component, so no params will be accessed. Use the
       // pre-resolved empty tracker.
       emptyVaryParamsAccumulator
@@ -734,7 +724,6 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
-      hasRuntimePrefetch,
       // force-dynamic postpones without rendering the component, so no params
       // are accessed. The vary params are empty.
       emptyVaryParamsAccumulator
@@ -862,7 +851,6 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
       varyParamsAccumulator
     )
   } else {
@@ -1077,7 +1065,6 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
       varyParamsAccumulator
     )
   }
@@ -1193,7 +1180,7 @@ async function createBoundaryConventionElement({
   const {
     componentMod: { createElement, Fragment },
   } = ctx
-  const isSegmentViewEnabled = !!ctx.renderOpts.dev
+  const isSegmentViewEnabled = !!process.env.__NEXT_DEV_SERVER
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -1229,7 +1216,6 @@ function createSeedData(
   parallelRoutes: Record<string, CacheNodeSeedData | null>,
   loading: LoadingModuleData | null,
   isPossiblyPartialResponse: boolean,
-  hasRuntimePrefetch: boolean,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): CacheNodeSeedData {
   if (loading !== null) {
@@ -1250,7 +1236,6 @@ function createSeedData(
     parallelRoutes,
     null,
     isPossiblyPartialResponse,
-    hasRuntimePrefetch,
     varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
   ]
 }

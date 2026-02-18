@@ -464,12 +464,12 @@ async fn import_mapping_to_result(
             traced: *traced,
             lookup_dir: lookup_dir.clone(),
         },
-        ReplacedImportMapping::Ignore => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore))
-        }
-        ReplacedImportMapping::Empty => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty))
-        }
+        ReplacedImportMapping::Ignore => ImportMapResult::Result(
+            ResolveResult::primary(ResolveResultItem::Ignore).resolved_cell(),
+        ),
+        ReplacedImportMapping::Empty => ImportMapResult::Result(
+            ResolveResult::primary(ResolveResultItem::Empty).resolved_cell(),
+        ),
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
             let request = Request::parse(name.clone()).to_resolved().await?;
             ImportMapResult::Alias(request, context.clone())
@@ -514,6 +514,9 @@ impl ValueToString for ImportMapResult {
                 Ok(Vc::cell(s.into()))
             }
             ImportMapResult::Alternatives(alternatives) => {
+                // The .cell() calls happen synchronously during iteration, before try_join()
+                // runs the futures. This is safe because cells are created in deterministic
+                // order (the order of alternatives in the Vec).
                 let strings = alternatives
                     .iter()
                     .map(|alternative| alternative.clone().cell().to_string())

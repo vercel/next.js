@@ -75,7 +75,7 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
       ])
     )
   ),
-  s.optional(s.boolean()),
+  s.optional(s.number()),
 ])
 
 export type ServerOnInstrumentationRequestError = (
@@ -91,7 +91,6 @@ export interface RenderOptsPartial {
   dir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
-  dev?: boolean
   basePath: string
   cacheComponents: boolean
   trailingSlash: boolean
@@ -192,13 +191,6 @@ export interface RenderOptsPartial {
   isDebugDynamicAccesses?: boolean
 
   /**
-   * This is true when:
-   * - source maps are generated
-   * - source maps are applied
-   * - minification is disabled
-   */
-  hasReadableErrorStacks?: boolean
-
   /**
    * The maximum length of the headers that are emitted by React and added to
    * the response.

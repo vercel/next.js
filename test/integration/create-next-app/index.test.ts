@@ -39,6 +39,7 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
@@ -81,6 +82,7 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
@@ -98,6 +100,70 @@ describe('create-next-app', () => {
       }
     })
   })
+  it('should create AGENTS.md and CLAUDE.md with --agents-md flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'with-agents-md'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--agents-md',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: ['AGENTS.md', 'CLAUDE.md'],
+      })
+    })
+  })
+
+  it('should not create AGENTS.md and CLAUDE.md with --no-agents-md flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'without-agents-md'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldNotExist({
+        cwd,
+        projectName,
+        files: ['AGENTS.md', 'CLAUDE.md'],
+      })
+    })
+  })
+
   it('should not install dependencies if --skip-install', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'empty-dir'
@@ -113,6 +179,7 @@ describe('create-next-app', () => {
           '--no-import-alias',
           '--skip-install',
           '--no-react-compiler',
+          '--no-agents-md',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,

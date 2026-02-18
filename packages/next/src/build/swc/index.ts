@@ -114,11 +114,11 @@ const triples = (() => {
 
   if (rawTargetTriple) {
     Log.warn(
-      `Trying to load next-swc for target triple ${rawTargetTriple}, but there next-swc does not have native bindings support`
+      `next-swc does not have native bindings support for target triple ${rawTargetTriple}. Native features like Turbopack will not be available.`
     )
   } else {
     Log.warn(
-      `Trying to load next-swc for unsupported platforms ${PlatformName}/${ArchName}`
+      `next-swc does not have native bindings for platform ${PlatformName}/${ArchName}. Native features like Turbopack will not be available.`
     )
   }
 
@@ -962,46 +962,42 @@ function bindingToApi(
         turbopack.rules = serializeTurbopackRules(turbopack.rules)
       }
 
-      nextConfigSerializable.turbopack = turbopack
-    }
-
-    // Serialize turbopackIgnoreIssue rules: convert RegExp to {source, flags}
-    if (nextConfigSerializable.experimental?.turbopackIgnoreIssue) {
-      function serializePatternField(
-        value: string | RegExp,
-        stringType: 'glob' | 'string'
-      ) {
-        if (value instanceof RegExp) {
-          return {
-            type: 'regex' as const,
-            source: value.source,
-            flags: value.flags,
+      // Serialize ignoreIssue rules: convert RegExp to {source, flags}
+      if (turbopack.ignoreIssue) {
+        function serializePatternField(
+          value: string | RegExp,
+          stringType: 'glob' | 'string'
+        ) {
+          if (value instanceof RegExp) {
+            return {
+              type: 'regex' as const,
+              source: value.source,
+              flags: value.flags,
+            }
           }
+          return { type: stringType, value }
         }
-        return { type: stringType, value }
+
+        turbopack.ignoreIssue = turbopack.ignoreIssue.map(
+          (rule: {
+            path: string | RegExp
+            title?: string | RegExp
+            description?: string | RegExp
+          }) => ({
+            path: serializePatternField(rule.path, 'glob'),
+            title:
+              rule.title != null
+                ? serializePatternField(rule.title, 'string')
+                : undefined,
+            description:
+              rule.description != null
+                ? serializePatternField(rule.description, 'string')
+                : undefined,
+          })
+        )
       }
 
-      nextConfigSerializable.experimental = {
-        ...nextConfigSerializable.experimental,
-        turbopackIgnoreIssue:
-          nextConfigSerializable.experimental.turbopackIgnoreIssue.map(
-            (rule: {
-              path: string | RegExp
-              title?: string | RegExp
-              description?: string | RegExp
-            }) => ({
-              path: serializePatternField(rule.path, 'glob'),
-              title:
-                rule.title != null
-                  ? serializePatternField(rule.title, 'string')
-                  : undefined,
-              description:
-                rule.description != null
-                  ? serializePatternField(rule.description, 'string')
-                  : undefined,
-            })
-          ),
-      }
+      nextConfigSerializable.turbopack = turbopack
     }
 
     return JSON.stringify(nextConfigSerializable, null, 2)
@@ -1224,7 +1220,8 @@ function bindingToApi(
 
   return async function createProject(
     options: ProjectOptions,
-    turboEngineOptions
+    turboEngineOptions,
+    callbacks?: import('./types').TurbopackProjectCallbacks
   ) {
     return new ProjectImpl(
       await binding.projectNew(
@@ -1232,6 +1229,7 @@ function bindingToApi(
         turboEngineOptions || {},
         {
           throwTurbopackInternalError,
+          onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
       )
     )
@@ -1356,10 +1354,13 @@ async function loadWasm(importPath = '') {
     turbo: {
       createProject(
         _options: ProjectOptions,
-        _turboEngineOptions?: TurboEngineOptions | undefined
+        _turboEngineOptions?: TurboEngineOptions | undefined,
+        _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
       ): Promise<Project> {
         throw new Error(
-          '`turbo.createProject` is not supported by the wasm bindings.'
+          `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. ` +
+            `Use the --webpack flag instead.`
         )
       },
       startTurbopackTraceServer(
@@ -1367,7 +1368,8 @@ async function loadWasm(importPath = '') {
         _port: number | undefined
       ): void {
         throw new Error(
-          '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
+          `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
         )
       },
     },

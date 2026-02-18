@@ -151,8 +151,11 @@ export async function walkTreeWithFlightRouterState({
 
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
       ? // Route tree prefetch requests contain some extra information
-        createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
-      : createFlightRouterStateFromLoaderTree(
+        await createRouteTreePrefetch(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment
+        )
+      : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           getDynamicParamFromSegment,
           query
@@ -178,8 +181,11 @@ export async function walkTreeWithFlightRouterState({
         ? flightRouterState[0]
         : actualSegment
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
-      ? createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
-      : createFlightRouterStateFromLoaderTree(
+      ? await createRouteTreePrefetch(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment
+        )
+      : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           getDynamicParamFromSegment,
           query
@@ -205,7 +211,7 @@ export async function walkTreeWithFlightRouterState({
         ? flightRouterState[0]
         : actualSegment
 
-    const routerState = createFlightRouterStateFromLoaderTree(
+    const routerState = await createFlightRouterStateFromLoaderTree(
       // Create router state using the slice of the loaderTree
       loaderTreeToFilter,
       getDynamicParamFromSegment,
@@ -325,7 +331,7 @@ export async function createFullTreeFlightDataForNavigation({
     getDynamicParamFromSegment,
   } = ctx
 
-  const routerState = createFlightRouterStateFromLoaderTree(
+  const routerState = await createFlightRouterStateFromLoaderTree(
     loaderTree,
     getDynamicParamFromSegment,
     query
