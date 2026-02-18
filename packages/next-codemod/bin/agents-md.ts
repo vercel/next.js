@@ -163,6 +163,7 @@ async function promptForOptions(
         choices: [
           { title: 'CLAUDE.md', value: 'CLAUDE.md' },
           { title: 'AGENTS.md', value: 'AGENTS.md' },
+          { title: 'GEMINI.md', value: 'GEMINI.md' },
           { title: 'Custom...', value: '__custom__' },
         ],
         initial: 0,

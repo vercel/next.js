@@ -193,6 +193,37 @@ This is my project documentation.
     }
   })
 
+  it('creates GEMINI.md as a first-class option', async () => {
+    const originalCwd = process.cwd()
+    process.chdir(testProjectDir)
+
+    try {
+      // Run with GEMINI.md as output
+      await runAgentsMd({
+        version: '15.0.0',
+        output: 'GEMINI.md',
+      })
+
+      // Verify GEMINI.md was created (not CLAUDE.md or AGENTS.md)
+      expect(fs.existsSync(path.join(testProjectDir, 'GEMINI.md'))).toBe(true)
+      expect(fs.existsSync(path.join(testProjectDir, 'CLAUDE.md'))).toBe(false)
+      expect(fs.existsSync(path.join(testProjectDir, 'AGENTS.md'))).toBe(false)
+
+      const geminiMdContent = fs.readFileSync(
+        path.join(testProjectDir, 'GEMINI.md'),
+        'utf-8'
+      )
+
+      // Verify content structure matches other options
+      expect(geminiMdContent).toContain('<!-- NEXT-AGENTS-MD-START -->')
+      expect(geminiMdContent).toContain('<!-- NEXT-AGENTS-MD-END -->')
+      expect(geminiMdContent).toContain('[Next.js Docs Index]')
+      expect(geminiMdContent).toContain('root: ./.next-docs')
+    } finally {
+      process.chdir(originalCwd)
+    }
+  })
+
   it('works when run from a subdirectory', async () => {
     const originalCwd = process.cwd()
 
