@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { waitForRedbox, getRedboxSource, retry } from 'next-test-utils'
+import {
+  waitForRedbox,
+  getRedboxSource,
+  retry,
+  waitForNoRedbox,
+} from 'next-test-utils'
 
 describe('module layer', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
@@ -95,32 +100,30 @@ describe('module layer', () => {
 
   if (isNextDev) {
     describe('client packages in middleware', () => {
-      const middlewareFile = 'middleware.js'
-      let middlewareContent = ''
-
-      afterAll(async () => {
-        await next.patchFile(middlewareFile, middlewareContent)
-      })
-
       it('should error when import server packages in middleware', async () => {
         const browser = await next.browser('/')
 
-        middlewareContent = await next.readFile(middlewareFile)
-
         await next.patchFile(
-          middlewareFile,
-          middlewareContent
-            .replace("import 'server-only'", "// import 'server-only'")
-            .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
+          'middleware.js',
+          (c) =>
+            c
+              .replace("import 'server-only'", "// import 'server-only'")
+              .replace(
+                "// import './lib/mixed-lib'",
+                "import './lib/mixed-lib'"
+              ),
+          async () => {
+            await retry(async () => {
+              await waitForRedbox(browser)
+              const source = await getRedboxSource(browser)
+              expect(source).toContain(
+                `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
+              )
+            })
+          }
         )
 
-        await retry(async () => {
-          await waitForRedbox(browser)
-          const source = await getRedboxSource(browser)
-          expect(source).toContain(
-            `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
-          )
-        })
+        await waitForNoRedbox(browser)
       })
     })
   }

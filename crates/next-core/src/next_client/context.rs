@@ -50,10 +50,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::{
-            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-            get_invalid_server_only_resolve_plugin,
-        },
+        resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
         transforms::{
             emotion::get_emotion_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
@@ -181,11 +178,6 @@ pub async fn get_client_resolve_options_context(
         browser: true,
         module: true,
         before_resolve_plugins: vec![
-            ResolvedVc::upcast(
-                get_invalid_server_only_resolve_plugin(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
             ResolvedVc::upcast(
                 ModuleFeatureReportResolvePlugin::new(project_path.clone())
                     .to_resolved()

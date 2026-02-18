@@ -15,7 +15,8 @@ use turbopack_core::{
     },
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        AliasPattern, ModuleResolveResult, RequestKey, ResolveErrorMode, handle_resolve_error,
+        AliasPattern, ModuleResolveResult, RequestKey, ResolveErrorMode,
+        error::handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,

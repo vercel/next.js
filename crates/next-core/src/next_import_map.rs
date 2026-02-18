@@ -7,7 +7,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
@@ -280,6 +280,8 @@ pub async fn get_next_client_import_map(
     insert_turbopack_dev_alias(&mut import_map).await?;
     insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
+    insert_server_only_error_alias(&mut import_map);
+
     Ok(import_map.cell())
 }
 
@@ -551,6 +553,16 @@ pub async fn get_next_edge_import_map(
         }
     }
 
+    if matches!(
+        ty,
+        ServerContextType::AppRSC { .. }
+            | ServerContextType::AppRoute { .. }
+            | ServerContextType::Middleware { .. }
+            | ServerContextType::Instrumentation { .. }
+    ) {
+        insert_client_only_error_alias(&mut import_map);
+    }
+
     Ok(import_map.cell())
 }
 
@@ -704,9 +716,7 @@ async fn insert_next_server_special_aliases(
     match &ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
-        ServerContextType::AppSSR { app_dir }
-        | ServerContextType::AppRSC { app_dir, .. }
-        | ServerContextType::AppRoute { app_dir, .. } => {
+        ServerContextType::AppSSR { app_dir } => {
             let next_package = get_next_package(app_dir.clone()).await?;
             import_map.insert_exact_alias(
                 rcstr!("styled-jsx"),
@@ -726,7 +736,10 @@ async fn insert_next_server_special_aliases(
             )
             .await?;
         }
-        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
+        ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {
             rsc_aliases(
                 import_map,
                 project_path.clone(),
@@ -766,11 +779,11 @@ async fn insert_next_server_special_aliases(
                 project_path.clone(),
                 fxindexmap! {
                     rcstr!("server-only") => rcstr!("next/dist/compiled/server-only/empty"),
-                    rcstr!("client-only") => rcstr!("next/dist/compiled/client-only/error"),
                     rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/empty"),
                     rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/error"),
                 },
             );
+            insert_client_only_error_alias(import_map);
         }
         ServerContextType::AppSSR { .. } => {
             insert_exact_alias_map(
@@ -1456,6 +1469,113 @@ async fn insert_instrumentation_client_alias(
     );
 
     Ok(())
+}
+
+fn insert_client_only_error_alias(import_map: &mut ImportMap) {
+    import_map.insert_exact_alias(
+        rcstr!("client-only"),
+        ImportMapping::Error(ResolvedVc::upcast(
+            InvalidImportIssue {
+                title: StyledString::Line(vec![
+                    StyledString::Code(rcstr!("'client-only'")),
+                    StyledString::Text(rcstr!(
+                        " cannot be imported from a Server Component module"
+                    )),
+                ])
+                .resolved_cell(),
+                description: ResolvedVc::cell(Some(
+                    StyledString::Line(vec![StyledString::Text(
+                        "It should only be used from a Client Component.".into(),
+                    )])
+                    .resolved_cell(),
+                )),
+            }
+            .resolved_cell(),
+        ))
+        .resolved_cell(),
+    );
+
+    // styled-jsx imports client-only. So this is effectively the same as above but produces a nicer
+    // import trace.
+    let mapping = ImportMapping::Error(ResolvedVc::upcast(
+        InvalidImportIssue {
+            title: StyledString::Line(vec![
+                StyledString::Code(rcstr!("'styled-jsx'")),
+                StyledString::Text(rcstr!(" cannot be imported from a Server Component module")),
+            ])
+            .resolved_cell(),
+            description: ResolvedVc::cell(Some(
+                StyledString::Line(vec![StyledString::Text(
+                    "It only works in a Client Component but none of its parents are marked with \
+                     'use client', so they're Server Components by default."
+                        .into(),
+                )])
+                .resolved_cell(),
+            )),
+        }
+        .resolved_cell(),
+    ))
+    .resolved_cell();
+    import_map.insert_exact_alias(rcstr!("styled-jsx"), mapping);
+    import_map.insert_wildcard_alias(rcstr!("styled-jsx/"), mapping);
+}
+
+fn insert_server_only_error_alias(import_map: &mut ImportMap) {
+    import_map.insert_exact_alias(
+        rcstr!("server-only"),
+        ImportMapping::Error(ResolvedVc::upcast(
+            InvalidImportIssue {
+                title: StyledString::Line(vec![
+                    StyledString::Code(rcstr!("'server-only'")),
+                    StyledString::Text(rcstr!(
+                        " cannot be imported from a Client Component module"
+                    )),
+                ])
+                .resolved_cell(),
+                description: ResolvedVc::cell(Some(
+                    StyledString::Line(vec![StyledString::Text(
+                        "It should only be used from a Server Component.".into(),
+                    )])
+                    .resolved_cell(),
+                )),
+            }
+            .resolved_cell(),
+        ))
+        .resolved_cell(),
+    );
+}
+
+#[turbo_tasks::value(shared)]
+struct InvalidImportIssue {
+    title: ResolvedVc<StyledString>,
+    description: ResolvedVc<OptionStyledString>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for InvalidImportIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        panic!("InvalidImportIssue::file_path should not be called");
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::Resolve.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        *self.title
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        *self.description
+    }
 }
 
 // To alias e.g. both `import "next/link"` and `import "next/link.js"`

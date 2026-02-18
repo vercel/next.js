@@ -18,8 +18,9 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode, handle_resolve_error,
-        origin::ResolveOrigin, parse::Request, pattern::Pattern, resolve_raw, url_resolve,
+        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode,
+        error::handle_resolve_error, origin::ResolveOrigin, parse::Request, pattern::Pattern,
+        resolve_raw, url_resolve,
     },
 };
 

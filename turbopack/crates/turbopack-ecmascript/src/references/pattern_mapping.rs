@@ -18,7 +18,7 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
     issue::{
-        IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
+        Issue, IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
         module::emit_unknown_module_type_error,
     },
     resolve::{
@@ -324,8 +324,10 @@ async fn to_single_pattern_mapping(
                 "unknown module type".to_string(),
             ));
         }
-        ModuleResolveResultItem::Error(str) => {
-            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()));
+        ModuleResolveResultItem::Error(issue) => {
+            return Ok(SinglePatternMapping::Unresolvable(
+                issue.title().await?.to_unstyled_string(),
+            ));
         }
         ModuleResolveResultItem::OutputAsset(_)
         | ModuleResolveResultItem::Empty
