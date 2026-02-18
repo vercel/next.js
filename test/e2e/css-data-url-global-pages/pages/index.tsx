@@ -1,4 +1,3 @@
-// @ts-expect-error
 import 'data:text/css,#styled{font-weight:700}'
 
 export default function Home() {
