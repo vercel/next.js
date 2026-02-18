@@ -88,6 +88,7 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
   writeRouteTypesEntryFile,
+  writeRootParamsTypesFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import {
@@ -1204,6 +1205,18 @@ async function startWatcher(
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
           writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
 
+          // Generate root params types if experimental.rootParams (or cacheComponents) is enabled
+          const isRootParamsEnabled = Boolean(
+            nextConfig.experimental.rootParams ?? nextConfig.cacheComponents
+          )
+          if (isRootParamsEnabled) {
+            const rootParamsFilePath = path.join(
+              distTypesDir,
+              'root-params.d.ts'
+            )
+            writeRootParamsTypesFile(routeTypesManifest, rootParamsFilePath)
+          }
+
           // Write the entry file at {distDirRoot}/types/routes.d.ts
           // This ensures next-env.d.ts has a consistent import path
           const entryFilePath = path.join(
@@ -1215,6 +1228,7 @@ async function startWatcher(
           await writeRouteTypesEntryFile(entryFilePath, distTypesDir, {
             strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
             typedRoutes: Boolean(nextConfig.typedRoutes),
+            rootParams: isRootParamsEnabled,
           })
         }
 

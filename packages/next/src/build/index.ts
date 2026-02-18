@@ -218,6 +218,7 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
   writeRouteTypesEntryFile,
+  writeRootParamsTypesFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
 import {
@@ -1401,11 +1402,29 @@ export default async function build(
             'types',
             'routes.d.ts'
           )
+          const isRootParamsEnabled = Boolean(
+            config.experimental.rootParams ?? config.cacheComponents
+          )
+
           const actualTypesDir = path.join(distDir, 'types')
           await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
             strictRouteTypes: Boolean(config.experimental.strictRouteTypes),
             typedRoutes: Boolean(config.typedRoutes),
+            rootParams: isRootParamsEnabled,
           })
+
+          // Generate root params types if experimental.rootParams (or cacheComponents) is enabled
+          if (isRootParamsEnabled) {
+            const rootParamsTypesFilePath = path.join(
+              distDir,
+              'types',
+              'root-params.d.ts'
+            )
+            writeRootParamsTypesFile(
+              routeTypesManifest,
+              rootParamsTypesFilePath
+            )
+          }
         })
 
       // Turbopack already handles conflicting app and page routes.

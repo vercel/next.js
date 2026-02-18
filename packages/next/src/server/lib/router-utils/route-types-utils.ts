@@ -13,6 +13,11 @@ import {
   generateValidatorFileStrict,
   generateRouteTypesFileStrict,
 } from './typegen'
+import {
+  writeRootParamsTypes,
+  type RootParamKind,
+} from './root-params-type-utils'
+import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import {
   extractInterceptionRouteInformation,
@@ -48,6 +53,8 @@ export interface RouteTypesManifest {
   pageApiRoutes: Set<string>
   /** Direct mapping from file paths to routes for validation */
   filePathToRoute: Map<string, string>
+  /** Root params collected from root layouts for generating root-params.d.ts */
+  rootParams?: Map<string, RootParamKind>
 }
 
 // Convert a custom-route source string (`/blog/:slug`, `/docs/:path*`, ...)
@@ -142,6 +149,68 @@ function resolveInterceptingRoute(route: string): string {
     // If parsing fails, fall back to the original route
     return route
   }
+}
+
+/**
+ * Identifies root layouts and collects their dynamic segments as root params.
+ * A root layout is the shallowest layout in each branch of the app directory.
+ */
+function collectRootParamsFromLayouts(
+  layoutRoutes: RouteInfo[]
+): Map<string, RootParamKind> {
+  const rootParams = new Map<string, RootParamKind>()
+
+  // Sort by depth (fewer path segments = shallower = more likely to be root)
+  const sorted = [...layoutRoutes].sort(
+    (a, b) => a.route.split('/').length - b.route.split('/').length
+  )
+
+  const rootLayoutRoutes: string[] = []
+
+  for (const { route } of sorted) {
+    // Skip internal routes
+    if (
+      route === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+      route === UNDERSCORE_NOT_FOUND_ROUTE
+    ) {
+      continue
+    }
+
+    // A layout is a root layout if no already-found root layout is an ancestor of it
+    const hasAncestorRootLayout = rootLayoutRoutes.some((rootRoute) =>
+      rootRoute === '/' ? route !== '/' : route.startsWith(rootRoute + '/')
+    )
+
+    if (hasAncestorRootLayout) continue
+
+    rootLayoutRoutes.push(route)
+
+    // Extract dynamic segments from this root layout's route
+    for (const segment of route.split('/')) {
+      const param = getSegmentParam(segment)
+      if (param === null) continue
+
+      const kind: RootParamKind =
+        param.paramType === 'optional-catchall'
+          ? 'optional-catchall'
+          : param.paramType === 'catchall'
+            ? 'catchall'
+            : 'dynamic'
+
+      // If the same param name appears in multiple root layouts with different
+      // kinds, keep the most permissive type.
+      const existing = rootParams.get(param.paramName)
+      if (
+        !existing ||
+        kind === 'optional-catchall' ||
+        (kind === 'catchall' && existing === 'dynamic')
+      ) {
+        rootParams.set(param.paramName, kind)
+      }
+    }
+  }
+
+  return rootParams
 }
 
 /**
@@ -350,6 +419,8 @@ export async function createRouteTypesManifest({
     }
   }
 
+  manifest.rootParams = collectRootParamsFromLayouts(layoutRoutes)
+
   return manifest
 }
 
@@ -413,6 +484,7 @@ export async function writeRouteTypesEntryFile(
   options: {
     strictRouteTypes: boolean
     typedRoutes: boolean
+    rootParams?: boolean
   }
 ) {
   const entryDir = path.dirname(entryFilePath)
@@ -432,6 +504,10 @@ export async function writeRouteTypesEntryFile(
     `export type * from "${prefix}route-types.d.ts";`,
   ]
 
+  if (options.rootParams) {
+    lines.push(`import "${prefix}root-params.d.ts";`)
+  }
+
   if (options.strictRouteTypes) {
     lines.push(`import "${prefix}cache-life.d.ts";`)
     lines.push(`import "${prefix}validator.ts";`)
@@ -444,4 +520,11 @@ export async function writeRouteTypesEntryFile(
   lines.push('') // trailing newline
 
   await fs.promises.writeFile(entryFilePath, lines.join('\n'))
+}
+
+export function writeRootParamsTypesFile(
+  manifest: RouteTypesManifest,
+  filePath: string
+) {
+  writeRootParamsTypes(manifest.rootParams, filePath)
 }
