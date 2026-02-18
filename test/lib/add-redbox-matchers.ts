@@ -91,8 +91,7 @@ export interface ErrorSnapshot {
 }
 
 /**
- * Focus source to just the header, errored line, and cursor.
- * Strips surrounding context lines.
+ * Strips surrounding context lines from the codeframe.
  */
 function focusSource(
   source: string | null,
@@ -102,6 +101,7 @@ function focusSource(
 
   let focusedSource = ''
   const sourceFrameLines = source.split('\n')
+  let encounteredCursor = false
   for (let i = 0; i < sourceFrameLines.length; i++) {
     const sourceFrameLine = sourceFrameLines[i].trimEnd()
     if (sourceFrameLine === '') {
@@ -109,12 +109,18 @@ function focusSource(
     }
 
     if (sourceFrameLine.startsWith('>')) {
-      // This is where the cursor will point
-      // Include the cursor and nothing below since it's just surrounding code.
-      focusedSource += '\n' + sourceFrameLine
-      focusedSource += '\n' + sourceFrameLines[i + 1]
-      break
+      if (!encounteredCursor) {
+        // This is where the cursor will point
+        // Include the cursor and nothing below since it's just surrounding code.
+        focusedSource += '\n' + sourceFrameLine
+        focusedSource += '\n' + sourceFrameLines[i + 1]
+        i++ // skip the next line since we already included it as context for the errored line
+        encounteredCursor = true
+      }
+      continue
     }
+
+    // Include error message before or after the code frame
     const isCodeFrameLine = /^ {2}\s*\d+ \|/.test(sourceFrameLine)
     if (!isCodeFrameLine) {
       focusedSource += '\n' + sourceFrameLine
