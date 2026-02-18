@@ -280,7 +280,10 @@ pub async fn get_next_client_import_map(
     insert_turbopack_dev_alias(&mut import_map).await?;
     insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
-    insert_invalid_import_mappings_client(&mut import_map);
+    insert_invalid_import_mappings_client(
+        &mut import_map,
+        matches!(ty, ClientContextType::Pages { .. }),
+    );
 
     Ok(import_map.cell())
 }
@@ -1535,7 +1538,10 @@ fn insert_invalid_import_mappings_server(import_map: &mut ImportMap) {
     }
 }
 
-fn insert_invalid_import_mappings_client(import_map: &mut ImportMap) {
+fn insert_invalid_import_mappings_client(import_map: &mut ImportMap, is_pages: bool) {
+    // Putting this value inline below breaks rustfmt for the whole file
+    let server_components_hint: RcStr = rcstr!("Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components");
+
     for pkg in [
         rcstr!("server-only"),
         rcstr!("next/headers"),
@@ -1564,22 +1570,33 @@ fn insert_invalid_import_mappings_client(import_map: &mut ImportMap) {
                                     ),
                                 ]))
                                 .into_iter()
-                                .chain([
-                                    StyledString::Line(vec![
+                                .chain(if is_pages {
+                                    vec![
                                         StyledString::Text(
-                                            "This might be caused by an incorrect ".into(),
+                                            "It only works in a Server Component which is not \
+                                             supported in the pages/ directory. "
+                                                .into(),
                                         ),
-                                        StyledString::Code("'use client'".into()),
+                                        StyledString::Text(server_components_hint.clone()),
+                                    ]
+                                } else {
+                                    vec![
+                                        StyledString::Line(vec![
+                                            StyledString::Text(
+                                                "This might be caused by an incorrect ".into(),
+                                            ),
+                                            StyledString::Code("'use client'".into()),
+                                            StyledString::Text(
+                                                " in some module in the import chain.".into(),
+                                            ),
+                                        ]),
                                         StyledString::Text(
-                                            " in some module in the import chain.".into(),
+                                            "Alternatively, an import of the import chain can be \
+                                             removed to avoid referencing this module."
+                                                .into(),
                                         ),
-                                    ]),
-                                    StyledString::Text(
-                                        "Alternatively, an import of the import chain can be \
-                                         removed to avoid referencing this module."
-                                            .into(),
-                                    ),
-                                ])
+                                    ]
+                                })
                                 .collect(),
                         )
                         .resolved_cell(),
