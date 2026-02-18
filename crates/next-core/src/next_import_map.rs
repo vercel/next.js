@@ -1484,9 +1484,25 @@ fn insert_client_only_error_alias(import_map: &mut ImportMap) {
                 ])
                 .resolved_cell(),
                 description: ResolvedVc::cell(Some(
-                    StyledString::Line(vec![StyledString::Text(
-                        "It should only be used from a Client Component.".into(),
-                    )])
+                    StyledString::Stack(vec![
+                        StyledString::Line(vec![
+                            StyledString::Text("Modules use ".into()),
+                            StyledString::Code("import 'client-only'".into()),
+                            StyledString::Text(
+                                " to flag they shouldn't be used from Server Components.".into(),
+                            ),
+                        ]),
+                        StyledString::Line(vec![
+                            StyledString::Text("Usually this is caused by a missing ".into()),
+                            StyledString::Code("'use client'".into()),
+                            StyledString::Text("  in some module in the import chain.".into()),
+                        ]),
+                        StyledString::Text(
+                            "Alternatively an import of the import chain can be removed to avoid \
+                             referencing this module."
+                                .into(),
+                        ),
+                    ])
                     .resolved_cell(),
                 )),
             }
@@ -1505,11 +1521,18 @@ fn insert_client_only_error_alias(import_map: &mut ImportMap) {
             ])
             .resolved_cell(),
             description: ResolvedVc::cell(Some(
-                StyledString::Line(vec![StyledString::Text(
-                    "It only works in a Client Component but none of its parents are marked with \
-                     'use client', so they're Server Components by default."
-                        .into(),
-                )])
+                StyledString::Stack(vec![
+                    StyledString::Line(vec![
+                        StyledString::Text("Usually this is caused by a missing ".into()),
+                        StyledString::Code("'use client'".into()),
+                        StyledString::Text("  in some module in the import chain.".into()),
+                    ]),
+                    StyledString::Text(
+                        "Alternatively an import of the import chain can be removed to avoid \
+                         referencing this module."
+                            .into(),
+                    ),
+                ])
                 .resolved_cell(),
             )),
         }
@@ -1533,9 +1556,25 @@ fn insert_server_only_error_alias(import_map: &mut ImportMap) {
                 ])
                 .resolved_cell(),
                 description: ResolvedVc::cell(Some(
-                    StyledString::Line(vec![StyledString::Text(
-                        "It should only be used from a Server Component.".into(),
-                    )])
+                    StyledString::Stack(vec![
+                        StyledString::Line(vec![
+                            StyledString::Text("Modules use ".into()),
+                            StyledString::Code("import 'server-only'".into()),
+                            StyledString::Text(
+                                " to flag they shouldn't be used from Client Components.".into(),
+                            ),
+                        ]),
+                        StyledString::Line(vec![
+                            StyledString::Text("This might be caused by an incorrect ".into()),
+                            StyledString::Code("'use client'".into()),
+                            StyledString::Text("  in some module in the import chain.".into()),
+                        ]),
+                        StyledString::Text(
+                            "Alternatively an import of the import chain can be removed to avoid \
+                             referencing this module."
+                                .into(),
+                        ),
+                    ])
                     .resolved_cell(),
                 )),
             }
