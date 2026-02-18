@@ -196,7 +196,7 @@ pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
         root,
         rcstr!("styled-jsx"),
         vec![
-            "'client-only' cannot be imported from a Server Component module. It should only be \
+            "'styled-jsx' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
                 .into(),
             "The error was caused by using 'styled-jsx'. It only works in a Client Component but \

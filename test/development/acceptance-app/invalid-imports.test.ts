@@ -66,10 +66,10 @@ describe('Error Overlay invalid imports', () => {
     await session.waitForRedbox()
     if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./app
-        Invalid import
-        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
-        The error was caused by using 'styled-jsx'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default."
+       "./app
+       Invalid import
+       'styled-jsx' cannot be imported from a Server Component module. It should only be used from a Client Component.
+       The error was caused by using 'styled-jsx'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default."
       `)
     } else if (process.env.NEXT_RSPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
