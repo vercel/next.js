@@ -4,6 +4,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    boundary::{BoundaryInfo, OptionBoundaryInfo},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -22,6 +23,7 @@ use turbopack_ecmascript::{
 };
 
 use super::server_component_reference::NextServerComponentModuleReference;
+use crate::boundary_types::boundary_type_server_component;
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerComponentModule {
@@ -87,6 +89,14 @@ impl Module for NextServerComponentModule {
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // This just exports another import
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn boundary_info(&self) -> Vc<OptionBoundaryInfo> {
+        Vc::cell(Some(BoundaryInfo::with_source_path(
+            boundary_type_server_component(),
+            self.source_path.clone(),
+        )))
     }
 }
 

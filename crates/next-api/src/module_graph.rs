@@ -10,7 +10,6 @@ use next_core::{
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
-    next_server_utility::server_utility_module::NextServerUtilityModule,
 };
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
@@ -578,18 +577,13 @@ impl ClientReferencesGraph {
                             | ClientManifestEntryType::CssClientReference { .. }
                             | ClientManifestEntryType::ServerComponent { .. },
                         ) => GraphTraversalAction::Skip,
-                        None => GraphTraversalAction::Continue,
+                        // ServerUtility is NOT a traversal boundary — continue into its children
+                        Some(ClientManifestEntryType::ServerUtility { .. }) | None => {
+                            GraphTraversalAction::Continue
+                        }
                     })
                 },
                 |node, _| {
-                    if let Some(server_util_module) =
-                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(node)
-                    {
-                        // Server utility used by the template, not a server component
-                        server_utils.insert(server_util_module);
-                        return Ok(());
-                    }
-
                     let module_type = data.get(&node);
 
                     let ty = match module_type {
@@ -602,6 +596,10 @@ impl ClientReferencesGraph {
                         }
                         Some(ClientManifestEntryType::ServerComponent(sc)) => {
                             server_components.insert(*sc);
+                            return Ok(());
+                        }
+                        Some(ClientManifestEntryType::ServerUtility(su)) => {
+                            server_utils.insert(*su);
                             return Ok(());
                         }
                         None => {
@@ -640,11 +638,6 @@ impl ClientReferencesGraph {
                     },
                     |node, _| {
                         let module = node;
-                        if let Some(server_util_module) =
-                            ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
-                        {
-                            server_utils.insert(server_util_module);
-                        }
 
                         let Some(module_type) = data.get(&module) else {
                             return Ok(());
@@ -659,6 +652,10 @@ impl ClientReferencesGraph {
                                 ClientReferenceType::CssClientReference(*module)
                             }
                             ClientManifestEntryType::ServerComponent(_) => {
+                                return Ok(());
+                            }
+                            ClientManifestEntryType::ServerUtility(su) => {
+                                server_utils.insert(*su);
                                 return Ok(());
                             }
                         };

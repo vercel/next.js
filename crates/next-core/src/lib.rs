@@ -8,6 +8,7 @@ mod app_page_loader_tree;
 pub mod app_structure;
 mod base_loader_tree;
 mod bootstrap;
+pub mod boundary_types;
 mod embed_js;
 mod emit;
 pub mod hmr_entry;

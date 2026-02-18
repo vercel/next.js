@@ -1,7 +1,10 @@
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 
-use crate::{ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
+use crate::{
+    boundary::OptionBoundaryInfo, ident::AssetIdent, reference::ModuleReferences,
+    source::OptionSource,
+};
 
 #[derive(Clone, Copy, Debug, TaskInput, Hash)]
 #[turbo_tasks::value(shared)]
@@ -67,6 +70,13 @@ pub trait Module {
     /// Returns true if the module is marked as side effect free in package.json or by other means.
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects>;
+
+    /// Returns boundary metadata if this module represents a module boundary
+    /// (e.g., server component, server utility, dynamic entry). Returns `None` by default.
+    #[turbo_tasks::function]
+    fn boundary_info(self: Vc<Self>) -> Vc<OptionBoundaryInfo> {
+        Vc::cell(None)
+    }
 }
 
 #[turbo_tasks::value_trait]

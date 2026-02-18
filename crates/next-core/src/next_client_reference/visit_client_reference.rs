@@ -16,6 +16,7 @@ use turbopack_core::{
 use turbopack_css::chunk::CssChunkPlaceable;
 
 use crate::{
+    boundary_types::{boundary_type_server_component, boundary_type_server_utility},
     next_client_reference::{
         CssClientReferenceModule,
         ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
@@ -202,40 +203,48 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                         return Ok((FindServerEntriesNode::ClientReference, ()));
                     }
 
-                    if let Some(server_component_asset) =
-                        ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
-                    {
-                        return Ok((
-                            FindServerEntriesNode::ServerComponentEntry(
-                                server_component_asset,
-                                if emit_spans {
-                                    // INVALIDATION: we don't need to invalidate when the span name
-                                    // changes
-                                    Some(server_component_asset.ident_string().untracked().await?)
-                                } else {
-                                    None
-                                },
-                            ),
-                            (),
-                        ));
-                    }
-
-                    if let Some(server_util_module) =
-                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
-                    {
-                        return Ok((
-                            FindServerEntriesNode::ServerUtilEntry(
-                                server_util_module,
-                                if emit_spans {
-                                    // INVALIDATION: we don't need to invalidate when the span name
-                                    // changes
-                                    Some(module.ident_string().untracked().await?)
-                                } else {
-                                    None
-                                },
-                            ),
-                            (),
-                        ));
+                    if let Some(boundary) = &*module.boundary_info().await? {
+                        if boundary.boundary_type == boundary_type_server_component() {
+                            let sc =
+                                ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
+                                    .expect(
+                                        "server-component boundary must be \
+                                         NextServerComponentModule",
+                                    );
+                            return Ok((
+                                FindServerEntriesNode::ServerComponentEntry(
+                                    sc,
+                                    if emit_spans {
+                                        // INVALIDATION: we don't need to invalidate when the span
+                                        // name changes
+                                        Some(sc.ident_string().untracked().await?)
+                                    } else {
+                                        None
+                                    },
+                                ),
+                                (),
+                            ));
+                        }
+                        if boundary.boundary_type == boundary_type_server_utility() {
+                            let su =
+                                ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
+                                    .expect(
+                                        "server-utility boundary must be NextServerUtilityModule",
+                                    );
+                            return Ok((
+                                FindServerEntriesNode::ServerUtilEntry(
+                                    su,
+                                    if emit_spans {
+                                        // INVALIDATION: we don't need to invalidate when the span
+                                        // name changes
+                                        Some(module.ident_string().untracked().await?)
+                                    } else {
+                                        None
+                                    },
+                                ),
+                                (),
+                            ));
+                        }
                     }
 
                     Ok((
