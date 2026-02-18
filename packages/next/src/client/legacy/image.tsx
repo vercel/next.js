@@ -24,6 +24,7 @@ import { ImageConfigContext } from '../../shared/lib/image-config-context.shared
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 import { findClosestQuality } from '../../shared/lib/find-closest-quality'
+import { getDeploymentId } from '../../shared/lib/deployment-id'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
@@ -126,6 +127,19 @@ function defaultLoader({
     return src
   }
 
+  // Extract dpl parameter early so validation uses the clean URL
+  let deploymentId = getDeploymentId()
+  if (src.startsWith('/')) {
+    const srcUrl = new URL(src, 'http://n')
+    const srcDpl = srcUrl.searchParams.get('dpl')
+    if (srcDpl) {
+      deploymentId = srcDpl
+      // Remove the dpl parameter from the src URL to avoid duplication
+      srcUrl.searchParams.delete('dpl')
+      src = srcUrl.href.slice('http://n'.length)
+    }
+  }
+
   if (
     src.startsWith('/') &&
     src.includes('?') &&
@@ -213,7 +227,9 @@ function defaultLoader({
 
   return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
     src
-  )}&w=${width}&q=${q}`
+  )}&w=${width}&q=${q}${
+    src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
+  }`
 }
 
 const loaders = new Map<

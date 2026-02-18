@@ -497,6 +497,7 @@ ${ENDGROUP}`)
         ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
+        '--no-cache',
         '--verbose',
         ...(isTestJob
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
@@ -509,6 +510,7 @@ ${ENDGROUP}`)
               `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`,
             ]),
       ]
+      const deferNextTestWasm = !!process.env.NEXT_TEST_WASM
       const env = {
         // run tests in headless mode by default
         HEADLESS: 'true',
@@ -547,6 +549,13 @@ ${ENDGROUP}`)
                 .filter(Boolean)
                 .join(':'),
             }),
+        ...(deferNextTestWasm
+          ? {
+              // Let Next/Jest initialize native SWC for the transformer first.
+              NEXT_TEST_WASM: undefined,
+              NEXT_TEST_WASM_AFTER_JEST: process.env.NEXT_TEST_WASM,
+            }
+          : {}),
         ...(isFinalRun
           ? {
               // Events can be finicky in CI. This switches to a more

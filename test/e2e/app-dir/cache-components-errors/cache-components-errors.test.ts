@@ -2567,22 +2567,12 @@ describe('Cache Components Errors', () => {
                 }
               } else {
                 if (isDebugPrerender) {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at cache (webpack:///<next-src>)
-                     1357 |                 cacheSignal.endRead()
-                     1358 |               }
-                   > 1359 |               return makeHangingPromise(
-                          |                      ^
-                     1360 |                 workUnitStore.renderSignal,
-                     1361 |                 workStore.route,
-                     1362 |                 'dynamic "use cache"'
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                   > Export encountered errors on 1 path:
-                   	/use-cache-low-expire/fast/page: /use-cache-low-expire/fast"
-                  `)
+                  // Webpack does not ignore the stack frame that points into
+                  // Next.js internals, and is also flaky on resolving the exact
+                  // location, so we don't assert on the stack frames here.
+                  expect(output).toInclude(
+                    'Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2711,22 +2701,12 @@ describe('Cache Components Errors', () => {
                 }
               } else {
                 if (isDebugPrerender) {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at cache (webpack:///<next-src>)
-                     1357 |                 cacheSignal.endRead()
-                     1358 |               }
-                   > 1359 |               return makeHangingPromise(
-                          |                      ^
-                     1360 |                 workUnitStore.renderSignal,
-                     1361 |                 workStore.route,
-                     1362 |                 'dynamic "use cache"'
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                   > Export encountered errors on 1 path:
-                   	/use-cache-low-expire/slow/page: /use-cache-low-expire/slow"
-                  `)
+                  // Webpack does not ignore the stack frame that points into
+                  // Next.js internals, and is also flaky on resolving the exact
+                  // location, so we don't assert on the stack frames here.
+                  expect(output).toInclude(
+                    'Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2959,22 +2939,12 @@ describe('Cache Components Errors', () => {
                 }
               } else {
                 if (isDebugPrerender) {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at cache (webpack:///<next-src>)
-                     1357 |                 cacheSignal.endRead()
-                     1358 |               }
-                   > 1359 |               return makeHangingPromise(
-                          |                      ^
-                     1360 |                 workUnitStore.renderSignal,
-                     1361 |                 workStore.route,
-                     1362 |                 'dynamic "use cache"'
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                   > Export encountered errors on 1 path:
-                   	/use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast"
-                  `)
+                  // Webpack does not ignore the stack frame that points into
+                  // Next.js internals, and is also flaky on resolving the exact
+                  // location, so we don't assert on the stack frames here.
+                  expect(output).toInclude(
+                    'Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3103,22 +3073,12 @@ describe('Cache Components Errors', () => {
                 }
               } else {
                 if (isDebugPrerender) {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at cache (webpack:///<next-src>)
-                     1357 |                 cacheSignal.endRead()
-                     1358 |               }
-                   > 1359 |               return makeHangingPromise(
-                          |                      ^
-                     1360 |                 workUnitStore.renderSignal,
-                     1361 |                 workStore.route,
-                     1362 |                 'dynamic "use cache"'
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                   > Export encountered errors on 1 path:
-                   	/use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow"
-                  `)
+                  // Webpack does not ignore the stack frame that points into
+                  // Next.js internals, and is also flaky on resolving the exact
+                  // location, so we don't assert on the stack frames here.
+                  expect(output).toInclude(
+                    'Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3891,24 +3851,12 @@ describe('Cache Components Errors', () => {
               }
             } else {
               if (isDebugPrerender) {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at cache (webpack:///<next-src>)
-                     at Private (webpack:///app/use-cache-private-without-suspense/page.tsx:15:1)
-                     at Page (webpack:///app/use-cache-private-without-suspense/page.tsx:10:7)
-                   937 |       // "use cache: private" is dynamic in prerendering contexts.
-                   938 |       case 'prerender':
-                 > 939 |         return makeHangingPromise(
-                       |                ^
-                   940 |           workUnitStore.renderSignal,
-                   941 |           workStore.route,
-                   942 |           expression
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                 > Export encountered errors on 1 path:
-                 	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
-                `)
+                // Webpack does not ignore the stack frame that points into
+                // Next.js internals, and is also flaky on resolving the exact
+                // location, so we don't assert on the stack frames here.
+                expect(output).toInclude(
+                  'Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                )
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route

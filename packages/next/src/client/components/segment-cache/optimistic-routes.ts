@@ -797,9 +797,8 @@ function reifyRouteTree(
       segment: newSegment,
       refreshState: pattern.refreshState,
       slots: newSlots,
-      isRootLayout: pattern.isRootLayout,
-      hasLoadingBoundary: pattern.hasLoadingBoundary,
-      hasRuntimePrefetch: pattern.hasRuntimePrefetch,
+
+      prefetchHints: pattern.prefetchHints,
       isPage: true,
       varyPath: newVaryPath,
     }
@@ -814,9 +813,8 @@ function reifyRouteTree(
       segment: newSegment,
       refreshState: pattern.refreshState,
       slots: newSlots,
-      isRootLayout: pattern.isRootLayout,
-      hasLoadingBoundary: pattern.hasLoadingBoundary,
-      hasRuntimePrefetch: pattern.hasRuntimePrefetch,
+
+      prefetchHints: pattern.prefetchHints,
       isPage: false,
       varyPath: newVaryPath,
     }

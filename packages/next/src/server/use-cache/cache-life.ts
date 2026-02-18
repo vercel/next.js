@@ -86,6 +86,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   switch (workUnitStore?.type) {
     case 'prerender':
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-runtime':
     case 'prerender-ppr':
     case 'prerender-legacy':

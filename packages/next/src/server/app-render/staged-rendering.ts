@@ -34,18 +34,15 @@ export class StagedRenderingController {
       abortSignal.addEventListener(
         'abort',
         () => {
+          // Reject all stage promises that haven't already been resolved.
+          // If a promise was already resolved via advanceStage, the reject
+          // is a no-op. The ignoreReject handler suppresses unhandled
+          // rejection warnings for promises that no one is awaiting.
           const { reason } = abortSignal
-          if (this.currentStage < RenderStage.Runtime) {
-            this.runtimeStagePromise.promise.catch(ignoreReject) // avoid unhandled rejections
-            this.runtimeStagePromise.reject(reason)
-          }
-          if (
-            this.currentStage < RenderStage.Dynamic ||
-            this.currentStage === RenderStage.Abandoned
-          ) {
-            this.dynamicStagePromise.promise.catch(ignoreReject) // avoid unhandled rejections
-            this.dynamicStagePromise.reject(reason)
-          }
+          this.runtimeStagePromise.promise.catch(ignoreReject)
+          this.runtimeStagePromise.reject(reason)
+          this.dynamicStagePromise.promise.catch(ignoreReject)
+          this.dynamicStagePromise.reject(reason)
         },
         { once: true }
       )
@@ -98,7 +95,7 @@ export class StagedRenderingController {
     }
 
     // If Sync IO occurs during an abandonable render, we trigger the abandon.
-    // The abandon listener will call abandonRenderImpl which advances through
+    // The abandon listener will call abandonRender which advances through
     // stages to let caches fill before marking as Abandoned.
     if (this.abandonController) {
       this.abandonController.abort()
