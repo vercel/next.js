@@ -4,7 +4,7 @@ import { checkIsOnDemandRevalidate } from '../.'
 import type { __ApiPreviewProps } from '../.'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
 import type { PreviewData } from '../../../types'
-
+import setupDebug from 'next/dist/compiled/debug'
 import {
   clearPreviewData,
   COOKIE_NAME_PRERENDER_BYPASS,
@@ -13,6 +13,8 @@ import {
 } from '../index'
 import { RequestCookies } from '../../web/spec-extension/cookies'
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
+
+const debug = setupDebug('next:server:preview')
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
@@ -86,8 +88,10 @@ export function tryGetPreviewData(
       tokenPreviewData,
       options.previewModeSigningKey
     ) as typeof encryptedPreviewData
-  } catch {
-    // TODO: warn
+  } catch (err) {
+    // Behind DEBUG to avoid noisy logs on prod
+    // Do not include cookie/token content
+    debug('Failed to verify preview mode cookies; clearing preview data', err)
     clearPreviewData(res as NextApiResponse)
     return false
   }
