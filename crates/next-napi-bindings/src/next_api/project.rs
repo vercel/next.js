@@ -54,8 +54,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    FileContent, FileSystem, FileSystemPath, invalidation, to_sys_path as fs_path_to_sys_path,
-    util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation,
+    to_sys_path as fs_path_to_sys_path, util::uri_from_file,
 };
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
@@ -1186,8 +1186,23 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
         return Ok(());
     }
 
-    let project = container.project();
-    let app_dir = find_app_dir(project.project_path().owned().await?).await?;
+    #[turbo_tasks::value(cell = "new", eq = "manual")]
+    struct ProjectInfo(Option<FileSystemPath>, DiskFileSystem);
+
+    #[turbo_tasks::function(operation)]
+    async fn project_info_operation(
+        container: ResolvedVc<ProjectContainer>,
+    ) -> Result<Vc<ProjectInfo>> {
+        let project = container.project();
+        let app_dir = find_app_dir(project.project_path().owned().await?)
+            .owned()
+            .await?;
+        let project_fs = project.project_fs().owned().await?;
+        Ok(ProjectInfo(app_dir, project_fs).cell())
+    }
+    let ProjectInfo(app_dir, project_fs) = &*project_info_operation(container)
+        .read_strongly_consistent()
+        .await?;
 
     let Some(app_dir) = &*app_dir else {
         return Ok(());
@@ -1212,8 +1227,6 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
         } else {
             Vec::new()
         };
-
-    let project_fs = project.project_fs().await?;
 
     if paths_to_invalidate.is_empty() {
         // Fallback to full invalidation when app dir paths are unavailable.

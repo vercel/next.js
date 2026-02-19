@@ -567,7 +567,7 @@ impl DiskFileSystemInner {
     }
 }
 
-#[derive(ValueToString)]
+#[derive(Clone, ValueToString)]
 #[value_to_string(self.inner.name)]
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
