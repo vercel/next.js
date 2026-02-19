@@ -23,7 +23,7 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use next_core::{
     boundary_types::boundary_type_dynamic_entry, next_app::ClientReferencesChunks,
-    next_client_reference::EcmascriptClientReferenceModule, next_dynamic::NextDynamicEntryModule,
+    next_client_reference::EcmascriptClientReferenceModule,
 };
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
@@ -55,7 +55,8 @@ pub(crate) async fn collect_next_dynamic_chunks(
     let dynamic_import_chunks = dynamic_import_entries
         .iter()
         .map(|(dynamic_entry, parent_client_reference)| async move {
-            let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
+            let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(*dynamic_entry)
+                .expect("dynamic entry must be ChunkableModule");
 
             // This is the availability info for the parent chunk group, i.e. the client reference
             // containing the next/dynamic imports
@@ -96,9 +97,9 @@ pub(crate) async fn collect_next_dynamic_chunks(
 pub struct DynamicImportedChunks(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<
-        ResolvedVc<NextDynamicEntryModule>,
+        ResolvedVc<Box<dyn Module>>,
         (
-            ResolvedVc<NextDynamicEntryModule>,
+            ResolvedVc<Box<dyn Module>>,
             ResolvedVc<OutputAssetsWithReferenced>,
         ),
     >,
@@ -106,7 +107,7 @@ pub struct DynamicImportedChunks(
 
 #[derive(Clone, PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum DynamicImportEntriesMapType {
-    DynamicEntry(ResolvedVc<NextDynamicEntryModule>),
+    DynamicEntry(ResolvedVc<Box<dyn Module>>),
     ClientReference(ResolvedVc<EcmascriptClientReferenceModule>),
 }
 
@@ -133,12 +134,9 @@ pub async fn map_next_dynamic(
                 && let Some(boundary) = &*module.boundary_info().await?
                 && boundary.boundary_type == boundary_type_dynamic_entry()
             {
-                let dynamic_entry_module =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
-                        .expect("dynamic-entry boundary must be NextDynamicEntryModule");
                 return Ok(Some((
                     module,
-                    DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
+                    DynamicImportEntriesMapType::DynamicEntry(module),
                 )));
             }
             // TODO add this check once these modules have the correct layer

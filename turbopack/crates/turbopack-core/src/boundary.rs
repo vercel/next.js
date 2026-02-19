@@ -1,5 +1,8 @@
 use turbo_rcstr::RcStr;
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
+
+use crate::module::Module;
 
 /// Metadata describing a module boundary (e.g., server component, server utility, dynamic entry).
 ///
@@ -12,6 +15,8 @@ pub struct BoundaryInfo {
     pub boundary_type: RcStr,
     /// Optional original source path before transformations (e.g., page.mdx before page.mdx.tsx).
     pub source_path: Option<FileSystemPath>,
+    /// The inner module wrapped by this boundary (e.g., the original module before wrapping).
+    pub inner_module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl BoundaryInfo {
@@ -19,6 +24,7 @@ impl BoundaryInfo {
         BoundaryInfo {
             boundary_type,
             source_path: None,
+            inner_module: None,
         }
     }
 
@@ -26,7 +32,13 @@ impl BoundaryInfo {
         BoundaryInfo {
             boundary_type,
             source_path: Some(source_path),
+            inner_module: None,
         }
+    }
+
+    pub fn with_inner_module(mut self, inner_module: ResolvedVc<Box<dyn Module>>) -> Self {
+        self.inner_module = Some(inner_module);
+        self
     }
 }
 

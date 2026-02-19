@@ -21,8 +21,6 @@ use crate::{
         CssClientReferenceModule,
         ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
     },
-    next_server_component::server_component_module::NextServerComponentModule,
-    next_server_utility::server_utility_module::NextServerUtilityModule,
 };
 
 #[derive(
@@ -39,7 +37,7 @@ use crate::{
     Decode,
 )]
 pub struct ClientReference {
-    pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
+    pub server_component: Option<ResolvedVc<Box<dyn Module>>>,
     pub ty: ClientReferenceType,
 }
 
@@ -65,15 +63,15 @@ pub enum ClientReferenceType {
 #[derive(Clone, Debug, Default)]
 pub struct ClientReferenceGraphResult {
     pub client_references: Vec<ClientReference>,
-    pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
-    pub server_utils: Vec<ResolvedVc<NextServerUtilityModule>>,
+    pub server_component_entries: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub server_utils: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ServerEntries {
-    pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
-    pub server_utils: Vec<ResolvedVc<NextServerUtilityModule>>,
+    pub server_component_entries: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub server_utils: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 /// For a given RSC entry, finds all server components (i.e. layout segments) and server utils that
@@ -141,11 +139,8 @@ struct FindServerEntries {
 #[derive(Clone, Eq, PartialEq, Hash, Debug, ValueDebugFormat, TraceRawVcs, NonLocalValue)]
 enum FindServerEntriesNode {
     ClientReference,
-    ServerComponentEntry(
-        ResolvedVc<NextServerComponentModule>,
-        Option<ReadRef<RcStr>>,
-    ),
-    ServerUtilEntry(ResolvedVc<NextServerUtilityModule>, Option<ReadRef<RcStr>>),
+    ServerComponentEntry(ResolvedVc<Box<dyn Module>>, Option<ReadRef<RcStr>>),
+    ServerUtilEntry(ResolvedVc<Box<dyn Module>>, Option<ReadRef<RcStr>>),
     Internal(ResolvedVc<Box<dyn Module>>, Option<ReadRef<RcStr>>),
 }
 
@@ -171,9 +166,9 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
             FindServerEntriesNode::ClientReference => {
                 unreachable!("ClientReference node should not be visited")
             }
-            FindServerEntriesNode::Internal(module, _) => **module,
-            FindServerEntriesNode::ServerUtilEntry(module, _) => Vc::upcast(**module),
-            FindServerEntriesNode::ServerComponentEntry(module, _) => Vc::upcast(**module),
+            FindServerEntriesNode::Internal(module, _)
+            | FindServerEntriesNode::ServerUtilEntry(module, _)
+            | FindServerEntriesNode::ServerComponentEntry(module, _) => **module,
         };
         let emit_spans = self.emit_spans;
         async move {
@@ -205,19 +200,13 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
 
                     if let Some(boundary) = &*module.boundary_info().await? {
                         if boundary.boundary_type == boundary_type_server_component() {
-                            let sc =
-                                ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
-                                    .expect(
-                                        "server-component boundary must be \
-                                         NextServerComponentModule",
-                                    );
                             return Ok((
                                 FindServerEntriesNode::ServerComponentEntry(
-                                    sc,
+                                    *module,
                                     if emit_spans {
                                         // INVALIDATION: we don't need to invalidate when the span
                                         // name changes
-                                        Some(sc.ident_string().untracked().await?)
+                                        Some(module.ident_string().untracked().await?)
                                     } else {
                                         None
                                     },
@@ -226,14 +215,9 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                             ));
                         }
                         if boundary.boundary_type == boundary_type_server_utility() {
-                            let su =
-                                ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
-                                    .expect(
-                                        "server-utility boundary must be NextServerUtilityModule",
-                                    );
                             return Ok((
                                 FindServerEntriesNode::ServerUtilEntry(
-                                    su,
+                                    *module,
                                     if emit_spans {
                                         // INVALIDATION: we don't need to invalidate when the span
                                         // name changes

@@ -9,15 +9,12 @@ use turbopack_core::{
     output::OutputAssetsWithReferenced,
 };
 
-use crate::{
-    next_client_reference::{
-        ClientReferenceType,
-        ecmascript_client_reference::ecmascript_client_reference_module::{
-            ecmascript_client_reference_merge_tag, ecmascript_client_reference_merge_tag_ssr,
-        },
-        visit_client_reference::ClientReferenceGraphResult,
+use crate::next_client_reference::{
+    ClientReferenceType,
+    ecmascript_client_reference::ecmascript_client_reference_module::{
+        ecmascript_client_reference_merge_tag, ecmascript_client_reference_merge_tag_ssr,
     },
-    next_server_component::server_component_module::NextServerComponentModule,
+    visit_client_reference::ClientReferenceGraphResult,
 };
 
 #[turbo_tasks::value]
@@ -30,7 +27,7 @@ pub struct ClientReferencesChunks {
         FxIndexMap<ClientReferenceType, ResolvedVc<OutputAssetsWithReferenced>>,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub layout_segment_client_chunks:
-        FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssetsWithReferenced>>,
+        FxIndexMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<OutputAssetsWithReferenced>>,
 }
 
 /// Computes all client references chunks.
@@ -177,15 +174,20 @@ pub async fn get_app_client_references_chunks(
             for (server_component, client_reference_types) in
                 client_references_by_server_component.into_iter()
             {
+                let boundary = server_component
+                    .boundary_info()
+                    .await?
+                    .as_ref()
+                    .expect("server component must have boundary info")
+                    .inner_module
+                    .expect("server component must have inner module");
                 let parent_chunk_group = *chunk_group_info
-                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(
-                        server_component.await?.module,
-                    )))
+                    .get_index_of(ChunkGroup::Shared(boundary))
                     .await?;
 
                 let base_ident = server_component.ident();
 
-                let server_path = server_component.server_path().owned().await?;
+                let server_path = server_component.ident().path().owned().await?;
                 let is_layout = server_path.file_stem() == Some("layout");
                 let server_component_path = server_path.value_to_string().await?;
 

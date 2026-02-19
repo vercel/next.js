@@ -93,10 +93,13 @@ impl Module for NextServerComponentModule {
 
     #[turbo_tasks::function]
     fn boundary_info(&self) -> Vc<OptionBoundaryInfo> {
-        Vc::cell(Some(BoundaryInfo::with_source_path(
-            boundary_type_server_component(),
-            self.source_path.clone(),
-        )))
+        Vc::cell(Some(
+            BoundaryInfo::with_source_path(
+                boundary_type_server_component(),
+                self.source_path.clone(),
+            )
+            .with_inner_module(ResolvedVc::upcast(self.module)),
+        ))
     }
 }
 
