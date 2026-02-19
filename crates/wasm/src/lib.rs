@@ -208,7 +208,7 @@ pub fn expand_next_js_template(
     injections: JsValue,
     imports: JsValue,
 ) -> Result<String, JsError> {
-    next_taskless::expand_next_js_template(
+    let (code, _injection_offsets) = next_taskless::expand_next_js_template(
         str::from_utf8(&content).map_err(convert_err)?,
         template_path,
         next_package_dir_path,
@@ -222,5 +222,6 @@ pub fn expand_next_js_template(
             .iter()
             .map(|(k, v)| (&**k, v.as_deref())),
     )
-    .map_err(convert_err)
+    .map_err(convert_err)?;
+    Ok(code)
 }

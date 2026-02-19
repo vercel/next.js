@@ -88,7 +88,7 @@ pub async fn get_middleware_module(
     // (might be a special module type that doesn't support export checking)
 
     // Load the file from the next.js codebase.
-    let source = load_next_js_template(
+    let (source, _injection_offsets) = load_next_js_template(
         "middleware.js",
         project_root,
         [("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],

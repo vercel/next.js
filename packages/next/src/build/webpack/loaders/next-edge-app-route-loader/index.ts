@@ -62,14 +62,14 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       stringifiedPagePath.length - 1
     )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}`
 
-    return await loadEntrypoint(
+    return (await loadEntrypoint(
       'edge-app-route',
       {
         VAR_USERLAND: modulePath,
         VAR_PAGE: page,
       },
       {}
-    )
+    )).code
   }
 
 export default EdgeAppRouteLoader

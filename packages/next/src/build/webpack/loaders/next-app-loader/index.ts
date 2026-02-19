@@ -26,7 +26,7 @@ import type { NextConfig } from '../../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/app-pathname-normalizer'
 import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 import { isAppBuiltinPage } from '../../../utils'
-import { loadEntrypoint } from '../../../load-entrypoint'
+import { loadEntrypoint, type RawSourceMap } from '../../../load-entrypoint'
 import {
   isGroupSegment,
   DEFAULT_SEGMENT_KEY,
@@ -1094,7 +1094,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
-  const code = await loadEntrypoint(
+  const { code, map } = await loadEntrypoint(
     'app-page',
     {
       VAR_DEFINITION_PAGE: page,
@@ -1117,7 +1117,20 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     })
     .join('')
 
-  return header + code
+  const finalCode = header + code
+
+  // Adjust the source map to account for the prepended header lines.
+  if (map) {
+    const headerLineCount = header.split('\n').length - 1
+    if (headerLineCount > 0) {
+      const prependGroups = new Array(headerLineCount).fill('')
+      map.mappings = prependGroups.join(';') + ';' + map.mappings
+    }
+    this.callback(null, finalCode, map as any)
+    return
+  }
+
+  return finalCode
 }
 
 export default nextAppLoader

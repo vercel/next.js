@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { connection } from 'next/server'
 import { ReactNode, Suspense } from 'react'
 
@@ -6,6 +7,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html>
       <body style={{ fontFamily: 'monospace' }}>
         <Header />
+        <hr />
+        <nav>
+          <Link href="/default/static/valid-blocked-children">
+            Valid blocked children
+          </Link>
+          <br />
+          <Link href="/default/static/valid-blocked-children/child">
+            Valid blocked children child
+          </Link>
+          <br />
+          <Link href="/default/static/valid-blocking-inside-static">
+            Valid blocking inside static
+          </Link>
+        </nav>
         <hr />
         {children}
       </body>

@@ -121,6 +121,7 @@ export function filterStackFrameDEV(
   if (sourceURL.startsWith('node:') || sourceURL.includes('node_modules')) {
     return false
   }
+  // return true
   try {
     // Node.js loads source maps eagerly so this call is cheap.
     // TODO: ESM sourcemaps are O(1) but CommonJS sourcemaps are O(Number of CJS modules).

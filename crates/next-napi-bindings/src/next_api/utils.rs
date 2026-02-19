@@ -393,12 +393,13 @@ pub fn expand_next_js_template(
         Option<String>,
     >,
 ) -> napi::Result<String> {
-    Ok(next_taskless::expand_next_js_template(
+    let (code, _injection_offsets) = next_taskless::expand_next_js_template(
         str::from_utf8(&content).context("template content must be valid utf-8")?,
         &template_path,
         &next_package_dir_path,
         replacements.iter().map(|(k, v)| (&**k, &**v)),
         injections.iter().map(|(k, v)| (&**k, &**v)),
         imports.iter().map(|(k, v)| (&**k, v.as_deref())),
-    )?)
+    )?;
+    Ok(code)
 }

@@ -67,8 +67,8 @@ export default async function middlewareLoader(this: any) {
     middlewareConfig,
   }
 
-  return await loadEntrypoint('middleware', {
+  return (await loadEntrypoint('middleware', {
     VAR_USERLAND: pagePath,
     VAR_DEFINITION_PAGE: page,
-  })
+  })).code
 }

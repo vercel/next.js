@@ -11,6 +11,16 @@ pub use patterns::*;
 use regex::Regex;
 use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normalize_path};
 
+/// An injection offset describing how a `// INJECT:` replacement changed line counts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InjectionOffset {
+    /// 0-indexed line number in the pre-expansion content where `// INJECT:` was.
+    pub original_line: usize,
+    /// Number of extra lines added by the replacement (replacement_lines - 1).
+    /// A single-line replacement has delta = 0.
+    pub delta: usize,
+}
+
 /// Given a next.js template file's contents, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
 ///
@@ -18,6 +28,9 @@ use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normaliz
 ///
 /// Paths should be unix or node.js-style paths where `/` is used as the path separator. They should
 /// not be windows-style paths.
+///
+/// Returns the expanded code and a list of injection offsets describing how `// INJECT:`
+/// replacements changed line counts (useful for source map adjustment).
 pub fn expand_next_js_template<'a>(
     content: &str,
     template_path: &str,
@@ -25,7 +38,7 @@ pub fn expand_next_js_template<'a>(
     replacements: impl IntoIterator<Item = (&'a str, &'a str)>,
     injections: impl IntoIterator<Item = (&'a str, &'a str)>,
     imports: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
-) -> Result<String> {
+) -> Result<(String, Vec<InjectionOffset>)> {
     expand_next_js_template_inner(
         content,
         template_path,
@@ -47,7 +60,7 @@ pub fn expand_next_js_template_no_imports<'a>(
     replacements: impl IntoIterator<Item = (&'a str, &'a str)>,
     injections: impl IntoIterator<Item = (&'a str, &'a str)>,
     imports: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
-) -> Result<String> {
+) -> Result<(String, Vec<InjectionOffset>)> {
     expand_next_js_template_inner(
         content,
         template_path,
@@ -67,7 +80,7 @@ fn expand_next_js_template_inner<'a>(
     injections: impl IntoIterator<Item = (&'a str, &'a str)>,
     imports: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
     require_import_replacement: bool,
-) -> Result<String> {
+) -> Result<(String, Vec<InjectionOffset>)> {
     let template_parent_path = normalize_path(get_parent_path(template_path))
         .context("failed to normalize template path")?;
     let next_package_dir_parent_path = normalize_path(get_parent_path(next_package_dir_path))
@@ -174,13 +187,26 @@ fn expand_next_js_template_inner<'a>(
         )
     }
 
-    // Replace the injections.
+    // Replace the injections and track line offsets for source map adjustment.
+    // We find all INJECT: line positions before any replacements since import rewrites
+    // and VAR_ replacements don't change line counts.
+    let mut injection_offsets = Vec::new();
     let mut missing_injections = Vec::new();
     for (key, injection) in injections {
         let full = format!("// INJECT:{key}");
 
-        if content.contains(&full) {
-            content = content.replace(&full, &format!("const {key} = {injection}"));
+        if let Some(byte_offset) = content.find(&full) {
+            // Count the 0-indexed line number of this INJECT: comment in the
+            // pre-expansion content (accounting for prior injection deltas).
+            let original_line = content[..byte_offset].matches('\n').count();
+            let replacement = format!("const {key} = {injection}");
+            let replacement_lines = replacement.matches('\n').count() + 1;
+            let delta = replacement_lines - 1; // original comment was 1 line
+            injection_offsets.push(InjectionOffset {
+                original_line,
+                delta,
+            });
+            content = content.replace(&full, &replacement);
         } else {
             missing_injections.push(key);
         }
@@ -262,7 +288,17 @@ fn expand_next_js_template_inner<'a>(
         content.push('\n');
     }
 
-    Ok(content)
+    // Convert injection_offsets to use original (pre-expansion) line numbers.
+    // Because injections are processed sequentially, each injection after the first
+    // sees content with prior injections already expanded. We need to subtract the
+    // cumulative delta from prior injections to get the original line number.
+    let mut cumulative_delta = 0usize;
+    for offset in &mut injection_offsets {
+        offset.original_line -= cumulative_delta;
+        cumulative_delta += offset.delta;
+    }
+
+    Ok((content, injection_offsets))
 }
 
 #[cfg(test)]
@@ -291,7 +327,7 @@ mod tests {
             const srcPage = "./some/path.js"
         "#;
 
-        let output = expand_next_js_template(
+        let (output, offsets) = expand_next_js_template(
             input,
             "project/node_modules/next/src/build/templates/test-case.js",
             "project/node_modules/next",
@@ -307,7 +343,11 @@ mod tests {
         )
         .unwrap();
         println!("{output}");
+        println!("offsets: {offsets:?}");
 
         assert_eq!(output.trim_end(), expected.trim_end());
+        // nextConfig injection: single-line replacement, delta = 0
+        assert_eq!(offsets.len(), 1);
+        assert_eq!(offsets[0].delta, 0);
     }
 }

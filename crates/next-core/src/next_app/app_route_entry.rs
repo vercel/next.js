@@ -70,7 +70,7 @@ pub async fn get_app_route_entry(
         .unwrap_or("\"\"");
 
     // Load the file from the next.js codebase.
-    let virtual_source = load_next_js_template(
+    let (virtual_source, _injection_offsets) = load_next_js_template(
         "app-route.js",
         project_root.clone(),
         [
@@ -134,7 +134,7 @@ async fn wrap_edge_route(
 ) -> Result<Vc<Box<dyn Module>>> {
     let inner = rcstr!("INNER_ROUTE_ENTRY");
 
-    let source = load_next_js_template(
+    let (source, _injection_offsets) = load_next_js_template(
         "edge-app-route.js",
         project_root.clone(),
         [("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],

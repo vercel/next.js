@@ -158,7 +158,7 @@ const loadPages = async (
     middlewareConfig,
   }
 
-  let file = await loadEntrypoint('pages', {
+  let { code: file } = await loadEntrypoint('pages', {
     VAR_USERLAND: absolutePagePath,
     VAR_MODULE_DOCUMENT: absoluteDocumentPath,
     VAR_MODULE_APP: absoluteAppPath,
@@ -195,11 +195,11 @@ const loadPagesAPI = async (
     middlewareConfig,
   }
 
-  return await loadEntrypoint('pages-api', {
+  return (await loadEntrypoint('pages-api', {
     VAR_USERLAND: absolutePagePath,
     VAR_DEFINITION_PAGE: normalizePagePath(page),
     VAR_DEFINITION_PATHNAME: page,
-  })
+  })).code
 }
 
 /**

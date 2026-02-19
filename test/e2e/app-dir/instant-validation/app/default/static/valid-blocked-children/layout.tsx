@@ -8,14 +8,14 @@ export default function Layout({ children }) {
         The layout blocks children on dynamic content, but shows a fallback, so
         it's still instant when navigating from the root
       </p>
-      <Dynamic />
+      <DynamicInLayout />
       <hr />
       {children}
     </Suspense>
   )
 }
 
-async function Dynamic() {
+async function DynamicInLayout() {
   await connection()
   return 'Dynamic content from layout'
 }

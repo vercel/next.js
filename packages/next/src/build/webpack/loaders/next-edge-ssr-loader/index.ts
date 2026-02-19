@@ -148,7 +148,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}` : ''}`
 
     if (isAppDir) {
-      return await loadEntrypoint(
+      return (await loadEntrypoint(
         'edge-ssr-app',
         {
           VAR_USERLAND: pageModPath,
@@ -158,9 +158,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           incrementalCacheHandler: cacheHandler ?? null,
         }
-      )
+      )).code
     } else {
-      return await loadEntrypoint(
+      return (await loadEntrypoint(
         'edge-ssr',
         {
           VAR_USERLAND: pageModPath,
@@ -182,7 +182,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           userland500Page: userland500Path,
           incrementalCacheHandler: cacheHandler ?? null,
         }
-      )
+      )).code
     }
   }
 export default edgeSSRLoader

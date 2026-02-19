@@ -131,7 +131,7 @@ pub async fn create_page_ssr_entry_module(
     };
 
     // Load the file from the next.js codebase.
-    let mut source = load_next_js_template(
+    let (mut source, _injection_offsets) = load_next_js_template(
         template_file,
         project_root.clone(),
         replacements,

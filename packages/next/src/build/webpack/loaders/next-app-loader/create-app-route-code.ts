@@ -66,7 +66,7 @@ export async function createAppRouteCode({
   const pathname = new AppPathnameNormalizer().normalize(page)
   const bundlePath = new AppBundlePathNormalizer().normalize(page)
 
-  return await loadEntrypoint(
+  return (await loadEntrypoint(
     'app-route',
     {
       VAR_USERLAND: resolvedPagePath,
@@ -79,5 +79,5 @@ export async function createAppRouteCode({
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
     }
-  )
+  )).code
 }

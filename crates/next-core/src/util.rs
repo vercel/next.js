@@ -2,7 +2,9 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Result, anyhow, bail};
 use bincode::{Decode, Encode};
-use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
+use next_taskless::{
+    InjectionOffset, expand_next_js_template, expand_next_js_template_no_imports,
+};
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs};
@@ -383,13 +385,15 @@ pub enum MiddlewareMatcherKind {
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
+///
+/// Returns the virtual source and injection offsets (for source map adjustment).
 pub async fn load_next_js_template<'b>(
     template_path: &'b str,
     project_path: FileSystemPath,
     replacements: impl IntoIterator<Item = (&'b str, &'b str)>,
     injections: impl IntoIterator<Item = (&'b str, &'b str)>,
     imports: impl IntoIterator<Item = (&'b str, Option<&'b str>)>,
-) -> Result<Vc<Box<dyn Source>>> {
+) -> Result<(Vc<Box<dyn Source>>, Vec<InjectionOffset>)> {
     let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
 
     let content = file_content_rope(template_path.read()).await?;
@@ -397,7 +401,7 @@ pub async fn load_next_js_template<'b>(
 
     let package_root = get_next_package(project_path).await?;
 
-    let content = expand_next_js_template(
+    let (content, injection_offsets) = expand_next_js_template(
         &content,
         &template_path.path,
         &package_root.path,
@@ -412,7 +416,7 @@ pub async fn load_next_js_template<'b>(
         AssetContent::file(FileContent::Content(file).cell()),
     );
 
-    Ok(Vc::upcast(source))
+    Ok((Vc::upcast(source), injection_offsets))
 }
 
 /// Loads a next.js template but does **not** require that any relative imports are present
@@ -432,7 +436,7 @@ pub async fn load_next_js_template_no_imports(
 
     let package_root = get_next_package(project_path).await?;
 
-    let content = expand_next_js_template_no_imports(
+    let (content, _injection_offsets) = expand_next_js_template_no_imports(
         &content,
         &template_path.path,
         &package_root.path,
