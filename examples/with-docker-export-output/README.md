@@ -33,7 +33,7 @@ A production-ready example demonstrating how to Dockerize Next.js applications u
 #### Using Docker Compose
 
 ```bash
-docker compose up --build
+docker compose up nextjs-static-export --build
 ```
 
 **Access:** [http://localhost:8080](http://localhost:8080)
@@ -59,7 +59,8 @@ docker run -p 8080:8080 nextjs-static-export
 #### Using Docker Compose
 
 ```bash
-docker compose --profile serve up --build
+# OR run with serve npm package
+docker compose up nextjs-static-export-with-serve --build
 ```
 
 **Access:** [http://localhost:3000](http://localhost:3000)

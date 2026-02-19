@@ -20,26 +20,20 @@ A production-ready example demonstrating how to Dockerize Next.js applications u
 
 ### Using Docker Compose
 
-The `compose.yml` includes both Node.js (default) and Bun configurations.
+The `compose.yml` includes both Node.js and Bun configurations. Run one service at a time to avoid port conflicts.
 
-**Node.js (default):**
+**Node.js:**
 
 ```bash
-# Start with Node.js (runs by default)
-docker compose up
-
-# Rebuild and start
-docker compose up -d --build
+# Run with Node.js
+docker compose up nextjs-standalone --build
 ```
 
 **Bun:**
 
 ```bash
-# Start with Bun (uses profile)
-docker compose --profile bun up
-
-# Rebuild and start
-docker compose --profile bun up -d --build
+# OR run with Bun
+docker compose up nextjs-standalone-with-bun --build
 ```
 
 **Stop the application:**
@@ -101,7 +95,7 @@ nextjs-docker/
 │   └── next.svg            # Next.js logo
 ├── Dockerfile              # Multi-stage Docker configuration (Node.js)
 ├── Dockerfile.bun          # Multi-stage Docker configuration (Bun)
-├── compose.yml             # Docker Compose configuration (Node.js & Bun profiles)
+├── compose.yml             # Docker Compose configuration (Node.js & Bun services)
 ├── next.config.ts          # Next.js configuration (standalone mode)
 ├── postcss.config.js       # PostCSS configuration for Tailwind CSS
 ├── tsconfig.json           # TypeScript configuration
