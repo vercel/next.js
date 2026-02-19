@@ -189,6 +189,12 @@ import {
 } from './vary-params'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  StaleTimeIterable,
+  createSelectStaleTime,
+  trackStaleTime,
+  finishStaleTimeTracking,
+} from './stale-time'
 
 import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
@@ -217,7 +223,6 @@ import {
   getDynamicParam,
   interpolateParallelRouteParams,
 } from '../../shared/lib/router/utils/get-dynamic-param'
-import type { ExperimentalConfig } from '../config-shared'
 import type { Params } from '../request/params'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { imageConfigDefault } from '../../shared/lib/image-config'
@@ -497,7 +502,7 @@ async function generateDynamicRSCPayload(
   options?: {
     actionResult?: ActionResult
     skipPageRendering?: boolean
-    runtimePrefetchSentinel?: number
+    staleTimeIterable?: AsyncIterable<number>
   }
 ): Promise<RSCPayload> {
   // Flight data that is going to be passed to the browser.
@@ -621,13 +626,10 @@ async function generateDynamicRSCPayload(
     h: getMetadataVaryParamsThenable(),
   })
 
-  // For runtime prefetches, we encode the stale time and isPartial flag in the response body
-  // rather than relying on response headers. Both of these values will be transformed
-  // by a transform stream before being sent to the client.
-  if (options?.runtimePrefetchSentinel !== undefined) {
+  if (options?.staleTimeIterable !== undefined) {
     return {
       ...baseResponse,
-      rp: [options.runtimePrefetchSentinel] as any,
+      s: options.staleTimeIterable,
     }
   }
 
@@ -1005,15 +1007,7 @@ async function generateRuntimePrefetchResult(
   )
 
   const metadata: AppPageRenderResultMetadata = {}
-
-  // Generate a random sentinel that will be used as a placeholder in the payload
-  // and later replaced by the transform stream
-  const runtimePrefetchSentinel = Math.floor(
-    Math.random() * Number.MAX_SAFE_INTEGER
-  )
-
-  const generatePayload = () =>
-    generateDynamicRSCPayload(ctx, { runtimePrefetchSentinel })
+  const staleTimeIterable = new StaleTimeIterable()
 
   const {
     componentMod: {
@@ -1033,7 +1027,7 @@ async function generateRuntimePrefetchResult(
 
   await prospectiveRuntimeServerPrerender(
     ctx,
-    generatePayload,
+    generateDynamicRSCPayload.bind(null, ctx),
     prerenderResumeDataCache,
     renderResumeDataCache,
     rootParams,
@@ -1044,7 +1038,7 @@ async function generateRuntimePrefetchResult(
 
   const response = await finalRuntimeServerPrerender(
     ctx,
-    generatePayload,
+    generateDynamicRSCPayload.bind(null, ctx, { staleTimeIterable }),
     prerenderResumeDataCache,
     renderResumeDataCache,
     rootParams,
@@ -1052,7 +1046,7 @@ async function generateRuntimePrefetchResult(
     requestStore.cookies,
     requestStore.draftMode,
     onError,
-    runtimePrefetchSentinel
+    staleTimeIterable
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -1202,116 +1196,24 @@ async function prospectiveRuntimeServerPrerender(
     return null
   }
 }
+
 /**
- * Updates the runtime prefetch metadata in the RSC payload as it streams:
- *   "rp":[<sentinel>] -> "rp":[<isPartial>,<staleTime>]
- *
- * We use a transform stream to do this to avoid needing to trigger an additional render.
- * A random sentinel number guarantees no collision with user data.
+ * Prepends a single ASCII byte to the stream indicating whether the response
+ * is partial (contains dynamic holes): '~' (0x7e) for partial, '#' (0x23)
+ * for complete.
  */
-function createRuntimePrefetchTransformStream(
-  sentinel: number,
-  isPartial: boolean,
-  staleTime: number
-): TransformStream<Uint8Array, Uint8Array> {
-  const encoder = new TextEncoder()
-
-  // Search for: [<sentinel>]
-  // Replace with: [<isPartial>,<staleTime>]
-  const search = encoder.encode(`[${sentinel}]`)
-  const first = search[0]
-  const replace = encoder.encode(`[${isPartial},${staleTime}]`)
-  const searchLen = search.length
-
-  let currentChunk: Uint8Array | null = null
-  let found = false
-
-  function processChunk(
-    controller: TransformStreamDefaultController<Uint8Array>,
-    nextChunk: null | Uint8Array
-  ) {
-    if (found) {
-      if (nextChunk) {
-        controller.enqueue(nextChunk)
-      }
-      return
-    }
-
-    if (currentChunk) {
-      // We can't search past the index that can contain a full match
-      let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
-      if (nextChunk) {
-        // If we have any overflow bytes we can search up to the chunk's final byte
-        exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
-      }
-      if (exclusiveUpperBound < 1) {
-        // we can't match the current chunk.
-        controller.enqueue(currentChunk)
-        currentChunk = nextChunk // advance so we don't process this chunk again
-        return
-      }
-
-      let currentIndex = currentChunk.indexOf(first)
-
-      // check the current candidate match if it is within the bounds of our search space for the currentChunk
-      candidateLoop: while (
-        -1 < currentIndex &&
-        currentIndex < exclusiveUpperBound
-      ) {
-        // We already know index 0 matches because we used indexOf to find the candidateIndex so we start at index 1
-        let matchIndex = 1
-        while (matchIndex < searchLen) {
-          const candidateIndex = currentIndex + matchIndex
-          const candidateValue =
-            candidateIndex < currentChunk.length
-              ? currentChunk[candidateIndex]
-              : // if we ever hit this condition it is because there is a nextChunk we can read from
-                nextChunk![candidateIndex - currentChunk.length]
-          if (candidateValue !== search[matchIndex]) {
-            // No match, reset and continue the search from the next position
-            currentIndex = currentChunk.indexOf(first, currentIndex + 1)
-            continue candidateLoop
-          }
-          matchIndex++
-        }
-        // We found a complete match. currentIndex is our starting point to replace the value.
-        found = true
-        // enqueue everything up to the match
-        controller.enqueue(currentChunk.subarray(0, currentIndex))
-        // enqueue the replacement value
-        controller.enqueue(replace)
-        // If there are bytes in the currentChunk after the match enqueue them
-        if (currentIndex + searchLen < currentChunk.length) {
-          controller.enqueue(currentChunk.slice(currentIndex + searchLen))
-        }
-        // If we have a next chunk we enqueue it now
-        if (nextChunk) {
-          // if replacement spills over to the next chunk we first exclude the replaced bytes
-          const overflowBytes = currentIndex + searchLen - currentChunk.length
-          const truncatedChunk =
-            overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
-          controller.enqueue(truncatedChunk)
-        }
-        // We are now in found mode and don't need to track currentChunk anymore
-        currentChunk = null
-        return
-      }
-      // No match found in this chunk, emit it and wait for the next one
-      controller.enqueue(currentChunk)
-    }
-
-    // Advance to the next chunk
-    currentChunk = nextChunk
-  }
-
-  return new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      processChunk(controller, chunk)
-    },
-    flush(controller) {
-      processChunk(controller, null)
-    },
-  })
+function prependIsPartialByte(
+  stream: ReadableStream<Uint8Array>,
+  isPartial: boolean
+): ReadableStream<Uint8Array> {
+  const byte = new Uint8Array([isPartial ? 0x7e : 0x23])
+  return stream.pipeThrough(
+    new TransformStream({
+      start(controller) {
+        controller.enqueue(byte)
+      },
+    })
+  )
 }
 
 async function finalRuntimeServerPrerender(
@@ -1324,7 +1226,7 @@ async function finalRuntimeServerPrerender(
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined,
-  runtimePrefetchSentinel: number
+  staleTimeIterable: StaleTimeIterable
 ) {
   const { implicitTags, renderOpts } = ctx
   const { ComponentMod, experimental, isDebugDynamicAccesses } = renderOpts
@@ -1370,6 +1272,8 @@ async function finalRuntimeServerPrerender(
     draftMode,
   }
 
+  trackStaleTime(finalServerPrerenderStore, staleTimeIterable, selectStaleTime)
+
   const { clientModules } = getClientReferenceManifest()
 
   const finalRSCPayload = await workUnitAsyncStorage.run(
@@ -1414,33 +1318,30 @@ async function finalRuntimeServerPrerender(
       finalStageController.advanceStage(RenderStage.Runtime)
     },
     () => {
-      // Abort.
-      if (finalServerController.signal.aborted) {
-        // If the server controller is already aborted we must have called something
-        // that required aborting the prerender synchronously such as with new Date()
-        serverIsDynamic = true
-        return
-      }
+      finishStaleTimeTracking(staleTimeIterable).then(() => {
+        // Abort. This runs as a microtask after Flight has flushed the
+        // staleTime closing chunk, but before the next macrotask resolves the
+        // overall result.
+        if (finalServerController.signal.aborted) {
+          // If the server controller is already aborted we must have called
+          // something that required aborting the prerender synchronously such
+          // as with new Date()
+          serverIsDynamic = true
+          return
+        }
 
-      if (prerenderIsPending) {
-        // If prerenderIsPending then we have blocked for longer than a Task and we assume
-        // there is something unfinished.
-        serverIsDynamic = true
-      }
-      finalServerController.abort()
+        if (prerenderIsPending) {
+          // If prerenderIsPending then we have blocked for longer than a Task
+          // and we assume there is something unfinished.
+          serverIsDynamic = true
+        }
+        finalServerController.abort()
+      })
     }
   )
 
-  // Update the RSC payload stream to replace the sentinel with actual values.
-  // React has already serialized the payload with the sentinel, so we need to transform the stream.
-  const collectedStale = selectStaleTime(finalServerPrerenderStore.stale)
-  result.prelude = result.prelude.pipeThrough(
-    createRuntimePrefetchTransformStream(
-      runtimePrefetchSentinel,
-      serverIsDynamic,
-      collectedStale
-    )
-  )
+  // Prepend a byte indicating whether the response contains dynamic holes.
+  result.prelude = prependIsPartialByte(result.prelude, serverIsDynamic)
 
   return {
     result,
@@ -1450,7 +1351,7 @@ async function finalRuntimeServerPrerender(
     isPartial: serverIsDynamic,
     collectedRevalidate: finalServerPrerenderStore.revalidate,
     collectedExpire: finalServerPrerenderStore.expire,
-    collectedStale,
+    collectedStale: staleTimeIterable.currentValue,
     collectedTags: finalServerPrerenderStore.tags,
   }
 }
@@ -6046,14 +5947,6 @@ const getGlobalErrorStyles = async (
     GlobalError: GlobalErrorComponent,
     styles: globalErrorStyles,
   }
-}
-
-function createSelectStaleTime(experimental: ExperimentalConfig) {
-  return (stale: number) =>
-    stale === INFINITE_CACHE &&
-    typeof experimental.staleTimes?.static === 'number'
-      ? experimental.staleTimes.static
-      : stale
 }
 
 async function collectSegmentData(
