@@ -3,8 +3,6 @@ use bincode::{Decode, Encode};
 use next_core::{
     boundary_types::{boundary_type_server_component, boundary_type_server_utility},
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
-    next_server_component::server_component_module::NextServerComponentModule,
-    next_server_utility::server_utility_module::NextServerUtilityModule,
 };
 use rustc_hash::FxHashMap;
 use turbo_tasks::{
@@ -22,8 +20,8 @@ pub enum ClientManifestEntryType {
         ssr_module: ResolvedVc<Box<dyn Module>>,
     },
     CssClientReference(ResolvedVc<Box<dyn CssChunkPlaceable>>),
-    ServerComponent(ResolvedVc<NextServerComponentModule>),
-    ServerUtility(ResolvedVc<NextServerUtilityModule>),
+    ServerComponent(ResolvedVc<Box<dyn Module>>),
+    ServerUtility(ResolvedVc<Box<dyn Module>>),
 }
 
 /// Tracks information about all the css and js client references in the graph.
@@ -59,13 +57,15 @@ pub async fn map_client_references(
                 )))
             } else if let Some(boundary) = &*module.boundary_info().await? {
                 if boundary.boundary_type == boundary_type_server_component() {
-                    let sc = ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
-                        .expect("server-component boundary must be NextServerComponentModule");
-                    Ok(Some((module, ClientManifestEntryType::ServerComponent(sc))))
+                    Ok(Some((
+                        module,
+                        ClientManifestEntryType::ServerComponent(module),
+                    )))
                 } else if boundary.boundary_type == boundary_type_server_utility() {
-                    let su = ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
-                        .expect("server-utility boundary must be NextServerUtilityModule");
-                    Ok(Some((module, ClientManifestEntryType::ServerUtility(su))))
+                    Ok(Some((
+                        module,
+                        ClientManifestEntryType::ServerUtility(module),
+                    )))
                 } else {
                     Ok(None)
                 }

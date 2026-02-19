@@ -8,7 +8,6 @@ use next_core::{
         ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
         find_server_entries,
     },
-    next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
 };
 use rustc_hash::FxHashMap;
@@ -39,7 +38,7 @@ pub struct NextDynamicGraph {
     graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
 
-    /// list of NextDynamicEntryModules
+    /// list of next/dynamic entry modules
     data: ResolvedVc<DynamicImportEntries>,
 }
 
@@ -122,10 +121,7 @@ impl NextDynamicGraphs {
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportEntriesWithImporter(
-    pub  Vec<(
-        ResolvedVc<NextDynamicEntryModule>,
-        Option<ClientReferenceType>,
-    )>,
+    pub Vec<(ResolvedVc<Box<dyn Module>>, Option<ClientReferenceType>)>,
 );
 
 #[turbo_tasks::value_impl]
@@ -622,7 +618,7 @@ impl ClientReferencesGraph {
             // determine the order of client references individually for each server component.
             for sc in server_components.iter().copied() {
                 graph.traverse_nodes_dfs(
-                    std::iter::once(ResolvedVc::upcast(sc)),
+                    std::iter::once(sc),
                     &mut (),
                     |node, _| {
                         let module = node;

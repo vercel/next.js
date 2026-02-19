@@ -76,8 +76,11 @@ impl Module for NextDynamicEntryModule {
     }
 
     #[turbo_tasks::function]
-    fn boundary_info(self: Vc<Self>) -> Vc<OptionBoundaryInfo> {
-        Vc::cell(Some(BoundaryInfo::new(boundary_type_dynamic_entry())))
+    fn boundary_info(&self) -> Vc<OptionBoundaryInfo> {
+        Vc::cell(Some(
+            BoundaryInfo::new(boundary_type_dynamic_entry())
+                .with_inner_module(ResolvedVc::upcast(self.module)),
+        ))
     }
 }
 

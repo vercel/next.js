@@ -918,7 +918,16 @@ impl AppProject {
                                 merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                 entries: server_utils
                                     .iter()
-                                    .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                                    .map(async |m| {
+                                        let boundary = m
+                                            .boundary_info()
+                                            .await?
+                                            .as_ref()
+                                            .expect("server utility must have boundary info")
+                                            .inner_module
+                                            .expect("server utility must have inner module");
+                                        Ok(boundary)
+                                    })
                                     .try_join()
                                     .await?,
                             },
@@ -941,13 +950,13 @@ impl AppProject {
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
                             // This should really be ChunkGroupEntry::Shared(module.await?.module),
                             // but that breaks everything for some reason.
-                            vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
+                            vec![ChunkGroupEntry::Entry(vec![*module])],
                             visited_modules,
                             should_trace,
                             should_read_binding_usage,
                         );
                         graphs.push(graph);
-                        let is_layout = module.server_path().await?.file_stem() == Some("layout");
+                        let is_layout = module.ident().path().await?.file_stem() == Some("layout");
                         visited_modules = if is_layout {
                             // Only propagate the visited_modules of the parent layout(s), not
                             // across siblings such as loading.js and
@@ -1847,7 +1856,16 @@ impl AppEndpoint {
                         let server_utils = client_references
                             .server_utils
                             .iter()
-                            .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                            .map(async |m| {
+                                let boundary = m
+                                    .boundary_info()
+                                    .await?
+                                    .as_ref()
+                                    .expect("server utility must have boundary info")
+                                    .inner_module
+                                    .expect("server utility must have inner module");
+                                Ok(boundary)
+                            })
                             .try_join()
                             .await?;
                         let chunk_group = chunking_context
@@ -1886,12 +1904,17 @@ impl AppEndpoint {
                             name = display(server_component.ident().to_string().await?)
                         );
                         async {
+                            let inner = server_component
+                                .boundary_info()
+                                .await?
+                                .as_ref()
+                                .expect("server component must have boundary info")
+                                .inner_module
+                                .expect("server component must have inner module");
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
                                 // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(vec![ResolvedVc::upcast(
-                                    server_component.await?.module,
-                                )]),
+                                ChunkGroup::Entry(vec![inner]),
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );

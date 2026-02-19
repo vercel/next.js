@@ -13,6 +13,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
+    module::Module,
     module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
@@ -406,13 +407,19 @@ async fn build_manifest(
 
         // per layout segment chunks need to be emitted into the manifest too
         for (server_component, client_assets) in layout_segment_client_chunks.iter() {
-            // Use source_path() to get the original source path (e.g., page.mdx) instead of
-            // server_path() which returns the transformed path (e.g., page.mdx.tsx).
+            // Use the original source path from boundary info (e.g., page.mdx) instead of
+            // ident().path() which returns the transformed path (e.g., page.mdx.tsx).
             // This ensures the manifest key matches what the LoaderTree stores and what
             // the runtime looks up after stripping one extension.
-            let server_component_name = server_component
-                .source_path()
-                .await?
+            let boundary_opt = server_component.boundary_info().await?;
+            let boundary = boundary_opt
+                .as_ref()
+                .expect("server component must have boundary info");
+            let source_path = boundary
+                .source_path
+                .as_ref()
+                .expect("server component must have source path");
+            let server_component_name: RcStr = source_path
                 .with_extension("")
                 .value_to_string()
                 .owned()
