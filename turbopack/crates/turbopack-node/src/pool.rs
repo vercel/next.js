@@ -811,6 +811,61 @@ impl NodeJsPool {
         })
     }
 
+    /// Eagerly spawn a Node.js process so it's ready when the first
+    /// `operation()` is called. The process goes into the idle queue.
+    /// If a node request comes in while this is still initializing, it waits
+    /// on the bootup semaphore and will resume when the process is ready.
+    pub fn pre_warm(&self) {
+        let bootup_semaphore = self.bootup_semaphore.clone();
+        let idle_processes = self.idle_processes.clone();
+        let stats = self.stats.clone();
+        let cwd = self.cwd.clone();
+        let env = self.env.clone();
+        let entrypoint = self.entrypoint.clone();
+        let assets_for_source_mapping = self.assets_for_source_mapping;
+        let assets_root = self.assets_root.clone();
+        let project_dir = self.project_dir.clone();
+        let shared_stdout = self.shared_stdout.clone();
+        let shared_stderr = self.shared_stderr.clone();
+        let debug = self.debug;
+
+        tokio::spawn(async move {
+            let Ok(bootup_permit) = bootup_semaphore.clone().acquire_owned().await else {
+                return;
+            };
+            let start = Instant::now();
+            {
+                stats.lock().add_booting_worker();
+            }
+            match NodeJsPoolProcess::new(
+                &cwd,
+                &env,
+                &entrypoint,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                shared_stdout,
+                shared_stderr,
+                debug,
+            )
+            .await
+            {
+                Ok(process) => {
+                    {
+                        let mut s = stats.lock();
+                        s.add_bootup_time(start.elapsed());
+                        s.finished_booting_worker();
+                    }
+                    drop(bootup_permit);
+                    idle_processes.push(process, &ACTIVE_POOLS);
+                }
+                Err(_e) => {
+                    stats.lock().finished_booting_worker();
+                }
+            }
+        });
+    }
+
     pub fn scale_down() {
         let pools = ACTIVE_POOLS.lock().clone();
         for pool in pools {
