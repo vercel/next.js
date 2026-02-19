@@ -1060,6 +1060,9 @@ export default class NextNodeServer extends BaseServer<
     routerServerGlobal[RouterServerContextSymbol][
       relativeProjectDir
     ].nextConfig = this.nextConfig
+    routerServerGlobal[RouterServerContextSymbol][
+      relativeProjectDir
+    ].isWrappedByNextServer = true
 
     try {
       // next.js core assumes page path without trailing slash

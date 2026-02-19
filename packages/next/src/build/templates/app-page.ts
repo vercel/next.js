@@ -527,6 +527,9 @@ export async function handler(
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
+  const isWrappedByNextServer = Boolean(
+    routerServerContext?.isWrappedByNextServer
+  )
 
   const render404 = async () => {
     // TODO: should route-module itself handle rendering the 404
@@ -1544,22 +1547,26 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
-      return await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      return await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          handleResponse
-        )
+            handleResponse
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {
