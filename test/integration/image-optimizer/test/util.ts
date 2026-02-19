@@ -998,7 +998,7 @@ export function runTests(ctx: RunTestsCtx) {
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
       if (
         ctx.nextConfigExperimental?.isrFlushToDisk === false ||
-        ctx.nextConfigImages.maximumDiskCacheSize === 0
+        ctx.nextConfigImages?.maximumDiskCacheSize === 0
       ) {
         return // this test is not applicable when we don't write the cache
       }
@@ -1223,7 +1223,7 @@ export function runTests(ctx: RunTestsCtx) {
   it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
     if (
       ctx.nextConfigExperimental?.isrFlushToDisk === false ||
-      ctx.nextConfigImages.maximumDiskCacheSize === 0
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
     ) {
       return // this test is not applicable when we don't write the cache
     }
@@ -1373,7 +1373,7 @@ export function runTests(ctx: RunTestsCtx) {
   it('should use cached image file when parameters are the same for animated gif', async () => {
     if (
       ctx.nextConfigExperimental?.isrFlushToDisk === false ||
-      ctx.nextConfigImages.maximumDiskCacheSize === 0
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
     ) {
       return // this test is not applicable when we don't write the cache
     }
@@ -1483,7 +1483,7 @@ export function runTests(ctx: RunTestsCtx) {
 
     if (
       ctx.nextConfigExperimental?.isrFlushToDisk === false ||
-      ctx.nextConfigImages.maximumDiskCacheSize === 0
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
     ) {
       expect(json1).toEqual({})
       expect(await fsToJson(ctx.imagesDir)).toEqual({})
@@ -1610,7 +1610,7 @@ export function runTests(ctx: RunTestsCtx) {
 
       const length =
         ctx.nextConfigExperimental?.isrFlushToDisk === false ||
-        ctx.nextConfigImages.maximumDiskCacheSize === 0
+        ctx.nextConfigImages?.maximumDiskCacheSize === 0
           ? 0
           : 1
 
