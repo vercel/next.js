@@ -2621,6 +2621,13 @@ async function getStaleAt(
     // yields updated staleTime values during the render; the last one is the
     // final staleTime.
     let staleTimeSeconds: number | undefined
+
+    // TODO: Buffer the response and then read the iterable values
+    // synchronously, similar to readVaryParams. This would avoid the need to
+    // make getStaleAt async, and we could also use it in
+    // writeDynamicTreeResponseIntoCache. This will also be needed when React
+    // starts leaving async iterables hanging when the outer RSC stream is
+    // aborted e.g. due to sync I/O (with unstable_allowPartialStream).
     for await (const value of serverData.s) {
       staleTimeSeconds = value
     }
