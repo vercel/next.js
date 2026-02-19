@@ -322,14 +322,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         let target = result_from_original_location.ident().path().owned().await?;
 
-        Ok(ResolveResultOption::some(*ResolveResult::primary(
-            ResolveResultItem::External {
+        Ok(ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::External {
                 name: request_str.into(),
                 ty: external_type,
                 traced: ExternalTraced::Traced,
                 target: Some(target),
-            },
-        )))
+            })
+            .cell(),
+        ))
     }
 }
 

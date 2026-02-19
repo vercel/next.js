@@ -9,17 +9,18 @@ import type { VaryParamsThenable } from '../../../shared/lib/segment-cache/vary-
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
-import {
-  pipelineInSequentialTasks,
-  scheduleInSequentialTasks,
-} from '../app-render-render-utils'
+import { runInSequentialTasks } from '../app-render-render-utils'
 import { workAsyncStorage } from '../work-async-storage.external'
 import {
   Phase,
   printDebugThrownValueForProspectiveRender,
 } from '../prospective-render-utils'
 import { getDigestForWellKnownError } from '../create-error-handler'
-import { InstantValidationBoundary } from './boundary'
+import {
+  // NOTE: we're in the server layer, so this is a client reference
+  InstantValidationBoundary,
+} from './boundary'
+import type { ValidationBoundaryTracking } from './boundary-tracking'
 import {
   getLayoutOrPageModule,
   type LoaderTree,
@@ -441,7 +442,7 @@ export async function collectStagedSegmentData(
     [RenderStage.Runtime]: -1,
   }
 
-  await pipelineInSequentialTasks(
+  await runInSequentialTasks(
     () => {
       for (const [segmentPath, segmentData] of segments) {
         const segmentCacheItem: SegmentCacheItem = {
@@ -680,9 +681,9 @@ export async function createCombinedPayloadStream(
   const debugChunks: Uint8Array[] | null = isDebugChannelEnabled ? [] : null
   const debugChannel = isDebugChannelEnabled ? createDebugChannel() : null
 
-  let streamFinished: Promise<any> = null!
+  let streamFinished: Promise<any>
 
-  await scheduleInSequentialTasks(
+  await runInSequentialTasks(
     () => {
       const stream = renderToReadableStream(
         payload,
@@ -738,7 +739,7 @@ export async function createCombinedPayloadStream(
     }
   )
 
-  await streamFinished
+  await streamFinished!
 
   return {
     stream: createNodeStreamWithLateRelease(
@@ -785,6 +786,7 @@ export async function createCombinedPayload(
    * */
   navigationParent: SegmentPath,
   releaseSignal: AbortSignal,
+  boundaryState: ValidationBoundaryTracking,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
   /** Only used when retrying a failed validation to see what caused a dynamic hole. */
@@ -798,6 +800,7 @@ export async function createCombinedPayload(
     validationRouteTree,
     navigationParent,
     releaseSignal,
+    boundaryState,
     clientReferenceManifest,
     stageEndTimes,
     useRuntimeStageForPartialSegments,
@@ -838,6 +841,7 @@ function createValidationSeedData(
   rootRouteTree: RouteTree,
   navigationParent: SegmentPath,
   releaseSignal: AbortSignal,
+  boundaryState: ValidationBoundaryTracking,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean,
@@ -945,12 +949,17 @@ function createValidationSeedData(
       debug?.(
         `    ['${path}' is in the new subtree, adding validation boundary around it]`
       )
+      const boundaryId = path
+      boundaryState.expectedIds.add(boundaryId)
       segmentData = {
         ...segmentData,
         node: (
           // bundled in the server layer
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-          <InstantValidationBoundary key="c" /* matching `cacheNodeKey` */>
+          <InstantValidationBoundary
+            id={boundaryId}
+            key="c" /* matching `cacheNodeKey` */
+          >
             {segmentData.node}
           </InstantValidationBoundary>
         ),
@@ -1041,23 +1050,14 @@ function deserializeFromChunks<T>(
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
-  hasRuntimePrefetch: boolean
   varyParams: VaryParamsThenable | null
 }
 
 function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
-  const [
-    node,
-    _parallelRoutesData,
-    _unused,
-    isPartial,
-    hasRuntimePrefetch,
-    varyParams,
-  ] = seedData
+  const [node, _parallelRoutesData, _unused, isPartial, varyParams] = seedData
   return {
     node,
     isPartial,
-    hasRuntimePrefetch,
     varyParams,
   }
 }
@@ -1072,7 +1072,6 @@ function getCacheNodeSeedDataFromSegment(
     slots,
     /* unused (previously `loading`) */ null,
     data.isPartial,
-    data.hasRuntimePrefetch,
     data.varyParams,
   ]
 }

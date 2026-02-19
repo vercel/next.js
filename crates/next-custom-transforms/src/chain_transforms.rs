@@ -329,6 +329,7 @@ where
                 true => Either::Left(
                     crate::transforms::track_dynamic_imports::track_dynamic_imports(
                         unresolved_mark,
+                        comments.clone(),
                     ),
                 ),
                 false => Either::Right(noop_pass()),

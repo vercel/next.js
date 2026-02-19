@@ -9,12 +9,15 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
-use crate::resolve::{
-    AliasPattern, ExternalTraced, ExternalType, ResolveResult, ResolveResultItem,
-    alias_map::{AliasMap, AliasTemplate},
-    parse::Request,
-    pattern::Pattern,
-    plugin::{AfterResolvePlugin, BeforeResolvePlugin},
+use crate::{
+    issue::Issue,
+    resolve::{
+        AliasPattern, ExternalTraced, ExternalType, ResolveResult, ResolveResultItem,
+        alias_map::{AliasMap, AliasTemplate},
+        parse::Request,
+        pattern::Pattern,
+        plugin::{AfterResolvePlugin, BeforeResolvePlugin},
+    },
 };
 
 #[turbo_tasks::value(shared)]
@@ -112,8 +115,12 @@ pub enum ImportMapping {
     /// the original request if it fails. Useful for the tsconfig.json
     /// `compilerOptions.paths` option and Next aliases.
     PrimaryAlternative(RcStr, Option<FileSystemPath>),
+    /// See [`ResolveResultItem::Ignore`]
     Ignore,
+    /// See [`ResolveResultItem::Empty`]
     Empty,
+    /// See [`ResolveResultItem::Error`]
+    Error(ResolvedVc<Box<dyn Issue>>),
     Alternatives(Vec<ResolvedVc<ImportMapping>>),
     Dynamic(ResolvedVc<Box<dyn ImportMappingReplacement>>),
 }
@@ -141,6 +148,7 @@ pub enum ReplacedImportMapping {
     Empty,
     Alternatives(Vec<ResolvedVc<ReplacedImportMapping>>),
     Dynamic(ResolvedVc<Box<dyn ImportMappingReplacement>>),
+    Error(ResolvedVc<Box<dyn Issue>>),
 }
 
 impl ImportMapping {
@@ -219,6 +227,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .await?,
                 ),
                 ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
+                ImportMapping::Error(issue) => ReplacedImportMapping::Error(*issue),
             }
             .resolved_cell())
         })
@@ -293,6 +302,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .owned()
                         .await?
                 }
+                ImportMapping::Error(issue) => ReplacedImportMapping::Error(*issue),
             }
             .resolved_cell())
         })
@@ -415,6 +425,7 @@ pub enum ImportMapResult {
     Alias(ResolvedVc<Request>, Option<FileSystemPath>),
     Alternatives(Vec<ImportMapResult>),
     NoEntry,
+    Error(ResolvedVc<Box<dyn Issue>>),
 }
 
 async fn import_mapping_to_result(
@@ -464,12 +475,12 @@ async fn import_mapping_to_result(
             traced: *traced,
             lookup_dir: lookup_dir.clone(),
         },
-        ReplacedImportMapping::Ignore => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore))
-        }
-        ReplacedImportMapping::Empty => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty))
-        }
+        ReplacedImportMapping::Ignore => ImportMapResult::Result(
+            ResolveResult::primary(ResolveResultItem::Ignore).resolved_cell(),
+        ),
+        ReplacedImportMapping::Empty => ImportMapResult::Result(
+            ResolveResult::primary(ResolveResultItem::Empty).resolved_cell(),
+        ),
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
             let request = Request::parse(name.clone()).to_resolved().await?;
             ImportMapResult::Alias(request, context.clone())
@@ -489,6 +500,7 @@ async fn import_mapping_to_result(
         ReplacedImportMapping::Dynamic(replacement) => {
             replacement.result(lookup_path, request).owned().await?
         }
+        ReplacedImportMapping::Error(issue) => ImportMapResult::Error(*issue),
     })
 }
 
@@ -514,6 +526,9 @@ impl ValueToString for ImportMapResult {
                 Ok(Vc::cell(s.into()))
             }
             ImportMapResult::Alternatives(alternatives) => {
+                // The .cell() calls happen synchronously during iteration, before try_join()
+                // runs the futures. This is safe because cells are created in deterministic
+                // order (the order of alternatives in the Vec).
                 let strings = alternatives
                     .iter()
                     .map(|alternative| alternative.clone().cell().to_string())
@@ -526,6 +541,9 @@ impl ValueToString for ImportMapResult {
                 Ok(Vc::cell(strings.join(" | ").into()))
             }
             ImportMapResult::NoEntry => Ok(Vc::cell(rcstr!("No import map entry"))),
+            ImportMapResult::Error(issue) => Ok(Vc::cell(
+                format!("error: {}", issue.title().await?.to_unstyled_string()).into(),
+            )),
         }
     }
 }
