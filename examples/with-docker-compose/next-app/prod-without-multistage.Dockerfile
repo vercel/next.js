@@ -2,6 +2,9 @@
 
 FROM node:20-alpine
 
+# Install curl for health check
+RUN apk add --no-cache curl
+
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -40,6 +43,10 @@ RUN \
   elif [ -f pnpm-lock.yaml ]; then pnpm build; \
   else npm run build; \
   fi
+
+# Health check for container orchestration (Docker, Kubernetes, etc.)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
 
 # Start Next.js based on the preferred package manager
 CMD \
