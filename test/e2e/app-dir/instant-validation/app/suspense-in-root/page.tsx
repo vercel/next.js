@@ -38,6 +38,15 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/runtime/valid-blocking-inside-runtime" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-static-parent" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" />
+        </li>
       </ul>
 
       <h2>Static</h2>
@@ -80,6 +89,30 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/missing-suspense-in-parallel-route/bar" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-client-data-blocks-validation" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-api-in-parent/sync-io" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-api-in-parent/search-params" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-data-does-not-block-validation" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-client-error-in-parent-blocks-children" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-client-error-in-parent-sibling" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation" />
         </li>
       </ul>
 

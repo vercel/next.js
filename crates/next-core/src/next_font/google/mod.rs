@@ -144,7 +144,10 @@ impl NextFontGoogleReplacer {
             )
             .cell()),
         ).to_resolved().await?;
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(js_asset))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(js_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -336,7 +339,10 @@ impl NextFontGoogleCssModuleReplacer {
         .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(css_asset))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(css_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -454,7 +460,9 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
                 .await?
         else {
-            return Ok(ImportMapResult::Result(ResolveResult::unresolvable()).cell());
+            return Ok(
+                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
+            );
         };
 
         let font_source = VirtualSource::new(
@@ -464,7 +472,10 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(font_source))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(font_source)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
