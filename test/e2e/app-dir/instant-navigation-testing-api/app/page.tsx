@@ -8,6 +8,12 @@ export default function HomePage() {
         Go to target page
       </Link>
       <Link
+        href="/static-prefetch-blocking"
+        id="link-to-static-prefetch-blocking"
+      >
+        Go to static prefetch blocking page
+      </Link>
+      <Link
         href="/runtime-prefetch-target?myParam=testValue"
         id="link-to-runtime-prefetch"
       >

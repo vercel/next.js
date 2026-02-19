@@ -102,6 +102,26 @@ pnpm build   # Sets up outputs for dependent packages (Turborepo dedupes if unch
 
 **When NOT to use NEXT_SKIP_ISOLATE:** Drop it when testing module resolution changes (new require() paths, new exports from entry-base.ts, edge route imports). Without isolation, the test uses local dist/ directly, hiding resolution failures that occur when Next.js is packed as a real npm package.
 
+### Worktree Validation Flow
+
+When bootstrapping or validating changes in a new worktree, run this sequence:
+
+```bash
+# 1) Install dependencies in the worktree
+pnpm i
+
+# 2) Build core Next.js outputs required by tests
+pnpm --filter=next build
+
+# 3) Run targeted app-dir e2e coverage in both dev bundlers
+pnpm test-dev-turbo test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts
+pnpm test-dev-webpack test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts
+
+# 4) Run the same suite in start mode for both bundlers
+pnpm test-start-turbo test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts
+pnpm test-start-webpack test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts
+```
+
 ## Bundler Selection
 
 Turbopack is the default bundler for both `next dev` and `next build`. To force webpack:

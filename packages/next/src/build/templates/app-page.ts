@@ -722,6 +722,9 @@ export async function handler(
             ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+            unstable_wrapSegmentsWithSuspense: Boolean(
+              nextConfig.experimental.unstable_wrapSegmentsWithSuspense
+            ),
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:

@@ -161,6 +161,7 @@ export interface RenderOptsPartial {
     optimisticRouting: boolean
     inlineCss: boolean
     authInterrupts: boolean
+    unstable_wrapSegmentsWithSuspense?: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume

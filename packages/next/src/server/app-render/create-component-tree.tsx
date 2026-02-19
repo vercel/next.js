@@ -119,6 +119,7 @@ async function createComponentTreeInternal(
     componentMod: {
       createElement,
       Fragment,
+      Suspense,
       SegmentViewNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
@@ -1082,11 +1083,15 @@ async function createComponentTreeInternal(
             segmentNode
           )
         : segmentNode
+    const maybeWrappedSegmentNode =
+      experimental.unstable_wrapSegmentsWithSuspense === true
+        ? createElement(Suspense, { fallback: null }, wrappedSegmentNode)
+        : wrappedSegmentNode
 
     // For layouts we just render the component
     return createSeedData(
       ctx,
-      wrappedSegmentNode,
+      maybeWrappedSegmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,

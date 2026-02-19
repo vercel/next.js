@@ -574,6 +574,9 @@ export default abstract class Server<
           this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        unstable_wrapSegmentsWithSuspense: Boolean(
+          this.nextConfig.experimental.unstable_wrapSegmentsWithSuspense
+        ),
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),

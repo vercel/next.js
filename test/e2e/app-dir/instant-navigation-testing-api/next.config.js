@@ -6,6 +6,7 @@ const nextConfig = {
   experimental: {
     // Enable the testing API in production builds for these tests
     exposeTestingApiInProductionBuild: true,
+    unstable_wrapSegmentsWithSuspense: true,
   },
 }
 

@@ -108,6 +108,22 @@ describe('instant-navigation-testing-api', () => {
     )
   })
 
+  it('does not reveal blocking page content inside instant scope under static prefetch', async () => {
+    const page = await openPage('/')
+
+    await instant(page, async () => {
+      await page.click('#link-to-static-prefetch-blocking')
+      await page.waitForURL(/\/static-prefetch-blocking\/?$/)
+
+      const helloWorld = page.locator('[data-testid="hello-world"]')
+      expect(await helloWorld.count()).toBe(0)
+    })
+
+    const helloWorld = page.locator('[data-testid="hello-world"]')
+    await helloWorld.waitFor({ state: 'visible' })
+    expect(await helloWorld.textContent()).toContain('hello world')
+  })
+
   it('renders runtime-prefetched content instantly during navigation', async () => {
     const page = await openPage('/')
 

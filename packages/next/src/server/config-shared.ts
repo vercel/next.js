@@ -394,6 +394,12 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Wraps app-router layout segments in `Suspense` with a `null` fallback.
+   * This can be used to avoid static-shell validation failures for blocking
+   * page-level I/O under statically-prefetched layouts.
+   */
+  unstable_wrapSegmentsWithSuspense?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -1694,6 +1700,7 @@ export const defaultConfig = Object.freeze({
     transitionIndicator: false,
     gestureTransition: false,
     inlineCss: false,
+    unstable_wrapSegmentsWithSuspense: false,
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
@@ -1805,6 +1812,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'exposeTestingApiInProductionBuild'
+    | 'unstable_wrapSegmentsWithSuspense'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1869,6 +1877,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        unstable_wrapSegmentsWithSuspense: ex.unstable_wrapSegmentsWithSuspense,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

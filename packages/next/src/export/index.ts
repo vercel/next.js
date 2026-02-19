@@ -510,6 +510,9 @@ async function exportAppImpl(
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      unstable_wrapSegmentsWithSuspense: Boolean(
+        nextConfig.experimental.unstable_wrapSegmentsWithSuspense
+      ),
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),

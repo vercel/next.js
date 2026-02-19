@@ -13,7 +13,7 @@ export {
 export { prerender } from 'react-server-dom-webpack/static'
 
 // TODO: Just re-export `* as ReactServer`
-export { captureOwnerStack, createElement, Fragment } from 'react'
+export { captureOwnerStack, createElement, Fragment, Suspense } from 'react'
 
 export {
   default as LayoutRouter,
