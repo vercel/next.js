@@ -47,22 +47,20 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     )
 
     await session.waitForRedbox()
-    await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
-    )
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
-       Ecmascript file had an error
+       'next/headers' cannot be imported from a Client Component module
        > 1 | import { cookies } from 'next/headers'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          2 |
          3 | export default function Page() {
          4 |   return <p>hello world</p>
 
-       You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       It only works in a Server Component which is not supported in the pages/ directory. 
+       Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
 
        Import traces:
          Browser:
@@ -81,7 +79,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x 'next/headers' cannot be imported from a Client Component module.
+               │   | That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -96,7 +95,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x 'next/headers' cannot be imported from a Client Component module.
+         | That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -130,22 +130,21 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     )
 
     await session.waitForRedbox()
-    await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
-    )
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
-       Ecmascript file had an error
+       'server-only' cannot be imported from a Client Component module
        > 1 | import 'server-only'
            | ^^^^^^^^^^^^^^^^^^^^
          2 |
          3 | export default function Page() {
          4 |   return 'hello world'
 
-       You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Modules use import 'server-only' to flag they shouldn't be used from Client Components.
+       It only works in a Server Component which is not supported in the pages/ directory. 
+       Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
 
        Import traces:
          Browser:
@@ -164,7 +163,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x 'server-only' cannot be imported from a Client Component module.
+               │   | That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -183,7 +183,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x 'server-only' cannot be imported from a Client Component module.
+         | That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -215,9 +216,6 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     )
 
     await session.waitForRedbox()
-    await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
-    )
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
@@ -230,7 +228,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
          3 | export default function Page() {
          4 |   return 'hello world'
 
-       You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       'after' cannot be imported from a Client Component module.
+       That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
 
        Import traces:
          Browser:
@@ -249,7 +248,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x 'after' cannot be imported from a Client Component module.
+               │   | That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -268,7 +268,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x 'after' cannot be imported from a Client Component module.
+         | That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -309,22 +310,20 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     const { session } = sandbox
 
     await session.waitForRedbox()
-    await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
-    )
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
-       Ecmascript file had an error
+       'next/root-params' cannot be imported from a Client Component module
        > 1 | import { foo } from 'next/root-params'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          2 |
          3 | export default function Page() {
          4 |   return 'hello world'
 
-       You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       It only works in a Server Component which is not supported in the pages/ directory. 
+       Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
 
        Import traces:
          Browser:
@@ -343,7 +342,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x 'next/root-params' cannot be imported from a Client Component module.
+               │   | That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -362,7 +362,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x 'next/root-params' cannot be imported from a Client Component module.
+         | That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -400,8 +401,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       )
 
       await session.waitForRedbox()
-      await expect(session.getRedboxSource()).resolves.toMatch(
-        `You're importing a component that needs "${api}". That only works in a Server Component which is not supported in the pages/ directory.`
+      await expect(session.getRedboxSource()).resolves.toContain(
+        `'${api}' cannot be imported from a Client Component module`
       )
     })
 

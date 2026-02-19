@@ -194,7 +194,7 @@ describe('Error overlay - RSC build errors', () => {
       `)
     } else {
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+        `'client-only' cannot be imported from a Server Component module`
       )
     }
   })

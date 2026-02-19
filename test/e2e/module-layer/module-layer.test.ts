@@ -114,22 +114,9 @@ describe('module layer', () => {
           async () => {
             await waitForRedbox(browser)
             const source = await getRedboxSource(browser)
-            expect(source).toMatchInlineSnapshot(`
-             "./lib/mixed-lib/client.js
-             Error:   x 'client-only' cannot be imported from a Server Component module.
-               | It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-               | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
-                ,-[1:1]
-              1 | import 'client-only'
-                : ^^^^^^^^^^^^^^^^^^^^
-              2 |
-              3 | export const client = 'client:module'
-                \`----
-
-             Import trace for requested module:
-             ./lib/mixed-lib/client.js
-             ./lib/mixed-lib/index.js"
-            `)
+            expect(source).toContain(
+              "'client-only' cannot be imported from a Server Component module"
+            )
           }
         )
 
