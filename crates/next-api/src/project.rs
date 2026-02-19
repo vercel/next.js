@@ -362,6 +362,7 @@ pub struct ProjectOptions {
     pub is_persistent_caching_enabled: bool,
 }
 
+#[derive(Default)]
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
