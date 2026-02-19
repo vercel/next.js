@@ -1999,10 +1999,16 @@ impl AggregationUpdateQueue {
                     let (upper_id, count) = upper_item.task_id_and_count();
 
                     // STEP 6
+                    // Re-check the inner/follower classification. Between STEP 2
+                    // (where we read upper's aggregation number) and STEP 5 (where
+                    // we re-read the follower's aggregation number), the follower's
+                    // aggregation number may have increased concurrently. If it is
+                    // now >= the upper's aggregation number, this should be a
+                    // follower edge, not an inner edge. Push it back to upper_ids
+                    // so STEP 3 can handle it as a follower in the next iteration.
                     if !is_root_node(*min_upper_aggregation_number)
                         && follower_aggregation_number >= *min_upper_aggregation_number
                     {
-                        // Should be a follower.
                         upper_ids.push(upper_item.clone());
                         return false;
                     }
@@ -2151,7 +2157,7 @@ impl AggregationUpdateQueue {
                 );
                 (new_follower_id, count, get_aggregation_number(&follower))
             })
-            .collect::<SmallVec<[_; 4]>>();
+            .collect::<SmallVec<[_; N]>>();
 
         let mut is_active = false;
         let mut upper_data_updates = Vec::new();
@@ -2269,10 +2275,16 @@ impl AggregationUpdateQueue {
                     let follower_aggregation_number = get_aggregation_number(&new_follower);
 
                     // STEP 6
+                    // Re-check the inner/follower classification. Between STEP 2
+                    // (where we read upper's aggregation number) and STEP 5 (where
+                    // we re-read the follower's aggregation number), the follower's
+                    // aggregation number may have increased concurrently. If it is
+                    // now >= the upper's aggregation number, this should be a
+                    // follower edge, not an inner edge. Retain it in the list so
+                    // the outer loop handles it as a follower in the next iteration.
                     if !is_root_node(min_upper_aggregation_number)
                         && follower_aggregation_number >= min_upper_aggregation_number
                     {
-                        // It should be a follower
                         *min_follower_aggregation_number = follower_aggregation_number;
                         return true;
                     }
@@ -2483,6 +2495,13 @@ impl AggregationUpdateQueue {
             let follower_aggregation_number = get_aggregation_number(&new_follower);
 
             // STEP 6
+            // Re-check the inner/follower classification. Between STEP 2
+            // (where we read upper's aggregation number) and STEP 5 (where
+            // we re-read the follower's aggregation number), the follower's
+            // aggregation number may have increased concurrently. If it is
+            // now >= the upper's aggregation number, this should be a
+            // follower edge, not an inner edge. Retain it in the list so
+            // the outer loop handles it as a follower in the next iteration.
             if is_root_node(min_upper_aggregation_number)
                 || follower_aggregation_number < min_upper_aggregation_number
             {
