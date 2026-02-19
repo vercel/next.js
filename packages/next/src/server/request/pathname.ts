@@ -56,9 +56,7 @@ export function createServerPathnameForMetadata(
 function createPrerenderPathname(
   underlyingPathname: string,
   workStore: WorkStore,
-  prerenderStore:
-    | PrerenderStoreLegacy
-    | PrerenderStoreModernServer
+  prerenderStore: PrerenderStoreLegacy | PrerenderStoreModernServer
 ): Promise<string> {
   switch (prerenderStore.type) {
     case 'prerender': {

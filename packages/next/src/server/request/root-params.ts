@@ -90,9 +90,7 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
 function createPrerenderRootParamPromise(
   paramName: string,
   workStore: WorkStore,
-  prerenderStore:
-    | PrerenderStoreLegacy
-    | PrerenderStoreModernServer,
+  prerenderStore: PrerenderStoreLegacy | PrerenderStoreModernServer,
   apiName: string
 ): Promise<ParamValue> {
   switch (prerenderStore.type) {
