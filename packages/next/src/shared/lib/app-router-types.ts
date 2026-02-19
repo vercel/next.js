@@ -244,8 +244,6 @@ export type ActionResult = Promise<any>
 export type InitialRSCPayload = {
   /** buildId, can be empty if the x-nextjs-build-id header is set */
   b?: string
-  /** app entry path (definition.page) from app-render */
-  r?: string
   /** initialCanonicalUrlParts */
   c: string[]
   /** initialRenderedSearch */

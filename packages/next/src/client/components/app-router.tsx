@@ -31,7 +31,10 @@ import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-import { getSelectedParams } from './router-reducer/compute-changed-path'
+import {
+  extractSourcePageFromFlightRouterState,
+  getSelectedParams,
+} from './router-reducer/compute-changed-path'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
@@ -175,7 +178,7 @@ function Router({
   }, [canonicalUrl])
 
   if (process.env.NODE_ENV !== 'production') {
-    const { cache, tree } = state
+    const { cache } = state
 
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -186,10 +189,20 @@ function Router({
       window.nd = {
         router: publicAppRouterInstance,
         cache,
-        tree,
+        tree: state.tree,
       }
-    }, [cache, tree])
+    }, [cache, state.tree])
   }
+
+  useEffect(() => {
+    const sourcePage = extractSourcePageFromFlightRouterState(state.tree)
+
+    if (sourcePage !== undefined) {
+      window.next.__n_src_page = sourcePage
+    } else {
+      delete window.next.__n_src_page
+    }
+  }, [state.tree])
 
   useEffect(() => {
     // If the app is restored from bfcache, it's possible that
