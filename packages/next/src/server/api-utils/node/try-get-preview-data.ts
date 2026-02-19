@@ -88,10 +88,10 @@ export function tryGetPreviewData(
       tokenPreviewData,
       options.previewModeSigningKey
     ) as typeof encryptedPreviewData
-  } catch (err) {
+  } catch () {
     // Behind DEBUG to avoid noisy logs on prod
     // Do not include cookie/token content
-    debug('Failed to verify preview mode cookies; clearing preview data', err)
+    debug('Failed to verify preview mode cookies; clearing preview data')
     clearPreviewData(res as NextApiResponse)
     return false
   }
