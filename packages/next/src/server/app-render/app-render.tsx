@@ -3185,8 +3185,7 @@ async function renderWithRestartOnCacheMissInDev(
           signal: initialReactController.signal,
         },
         (fn) => workUnitAsyncStorage.run(requestStore, fn)
-      )
-        .tee()
+      ).tee()
 
       // If we abort the render, we want to reject the stage-dependent promises as well.
       // Note that we want to install this listener after the render is started
@@ -3332,8 +3331,7 @@ async function renderWithRestartOnCacheMissInDev(
           debugChannel: debugChannel?.serverSide,
         },
         (fn) => workUnitAsyncStorage.run(requestStore, fn)
-      )
-        .tee()
+      ).tee()
 
       return {
         stream: streamPair[0],
@@ -4990,10 +4988,7 @@ async function prerenderToStream(
       }
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResult(
-          runInSequentialTasks(
-            finalRSCPrerenderFn,
-            finalRSCAbortCallback
-          )
+          runInSequentialTasks(finalRSCPrerenderFn, finalRSCAbortCallback)
         ))
 
       const clientDynamicTracking = createDynamicTrackingState(
