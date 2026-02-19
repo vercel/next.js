@@ -198,9 +198,9 @@ function Router({
     const sourcePage = extractSourcePageFromFlightRouterState(state.tree)
 
     if (sourcePage !== undefined) {
-      window.next.__n_src_page = sourcePage
+      window.next.__internal_src_page = sourcePage
     } else {
-      delete window.next.__n_src_page
+      delete window.next.__internal_src_page
     }
   }, [state.tree])
 
