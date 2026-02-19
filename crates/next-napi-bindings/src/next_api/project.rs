@@ -1206,27 +1206,6 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     Ok(())
 }
 
-fn partial_project_options_with_debug_build_paths(
-    debug_build_paths: DebugBuildPaths,
-) -> PartialProjectOptions {
-    PartialProjectOptions {
-        root_path: None,
-        project_path: None,
-        next_config: None,
-        env: None,
-        define_env: None,
-        watch: None,
-        dev: None,
-        encryption_key: None,
-        build_id: None,
-        preview_props: None,
-        browserslist_query: None,
-        no_mangling: None,
-        write_routes_hashes_manifest: None,
-        debug_build_paths: Some(debug_build_paths),
-    }
-}
-
 fn is_deferred_endpoint_group(key: &EndpointGroupKey, deferred_entries: &[RcStr]) -> bool {
     if deferred_entries.is_empty() {
         return false;
@@ -1353,9 +1332,10 @@ pub async fn project_write_all_entrypoints_to_disk(
         let non_deferred_build_paths = phase_build_paths.non_deferred.clone();
         tt.run(async move {
             container
-                .update(partial_project_options_with_debug_build_paths(
-                    non_deferred_build_paths,
-                ))
+                .update(PartialProjectOptions {
+                    debug_build_paths: Some(non_deferred_build_paths),
+                    ..Default::default()
+                })
                 .await?;
             Ok(())
         })
@@ -1425,9 +1405,10 @@ pub async fn project_write_all_entrypoints_to_disk(
             let all_build_paths = phase_build_paths.all.clone();
             tt.run(async move {
                 container
-                    .update(partial_project_options_with_debug_build_paths(
-                        all_build_paths,
-                    ))
+                    .update(PartialProjectOptions {
+                        debug_build_paths: Some(all_build_paths),
+                        ..Default::default()
+                    })
                     .await?;
                 Ok(())
             })
