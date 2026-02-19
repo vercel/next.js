@@ -105,10 +105,10 @@ export type ImageConfigComplete = {
 
   /**
    * Configure the on-disk cache size in bytes.
-   * If null (default) auto-detect based on 50% of available disk space.
+   * If undefined (default) auto-detect based on 50% of available disk space.
    * If 0, disable writes to on-disk cache (though any existing disk cache may still be read).
    */
-  maximumDiskCacheSize: number | null
+  maximumDiskCacheSize: number | undefined
 
   /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */
   maximumRedirects: number
@@ -163,7 +163,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   disableStaticImages: false,
   minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
-  maximumDiskCacheSize: null,
+  maximumDiskCacheSize: undefined, // auto-detect by default
   maximumRedirects: 3,
   maximumResponseBody: 50_000_000, // 50 MB
   dangerouslyAllowLocalIP: false,
