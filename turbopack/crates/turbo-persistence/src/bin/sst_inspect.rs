@@ -152,7 +152,7 @@ fn format_number(n: u64) -> String {
     let s = n.to_string();
     let mut result = String::with_capacity(s.len() + s.len() / 3);
     for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i) % 3 == 0 {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
             result.push(',');
         }
         result.push(c);
@@ -244,10 +244,12 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
     let file_size = file.metadata()?.len();
     let mmap = unsafe { Mmap::map(&file)? };
 
-    let mut stats = SstStats::default();
-    stats.key_dict_size = info.key_compression_dictionary_length as u64;
-    stats.block_directory_size = info.block_count as u64 * 4;
-    stats.file_size = file_size;
+    let mut stats = SstStats {
+        key_dict_size: info.key_compression_dictionary_length as u64,
+        block_directory_size: info.block_count as u64 * 4,
+        file_size,
+        ..Default::default()
+    };
 
     // Calculate offsets
     let block_offsets_start = mmap.len() - (info.block_count as usize * 4);
