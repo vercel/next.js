@@ -94,6 +94,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
 
 #[turbo_tasks::value(transparent)]
 #[derive(Default)]
+#[allow(clippy::type_complexity)]
 pub struct DynamicImportedChunks(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<
