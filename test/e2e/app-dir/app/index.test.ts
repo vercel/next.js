@@ -145,6 +145,30 @@ describe('app dir - basic', () => {
     })
   })
 
+  it.each([
+    {
+      path: '/dashboard',
+      route: '/dashboard/page',
+    },
+    {
+      path: '/dynamic/category-1/id-2',
+      route: '/dynamic/[category]/[id]/page',
+    },
+    {
+      path: '/dashboard/another',
+      route: '/(newroot)/dashboard/another/page',
+    },
+  ])(
+    'should expose app route on window.next.route for $path',
+    async ({ path, route }) => {
+      const browser = await next.browser(path)
+
+      await retry(async () => {
+        expect(await browser.eval('window.next.route')).toBe(route)
+      })
+    }
+  )
+
   if (!isNextDev) {
     it('should successfully detect app route during prefetch', async () => {
       const browser = await next.browser('/')

@@ -1612,6 +1612,7 @@ async function getRSCPayload(
     P: createElement(Preloads, {
       preloadCallbacks: preloadCallbacks,
     }),
+    r: ctx.workStore.page,
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
@@ -1736,6 +1737,7 @@ async function getErrorRSCPayload(
     ctx.renderOpts.experimental.isRoutePPREnabled === true
 
   return maybeAppendBuildIdToRSCPayload(ctx, {
+    r: ctx.workStore.page,
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     m: undefined,

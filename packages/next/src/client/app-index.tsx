@@ -319,6 +319,10 @@ export async function hydrate(
   }
   const initialRSCPayload = await initialServerResponse
 
+  if (initialRSCPayload.r !== undefined) {
+    window.next.route = initialRSCPayload.r
+  }
+
   // setNavigationBuildId should be called only once, during JS initialization
   // and before any components have hydrated.
   if (initialRSCPayload.b) {
