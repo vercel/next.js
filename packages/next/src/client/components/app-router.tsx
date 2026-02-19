@@ -178,7 +178,7 @@ function Router({
   }, [canonicalUrl])
 
   if (process.env.NODE_ENV !== 'production') {
-    const { cache } = state
+    const { cache, tree } = state
 
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -189,9 +189,9 @@ function Router({
       window.nd = {
         router: publicAppRouterInstance,
         cache,
-        tree: state.tree,
+        tree,
       }
-    }, [cache, state.tree])
+    }, [cache, tree])
   }
 
   useEffect(() => {
