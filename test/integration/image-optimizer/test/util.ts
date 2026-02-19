@@ -1630,7 +1630,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
   }
 
-  if (typeof ctx.nextConfigImages.maximumDiskCacheSize !== 'undefined') {
+  if (typeof ctx.nextConfigImages?.maximumDiskCacheSize !== 'undefined') {
     const { maximumDiskCacheSize } = ctx.nextConfigImages
     it(`should handle maximumDiskCacheSize ${maximumDiskCacheSize}`, async () => {
       const opts = { headers: { accept: 'image/webp' } }
