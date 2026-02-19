@@ -15,11 +15,17 @@ pub enum StyleType {
 pub enum ModuleSideEffects {
     /// Analysis determined that the module evaluation is side effect free
     /// the module may still be side effectful based on its imports.
+    ///
+    /// This module might not be chunked after Turbopack performed a global analysis on the module
+    /// graph.
     ModuleEvaluationIsSideEffectFree,
     /// Is known to be side effect free either due to static analysis or some kind of configuration.
     /// ```js
     /// "use turbopack no side effects"
     /// ```
+    ///
+    /// This module might not even be parsed (and thus chunked) if no other module depends on any of
+    /// its exports.
     SideEffectFree,
     // Neither of the above, so we should assume it has side effects.
     SideEffectful,
