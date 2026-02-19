@@ -690,6 +690,12 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  if (directives?.has('client') && 'unstable_instant' in config) {
+    throw new Error(
+      `Page "${page}" cannot use both "use client" and \`export const unstable_instant = ...\`.`
+    )
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,

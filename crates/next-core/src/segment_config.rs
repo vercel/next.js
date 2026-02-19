@@ -117,6 +117,9 @@ pub struct NextSegmentConfig {
     pub generate_sitemaps: bool,
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
+    pub unstable_instant: Option<Span>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     pub generate_static_params: Option<Span>,
 }
 
@@ -299,7 +302,8 @@ impl Issue for NextSegmentConfigParsingIssue {
 )]
 pub enum ParseSegmentMode {
     Base,
-    // Disallows "use client + generateStatic" and ignores/warns about `export const config`
+    // Disallows "use client + generateStatic" and "use client + unstable_instant", and
+    // ignores/warns about `export const config`.
     App,
     // Disallows config = { runtime: "edge" }
     Proxy,
@@ -505,36 +509,52 @@ pub async fn parse_segment_config_from_source(
     )
     .await?;
 
-    if mode == ParseSegmentMode::App
-        && let Some(span) = config.generate_static_params
-        && module_ast
-            .body
-            .iter()
-            .take_while(|i| match i {
-                ModuleItem::Stmt(stmt) => stmt.directive_continue(),
-                ModuleItem::ModuleDecl(_) => false,
-            })
-            .filter_map(|i| i.as_stmt())
-            .any(|f| match f {
-                Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
-                    Expr::Lit(Lit::Str(Str { value, .. })) => value == "use client",
-                    _ => false,
-                },
+    let has_use_client_directive = module_ast
+        .body
+        .iter()
+        .take_while(|i| match i {
+            ModuleItem::Stmt(stmt) => stmt.directive_continue(),
+            ModuleItem::ModuleDecl(_) => false,
+        })
+        .filter_map(|i| i.as_stmt())
+        .any(|f| match f {
+            Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
+                Expr::Lit(Lit::Str(Str { value, .. })) => value == "use client",
                 _ => false,
-            })
-    {
-        invalid_config(
-            source,
-            "generateStaticParams",
-            span,
-            rcstr!(
-                "App pages cannot use both \"use client\" and export function \
-                 \"generateStaticParams()\"."
-            ),
-            None,
-            IssueSeverity::Error,
-        )
-        .await?;
+            },
+            _ => false,
+        });
+
+    if mode == ParseSegmentMode::App && has_use_client_directive {
+        if let Some(span) = config.generate_static_params {
+            invalid_config(
+                source,
+                "generateStaticParams",
+                span,
+                rcstr!(
+                    "App pages cannot use both \"use client\" and export function \
+                     \"generateStaticParams()\"."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
+
+        if let Some(span) = config.unstable_instant {
+            invalid_config(
+                source,
+                "unstable_instant",
+                span,
+                rcstr!(
+                    "App pages cannot use both \"use client\" and export const \
+                     \"unstable_instant\"."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
     }
 
     Ok(config.cell())
@@ -948,6 +968,9 @@ async fn parse_config_value(
         }
         "generateSitemaps" => {
             config.generate_sitemaps = true;
+        }
+        "unstable_instant" => {
+            config.unstable_instant = Some(span);
         }
         "generateStaticParams" => {
             config.generate_static_params = Some(span);

@@ -92,6 +92,28 @@ describe('Error overlay - RSC build errors', () => {
     )
   })
 
+  it('should throw an error when unstable_instant is exported from a client component', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        [
+          'next.config.js',
+          outdent`
+            module.exports = { experimental: { cacheComponents: true } }
+          `,
+        ],
+      ]),
+      '/client-with-errors/unstable-instant'
+    )
+    const { session } = sandbox
+
+    await session.waitForRedbox()
+    const source = await session.getRedboxSource()
+
+    expect(source).toInclude('"use client"')
+    expect(source).toInclude('unstable_instant')
+  })
+
   // TODO: investigate flakey test case
   it.skip('should throw an error when getStaticProps is used', async () => {
     await using sandbox = await createSandbox(
