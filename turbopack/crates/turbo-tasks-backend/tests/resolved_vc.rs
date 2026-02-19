@@ -26,10 +26,7 @@ fn assert_resolved(input: ResolvedVc<u32>) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_conversion() -> Result<()> {
     run_once(&REGISTRATION, || async {
-        test_conversion_operation()
-            .read_strongly_consistent()
-            .await?;
-        Ok(())
+        test_conversion_operation().read_strongly_consistent().await
     })
     .await
 }
@@ -51,8 +48,7 @@ async fn test_cell_construction() -> Result<()> {
     run_once(&REGISTRATION, || async {
         test_cell_construction_operation()
             .read_strongly_consistent()
-            .await?;
-        Ok(())
+            .await
     })
     .await
 }
@@ -71,8 +67,7 @@ async fn test_resolved_vc_as_arg() -> Result<()> {
     run_once(&REGISTRATION, || async {
         test_resolved_vc_as_arg_operation()
             .read_strongly_consistent()
-            .await?;
-        Ok(())
+            .await
     })
     .await
 }
@@ -91,8 +86,7 @@ async fn test_into_future() -> Result<()> {
     run_once(&REGISTRATION, || async {
         test_into_future_operation()
             .read_strongly_consistent()
-            .await?;
-        Ok(())
+            .await
     })
     .await
 }

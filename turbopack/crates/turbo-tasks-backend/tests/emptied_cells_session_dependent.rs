@@ -11,8 +11,9 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_emptied_cells_session_dependent() {
     run(&REGISTRATION, || async {
-        let input = get_state_operation().read_strongly_consistent().await?;
-        let input_vc = get_state_operation().resolve_strongly_consistent().await?;
+        let input_op = get_state_operation();
+        let input_vc = input_op.resolve_strongly_consistent().await?;
+        let input = input_op.read_strongly_consistent().await?;
         input.state.set(0);
 
         let output = compute_operation(input_vc);
