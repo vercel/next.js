@@ -234,6 +234,20 @@ When `scroll = {false}`, Next.js will not attempt to scroll to the first Page el
 
 > **Good to know**: Next.js checks if `scroll: false` before managing scroll behavior. If scrolling is enabled, it identifies the relevant DOM node for navigation and inspects each top-level element. All non-scrollable elements and those without rendered HTML are bypassed, this includes sticky or fixed positioned elements, and non-visible elements such as those calculated with `getBoundingClientRect`. Next.js then continues through siblings until it identifies a scrollable element that is visible in the viewport.
 
+#### Handling sticky headers with `scroll-padding-top`
+
+Because Next.js skips `sticky` and `fixed` positioned elements when scrolling, it scrolls to the first visible non-sticky content element. If you have a sticky header (e.g., a navigation bar), the page content may appear to scroll "behind" the header, making it look like the scroll didn't go all the way to the top.
+
+To fix this, use the CSS [`scroll-padding-top`](https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-padding-top) property on the scroll container (typically `html`) to account for the height of the sticky element:
+
+```css filename="app/globals.css"
+html {
+  scroll-padding-top: 64px; /* Height of the sticky header */
+}
+```
+
+This tells the browser to offset any scroll-based positioning by the specified amount, ensuring content isn't hidden behind the sticky header. This works for both Next.js auto-scrolling and hash fragment (`#id`) scrolling.
+
 <AppOnly>
 
 ```tsx filename="app/page.tsx" switcher
