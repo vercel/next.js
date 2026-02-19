@@ -19,7 +19,8 @@ use turbo_tasks_fs::{
 use turbo_unix_path::normalize_path;
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug, Default)]
+#[derive(Hash, Clone, Debug, Default, ValueToString)]
+#[value_to_string(self.describe_as_string())]
 pub enum Pattern {
     Constant(RcStr),
     #[default]
@@ -1480,14 +1481,6 @@ impl Pattern {
                 .collect::<Vec<_>>()
                 .join(" "),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for Pattern {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.describe_as_string().into())
     }
 }
 

@@ -35,7 +35,7 @@ env:
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
   VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
-  VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbopack-e2e-tests
+  VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbo-e2e-tests
   VERCEL_TURBOPACK_TEST_TOKEN: ${{ secrets.VERCEL_TURBOPACK_TEST_TOKEN }}
 
 run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'canary' }}
@@ -76,8 +76,8 @@ jobs:
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
 
-  test-deploy:
-    name: Run Deploy Tests
+  test-deploy-webpack:
+    name: Run Deploy Tests (Webpack)
     needs: setup
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
@@ -99,7 +99,49 @@ jobs:
         node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
-      stepName: 'test-deploy-${{ matrix.group }}'
+      stepName: 'test-deploy-webpack-${{ matrix.group }}'
+      timeout_minutes: 180
+      runs_on_labels: '["ubuntu-latest"]'
+      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+
+  test-deploy-turbopack:
+    name: Run Deploy Tests (Turbopack)
+    needs: [setup]
+    uses: ./.github/workflows/build_reusable.yml
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          [
+            1/12,
+            2/12,
+            3/12,
+            4/12,
+            5/12,
+            6/12,
+            7/12,
+            8/12,
+            9/12,
+            10/12,
+            11/12,
+            12/12,
+          ]
+    with:
+      afterBuild: |
+        npm i -g vercel@latest && \
+        NEXT_E2E_TEST_TIMEOUT=240000 \
+        NEXT_TEST_MODE=deploy \
+        IS_TURBOPACK_TEST=1 \
+        TURBOPACK_BUILD=1 \
+        NEXT_TEST_CONTINUE_ON_ERROR="${{ github.event.inputs.continueOnError || false }}" \
+        NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
+        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'no'
+      stepName: 'test-deploy-turbopack-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
@@ -147,7 +189,7 @@ jobs:
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
 
   report-test-results-to-datadog:
-    needs: test-deploy
+    needs: [test-deploy-turbopack, test-deploy-webpack]
     if: ${{ always() }}
 
     runs-on: ubuntu-latest
@@ -238,8 +280,8 @@ jobs:
 
   update-prs:
     name: Update prs as ready for review
-    needs: [test-deploy, create-draft-prs]
-    if: ${{ needs.test-deploy.result == 'success' && github.repository_owner == 'vercel' && github.event_name == 'release' }}
+    needs: [test-deploy-turbopack, test-deploy-webpack, create-draft-prs]
+    if: ${{ needs.test-deploy-webpack.result == 'success' &&  needs.test-deploy-turbopack.result == 'success' && github.repository_owner == 'vercel' && github.event_name == 'release' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

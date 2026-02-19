@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
-use crate::{module::Module, resolve::ModulePart};
+use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePart};
 
 /// Named references to inner assets. Modules can use them to allow to
 /// per-module aliases of some requests to already created module assets.
@@ -75,6 +75,12 @@ pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
     ImportWithType(RcStr),
+    /// Import with `turbopackLoader` attribute specifying an inline loader.
+    ImportWithTurbopackUse {
+        loader: ResolvedWebpackLoaderItem,
+        rename_as: Option<RcStr>,
+        module_type: Option<RcStr>,
+    },
     DynamicImport,
     Custom(u8),
     #[default]
@@ -311,6 +317,7 @@ pub enum ReferenceType {
     Entry(EntryReferenceSubType),
     Runtime,
     Internal(ResolvedVc<InnerAssets>),
+    Loader,
     Custom(u8),
     #[default]
     Undefined,
@@ -323,6 +330,9 @@ impl Display for ReferenceType {
             ReferenceType::CommonJs(_) => "commonjs",
             ReferenceType::EcmaScriptModules(sub) => match sub {
                 EcmaScriptModulesReferenceSubType::ImportPart(_) => "EcmaScript Modules (part)",
+                EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse { .. } => {
+                    "EcmaScript Modules (turbopackUse)"
+                }
                 _ => "EcmaScript Modules",
             },
             ReferenceType::Css(_) => "css",
@@ -332,6 +342,7 @@ impl Display for ReferenceType {
             ReferenceType::Entry(_) => "entry",
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
+            ReferenceType::Loader => "loader",
             ReferenceType::Custom(_) => todo!(),
             ReferenceType::Undefined => "undefined",
         };
@@ -379,6 +390,7 @@ impl ReferenceType {
             }
             ReferenceType::Runtime => matches!(other, ReferenceType::Runtime),
             ReferenceType::Internal(_) => matches!(other, ReferenceType::Internal(_)),
+            ReferenceType::Loader => matches!(other, ReferenceType::Loader),
             ReferenceType::Custom(_) => {
                 todo!()
             }
@@ -390,6 +402,9 @@ impl ReferenceType {
     /// combination with [`ModuleRuleCondition::Internal`] to determine if a
     /// rule should be applied to an internal asset/reference.
     pub fn is_internal(&self) -> bool {
-        matches!(self, ReferenceType::Internal(_) | ReferenceType::Runtime)
+        matches!(
+            self,
+            ReferenceType::Internal(_) | ReferenceType::Runtime | ReferenceType::Loader
+        )
     }
 }

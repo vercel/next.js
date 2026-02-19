@@ -21,6 +21,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
+    json::UnparsableJson,
 };
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
@@ -490,6 +491,20 @@ impl IssueSource {
         }
     }
 
+    pub fn from_single_line_col(source: ResolvedVc<Box<dyn Source>>, pos: SourcePos) -> Self {
+        IssueSource {
+            source,
+            range: Some(SourceRange::LineColumn(
+                pos,
+                SourcePos {
+                    line: pos.line,
+                    // The end position is the first character after the range
+                    column: pos.column + 1,
+                },
+            )),
+        }
+    }
+
     async fn into_plain(self) -> Result<PlainIssueSource> {
         let Self { mut source, range } = self;
 
@@ -524,6 +539,35 @@ impl IssueSource {
             asset: PlainSource::from_source(*source).await?,
             range,
         })
+    }
+
+    /// Create an [`IssueSource`] from an [`UnparsableJson`] error, using its
+    /// start/end location if available.
+    pub fn from_unparsable_json(
+        source: ResolvedVc<Box<dyn Source>>,
+        error: &UnparsableJson,
+    ) -> Self {
+        match (error.start_location, error.end_location) {
+            (None, None) => Self::from_source_only(source),
+            (Some((line, column)), None) | (None, Some((line, column))) => Self::from_line_col(
+                source,
+                SourcePos { line, column },
+                SourcePos { line, column },
+            ),
+            (Some((start_line, start_column)), Some((end_line, end_column))) => {
+                Self::from_line_col(
+                    source,
+                    SourcePos {
+                        line: start_line,
+                        column: start_column,
+                    },
+                    SourcePos {
+                        line: end_line,
+                        column: end_column,
+                    },
+                )
+            }
+        }
     }
 
     /// Create a [`IssueSource`] from byte offsets given by an swc ast node

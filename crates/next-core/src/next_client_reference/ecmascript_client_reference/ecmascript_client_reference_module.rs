@@ -281,6 +281,17 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         self.proxy_module().get_exports()
     }
+
+    #[turbo_tasks::function]
+    fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        bail!("Attempted to get chunk_item_content for EcmascriptClientReferenceModule")
+    }
 }
 
 /// This wrapper only exists to overwrite the `asset_ident` method of the
@@ -339,6 +350,8 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
 }
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string(self.description)]
 pub(crate) struct EcmascriptClientReference {
     module: ResolvedVc<Box<dyn Module>>,
     ty: ChunkGroupType,
@@ -377,13 +390,5 @@ impl ModuleReference for EcmascriptClientReference {
             _ty: self.ty,
             merge_tag: self.merge_tag.clone(),
         }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptClientReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.description.clone())
     }
 }

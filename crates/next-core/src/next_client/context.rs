@@ -50,10 +50,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::{
-            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-            get_invalid_server_only_resolve_plugin,
-        },
+        resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
         transforms::{
             emotion::get_emotion_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
@@ -181,11 +178,6 @@ pub async fn get_client_resolve_options_context(
         browser: true,
         module: true,
         before_resolve_plugins: vec![
-            ResolvedVc::upcast(
-                get_invalid_server_only_resolve_plugin(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
             ResolvedVc::upcast(
                 ModuleFeatureReportResolvePlugin::new(project_path.clone())
                     .to_resolved()
@@ -449,7 +441,7 @@ pub struct ClientChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
-    pub css_url_suffix: Option<RcStr>,
+    pub css_url_suffix: Vc<Option<RcStr>>,
 }
 
 #[turbo_tasks::function]
@@ -509,7 +501,7 @@ pub async fn get_client_chunking_context(
     .worker_forwarded_globals(worker_forwarded_globals())
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
-        static_suffix: css_url_suffix,
+        static_suffix: css_url_suffix.to_resolved().await?,
     });
 
     if next_mode.is_development() {

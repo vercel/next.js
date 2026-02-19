@@ -38,7 +38,7 @@ fn test(input: &Path, minify: bool) {
                     output_path: Some(output.clone()),
 
                     config: swc_core::base::config::Config {
-                        is_module: Some(swc_core::base::config::IsModule::Bool(true)),
+                        is_module: Some(swc_core::base::config::IsModule::Unknown),
 
                         jsc: swc_core::base::config::JscConfig {
                             minify: if minify {
