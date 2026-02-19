@@ -1130,7 +1130,12 @@ impl AppEndpoint {
 
             for layout in root_layouts.iter().rev() {
                 let source = Vc::upcast(FileSource::new(layout.clone()));
-                let layout_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
+                let layout_config = parse_segment_config_from_source(
+                    source,
+                    ParseSegmentMode::App {
+                        page_route: self.page.to_string().into(),
+                    },
+                );
                 config.apply_parent_config(&*layout_config.await?);
             }
 

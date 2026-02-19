@@ -18,10 +18,10 @@ describe('unstable-instant-client-error', () => {
   }
 
   it('should error when unstable_instant is exported from a client component', async () => {
-    const webpackExpectedError =
-      'Page "/page" cannot use both "use client" and `export const unstable_instant = ...`.'
-    const turbopackExpectedError =
-      'Next.js can\'t recognize the exported `unstable_instant` field in route. App pages cannot use both "use client" and export const "unstable_instant".'
+    const hardPageExpectedError =
+      'Page "/hard/page" cannot use both "use client" and `export const unstable_instant = ...`.'
+    const softPageExpectedError =
+      'Page "/soft/page" cannot use both "use client" and `export const unstable_instant = ...`.'
 
     try {
       await next.start()
@@ -34,19 +34,26 @@ describe('unstable-instant-client-error', () => {
         return
       }
 
+      const hardNavBrowser = await next.browser('/hard')
+      await waitForRedbox(hardNavBrowser)
+      const hardNavDescription = await getRedboxDescription(hardNavBrowser)
+      const hardNavSource = await getRedboxSource(hardNavBrowser)
+      expect(`${hardNavDescription}\n${hardNavSource ?? ''}`).toContain(
+        hardPageExpectedError
+      )
+
       const browser = await next.browser('/')
+      await browser.elementByCss('#soft-link').click()
       await waitForRedbox(browser)
       const description = await getRedboxDescription(browser)
       const source = await getRedboxSource(browser)
-
-      expect(`${description}\n${source ?? ''}`).toContain(webpackExpectedError)
+      expect(`${description}\n${source ?? ''}`).toContain(softPageExpectedError)
     } else {
-      const expectedError = isTurbopack
-        ? turbopackExpectedError
-        : webpackExpectedError
-
       await retry(async () => {
-        expect(next.cliOutput).toContain(expectedError)
+        expect(
+          next.cliOutput.includes(hardPageExpectedError) ||
+            next.cliOutput.includes(softPageExpectedError)
+        ).toBe(true)
       })
     }
   })

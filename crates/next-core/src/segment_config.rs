@@ -209,9 +209,18 @@ pub struct NextSegmentConfigParsingIssue {
     ident: ResolvedVc<AssetIdent>,
     key: RcStr,
     error: RcStr,
+    title_style: NextSegmentConfigIssueTitleStyle,
     detail: Option<ResolvedVc<StyledString>>,
     source: IssueSource,
     severity: IssueSeverity,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
+)]
+enum NextSegmentConfigIssueTitleStyle {
+    Prefixed,
+    Verbatim,
 }
 
 #[turbo_tasks::value_impl]
@@ -221,6 +230,7 @@ impl NextSegmentConfigParsingIssue {
         ident: ResolvedVc<AssetIdent>,
         key: RcStr,
         error: RcStr,
+        title_style: NextSegmentConfigIssueTitleStyle,
         detail: Option<ResolvedVc<StyledString>>,
         source: IssueSource,
         severity: IssueSeverity,
@@ -229,6 +239,7 @@ impl NextSegmentConfigParsingIssue {
             ident,
             key,
             error,
+            title_style,
             detail,
             source,
             severity,
@@ -245,17 +256,22 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Line(vec![
-            StyledString::Text(
-                format!(
-                    "Next.js can't recognize the exported `{}` field in route. ",
-                    self.key,
-                )
-                .into(),
-            ),
-            StyledString::Text(self.error.clone()),
-        ])
-        .cell())
+        Ok(match self.title_style {
+            NextSegmentConfigIssueTitleStyle::Prefixed => StyledString::Line(vec![
+                StyledString::Text(
+                    format!(
+                        "Next.js can't recognize the exported `{}` field in route. ",
+                        self.key,
+                    )
+                    .into(),
+                ),
+                StyledString::Text(self.error.clone()),
+            ])
+            .cell(),
+            NextSegmentConfigIssueTitleStyle::Verbatim => {
+                StyledString::Text(self.error.clone()).cell()
+            }
+        })
     }
 
     #[turbo_tasks::function]
@@ -298,15 +314,25 @@ impl Issue for NextSegmentConfigParsingIssue {
 }
 
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
+    Debug, Clone, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and "use client + unstable_instant", and
     // ignores/warns about `export const config`.
-    App,
+    App { page_route: RcStr },
     // Disallows config = { runtime: "edge" }
     Proxy,
+}
+
+fn normalize_app_page_route_for_error(page_route: &str) -> String {
+    if page_route == "/" {
+        "/page".to_string()
+    } else if page_route.ends_with("/page") {
+        page_route.to_string()
+    } else {
+        format!("{page_route}/page")
+    }
 }
 
 /// Parse the raw source code of a file to get the segment config local to that file.
@@ -425,7 +451,16 @@ pub async fn parse_segment_config_from_source(
             let mut config = NextSegmentConfig::default();
 
             let mut parse = async |ident, init, span| {
-                parse_config_value(source, mode, &mut config, eval_context, ident, init, span).await
+                parse_config_value(
+                    source,
+                    mode.clone(),
+                    &mut config,
+                    eval_context,
+                    ident,
+                    init,
+                    span,
+                )
+                .await
             };
 
             for item in &module_ast.body {
@@ -525,7 +560,7 @@ pub async fn parse_segment_config_from_source(
             _ => false,
         });
 
-    if mode == ParseSegmentMode::App && has_use_client_directive {
+    if matches!(mode, ParseSegmentMode::App { .. }) && has_use_client_directive {
         if let Some(span) = config.generate_static_params {
             invalid_config(
                 source,
@@ -542,14 +577,25 @@ pub async fn parse_segment_config_from_source(
         }
 
         if let Some(span) = config.unstable_instant {
-            invalid_config(
-                source,
-                "unstable_instant",
-                span,
+            let error: RcStr = if let ParseSegmentMode::App { page_route } = &mode {
+                let normalized_route = normalize_app_page_route_for_error(page_route);
+                format!(
+                    "Page \"{normalized_route}\" cannot use both \"use client\" and `export const \
+                     unstable_instant = ...`."
+                )
+                .into()
+            } else {
                 rcstr!(
                     "App pages cannot use both \"use client\" and export const \
                      \"unstable_instant\"."
-                ),
+                )
+            };
+            invalid_config_with_title_style(
+                source,
+                "unstable_instant",
+                span,
+                error,
+                NextSegmentConfigIssueTitleStyle::Verbatim,
                 None,
                 IssueSeverity::Error,
             )
@@ -568,6 +614,27 @@ async fn invalid_config(
     value: Option<&JsValue>,
     severity: IssueSeverity,
 ) -> Result<()> {
+    invalid_config_with_title_style(
+        source,
+        key,
+        span,
+        error,
+        NextSegmentConfigIssueTitleStyle::Prefixed,
+        value,
+        severity,
+    )
+    .await
+}
+
+async fn invalid_config_with_title_style(
+    source: ResolvedVc<Box<dyn Source>>,
+    key: &str,
+    span: Span,
+    error: RcStr,
+    title_style: NextSegmentConfigIssueTitleStyle,
+    value: Option<&JsValue>,
+    severity: IssueSeverity,
+) -> Result<()> {
     let detail = if let Some(value) = value {
         let (explainer, hints) = value.explain(2, 0);
         Some(*StyledString::Text(format!("Got {explainer}.{hints}").into()).resolved_cell())
@@ -579,6 +646,7 @@ async fn invalid_config(
         source.ident(),
         key.into(),
         error,
+        title_style,
         detail,
         IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32()),
         severity,
@@ -634,7 +702,7 @@ async fn parse_config_value(
                 .await;
             };
 
-            if mode == ParseSegmentMode::App {
+            if matches!(mode, ParseSegmentMode::App { .. }) {
                 return invalid_config(
                     source,
                     "config",
@@ -1324,6 +1392,7 @@ async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &AppPageLoaderTree,
 ) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
+    let page_route: RcStr = loader_tree.page.to_string().into();
 
     let parallel_configs = loader_tree
         .parallel_routes
@@ -1349,7 +1418,13 @@ async fn parse_segment_config_from_loader_tree_internal(
     {
         let source = Vc::upcast(FileSource::new(path.clone()));
         config.apply_parent_config(
-            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
+            &*parse_segment_config_from_source(
+                source,
+                ParseSegmentMode::App {
+                    page_route: page_route.clone(),
+                },
+            )
+            .await?,
         );
     }
 

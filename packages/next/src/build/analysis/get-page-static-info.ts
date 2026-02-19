@@ -121,6 +121,10 @@ const ACTION_MODULE_LABEL =
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
 
+function getClientUnstableInstantErrorMessage(page: string): string {
+  return `Page "${page}" cannot use both "use client" and \`export const unstable_instant = ...\`.`
+}
+
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleInformation(
   source: string,
@@ -691,9 +695,7 @@ export async function getAppPageStaticInfo({
   }
 
   if (directives?.has('client') && 'unstable_instant' in config) {
-    throw new Error(
-      `Page "${page}" cannot use both "use client" and \`export const unstable_instant = ...\`.`
-    )
+    throw new Error(getClientUnstableInstantErrorMessage(page))
   }
 
   return {
