@@ -424,6 +424,9 @@ export interface ExperimentalConfig {
   cpus?: number
   memoryBasedWorkersCount?: boolean
   proxyTimeout?: number
+  /**
+   * @deprecated Use cacheMaxDiskSize=0 to disable on-disk caching.
+   */
   isrFlushToDisk?: boolean
   workerThreads?: boolean
   // optimizeCss can be boolean or critters' option object
