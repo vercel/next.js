@@ -1616,7 +1616,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
   }
 
-  if (ctx.cacheMaxDiskSize) {
+  if (typeof ctx.cacheMaxDiskSize === 'number') {
     const opts = { headers: { accept: 'image/webp' } }
     const requests = [
       { url: '/test.png', w: largeSize },

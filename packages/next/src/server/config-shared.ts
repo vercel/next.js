@@ -1185,7 +1185,7 @@ export interface NextConfig {
   /**
    * Configure the on-disk cache size in bytes.
    * If undefined (default) auto-detect based on 50% of available disk space.
-   * If 0, this disables on-disk caching entirely.
+   * If 0, disable writes to on-disk cache (though any existing disk cache may still be read).
    */
   cacheMaxDiskSize?: number | null
 
