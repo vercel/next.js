@@ -769,7 +769,11 @@ export function trackAllowedDynamicAccess(
       '<Suspense>. This delays the entire page from rendering, resulting in a ' +
       'slow user experience. Learn more: ' +
       'https://nextjs.org/docs/messages/blocking-route'
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = createErrorWithComponentOrOwnerStack(
+      message,
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   }
@@ -829,10 +833,11 @@ export function trackDynamicHoleInNavigation(
         ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments.`
         : `Uncached data or \`connection()\` was accessed inside \`generateMetadata\`.`
     const message = `Route "${workStore.route}": ${usageDescription} Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
-    if (dynamicValidation.debugInstantStack) {
-      error.cause = dynamicValidation.debugInstantStack
-    }
+    const error = createErrorWithComponentOrOwnerStack(
+      message,
+      componentStack,
+      dynamicValidation.debugInstantStack
+    )
     dynamicValidation.dynamicMetadata = error
     return
   }
@@ -842,10 +847,11 @@ export function trackDynamicHoleInNavigation(
         ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`.`
         : `Uncached data or \`connection()\` was accessed inside \`generateViewport\`.`
     const message = `Route "${workStore.route}": ${usageDescription} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
-    if (dynamicValidation.debugInstantStack) {
-      error.cause = dynamicValidation.debugInstantStack
-    }
+    const error = createErrorWithComponentOrOwnerStack(
+      message,
+      componentStack,
+      dynamicValidation.debugInstantStack
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   }
@@ -873,11 +879,9 @@ export function trackDynamicHoleInNavigation(
       const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.`
       const error = createErrorWithComponentOrOwnerStack(
         message,
-        componentStack
+        componentStack,
+        dynamicValidation.debugInstantStack
       )
-      if (dynamicValidation.debugInstantStack) {
-        error.cause = dynamicValidation.debugInstantStack
-      }
       dynamicValidation.validationPreventingErrors.push(error)
       return
     }
@@ -928,10 +932,11 @@ export function trackDynamicHoleInNavigation(
       ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`.`
       : `Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`.`
   const message = `Route "${workStore.route}": ${usageDescription} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
-  const error = createErrorWithComponentOrOwnerStack(message, componentStack)
-  if (dynamicValidation.debugInstantStack) {
-    error.cause = dynamicValidation.debugInstantStack
-  }
+  const error = createErrorWithComponentOrOwnerStack(
+    message,
+    componentStack,
+    dynamicValidation.debugInstantStack
+  )
   dynamicValidation.dynamicErrors.push(error)
   return
 }
@@ -960,12 +965,20 @@ export function trackDynamicHoleInRuntimeShell(
     return
   } else if (hasMetadataRegex.test(componentStack)) {
     const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateMetadata\`. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = createErrorWithComponentOrOwnerStack(
+      message,
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicMetadata = error
     return
   } else if (hasViewportRegex.test(componentStack)) {
     const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = createErrorWithComponentOrOwnerStack(
+      message,
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   } else if (
@@ -993,7 +1006,11 @@ export function trackDynamicHoleInRuntimeShell(
   }
 
   const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
-  const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+  const error = createErrorWithComponentOrOwnerStack(
+    message,
+    componentStack,
+    null
+  )
   dynamicValidation.dynamicErrors.push(error)
   return
 }
@@ -1009,12 +1026,20 @@ export function trackDynamicHoleInStaticShell(
     return
   } else if (hasMetadataRegex.test(componentStack)) {
     const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = createErrorWithComponentOrOwnerStack(
+      message,
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicMetadata = error
     return
   } else if (hasViewportRegex.test(componentStack)) {
     const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = createErrorWithComponentOrOwnerStack(
+      message,
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   } else if (
@@ -1041,7 +1066,11 @@ export function trackDynamicHoleInStaticShell(
     return
   } else {
     const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = createErrorWithComponentOrOwnerStack(
+      message,
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   }
@@ -1053,14 +1082,15 @@ export function trackDynamicHoleInStaticShell(
  */
 function createErrorWithComponentOrOwnerStack(
   message: string,
-  componentStack: string
+  componentStack: string,
+  cause: Error | null
 ) {
   const ownerStack =
     process.env.NODE_ENV !== 'production' && React.captureOwnerStack
       ? React.captureOwnerStack()
       : null
 
-  const error = new Error(message)
+  const error = new Error(message, cause !== null ? { cause } : {})
   // TODO go back to owner stack here if available. This is temporarily using componentStack to get the right
   //
   error.stack = error.name + ': ' + message + (ownerStack || componentStack)
