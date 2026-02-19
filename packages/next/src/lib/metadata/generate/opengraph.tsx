@@ -262,7 +262,7 @@ export function TwitterMetadata({
           }),
           Meta({
             name: 'twitter:player:stream',
-            content: player.streamUrl.toString(),
+            content: player.streamUrl?.toString(),
           }),
           Meta({ name: 'twitter:player:width', content: player.width }),
           Meta({ name: 'twitter:player:height', content: player.height }),
