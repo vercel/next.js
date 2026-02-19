@@ -2,6 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import fs from 'fs'
 import path from 'path'
+import { Response } from 'node-fetch'
+
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 interface LogEntry {
   timestamp: number
@@ -55,6 +58,17 @@ function parseDeferredCallbackTimestamp(html: string): number {
   return parseInt(match[1], 10)
 }
 
+async function expectPngResponse(res: Response) {
+  expect(res.status).toBe(200)
+  expect(res.headers.get('content-type')).toContain('image/png')
+
+  const body = Buffer.from(await res.arrayBuffer())
+  expect(body.byteLength).toBeGreaterThan(8)
+  expect(
+    body.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  ).toBe(true)
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -96,7 +110,7 @@ async function waitForCallbackTimestampToStabilize(
   )
 }
 
-describe('deferred-entries webpack', () => {
+describe('deferred-entries', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -116,6 +130,14 @@ describe('deferred-entries webpack', () => {
     } catch (e) {
       // Ignore
     }
+
+    if (isCacheComponentsEnabled) {
+      // Cache Components does not allow route segment runtime configs.
+      await next.patchFile('app/edge-runtime/page.tsx', (content) =>
+        content.replace(/export const runtime = 'edge'[\r\n]+/, '')
+      )
+    }
+
     await next.start()
   })
 
@@ -204,6 +226,44 @@ describe('deferred-entries webpack', () => {
     })
   })
 
+  it('should build pages router dynamic and catch-all routes when using deferred entries', async () => {
+    await retry(async () => {
+      const dynamicRouteRes = await next.fetch('/pages-dynamic/alpha')
+      expect(dynamicRouteRes.status).toBe(200)
+      const html = await dynamicRouteRes.text()
+      expect(html).toMatch(/Pages Dynamic Route:\s*(?:<!-- -->)?alpha/)
+    })
+
+    await retry(async () => {
+      const catchAllRouteRes = await next.fetch('/pages-catch-all/alpha/beta')
+      expect(catchAllRouteRes.status).toBe(200)
+      const html = await catchAllRouteRes.text()
+      expect(html).toMatch(/Pages Catch-all Route:\s*(?:<!-- -->)?alpha\/beta/)
+    })
+
+    await retry(async () => {
+      const optionalCatchAllRootRes = await next.fetch(
+        '/pages-optional-catch-all'
+      )
+      expect(optionalCatchAllRootRes.status).toBe(200)
+      const html = await optionalCatchAllRootRes.text()
+      expect(html).toMatch(
+        /Pages Optional Catch-all Route:\s*(?:<!-- -->)?root/
+      )
+    })
+
+    await retry(async () => {
+      const optionalCatchAllSlugRes = await next.fetch(
+        '/pages-optional-catch-all/alpha/beta'
+      )
+      expect(optionalCatchAllSlugRes.status).toBe(200)
+      const html = await optionalCatchAllSlugRes.text()
+      expect(html).toMatch(
+        /Pages Optional Catch-all Route:\s*(?:<!-- -->)?alpha\/beta/
+      )
+    })
+  })
+
   it('should build app router dynamic route with generateStaticParams when using deferred entries', async () => {
     await retry(async () => {
       const staticParamsRes = await next.fetch('/static-params/alpha')
@@ -221,24 +281,88 @@ describe('deferred-entries webpack', () => {
     })
   })
 
+  it('should build app router parallel routes when using deferred entries', async () => {
+    await retry(async () => {
+      const parallelRouteRes = await next.fetch('/parallel')
+      expect(parallelRouteRes.status).toBe(200)
+
+      const html = await parallelRouteRes.text()
+      expect(html).toContain('Parallel Route Children Slot')
+      expect(html).toContain('Parallel Route Team Slot')
+      expect(html).toContain('Parallel Route Analytics Slot')
+    })
+  })
+
+  it('should build app router dynamic and catch-all routes when using deferred entries', async () => {
+    await retry(async () => {
+      const dynamicRouteRes = await next.fetch('/app-dynamic/alpha')
+      expect(dynamicRouteRes.status).toBe(200)
+      const html = await dynamicRouteRes.text()
+      expect(html).toMatch(/App Dynamic Segment:\s*(?:<!-- -->)?alpha/)
+    })
+
+    await retry(async () => {
+      const catchAllRouteRes = await next.fetch('/app-catch-all/alpha/beta')
+      expect(catchAllRouteRes.status).toBe(200)
+      const html = await catchAllRouteRes.text()
+      expect(html).toMatch(/App Catch-all Segment:\s*(?:<!-- -->)?alpha\/beta/)
+    })
+
+    await retry(async () => {
+      const optionalCatchAllRootRes = await next.fetch(
+        '/app-optional-catch-all'
+      )
+      expect(optionalCatchAllRootRes.status).toBe(200)
+      const html = await optionalCatchAllRootRes.text()
+      expect(html).toMatch(
+        /App Optional Catch-all Segment:\s*(?:<!-- -->)?root/
+      )
+    })
+
+    await retry(async () => {
+      const optionalCatchAllSlugRes = await next.fetch(
+        '/app-optional-catch-all/alpha/beta'
+      )
+      expect(optionalCatchAllSlugRes.status).toBe(200)
+      const html = await optionalCatchAllSlugRes.text()
+      expect(html).toMatch(
+        /App Optional Catch-all Segment:\s*(?:<!-- -->)?alpha\/beta/
+      )
+    })
+  })
+
   it('should build app router route handler when using deferred entries', async () => {
+    const callbackLogPath = path.join(next.testDir, '.callback-log')
     await retry(async () => {
       const routeHandlerRes = await next.fetch('/route-handler')
       expect(routeHandlerRes.status).toBe(200)
       const data = await routeHandlerRes.json()
       expect(data.message).toBe('Hello from app route handler')
+      const callbackTimestamp = parseCallbackLog(callbackLogPath)
+      expect(callbackTimestamp).not.toBeNull()
+      expect(data.callbackTimestamp).toBe(callbackTimestamp)
     })
   })
 
   it('should build app router metadata routes when using deferred entries', async () => {
     await retry(async () => {
-      const [faviconRes, manifestRes, robotsRes, sitemapRes] =
-        await Promise.all([
-          next.fetch('/favicon.ico'),
-          next.fetch('/manifest.json'),
-          next.fetch('/robots.txt'),
-          next.fetch('/sitemap.xml'),
-        ])
+      const [
+        faviconRes,
+        manifestRes,
+        robotsRes,
+        sitemapRes,
+        openGraphRes,
+        twitterRes,
+        appleIconRes,
+      ] = await Promise.all([
+        next.fetch('/favicon.ico'),
+        next.fetch('/manifest.json'),
+        next.fetch('/robots.txt'),
+        next.fetch('/sitemap.xml'),
+        next.fetch('/opengraph-image'),
+        next.fetch('/twitter-image'),
+        next.fetch('/apple-icon'),
+      ])
 
       expect(faviconRes.status).toBe(200)
       expect(manifestRes.status).toBe(200)
@@ -271,6 +395,10 @@ describe('deferred-entries webpack', () => {
       )
       expect(robotsRes.headers.get('content-type')).toContain('text/plain')
       expect(sitemapRes.headers.get('content-type')).toMatch(/xml/)
+
+      await expectPngResponse(openGraphRes)
+      await expectPngResponse(twitterRes)
+      await expectPngResponse(appleIconRes)
     })
   })
 
@@ -296,6 +424,57 @@ describe('deferred-entries webpack', () => {
       const data = await apiRes.json()
       expect(data.message).toBe('Hello from pages API route')
     })
+  })
+
+  it('should build pages router dynamic API routes when using deferred entries', async () => {
+    await retry(async () => {
+      const dynamicApiRes = await next.fetch('/api/dynamic/alpha')
+      expect(dynamicApiRes.status).toBe(200)
+      const data = await dynamicApiRes.json()
+      expect(data.slug).toBe('alpha')
+    })
+  })
+
+  it('should run middleware for app router, pages router, and API routes', async () => {
+    const routes = ['/deferred', '/legacy', '/api/hello', '/route-handler']
+
+    for (const route of routes) {
+      await retry(async () => {
+        const res = await next.fetch(route)
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-deferred-entries-middleware')).toBe('true')
+        expect(res.headers.get('x-deferred-entries-middleware-path')).toBe(
+          route
+        )
+      })
+    }
+  })
+
+  it('should run instrumentation hooks with deferred entries', async () => {
+    await retry(async () => {
+      const homeRes = await next.fetch('/')
+      expect(homeRes.status).toBe(200)
+    })
+
+    await retry(async () => {
+      expect(next.cliOutput).toContain(
+        '[TEST] deferred-entries instrumentation register (nodejs)'
+      )
+    })
+
+    await retry(async () => {
+      const edgeRes = await next.fetch('/edge-runtime')
+      expect(edgeRes.status).toBe(200)
+      expect(await edgeRes.text()).toContain('Edge Runtime App Router Page')
+    })
+
+    if (!isCacheComponentsEnabled) {
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          '[TEST] deferred-entries instrumentation register (edge)'
+        )
+      })
+    }
   })
 
   it('should call onBeforeDeferredEntries before building deferred entry', async () => {

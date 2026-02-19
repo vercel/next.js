@@ -1,7 +1,6 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import {
-  delayUntilRuntimeStage,
   postponeWithTracking,
   type DynamicTrackingState,
 } from '../app-render/dynamic-rendering'
@@ -9,9 +8,14 @@ import {
 import {
   throwInvariantForMissingStore,
   workUnitAsyncStorage,
-  type StaticPrerenderStore,
+  type PrerenderStoreLegacy,
+  type PrerenderStoreModernServer,
+  type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  delayUntilRuntimeStage,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createServerPathnameForMetadata(
@@ -22,7 +26,6 @@ export function createServerPathnameForMetadata(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy': {
         return createPrerenderPathname(
@@ -31,6 +34,11 @@ export function createServerPathnameForMetadata(
           workUnitStore
         )
       }
+      case 'prerender-client':
+      case 'validation-client':
+        throw new InvariantError(
+          'createServerPathnameForMetadata should not be called in client contexts.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -55,13 +63,12 @@ export function createServerPathnameForMetadata(
 function createPrerenderPathname(
   underlyingPathname: string,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore
+  prerenderStore:
+    | PrerenderStoreLegacy
+    | PrerenderStorePPR
+    | PrerenderStoreModernServer
 ): Promise<string> {
   switch (prerenderStore.type) {
-    case 'prerender-client':
-      throw new InvariantError(
-        'createPrerenderPathname was called inside a client component scope.'
-      )
     case 'prerender': {
       const fallbackParams = prerenderStore.fallbackRouteParams
       if (fallbackParams && fallbackParams.size > 0) {

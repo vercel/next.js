@@ -893,6 +893,7 @@ mod test {
     };
 
     use anyhow::Result;
+    use turbo_tasks_hash::hash_xxh3_hash64;
 
     use super::{InnerRope, Rope, RopeBuilder, RopeElem};
 
@@ -1076,6 +1077,21 @@ mod test {
         let b = Rope::new(vec!["abc".into(), shared.into(), "hhh".into()]);
 
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn hash_structure_invariance() {
+        let shared = Rope::from("def");
+        let a = Rope::new(vec!["abc".into(), shared.clone().into(), "ggg".into()]);
+        let b = Rope::new(vec![
+            "ab".into(),
+            "c".into(),
+            shared.into(),
+            "g".into(),
+            "gg".into(),
+        ]);
+
+        assert_eq!(hash_xxh3_hash64(a), hash_xxh3_hash64(b));
     }
 
     #[test]

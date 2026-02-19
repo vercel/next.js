@@ -40,23 +40,7 @@ function instantiateModule(
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
-    let instantiationReason: string
-    switch (sourceType) {
-      case SourceType.Runtime:
-        instantiationReason = `as a runtime entry of chunk ${sourceData}`
-        break
-      case SourceType.Parent:
-        instantiationReason = `because it was required from module ${sourceData}`
-        break
-      default:
-        invariant(
-          sourceType,
-          (sourceType) => `Unknown source type: ${sourceType}`
-        )
-    }
-    throw new Error(
-      `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`
-    )
+    throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData))
   }
 
   const module: ModuleWithDirection = createModuleWithDirection(id)

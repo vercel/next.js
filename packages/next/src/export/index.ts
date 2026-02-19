@@ -997,7 +997,7 @@ async function exportAppImpl(
   if (failedExportAttemptsByPage.size > 0) {
     const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${failedPages
+      `Export encountered errors on ${failedPages.length} ${failedPages.length === 1 ? 'path' : 'paths'}:\n\t${failedPages
         .sort()
         .join('\n\t')}`
     )

@@ -238,7 +238,6 @@ export class NextDeployInstance extends NextInstance {
     if (TEST_TEAM_NAME) {
       vercelFlags.push('--scope', TEST_TEAM_NAME)
     }
-
     const vercelEnv = { ...process.env }
 
     // If the token is available in the environment, use it as the token in the
@@ -320,6 +319,8 @@ export class NextDeployInstance extends NextInstance {
     }
     if (process.env.NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
+    } else {
+      additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
     }
 
     const deployRes = await execa(
