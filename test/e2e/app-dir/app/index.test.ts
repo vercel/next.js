@@ -145,6 +145,56 @@ describe('app dir - basic', () => {
     })
   })
 
+  it.each([
+    {
+      path: '/dashboard',
+      srcPage: '/dashboard/page',
+    },
+    {
+      path: '/dynamic/category-1/id-2',
+      srcPage: '/dynamic/[category]/[id]/page',
+    },
+    {
+      path: '/dashboard/another',
+      srcPage: '/(newroot)/dashboard/another/page',
+    },
+  ])(
+    'should expose app source page on window.next.__internal_src_page for $path',
+    async ({ path, srcPage }) => {
+      const browser = await next.browser(path)
+
+      await retry(async () => {
+        expect(await browser.eval('window.next.__internal_src_page')).toBe(
+          srcPage
+        )
+      })
+    }
+  )
+
+  it('should update window.next.__internal_src_page on app router transitions', async () => {
+    const browser = await next.browser('/dashboard')
+
+    await retry(async () => {
+      expect(await browser.eval('window.next.__internal_src_page')).toBe(
+        '/dashboard/page'
+      )
+    })
+
+    await browser.eval(`window.next.router.push('/dynamic/category-1/id-2')`)
+    await retry(async () => {
+      expect(await browser.eval('window.next.__internal_src_page')).toBe(
+        '/dynamic/[category]/[id]/page'
+      )
+    })
+
+    await browser.eval(`window.next.router.push('/dashboard/another')`)
+    await retry(async () => {
+      expect(await browser.eval('window.next.__internal_src_page')).toBe(
+        '/(newroot)/dashboard/another/page'
+      )
+    })
+  })
+
   if (!isNextDev) {
     it('should successfully detect app route during prefetch', async () => {
       const browser = await next.browser('/')

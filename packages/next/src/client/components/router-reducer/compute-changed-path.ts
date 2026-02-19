@@ -27,6 +27,44 @@ const segmentToPathname = (segment: Segment): string => {
   return segment[1]
 }
 
+const segmentToSourcePagePathname = (segment: Segment): string => {
+  if (typeof segment === 'string') {
+    if (segment === 'children') return ''
+    if (segment.startsWith(PAGE_SEGMENT_KEY)) return 'page'
+    return segment
+  }
+
+  const [paramName, , dynamicParamType] = segment
+
+  switch (dynamicParamType) {
+    case 'c':
+      return `[...${paramName}]`
+    case 'ci(..)(..)':
+      return `(..)(..)[...${paramName}]`
+    case 'ci(.)':
+      return `(.)[...${paramName}]`
+    case 'ci(..)':
+      return `(..)[...${paramName}]`
+    case 'ci(...)':
+      return `(...)[...${paramName}]`
+    case 'oc':
+      return `[[...${paramName}]]`
+    case 'd':
+      return `[${paramName}]`
+    case 'di(..)(..)':
+      return `(..)(..)[${paramName}]`
+    case 'di(.)':
+      return `(.)[${paramName}]`
+    case 'di(..)':
+      return `(..)[${paramName}]`
+    case 'di(...)':
+      return `(...)[${paramName}]`
+    default:
+      dynamicParamType satisfies never
+      return `[${paramName}]`
+  }
+}
+
 function normalizeSegments(segments: string[]): string {
   return (
     segments.reduce((acc, segment) => {
@@ -77,6 +115,55 @@ export function extractPathFromFlightRouterState(
   }
 
   return normalizeSegments(segments)
+}
+
+function extractSourcePageSegmentsFromFlightRouterState(
+  flightRouterState: FlightRouterState
+): string[] | undefined {
+  const segment = segmentToSourcePagePathname(flightRouterState[0])
+
+  if (segment === DEFAULT_SEGMENT_KEY) {
+    return undefined
+  }
+
+  if (segment === 'page') {
+    return [segment]
+  }
+
+  const parallelRoutes = flightRouterState[1] ?? {}
+
+  const childrenPath = parallelRoutes.children
+    ? extractSourcePageSegmentsFromFlightRouterState(parallelRoutes.children)
+    : undefined
+
+  if (childrenPath !== undefined) {
+    return segment === ''
+      ? childrenPath
+      : [removeLeadingSlash(segment), ...childrenPath]
+  }
+
+  for (const [key, value] of Object.entries(parallelRoutes)) {
+    if (key === 'children') continue
+
+    const childPath = extractSourcePageSegmentsFromFlightRouterState(value)
+
+    if (childPath !== undefined) {
+      return segment === ''
+        ? childPath
+        : [removeLeadingSlash(segment), ...childPath]
+    }
+  }
+
+  return undefined
+}
+
+export function extractSourcePageFromFlightRouterState(
+  flightRouterState: FlightRouterState
+): string | undefined {
+  const sourcePageSegments =
+    extractSourcePageSegmentsFromFlightRouterState(flightRouterState)
+
+  return sourcePageSegments ? `/${sourcePageSegments.join('/')}` : undefined
 }
 
 function computeChangedPathImpl(
