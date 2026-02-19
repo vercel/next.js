@@ -1064,5 +1064,6 @@
   "1063": "`connection` must not be used within a Client Component. Next.js should be preventing `connection` from being included in Client Components statically, but did not in this case.",
   "1064": "createServerParamsForRoute should not be called in client contexts.",
   "1065": "createServerPathnameForMetadata should not be called in client contexts.",
-  "1066": "createServerSearchParamsForServerPage should not be called in a client validation."
+  "1066": "createServerSearchParamsForServerPage should not be called in a client validation.",
+  "1067": "The Next.js unhandled rejection filter is being installed more than once. This is a bug in Next.js."
 }
