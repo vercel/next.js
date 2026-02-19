@@ -5,7 +5,7 @@ const jsContent = `export const nope = 'nope'
 throw new Error('please dont execute me')
 `
 
-;(process.env.TURBOPACK ? describe : describe.skip)(
+;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'turbopack-import-with-type',
   () => {
     const { next, skipped } = nextTestSetup({
@@ -18,7 +18,7 @@ throw new Error('please dont execute me')
     }
 
     // Testing this together on one route ensures we also avoid weird duplicate module ident things
-    it('supports import with type: text and type: bytes', async () => {
+    it('supports import with type: text, type: bytes, and type: json', async () => {
       const response = JSON.parse(await next.render('/api'))
       expect(response).toEqual({
         text: {
@@ -43,6 +43,14 @@ throw new Error('please dont execute me')
           instanceofUint8Array: true,
           content:
             "throw new Error('this file is configured as ecmascript but imported as bytes')\n",
+        },
+        json: {
+          typeofObject: true,
+          content: { hello: 'world' },
+        },
+        jsonAsText: {
+          typeofString: true,
+          content: '{ "hello": "world" }\n',
         },
       })
     })

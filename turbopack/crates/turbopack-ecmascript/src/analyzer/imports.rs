@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
     common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
@@ -299,6 +300,20 @@ pub struct ImportAttributes {
     /// const a = import(/* turbopackOptional: true */ "a");
     /// ```
     pub optional: bool,
+    /// Which exports are used from a dynamic import. When set, enables tree-shaking for the
+    /// dynamically imported module by only including the specified exports.
+    ///
+    /// This is set by using either a `webpackExports` or `turbopackExports` comment.
+    /// `None` means no directive was found (all exports assumed used).
+    /// `Some([])` means empty list (only side effects).
+    /// `Some([name, ...])` means specific named exports are used.
+    ///
+    /// Example:
+    /// ```js
+    /// const { a } = await import(/* webpackExports: ["a"] */ "module");
+    /// const { b } = await import(/* turbopackExports: "b" */ "module");
+    /// ```
+    pub export_names: Option<SmallVec<[RcStr; 1]>>,
 }
 
 impl ImportAttributes {
@@ -306,6 +321,7 @@ impl ImportAttributes {
         ImportAttributes {
             ignore: false,
             optional: false,
+            export_names: None,
         }
     }
 
@@ -883,29 +899,67 @@ fn parse_directives(
 
     let mut ignore = None;
     let mut optional = None;
+    let mut export_names = None;
 
     // Process all comments, last one wins for each directive type
     for comment in leading_comments.iter() {
         if let Some((directive, val)) = comment.text.trim().split_once(':') {
-            match (directive.trim(), val.trim()) {
-                ("webpackIgnore" | "turbopackIgnore", "true") => ignore = Some(true),
-                ("webpackIgnore" | "turbopackIgnore", "false") => ignore = Some(false),
-                ("turbopackOptional", "true") => optional = Some(true),
-                ("turbopackOptional", "false") => optional = Some(false),
+            let val = val.trim();
+            match directive.trim() {
+                "webpackIgnore" | "turbopackIgnore" => match val {
+                    "true" => ignore = Some(true),
+                    "false" => ignore = Some(false),
+                    _ => {}
+                },
+                "turbopackOptional" => match val {
+                    "true" => optional = Some(true),
+                    "false" => optional = Some(false),
+                    _ => {}
+                },
+                "webpackExports" | "turbopackExports" => {
+                    export_names = Some(parse_export_names(val));
+                }
                 _ => {} // ignore anything else
             }
         }
     }
 
     // Return Some only if at least one directive was found
-    if ignore.is_some() || optional.is_some() {
+    if ignore.is_some() || optional.is_some() || export_names.is_some() {
         Some(ImportAttributes {
             ignore: ignore.unwrap_or(false),
             optional: optional.unwrap_or(false),
+            export_names,
         })
     } else {
         None
     }
+}
+
+/// Parse export names from a `webpackExports` or `turbopackExports` comment value.
+///
+/// Supports two formats:
+/// - Single string: `"name"` → `["name"]`
+/// - JSON array: `["name1", "name2"]` → `["name1", "name2"]`
+fn parse_export_names(val: &str) -> SmallVec<[RcStr; 1]> {
+    let val = val.trim();
+
+    // Try parsing as JSON array of strings
+    if let Ok(names) = serde_json::from_str::<Vec<String>>(val) {
+        return names.into_iter().map(|s| s.into()).collect();
+    }
+
+    // Try parsing as a single JSON string
+    if let Ok(name) = serde_json::from_str::<String>(val) {
+        return SmallVec::from_buf([name.into()]);
+    }
+
+    // Bare identifier (no quotes)
+    if !val.is_empty() {
+        return SmallVec::from_buf([val.into()]);
+    }
+
+    SmallVec::new()
 }
 
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {

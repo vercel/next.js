@@ -512,7 +512,10 @@ function instantiateModuleShared(
   const moduleFactory = moduleFactories.get(id)
   if (typeof moduleFactory !== 'function') {
     throw new Error(
-      `Module ${id} was instantiated, but the module factory is not available.`
+      factoryNotAvailableMessage(moduleId, sourceType, sourceData) +
+        `\nThis is often caused by a stale browser cache, misconfigured Cache-Control headers, or a service worker serving outdated responses.` +
+        `\nTo fix this, make sure your Cache-Control headers allow revalidation of chunks and review your service worker configuration. ` +
+        `As an immediate workaround, try hard-reloading the page, clearing the browser cache, or unregistering any service workers.`
     )
   }
 
