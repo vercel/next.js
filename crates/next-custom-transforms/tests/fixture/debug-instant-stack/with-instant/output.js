@@ -4,4 +4,4 @@ export const unstable_instant = {
 export default function Page() {
     return <div>Hello</div>;
 }
-export const __debugInstantStack = new Error();
+export const __debugInstantStack = process.env.NODE_ENV !== "production" ? new Error() : undefined;

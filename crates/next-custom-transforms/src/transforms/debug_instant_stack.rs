@@ -48,15 +48,52 @@ impl Fold for DebugInstantStack {
                             },
                             type_ann: None,
                         }),
-                        init: Some(Box::new(Expr::New(NewExpr {
-                            callee: Box::new(Expr::Ident(Ident {
-                                sym: "Error".into(),
+                        init: Some(Box::new(Expr::Cond(CondExpr {
+                            span: DUMMY_SP,
+                            // process.env.NODE_ENV !== "production"
+                            test: Box::new(Expr::Bin(BinExpr {
+                                span: DUMMY_SP,
+                                op: BinaryOp::NotEqEq,
+                                left: Box::new(Expr::Member(MemberExpr {
+                                    span: DUMMY_SP,
+                                    obj: Box::new(Expr::Member(MemberExpr {
+                                        span: DUMMY_SP,
+                                        obj: Box::new(Expr::Ident(Ident {
+                                            sym: "process".into(),
+                                            ..Default::default()
+                                        })),
+                                        prop: MemberProp::Ident(IdentName {
+                                            sym: "env".into(),
+                                            span: DUMMY_SP,
+                                        }),
+                                    })),
+                                    prop: MemberProp::Ident(IdentName {
+                                        sym: "NODE_ENV".into(),
+                                        span: DUMMY_SP,
+                                    }),
+                                })),
+                                right: Box::new(Expr::Lit(Lit::Str(Str {
+                                    span: DUMMY_SP,
+                                    value: "production".into(),
+                                    raw: None,
+                                }))),
+                            })),
+                            // new Error()
+                            cons: Box::new(Expr::New(NewExpr {
+                                callee: Box::new(Expr::Ident(Ident {
+                                    sym: "Error".into(),
+                                    span: source_span,
+                                    ..Default::default()
+                                })),
+                                args: Some(vec![]),
                                 span: source_span,
                                 ..Default::default()
                             })),
-                            args: Some(vec![]),
-                            span: source_span,
-                            ..Default::default()
+                            // undefined
+                            alt: Box::new(Expr::Ident(Ident {
+                                sym: "undefined".into(),
+                                ..Default::default()
+                            })),
                         }))),
                         span: DUMMY_SP,
                         definite: false,
