@@ -21,11 +21,11 @@ pub type TurboBincodeDecoder<'a> =
 pub type AnyEncodeFn = fn(&dyn Any, &mut TurboBincodeEncoder<'_>) -> Result<(), EncodeError>;
 pub type AnyDecodeFn<T> = fn(&mut TurboBincodeDecoder<'_>) -> Result<T, DecodeError>;
 
-fn new_turbo_bincode_encoder(buf: &mut TurboBincodeBuffer) -> TurboBincodeEncoder<'_> {
+pub fn new_turbo_bincode_encoder(buf: &mut TurboBincodeBuffer) -> TurboBincodeEncoder<'_> {
     EncoderImpl::new(TurboBincodeWriter::new(buf), TURBO_BINCODE_CONFIG)
 }
 
-fn new_turbo_bincode_decoder(buffer: &[u8]) -> TurboBincodeDecoder<'_> {
+pub fn new_turbo_bincode_decoder(buffer: &[u8]) -> TurboBincodeDecoder<'_> {
     DecoderImpl::new(TurboBincodeReader::new(buffer), TURBO_BINCODE_CONFIG, ())
 }
 

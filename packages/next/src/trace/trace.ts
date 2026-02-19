@@ -3,6 +3,7 @@ import type { SpanId, TraceEvent, TraceState } from './types'
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
 const NUM_OF_MILLISEC_IN_NANOSEC = BigInt('1000000')
+
 let count = 0
 const getId = () => {
   count++
@@ -23,14 +24,14 @@ export enum SpanStatus {
 }
 
 interface Attributes {
-  [key: string]: string
+  [key: string]: unknown
 }
 
 export class Span {
   private name: string
   private id: SpanId
   private parentId?: SpanId
-  private attrs: { [key: string]: any }
+  private attrs: { [key: string]: unknown }
   private status: SpanStatus
   private now: number
 
@@ -125,7 +126,7 @@ export class Span {
     return this.id
   }
 
-  setAttribute(key: string, value: string) {
+  setAttribute(key: string, value: unknown) {
     this.attrs[key] = value
   }
 
@@ -149,7 +150,7 @@ export class Span {
 export const trace = (
   name: string,
   parentId?: SpanId,
-  attrs?: { [key: string]: string }
+  attrs?: { [key: string]: unknown }
 ) => {
   return new Span({ name, parentId, attrs })
 }
@@ -188,3 +189,18 @@ export function recordTraceEvents(events: TraceEvent[]) {
 }
 
 export const clearTraceEvents = () => (savedTraceEvents = [])
+
+/**
+ * Converts hrtime (process.hrtime.bigint()) to epoch-based nanoseconds.
+ *
+ * hrtime values are relative to an arbitrary point in the past, while
+ * epoch-based times are nanoseconds since Unix epoch (Jan 1, 1970).
+ *
+ * This is useful when passing hrtime values to APIs that expect epoch-based times,
+ * such as Span.manualTraceChild().
+ */
+export function hrtimeToEpochNanoseconds(hrtimeValue: bigint): bigint {
+  const offset =
+    BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC - process.hrtime.bigint()
+  return hrtimeValue + offset
+}

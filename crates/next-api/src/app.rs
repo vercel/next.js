@@ -29,6 +29,7 @@ use next_core::{
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
     },
+    next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
     segment_config::{NextSegmentConfig, ParseSegmentMode},
@@ -51,7 +52,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        SourceMapsType, availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::{AssetIdent, Layer},
@@ -64,7 +65,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     source_map::SourceMapAsset,
     virtual_output::VirtualOutputAsset,
@@ -374,6 +375,10 @@ impl AppProject {
                 (
                     rcstr!("next-server-utility"),
                     ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+                ),
+                (
+                    rcstr!("next-server-component"),
+                    ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?),
                 ),
             ]
             .into_iter()
@@ -801,11 +806,26 @@ impl AppProject {
 
     #[turbo_tasks::function]
     pub async fn routes(self: Vc<Self>) -> Result<Vc<Routes>> {
+        Ok(self.routes_with_filter(None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn routes_with_filter(
+        self: Vc<Self>,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<Vc<Routes>> {
         let app_entrypoints = self.app_entrypoints();
         Ok(Vc::cell(
             app_entrypoints
                 .await?
                 .iter()
+                .filter(|(pathname, _)| {
+                    app_route_filter.as_ref().is_none_or(|app_routes| {
+                        app_routes
+                            .iter()
+                            .any(|route| route.as_str() == pathname.to_string())
+                    })
+                })
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.to_string().into(),
@@ -817,6 +837,18 @@ impl AppProject {
                 .try_join()
                 .await?
                 .into_iter()
+                .collect(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn route_keys(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+        let app_entrypoints = self.app_entrypoints();
+        Ok(Vc::cell(
+            app_entrypoints
+                .await?
+                .iter()
+                .map(|(pathname, _)| pathname.to_string().into())
                 .collect(),
         ))
     }
@@ -835,7 +867,7 @@ impl AppProject {
             ))),
             CommonJsReferenceSubType::Undefined,
             None,
-            false,
+            ResolveErrorMode::Error,
         )
         .resolve()
         .await?
@@ -919,12 +951,12 @@ impl AppProject {
                             // Only propagate the visited_modules of the parent layout(s), not
                             // across siblings such as loading.js and
                             // page.js.
-                            visited_modules.concatenate(graph)
+                            VisitedModules::concatenate(visited_modules, graph)
                         } else {
                             // Prevents graph index from getting out of sync.
                             // TODO We should remove VisitedModule entirely in favor of lookups
                             // in SingleModuleGraph
-                            visited_modules.with_incremented_index()
+                            VisitedModules::with_incremented_index(visited_modules)
                         };
                     }
                     visited_modules
@@ -946,10 +978,10 @@ impl AppProject {
                     should_read_binding_usage,
                 );
                 graphs.push(graph);
-                visited_modules = visited_modules.concatenate(graph);
+                visited_modules = VisitedModules::concatenate(visited_modules, graph);
 
                 let base = ModuleGraph::from_graphs(graphs.clone());
-                let additional_entries = endpoint.additional_entries(base);
+                let additional_entries = endpoint.additional_entries(base.connect());
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
@@ -958,31 +990,33 @@ impl AppProject {
                 );
                 graphs.push(additional_module_graph);
 
-                let full_with_unused_references =
-                    ModuleGraph::from_graphs(graphs).to_resolved().await?;
-
-                let full = if *self
+                let remove_unused_imports = *self
                     .project
                     .next_config()
                     .turbopack_remove_unused_imports(next_mode)
-                    .await?
-                {
-                    full_with_unused_references
-                        .without_unused_references(
-                            *compute_binding_usage_info(full_with_unused_references, true)
-                                .resolve_strongly_consistent()
-                                .await?,
-                        )
-                        .to_resolved()
-                        .await?
+                    .await?;
+
+                let (full, binding_usage_info) = if remove_unused_imports {
+                    let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
+                    let binding_usage_info = compute_binding_usage_info(
+                        full_with_unused_references,
+                        should_read_binding_usage,
+                    );
+                    (
+                        ModuleGraph::from_graphs_without_unused_references(
+                            graphs,
+                            binding_usage_info,
+                        ),
+                        Some(binding_usage_info),
+                    )
                 } else {
-                    full_with_unused_references
+                    (ModuleGraph::from_graphs(graphs), None)
                 };
 
                 Ok(BaseAndFullModuleGraph {
-                    base: base.to_resolved().await?,
-                    full_with_unused_references,
-                    full,
+                    base: base.connect().to_resolved().await?,
+                    full: full.connect().to_resolved().await?,
+                    binding_usage_info,
                 }
                 .cell())
             }
@@ -1361,13 +1395,19 @@ impl AppEndpoint {
         let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
         client_assets.insert(polyfill_output_asset);
 
-        let polyfill_source_map_asset = SourceMapAsset::new_fixed(
-            polyfill_output_path.clone(),
-            *ResolvedVc::upcast(polyfill_output),
-        )
-        .to_resolved()
-        .await?;
-        client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
+        let client_source_maps = project
+            .next_config()
+            .client_source_maps(project.next_mode())
+            .await?;
+        if *client_source_maps != SourceMapsType::None {
+            let polyfill_source_map_asset = SourceMapAsset::new_fixed(
+                polyfill_output_path.clone(),
+                *ResolvedVc::upcast(polyfill_output),
+            )
+            .to_resolved()
+            .await?;
+            client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
+        }
 
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
@@ -1570,6 +1610,7 @@ impl AppEndpoint {
 
                     let loadable_manifest_output = create_react_loadable_manifest(
                         *dynamic_import_entries,
+                        *client_chunking_context,
                         client_relative_path.clone(),
                         node_root.join(&format!(
                             "server/app{}/react-loadable-manifest",
@@ -1685,6 +1726,7 @@ impl AppEndpoint {
 
                     let loadable_manifest_output = create_react_loadable_manifest(
                         *dynamic_import_entries,
+                        *client_chunking_context,
                         client_relative_path.clone(),
                         node_root.join(&format!(
                             "server/app{}/react-loadable-manifest",
@@ -2112,6 +2154,11 @@ impl Endpoint for AppEndpoint {
             )
             .await?;
         Ok(Vc::cell(vec![module_graphs.full]))
+    }
+
+    #[turbo_tasks::function]
+    async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
+        Ok(self.await?.app_project.project())
     }
 }
 

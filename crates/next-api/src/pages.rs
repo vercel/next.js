@@ -59,7 +59,7 @@ use turbopack_core::{
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
@@ -562,7 +562,7 @@ impl PagesProject {
                 },
             )),
             EcmaScriptModulesReferenceSubType::Undefined,
-            false,
+            ResolveErrorMode::Error,
             None,
         )
         .await?
@@ -661,11 +661,11 @@ impl PageEndpoint {
         if matches!(
             *this.pages_project.project().next_mode().await?,
             NextMode::Development
-        ) && let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await?
+        ) && let Some(chunkable) = ResolvedVc::try_downcast(page_loader.to_resolved().await?)
         {
             return Ok(Vc::upcast(HmrEntryModule::new(
                 AssetIdent::from_path(this.page.await?.base_path.clone()),
-                chunkable,
+                *chunkable,
             )));
         }
         Ok(page_loader)
@@ -678,23 +678,23 @@ impl PageEndpoint {
         let client_module = self.client_module();
         let client_main_module = this.pages_project.client_main_module();
 
-        let Some(client_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
-        else {
+        let Some(client_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
+            client_module.to_resolved().await?,
+        ) else {
             bail!("expected an evaluateable asset");
         };
 
-        let Some(client_main_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
-        else {
+        let Some(client_main_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
+            client_main_module.to_resolved().await?,
+        ) else {
             bail!("expected an evaluateable asset");
         };
 
         let evaluatable_assets = this
             .pages_project
             .client_runtime_entries()
-            .with_entry(client_main_module)
-            .with_entry(client_module);
+            .with_entry(*client_main_module)
+            .with_entry(*client_module);
         Ok(evaluatable_assets)
     }
 
@@ -736,7 +736,7 @@ impl PageEndpoint {
                     should_read_binding_usage,
                 );
                 graphs.push(graph);
-                visited_modules = visited_modules.concatenate(graph);
+                visited_modules = VisitedModules::concatenate(visited_modules, graph);
             }
 
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
@@ -747,21 +747,20 @@ impl PageEndpoint {
             );
             graphs.push(graph);
 
-            let mut graph = ModuleGraph::from_graphs(graphs);
-
-            if *project
+            let remove_unused_imports = *project
                 .next_config()
                 .turbopack_remove_unused_imports(next_mode)
-                .await?
-            {
-                graph = graph.without_unused_references(
-                    *compute_binding_usage_info(graph.to_resolved().await?, true)
-                        .resolve_strongly_consistent()
-                        .await?,
-                );
-            }
+                .await?;
 
-            Ok(graph)
+            let graph = if remove_unused_imports {
+                let graph = ModuleGraph::from_graphs(graphs.clone());
+                let binding_usage_info = compute_binding_usage_info(graph, true);
+                ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
+            } else {
+                ModuleGraph::from_graphs(graphs)
+            };
+
+            Ok(graph.connect())
         } else {
             Ok(*project.whole_app_module_graphs().await?.full)
         }
@@ -1069,11 +1068,15 @@ impl PageEndpoint {
                     .is_production()
                 {
                     let additional_assets = if emit_manifests == EmitManifests::Full {
-                        self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs)
-                            .await?
-                            .iter()
-                            .map(|m| **m)
-                            .collect()
+                        self.react_loadable_manifest(
+                            *dynamic_import_entries,
+                            project.client_chunking_context(),
+                            NextRuntime::NodeJs,
+                        )
+                        .await?
+                        .iter()
+                        .map(|m| **m)
+                        .collect()
                     } else {
                         vec![]
                     };
@@ -1197,6 +1200,7 @@ impl PageEndpoint {
     async fn react_loadable_manifest(
         &self,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         runtime: NextRuntime,
     ) -> Result<Vc<OutputAssets>> {
         let node_root = self.pages_project.project().node_root().owned().await?;
@@ -1209,6 +1213,7 @@ impl PageEndpoint {
         let loadable_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         Ok(create_react_loadable_manifest(
             dynamic_import_entries,
+            chunking_context,
             client_relative_path,
             node_root.join(&format!(
                 "server/pages{loadable_path_prefix}/react-loadable-manifest",
@@ -1389,8 +1394,11 @@ impl PageEndpoint {
                     server_assets.push(pages_manifest);
                 }
                 if emit_manifests == EmitManifests::Full {
-                    let loadable_manifest_output =
-                        self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs);
+                    let loadable_manifest_output = self.react_loadable_manifest(
+                        *dynamic_import_entries,
+                        this.pages_project.project().client_chunking_context(),
+                        NextRuntime::NodeJs,
+                    );
                     server_assets.extend(loadable_manifest_output.await?.iter().copied());
                 }
 
@@ -1454,7 +1462,11 @@ impl PageEndpoint {
 
                     if emit_manifests == EmitManifests::Full {
                         let loadable_manifest_output = self
-                            .react_loadable_manifest(*dynamic_import_entries, NextRuntime::Edge)
+                            .react_loadable_manifest(
+                                *dynamic_import_entries,
+                                this.pages_project.project().client_chunking_context(),
+                                NextRuntime::Edge,
+                            )
                             .await?;
                         if pages_structure.should_create_pages_entries {
                             server_assets.extend(loadable_manifest_output.iter().copied());
@@ -1721,6 +1733,11 @@ impl Endpoint for PageEndpoint {
         } else {
             vec![ssr_module_graph]
         }))
+    }
+
+    #[turbo_tasks::function]
+    async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
+        Ok(self.await?.pages_project.project())
     }
 }
 

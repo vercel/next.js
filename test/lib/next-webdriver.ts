@@ -1,4 +1,4 @@
-import { debugPrint, getFullUrl, waitFor } from 'next-test-utils'
+import { debugPrint, getFullUrl } from 'next-test-utils'
 import os from 'os'
 import {
   Playwright,
@@ -216,13 +216,5 @@ export default async function webdriver(
     debugPrint(`Hydration complete for ${fullUrl}`)
   }
 
-  // This is a temporary workaround for turbopack starting watching too late.
-  // So we delay file changes to give it some time
-  // to connect the WebSocket and start watching.
-  // TODO: Is this still needed? Can we wait in a more useful way, like a socket connection event?
-  if (process.env.IS_TURBOPACK_TEST && process.env.TURBOPACK_DEV) {
-    debugPrint(`Waiting for for turbopack watcher to start`)
-    await waitFor(1000)
-  }
   return browser
 }

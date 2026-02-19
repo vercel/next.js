@@ -40,7 +40,7 @@ import {
   type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
-import { isRedirectError, RedirectType } from './redirect-error'
+import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
@@ -236,7 +236,7 @@ function Router({
         const redirectType = getRedirectTypeFromError(error)
         // TODO: This should access the router methods directly, rather than
         // go through the public interface.
-        if (redirectType === RedirectType.push) {
+        if (redirectType === 'push') {
           publicAppRouterInstance.push(url, {})
         } else {
           publicAppRouterInstance.replace(url, {})
@@ -362,7 +362,11 @@ function Router({
      */
     const onPopState = (event: PopStateEvent) => {
       if (!event.state) {
-        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+        // This case happens when pushState/replaceState was called outside
+        // of Next.js with a null state, or the initial history entry has no
+        // state. The router tree would be completely out of sync so we need
+        // to do a hard navigation to get back to a consistent state.
+        window.location.reload()
         return
       }
 
@@ -424,6 +428,7 @@ function Router({
       parentCacheNode: cache,
       parentSegmentPath: null,
       parentParams: {},
+      parentLoadingData: null,
       // This is the <Activity> "name" that shows up in the Suspense DevTools.
       // It represents the root of the app.
       debugNameContext: '/',
@@ -478,7 +483,7 @@ function Router({
     </RedirectBoundary>
   )
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     // In development, we apply few error boundaries and hot-reloader:
     // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
     // - HotReloader:
@@ -522,7 +527,7 @@ function Router({
   return (
     <>
       <HistoryUpdater appRouterState={state} />
-      <RuntimeStyles />
+      {process.env.TURBOPACK ? null : <RuntimeStylesForWebpack />}
       <NavigationPromisesContext.Provider
         value={instrumentedNavigationPromises}
       >
@@ -582,24 +587,30 @@ export default function AppRouter({
   )
 }
 
-const runtimeStyles = new Set<string>()
-let runtimeStyleChanged = new Set<() => void>()
+let runtimeStyles: Set<string> | undefined
+let runtimeStyleChanged: Set<() => void> | undefined
+if (!process.env.TURBOPACK && typeof window !== 'undefined') {
+  runtimeStyles = new Set<string>()
+  runtimeStyleChanged = new Set<() => void>()
 
-globalThis._N_E_STYLE_LOAD = function (href: string) {
-  let len = runtimeStyles.size
-  runtimeStyles.add(href)
-  if (runtimeStyles.size !== len) {
-    runtimeStyleChanged.forEach((cb) => cb())
+  globalThis._N_E_STYLE_LOAD = function (href: string) {
+    if (!runtimeStyles || !runtimeStyleChanged) return Promise.resolve()
+    let len = runtimeStyles.size
+    runtimeStyles.add(href)
+    if (runtimeStyles.size !== len) {
+      runtimeStyleChanged.forEach((cb) => cb())
+    }
+    // TODO figure out how to get a promise here
+    // But maybe it's not necessary as react would block rendering until it's loaded
+    return Promise.resolve()
   }
-  // TODO figure out how to get a promise here
-  // But maybe it's not necessary as react would block rendering until it's loaded
-  return Promise.resolve()
 }
 
-function RuntimeStyles() {
+function RuntimeStylesForWebpack() {
   const [, forceUpdate] = React.useState(0)
-  const renderedStylesSize = runtimeStyles.size
+  const renderedStylesSize = runtimeStyles?.size ?? 0
   useEffect(() => {
+    if (!runtimeStyles || !runtimeStyleChanged) return
     const changed = () => forceUpdate((c) => c + 1)
     runtimeStyleChanged.add(changed)
     if (renderedStylesSize !== runtimeStyles.size) {
@@ -611,7 +622,7 @@ function RuntimeStyles() {
   }, [renderedStylesSize, forceUpdate])
 
   const dplId = getDeploymentIdQueryOrEmptyString()
-  return [...runtimeStyles].map((href, i) => (
+  return [...(runtimeStyles || [])].map((href, i) => (
     <link
       key={i}
       rel="stylesheet"

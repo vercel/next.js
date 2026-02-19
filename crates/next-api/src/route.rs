@@ -64,6 +64,9 @@ pub trait Endpoint {
     }
     #[turbo_tasks::function]
     fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
+    /// The project this endpoint belongs to.
+    #[turbo_tasks::function]
+    fn project(self: Vc<Self>) -> Vc<Project>;
 }
 
 #[derive(

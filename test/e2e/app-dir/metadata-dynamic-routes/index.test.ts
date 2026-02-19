@@ -22,7 +22,7 @@ describe('app dir - metadata dynamic routes', () => {
       const res = await next.fetch('/robots.txt')
       const text = await res.text()
 
-      expect(res.headers.get('content-type')).toBe('text/plain')
+      expect(res.headers.get('content-type')).toContain('text/plain')
       expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
       expect(text).toMatchInlineSnapshot(`
@@ -187,7 +187,9 @@ describe('app dir - metadata dynamic routes', () => {
       const res = await next.fetch('/manifest.webmanifest')
       const json = await res.json()
 
-      expect(res.headers.get('content-type')).toBe('application/manifest+json')
+      expect(res.headers.get('content-type')).toContain(
+        'application/manifest+json'
+      )
       expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
       expect(json).toMatchObject({
@@ -543,6 +545,7 @@ describe('app dir - metadata dynamic routes', () => {
          "/opengraph-image",
          "/opengraph-image-1ow20b",
          "/robots.txt",
+         "/sitemap",
          "/sitemap-image/sitemap.xml",
          "/sitemap-video/sitemap.xml",
          "/sitemap.xml",

@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_node_spawn_dynamic_input_5240a8bb._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_node_spawn_dynamic_input_5240a8bb._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node/spawn_dynamic/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

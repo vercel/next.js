@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use difference::Changeset;
 use helpers::print_changeset;
 use regex::Regex;
@@ -645,8 +645,8 @@ async fn exec_node(directory: &str, path: &str) -> Result<CommandOutput> {
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
-        .with_context(|| anyhow!("node execution of {path} is hanging"))?
-        .with_context(|| anyhow!("failed to spawn node process of {path}"))?;
+        .with_context(|| format!("node execution of {path} is hanging"))?
+        .with_context(|| format!("failed to spawn node process of {path}"))?;
 
     let output = CommandOutput {
         stdout: String::from_utf8_lossy(&output.stdout).to_string(),

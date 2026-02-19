@@ -25,19 +25,19 @@ use crate::{
     compaction::selector::{Compactable, get_merge_segments},
     compression::decompress_into_arc,
     constants::{
-        AMQF_AVG_SIZE, AMQF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
-        KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
-        VALUE_BLOCK_CACHE_SIZE,
+        DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
+        MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
-    meta_file::{AmqfCache, MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
+    meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
+    value_block_count_tracker::ValueBlockCountTracker,
     write_batch::{FinishResult, WriteBatch},
 };
 
@@ -83,7 +83,6 @@ pub struct Statistics {
     pub sst_files: usize,
     pub key_block_cache: CacheStatistics,
     pub value_block_cache: CacheStatistics,
-    pub amqf_cache: CacheStatistics,
     pub hits: u64,
     pub misses: u64,
     pub miss_family: u64,
@@ -119,8 +118,6 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// A flag to indicate if a write operation is currently active. Prevents multiple concurrent
     /// write operations.
     active_write_operation: AtomicBool,
-    /// A cache for deserialized AMQF filters.
-    amqf_cache: AmqfCache,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
@@ -181,13 +178,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
             }),
             active_write_operation: AtomicBool::new(false),
-            amqf_cache: AmqfCache::with(
-                AMQF_CACHE_SIZE as usize / AMQF_AVG_SIZE,
-                AMQF_CACHE_SIZE,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
             key_block_cache: BlockCache::with(
                 KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
                 KEY_BLOCK_CACHE_SIZE,
@@ -414,9 +404,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// time. The WriteBatch need to be committed with [`TurboPersistence::commit_write_batch`].
     /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
     /// This data will only become visible after the WriteBatch is committed.
-    pub fn write_batch<K: StoreKey + Send + Sync + 'static>(
-        &self,
-    ) -> Result<WriteBatch<K, S, FAMILIES>> {
+    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<K, S, FAMILIES>> {
         if self.read_only {
             bail!("Cannot write to a read-only database");
         }
@@ -438,6 +426,29 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         ))
     }
 
+    /// Clears all caches of the database.
+    pub fn clear_cache(&self) {
+        self.key_block_cache.clear();
+        self.value_block_cache.clear();
+        for meta in self.inner.write().meta_files.iter_mut() {
+            meta.clear_cache();
+        }
+    }
+
+    /// Clears block caches of the database.
+    pub fn clear_block_caches(&self) {
+        self.key_block_cache.clear();
+        self.value_block_cache.clear();
+    }
+
+    /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
+    /// for the first queries after opening the database.
+    pub fn prepare_all_sst_caches(&self) {
+        for meta in self.inner.write().meta_files.iter_mut() {
+            meta.prepare_sst_cache();
+        }
+    }
+
     fn open_log(&self) -> Result<BufWriter<File>> {
         if self.read_only {
             unreachable!("Only write operations can open the log file");
@@ -452,7 +463,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Commits a WriteBatch to the database. This will finish writing the data to disk and make it
     /// visible to readers.
-    pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static>(
+    pub fn commit_write_batch<K: StoreKey + Send + Sync>(
         &self,
         mut write_batch: WriteBatch<K, S, FAMILIES>,
     ) -> Result<()> {
@@ -1041,6 +1052,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     entries: Vec<LookupEntry<'l>>,
                                     total_key_size: usize,
                                     total_value_size: usize,
+                                    value_block_tracker: ValueBlockCountTracker,
                                     last_entries: Vec<LookupEntry<'l>>,
                                     last_entries_total_key_size: usize,
                                     new_sst_files:
@@ -1066,13 +1078,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             let key_size = current.key.len();
                                             let value_size =
                                                 current.value.uncompressed_size_in_sst();
+                                            let is_medium = current.value.is_medium_value();
+                                            let small_size = current.value.small_value_size();
                                             collector.total_key_size += key_size;
                                             collector.total_value_size += value_size;
+                                            collector
+                                                .value_block_tracker
+                                                .track(is_medium, small_size);
 
                                             if collector.total_key_size + collector.total_value_size
                                                 > DATA_THRESHOLD_PER_COMPACTED_FILE
                                                 || collector.entries.len()
                                                     >= MAX_ENTRIES_PER_COMPACTED_FILE
+                                                || collector.value_block_tracker.is_full()
                                             {
                                                 let selected_total_key_size =
                                                     collector.last_entries_total_key_size;
@@ -1084,6 +1102,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                     collector.total_key_size - key_size;
                                                 collector.total_key_size = key_size;
                                                 collector.total_value_size = value_size;
+                                                collector
+                                                    .value_block_tracker
+                                                    .reset_to(is_medium, small_size);
 
                                                 if !collector.entries.is_empty() {
                                                     let seq = sequence_number
@@ -1338,6 +1359,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// might hold onto a block of the database and it should not be hold long-term.
     pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
+        let span = tracing::trace_span!(
+            "database read",
+            name = family,
+            result_size = tracing::field::Empty
+        )
+        .entered();
         let hash = hash_key(key);
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
@@ -1345,7 +1372,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 family as u32,
                 hash,
                 key,
-                &self.amqf_cache,
                 &self.key_block_cache,
                 &self.value_block_cache,
             )? {
@@ -1368,17 +1394,20 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             LookupValue::Deleted => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                                span.record("result_size", "deleted");
                                 return Ok(None);
                             }
                             LookupValue::Slice { value } => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                                span.record("result_size", value.len());
                                 return Ok(Some(value));
                             }
                             LookupValue::Blob { sequence_number } => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
                                 let blob = self.read_blob(sequence_number)?;
+                                span.record("result_size", blob.len());
                                 return Ok(Some(blob));
                             }
                         }
@@ -1392,7 +1421,115 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         #[cfg(feature = "stats")]
         self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+        span.record("result_size", "not found");
         Ok(None)
+    }
+
+    pub fn batch_get<K: QueryKey>(
+        &self,
+        family: usize,
+        keys: &[K],
+    ) -> Result<Vec<Option<ArcSlice<u8>>>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        let span = tracing::trace_span!(
+            "database batch read",
+            name = family,
+            keys = keys.len(),
+            not_found = tracing::field::Empty,
+            deleted = tracing::field::Empty,
+            result_size = tracing::field::Empty
+        )
+        .entered();
+        let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
+        let mut empty_cells = keys.len();
+        for (index, key) in keys.iter().enumerate() {
+            let hash = hash_key(key);
+            cells.push((hash, index, None));
+        }
+        cells.sort_by_key(|(hash, _, _)| *hash);
+        let inner = self.inner.read();
+        for meta in inner.meta_files.iter().rev() {
+            let _result = meta.batch_lookup(
+                family as u32,
+                keys,
+                &mut cells,
+                &mut empty_cells,
+                &self.key_block_cache,
+                &self.value_block_cache,
+            )?;
+
+            #[cfg(feature = "stats")]
+            {
+                let crate::meta_file::MetaBatchLookupResult {
+                    family_miss,
+                    range_misses,
+                    quick_filter_misses,
+                    sst_misses,
+                    hits: _,
+                } = _result;
+                if family_miss {
+                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
+                }
+                if range_misses > 0 {
+                    self.stats
+                        .miss_range
+                        .fetch_add(range_misses as u64, Ordering::Relaxed);
+                }
+                if quick_filter_misses > 0 {
+                    self.stats
+                        .miss_amqf
+                        .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
+                }
+                if sst_misses > 0 {
+                    self.stats
+                        .miss_key
+                        .fetch_add(sst_misses as u64, Ordering::Relaxed);
+                }
+            }
+
+            if empty_cells == 0 {
+                break;
+            }
+        }
+        let mut deleted = 0;
+        let mut not_found = 0;
+        let mut result_size = 0;
+        let mut results = vec![None; keys.len()];
+        for (hash, index, result) in cells {
+            if let Some(result) = result {
+                inner.accessed_key_hashes[family].insert(hash);
+                let result = match result {
+                    LookupValue::Deleted => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                        deleted += 1;
+                        None
+                    }
+                    LookupValue::Slice { value } => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                        result_size += value.len();
+                        Some(value)
+                    }
+                    LookupValue::Blob { sequence_number } => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                        let blob = self.read_blob(sequence_number)?;
+                        result_size += blob.len();
+                        Some(blob)
+                    }
+                };
+                results[index] = result;
+            } else {
+                #[cfg(feature = "stats")]
+                self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+                not_found += 1;
+            }
+        }
+        span.record("not_found", not_found);
+        span.record("deleted", deleted);
+        span.record("result_size", result_size);
+        Ok(results)
     }
 
     /// Returns database statistics.
@@ -1404,7 +1541,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             sst_files: inner.meta_files.iter().map(|m| m.entries().len()).sum(),
             key_block_cache: CacheStatistics::new(&self.key_block_cache),
             value_block_cache: CacheStatistics::new(&self.value_block_cache),
-            amqf_cache: CacheStatistics::new(&self.amqf_cache),
             hits: self.stats.hits_deleted.load(Ordering::Relaxed)
                 + self.stats.hits_small.load(Ordering::Relaxed)
                 + self.stats.hits_blob.load(Ordering::Relaxed),

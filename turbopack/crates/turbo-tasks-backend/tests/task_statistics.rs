@@ -5,8 +5,6 @@
 use std::future::IntoFuture;
 
 use anyhow::Result;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use serde_json::json;
 use turbo_tasks::Vc;
 use turbo_tasks_testing::{Registration, register, run_without_cache_check};
@@ -28,7 +26,7 @@ async fn test_simple_task() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -50,7 +48,7 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 1,
                     "cache_hit": 0,
                 },
@@ -78,11 +76,11 @@ async fn test_vc_receiving_task() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 10,
                     "cache_hit": 5,
                 },
-                "double_vc": {
+                "task_statistics::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -111,15 +109,15 @@ async fn test_trait_methods() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "wrap": {
+                "task_statistics::wrap": {
                     "cache_miss": 10,
                     "cache_hit": 5,
                 },
-                "WrappedU64::Doublable::double": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
-                "WrappedU64::Doublable::double_vc": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -154,15 +152,15 @@ async fn test_dyn_trait_methods() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "wrap": {
+                "task_statistics::wrap": {
                     "cache_miss": 10,
                     "cache_hit": 7,
                 },
-                "WrappedU64::Doublable::double": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_miss": 10,
                     "cache_hit": 17,
                 },
-                "WrappedU64::Doublable::double_vc": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 17,
                 },
@@ -186,27 +184,62 @@ async fn test_no_execution() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "WrappedU64::Doublable::double": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
-                "WrappedU64::Doublable::double_vc":  {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc":  {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
-                "double":  {
+                "task_statistics::double":  {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
-                "double_vc":  {
+                "task_statistics::double_vc":  {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
-                "wrap_vc": {
+                "task_statistics::wrap_vc": {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
             })
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_inline_definitions() -> Result<()> {
+    run_without_cache_check(&REGISTRATION, async move {
+        enable_stats();
+        inline_definitions().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "<dyn task_statistics::inline_definitions_turbo_tasks_function_inline::Trait>::trait_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::Value::value_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::inline_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::{{closure}}::inline_fn_in_closure": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                }
+            }),
         );
         Ok(())
     })
@@ -278,7 +311,6 @@ fn stats_json() -> serde_json::Value {
 
 // Global task identifiers can contain the crate name, remove it to simplify test assertions
 fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
-    static HASH_RE: Lazy<Regex> = Lazy::new(|| Regex::new("^[^:@]+@[^:]+:+").unwrap());
     match &mut json {
         serde_json::Value::Object(map) => {
             let old_map = std::mem::take(map);
@@ -290,10 +322,54 @@ fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
                 // assert on it.
                 object.remove("duration");
                 object.remove("executions");
-                map.insert(HASH_RE.replace(&k, "").into_owned(), v);
+                map.insert(k, v);
             }
         }
         _ => unreachable!("expected object"),
     };
     json
+}
+
+#[turbo_tasks::function]
+fn inline_definitions() -> Result<Vc<()>> {
+    #[turbo_tasks::function]
+    fn inline_fn() -> Vc<()> {
+        Vc::cell(())
+    }
+    let _ = inline_fn();
+
+    let closure = || {
+        #[turbo_tasks::function]
+        fn inline_fn_in_closure() -> Vc<()> {
+            Vc::cell(())
+        }
+        let _ = inline_fn_in_closure();
+    };
+    closure();
+
+    #[turbo_tasks::value]
+    struct Value;
+
+    #[turbo_tasks::value_impl]
+    impl Value {
+        #[turbo_tasks::function]
+        fn value_fn(&self) -> Vc<()> {
+            Vc::cell(())
+        }
+    }
+    let _ = Value.cell().value_fn();
+
+    #[turbo_tasks::value_trait]
+    trait Trait {
+        #[turbo_tasks::function]
+        fn trait_fn(&self) -> Vc<()> {
+            Vc::cell(())
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Trait for Value {}
+    let _ = Value.cell().trait_fn();
+
+    Ok(Vc::cell(()))
 }

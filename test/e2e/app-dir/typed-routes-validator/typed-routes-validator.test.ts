@@ -18,6 +18,7 @@ describe('typed-routes-validator', () => {
   it('should generate route validation correctly', async () => {
     if (isNextDev) {
       await next.start()
+      await next.fetch('/')
     } else {
       await next.build()
     }

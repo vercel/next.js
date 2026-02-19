@@ -633,6 +633,7 @@ impl ReactServerComponentValidator {
                         "PureComponent",
                         "useDeferredValue",
                         "useEffect",
+                        "useEffectEvent",
                         "useImperativeHandle",
                         "useInsertionEffect",
                         "useLayoutEffect",

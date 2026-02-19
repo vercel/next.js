@@ -35,7 +35,10 @@ export default {
           condition: {
             any: [
               {
-                all: ['development', { not: { not: { content: /export/ } } }],
+                all: [
+                  'development',
+                  { not: { not: { query: /test=hi/, content: /export/ } } },
+                ],
               },
             ],
           },
@@ -49,7 +52,10 @@ export default {
         // this should match on production
         {
           condition: {
-            all: [{ not: 'development' }, { content: /export/ }],
+            all: [
+              { not: 'development' },
+              { query: /test=hi/, content: /export/ },
+            ],
           },
           loaders: [
             {

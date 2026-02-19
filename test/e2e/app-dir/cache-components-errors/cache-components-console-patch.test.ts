@@ -1,6 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
-import stripAnsi from 'strip-ansi'
+import { retry } from 'next-test-utils'
 
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
@@ -32,16 +32,19 @@ describe('Cache Components Errors', () => {
     describe('Console Patching', () => {
       if (isNextDev) {
         it('does not warn about sync IO if console.log is patched to call new Date() internally', async () => {
-          await next.browser('/')
-          let output = stripAnsi(next.cliOutput)
+          await next.fetch('/404')
 
-          // trim off Next.js's startup logs
-          const compilationMarker = /Ready in.*(\n.*Compiling.*)?/
-          expect(output).toMatch(compilationMarker)
-          const match = compilationMarker.exec(output)
-          output = output.slice(match.index + match[0].length).trim()
+          // Wait for after 404 is rendered to the console.
+          await retry(async () => {
+            expect(next.cliOutput).toContain('GET /404 404')
+          })
+
+          const from = next.cliOutput.length
+
+          await next.browser('/')
 
           // trim off any logs after the HTTP request finished
+          const output = next.cliOutput.slice(from)
           expect(output).toContain('GET / 200')
           const snapshot = output.slice(0, output.indexOf('GET / 200')).trim()
 
