@@ -25,7 +25,6 @@ import type {
   WorkUnitStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
-  PrerenderStoreModernRuntime,
   ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 
@@ -38,9 +37,8 @@ import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
-import { RenderStage } from './staged-rendering'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { makeHangingPromise, getRuntimeStage } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
@@ -547,8 +545,9 @@ export function createHangingInputAbortSignal(
           workUnitStore.type === 'prerender-runtime' &&
           workUnitStore.stagedRendering
         ) {
-          workUnitStore.stagedRendering
-            .waitForStage(RenderStage.Runtime)
+          const { stagedRendering } = workUnitStore
+          stagedRendering
+            .waitForStage(getRuntimeStage(stagedRendering))
             .then(() => scheduleOnNextTick(() => controller.abort()))
         } else {
           scheduleOnNextTick(() => controller.abort())
@@ -1258,16 +1257,4 @@ export function getNavigationDisallowedDynamicReasons(
   }
   // We had a non-empty prelude and there are no dynamic holes
   return []
-}
-
-export function delayUntilRuntimeStage<T>(
-  prerenderStore: PrerenderStoreModernRuntime,
-  result: Promise<T>
-): Promise<T> {
-  if (prerenderStore.stagedRendering) {
-    return prerenderStore.stagedRendering
-      .waitForStage(RenderStage.Runtime)
-      .then(() => result)
-  }
-  return result
 }

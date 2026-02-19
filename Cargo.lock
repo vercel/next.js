@@ -9730,7 +9730,6 @@ dependencies = [
  "turbopack-css",
  "turbopack-ecmascript",
  "turbopack-env",
- "turbopack-json",
  "turbopack-mdx",
  "turbopack-node",
  "turbopack-resolve",
@@ -10122,19 +10121,6 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbopack-core",
-]
-
-[[package]]
-name = "turbopack-json"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde_json",
- "turbo-rcstr",
- "turbo-tasks",
- "turbo-tasks-fs",
- "turbopack-core",
- "turbopack-ecmascript",
 ]
 
 [[package]]

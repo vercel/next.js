@@ -1794,7 +1794,9 @@
     function initializeDebugChunk(response, chunk) {
       var debugChunk = chunk._debugChunk;
       if (null !== debugChunk) {
-        var debugInfo = chunk._debugInfo;
+        var debugInfo = chunk._debugInfo,
+          prevIsInitializingDebugInfo = isInitializingDebugInfo;
+        isInitializingDebugInfo = !0;
         try {
           if ("resolved_model" === debugChunk.status) {
             for (
@@ -1847,6 +1849,8 @@
             }
         } catch (error) {
           triggerErrorOnChunk(response, chunk, error);
+        } finally {
+          isInitializingDebugInfo = prevIsInitializingDebugInfo;
         }
       }
     }
@@ -2416,7 +2420,7 @@
                     response,
                     map,
                     path.slice(i - 1),
-                    !1
+                    isInitializingDebugInfo
                   );
                 case "halted":
                   return (
@@ -2476,9 +2480,12 @@
             break;
           }
           response = map(response, value, parentObject, key);
-          (parentObject[0] !== REACT_ELEMENT_TYPE ||
-            ("4" !== key && "5" !== key)) &&
-            transferReferencedDebugInfo(initializingChunk, reference);
+          if (
+            parentObject[0] !== REACT_ELEMENT_TYPE ||
+            ("4" !== key && "5" !== key)
+          )
+            isInitializingDebugInfo ||
+              transferReferencedDebugInfo(initializingChunk, reference);
           return response;
         case "pending":
         case "blocked":
@@ -2489,7 +2496,7 @@
             response,
             map,
             path,
-            !1
+            isInitializingDebugInfo
           );
         case "halted":
           return (
@@ -3591,13 +3598,19 @@
     }
     function resolveIOInfo(response, id, model) {
       var chunks = response._chunks,
-        chunk = chunks.get(id);
-      chunk
-        ? (resolveModelChunk(response, chunk, model),
-          "resolved_model" === chunk.status && initializeModelChunk(chunk))
-        : ((chunk = createResolvedModelChunk(response, model)),
-          chunks.set(id, chunk),
-          initializeModelChunk(chunk));
+        chunk = chunks.get(id),
+        prevIsInitializingDebugInfo = isInitializingDebugInfo;
+      isInitializingDebugInfo = !0;
+      try {
+        chunk
+          ? (resolveModelChunk(response, chunk, model),
+            "resolved_model" === chunk.status && initializeModelChunk(chunk))
+          : ((chunk = createResolvedModelChunk(response, model)),
+            chunks.set(id, chunk),
+            initializeModelChunk(chunk));
+      } finally {
+        isInitializingDebugInfo = prevIsInitializingDebugInfo;
+      }
       "fulfilled" === chunk.status
         ? initializeIOInfo(response, chunk.value)
         : chunk.then(
@@ -5006,6 +5019,7 @@
           : null,
       initializingHandler = null,
       initializingChunk = null,
+      isInitializingDebugInfo = !1,
       mightHaveStaticConstructor = /\bclass\b.*\bstatic\b/,
       MIN_CHUNK_SIZE = 65536,
       supportsCreateTask = !!console.createTask,
@@ -5116,10 +5130,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-6066c782-20260212",
+      version: "19.3.0-experimental-4842fbea-20260217",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-6066c782-20260212",
+      reconcilerVersion: "19.3.0-experimental-4842fbea-20260217",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

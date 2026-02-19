@@ -78,7 +78,8 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode, find_context_file,
+        ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
+        find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
         pattern::Pattern,
@@ -1324,6 +1325,32 @@ async fn analyze_ecmascript_module_internal(
                     )
                     .await?;
                 }
+                Effect::DynamicImport {
+                    args,
+                    ast_path,
+                    span,
+                    in_try,
+                    export_usage,
+                } => {
+                    if let Some(ignored) = &ignore_effect_span
+                        && *ignored == span
+                    {
+                        continue;
+                    }
+
+                    handle_dynamic_import(
+                        &ast_path,
+                        span,
+                        args,
+                        &analysis_state,
+                        &add_effects,
+                        &mut analysis,
+                        in_try,
+                        eval_context.imports.get_attributes(span),
+                        export_usage,
+                    )
+                    .await?;
+                }
                 Effect::MemberCall {
                     obj,
                     prop,
@@ -1812,6 +1839,149 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     Ok(())
 }
 
+async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
+    ast_path: &[AstParentKind],
+    span: Span,
+    args: Vec<EffectArg>,
+    state: &AnalysisState<'_>,
+    add_effects: &G,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    in_try: bool,
+    attributes: &ImportAttributes,
+    export_usage: ExportUsage,
+) -> Result<()> {
+    // If the import has a webpackIgnore/turbopackIgnore comment, skip processing
+    // so the import expression is preserved as-is in the output.
+    if attributes.ignore {
+        return Ok(());
+    }
+
+    let &AnalysisState {
+        handler,
+        origin,
+        source,
+        ignore_dynamic_requests,
+        ..
+    } = state;
+
+    let error_mode = if attributes.optional {
+        ResolveErrorMode::Ignore
+    } else if in_try {
+        ResolveErrorMode::Warn
+    } else {
+        ResolveErrorMode::Error
+    };
+
+    // Process all effects (closures) from args
+    let unlinked_args: Vec<JsValue> = args
+        .into_iter()
+        .map(|effect_arg| match effect_arg {
+            EffectArg::Value(value) => value,
+            EffectArg::Closure(value, block) => {
+                add_effects(block.effects);
+                value
+            }
+            EffectArg::Spread => JsValue::unknown_empty(true, "spread is not supported yet"),
+        })
+        .collect();
+
+    let linked_args = unlinked_args
+        .iter()
+        .cloned()
+        .map(|arg| state.link_value(arg, ImportAttributes::empty_ref()))
+        .try_join()
+        .await?;
+
+    handle_dynamic_import_with_linked_args(
+        ast_path,
+        span,
+        &linked_args,
+        handler,
+        origin,
+        source,
+        ignore_dynamic_requests,
+        analysis,
+        error_mode,
+        state.import_externals,
+        export_usage,
+    )
+    .await
+}
+
+async fn handle_dynamic_import_with_linked_args(
+    ast_path: &[AstParentKind],
+    span: Span,
+    linked_args: &[JsValue],
+    handler: &Handler,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    source: ResolvedVc<Box<dyn Source>>,
+    ignore_dynamic_requests: bool,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    error_mode: ResolveErrorMode,
+    import_externals: bool,
+    export_usage: ExportUsage,
+) -> Result<()> {
+    if linked_args.len() == 1 || linked_args.len() == 2 {
+        let pat = js_value_to_pattern(&linked_args[0]);
+        let options = linked_args.get(1);
+        let import_annotations = options
+            .and_then(|options| {
+                if let JsValue::Object { parts, .. } = options {
+                    parts.iter().find_map(|part| {
+                        if let ObjectPart::KeyValue(
+                            JsValue::Constant(super::analyzer::ConstantValue::Str(key)),
+                            value,
+                        ) = part
+                            && key.as_str() == "with"
+                        {
+                            return Some(value);
+                        }
+                        None
+                    })
+                } else {
+                    None
+                }
+            })
+            .and_then(ImportAnnotations::parse_dynamic)
+            .unwrap_or_default();
+        if !pat.has_constant_parts() {
+            let (args, hints) = JsValue::explain_args(linked_args, 10, 2);
+            handler.span_warn_with_code(
+                span,
+                &format!("import({args}) is very dynamic{hints}",),
+                DiagnosticId::Lint(
+                    errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
+                ),
+            );
+            if ignore_dynamic_requests {
+                analysis.add_code_gen(DynamicExpression::new_promise(ast_path.to_vec().into()));
+                return Ok(());
+            }
+        }
+        analysis.add_reference_code_gen(
+            EsmAsyncAssetReference::new(
+                origin,
+                Request::parse(pat).to_resolved().await?,
+                issue_source(source, span),
+                import_annotations,
+                error_mode,
+                import_externals,
+                export_usage,
+            ),
+            ast_path.to_vec().into(),
+        );
+        return Ok(());
+    }
+    let (args, hints) = JsValue::explain_args(linked_args, 10, 2);
+    handler.span_warn_with_code(
+        span,
+        &format!("import({args}) is not statically analyze-able{hints}",),
+        DiagnosticId::Error(errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string()),
+    );
+
+    Ok(())
+}
+
 async fn handle_well_known_function_call<'a, F, Fut>(
     func: WellKnownFunctionKind,
     new: bool,
@@ -2024,65 +2194,25 @@ where
     match func {
         WellKnownFunctionKind::Import => {
             let args = linked_args().await?;
-            if args.len() == 1 || args.len() == 2 {
-                let pat = js_value_to_pattern(&args[0]);
-                let options = args.get(1);
-                let import_annotations = options
-                    .and_then(|options| {
-                        if let JsValue::Object { parts, .. } = options {
-                            parts.iter().find_map(|part| {
-                                if let ObjectPart::KeyValue(
-                                    JsValue::Constant(super::analyzer::ConstantValue::Str(key)),
-                                    value,
-                                ) = part
-                                    && key.as_str() == "with"
-                                {
-                                    return Some(value);
-                                }
-                                None
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .and_then(ImportAnnotations::parse_dynamic)
-                    .unwrap_or_default();
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("import({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        analysis
-                            .add_code_gen(DynamicExpression::new_promise(ast_path.to_vec().into()));
-                        return Ok(());
-                    }
-                }
-                analysis.add_reference_code_gen(
-                    EsmAsyncAssetReference::new(
-                        origin,
-                        Request::parse(pat).to_resolved().await?,
-                        issue_source(source, span),
-                        import_annotations,
-                        error_mode,
-                        state.import_externals,
-                    ),
-                    ast_path.to_vec().into(),
-                );
-                return Ok(());
-            }
-            let (args, hints) = explain_args(args);
-            handler.span_warn_with_code(
+            let export_usage = match &attributes.export_names {
+                Some(names) if names.is_empty() => ExportUsage::Evaluation,
+                Some(names) => ExportUsage::PartialNamespaceObject(names.clone()),
+                None => ExportUsage::All,
+            };
+            handle_dynamic_import_with_linked_args(
+                ast_path,
                 span,
-                &format!("import({args}) is not statically analyze-able{hints}",),
-                DiagnosticId::Error(
-                    errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
-                ),
+                args,
+                handler,
+                origin,
+                source,
+                ignore_dynamic_requests,
+                analysis,
+                error_mode,
+                state.import_externals,
+                export_usage,
             )
+            .await?;
         }
         WellKnownFunctionKind::Require => {
             let args = linked_args().await?;

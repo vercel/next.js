@@ -2364,8 +2364,18 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(self: Vc<Self>) -> Result<Vc<u64>> {
-        Ok(Vc::cell(hash_xxh3_hash64(&self.await?)))
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        Ok(Vc::cell(hash_xxh3_hash64(self)))
+    }
+
+    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and nothing
+    /// else. If there is no file content, it returns `None`.
+    #[turbo_tasks::function]
+    pub async fn content_hash(&self) -> Result<Vc<Option<u64>>> {
+        match self {
+            FileContent::Content(file) => Ok(Vc::cell(Some(hash_xxh3_hash64(&file.content)))),
+            FileContent::NotFound => Ok(Vc::cell(None)),
+        }
     }
 }
 
