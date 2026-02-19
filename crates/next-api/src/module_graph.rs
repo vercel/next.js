@@ -120,6 +120,7 @@ impl NextDynamicGraphs {
 }
 
 #[turbo_tasks::value(transparent)]
+#[allow(clippy::type_complexity)]
 pub struct DynamicImportEntriesWithImporter(
     pub Vec<(ResolvedVc<Box<dyn Module>>, Option<ClientReferenceType>)>,
 );
