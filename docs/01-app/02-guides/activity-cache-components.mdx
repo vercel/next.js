@@ -181,7 +181,7 @@ Activity preserves [`useActionState`](https://react.dev/reference/react/useActio
 
 **When to reset it:** A "new transaction" flow where each visit should start fresh, or a form where stale success/error messages would be confusing in a new context.
 
-You can think of `useActionState` as a `useReducer` that allows side effects. It doesn't have to only handle form submissions - you can dispatch any action to it. Adding a `RESET` action gives you a clean way to clear state when Activity hides the component:
+You can think of `useActionState` as a `useReducer` that allows side effects. It doesn't have to only handle form submissions - you can dispatch any action to it. Adding a `RESET` action gives you a clean way to clear state when Activity hides the component (see [Reset state](https://react.dev/reference/react/useActionState#reset-state) in the React docs):
 
 ```tsx highlight={5-6,9-21,26-35}
 'use client'
