@@ -1,19 +1,16 @@
 ---
-title: Cache Components
-description: Learn how to use Cache Components and combine the benefits of static and dynamic rendering.
+title: Caching
+description: Learn how to cache data and UI with the use cache directive.
 related:
   title: Next Steps
-  description: Learn more about the config option for Cache Components.
+  description: Learn more about revalidation and the APIs mentioned on this page.
   links:
-    - app/api-reference/config/next-config-js/cacheComponents
+    - app/getting-started/revalidating
     - app/api-reference/directives/use-cache
-    - app/api-reference/functions/cacheLife
-    - app/api-reference/functions/cacheTag
-    - app/api-reference/functions/revalidateTag
-    - app/api-reference/functions/updateTag
+    - app/api-reference/config/next-config-js/cacheComponents
 ---
 
-> **Good to know:** Cache Components is an opt-in feature. Enable it by setting the `cacheComponents` flag to `true` in your Next config file. See [Enabling Cache Components](#enabling-cache-components) for more details.
+> This page covers caching with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), enabled by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.ts` file. If you're not using Cache Components, see the [Caching without Cache Components](/docs/app/guides/caching-without-cache-components) guide.
 
 Cache Components lets you mix static, cached, and dynamic content in a single route, giving you the speed of static sites with the flexibility of dynamic rendering.
 
@@ -248,23 +245,24 @@ Every incoming request would see different random numbers, date, etc.
 
 ## Using `use cache`
 
-The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches the return value of async functions and components. You can apply it at the function, component, or file level.
+The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches the return value of async functions and components. You can apply it at two levels:
+
+- **Data-level**: Cache a function that fetches or computes data (e.g., `getProducts()`, `getUser(id)`)
+- **UI-level**: Cache an entire component or page (e.g., `async function BlogPosts()`)
 
 Arguments and any closed-over values from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs produce separate cache entries. This enables personalized or parameterized cached content.
 
 When [dynamic content](#dynamic-content) doesn't need to be fetched fresh from the source on every request, caching it lets you include the content in the static shell during prerendering, or reuse the result at runtime across multiple requests.
 
-Cached content can be revalidated in two ways: automatically based on the cache lifetime, or on-demand using tags with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) or [`updateTag`](/docs/app/api-reference/functions/updateTag).
+Cached content can be revalidated in two ways: automatically based on the cache lifetime using [`cacheLife`](/docs/app/api-reference/functions/cacheLife), or on-demand using tags. See [Revalidating](/docs/app/getting-started/revalidating) for details.
 
 > **Good to know**: See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
 
 ### During prerendering
 
-While [dynamic content](#dynamic-content) is fetched from external sources, it's often unlikely to change between accesses. Product catalog data updates with inventory changes, blog post content rarely changes after publishing, and analytics reports for past dates remain static.
+If data doesn't depend on [runtime data](#runtime-data), you can use `use cache` to include it in the static HTML shell. Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to control how long the cached data is valid. See [Revalidating](/docs/app/getting-started/revalidating) for details on cache lifetimes and on-demand revalidation.
 
-If this data doesn't depend on [runtime data](#runtime-data), you can use the `use cache` directive to include it in the static HTML shell. Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to define how long to use the cached data.
-
-When revalidation occurs, the static shell is updated with fresh content. See [Tagging and revalidating](#tagging-and-revalidating) for details on on-demand revalidation.
+**UI-level** — cache an entire component:
 
 ```tsx filename="app/page.tsx" highlight={1,4,5}
 import { cacheLife } from 'next/cache'
@@ -285,34 +283,19 @@ export default async function Page() {
 }
 ```
 
-The `cacheLife` function accepts a cache profile name (like `'hours'`, `'days'`, or `'weeks'`) or a custom configuration object to control cache behavior:
+**Data-level** — cache a function that fetches data:
 
-```tsx filename="app/page.tsx" highlight={1,4-8}
+```tsx filename="app/lib/data.ts" highlight={3,4,5}
 import { cacheLife } from 'next/cache'
 
-export default async function Page() {
+export async function getUsers() {
   'use cache'
-  cacheLife({
-    stale: 3600, // 1 hour until considered stale
-    revalidate: 7200, // 2 hours until revalidated
-    expire: 86400, // 1 day until expired
-  })
-
-  const users = await db.query('SELECT * FROM users')
-
-  return (
-    <ul>
-      {users.map((user) => (
-        <li key={user.id}>{user.name}</li>
-      ))}
-    </ul>
-  )
+  cacheLife('hours')
+  return db.query('SELECT * FROM users')
 }
 ```
 
-> **Good to know:** A cache is considered "short-lived" when it uses the `seconds` profile, `revalidate: 0`, or `expire` under 5 minutes. Short-lived caches are automatically excluded from prerenders and become dynamic holes instead. If such a cache is nested inside another `use cache` without an explicit `cacheLife`, Next.js will throw an error during prerendering to prevent accidental misconfigurations. See [Prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for details.
-
-See the [`cacheLife` API reference](/docs/app/api-reference/functions/cacheLife) for available profiles and custom configuration options.
+Data-level caching is useful when the same data is used across multiple components, or when you want to cache the data independently from the UI.
 
 ### With runtime data
 
@@ -380,59 +363,6 @@ export default async function Page() {
 ```
 
 All requests will be served a route containing the same random numbers, timestamp, and UUID until the cache is revalidated.
-
-### Tagging and revalidating
-
-Tag cached data with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and revalidate it after mutations using [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions for immediate updates, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when delays in updates are acceptable.
-
-#### With `updateTag`
-
-Use `updateTag` when you need to expire and immediately refresh cached data within the same request:
-
-```tsx filename="app/actions.ts" highlight={1,4,5,13}
-import { cacheTag, updateTag } from 'next/cache'
-
-export async function getCart() {
-  'use cache'
-  cacheTag('cart')
-  // fetch data
-}
-
-export async function updateCart(itemId: string) {
-  'use server'
-  // write data using the itemId
-  // update the user cart
-  updateTag('cart')
-}
-```
-
-#### With `revalidateTag`
-
-Use `revalidateTag` when you want to invalidate only properly tagged cached entries with stale-while-revalidate behavior. This is ideal for static content that can tolerate eventual consistency.
-
-```tsx filename="app/actions.ts" highlight={1,4,5,12}
-import { cacheTag, revalidateTag } from 'next/cache'
-
-export async function getPosts() {
-  'use cache'
-  cacheTag('posts')
-  // fetch data
-}
-
-export async function createPost(post: FormData) {
-  'use server'
-  // write data using the FormData
-  revalidateTag('posts', 'max')
-}
-```
-
-For more detailed explanation and usage examples, see the [`use cache` API reference](/docs/app/api-reference/directives/use-cache).
-
-### What should I cache?
-
-What you cache should be a function of what you want your UI loading states to be. If data doesn't depend on runtime data and you're okay with a cached value being served for multiple requests over a period of time, use `use cache` with `cacheLife` to describe that behavior.
-
-For content management systems with update mechanisms, consider using tags with longer cache durations and rely on `revalidateTag` to mark static initial UI as ready for revalidation. This pattern allows you to serve fast, cached responses while still updating content when it actually changes, rather than expiring the cache preemptively.
 
 ## Putting it all together
 
