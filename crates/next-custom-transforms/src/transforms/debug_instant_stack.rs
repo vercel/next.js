@@ -1,5 +1,5 @@
 use swc_core::{
-    common::{Span, DUMMY_SP},
+    common::{Span, Spanned, DUMMY_SP},
     ecma::{
         ast::*,
         visit::{fold_pass, Fold},
@@ -25,7 +25,9 @@ impl Fold for DebugInstantStack {
                     for decl in &var_decl.decls {
                         if let Pat::Ident(ident) = &decl.name {
                             if ident.id.sym == "unstable_instant" {
-                                self.instant_export_span = Some(export_decl.span);
+                                if let Some(init) = &decl.init {
+                                    self.instant_export_span = Some(init.span());
+                                }
                             }
                         }
                     }
