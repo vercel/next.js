@@ -32,6 +32,7 @@ import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
+import { setCurrentHmrRefreshHash } from '../../../components/hmr-client-state'
 import {
   publicAppRouterInstance,
   type GlobalErrorState,
@@ -407,8 +408,20 @@ export function processMessage(
       )
 
       // Store the latest hash in a session cookie so that it's sent back to the
-      // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
+      // server with any subsequent requests. Use SameSite=None on HTTPS to allow
+      // the cookie to be sent from cross-origin iframes (e.g. when using a
+      // tunnel like cloudflared during development). SameSite=None requires
+      // Secure, so it can only be set on HTTPS connections.
+      const cookieFlags =
+        location.protocol === 'https:'
+          ? `path=/;SameSite=None;Secure`
+          : `path=/`
+      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};${cookieFlags}`
+
+      // Also store in module-level state as a fallback for cross-origin iframe
+      // contexts where cookies may be blocked (e.g. "Block third-party cookies"
+      // enabled). The hash will be sent as a request header instead.
+      setCurrentHmrRefreshHash(message.hash)
 
       if (
         RuntimeErrorHandler.hadRuntimeError ||

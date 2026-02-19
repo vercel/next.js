@@ -18,7 +18,10 @@ import type {
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
-import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
+import {
+  NEXT_HMR_REFRESH_HASH_COOKIE,
+  NEXT_HMR_REFRESH_HASH_HEADER,
+} from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
@@ -419,7 +422,14 @@ export function getHmrRefreshHash(
       case 'prerender-runtime':
         return workUnitStore.hmrRefreshHash
       case 'request':
-        return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
+        // Prefer the cookie, but fall back to the request header for cross-origin
+        // iframe contexts where SameSite=Lax (or blocked third-party cookies)
+        // prevent the cookie from being sent with the HMR refresh fetch.
+        return (
+          workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value ??
+          workUnitStore.headers.get(NEXT_HMR_REFRESH_HASH_HEADER) ??
+          undefined
+        )
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-ppr':
