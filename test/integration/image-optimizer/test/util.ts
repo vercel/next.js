@@ -22,7 +22,6 @@ import type { NextConfig } from 'next'
 
 type SetupTestsCtx = {
   appDir: string
-  cacheMaxDiskSize?: number
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
   isDev?: boolean
@@ -1616,7 +1615,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
   }
 
-  if (typeof ctx.cacheMaxDiskSize === 'number') {
+  if (typeof ctx.nextConfigImages.maximumDiskCacheSize === 'number') {
     const opts = { headers: { accept: 'image/webp' } }
     const requests = [
       { url: '/test.png', w: largeSize },
@@ -1631,8 +1630,8 @@ export function runTests(ctx: RunTestsCtx) {
       { url: '/animated.png', w: largeSize },
       { url: '/animated2.png', w: largeSize },
     ]
-    if (ctx.cacheMaxDiskSize === 0) {
-      it('should not write to disk when cacheMaxDiskSize is 0', async () => {
+    if (ctx.nextConfigImages.maximumDiskCacheSize === 0) {
+      it('should not write to disk when maximumDiskCacheSize is 0', async () => {
         await cleanImagesDir(imagesDir)
         for (const { url, w } of requests) {
           const query = { url, w, q: ctx.q }
@@ -1648,7 +1647,7 @@ export function runTests(ctx: RunTestsCtx) {
         expect(await fsToJson(ctx.imagesDir)).toEqual({})
       })
     } else {
-      it('should limit disk writes to match cacheMaxDiskSize bytes (lru)', async () => {
+      it('should limit disk writes to match maximumDiskCacheSize bytes (lru)', async () => {
         await cleanImagesDir(imagesDir)
         const json1 = await fsToJson(ctx.imagesDir)
         expect(Object.keys(json1).length).toEqual(0)
@@ -1662,7 +1661,9 @@ export function runTests(ctx: RunTestsCtx) {
           expect(res.status).toBe(200)
           await retry(async () => {
             const size = await getDirSize(imagesDir)
-            expect(size).toBeLessThanOrEqual(ctx.cacheMaxDiskSize)
+            expect(size).toBeLessThanOrEqual(
+              ctx.nextConfigImages.maximumDiskCacheSize
+            )
           })
         }
 
@@ -1682,7 +1683,9 @@ export function runTests(ctx: RunTestsCtx) {
           expect(Object.keys(json3).length).toBeGreaterThan(0)
           expect(json3).not.toStrictEqual(json2)
           const size = await getDirSize(imagesDir)
-          expect(size).toBeLessThanOrEqual(ctx.cacheMaxDiskSize)
+          expect(size).toBeLessThanOrEqual(
+            ctx.nextConfigImages.maximumDiskCacheSize
+          )
         })
       })
     }
@@ -1721,7 +1724,6 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         // See https://github.com/vercel/next.js/pull/60972
         outputFileTracingRoot: join(__dirname, '../../../..'),
         experimental: curCtx.nextConfigExperimental,
-        cacheMaxDiskSize: ctx.cacheMaxDiskSize,
       } satisfies NextConfig)
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
@@ -1776,7 +1778,6 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         outputFileTracingRoot: join(__dirname, '../../../..'),
         images: curCtx.nextConfigImages,
         experimental: curCtx.nextConfigExperimental,
-        cacheMaxDiskSize: ctx.cacheMaxDiskSize,
       } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -1819,7 +1820,6 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         // See https://github.com/vercel/next.js/pull/60972
         outputFileTracingRoot: join(__dirname, '../../../..'),
         experimental: curCtx.nextConfigExperimental,
-        cacheMaxDiskSize: curCtx.cacheMaxDiskSize,
       } satisfies NextConfig)
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
@@ -1874,7 +1874,6 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         outputFileTracingRoot: join(__dirname, '../../../..'),
         images: curCtx.nextConfigImages,
         experimental: curCtx.nextConfigExperimental,
-        cacheMaxDiskSize: curCtx.cacheMaxDiskSize,
       } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)

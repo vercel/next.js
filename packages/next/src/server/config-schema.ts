@@ -406,7 +406,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       )
       .optional(),
     cacheMaxMemorySize: z.number().optional(),
-    cacheMaxDiskSize: z.number().int().min(0).nullable().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
       .strictObject({
@@ -623,6 +622,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         loader: z.enum(VALID_LOADERS).optional(),
         loaderFile: z.string().optional(),
+        maximumDiskCacheSize: z.number().int().min(0).nullable().optional(),
         maximumRedirects: z.number().int().min(0).max(20).optional(),
         maximumResponseBody: z
           .number()

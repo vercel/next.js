@@ -570,7 +570,7 @@ export class ImageOptimizerCache {
     if (!cacheHandler) {
       this.cacheDiskLRU = getOrInitDiskLRU(
         this.cacheDir,
-        nextConfig.cacheMaxDiskSize,
+        nextConfig.images.maximumDiskCacheSize,
         initCacheEntries,
         deleteFromCacheDir
       )
@@ -691,7 +691,7 @@ export class ImageOptimizerCache {
     // Fall back to filesystem cache
     if (
       !this.nextConfig.experimental.isrFlushToDisk ||
-      this.nextConfig.cacheMaxDiskSize === 0
+      this.nextConfig.images.maximumDiskCacheSize === 0
     ) {
       return
     }
