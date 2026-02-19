@@ -12,6 +12,7 @@ use turbopack_core::{
 use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptOptions, bytes_source_transform::BytesSourceTransform,
+    json_source_transform::JsonSourceTransform,
 };
 use turbopack_wasm::source::WebAssemblySourceType;
 
@@ -135,7 +136,6 @@ pub enum ModuleType {
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
-    Json,
     Raw,
     NodeAddon,
     CssModule,
@@ -164,7 +164,6 @@ impl Display for ModuleType {
             ModuleType::Typescript { .. } => write!(f, "Typescript"),
             ModuleType::TypescriptDeclaration { .. } => write!(f, "TypescriptDeclaration"),
             ModuleType::EcmascriptExtensionless { .. } => write!(f, "EcmascriptExtensionless"),
-            ModuleType::Json => write!(f, "Json"),
             ModuleType::Raw => write!(f, "Raw"),
             ModuleType::NodeAddon => write!(f, "NodeAddon"),
             ModuleType::CssModule => write!(f, "CssModule"),
@@ -189,6 +188,8 @@ pub enum ConfiguredModuleType {
     Typescript,
     Css,
     CssModule,
+    /// Parses JSON and exports it as an ES module default export.
+    /// Implemented as a source transform, not a ModuleType.
     Json,
     Wasm,
     Raw,
@@ -265,7 +266,12 @@ impl ConfiguredModuleType {
                 environment,
             }),
             ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
-            ConfiguredModuleType::Json => ModuleRuleEffect::ModuleType(ModuleType::Json),
+            ConfiguredModuleType::Json => {
+                ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
+                    // TODO: can we switch this to `new_esm`?
+                    JsonSourceTransform::new_cjs().to_resolved().await?,
+                )]))
+            }
             ConfiguredModuleType::Wasm => ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
                 source_ty: WebAssemblySourceType::Binary,
             }),

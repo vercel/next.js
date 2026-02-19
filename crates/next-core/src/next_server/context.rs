@@ -53,8 +53,7 @@ use crate::{
     next_shared::{
         resolve::{
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin, get_invalid_client_only_resolve_plugin,
-            get_invalid_styled_jsx_resolve_plugin,
+            NextNodeSharedRuntimeResolvePlugin,
         },
         transforms::{
             EcmascriptTransformStage, emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -153,14 +152,6 @@ pub async fn get_server_resolve_options_context(
         ModuleFeatureReportResolvePlugin::new(project_path.clone())
             .to_resolved()
             .await?;
-    let invalid_client_only_resolve_plugin =
-        get_invalid_client_only_resolve_plugin(project_path.clone())
-            .to_resolved()
-            .await?;
-    let invalid_styled_jsx_client_only_resolve_plugin =
-        get_invalid_styled_jsx_resolve_plugin(project_path.clone())
-            .to_resolved()
-            .await?;
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_jsonc_file(
@@ -241,7 +232,7 @@ pub async fn get_server_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let mut before_resolve_plugins = match &ty {
+    let before_resolve_plugins = match &ty {
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
@@ -287,32 +278,6 @@ pub async fn get_server_resolve_options_context(
             ]
         }
     };
-
-    // Inject resolve plugin to assert incorrect import to client|server-only for
-    // the corresponding context. Refer https://github.com/vercel/next.js/blob/ad15817f0368ba154bed6d85320335d4b67b7348/packages/next/src/build/webpack-config.ts#L1205-L1235
-    // how it is applied in the webpack config.
-    // Unlike webpack which alias client-only -> runtime code -> build-time error
-    // code, we use resolve plugin to detect original import directly. This
-    // means each resolve plugin must be injected only for the context where the
-    // alias resolves into the error. The alias lives in here: https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_import_map.rs#L534
-    match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
-            //noop
-        }
-        ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation { .. } => {
-            before_resolve_plugins.push(ResolvedVc::upcast(invalid_client_only_resolve_plugin));
-            before_resolve_plugins.push(ResolvedVc::upcast(
-                invalid_styled_jsx_client_only_resolve_plugin,
-            ));
-        }
-        ServerContextType::AppSSR { .. } => {
-            //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
-            // looks like webpack and turbopack have different order, webpack runs rsc transform first, turbopack triggers resolve plugin first.
-        }
-    }
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(root_dir.clone()),

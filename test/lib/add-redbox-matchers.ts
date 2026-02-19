@@ -3,6 +3,7 @@ import { toMatchInlineSnapshot } from 'jest-snapshot'
 import {
   waitForRedbox,
   getRedboxCallStack,
+  getRedboxCause,
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
@@ -72,13 +73,109 @@ interface ErrorSnapshotOptions {
   label?: boolean
 }
 
-interface ErrorSnapshot {
+interface SanitizedCauseEntry {
+  label: string | null
+  message: string | null
+  source: string | null
+  stack: string[]
+}
+
+export interface ErrorSnapshot {
   environmentLabel: string | null
   label: string | null
   description: string | null
   componentStack?: string
+  cause?: SanitizedCauseEntry[]
   source: string | null
   stack: string[] | null
+}
+
+/**
+ * Focus source to just the header, errored line, and cursor.
+ * Strips surrounding context lines.
+ */
+function focusSource(
+  source: string | null,
+  next: NextInstance | null
+): string | null {
+  if (source === null) return null
+
+  let focusedSource = ''
+  const sourceFrameLines = source.split('\n')
+  for (let i = 0; i < sourceFrameLines.length; i++) {
+    const sourceFrameLine = sourceFrameLines[i].trimEnd()
+    if (sourceFrameLine === '') {
+      continue
+    }
+
+    if (sourceFrameLine.startsWith('>')) {
+      // This is where the cursor will point
+      // Include the cursor and nothing below since it's just surrounding code.
+      focusedSource += '\n' + sourceFrameLine
+      focusedSource += '\n' + sourceFrameLines[i + 1]
+      break
+    }
+    const isCodeFrameLine = /^ {2}\s*\d+ \|/.test(sourceFrameLine)
+    if (!isCodeFrameLine) {
+      focusedSource += '\n' + sourceFrameLine
+    }
+  }
+
+  focusedSource = focusedSource.trim()
+
+  if (next !== null) {
+    focusedSource = focusedSource.replaceAll(
+      next.testDir,
+      '<FIXME-project-root>'
+    )
+  }
+
+  // This is the processed path the nextjs file from node_modules,
+  // likely not being processed properly and it's not deterministic among tests.
+  // e.g. it could be a encoded url of loader path:
+  // ../packages/next/dist/build/webpack/loaders/next-app-loader/index.js...
+  const sourceLines = focusedSource.split('\n')
+  if (
+    sourceLines[0].startsWith('./node_modules/.pnpm/next@file+') ||
+    sourceLines[0].startsWith('./node_modules/.pnpm/file+') ||
+    // e.g. "next-app-loader?<SEARCH PARAMS>" (in rspack, the loader doesn't seem to be prefixed with node_modules)
+    /^next-[a-zA-Z0-9\-_]+?-loader\?/.test(sourceLines[0])
+  ) {
+    focusedSource = `<FIXME-nextjs-internal-source>\n${sourceLines.slice(1).join('\n')}`
+  }
+
+  return focusedSource
+}
+
+/**
+ * Sanitize stack frames: collapse internal frames, replace project root.
+ */
+function sanitizeStack(
+  stack: string[] | null,
+  next: NextInstance | null
+): string[] | null {
+  if (stack === null) return null
+
+  const sanitized: string[] = []
+  let foundInternalFrame = false
+  for (const frame of stack) {
+    const isInternalFrame = / .\/dist\//.test(frame)
+    if (isInternalFrame) {
+      if (!foundInternalFrame) {
+        sanitized.push('<FIXME-internal-frame>')
+      }
+      foundInternalFrame = true
+    } else if (frame.includes('file://')) {
+      sanitized.push('<FIXME-file-protocol>')
+    } else if (frame.includes('.next/')) {
+      sanitized.push('<FIXME-next-dist-dir>')
+    } else if (next !== null) {
+      sanitized.push(frame.replace(next.testDir, '<FIXME-project-root>'))
+    } else {
+      sanitized.push(frame)
+    }
+  }
+  return sanitized
 }
 
 async function createErrorSnapshot(
@@ -86,15 +183,23 @@ async function createErrorSnapshot(
   next: NextInstance | null,
   { label: includeLabel = true }: ErrorSnapshotOptions = {}
 ): Promise<ErrorSnapshot> {
-  const [label, environmentLabel, description, source, stack, componentStack] =
-    await Promise.all([
-      includeLabel ? getRedboxLabel(browser) : null,
-      getRedboxEnvironmentLabel(browser),
-      getRedboxDescription(browser),
-      getRedboxSource(browser),
-      getRedboxCallStack(browser),
-      getRedboxComponentStack(browser),
-    ])
+  const [
+    label,
+    environmentLabel,
+    description,
+    source,
+    stack,
+    componentStack,
+    cause,
+  ] = await Promise.all([
+    includeLabel ? getRedboxLabel(browser) : null,
+    getRedboxEnvironmentLabel(browser),
+    getRedboxDescription(browser),
+    getRedboxSource(browser),
+    getRedboxCallStack(browser),
+    getRedboxComponentStack(browser),
+    getRedboxCause(browser),
+  ])
 
   // We don't need to test the codeframe logic everywhere.
   // Here we focus on the cursor position of the top most frame
@@ -114,55 +219,7 @@ async function createErrorSnapshot(
   // pages/index.js (3:11) @ Page
   // > 3 |     throw new Error("anonymous error!");
   //     |           ^
-  let focusedSource = source
-  if (source !== null) {
-    focusedSource = ''
-    const sourceFrameLines = source.split('\n')
-    for (let i = 0; i < sourceFrameLines.length; i++) {
-      const sourceFrameLine = sourceFrameLines[i].trimEnd()
-      if (sourceFrameLine === '') {
-        continue
-      }
-
-      if (sourceFrameLine.startsWith('>')) {
-        // This is where the cursor will point
-        // Include the cursor and nothing below since it's just surrounding code.
-        focusedSource += '\n' + sourceFrameLine
-        focusedSource += '\n' + sourceFrameLines[i + 1]
-        break
-      }
-      const isCodeFrameLine = /^ {2}\s*\d+ \|/.test(sourceFrameLine)
-      if (!isCodeFrameLine) {
-        focusedSource += '\n' + sourceFrameLine
-      }
-    }
-
-    focusedSource = focusedSource.trim()
-
-    if (next !== null) {
-      focusedSource = focusedSource.replaceAll(
-        next.testDir,
-        '<FIXME-project-root>'
-      )
-    }
-
-    // This is the processed path the nextjs file from node_modules,
-    // likely not being processed properly and it's not deterministic among tests.
-    // e.g. it could be a encoded url of loader path:
-    // ../packages/next/dist/build/webpack/loaders/next-app-loader/index.js...
-    const sourceLines = focusedSource.split('\n')
-    if (
-      sourceLines[0].startsWith('./node_modules/.pnpm/next@file+') ||
-      sourceLines[0].startsWith('./node_modules/.pnpm/file+') ||
-      // e.g. "next-app-loader?<SEARCH PARAMS>" (in rspack, the loader doesn't seem to be prefixed with node_modules)
-      /^next-[a-zA-Z0-9\-_]+?-loader\?/.test(sourceLines[0])
-    ) {
-      focusedSource =
-        `<FIXME-nextjs-internal-source>` +
-        '\n' +
-        sourceLines.slice(1).join('\n')
-    }
-  }
+  const focusedSource = focusSource(source, next)
 
   let sanitizedDescription = description
 
@@ -184,12 +241,7 @@ async function createErrorSnapshot(
     label: label ?? '<FIXME-excluded-label>',
     description: sanitizedDescription,
     source: focusedSource,
-    stack:
-      next !== null && stack !== null
-        ? stack.map((stackframe) => {
-            return stackframe.replace(next.testDir, '<FIXME-project-root>')
-          })
-        : stack,
+    stack: sanitizeStack(stack, next),
   }
 
   // Hydration diffs are only relevant to some specific errors
@@ -198,12 +250,22 @@ async function createErrorSnapshot(
     snapshot.componentStack = componentStack
   }
 
+  // Error.cause chain is only relevant when present.
+  if (cause !== null) {
+    snapshot.cause = cause.map((entry) => ({
+      label: entry.label,
+      message: entry.message,
+      source: focusSource(entry.source, next),
+      stack: sanitizeStack(entry.stack, next) ?? [],
+    }))
+  }
+
   return snapshot
 }
 
-type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
+export type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
 
-async function createRedboxSnapshot(
+export async function createRedboxSnapshot(
   browser: Playwright,
   next: NextInstance | null,
   opts?: ErrorSnapshotOptions
