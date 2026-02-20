@@ -63,7 +63,7 @@ function unique() {
     let isUnique = true
     let hasKey = false
 
-    if (h.key && typeof h.key !== 'number' && h.key.indexOf('$') > 0) {
+    if (h.key && typeof h.key !== 'number' && h.key.indexOf('$') !== -1) {
       hasKey = true
       const key = h.key.slice(h.key.indexOf('$') + 1)
       if (keys.has(key)) {
