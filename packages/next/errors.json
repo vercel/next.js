@@ -1065,5 +1065,6 @@
   "1064": "createServerParamsForRoute should not be called in client contexts.",
   "1065": "createServerPathnameForMetadata should not be called in client contexts.",
   "1066": "createServerSearchParamsForServerPage should not be called in a client validation.",
-  "1067": "The Next.js unhandled rejection filter is being installed more than once. This is a bug in Next.js."
+  "1067": "The Next.js unhandled rejection filter is being installed more than once. This is a bug in Next.js.",
+  "1068": "Expected workStore to be initialized"
 }
