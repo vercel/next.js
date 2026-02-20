@@ -275,6 +275,16 @@ impl Storage {
         )
     }
 
+    /// Returns an iterator over all tasks in storage (read-only).
+    /// Used for diagnostics like memory reporting.
+    /// NOTE: This is not safe to call while holding any `StorageWriteGuards`
+    pub fn iter_all(
+        &self,
+    ) -> impl Iterator<Item = dashmap::mapref::multiple::RefMulti<'_, TaskId, Box<TaskStorage>>>
+    {
+        self.map.iter()
+    }
+
     pub fn drop_contents(&self) {
         drop_contents(&self.map);
         drop_contents(&self.modified);

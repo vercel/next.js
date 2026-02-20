@@ -554,4 +554,33 @@ internal
     )
   })
 
+internal
+  .command('turbopack-memory')
+  .description(
+    'Dump a memory report from a running Next.js dev server (Turbopack).'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to look for the running dev server. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option(
+    '--format <format>',
+    'Output format: "json", "markdown", or "html".',
+    'json'
+  )
+  .addOption(
+    new Option(
+      '--top-n <count>',
+      'Number of top entries to show per category. Defaults to 100.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .action((directory: string, options: { format?: string; topN?: number }) =>
+    import('../cli/internal/next-turbopack-memory.js').then((mod) =>
+      mod.nextTurbopackMemory(options, directory)
+    )
+  )
+  .usage('[directory] [options]')
+
 program.parse(process.argv)

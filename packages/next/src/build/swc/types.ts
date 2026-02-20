@@ -306,6 +306,8 @@ export interface Project {
 
   invalidateFileSystemCache(): Promise<void>
 
+  getMemoryReport(topN?: number): Promise<string>
+
   shutdown(): Promise<void>
 
   onExit(): Promise<void>

@@ -9491,6 +9491,7 @@ dependencies = [
  "bincode 2.0.1",
  "bitfield",
  "byteorder",
+ "chrono",
  "codspeed-criterion-compat",
  "dashmap 6.1.0",
  "either",

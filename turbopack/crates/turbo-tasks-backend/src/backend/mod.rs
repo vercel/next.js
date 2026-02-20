@@ -1,4 +1,5 @@
 mod counter_map;
+pub mod memory_report;
 mod operation;
 mod storage;
 pub mod storage_schema;
@@ -227,6 +228,14 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
 
     pub fn backing_storage(&self) -> &B {
         &self.0.backing_storage
+    }
+
+    /// Collect a memory report summarizing in-memory task and cell statistics.
+    /// This iterates all tasks in the storage, so it may take some time on large
+    /// graphs.
+    pub fn collect_memory_report(&self, top_n: usize) -> memory_report::MemoryReport {
+        let uptime_secs = self.0.start_time.elapsed().as_secs_f64();
+        memory_report::collect_memory_report(&self.0.storage, uptime_secs, top_n)
     }
 }
 
