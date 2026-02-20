@@ -27,6 +27,7 @@ import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { getOrInitDiskLRU } from './lib/disk-lru-cache.external'
 import { parseUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -54,6 +55,29 @@ const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let _sharp: typeof import('sharp')
+
+async function initCacheEntries(
+  cacheDir: string
+): Promise<Array<{ key: string; size: number; expireAt: number }>> {
+  const cacheKeys = await promises.readdir(cacheDir).catch(() => [])
+  const entries: Array<{ key: string; size: number; expireAt: number }> = []
+
+  for (const cacheKey of cacheKeys) {
+    try {
+      const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
+      entries.push({
+        key: cacheKey,
+        size: buffer.byteLength,
+        expireAt,
+      })
+    } catch {
+      // Skip entries that can't be read from disk
+    }
+  }
+
+  // Sort oldest-first so we can replay them chronologically into LRU
+  return entries.sort((a, b) => a.expireAt - b.expireAt)
+}
 
 export function getSharp(concurrency: number | null | undefined) {
   if (_sharp) {
@@ -133,7 +157,8 @@ export function getImageEtag(image: Buffer) {
 }
 
 async function writeToCacheDir(
-  dir: string,
+  cacheDir: string,
+  cacheKey: string,
   extension: string,
   maxAge: number,
   expireAt: number,
@@ -141,6 +166,7 @@ async function writeToCacheDir(
   etag: string,
   upstreamEtag: string
 ) {
+  const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
   const filename = join(
     dir,
     `${maxAge}.${expireAt}.${etag}.${upstreamEtag}.${extension}`
@@ -150,6 +176,37 @@ async function writeToCacheDir(
 
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
+}
+
+async function readFromCacheDir(cacheDir: string, cacheKey: string) {
+  const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
+  const files = await promises.readdir(dir)
+  const file = files[0]
+  if (!file) {
+    throw new Error(
+      `Invariant: cache entry "${cacheKey}" not found in dir "${cacheDir}"`
+    )
+  }
+  const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] = file.split(
+    '.',
+    5
+  )
+  const filePath = join(/* turbopackIgnore: true */ dir, file)
+  const buffer = await promises.readFile(/* turbopackIgnore: true */ filePath)
+  const expireAt = Number(expireAtSt)
+  const maxAge = Number(maxAgeSt)
+  return { maxAge, expireAt, etag, upstreamEtag, buffer, extension }
+}
+
+async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
+  return promises
+    .rm(join(/* turbopackIgnore: true */ cacheDir, cacheKey), {
+      recursive: true,
+      force: true,
+    })
+    .catch((err) => {
+      Log.error(`Failed to delete cache key ${cacheKey}`, err)
+    })
 }
 
 /**
@@ -310,6 +367,8 @@ export async function detectContentType(
 export class ImageOptimizerCache {
   private cacheDir: string
   private nextConfig: NextConfigComplete
+  private cacheDiskLRU?: ReturnType<typeof getOrInitDiskLRU>
+  private isDiskCacheEnabled?: boolean
 
   static validateParams(
     req: IncomingMessage,
@@ -496,35 +555,51 @@ export class ImageOptimizerCache {
   }) {
     this.cacheDir = join(distDir, 'cache', 'images')
     this.nextConfig = nextConfig
+
+    // Eagerly start LRU initialization for filesystem cache
+    if (
+      nextConfig.images.maximumDiskCacheSize !== 0 &&
+      nextConfig.experimental.isrFlushToDisk
+    ) {
+      this.isDiskCacheEnabled = true
+      this.cacheDiskLRU = getOrInitDiskLRU(
+        this.cacheDir,
+        nextConfig.images.maximumDiskCacheSize,
+        initCacheEntries,
+        deleteFromCacheDir
+      )
+    }
   }
 
   async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
+    // If the filesystem cache is disabled, return early
+    if (!this.isDiskCacheEnabled) {
+      return null
+    }
+
+    // Fall back to filesystem cache
     try {
-      const cacheDir = join(this.cacheDir, cacheKey)
-      const files = await promises.readdir(cacheDir)
       const now = Date.now()
+      const { maxAge, expireAt, etag, upstreamEtag, buffer, extension } =
+        await readFromCacheDir(this.cacheDir, cacheKey)
 
-      for (const file of files) {
-        const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] =
-          file.split('.', 5)
-        const buffer = await promises.readFile(join(cacheDir, file))
-        const expireAt = Number(expireAtSt)
-        const maxAge = Number(maxAgeSt)
+      // Promote entry in LRU (mark as recently used)
+      const lru = await this.cacheDiskLRU
+      lru?.get(cacheKey)
 
-        return {
-          value: {
-            kind: CachedRouteKind.IMAGE,
-            etag,
-            buffer,
-            extension,
-            upstreamEtag,
-          },
-          revalidateAfter:
-            Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
-            Date.now(),
-          cacheControl: { revalidate: maxAge, expire: undefined },
-          isStale: now > expireAt,
-        }
+      return {
+        value: {
+          kind: CachedRouteKind.IMAGE,
+          etag,
+          buffer,
+          extension,
+          upstreamEtag,
+        },
+        revalidateAfter:
+          Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
+          Date.now(),
+        cacheControl: { revalidate: maxAge, expire: undefined },
+        isStale: now > expireAt,
       }
     } catch (_) {
       // failed to read from cache dir, treat as cache miss
@@ -554,13 +629,28 @@ export class ImageOptimizerCache {
       throw new InvariantError('revalidate must be a number for image-cache')
     }
 
+    // If the filesystem cache is disabled, return early
+    if (!this.isDiskCacheEnabled) {
+      return
+    }
+
+    // Fall back to filesystem cache
     const expireAt =
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
 
     try {
+      const lru = await this.cacheDiskLRU
+      const success = lru?.set(cacheKey, value.buffer.byteLength)
+      if (success === false) {
+        throw new Error(
+          `image of size ${value.buffer.byteLength} could not be tracked by lru cache`
+        )
+      }
+
       await writeToCacheDir(
-        join(this.cacheDir, cacheKey),
+        this.cacheDir,
+        cacheKey,
         value.extension,
         revalidate,
         expireAt,
