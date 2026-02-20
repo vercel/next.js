@@ -1,5 +1,3 @@
-import path from 'path'
-import url from 'url'
 import { retry } from 'next-test-utils'
 import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 
@@ -13,9 +11,10 @@ import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 // - a bug where App Router API routes (and Metadata) return client assets for `new URL`s.
 // - a bug where Edge Page routes return client assets for `new URL`s.
 describe(`Handle new URL asset references`, () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
     env: {
+      // rely on skew protection when deployed
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
     },
   })
@@ -24,30 +23,26 @@ describe(`Handle new URL asset references`, () => {
     return
   }
 
-  let serverFilePath: string
-  let clientUrl: string
-  const serverEdgeUrl = process.env.IS_TURBOPACK_TEST
+  const serverFileRegex = expect.stringMatching(
+    /file:.*\/.next(\/dev)?\/server\/.*\/vercel.HASH.png$/
+  )
+  const serverEdgeUrl = isTurbopack
     ? `blob:server/edge/assets/vercel.HASH.png`
     : `blob:vercel.HASH.png`
+
+  let clientUrl: string
   const expectedPageContent = (count: number) =>
     'Hello ' + Array(count).fill(clientUrl).join('+')
 
   beforeAll(() => {
-    serverFilePath = url
-      .pathToFileURL(
-        path.join(
-          next.testDir,
-          next.distDir,
-          'server',
-          process.env.IS_TURBOPACK_TEST ? 'assets' : 'chunks/static/media',
-          'vercel.HASH.png'
-        )
-      )
-      .toString()
-
-    const expectedToken = next.deploymentId
-    if (!isNextDev && !expectedToken) {
-      throw new Error('Missing expected deployment id')
+    let expectedToken
+    if (isNextDev || !isTurbopack) {
+      expectedToken = undefined
+    } else {
+      expectedToken = next.deploymentId
+      if (!expectedToken) {
+        throw new Error('Missing deployment id')
+      }
     }
     clientUrl = `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
   })
@@ -82,7 +77,7 @@ describe(`Handle new URL asset references`, () => {
           },
         ],
         // TODO Webpack bug?
-        description: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientUrl,
+        description: isTurbopack ? serverFileRegex : clientUrl,
       })
     })
 
@@ -95,15 +90,13 @@ describe(`Handle new URL asset references`, () => {
       expect(json).toEqual({
         imported: clientUrl,
         // TODO Webpack bug?
-        url: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientUrl,
+        url: isTurbopack ? serverFileRegex : clientUrl,
       })
     })
 
     for (const page of ['/rsc', '/rsc-edge', '/client', '/client-edge']) {
       // TODO Webpack bug?
-      let shouldSkip = process.env.IS_TURBOPACK_TEST
-        ? false
-        : page.includes('edge')
+      let shouldSkip = isTurbopack ? false : page.includes('edge')
 
       ;(shouldSkip ? it.skip : it)(
         `should render the ${page} page`,
@@ -135,7 +128,7 @@ describe(`Handle new URL asset references`, () => {
       expect(json).toEqual({
         imported: clientUrl,
         // TODO Webpack bug?
-        url: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientUrl,
+        url: isTurbopack ? serverFileRegex : clientUrl,
       })
     })
   })
@@ -149,9 +142,7 @@ describe(`Handle new URL asset references`, () => {
       ['/pages-edge/ssr', 3],
     ] as const) {
       // TODO Webpack bug?
-      let shouldSkip = process.env.IS_TURBOPACK_TEST
-        ? false
-        : page.includes('edge')
+      let shouldSkip = isTurbopack ? false : page.includes('edge')
 
       ;(shouldSkip ? it.skip : it)(
         `should render the ${page} page`,
@@ -184,7 +175,7 @@ describe(`Handle new URL asset references`, () => {
 
       expect(json).toEqual({
         imported: clientUrl,
-        url: serverFilePath,
+        url: serverFileRegex,
         size: 30079,
       })
     })
