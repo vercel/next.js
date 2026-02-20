@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import crypto from 'crypto'
 import path from 'path'
 import cheerio from 'cheerio'
+import { getClientReferenceManifest } from 'next-test-utils'
 
 describe('Subresource Integrity', () => {
   describe.each(['node', 'edge', 'pages'] as const)(
@@ -166,47 +167,51 @@ describe('Subresource Integrity', () => {
         // Collect all the scripts with integrity hashes so we can verify them.
         const files: Map<string, string> = new Map()
 
-        function assertHasIntegrity(el: CheerioElement) {
+        function collectFile(el: CheerioElement) {
           const integrity = el.attribs['integrity']
-          expect(integrity).toBeDefined()
-          expect(integrity).toStartWith('sha256-')
-
           const src = el.attribs['src']
           expect(src).toBeDefined()
-
           files.set(src, integrity)
         }
 
-        // <head> scripts are most entrypoint scripts, polyfills, and flight loaded scripts.
-        // Since we currently cannot assert integrity on flight loaded scripts (they do not have it)
-        // We have to target specific expected entrypoint/polyfill scripts and assert them directly
-        const mainScript = $(
-          `head script[src^="/_next/static/chunks/main-app"]`
+        const clientReferenceManifest = getClientReferenceManifest(
+          next,
+          `/${runtime}/page`
         )
-        expect(mainScript.length).toBe(1)
-        assertHasIntegrity(mainScript.get(0))
-
-        const polyfillsScript = $(
-          'head script[src^="/_next/static/chunks/polyfills"]'
+        const clientReferenceChunks = new Set(
+          Object.values(clientReferenceManifest.clientModules).flatMap(
+            (clientModule) =>
+              clientModule.chunks
+                .filter((c) => c.includes('.js'))
+                .map((c) => clientReferenceManifest.moduleLoading.prefix + c)
+          )
         )
-        expect(polyfillsScript.length).toBe(1)
-        assertHasIntegrity(polyfillsScript.get(0))
 
-        // body scripts should include just the bootstrap script. We assert that all body
-        // scripts have integrity because we don't expect any flight loaded scripts to appear
-        // here
+        const headScripts = $('head script[src]')
+        expect(headScripts.length).toBeGreaterThan(0)
+        headScripts.each((i, el) => {
+          collectFile(el)
+        })
+
         const bodyScripts = $('body script[src]')
         expect(bodyScripts.length).toBeGreaterThan(0)
         bodyScripts.each((i, el) => {
-          assertHasIntegrity(el)
+          collectFile(el)
         })
 
         // For each script tag, ensure that the integrity attribute is the
         // correct hash of the script tag.
+        let scriptsWithIntegrity = 0
         for (const [src, integrity] of files) {
           const res = await next.fetch(src)
           expect(res.status).toBe(200)
           const content = await res.text()
+
+          if (clientReferenceChunks.has(new URL(src, next.url).pathname)) {
+            // this is a flight loaded script, which currently do not have integrity hashes
+            continue
+          }
+          scriptsWithIntegrity++
 
           const hash = crypto
             .createHash('sha256')
@@ -214,8 +219,11 @@ describe('Subresource Integrity', () => {
             .digest()
             .toString('base64')
 
-          expect(integrity).toEndWith(hash)
+          expect(integrity).toBe(`sha256-${hash}`)
         }
+
+        // A pretty arbitrary number
+        expect(scriptsWithIntegrity).toBeGreaterThanOrEqual(2)
       })
 
       it('throws when escape characters are included in nonce', async () => {
