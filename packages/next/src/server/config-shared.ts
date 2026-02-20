@@ -383,8 +383,8 @@ export interface ExperimentalConfig {
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
   /**
-   * Exposes the experimental testing API (`__EXPERIMENTAL_NEXT_TESTING__`) in
-   * production builds. This API is always available in development mode.
+   * Exposes the Instant Navigation Testing API in production builds. This
+   * API is always available in development mode.
    *
    * The testing API allows e2e tests to control navigation timing, enabling
    * deterministic assertions on prefetched/cached UI before dynamic data

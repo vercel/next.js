@@ -3144,8 +3144,10 @@ function hoistHoistables(parentState, childState) {
   childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
   childState.suspenseyImages && (parentState.suspenseyImages = !0);
 }
-function hasSuspenseyContent(hoistableState) {
-  return 0 < hoistableState.stylesheets.size || hoistableState.suspenseyImages;
+function hasSuspenseyContent(hoistableState, flushingInShell) {
+  return flushingInShell
+    ? hoistableState.suspenseyImages
+    : 0 < hoistableState.stylesheets.size || hoistableState.suspenseyImages;
 }
 var bind = Function.prototype.bind,
   REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
@@ -3942,7 +3944,7 @@ function getViewTransitionClassName(defaultClass, eventClass) {
 function isEligibleForOutlining(request, boundary) {
   return (
     (500 < boundary.byteSize ||
-      hasSuspenseyContent(boundary.contentState) ||
+      hasSuspenseyContent(boundary.contentState, !1) ||
       boundary.defer) &&
     null === boundary.preamble
   );
@@ -6766,7 +6768,7 @@ function flushSegment(request, destination, segment, hoistableState) {
     !flushingPartialBoundaries &&
     isEligibleForOutlining(request, boundary) &&
     (flushedByteSize + boundary.byteSize > request.progressiveChunkSize ||
-      hasSuspenseyContent(boundary.contentState) ||
+      hasSuspenseyContent(boundary.contentState, flushingShell) ||
       boundary.defer)
   )
     (boundary.rootSegmentID = request.nextSegmentId++),
@@ -6949,7 +6951,8 @@ function flushPartiallyCompletedSegment(
     : !!destination.write('"></template>');
   return destination;
 }
-var flushingPartialBoundaries = !1;
+var flushingPartialBoundaries = !1,
+  flushingShell = !1;
 function flushCompletedQueues(request, destination) {
   try {
     if (!(0 < request.pendingRootTasks)) {
@@ -7058,7 +7061,9 @@ function flushCompletedQueues(request, destination) {
             completedPreambleSegments++
           )
             writeChunk(destination, bodyChunks[completedPreambleSegments]);
+        flushingShell = !0;
         flushSegment(request, destination, completedRootSegment, null);
+        flushingShell = !1;
         request.completedRootSegment = null;
         var resumableState$jscomp$0 = request.resumableState,
           renderState$jscomp$0 = request.renderState;
@@ -7383,11 +7388,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-4842fbea-20260217" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-2ba30655-20260219" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-experimental-4842fbea-20260217\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-experimental-2ba30655-20260219\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7932,4 +7937,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-experimental-4842fbea-20260217";
+exports.version = "19.3.0-experimental-2ba30655-20260219";
