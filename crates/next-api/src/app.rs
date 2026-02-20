@@ -1577,6 +1577,16 @@ impl AppEndpoint {
                     file_paths_from_root.insert(rcstr!("server/server-reference-manifest.js"));
                 }
 
+                if project
+                    .next_config()
+                    .experimental_sri()
+                    .await?
+                    .as_ref()
+                    .is_some_and(|v| v.algorithm.is_some())
+                {
+                    file_paths_from_root.insert(rcstr!("server/subresource-integrity-manifest.js"));
+                }
+
                 let mut wasm_paths_from_root = fxindexset![];
 
                 let node_root_value = node_root.clone();
