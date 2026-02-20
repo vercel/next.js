@@ -10,10 +10,20 @@ use turbopack_core::{
 
 use crate::paths::{AssetPath, AssetPaths};
 
+/// Generates a manifest mapping asset paths to their content hashes. The manifest is generated as a
+/// JSON file with the following format:
+/// ```json
+/// {
+///  "path/to/asset1.js": "hash_prefix-contenthash1",
+///  "path/to/asset2.css": "hash_prefix-contenthash2",
+///    ...
+/// }
+/// ```
 #[turbo_tasks::value]
 pub struct AssetHashesManifestAsset {
     output_path: FileSystemPath,
     asset_paths: ResolvedVc<AssetPaths>,
+    /// Optional prefix to add to the hash (e.g. "sha256-" for SRI hashes)
     hash_prefix: Option<RcStr>,
 }
 
