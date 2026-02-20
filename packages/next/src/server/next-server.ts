@@ -1717,6 +1717,7 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
+        deploymentId: this.deploymentId,
       })
     }
 
@@ -2014,6 +2015,7 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
+      deploymentId: this.deploymentId,
     })
 
     if (result.fetchMetrics) {
