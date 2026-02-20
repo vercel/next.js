@@ -974,6 +974,48 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
   return null
 }
 
+/**
+ * Attempts to replace an existing segment cache entry with data from the
+ * bfcache. Unlike `attemptToFulfillDynamicSegmentFromBFCache` (which fills an
+ * empty entry), this creates a new entry and upserts it, so it works even when
+ * the segment is already fulfilled.
+ */
+export function attemptToUpgradeSegmentFromBFCache(
+  now: number,
+  tree: RouteTree
+): FulfilledSegmentCacheEntry | null {
+  const varyPath = tree.varyPath
+  const adjustedCurrentTime = now - STATIC_STALETIME_MS + DYNAMIC_STALETIME_MS
+  const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
+    adjustedCurrentTime,
+    varyPath
+  )
+  if (bfcacheEntry !== null) {
+    const requestedAt = bfcacheEntry.staleAt - DYNAMIC_STALETIME_MS
+    const dynamicPrefetchStaleAt = requestedAt + STATIC_STALETIME_MS
+    const pendingSegment = upgradeToPendingSegment(
+      createDetachedSegmentCacheEntry(now),
+      FetchStrategy.Full
+    )
+    const isPartial = false
+    const newEntry = fulfillSegmentCacheEntry(
+      pendingSegment,
+      bfcacheEntry.rsc,
+      dynamicPrefetchStaleAt,
+      isPartial
+    )
+    const segmentVaryPath = getSegmentVaryPathForRequest(
+      FetchStrategy.Full,
+      tree
+    )
+    const upserted = upsertSegmentEntry(now, segmentVaryPath, newEntry)
+    if (upserted !== null && upserted.status === EntryStatus.Fulfilled) {
+      return upserted
+    }
+  }
+  return null
+}
+
 function pingBlockedTasks(entry: {
   blockedTasks: Set<PrefetchTask> | null
 }): void {

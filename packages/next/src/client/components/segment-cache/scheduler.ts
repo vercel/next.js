@@ -26,6 +26,7 @@ import {
   overwriteRevalidatingSegmentCacheEntry,
   canNewFetchStrategyProvideMoreContent,
   attemptToFulfillDynamicSegmentFromBFCache,
+  attemptToUpgradeSegmentFromBFCache,
 } from './cache'
 import { getSegmentVaryPathForRequest, type SegmentVaryPath } from './vary-path'
 import type { RouteCacheKey } from './cache-key'
@@ -1347,11 +1348,22 @@ function pingRouteTreeAndIncludeDynamicData(
           fetchStrategy
         )
       ) {
-        // The cached segment contains dynamic holes, and was prefetched using a less specific strategy than the current one.
-        // This means we're in one of these cases:
+        // The cached segment contains dynamic holes, and was prefetched using a
+        // less specific strategy than the current one. This means we're in one
+        // of these cases:
         //   - we have a static prefetch, and we're doing a runtime prefetch
-        //   - we have a static or runtime prefetch, and we're doing a Full prefetch (or a navigation).
-        // In either case, we need to include it in the request to get a more specific (or full) version.
+        //   - we have a static or runtime prefetch, and we're doing a Full
+        //     prefetch (or a navigation).
+        // In either case, we need to include it in the request to get a more
+        // specific (or full) version. However, if there's a non-stale bfcache
+        // entry from a previous navigation, prefer that over making a new
+        // request.
+        if (fetchStrategy === FetchStrategy.Full) {
+          const fulfilled = attemptToUpgradeSegmentFromBFCache(now, tree)
+          if (fulfilled !== null) {
+            break
+          }
+        }
         spawnedSegment = pingFullSegmentRevalidation(now, tree, fetchStrategy)
       }
       break
