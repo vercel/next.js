@@ -88,16 +88,24 @@ describe('instant validation causes', () => {
     )
   }
 
-  // TODO: All three cases below are missing the "cause" chain that should point
-  // to the `export` statement of `unstable_instant`. The existing
-  // `export const unstable_instant = ...` pattern correctly shows the cause,
-  // but these alternative export patterns don't.
-
   it('named export - export { unstable_instant }', async () => {
     const browser = await next.browser('/named-export')
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "cause": [
+         {
+           "label": "Caused by: Instant Validation",
+           "message": " ",
+           "source": "app/named-export/page.tsx (3:26) @ unstable_instant
+     > 3 | const unstable_instant = { prefetch: 'static' }
+         |                          ^",
+           "stack": [
+             "unstable_instant app/named-export/page.tsx (3:26)",
+             "Set.forEach <anonymous>",
+           ],
+         },
+       ],
        "description": "Runtime data was accessed outside of <Suspense>
 
      This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -130,6 +138,19 @@ describe('instant validation causes', () => {
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "cause": [
+         {
+           "label": "Caused by: Instant Validation",
+           "message": " ",
+           "source": "app/aliased-export/page.tsx (3:17) @ unstable_instant
+     > 3 | const instant = { prefetch: 'static' }
+         |                 ^",
+           "stack": [
+             "unstable_instant app/aliased-export/page.tsx (3:17)",
+             "Set.forEach <anonymous>",
+           ],
+         },
+       ],
        "description": "Runtime data was accessed outside of <Suspense>
 
      This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -162,6 +183,19 @@ describe('instant validation causes', () => {
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "cause": [
+         {
+           "label": "Caused by: Instant Validation",
+           "message": " ",
+           "source": "app/reexport/page.tsx (3:10) @ unstable_instant
+     > 3 | export { unstable_instant } from './config'
+         |          ^",
+           "stack": [
+             "unstable_instant app/reexport/page.tsx (3:10)",
+             "Set.forEach <anonymous>",
+           ],
+         },
+       ],
        "description": "Runtime data was accessed outside of <Suspense>
 
      This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -184,6 +218,54 @@ describe('instant validation causes', () => {
          |                ^",
        "stack": [
          "Page app/reexport/page.tsx (6:16)",
+       ],
+     }
+    `)
+  })
+
+  it('indirect export - const instant = _instant; export { instant as unstable_instant }', async () => {
+    const browser = await next.browser('/indirect-export')
+    await waitForValidation(await browser.url())
+    // Ideally we'd be pointing at the original value declaration.
+    // We're not following declarations recursively mostly to keep the implementation simpler
+    // presuming that almost all configs are just `export const instant = ...`
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: Instant Validation",
+           "message": " ",
+           "source": "app/indirect-export/page.tsx (4:17) @ unstable_instant
+     > 4 | const instant = _instant
+         |                 ^",
+           "stack": [
+             "unstable_instant app/indirect-export/page.tsx (4:17)",
+             "Set.forEach <anonymous>",
+           ],
+         },
+       ],
+       "description": "Runtime data was accessed outside of <Suspense>
+
+     This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+
+     To fix this:
+
+     Provide a fallback UI using <Suspense> around this component.
+
+     or
+
+     Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+     In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+     Learn more: https://nextjs.org/docs/messages/blocking-route",
+       "environmentLabel": "Server",
+       "label": "Blocking Route",
+       "source": "app/indirect-export/page.tsx (8:16) @ Page
+     >  8 |   await cookies()
+          |                ^",
+       "stack": [
+         "Page app/indirect-export/page.tsx (8:16)",
        ],
      }
     `)

@@ -17,22 +17,94 @@ struct DebugInstantStack {
     instant_export_span: Option<Span>,
 }
 
+/// Given an export specifier, returns `Some((exported_name, local_name))` if
+/// the exported name is `unstable_instant`.
+fn get_instant_specifier_names(specifier: &ExportSpecifier) -> Option<(&Ident, &Ident)> {
+    match specifier {
+        // `export { orig as unstable_instant }`
+        ExportSpecifier::Named(ExportNamedSpecifier {
+            exported: Some(ModuleExportName::Ident(exported)),
+            orig: ModuleExportName::Ident(orig),
+            ..
+        }) if exported.sym == "unstable_instant" => Some((exported, orig)),
+        // `export { unstable_instant }`
+        ExportSpecifier::Named(ExportNamedSpecifier {
+            exported: None,
+            orig: ModuleExportName::Ident(orig),
+            ..
+        }) if orig.sym == "unstable_instant" => Some((orig, orig)),
+        _ => None,
+    }
+}
+
+/// Find the initializer span of a variable declaration with the given name.
+fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
+    for item in items {
+        let decl = match item {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => var_decl,
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
+                if let Decl::Var(var_decl) = &export_decl.decl {
+                    var_decl
+                } else {
+                    continue;
+                }
+            }
+            _ => continue,
+        };
+        for d in &decl.decls {
+            if let Pat::Ident(ident) = &d.name {
+                if ident.id.sym == local_name {
+                    if let Some(init) = &d.init {
+                        return Some(init.span());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 impl Fold for DebugInstantStack {
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-        // Scan for `export const unstable_instant = ...`
         for item in &items {
-            if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) = item {
-                if let Decl::Var(var_decl) = &export_decl.decl {
-                    for decl in &var_decl.decls {
-                        if let Pat::Ident(ident) = &decl.name {
-                            if ident.id.sym == "unstable_instant" {
-                                if let Some(init) = &decl.init {
-                                    self.instant_export_span = Some(init.span());
+            match item {
+                // `export const unstable_instant = ...`
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
+                    if let Decl::Var(var_decl) = &export_decl.decl {
+                        for decl in &var_decl.decls {
+                            if let Pat::Ident(ident) = &decl.name {
+                                if ident.id.sym == "unstable_instant" {
+                                    if let Some(init) = &decl.init {
+                                        self.instant_export_span = Some(init.span());
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                // `export { unstable_instant }` or `export { x as unstable_instant }`
+                // with or without `from '...'`
+                ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
+                    for specifier in &named.specifiers {
+                        if let Some((_exported, orig)) = get_instant_specifier_names(specifier) {
+                            if named.src.is_some() {
+                                // Re-export: `export { unstable_instant } from './config'`
+                                // Point at the export specifier itself
+                                self.instant_export_span = Some(specifier.span());
+                            } else {
+                                // Local named export: try to find the variable's initializer
+                                let local_name = &orig.sym;
+                                if let Some(init_span) = find_var_init_span(&items, local_name) {
+                                    self.instant_export_span = Some(init_span);
+                                } else {
+                                    // Fallback to the export specifier span
+                                    self.instant_export_span = Some(specifier.span());
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
 
