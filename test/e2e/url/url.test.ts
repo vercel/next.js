@@ -129,6 +129,7 @@ describe(`Handle new URL asset references`, () => {
         imported: clientUrl,
         // TODO Webpack bug?
         url: isTurbopack ? serverFileRegex : clientUrl,
+        size: isTurbopack ? 30079 : expect.toBeString(),
       })
     })
   })
