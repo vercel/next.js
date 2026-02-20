@@ -28,7 +28,6 @@ async function Runtime() {
 }
 
 async function Dynamic() {
-  await new Promise((resolve) => setTimeout(resolve, 1000))
   await connection()
   return <div id="dynamic-content">Dynamic content from page</div>
 }

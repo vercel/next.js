@@ -896,11 +896,14 @@ export async function waitForNoRedbox(
   }
 }
 
-export async function waitForNoErrorToast(browser: Playwright): Promise<void> {
+export async function waitForNoErrorToast(
+  browser: Playwright,
+  { waitInMs }: { waitInMs?: number } = {}
+): Promise<void> {
   let didOpenRedbox = false
 
   try {
-    await browser.waitForElementByCss('[data-issues]').click()
+    await browser.waitForElementByCss('[data-issues]', waitInMs).click()
     didOpenRedbox = true
   } catch {
     // We expect this to fail.

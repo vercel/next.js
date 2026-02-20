@@ -3615,13 +3615,39 @@ async function logMessagesAndSendErrorsToBrowser(
   }
 }
 
+async function spawnStaticShellValidationInDev(
+  ...args: Parameters<typeof spawnStaticShellValidationInDevImpl>
+) {
+  if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
+    const ctx: AppRenderContext = args[5]
+    const requestId = ctx.requestId
+    const url = ctx.url.href
+    console.log(
+      '<VALIDATION_MESSAGE>' +
+        JSON.stringify({ type: 'validation_start', requestId, url }) +
+        '</VALIDATION_MESSAGE>'
+    )
+    try {
+      return await spawnStaticShellValidationInDevImpl(...args)
+    } finally {
+      console.log(
+        '<VALIDATION_MESSAGE>' +
+          JSON.stringify({ type: 'validation_end', requestId, url }) +
+          '</VALIDATION_MESSAGE>'
+      )
+    }
+  } else {
+    return await spawnStaticShellValidationInDevImpl(...args)
+  }
+}
+
 /**
  * This function is a fork of prerenderToStream cacheComponents branch.
  * While it doesn't return a stream we want it to have identical
  * prerender semantics to prerenderToStream and should update it
  * in conjunction with any changes to that function.
  */
-async function spawnStaticShellValidationInDev(
+async function spawnStaticShellValidationInDevImpl(
   accumulatedChunksPromise: Promise<AccumulatedStreamChunks>,
   syncInterruptReason: Error | null,
   startTime: number,
