@@ -123,11 +123,11 @@ export class LRUCache<T> {
    * - O(1) for uniform item sizes
    * - O(k) where k is the number of items evicted (can be O(N) for variable sizes)
    */
-  public set(key: string, value: T): void {
+  public set(key: string, value: T): boolean {
     const size = this.calculateSize?.(value) ?? 1
     if (size > this.maxSize) {
       console.warn('Single item size exceeds maxSize')
-      return
+      return false
     }
 
     const existing = this.cache.get(key)
@@ -152,6 +152,8 @@ export class LRUCache<T> {
       this.totalSize -= tail.size
       this.onEvict?.(tail.key, tail.data)
     }
+
+    return true
   }
 
   /**
