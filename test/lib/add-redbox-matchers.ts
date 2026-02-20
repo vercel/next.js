@@ -7,6 +7,7 @@ import {
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
+  getRedboxErrorCode,
   getRedboxSource,
   getRedboxLabel,
   getRedboxTotalErrorCount,
@@ -82,6 +83,7 @@ interface SanitizedCauseEntry {
 
 export interface ErrorSnapshot {
   environmentLabel: string | null
+  errorCode?: string
   label: string | null
   description?: string
   componentStack?: string
@@ -186,6 +188,7 @@ async function createErrorSnapshot(
   const [
     label,
     environmentLabel,
+    errorCode,
     description,
     source,
     stack,
@@ -194,6 +197,7 @@ async function createErrorSnapshot(
   ] = await Promise.all([
     includeLabel ? getRedboxLabel(browser) : null,
     getRedboxEnvironmentLabel(browser),
+    getRedboxErrorCode(browser),
     getRedboxDescription(browser),
     getRedboxSource(browser),
     getRedboxCallStack(browser),
@@ -241,6 +245,10 @@ async function createErrorSnapshot(
     label: label ?? '<FIXME-excluded-label>',
     source: focusedSource,
     stack: sanitizeStack(stack, next),
+  }
+
+  if (errorCode !== null) {
+    snapshot.errorCode = errorCode
   }
 
   if (sanitizedDescription !== null) {
