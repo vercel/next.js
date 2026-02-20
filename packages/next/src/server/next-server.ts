@@ -1,4 +1,3 @@
-import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
 
@@ -128,7 +127,6 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
-import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
 import { installProcessErrorHandlers } from './node-environment-extensions/process-error-handlers'
 
 export * from './base-server'
@@ -198,8 +196,6 @@ export default class NextNodeServer extends BaseServer<
   constructor(options: Options) {
     // Initialize super class
     super(options)
-
-    installGlobalBehaviors(this.nextConfig)
 
     const isDev = options.dev ?? false
     this.isDev = isDev

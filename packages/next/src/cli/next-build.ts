@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import '../server/node-environment'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'

@@ -7,6 +7,7 @@ if (!process.env.NEXT_PRIVATE_START_TIME) {
   process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 }
 
+import '../server/node-environment'
 import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'

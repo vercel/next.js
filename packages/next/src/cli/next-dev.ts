@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import '../server/node-environment'
 import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
