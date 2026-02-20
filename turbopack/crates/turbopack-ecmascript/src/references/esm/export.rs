@@ -32,9 +32,11 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
     references::esm::base::ReferencedAsset,
-    runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
+    runtime_functions::{
+        TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT,
+    },
     tree_shake::asset::EcmascriptModulePartAsset,
-    utils::module_id_to_lit,
+    utils::{StringifyJs, module_id_to_lit},
 };
 
 /// Models the 'liveness' of an esm export
@@ -865,5 +867,68 @@ impl EsmExports {
         } else {
             CodeGeneration::new(vec![], vec![], vec![], dynamic_stmt, esm_exports)
         })
+    }
+
+    /// Generates string-based inner_code for a wrapper module that re-exports all exports
+    /// from an inner module, properly handling export name mangling.
+    ///
+    /// This should be used by wrapper modules (like NextServerUtilityModule) instead of
+    /// `__turbopack_export_namespace__` to ensure mangled export names are properly mapped.
+    pub async fn reexport_all_code(
+        inner_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<String> {
+        use std::fmt::Write;
+
+        let module_id = inner_module.chunk_item_id(chunking_context).await?;
+        let exports = inner_module.get_exports().await?;
+
+        let EcmascriptExports::EsmExports(esm_exports_vc) = &*exports else {
+            // Non-ESM modules: fall back to namespace export
+            return Ok(format!(
+                "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));\n",
+                StringifyJs(&module_id)
+            ));
+        };
+
+        // Expand exports to include star exports
+        let expanded = esm_exports_vc
+            .expand_exports(ModuleExportUsageInfo::all())
+            .await?;
+
+        // If there are dynamic exports we can't fully analyze, fall back to namespace export
+        if !expanded.dynamic_exports.is_empty() {
+            return Ok(format!(
+                "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));\n",
+                StringifyJs(&module_id)
+            ));
+        }
+
+        let mut bindings = String::new();
+        for (exported, local) in &expanded.exports {
+            // Determine the runtime property name on the inner module's namespace.
+            // For LocalBinding with mangled names, the runtime key is the mangled name.
+            // For everything else, the runtime key matches the original export name.
+            let property_name = match local {
+                EsmExport::LocalBinding(_, _, Some(mangled)) => mangled.as_str(),
+                _ => exported.as_str(),
+            };
+
+            if !bindings.is_empty() {
+                bindings.push_str(", ");
+            }
+            write!(
+                bindings,
+                "{}, () => __inner[{}]",
+                StringifyJs(exported.as_str()),
+                StringifyJs(property_name),
+            )?;
+        }
+
+        Ok(format!(
+            "var __inner = {TURBOPACK_IMPORT}({});\n{TURBOPACK_ESM}([{}]);\n",
+            StringifyJs(&module_id),
+            bindings,
+        ))
     }
 }

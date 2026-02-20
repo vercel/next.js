@@ -1,10 +1,9 @@
 use anyhow::Result;
-use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     boundary::{BoundaryInfo, OptionBoundaryInfo},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -18,8 +17,6 @@ use turbopack_ecmascript::{
         ecmascript_chunk_item,
     },
     references::esm::EsmExports,
-    runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
-    utils::StringifyJs,
 };
 
 use crate::boundary_types::boundary_type_dynamic_entry;
@@ -117,15 +114,10 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let module_id = self.module.chunk_item_id(chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
-            inner_code: formatdoc!(
-                r#"
-                    {TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));
-                "#,
-                StringifyJs(&module_id),
-            )
-            .into(),
+            inner_code: EsmExports::reexport_all_code(self.module, chunking_context)
+                .await?
+                .into(),
             ..Default::default()
         }
         .cell())
