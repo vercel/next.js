@@ -550,7 +550,6 @@ async function generateDynamicRSCPayload(
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       getDynamicParamFromSegment,
-      workStore,
       serveStreamingMetadata,
     })
 
@@ -1444,7 +1443,6 @@ async function getRSCPayload(
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     getDynamicParamFromSegment,
-    workStore,
     serveStreamingMetadata,
   })
 
@@ -1565,7 +1563,6 @@ async function getErrorRSCPayload(
     metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
     getDynamicParamFromSegment,
-    workStore,
     serveStreamingMetadata: serveStreamingMetadata,
   })
 

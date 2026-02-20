@@ -21,7 +21,8 @@ import type {
 } from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
-import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 import type { Params } from '../../server/request/params'
 import type { SearchParams } from '../../server/request/search-params'
 
@@ -708,8 +709,7 @@ const resolveMetadataItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
 ) {
   const parentParams = {}
   const metadataItems: MetadataItems = []
@@ -723,8 +723,7 @@ const resolveMetadataItems = cache(async function (
     searchParams,
     errorConvention,
     errorMetadataItem,
-    getDynamicParamFromSegment,
-    workStore
+    getDynamicParamFromSegment
   )
 })
 
@@ -737,8 +736,7 @@ async function resolveMetadataItemsImpl(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorMetadataItem: MetadataItems[number],
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
 ): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -783,8 +781,7 @@ async function resolveMetadataItemsImpl(
       searchParams,
       errorConvention,
       errorMetadataItem,
-      getDynamicParamFromSegment,
-      workStore
+      getDynamicParamFromSegment
     )
   }
 
@@ -802,8 +799,7 @@ const resolveViewportItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
 ) {
   const parentParams = {}
   const viewportItems: ViewportItems = []
@@ -819,8 +815,7 @@ const resolveViewportItems = cache(async function (
     searchParams,
     errorConvention,
     errorViewportItemRef,
-    getDynamicParamFromSegment,
-    workStore
+    getDynamicParamFromSegment
   )
 })
 
@@ -833,8 +828,7 @@ async function resolveViewportItemsImpl(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorViewportItemRef: ErrorViewportItemRef,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
 ): Promise<ViewportItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -890,8 +884,7 @@ async function resolveViewportItemsImpl(
       searchParams,
       errorConvention,
       errorViewportItemRef,
-      getDynamicParamFromSegment,
-      workStore
+      getDynamicParamFromSegment
     )
   }
 
@@ -1260,16 +1253,18 @@ export async function resolveMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore,
   metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
   const metadataItems = await resolveMetadataItems(
     tree,
     searchParams,
     errorConvention,
-    getDynamicParamFromSegment,
-    workStore
+    getDynamicParamFromSegment
   )
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   return accumulateMetadata(
     workStore.route,
     metadataItems,
@@ -1283,15 +1278,13 @@ export async function resolveViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
 ): Promise<ResolvedViewport> {
   const viewportItems = await resolveViewportItems(
     tree,
     searchParams,
     errorConvention,
-    getDynamicParamFromSegment,
-    workStore
+    getDynamicParamFromSegment
   )
   return accumulateViewport(viewportItems)
 }
