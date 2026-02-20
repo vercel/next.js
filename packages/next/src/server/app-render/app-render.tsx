@@ -3580,6 +3580,10 @@ async function countStaticStageBytes(
   let byteLength = 0
   const reader = stream.getReader()
 
+  stageController.waitForStage(RenderStage.EarlyRuntime).then(() => {
+    reader.cancel()
+  })
+
   while (true) {
     const { done, value } = await reader.read()
     if (done) {
