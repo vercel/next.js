@@ -40,7 +40,6 @@ export function createMetadataComponents({
   metadataContext,
   interpolatedParams,
   errorType,
-  serveStreamingMetadata,
 }: {
   tree: LoaderTree
   pathname: string
@@ -48,7 +47,6 @@ export function createMetadataComponents({
   metadataContext: MetadataContext
   interpolatedParams: Params
   errorType?: MetadataErrorType | 'redirect'
-  serveStreamingMetadata: boolean
 }): {
   Viewport: React.ComponentType
   Metadata: React.ComponentType
@@ -126,16 +124,6 @@ export function createMetadataComponents({
   Metadata.displayName = 'Next.Metadata'
 
   function MetadataWrapper() {
-    // TODO: We shouldn't change what we render based on whether we are streaming or not.
-    // If we aren't streaming we should just block the response until we have resolved the
-    // metadata.
-    if (!serveStreamingMetadata) {
-      return (
-        <MetadataBoundary>
-          <Metadata />
-        </MetadataBoundary>
-      )
-    }
     return (
       <div hidden>
         <MetadataBoundary>
@@ -160,12 +148,6 @@ export function createMetadataComponents({
       getResolvedViewport(tree, searchParams, interpolatedParams, errorType),
     ]).then(() => null)
 
-    // TODO: We shouldn't change what we render based on whether we are streaming or not.
-    // If we aren't streaming we should just block the response until we have resolved the
-    // metadata.
-    if (!serveStreamingMetadata) {
-      return <OutletBoundary>{pendingOutlet}</OutletBoundary>
-    }
     return (
       <OutletBoundary>
         <Suspense name="Next.MetadataOutlet">{pendingOutlet}</Suspense>

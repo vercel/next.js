@@ -531,8 +531,6 @@ async function generateDynamicRSCPayload(
     url,
   } = ctx
 
-  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-
   if (!options?.skipPageRendering) {
     const preloadCallbacks: PreloadCallbacks = []
 
@@ -550,7 +548,6 @@ async function generateDynamicRSCPayload(
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       interpolatedParams: ctx.interpolatedParams,
-      serveStreamingMetadata,
     })
 
     const rscHead = createElement(
@@ -1428,7 +1425,6 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query
   )
-  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
   const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
@@ -1443,7 +1439,6 @@ async function getRSCPayload(
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     interpolatedParams: ctx.interpolatedParams,
-    serveStreamingMetadata,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -1555,7 +1550,6 @@ async function getErrorRSCPayload(
     workStore,
   } = ctx
 
-  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const { Viewport, Metadata } = createMetadataComponents({
     tree,
     parsedQuery: query,
@@ -1563,7 +1557,6 @@ async function getErrorRSCPayload(
     metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
     interpolatedParams: ctx.interpolatedParams,
-    serveStreamingMetadata: serveStreamingMetadata,
   })
 
   const initialHead = createElement(
