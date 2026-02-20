@@ -103,11 +103,7 @@ export type ImageConfigComplete = {
   /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
   formats: ImageFormat[]
 
-  /**
-   * Configure the on-disk cache size in bytes.
-   * If undefined (default) auto-detect based on 50% of available disk space.
-   * If 0, disable writes to on-disk cache (though any existing disk cache may still be read).
-   */
+  /** @see [Maximum Disk Cache Size (in bytes)](https://nextjs.org/docs/api-reference/next/image#maximumdiskcachesize) */
   maximumDiskCacheSize: number | undefined
 
   /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */

@@ -617,6 +617,11 @@ export class ImageOptimizerCache {
       return null
     }
 
+    // If the filesystem cache is disabled, return early
+    if (this.nextConfig.images.maximumDiskCacheSize === 0) {
+      return null
+    }
+
     // Fall back to filesystem cache
     try {
       const now = Date.now()
@@ -688,7 +693,7 @@ export class ImageOptimizerCache {
       return
     }
 
-    // Fall back to filesystem cache
+    // If the filesystem cache is disabled, return early
     if (
       !this.nextConfig.experimental.isrFlushToDisk ||
       this.nextConfig.images.maximumDiskCacheSize === 0
@@ -696,6 +701,7 @@ export class ImageOptimizerCache {
       return
     }
 
+    // Fall back to filesystem cache
     const expireAt =
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
