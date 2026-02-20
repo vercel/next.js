@@ -241,7 +241,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     )
     .asset_base_path(Some(asset_prefix))
     .default_url_behavior(UrlBehavior {
-        suffix: AssetSuffix::Inferred,
+        suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
         static_suffix: css_url_suffix.to_resolved().await?,
     })
     .minify_type(if *turbo_minify.await? {
@@ -329,7 +329,7 @@ pub async fn get_edge_chunking_context(
     )
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
-        static_suffix: css_url_suffix,
+        static_suffix: ResolvedVc::cell(None),
     })
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch

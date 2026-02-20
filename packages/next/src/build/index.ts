@@ -840,15 +840,21 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
-    forkOptions: process.env.NEXT_CPU_PROF
-      ? {
-          env: {
-            NEXT_CPU_PROF: '1',
-            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
-            __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
-          },
-        }
-      : undefined,
+    forkOptions: {
+      env: {
+        ...(process.env.NEXT_CPU_PROF
+          ? {
+              NEXT_CPU_PROF: '1',
+              NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+              __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
+            }
+          : undefined),
+        // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
+        __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX: config.deploymentId
+          ? `?dpl=${config.deploymentId}`
+          : '',
+      },
+    },
   }) as StaticWorker
 }
 
@@ -2068,6 +2074,7 @@ export default async function build(
               pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
+              deploymentId: config.deploymentId,
               sriEnabled,
               cacheMaxMemorySize: config.cacheMaxMemorySize,
             })
@@ -2290,6 +2297,7 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
+                            deploymentId: config.deploymentId,
                             sriEnabled,
                           })
                         }

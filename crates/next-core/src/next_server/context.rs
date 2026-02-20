@@ -1053,7 +1053,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
-        static_suffix: css_url_suffix,
+        static_suffix: ResolvedVc::cell(None),
     })
     .minify_type(if *minify.await? {
         MinifyType::Minify {
@@ -1152,7 +1152,7 @@ pub async fn get_server_chunking_context(
     )
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
-        static_suffix: css_url_suffix,
+        static_suffix: ResolvedVc::cell(None),
     })
     .minify_type(if *minify.await? {
         MinifyType::Minify {
