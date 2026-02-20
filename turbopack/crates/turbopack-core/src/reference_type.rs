@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
-use crate::{module::Module, resolve::ModulePart};
+use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePart};
 
 /// Named references to inner assets. Modules can use them to allow to
 /// per-module aliases of some requests to already created module assets.
@@ -74,7 +74,13 @@ pub enum ImportWithType {
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
-    ImportWithType(ImportWithType),
+    ImportWithType(RcStr),
+    /// Import with `turbopackLoader` attribute specifying an inline loader.
+    ImportWithTurbopackUse {
+        loader: ResolvedWebpackLoaderItem,
+        rename_as: Option<RcStr>,
+        module_type: Option<RcStr>,
+    },
     DynamicImport,
     Custom(u8),
     #[default]
@@ -119,16 +125,14 @@ impl ImportContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn add_attributes(
-        self: Vc<Self>,
+    pub fn add_attributes(
+        &self,
         attr_layer: Option<RcStr>,
         attr_media: Option<RcStr>,
         attr_supports: Option<RcStr>,
-    ) -> Result<Vc<Self>> {
-        let this = &*self.await?;
-
+    ) -> Vc<Self> {
         let layers = {
-            let mut layers = this.layers.clone();
+            let mut layers = self.layers.clone();
             if let Some(attr_layer) = attr_layer
                 && !layers.contains(&attr_layer)
             {
@@ -138,7 +142,7 @@ impl ImportContext {
         };
 
         let media = {
-            let mut media = this.media.clone();
+            let mut media = self.media.clone();
             if let Some(attr_media) = attr_media
                 && !media.contains(&attr_media)
             {
@@ -148,7 +152,7 @@ impl ImportContext {
         };
 
         let supports = {
-            let mut supports = this.supports.clone();
+            let mut supports = self.supports.clone();
             if let Some(attr_supports) = attr_supports
                 && !supports.contains(&attr_supports)
             {
@@ -157,7 +161,7 @@ impl ImportContext {
             supports
         };
 
-        Ok(ImportContext::new(layers, media, supports))
+        ImportContext::new(layers, media, supports)
     }
 
     #[turbo_tasks::function]
@@ -313,6 +317,7 @@ pub enum ReferenceType {
     Entry(EntryReferenceSubType),
     Runtime,
     Internal(ResolvedVc<InnerAssets>),
+    Loader,
     Custom(u8),
     #[default]
     Undefined,
@@ -325,6 +330,9 @@ impl Display for ReferenceType {
             ReferenceType::CommonJs(_) => "commonjs",
             ReferenceType::EcmaScriptModules(sub) => match sub {
                 EcmaScriptModulesReferenceSubType::ImportPart(_) => "EcmaScript Modules (part)",
+                EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse { .. } => {
+                    "EcmaScript Modules (turbopackUse)"
+                }
                 _ => "EcmaScript Modules",
             },
             ReferenceType::Css(_) => "css",
@@ -334,6 +342,7 @@ impl Display for ReferenceType {
             ReferenceType::Entry(_) => "entry",
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
+            ReferenceType::Loader => "loader",
             ReferenceType::Custom(_) => todo!(),
             ReferenceType::Undefined => "undefined",
         };
@@ -381,6 +390,7 @@ impl ReferenceType {
             }
             ReferenceType::Runtime => matches!(other, ReferenceType::Runtime),
             ReferenceType::Internal(_) => matches!(other, ReferenceType::Internal(_)),
+            ReferenceType::Loader => matches!(other, ReferenceType::Loader),
             ReferenceType::Custom(_) => {
                 todo!()
             }
@@ -392,6 +402,9 @@ impl ReferenceType {
     /// combination with [`ModuleRuleCondition::Internal`] to determine if a
     /// rule should be applied to an internal asset/reference.
     pub fn is_internal(&self) -> bool {
-        matches!(self, ReferenceType::Internal(_) | ReferenceType::Runtime)
+        matches!(
+            self,
+            ReferenceType::Internal(_) | ReferenceType::Runtime | ReferenceType::Loader
+        )
     }
 }

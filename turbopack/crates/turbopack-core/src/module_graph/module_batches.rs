@@ -21,7 +21,7 @@ use crate::{
     chunk::{ChunkableModule, ChunkingType},
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph, ModuleGraphRef,
+        GraphTraversalAction, ModuleGraph,
         chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
         module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
@@ -257,18 +257,17 @@ impl PreBatches {
     fn ensure_pre_batch_for_module(
         &mut self,
         module: ResolvedVc<Box<dyn Module>>,
-        chunk_group_info: &ChunkGroupInfo,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<PreBatchIndex> {
         Ok(match self.entries.entry(module) {
             Entry::Vacant(e) => {
                 let index = self.batches.len();
                 queue.push_back((module, index));
-                let chunk_groups = chunk_group_info
-                    .module_chunk_groups
+                let chunk_groups = module_chunk_groups
                     .get(&module)
                     .context("all modules need to have chunk group info")?;
-                let batch = PreBatch::new(chunk_groups.clone());
+                let batch = PreBatch::new((*chunk_groups).clone());
                 self.batches.push(batch);
                 e.insert(index);
                 index
@@ -280,8 +279,8 @@ impl PreBatches {
     async fn get_pre_batch_items(
         &mut self,
         entry: ResolvedVc<Box<dyn Module>>,
-        chunk_group_info: &ChunkGroupInfo,
-        module_graph: &ModuleGraphRef,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+        module_graph: &ModuleGraph,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<Vec<PreBatchItem>> {
         let mut state = TraversalState {
@@ -312,7 +311,7 @@ impl PreBatches {
                     if parent_info.is_some() && state.this.boundary_modules.contains(&module) {
                         let idx = state.this.ensure_pre_batch_for_module(
                             module,
-                            chunk_group_info,
+                            module_chunk_groups,
                             queue,
                         )?;
                         state.items.push(PreBatchItem::ParallelReference(idx));
@@ -349,7 +348,8 @@ pub async fn compute_module_batches(
     let span = outer_span.clone();
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
-        let module_graph = module_graph.read_graphs().await?;
+        let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
+        let module_graph = module_graph.await?;
 
         let mut pre_batches = PreBatches::new();
 
@@ -364,12 +364,10 @@ pub async fn compute_module_batches(
                     return Ok(());
                 };
                 if ty.chunking_type.is_parallel() {
-                    let parent_chunk_groups = chunk_group_info
-                        .module_chunk_groups
+                    let parent_chunk_groups = module_chunk_groups
                         .get(&parent)
                         .context("all modules need to have chunk group info")?;
-                    let chunk_groups = chunk_group_info
-                        .module_chunk_groups
+                    let chunk_groups = module_chunk_groups
                         .get(&node)
                         .context("all modules need to have chunk group info")?;
                     if parent_chunk_groups != chunk_groups {
@@ -395,9 +393,10 @@ pub async fn compute_module_batches(
         module_graph.traverse_cycles(
             |ref_data| ref_data.chunking_type.is_parallel(),
             |cycle| {
-                if cycle
-                    .iter()
-                    .any(|node| pre_batches.boundary_modules.contains(node))
+                if cycle.len() > 1
+                    && cycle
+                        .iter()
+                        .any(|node| pre_batches.boundary_modules.contains(node))
                 {
                     pre_batches
                         .boundary_modules
@@ -414,7 +413,7 @@ pub async fn compute_module_batches(
         // Start with the entries
         for chunk_group in &chunk_group_info.chunk_groups {
             for entry in chunk_group.entries() {
-                pre_batches.ensure_pre_batch_for_module(entry, &chunk_group_info, &mut queue)?;
+                pre_batches.ensure_pre_batch_for_module(entry, &module_chunk_groups, &mut queue)?;
             }
             if let Some(parent) = chunk_group.get_merged_parent() {
                 chunk_group_indices_with_merged_children.insert(parent);
@@ -427,7 +426,7 @@ pub async fn compute_module_batches(
             let items = pre_batches
                 .get_pre_batch_items(
                     chunkable_module,
-                    &chunk_group_info,
+                    &module_chunk_groups,
                     &module_graph,
                     &mut queue,
                 )
@@ -772,8 +771,7 @@ pub async fn compute_module_batches(
             batch_groups.entry(key).or_default().push(batch);
         }
         for &module in &pre_batches.single_module_entries {
-            let chunk_groups = chunk_group_info
-                .module_chunk_groups
+            let chunk_groups = module_chunk_groups
                 .get(&module)
                 .context("all modules need to have chunk group info")?;
             let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);

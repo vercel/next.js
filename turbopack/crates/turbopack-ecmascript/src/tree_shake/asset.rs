@@ -2,7 +2,6 @@ use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -11,15 +10,15 @@ use turbopack_core::{
     resolve::{ExportUsage, ModulePart},
 };
 
-use super::{
-    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module,
-    split_module,
-};
+use super::{SplitResult, get_part_id, part_of_module, split_module};
 use crate::{
-    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
-    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
-    EcmascriptParsable,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
+    EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptModuleContent,
+    EcmascriptModuleContentOptions, EcmascriptParsable,
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
+    },
     parse::ParseResult,
     references::{
         FollowExportsResult, analyze_ecmascript_module, esm::FoundExportType, follow_reexports,
@@ -346,18 +345,30 @@ impl Module for EcmascriptModulePartAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptModulePartAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.full_module.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         Ok(*self.analyze().await?.exports)
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let analyze = self.analyze().await?;
+        let async_module_options = analyze.async_module.module_options(async_module_info);
+
+        let content = self.module_content(chunking_context, async_module_info);
+
+        Ok(EcmascriptChunkItemContent::new(
+            content,
+            chunking_context,
+            async_module_options,
+        ))
     }
 }
 
@@ -366,16 +377,10 @@ impl ChunkableModule for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: ResolvedVc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
-            EcmascriptModulePartChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        )
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 

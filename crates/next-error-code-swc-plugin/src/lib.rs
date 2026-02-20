@@ -8,6 +8,23 @@ use swc_core::{
 
 pub struct TransformVisitor {
     errors: FxHashMap<String, String>,
+    resolved_bindings: FxHashMap<Id, String>,
+}
+
+struct BindingCollector {
+    bindings: FxHashMap<Id, String>,
+}
+
+impl Visit for BindingCollector {
+    fn visit_var_declarator(&mut self, n: &VarDeclarator) {
+        if let Pat::Ident(binding_ident) = &n.name {
+            if let Some(init) = &n.init {
+                let resolved = stringify_new_error_arg(init, &self.bindings);
+                self.bindings.insert(binding_ident.to_id(), resolved);
+            }
+        }
+        n.visit_children_with(self);
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -59,7 +76,7 @@ fn is_error_class_name(name: &str) -> bool {
 }
 
 // Get the string representation of the first argument of `new Error(...)`
-fn stringify_new_error_arg(expr: &Expr) -> String {
+fn stringify_new_error_arg(expr: &Expr, bindings: &FxHashMap<Id, String>) -> String {
     match expr {
         Expr::Lit(lit) => match lit {
             Lit::Str(str_lit) => str_lit.value.to_string(),
@@ -73,28 +90,39 @@ fn stringify_new_error_arg(expr: &Expr) -> String {
             for (_i, quasi) in tpl.quasis.iter().enumerate() {
                 result.push_str(&quasi.raw);
                 if let Some(expr) = expr_iter.next() {
-                    result.push_str(&stringify_new_error_arg(expr));
+                    result.push_str(&stringify_new_error_arg(expr, bindings));
                 }
             }
             result
         }
 
         Expr::Bin(bin_expr) => {
-            // Assume binary expression is always add for two strings
             format!(
                 "{}{}",
-                stringify_new_error_arg(&bin_expr.left),
-                stringify_new_error_arg(&bin_expr.right)
+                stringify_new_error_arg(&bin_expr.left, bindings),
+                stringify_new_error_arg(&bin_expr.right, bindings)
             )
         }
+
+        Expr::Ident(ident) => bindings
+            .get(&ident.to_id())
+            .cloned()
+            .unwrap_or_else(|| "%s".to_string()),
 
         _ => "%s".to_string(),
     }
 }
 
-impl TransformVisitor {}
-
 impl VisitMut for TransformVisitor {
+    fn visit_mut_program(&mut self, program: &mut Program) {
+        let mut collector = BindingCollector {
+            bindings: FxHashMap::default(),
+        };
+        program.visit_with(&mut collector);
+        self.resolved_bindings = collector.bindings;
+        program.visit_mut_children_with(self);
+    }
+
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
         let mut error_message: Option<String> = None;
 
@@ -110,7 +138,10 @@ impl VisitMut for TransformVisitor {
                     if let Some(args) = &new_expr.args {
                         if let Some(first_arg) = args.first() {
                             new_error_expr = Some(new_expr.clone());
-                            error_message = Some(stringify_new_error_arg(&first_arg.expr));
+                            error_message = Some(stringify_new_error_arg(
+                                &first_arg.expr,
+                                &self.resolved_bindings,
+                            ));
                         }
                     }
                 }
@@ -120,7 +151,10 @@ impl VisitMut for TransformVisitor {
                 Callee::Expr(expr) => match &**expr {
                     Expr::Ident(ident) if is_error_class_name(ident.sym.as_str()) => {
                         if let Some(first_arg) = call_expr.args.first() {
-                            error_message = Some(stringify_new_error_arg(&first_arg.expr));
+                            error_message = Some(stringify_new_error_arg(
+                                &first_arg.expr,
+                                &self.resolved_bindings,
+                            ));
 
                             // For `Error(...)`, we convert it to `new Error(...)` to make the
                             // following code simpler
@@ -185,11 +219,11 @@ impl VisitMut for TransformVisitor {
                 callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
                     span: new_error_expr.span,
                     obj: Box::new(Expr::Ident(Ident::new(
-                        rcstr!("Object"),
+                        "Object".into(),
                         new_error_expr.span,
                         Default::default(),
                     ))),
-                    prop: MemberProp::Ident(rcstr!("defineProperty")),
+                    prop: MemberProp::Ident("defineProperty".into()),
                 }))), // Object.defineProperty(
                 args: vec![
                     ExprOrSpread {
@@ -200,7 +234,7 @@ impl VisitMut for TransformVisitor {
                         spread: None,
                         expr: Box::new(Expr::Lit(Lit::Str(Str {
                             span: new_error_expr.span,
-                            value: rcstr!("__NEXT_ERROR_CODE"),
+                            value: "__NEXT_ERROR_CODE".into(),
                             raw: None,
                         }))), // "__NEXT_ERROR_CODE"
                     },
@@ -210,7 +244,7 @@ impl VisitMut for TransformVisitor {
                             span: new_error_expr.span,
                             props: vec![
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident(rcstr!("value")),
+                                    key: PropName::Ident("value".into()),
                                     value: Box::new(Expr::Lit(Lit::Str(Str {
                                         span: new_error_expr.span,
                                         value: code.into(),
@@ -218,14 +252,14 @@ impl VisitMut for TransformVisitor {
                                     }))),
                                 }))),
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident(rcstr!("enumerable")),
+                                    key: PropName::Ident("enumerable".into()),
                                     value: Box::new(Expr::Lit(Lit::Bool(Bool {
                                         span: new_error_expr.span,
                                         value: false,
                                     }))),
                                 }))),
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident(rcstr!("configurable")),
+                                    key: PropName::Ident("configurable".into()),
                                     value: Box::new(Expr::Lit(Lit::Bool(Bool {
                                         span: new_error_expr.span,
                                         value: true,
@@ -252,7 +286,10 @@ pub fn process_transform(
     let errors: FxHashMap<String, String> = serde_json::from_str(&errors_json)
         .unwrap_or_else(|e| panic!("failed to parse errors.json: {}", e));
 
-    let mut visitor = TransformVisitor { errors };
+    let mut visitor = TransformVisitor {
+        errors,
+        resolved_bindings: FxHashMap::default(),
+    };
 
     visitor.visit_mut_program(&mut program);
     program
@@ -270,7 +307,12 @@ test_inline!(
                 "5".to_string(),
                 "Pattern should define hostname but found\n%s".to_string()
             ),
+            (
+                "6".to_string(),
+                "This is an extracted error message.".to_string()
+            ),
         ]),
+        resolved_bindings: FxHashMap::default(),
     }),
     realistic_api_handler,
     // Input codes
@@ -302,6 +344,12 @@ function test3() {
 function test4() {
     throw new Error();
     throw new Error("Pattern should define hostname but found\n" + JSON.stringify(pattern));
+}
+
+const extractedErrorMessage = 'This is an extracted error message.';
+
+function test5() {
+    throw new Error(extractedErrorMessage);
 }"#,
     // Output codes after transformed with plugin
     r#"
@@ -345,6 +393,14 @@ function test4() {
     throw new Error();
     throw Object.defineProperty(new Error("Pattern should define hostname but found\n" + JSON.stringify(pattern)), "__NEXT_ERROR_CODE", {
         value: "E5",
+        enumerable: false,
+        configurable: true
+    });
+}
+const extractedErrorMessage = 'This is an extracted error message.';
+function test5() {
+    throw Object.defineProperty(new Error(extractedErrorMessage), "__NEXT_ERROR_CODE", {
+        value: "E6",
         enumerable: false,
         configurable: true
     });

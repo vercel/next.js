@@ -17,6 +17,7 @@ import type { REACT_LOADABLE_MANIFEST } from '../constants'
 import {
   APP_PATHS_MANIFEST,
   BUILD_MANIFEST,
+  CLIENT_STATIC_FILES_PATH,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_MANIFEST,
@@ -108,9 +109,14 @@ const getManifestPath = (
     // existsSync is faster than using the async version
     if (!existsSync(manifestPath) && page.endsWith('/route')) {
       // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
-      let metadataPage = addRouteSuffix(
-        addMetadataIdToRoute(removeRouteSuffix(page))
-      )
+      let basePage = removeRouteSuffix(page)
+      // For sitemap.xml routes with generateSitemaps, the manifest is at
+      // /sitemap/[__metadata_id__]/route (without .xml), because the route
+      // handler serves at /sitemap/[id] not /sitemap.xml/[id]
+      if (basePage.endsWith('/sitemap.xml')) {
+        basePage = basePage.slice(0, -'.xml'.length)
+      }
+      let metadataPage = addRouteSuffix(addMetadataIdToRoute(basePage))
       manifestPath = getManifestPath(metadataPage, distDir, name, type, false)
     }
   }
@@ -201,19 +207,27 @@ export class TurbopackManifestLoader {
 
   private readonly distDir: string
   private readonly buildId: string
+  private readonly deploymentId: string
+  private readonly dev: boolean
 
   constructor({
     distDir,
     buildId,
     encryptionKey,
+    dev,
+    deploymentId,
   }: {
     buildId: string
     distDir: string
     encryptionKey: string
+    dev: boolean
+    deploymentId: string
   }) {
     this.distDir = distDir
     this.buildId = buildId
     this.encryptionKey = encryptionKey
+    this.dev = dev
+    this.deploymentId = deploymentId
   }
 
   delete(key: EntryKey) {
@@ -438,7 +452,10 @@ export class TurbopackManifestLoader {
     }
   }
 
-  private mergeBuildManifests(manifests: Iterable<BuildManifest>) {
+  private mergeBuildManifests(
+    manifests: Iterable<BuildManifest>,
+    lowPriorityFiles: string[]
+  ) {
     const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
       pages: {
         '/_app': [],
@@ -446,10 +463,7 @@ export class TurbopackManifestLoader {
       // Something in next.js depends on these to exist even for app dir rendering
       devFiles: [],
       polyfillFiles: [],
-      lowPriorityFiles: [
-        `static/${this.buildId}/_ssgManifest.js`,
-        `static/${this.buildId}/_buildManifest.js`,
-      ],
+      lowPriorityFiles,
       rootMainFiles: [],
     }
     for (const m of manifests) {
@@ -512,11 +526,14 @@ export class TurbopackManifestLoader {
     )
   }
 
-  private writeBuildManifest(): void {
+  private writeBuildManifest(lowPriorityFiles: string[]): void {
     if (!this.buildManifests.takeChanged()) {
       return
     }
-    const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
+    const buildManifest = this.mergeBuildManifests(
+      this.buildManifests.values(),
+      lowPriorityFiles
+    )
 
     const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
     const middlewareBuildManifestPath = join(
@@ -530,8 +547,6 @@ export class TurbopackManifestLoader {
     writeFileAtomic(buildManifestPath, JSON.stringify(buildManifest, null, 2))
     writeFileAtomic(
       middlewareBuildManifestPath,
-      // we use globalThis here because middleware can be node
-      // which doesn't have "self"
       createEdgeRuntimeManifest(buildManifest)
     )
 
@@ -540,7 +555,8 @@ export class TurbopackManifestLoader {
       [
         this.buildManifests.get(getEntryKey('pages', 'server', '_app')),
         this.buildManifests.get(getEntryKey('pages', 'server', '_error')),
-      ].filter(Boolean) as BuildManifest[]
+      ].filter(Boolean) as BuildManifest[],
+      lowPriorityFiles
     )
     const fallbackBuildManifestPath = join(
       this.distDir,
@@ -557,7 +573,7 @@ export class TurbopackManifestLoader {
     entrypoints: Entrypoints,
     devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined,
     productionRewrites: CustomRoutes['rewrites'] | undefined
-  ): void {
+  ): string[] {
     const rewrites = normalizeRewritesForBuildManifest(
       productionRewrites ?? {
         ...devRewrites,
@@ -577,9 +593,33 @@ export class TurbopackManifestLoader {
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
 
-    if (!this.clientBuildManifests.takeChanged({ rewrites, sortedPageKeys })) {
-      return
+    let buildManifestPath
+    let ssgManifestPath
+    if (this.deploymentId && !this.dev) {
+      // When skew protection is enabled, we instead just rely on the deployment id query string to
+      // load the correct manifests, to avoid the build id.
+      buildManifestPath = join(CLIENT_STATIC_FILES_PATH, '_buildManifest.js')
+      ssgManifestPath = join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
+    } else {
+      buildManifestPath = join(
+        CLIENT_STATIC_FILES_PATH,
+        this.buildId,
+        '_buildManifest.js'
+      )
+      ssgManifestPath = join(
+        CLIENT_STATIC_FILES_PATH,
+        this.buildId,
+        '_ssgManifest.js'
+      )
     }
+
+    if (
+      this.dev &&
+      !this.clientBuildManifests.takeChanged({ rewrites, sortedPageKeys })
+    ) {
+      return [buildManifestPath, ssgManifestPath]
+    }
+
     const clientBuildManifest = this.mergeClientBuildManifests(
       this.clientBuildManifests.values(),
       rewrites,
@@ -590,14 +630,16 @@ export class TurbopackManifestLoader {
       null,
       2
     )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+
     writeFileAtomic(
-      join(this.distDir, 'static', this.buildId, '_buildManifest.js'),
+      join(this.distDir, buildManifestPath),
       clientBuildManifestJs
     )
-    writeFileAtomic(
-      join(this.distDir, 'static', this.buildId, '_ssgManifest.js'),
-      srcEmptySsgManifest
-    )
+    // This is just an empty placeholder, the actual manifest is written after prerendering in
+    // packages/next/src/build/index.ts
+    writeFileAtomic(join(this.distDir, ssgManifestPath), srcEmptySsgManifest)
+
+    return [buildManifestPath, ssgManifestPath]
   }
 
   loadFontManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
@@ -757,9 +799,22 @@ export class TurbopackManifestLoader {
     return manifest
   }
 
-  private writeMiddlewareManifest(): void {
-    if (!this.middlewareManifests.takeChanged()) {
-      return
+  private writeMiddlewareManifest(): {
+    clientMiddlewareManifestPath: string
+  } {
+    let clientMiddlewareManifestPath =
+      this.deploymentId && !this.dev
+        ? join(CLIENT_STATIC_FILES_PATH, TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST)
+        : join(
+            CLIENT_STATIC_FILES_PATH,
+            this.buildId,
+            TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+          )
+
+    if (this.dev && !this.middlewareManifests.takeChanged()) {
+      return {
+        clientMiddlewareManifestPath,
+      }
     }
     const middlewareManifest = this.mergeMiddlewareManifests(
       this.middlewareManifests.values()
@@ -791,20 +846,25 @@ export class TurbopackManifestLoader {
       JSON.stringify(middlewareManifest, null, 2)
     )
 
-    // Client middleware manifest
+    // Client middleware manifest This is only used in dev though, packages/next/src/build/index.ts
+    // writes the mainfest again for builds.
     const matchers = middlewareManifest?.middleware['/']?.matchers || []
 
-    const clientMiddlewareManifestPath = join(
-      this.distDir,
-      'static',
-      this.buildId,
-      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
-    )
+    const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
+      matchers,
+      null,
+      2
+    )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+
     deleteCache(clientMiddlewareManifestPath)
     writeFileAtomic(
-      clientMiddlewareManifestPath,
-      JSON.stringify(matchers, null, 2)
+      join(this.distDir, clientMiddlewareManifestPath),
+      clientMiddlewareManifestJs
     )
+
+    return {
+      clientMiddlewareManifestPath,
+    }
   }
 
   loadPagesManifest(pageName: string): void {
@@ -843,10 +903,14 @@ export class TurbopackManifestLoader {
   }): void {
     this.writeActionManifest()
     this.writeAppPathsManifest()
-    this.writeBuildManifest()
+    const lowPriorityFiles = this.writeClientBuildManifest(
+      entrypoints,
+      devRewrites,
+      productionRewrites
+    )
+    const { clientMiddlewareManifestPath } = this.writeMiddlewareManifest()
+    this.writeBuildManifest([...lowPriorityFiles, clientMiddlewareManifestPath])
     this.writeInterceptionRouteRewriteManifest(devRewrites, productionRewrites)
-    this.writeClientBuildManifest(entrypoints, devRewrites, productionRewrites)
-    this.writeMiddlewareManifest()
     this.writeNextFontManifest()
     this.writePagesManifest()
 

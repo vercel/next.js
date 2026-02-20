@@ -311,7 +311,8 @@ function getHeadHTMLProps(props: HeadProps) {
 function getNextFontLinkTags(
   nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   dangerousAsPath: string,
-  assetPrefix: string = ''
+  assetPrefix: string = '',
+  assetQueryString: string = ''
 ) {
   if (!nextFontManifest) {
     return {
@@ -351,7 +352,7 @@ function getNextFontLinkTags(
             <link
               key={fontFile}
               rel="preload"
-              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}`}
+              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}${assetQueryString}`}
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
@@ -582,6 +583,7 @@ export class Head extends React.Component<HeadProps> {
       optimizeCss,
       assetPrefix,
       nextFontManifest,
+      assetQueryString,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -650,7 +652,8 @@ export class Head extends React.Component<HeadProps> {
     const nextFontLinkTags = getNextFontLinkTags(
       nextFontManifest,
       dangerousAsPath,
-      assetPrefix
+      assetPrefix,
+      assetQueryString
     )
 
     const tracingMetadata = getTracedMetadata(
@@ -928,13 +931,24 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { docComponentsRendered, locale, scriptLoader, __NEXT_DATA__ } =
-    useHtmlContext()
+  const {
+    docComponentsRendered,
+    locale,
+    scriptLoader,
+    deploymentId,
+    __NEXT_DATA__,
+  } = useHtmlContext()
 
   docComponentsRendered.Html = true
   handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
 
-  return <html {...props} lang={props.lang || locale || undefined} />
+  return (
+    <html
+      {...props}
+      lang={props.lang || locale || undefined}
+      data-dpl-id={deploymentId || undefined}
+    />
+  )
 }
 
 export function Main() {

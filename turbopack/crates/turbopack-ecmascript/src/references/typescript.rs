@@ -14,7 +14,8 @@ use turbopack_resolve::typescript::type_resolve;
 use crate::typescript::TsConfigModuleAsset;
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug)]
+#[derive(Hash, Clone, Debug, ValueToString)]
+#[value_to_string("tsconfig {tsconfig}")]
 pub struct TsConfigReference {
     pub tsconfig: FileSystemPath,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -43,18 +44,9 @@ impl ModuleReference for TsConfigReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TsConfigReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("tsconfig {}", self.tsconfig.value_to_string().await?).into(),
-        ))
-    }
-}
-
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("typescript reference path comment {path}")]
 pub struct TsReferencePathAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub path: RcStr,
@@ -98,16 +90,9 @@ impl ModuleReference for TsReferencePathAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TsReferencePathAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("typescript reference path comment {}", self.path,).into())
-    }
-}
-
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("typescript reference type comment {module}")]
 pub struct TsReferenceTypeAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub module: RcStr,
@@ -134,13 +119,5 @@ impl ModuleReference for TsReferenceTypeAssetReference {
                 RcStr::default(),
             ),
         )
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for TsReferenceTypeAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("typescript reference type comment {}", self.module,).into())
     }
 }

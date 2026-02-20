@@ -45,16 +45,23 @@ export function NextLogo({
   const isCacheFilling = state.cacheIndicator === 'filling'
   const isCacheBypassing = state.cacheIndicator === 'bypass'
 
-  // Determine if we should show any status (excluding cache bypass, which renders like error badge)
-  const shouldShowStatus =
+  // Determine if we should show any transient status (excluding cache bypass)
+  const shouldShowTransientStatus =
     state.buildingIndicator || state.renderingIndicator || isCacheFilling
 
   // Delay showing for 400ms to catch fast operations,
   // and keep visible for minimum time (longer for warnings)
-  const { rendered: showStatusIndicator } = useDelayedRender(shouldShowStatus, {
-    enterDelay: 400,
-    exitDelay: 500,
-  })
+  const { rendered: showTransientStatusIndicator } = useDelayedRender(
+    shouldShowTransientStatus,
+    {
+      enterDelay: 400,
+      exitDelay: 500,
+    }
+  )
+
+  // Instant mode shows immediately (no delay) since it's a persistent user-toggled state
+  const isCacheOnly = state.cacheOnly
+  const showStatusIndicator = showTransientStatusIndicator || isCacheOnly
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
@@ -63,7 +70,8 @@ export function NextLogo({
   const currentStatus = getCurrentStatus(
     state.buildingIndicator,
     state.renderingIndicator,
-    state.cacheIndicator
+    state.cacheIndicator,
+    state.cacheOnly
   )
 
   const displayStatus = showStatusIndicator ? currentStatus : Status.None
@@ -184,6 +192,17 @@ export function NextLogo({
               }
             }
 
+            &[data-cache-only='true']:not([data-error='true']):not(
+                [data-cache-bypassing='true']
+              ) {
+              background: rgba(59, 130, 246, 0.95);
+              --color-inner-border: rgba(96, 165, 250, 0.9);
+
+              [data-issues-open] {
+                color: white;
+              }
+            }
+
             &[data-error-expanded='false'][data-error='true'] ~ [data-dot] {
               scale: 1;
             }
@@ -237,10 +256,6 @@ export function NextLogo({
             &:has([data-issues-collapse]) {
               padding-right: calc(var(--padding-left) / 2);
             }
-
-            [data-cross] {
-              translate: 0px -1px;
-            }
           }
 
           [data-issues-open] {
@@ -265,6 +280,9 @@ export function NextLogo({
           [data-issues-collapse] {
             width: var(--size-24);
             height: var(--size-24);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
@@ -380,6 +398,7 @@ export function NextLogo({
         data-error-expanded={isExpanded}
         data-status={hasError || isCacheBypassing ? Status.None : currentStatus}
         data-cache-bypassing={isCacheBypassing}
+        data-cache-only={isCacheOnly}
         data-animate={newErrorDetected}
         style={{ width }}
       >
@@ -490,7 +509,20 @@ export function NextLogo({
                 !state.disableDevIndicator && (
                   <StatusIndicator
                     status={displayStatus}
-                    onClick={onTriggerClick}
+                    title={
+                      displayStatus === Status.Instant
+                        ? 'Unblock dynamic data'
+                        : undefined
+                    }
+                    onClick={
+                      displayStatus === Status.Instant
+                        ? () => {
+                            document.cookie =
+                              'next-instant-navigation-testing=; path=/; max-age=0'
+                            window.location.reload()
+                          }
+                        : onTriggerClick
+                    }
                   />
                 )}
             </>

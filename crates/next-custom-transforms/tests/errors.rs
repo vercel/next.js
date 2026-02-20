@@ -97,6 +97,7 @@ fn react_server_components_errors(input: PathBuf) {
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let cache_components_enabled = input.iter().any(|s| s.to_str() == Some("cache-components"));
     let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
+    let taint_enabled = input.iter().any(|s| s.to_str() == Some("taint-enabled"));
 
     let app_dir = input
         .iter()
@@ -113,6 +114,7 @@ fn react_server_components_errors(input: PathBuf) {
                     is_react_server_layer,
                     cache_components_enabled,
                     use_cache_enabled,
+                    taint_enabled,
                 }),
                 tr.comments.as_ref().clone(),
                 app_dir.clone(),
@@ -160,16 +162,18 @@ fn react_server_actions_errors(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
                 // The transforms are intentionally declared in the same order as in
                 // crates/next-custom-transforms/src/chain_transforms.rs
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
                         is_react_server_layer,
                         cache_components_enabled: true,
                         use_cache_enabled: true,
+                        taint_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -185,6 +189,7 @@ fn react_server_actions_errors(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,
@@ -226,16 +231,18 @@ fn use_cache_not_allowed(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
                 // The transforms are intentionally declared in the same order as in
                 // crates/next-custom-transforms/src/chain_transforms.rs
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
                         is_react_server_layer: true,
                         cache_components_enabled: false,
                         use_cache_enabled: false,
+                        taint_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -251,6 +258,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter([rcstr!("x")]),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,

@@ -1,8 +1,6 @@
-use anyhow::Result;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::ChunkableModuleReference,
+    chunk::{ChunkingType, ChunkingTypeOption},
     reference::ModuleReference,
     reference_type::CssReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
@@ -12,7 +10,8 @@ use crate::references::css_resolve;
 
 /// A `composes: ... from ...` CSS module reference.
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("compose(url) {request}")]
 pub struct CssModuleComposeReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -42,17 +41,12 @@ impl ModuleReference for CssModuleComposeReference {
             None,
         )
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for CssModuleComposeReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("compose(url) {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for CssModuleComposeReference {}

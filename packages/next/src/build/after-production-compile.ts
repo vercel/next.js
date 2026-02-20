@@ -6,6 +6,7 @@ import createSpinner from './spinner'
 import isError from '../lib/is-error'
 import type { Telemetry } from '../telemetry/storage'
 import { EVENT_BUILD_FEATURE_USAGE } from '../telemetry/events/build'
+import { hrtimeBigIntDurationToString } from './duration-to-string'
 
 // TODO: refactor this to account for more compiler lifecycle events
 // such as beforeProductionBuild, but for now this is the only one that is needed
@@ -41,14 +42,14 @@ export async function runAfterProductionCompile({
   )
 
   try {
-    const startTime = performance.now()
+    const startTime = process.hrtime.bigint()
     await buildSpan
       .traceChild('after-production-compile')
       .traceAsyncFn(async () => {
         await run(metadata)
       })
-    const duration = performance.now() - startTime
-    const formattedDuration = `${Math.round(duration)}ms`
+    const duration = process.hrtime.bigint() - startTime
+    const formattedDuration = hrtimeBigIntDurationToString(duration)
     Log.event(`Completed runAfterProductionCompile in ${formattedDuration}`)
   } catch (err) {
     // Handle specific known errors differently if needed

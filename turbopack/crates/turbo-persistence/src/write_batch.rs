@@ -175,6 +175,24 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 }
             }
         }
+        // After flushing write all the full global collectors to disk.
+        // TODO: This can distribute work unfairly
+        // * a thread could fill up multiple global collectors and then get stuck writing them all
+        //   out, if multiple threads could work on it we could take care of spare IO parallism
+        // * we can also have too much IO parallism with many threads concurrently writing files.
+        //
+        // Ideally we would limit the amount of data buffered in memory and control the amount of IO
+        // parallism.  Consider:
+        // * store full-buffers as a field on WireBatch (queued writes)
+        // * each thread will attempt to poll and flush a full buffer after flushing its local
+        //   buffer.
+        // This will distribute the writing work more fairly, but now we have the problem of to
+        // many concurrent writes contending for filesystem locks.  So we could also use a semaphore
+        // to restrict how many concurrent writes occur.  But then we would accumulate 'fullBuffers'
+        // leading to too much memory consumption.  So really we also need to slow down the threads
+        // submitting work data.  To do this we could simply use a tokio semaphore and make all
+        // these operations async, or we could integrate with the parallel::map operation that is
+        // driving the work to slow down task submission in this case.
         for mut global_collector in full_collectors {
             // When the global collector is full, we create a new SST file.
             let sst = self.create_sst_file(family, global_collector.sorted())?;

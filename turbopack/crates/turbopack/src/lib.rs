@@ -12,8 +12,10 @@ pub mod global_module_ids;
 pub mod module_options;
 pub mod transition;
 
-use anyhow::{Result, bail};
-use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
+use anyhow::{Context as _, Result, bail};
+use module_options::{
+    ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType,
+};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
@@ -24,15 +26,15 @@ use turbopack_core::{
     chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    ident::Layer,
+    ident::{AssetIdent, Layer},
     issue::{IssueExt, IssueSource, module::ModuleIssue},
     module::{Module, ModuleSideEffects},
     node_addon_module::NodeAddonModule,
     output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
-        InnerAssets, ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, InnerAssets,
+        ReferenceType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -40,12 +42,13 @@ use turbopack_core::{
         parse::Request, resolve,
     },
     source::Source,
+    source_transform::SourceTransforms,
 };
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
-    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
+    EcmascriptOptions, TreeShakingMode,
     chunk::EcmascriptChunkPlaceable,
-    inlined_bytes_module::InlinedBytesJsModule,
     references::{
         FollowExportsResult,
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
@@ -56,7 +59,7 @@ use turbopack_ecmascript::{
     },
     tree_shake::asset::EcmascriptModulePartAsset,
 };
-use turbopack_json::JsonModuleAsset;
+use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
 use turbopack_resolve::{
     resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     typescript::type_resolve,
@@ -65,8 +68,10 @@ use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use crate::{
+    evaluate_context::node_evaluate_asset_context,
     module_options::{
         CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+        package_import_map_from_context, package_import_map_from_import_mapping,
     },
     transition::{Transition, TransitionOptions},
 };
@@ -242,7 +247,6 @@ async fn apply_module_type(
                 .await?
             }
         }
-        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
         ModuleType::NodeAddon => {
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
@@ -274,9 +278,6 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?,
         ),
-        ModuleType::InlinedBytesJs => {
-            ResolvedVc::upcast(InlinedBytesJsModule::new(*source).to_resolved().await?)
-        }
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
                 WebAssemblySource::new(*source, *source_ty),
@@ -506,6 +507,144 @@ async fn process_default(
     .await
 }
 
+/// Apply collected transforms to a module type.
+/// For Ecmascript/Typescript variants: merge collected transforms into the module type.
+/// For Custom: call extend_ecmascript_transforms() if any transforms exist.
+/// For non-ecmascript types: warn if transforms exist, return unchanged.
+async fn apply_module_rule_transforms(
+    module_type: &mut ModuleType,
+    collected_preprocess: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+    collected_main: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+    collected_postprocess: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+    ident: ResolvedVc<AssetIdent>,
+    current_source: ResolvedVc<Box<dyn Source>>,
+) -> Result<()> {
+    let has_transforms = !collected_preprocess.is_empty()
+        || !collected_main.is_empty()
+        || !collected_postprocess.is_empty();
+
+    // If no transforms were collected, return early
+    if !has_transforms {
+        return Ok(());
+    }
+
+    match module_type {
+        ModuleType::Ecmascript {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        }
+        | ModuleType::Typescript {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        }
+        | ModuleType::TypescriptDeclaration {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        }
+        | ModuleType::EcmascriptExtensionless {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        } => {
+            // Apply collected preprocess/main in order, then module type's transforms
+            let mut final_preprocess = EcmascriptInputTransforms::empty();
+            for vc in collected_preprocess.drain(..) {
+                final_preprocess = final_preprocess.extend(*vc);
+            }
+            final_preprocess = final_preprocess.extend(**preprocess);
+            *preprocess = final_preprocess.to_resolved().await?;
+
+            let mut final_main = EcmascriptInputTransforms::empty();
+            for vc in collected_main.drain(..) {
+                final_main = final_main.extend(*vc);
+            }
+            final_main = final_main.extend(**main);
+            *main = final_main.to_resolved().await?;
+
+            // Apply module type's postprocess first, then collected postprocess
+            let mut final_postprocess = **postprocess;
+            for vc in collected_postprocess.drain(..) {
+                final_postprocess = final_postprocess.extend(*vc);
+            }
+            *postprocess = final_postprocess.to_resolved().await?;
+        }
+        ModuleType::Custom(custom_module_type) => {
+            if has_transforms {
+                // Combine collected transforms into single Vcs
+                let mut combined_preprocess = EcmascriptInputTransforms::empty();
+                for vc in collected_preprocess.drain(..) {
+                    combined_preprocess = combined_preprocess.extend(*vc);
+                }
+                let mut combined_main = EcmascriptInputTransforms::empty();
+                for vc in collected_main.drain(..) {
+                    combined_main = combined_main.extend(*vc);
+                }
+                let mut combined_postprocess = EcmascriptInputTransforms::empty();
+                for vc in collected_postprocess.drain(..) {
+                    combined_postprocess = combined_postprocess.extend(*vc);
+                }
+
+                match custom_module_type
+                    .extend_ecmascript_transforms(
+                        combined_preprocess,
+                        combined_main,
+                        combined_postprocess,
+                    )
+                    .to_resolved()
+                    .await
+                {
+                    Ok(new_custom_module_type) => {
+                        *custom_module_type = new_custom_module_type;
+                    }
+                    Err(_) => {
+                        ModuleIssue::new(
+                            *ident,
+                            rcstr!("Invalid module type"),
+                            rcstr!(
+                                "The custom module type didn't accept the additional Ecmascript \
+                                 transforms"
+                            ),
+                            Some(IssueSource::from_source_only(current_source)),
+                        )
+                        .to_resolved()
+                        .await?
+                        .emit();
+                    }
+                }
+            }
+        }
+        other => {
+            if has_transforms {
+                ModuleIssue::new(
+                    *ident,
+                    rcstr!("Invalid module type"),
+                    format!(
+                        "The module type must be Ecmascript or Typescript to add Ecmascript \
+                         transforms (got {})",
+                        other
+                    )
+                    .into(),
+                    Some(IssueSource::from_source_only(current_source)),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+                collected_preprocess.clear();
+                collected_main.clear();
+                collected_postprocess.clear();
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
@@ -530,28 +669,161 @@ async fn process_default_internal(
         ReferenceType::Internal(inner_assets) => Some(*inner_assets),
         _ => None,
     };
-
-    let mut has_type_attribute = false;
-
     let mut current_source = source;
-    let mut current_module_type = match &reference_type {
-        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(ty)) => {
-            has_type_attribute = true;
+    let mut current_module_type = None;
 
-            match ty {
-                ImportWithType::Json => Some(ModuleType::Json),
-                // Reenable this once `import {type: "bytes"}` is stabilized
-                ImportWithType::Bytes => None,
+    // Handle turbopackLoader import attributes: apply inline loader as source transform
+    if let ReferenceType::EcmaScriptModules(
+        EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
+            ref loader,
+            ref rename_as,
+            ref module_type,
+        },
+    ) = reference_type
+    {
+        let module_options_context = module_asset_context.module_options_context().await?;
+        let webpack_loaders_options = module_options_context
+            .enable_webpack_loaders
+            .as_ref()
+            .context(
+                "turbopackUse import assertions require webpack loaders to be enabled \
+                 (enable_webpack_loaders)",
+            )?
+            .await?;
+        let execution_context = module_options_context
+            .execution_context
+            .context("execution_context is required for turbopackUse import assertions")?;
+        let execution_context_value = execution_context.await?;
+
+        let resolve_options_context = module_asset_context
+            .resolve_options_context()
+            .to_resolved()
+            .await?;
+        let source_maps = matches!(
+            module_options_context.ecmascript.source_maps,
+            SourceMapsType::Full
+        );
+
+        // Determine the import map for loader-runner
+        let loader_runner_package = webpack_loaders_options.loader_runner_package;
+
+        let import_map = if let Some(loader_runner_package) = loader_runner_package {
+            package_import_map_from_import_mapping(rcstr!("loader-runner"), *loader_runner_package)
+        } else {
+            package_import_map_from_context(
+                rcstr!("loader-runner"),
+                execution_context_value.project_path.clone(),
+            )
+        };
+
+        let evaluate_context = node_evaluate_asset_context(
+            *execution_context,
+            Some(import_map),
+            None,
+            Layer::new(rcstr!("turbopack_use_loaders")),
+            false,
+        )
+        .to_resolved()
+        .await?;
+
+        let loader_relative_path = execution_context_value
+            .project_path
+            .get_relative_path_to(&loader.loader)
+            .context("Loader path must be on project filesystem")?;
+        let webpack_loader_item = WebpackLoaderItem {
+            loader: loader_relative_path,
+            options: loader.options.clone(),
+        };
+        let loaders_vc = WebpackLoaderItems(vec![webpack_loader_item]).cell();
+        let webpack_loaders = WebpackLoaders::new(
+            *evaluate_context,
+            *execution_context,
+            loaders_vc,
+            rename_as.clone(),
+            *resolve_options_context,
+            source_maps,
+        )
+        .to_resolved()
+        .await?;
+
+        let transforms = Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
+        current_source = transforms.transform(*current_source).to_resolved().await?;
+
+        // If turbopackModuleType is specified, skip rule matching and directly
+        // apply the requested module type with empty transforms (loader output
+        // is already processed).
+        if let Some(type_str) = module_type {
+            let empty_transforms = EcmascriptInputTransforms::empty().to_resolved().await?;
+            let default_options = EcmascriptOptions::default().resolved_cell();
+            let effect = ConfiguredModuleType::parse(type_str)?
+                .into_effect(
+                    empty_transforms,
+                    empty_transforms,
+                    empty_transforms,
+                    default_options,
+                    None,
+                )
+                .await?;
+            match effect {
+                ModuleRuleEffect::ModuleType(module_type) => {
+                    return apply_module_type(
+                        current_source,
+                        module_asset_context,
+                        module_type.cell(),
+                        part,
+                        inner_assets,
+                        None,
+                        false,
+                    )
+                    .await;
+                }
+                ModuleRuleEffect::SourceTransforms(transforms) => {
+                    current_source = transforms.transform(*current_source).to_resolved().await?;
+                    // Fall through to re-process with new ident
+                }
+                _ => bail!("Unexpected module rule effect for turbopackModuleType"),
             }
         }
-        _ => None,
-    };
+
+        // If the ident changed (e.g., due to rename_as), re-process from the
+        // beginning so the new extension is matched by the correct rules.
+        // Use a plain Import reference type to avoid re-applying turbopackUse
+        // loaders in the recursive call (which would cause an infinite loop).
+        if current_source.ident().to_resolved().await? != ident {
+            let plain_reference_type =
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import);
+            if let Some(transition) = module_asset_context
+                .await?
+                .transitions
+                .await?
+                .get_by_rules(current_source, &plain_reference_type)
+                .await?
+            {
+                return Ok(transition.process(
+                    *current_source,
+                    module_asset_context,
+                    plain_reference_type,
+                ));
+            } else {
+                return Box::pin(process_default(
+                    module_asset_context,
+                    current_source,
+                    plain_reference_type,
+                    processed_rules,
+                ))
+                .await;
+            }
+        }
+    }
+
+    // Collect transforms from ExtendEcmascriptTransforms effects.
+    // They will be applied when ModuleType is set.
+    let mut collected_preprocess: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
+    let mut collected_main: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
+    let mut collected_postprocess: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
 
     let options_value = options.await?;
-    for (i, rule) in options_value.rules.iter().enumerate() {
-        if has_type_attribute && current_module_type.is_some() {
-            continue;
-        }
+    'outer: for (i, rule) in options_value.rules.iter().enumerate() {
         if processed_rules.contains(&i) {
             continue;
         }
@@ -592,115 +864,31 @@ async fn process_default_internal(
                         }
                     }
                     ModuleRuleEffect::ModuleType(module) => {
-                        current_module_type = Some(module.clone());
+                        // Apply any collected transforms to this module type and exit rule
+                        // processing. Once a ModuleType is determined, we
+                        // stop processing further rules.
+                        let mut module = module.clone();
+                        apply_module_rule_transforms(
+                            &mut module,
+                            &mut collected_preprocess,
+                            &mut collected_main,
+                            &mut collected_postprocess,
+                            ident,
+                            current_source,
+                        )
+                        .await?;
+                        current_module_type = Some(module);
+                        break 'outer;
                     }
                     ModuleRuleEffect::ExtendEcmascriptTransforms {
                         preprocess: extend_preprocess,
                         main: extend_main,
                         postprocess: extend_postprocess,
                     } => {
-                        current_module_type = match current_module_type {
-                            Some(ModuleType::Ecmascript {
-                                preprocess,
-                                main,
-                                postprocess,
-                                options,
-                            }) => Some(ModuleType::Ecmascript {
-                                preprocess: extend_preprocess
-                                    .extend(*preprocess)
-                                    .to_resolved()
-                                    .await?,
-                                main: extend_main.extend(*main).to_resolved().await?,
-                                postprocess: postprocess
-                                    .extend(**extend_postprocess)
-                                    .to_resolved()
-                                    .await?,
-                                options,
-                            }),
-                            Some(ModuleType::Typescript {
-                                preprocess,
-                                main,
-                                postprocess,
-                                tsx,
-                                analyze_types,
-                                options,
-                            }) => Some(ModuleType::Typescript {
-                                preprocess: extend_preprocess
-                                    .extend(*preprocess)
-                                    .to_resolved()
-                                    .await?,
-                                main: extend_main.extend(*main).to_resolved().await?,
-                                postprocess: postprocess
-                                    .extend(**extend_postprocess)
-                                    .to_resolved()
-                                    .await?,
-                                tsx,
-                                analyze_types,
-                                options,
-                            }),
-                            Some(ModuleType::Custom(custom_module_type)) => {
-                                match custom_module_type
-                                    .extend_ecmascript_transforms(
-                                        **extend_preprocess,
-                                        **extend_main,
-                                        **extend_postprocess,
-                                    )
-                                    .to_resolved()
-                                    .await
-                                {
-                                    Ok(custom_module_type) => {
-                                        Some(ModuleType::Custom(custom_module_type))
-                                    }
-                                    // TODO ideally this would print the actual error message
-                                    // returned by the CustomModuleType
-                                    Err(_) => {
-                                        ModuleIssue::new(
-                                            *ident,
-                                            rcstr!("Invalid module type"),
-                                            rcstr!(
-                                                "The custom module type didn't accept the \
-                                                 additional Ecmascript transforms"
-                                            ),
-                                            Some(IssueSource::from_source_only(current_source)),
-                                        )
-                                        .to_resolved()
-                                        .await?
-                                        .emit();
-                                        Some(ModuleType::Custom(custom_module_type))
-                                    }
-                                }
-                            }
-                            Some(module_type) => {
-                                ModuleIssue::new(
-                                    *ident,
-                                    rcstr!("Invalid module type"),
-                                    rcstr!(
-                                        "The module type must be Ecmascript or Typescript to add \
-                                         Ecmascript transforms"
-                                    ),
-                                    Some(IssueSource::from_source_only(current_source)),
-                                )
-                                .to_resolved()
-                                .await?
-                                .emit();
-                                Some(module_type)
-                            }
-                            None => {
-                                ModuleIssue::new(
-                                    *ident,
-                                    rcstr!("Missing module type"),
-                                    rcstr!(
-                                        "The module type effect must be applied before adding \
-                                         Ecmascript transforms"
-                                    ),
-                                    Some(IssueSource::from_source_only(current_source)),
-                                )
-                                .to_resolved()
-                                .await?
-                                .emit();
-                                None
-                            }
-                        };
+                        // Collect transforms. They will be applied when ModuleType is set.
+                        collected_preprocess.push(*extend_preprocess);
+                        collected_main.push(*extend_main);
+                        collected_postprocess.push(*extend_postprocess);
                     }
                 }
             }
@@ -795,7 +983,6 @@ impl AssetContext for ModuleAssetContext {
     async fn resolve_options(
         self: Vc<Self>,
         origin_path: FileSystemPath,
-        _reference_type: ReferenceType,
     ) -> Result<Vc<ResolveOptions>> {
         let this = self.await?;
         let module_asset_context = if let Some(transition) = this.transition {
@@ -1006,18 +1193,6 @@ pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
         .as_side_effect()
         .await?;
 
-    Ok(())
-}
-
-#[turbo_tasks::function]
-pub async fn emit_asset_into_dir(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    let dir = output_dir.clone();
-    if asset.path().await?.is_inside_ref(&dir) {
-        emit_asset(asset).as_side_effect().await?;
-    }
     Ok(())
 }
 

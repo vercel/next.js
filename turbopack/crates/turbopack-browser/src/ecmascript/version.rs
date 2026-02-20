@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, Vc};
+use turbo_tasks::{FxIndexMap, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{chunk::ModuleId, version::Version};
@@ -11,7 +11,7 @@ use super::content_entry::EcmascriptBrowserChunkContentEntries;
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptBrowserChunkVersion {
     pub(super) chunk_path: String,
-    pub(super) entries_hashes: FxIndexMap<ReadRef<ModuleId>, u64>,
+    pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,
 }
 
 #[turbo_tasks::value_impl]

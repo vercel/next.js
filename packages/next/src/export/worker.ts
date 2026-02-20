@@ -24,6 +24,7 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -84,6 +85,7 @@ async function exportPageImpl(
     renderOpts: commonRenderOpts,
     outDir: commonOutDir,
     buildId,
+    deploymentId,
     renderResumeDataCache,
   } = input
 
@@ -175,6 +177,9 @@ async function exportPageImpl(
   if (trailingSlash && !req.url?.endsWith('/')) {
     req.url += '/'
   }
+
+  // Set the resolved pathname without trailing slash as request metadata.
+  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
 
   if (
     locale &&
@@ -270,7 +275,7 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId }
+    const sharedContext: AppSharedContext = { buildId, deploymentId }
 
     return exportAppPage(
       req,
@@ -290,7 +295,7 @@ async function exportPageImpl(
   } else {
     const sharedContext: PagesSharedContext = {
       buildId,
-      deploymentId: commonRenderOpts.deploymentId,
+      deploymentId,
       customServer: undefined,
     }
 
@@ -384,8 +389,11 @@ export async function exportPages(
       // Also tests for `inspect-brk`
       process.env.NODE_OPTIONS?.includes('--inspect')
 
-    const renderResumeDataCache = renderResumeDataCachesByPage[page]
-      ? createRenderResumeDataCache(renderResumeDataCachesByPage[page])
+    const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
+      ? createRenderResumeDataCache(
+          renderResumeDataCachesByPage[pageKey],
+          renderOpts.experimental.maxPostponedStateSizeBytes
+        )
       : undefined
 
     while (attempt < maxAttempts) {
@@ -409,6 +417,7 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
+            deploymentId: input.deploymentId,
             renderResumeDataCache,
           }),
           hasDebuggerAttached

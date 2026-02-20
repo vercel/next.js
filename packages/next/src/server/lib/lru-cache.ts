@@ -50,10 +50,16 @@ export class LRUCache<T> {
   private totalSize: number = 0
   private readonly maxSize: number
   private readonly calculateSize: ((value: T) => number) | undefined
+  private readonly onEvict: ((key: string, value: T) => void) | undefined
 
-  constructor(maxSize: number, calculateSize?: (value: T) => number) {
+  constructor(
+    maxSize: number,
+    calculateSize?: (value: T) => number,
+    onEvict?: (key: string, value: T) => void
+  ) {
     this.maxSize = maxSize
     this.calculateSize = calculateSize
+    this.onEvict = onEvict
 
     // Create sentinel nodes to simplify doubly-linked list operations
     // HEAD <-> TAIL (empty list)
@@ -117,11 +123,17 @@ export class LRUCache<T> {
    * - O(1) for uniform item sizes
    * - O(k) where k is the number of items evicted (can be O(N) for variable sizes)
    */
-  public set(key: string, value: T): void {
+  public set(key: string, value: T): boolean {
     const size = this.calculateSize?.(value) ?? 1
+    if (size <= 0) {
+      throw new Error(
+        `LRUCache: calculateSize returned ${size}, but size must be > 0. ` +
+          `Items with size 0 would never be evicted, causing unbounded cache growth.`
+      )
+    }
     if (size > this.maxSize) {
       console.warn('Single item size exceeds maxSize')
-      return
+      return false
     }
 
     const existing = this.cache.get(key)
@@ -144,7 +156,10 @@ export class LRUCache<T> {
       const tail = this.removeTail()
       this.cache.delete(tail.key)
       this.totalSize -= tail.size
+      this.onEvict?.(tail.key, tail.data)
     }
+
+    return true
   }
 
   /**
@@ -190,6 +205,10 @@ export class LRUCache<T> {
   /**
    * Removes a specific key from the cache.
    * Updates both the hash map and doubly-linked list.
+   *
+   * Note: This is an explicit removal and does NOT trigger the `onEvict`
+   * callback. Use this for intentional deletions where eviction tracking
+   * is not needed.
    *
    * Time Complexity: O(1)
    */

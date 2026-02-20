@@ -65,7 +65,7 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(
+    AfterResolvePluginCondition::new_with_glob(
         root,
         Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
     )
@@ -322,14 +322,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         let target = result_from_original_location.ident().path().owned().await?;
 
-        Ok(ResolveResultOption::some(*ResolveResult::primary(
-            ResolveResultItem::External {
+        Ok(ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::External {
                 name: request_str.into(),
                 ty: external_type,
                 traced: ExternalTraced::Traced,
                 target: Some(target),
-            },
-        )))
+            })
+            .cell(),
+        ))
     }
 }
 

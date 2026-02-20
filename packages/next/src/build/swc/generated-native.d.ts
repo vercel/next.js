@@ -35,10 +35,12 @@ export declare class ExternalObject<T> {
   }
 }
 export declare function lockfileTryAcquireSync(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): { __napiType: 'Lockfile' } | null
 export declare function lockfileTryAcquire(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): Promise<{ __napiType: 'Lockfile' } | null>
 export declare function lockfileUnlockSync(lockfile: {
   __napiType: 'Lockfile'
@@ -65,7 +67,7 @@ export declare function minify(
 ): Promise<TransformOutput>
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
-export interface NapiServerPath {
+export interface NapiAssetPath {
   path: string
   contentHash: string
 }
@@ -73,7 +75,7 @@ export interface NapiWrittenEndpoint {
   type: string
   entryPath?: string
   clientPaths: Array<string>
-  serverPaths: Array<NapiServerPath>
+  serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
 }
 export declare function endpointWriteToDisk(endpoint: {
@@ -159,6 +161,14 @@ export interface NapiProjectOptions {
   writeRoutesHashesManifest: boolean
   /** The version of Node.js that is available/currently running. */
   currentNodeJsVersion: RcStr
+  /**
+   * Debug build paths for selective builds.
+   * When set, only routes matching these paths will be included in the build.
+   */
+  debugBuildPaths?: NapiDebugBuildPaths
+  /** App-router page routes that should be built after non-deferred routes. */
+  deferredEntries?: Array<RcStr>
+  isPersistentCachingEnabled: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -210,8 +220,6 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** Use the new backend with filesystem cache enabled. */
-  persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
@@ -291,6 +299,10 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
+export interface NapiDebugBuildPaths {
+  app: Array<RcStr>
+  pages: Array<RcStr>
+}
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
@@ -304,14 +316,16 @@ export declare function projectEntrypointsSubscribe(
 ): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
-  identifier: RcStr,
+  chunkName: RcStr,
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export interface HmrIdentifiers {
-  identifiers: Array<RcStr>
+export interface HmrChunkNames {
+  chunkNames: Array<RcStr>
 }
-export declare function projectHmrIdentifiersSubscribe(
+export declare function projectHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface NapiUpdateMessage {
@@ -397,8 +411,10 @@ export interface NapiNextTurbopackCallbacksJsObject {
     conversionError: Error | null,
     opts: TurbopackInternalErrorOpts
   ) => never
+  /** Called before deferred entries are processed in a production build. */
+  onBeforeDeferredEntries?: () => Promise<void>
 }
-/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+/** Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`. */
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string

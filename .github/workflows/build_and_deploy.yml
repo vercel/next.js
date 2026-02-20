@@ -3,9 +3,9 @@ name: build-and-deploy
 
 on:
   push:
-    # Don't run when tags are pushed
-    branches:
-      - '**'
+    # Don't run when tags or graphite base branches are pushed
+    branches-ignore:
+      - 'graphite-base/**'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
@@ -318,7 +318,7 @@ jobs:
       # it can fail to restore in different OS'
       - uses: actions/checkout@v4
         with:
-          # crates/napi/build.rs uses git-describe to find the most recent git tag. It's okay if
+          # crates/next-napi-bindings/build.rs uses git-describe to find the most recent git tag. It's okay if
           # this fails, but fetch with enough depth that we're likely to find a recent tag.
           fetch-depth: 100
 
@@ -679,37 +679,6 @@ jobs:
     steps:
       - run: exit 1
         if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
-
-  releaseStats:
-    name: Release Stats
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
-    timeout-minutes: 25
-    needs: [publishRelease]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 25
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: next-swc-binaries-*
-          merge-multiple: true
-          path: packages/next-swc/native
-
-      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
-
-      - run: ./scripts/release-stats.sh
-      - uses: ./.github/actions/next-stats-action
-        env:
-          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
-          NEXT_SKIP_NATIVE_POSTINSTALL: 1
-          # This uses the webpack bundle analyzer and for consistent results we need to use webpack.
-          # Once there is an equivalent analyzer for turbopack, we can remove this.
-          IS_WEBPACK_TEST: 1
 
   upload_turbopack_bytesize:
     if: ${{ needs.deploy-target.outputs.value != 'automated-preview'}}

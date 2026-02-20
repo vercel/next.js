@@ -14,6 +14,7 @@ use std::{
 use anyhow::{Result, anyhow};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
     CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
@@ -154,6 +155,16 @@ impl TurboTasksCallApi for VcStorage {
     ) {
         unreachable!()
     }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
+        unimplemented!()
+    }
+
+    fn get_task_name(&self, task: TaskId) -> String {
+        format!("Task({})", task)
+    }
 }
 
 impl TurboTasksApi for VcStorage {
@@ -267,6 +278,7 @@ impl TurboTasksApi for VcStorage {
         index: CellId,
         _is_serializable_cell_content: bool,
         content: CellContent,
+        _updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         _verification_mode: VerificationMode,
     ) {
         let mut map = self.cells.lock().unwrap();
@@ -290,10 +302,10 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn detached_for_testing(
+    fn spawn_detached_for_testing(
         &self,
-        _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
+        _f: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    ) {
         unimplemented!()
     }
 
@@ -311,12 +323,6 @@ impl TurboTasksApi for VcStorage {
         &self,
         _event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>> {
-        unimplemented!()
-    }
-
-    /// Should not be called on the testing VcStorage. These methods are only implemented for
-    /// structs with access to a `MessageQueue` like `TurboTasks`.
-    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
         unimplemented!()
     }
 
