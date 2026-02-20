@@ -3,6 +3,7 @@ import {
   resolveAbsoluteUrlWithPathname,
   getSocialImageMetadataBaseFallback,
 } from './resolve-url'
+import { setNextInvariantsForTest } from '../test-utils'
 
 // required to be resolved as URL with resolveUrl()
 describe('metadata: resolveUrl', () => {
@@ -52,9 +53,13 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const metadataBase = new URL('https://example.com/')
     const pathname = '/'
     const opts = {
-      trailingSlash: false,
       isStaticMetadataRouteFile: false,
     }
+
+    beforeEach(() => {
+      setNextInvariantsForTest({ trailingSlash: false })
+    })
+
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, pathname, opts)
     it('should resolve absolute internal url', () => {
@@ -74,9 +79,13 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const metadataBase = new URL('https://example.com/')
     const pathname = '/'
     const opts = {
-      trailingSlash: true,
       isStaticMetadataRouteFile: false,
     }
+
+    beforeEach(() => {
+      setNextInvariantsForTest({ trailingSlash: true })
+    })
+
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, pathname, opts)
     it('should add trailing slash to relative url', () => {

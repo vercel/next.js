@@ -13,6 +13,7 @@ import {
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
+import { initializeNextInvariants } from './next-invariants'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
@@ -1502,6 +1503,7 @@ export default async function loadConfigFromFile(
   opts: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
   const config = await loadConfigImpl(phase, dir, opts)
+  initializeNextInvariants(config, phase === PHASE_DEVELOPMENT_SERVER)
   const { installGlobalBehaviors } =
     require('./node-environment-extensions/global-behaviors') as typeof import('./node-environment-extensions/global-behaviors')
   installGlobalBehaviors(config)
@@ -1509,13 +1511,14 @@ export default async function loadConfigFromFile(
 }
 
 /**
- * Initialize global behaviors from a pre-resolved config received via IPC
- * in a build worker process. The parent process already loaded and serialized
- * the config — this sets up the worker's globals.
+ * Initialize invariants and global behaviors from a pre-resolved config
+ * received via IPC in a build worker process. The parent process already
+ * loaded and serialized the config — this sets up the worker's globals.
  */
 export function loadConfigForBuildWorker(
   config: NextConfigComplete
 ): NextConfigComplete {
+  initializeNextInvariants(config, false)
   const { installGlobalBehaviors } =
     require('./node-environment-extensions/global-behaviors') as typeof import('./node-environment-extensions/global-behaviors')
   installGlobalBehaviors(config)

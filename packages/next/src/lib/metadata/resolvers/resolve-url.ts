@@ -104,7 +104,7 @@ function resolveAbsoluteUrlWithPathname(
   url: string | URL,
   metadataBase: MetadataBaseURL,
   pathname: string,
-  { trailingSlash }: MetadataContext
+  _metadataContext: MetadataContext
 ): string {
   // Resolve url with pathname that always starts with `/`
   url = resolveRelativeUrl(url, pathname)
@@ -125,7 +125,7 @@ function resolveAbsoluteUrlWithPathname(
   // Add trailing slash if it's enabled for urls matches the condition
   // - Not external, same origin with metadataBase
   // - Doesn't have query
-  if (trailingSlash && !resolvedUrl.endsWith('/')) {
+  if (__NEXT_INVARIANTS__.trailingSlash && !resolvedUrl.endsWith('/')) {
     let isRelative = resolvedUrl.startsWith('/')
     let hasQuery = resolvedUrl.includes('?')
     let isExternal = false

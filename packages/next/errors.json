@@ -1068,5 +1068,7 @@
   "1067": "The Next.js unhandled rejection filter is being installed more than once. This is a bug in Next.js.",
   "1068": "Expected workStore to be initialized",
   "1069": "Invariant: cache entry \"%s\" not found in dir \"%s\"",
-  "1070": "image of size %s could not be tracked by lru cache"
+  "1070": "image of size %s could not be tracked by lru cache",
+  "1071": "Cannot assign to __NEXT_INVARIANTS__.%s directly, use initializeNextInvariants()",
+  "1072": "__NEXT_INVARIANTS__.%s was accessed before initialization"
 }

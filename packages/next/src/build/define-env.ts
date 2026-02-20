@@ -371,6 +371,17 @@ export function getDefineEnv({
     'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
     'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
       config.experimental.clientParamParsingOrigins || [],
+
+    // __NEXT_INVARIANTS__ — automatically generate defineEnv entries for
+    // every property on the initialized global. Adding a new property to
+    // NextInvariants and initializeNextInvariants is sufficient — no manual
+    // defineEnv wiring needed.
+    ...Object.fromEntries(
+      Object.keys(__NEXT_INVARIANTS__).map((key) => [
+        `__NEXT_INVARIANTS__.${key}`,
+        __NEXT_INVARIANTS__[key as keyof typeof __NEXT_INVARIANTS__],
+      ])
+    ),
   }
 
   const userDefines = config.compiler?.define ?? {}

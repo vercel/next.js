@@ -1,4 +1,9 @@
 import { resolveImages, resolveOpenGraph } from './resolve-opengraph'
+import { setNextInvariantsForTest } from '../test-utils'
+
+beforeAll(() => {
+  setNextInvariantsForTest()
+})
 
 describe('resolveImages', () => {
   const image1 = 'https://www.example.com/image1.jpg'
@@ -47,7 +52,6 @@ describe('resolveOpenGraph', () => {
         null,
         pathname,
         {
-          trailingSlash: false,
           isStaticMetadataRouteFile: false,
         },
         ''
@@ -71,7 +75,6 @@ describe('resolveOpenGraph', () => {
         null,
         pathname,
         {
-          trailingSlash: false,
           isStaticMetadataRouteFile: false,
         },
         ''
