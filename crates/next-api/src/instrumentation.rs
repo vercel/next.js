@@ -28,7 +28,7 @@ use turbopack_core::{
 use crate::{
     nft_json::NftJsonAsset,
     paths::{
-        all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
+        all_asset_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
     },
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
@@ -210,7 +210,7 @@ impl Endpoint for InstrumentationEndpoint {
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root().owned().await?;
-                all_server_paths(output_assets, node_root).owned().await?
+                all_asset_paths(output_assets, node_root).owned().await?
             } else {
                 vec![]
             };

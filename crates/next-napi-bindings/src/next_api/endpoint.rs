@@ -6,7 +6,7 @@ use napi::{JsFunction, bindgen_prelude::External};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
-    paths::ServerPath,
+    paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
@@ -30,16 +30,16 @@ pub struct NapiEndpointConfig {}
 
 #[napi(object)]
 #[derive(Default)]
-pub struct NapiServerPath {
+pub struct NapiAssetPath {
     pub path: String,
     pub content_hash: String,
 }
 
-impl From<ServerPath> for NapiServerPath {
-    fn from(server_path: ServerPath) -> Self {
+impl From<AssetPath> for NapiAssetPath {
+    fn from(asset_path: AssetPath) -> Self {
         Self {
-            path: server_path.path.into_owned(),
-            content_hash: format!("{:x}", server_path.content_hash),
+            path: asset_path.path.into_owned(),
+            content_hash: format!("{:x}", asset_path.content_hash),
         }
     }
 }
@@ -50,7 +50,7 @@ pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
     pub client_paths: Vec<String>,
-    pub server_paths: Vec<NapiServerPath>,
+    pub server_paths: Vec<NapiAssetPath>,
     pub config: NapiEndpointConfig,
 }
 
