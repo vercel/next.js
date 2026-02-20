@@ -86,6 +86,7 @@ export type RouteTree = {
     // TODO(instant-validation): We should know if a layout segment is shared
     instantConfig: Instant | null
     conventionPath: string
+    createInstantStack: (() => Error) | null
   }
 
   slots: { [parallelRouteKey: string]: RouteTree } | null
@@ -143,10 +144,15 @@ export async function findNavigationsToValidate(
       // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
       const instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
+      const rawFactory: unknown = (layoutOrPageMod as any)
+        .__debugCreateInstantConfigStack
+      const createInstantStack: (() => Error) | null =
+        typeof rawFactory === 'function' ? (rawFactory as () => Error) : null
       moduleInfo = {
         type: modType!,
         instantConfig,
         conventionPath: conventionPath!,
+        createInstantStack,
       }
 
       if (isInsideParallelSlot) {
@@ -171,9 +177,13 @@ export async function findNavigationsToValidate(
             } else {
               const isRootLayout = parentLayoutPath === null
               if (isRootLayout && instantConfig.prefetch === 'runtime') {
-                throw new Error(
-                  `${conventionPath}: \`unstable_instant\` with mode 'runtime' is not supported in root layouts.`
-                )
+                const message = `${conventionPath}: \`unstable_instant\` with mode 'runtime' is not supported in root layouts.`
+                const error =
+                  createInstantStack !== null
+                    ? createInstantStack()
+                    : new Error()
+                error.message = message
+                throw error
               }
 
               const task: ValidationTask = {
@@ -256,8 +266,7 @@ export async function findNavigationsToValidate(
   return {
     tree: routeTree,
     treeNodes,
-    // TODO: do we want to preserve info about which config caused a validation to occur?
-    navigationParents: validationTasks.flatMap((task) => task.parents),
+    validationTasks,
     segmentsWithInstantConfigs,
   }
 }

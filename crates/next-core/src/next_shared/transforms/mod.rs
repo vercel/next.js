@@ -2,6 +2,7 @@ pub(crate) mod debug_fn_name;
 pub(crate) mod emotion;
 pub(crate) mod modularize_imports;
 pub(crate) mod next_cjs_optimizer;
+pub(crate) mod next_debug_instant_stack;
 pub(crate) mod next_disallow_re_export_all_in_page;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_edge_node_api_assert;
@@ -23,6 +24,7 @@ pub(crate) mod swc_ecma_transform_plugins;
 
 use anyhow::Result;
 pub use modularize_imports::{ModularizeImportPackageConfig, get_next_modularize_imports_rule};
+pub use next_debug_instant_stack::get_next_debug_instant_stack_rule;
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_lint::get_next_lint_transform_rule;
