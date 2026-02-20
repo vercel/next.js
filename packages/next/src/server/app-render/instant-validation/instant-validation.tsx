@@ -266,8 +266,7 @@ export async function findNavigationsToValidate(
   return {
     tree: routeTree,
     treeNodes,
-    // TODO: do we want to preserve info about which config caused a validation to occur?
-    navigationParents: validationTasks.flatMap((task) => task.parents),
+    validationTasks,
     segmentsWithInstantConfigs,
   }
 }
