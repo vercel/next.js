@@ -70,6 +70,7 @@ export interface OverlayState {
   readonly page: string
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
+  readonly cacheOnly: boolean
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -101,6 +102,7 @@ export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
+export const ACTION_CACHE_ONLY_TOGGLE = 'cache-only-toggle'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -216,6 +218,10 @@ interface DevToolsConfigAction {
   devToolsConfig: DevToolsConfig
 }
 
+interface CacheOnlyToggleAction {
+  type: typeof ACTION_CACHE_ONLY_TOGGLE
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -241,6 +247,7 @@ export type DispatcherEvent =
   | DevToolUpdateRouteStateAction
   | DevIndicatorSetAction
   | DevToolsConfigAction
+  | CacheOnlyToggleAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -263,6 +270,11 @@ const shouldDisableDevIndicator =
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 
+const hasInstantTestCookie =
+  !!process.env.__NEXT_INSTANT_NAV_TOGGLE &&
+  typeof document !== 'undefined' &&
+  document.cookie.includes('next-instant-navigation-testing=')
+
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
   'isErrorOverlayOpen' | 'routerType'
@@ -274,12 +286,15 @@ export const INITIAL_OVERLAY_STATE: Omit<
   renderingIndicator: false,
   cacheIndicator: 'disabled',
   staticIndicator: 'disabled',
-  /* 
+  /*
     This is set to `true` when we can reliably know
-    whether the indicator is in disabled state or not.  
+    whether the indicator is in disabled state or not.
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  showIndicator: false,
+  // When cache-only is active, show the indicator immediately so the user
+  // can toggle it off. Normally this is set to true by the HMR connection,
+  // but the HMR WebSocket is only created during hydration.
+  showIndicator: hasInstantTestCookie,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
@@ -294,6 +309,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   page: '',
   theme: 'system',
   hideShortcut: null,
+  cacheOnly: hasInstantTestCookie,
 }
 
 function getInitialState(
@@ -506,6 +522,9 @@ export function useErrorOverlayReducer(
               // hideShortcut can be null.
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
+        }
+        case ACTION_CACHE_ONLY_TOGGLE: {
+          return { ...state, cacheOnly: !state.cacheOnly }
         }
         default: {
           return state

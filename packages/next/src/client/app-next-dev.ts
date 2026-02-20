@@ -11,11 +11,28 @@ import { isRecoverableError } from './react-client-callbacks/on-recoverable-erro
 const instrumentationHooks = require('../lib/require-instrumentation-client')
 
 appBootstrap((assetPrefix) => {
+  const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
+
+  // Instant Navigation Mode: When the server returned a partial static shell
+  // (indicated by the __next_instant_test global), skip app hydration and only
+  // render the dev overlay so the developer can toggle the mode off. Hydration
+  // would fail because the static shell response doesn't include the full
+  // Flight data stream.
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    if (self.__next_instant_test) {
+      renderAppDevOverlay(
+        getOwnerStack,
+        isRecoverableError,
+        enableCacheIndicator
+      )
+      return
+    }
+  }
+
   const { hydrate } = require('./app-index') as typeof import('./app-index')
   try {
     hydrate(instrumentationHooks, assetPrefix)
   } finally {
-    const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
     renderAppDevOverlay(getOwnerStack, isRecoverableError, enableCacheIndicator)
   }
 })
