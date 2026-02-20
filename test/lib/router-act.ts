@@ -224,9 +224,18 @@ export function createRouterAct(
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
             result: (async () => {
-              const originalResponse = await page.request.fetch(request, {
-                maxRedirects: 0,
-              })
+              let originalResponse: Playwright.APIResponse
+              try {
+                originalResponse = await page.request.fetch(request, {
+                  maxRedirects: 0,
+                })
+              } catch (fetchError) {
+                error.message =
+                  fetchError instanceof Error
+                    ? fetchError.message
+                    : String(fetchError)
+                throw error
+              }
 
               // WORKAROUND:
               // intercepting responses with 'Transfer-Encoding: chunked' (used for streaming)
