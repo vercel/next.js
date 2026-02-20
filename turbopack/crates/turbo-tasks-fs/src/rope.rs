@@ -392,10 +392,13 @@ impl DeterministicHash for Rope {
 }
 
 impl Rope {
-    /// Returns a DeterministicHash impl that only hashes the bytes of the rope. The default
-    /// DeterministicHash implementation also includes the length of the rope. Be careful when using
-    /// this, as it would case `(Rope("abc"), Rope("def"))` and `(Rope("abcd"), Rope("ef"))` to have
-    /// the same hash.
+    /// Returns a DeterministicHash impl that only hashes the bytes of the rope (still regardless of
+    /// their structure).
+    ///
+    /// The default (Deterministic)Hash implementation also includes the length of the rope. Be
+    /// careful when using this, as it would case `(Rope("abc"), Rope("def"))` and `(Rope("abcd"),
+    /// Rope("ef"))` to have the same hash. The best usecase is when the rope is the _whole_
+    /// datastructure being hashed and it isn't part of some other structure.
     pub fn content_hash(&self) -> impl DeterministicHash + '_ {
         RopeBytesOnlyHash(self)
     }
