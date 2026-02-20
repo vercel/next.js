@@ -1742,7 +1742,8 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
-        deploymentId: this.deploymentId,
+        clientAssetToken:
+          this.nextConfig.experimental.immutableAssetToken || this.deploymentId,
       })
     }
 
@@ -2040,7 +2041,8 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
-      deploymentId: this.deploymentId,
+      clientAssetToken:
+        this.nextConfig.experimental.immutableAssetToken || this.deploymentId,
     })
 
     if (result.fetchMetrics) {

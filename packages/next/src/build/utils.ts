@@ -758,6 +758,7 @@ export async function isPageStatic({
   pprConfig,
   buildId,
   deploymentId,
+  immutableAssetToken,
   sriEnabled,
 }: {
   dir: string
@@ -785,6 +786,7 @@ export async function isPageStatic({
   pprConfig: ExperimentalPPRConfig | undefined
   buildId: string
   deploymentId: string
+  immutableAssetToken: string | undefined
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
@@ -838,7 +840,7 @@ export async function isPageStatic({
           name: edgeInfo.name,
           useCache: true,
           distDir,
-          deploymentId,
+          clientAssetToken: immutableAssetToken || deploymentId,
         })
         const mod = (
           await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]
