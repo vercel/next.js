@@ -39,17 +39,12 @@ impl Fold for DebugInstantStack {
         if let Some(source_span) = self.instant_export_span {
             let mut new_items = items;
 
-            // Build new Error() with source_span for sourcemapping
-            let new_error = Expr::New(NewExpr {
-                span: source_span,
-                callee: Box::new(Expr::Ident(Ident {
-                    sym: "Error".into(),
-                    span: source_span,
-                    ..Default::default()
-                })),
-                args: Some(vec![]),
-                ..Default::default()
-            });
+            // TODO: Change React to deserialize errors with an empty message
+            // instead of using a fallback message ("no message was provided").
+            let mut new_error = quote!("new Error('\u{200B}')" as Expr);
+            if let Expr::New(new_expr) = &mut new_error {
+                new_expr.span = source_span;
+            }
 
             // (function unstable_instant() { ... })()
             // The stackTraceLimit mostly works around app-page
@@ -65,16 +60,15 @@ impl Fold for DebugInstantStack {
                     Error.stackTraceLimit = 1
                     const error = $new_error
                     Error.stackTraceLimit = previousStackTraceLimit
-                    error.name = 'Instant Config'
+                    error.name = 'Instant Validation'
                     return error
                 })()" as Expr,
                 new_error: Expr = new_error,
             );
 
-            // Patch source_span onto the IIFE CallExpr and inner Function
+            // Patch source_span onto the inner Function
             // for sourcemap mapping back to the unstable_instant config value
             if let Expr::Call(call) = &mut cons {
-                call.span = source_span;
                 if let Callee::Expr(e) = &mut call.callee {
                     if let Expr::Paren(p) = e.as_mut() {
                         if let Expr::Fn(f) = p.expr.as_mut() {

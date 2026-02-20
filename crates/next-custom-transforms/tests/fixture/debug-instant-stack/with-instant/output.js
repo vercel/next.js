@@ -7,8 +7,8 @@ export default function Page() {
 export const __debugInstantStack = process.env.NODE_ENV !== 'production' ? function unstable_instant() {
     const previousStackTraceLimit = Error.stackTraceLimit;
     Error.stackTraceLimit = 1;
-    const error = new Error();
+    const error = new Error('​');
     Error.stackTraceLimit = previousStackTraceLimit;
-    error.name = 'Instant Config';
+    error.name = 'Instant Validation';
     return error;
 }() : undefined;
