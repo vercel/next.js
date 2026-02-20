@@ -73,6 +73,29 @@ describe('app dir - metadata navigation', () => {
       expect(await getTitle(browser)).toBe('Local not found')
     })
 
+    it('should not have conflicting robots meta tags when parent defines robots and notFound is called in generateMetadata', async () => {
+      const $ = await next.render$('/async/robots-parent')
+
+      // Should have exactly one robots meta tag with content "noindex"
+      const robotsMeta = $('meta[name="robots"]')
+      expect(robotsMeta.length).toBe(1)
+      expect(robotsMeta.attr('content')).toBe('noindex')
+
+      // Should NOT contain the parent's "index, follow" robots value
+      const html = $.html()
+      expect(html).not.toContain('content="index, follow"')
+
+      // Verify via browser navigation as well
+      const browser = await next.browser('/async/robots-parent')
+      const robotsElements = await browser.elementsByCss('meta[name="robots"]')
+      expect(robotsElements.length).toBe(1)
+      expect(
+        await browser
+          .elementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
+    })
+
     it('should support redirect in generateMetadata', async () => {
       const res = await next.fetch('/async/redirect', {
         redirect: 'manual',
