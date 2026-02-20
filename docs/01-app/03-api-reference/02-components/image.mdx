@@ -865,7 +865,7 @@ If no value is configured, the default behavior is to check the current availabl
 
 When the disk cache exceeds the configured size, the least recently used optimized images will be deleted until the cache is under the limit again.
 
-Note that using `cacheHandler` with the `customCacheHandler` configuration will ignore the `maximumDiskCacheSize` configuration.
+Alternatively, you can implement your own cache handler using [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) which will ignore the `maximumDiskCacheSize` configuration.
 
 #### `maximumResponseBody`
 
