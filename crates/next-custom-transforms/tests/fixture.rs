@@ -8,6 +8,7 @@ use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
+    debug_instant_stack::debug_instant_stack,
     dynamic::{next_dynamic, NextDynamicMode},
     fonts::{next_font_loaders, Config as FontLoaderConfig},
     named_import_transform::named_import_transform,
@@ -866,6 +867,22 @@ fn test_debug_name(input: PathBuf) {
         &input,
         &output,
         Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/debug-instant-stack/**/input.js")]
+fn test_debug_instant_stack(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|_| debug_instant_stack(),
+        &input,
+        &output,
+        FixtureTestConfig {
+            sourcemap: true,
+            ..Default::default()
+        },
     );
 }
 

@@ -1139,7 +1139,7 @@ export async function cache(
               // using a hanging promise for search params. For cached pages
               // that do access them, which is an invalid dynamic usage, we
               // need to ensure that an error is shown.
-              makeErroringSearchParamsForUseCache(workStore),
+              makeErroringSearchParamsForUseCache(),
           },
           ...otherInnerArgs,
         ]),

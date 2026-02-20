@@ -323,10 +323,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const handlerContext: AppRouteHandlerFnContext = {
       params: context.params
-        ? createServerParamsForRoute(
-            parsedUrlQueryToParams(context.params),
-            workStore
-          )
+        ? createServerParamsForRoute(parsedUrlQueryToParams(context.params))
         : undefined,
     }
 
