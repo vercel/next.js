@@ -796,11 +796,11 @@ export type InstantValidationState = {
   dynamicErrors: Array<Error>
   validationPreventingErrors: Array<Error>
   thrownErrorsOutsideBoundary: Array<unknown>
-  debugInstantStack: Error | null
+  createInstantStack: (() => Error) | null
 }
 
 export function createInstantValidationState(
-  debugInstantStack: Error | null
+  createInstantStack: (() => Error) | null
 ): InstantValidationState {
   return {
     hasDynamicMetadata: false,
@@ -811,7 +811,7 @@ export function createInstantValidationState(
     dynamicErrors: [],
     validationPreventingErrors: [],
     thrownErrorsOutsideBoundary: [],
-    debugInstantStack,
+    createInstantStack,
   }
 }
 
@@ -836,7 +836,7 @@ export function trackDynamicHoleInNavigation(
     const error = createErrorWithComponentOrOwnerStack(
       message,
       componentStack,
-      dynamicValidation.debugInstantStack
+      dynamicValidation.createInstantStack
     )
     dynamicValidation.dynamicMetadata = error
     return
@@ -850,7 +850,7 @@ export function trackDynamicHoleInNavigation(
     const error = createErrorWithComponentOrOwnerStack(
       message,
       componentStack,
-      dynamicValidation.debugInstantStack
+      dynamicValidation.createInstantStack
     )
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -880,7 +880,7 @@ export function trackDynamicHoleInNavigation(
       const error = createErrorWithComponentOrOwnerStack(
         message,
         componentStack,
-        dynamicValidation.debugInstantStack
+        dynamicValidation.createInstantStack
       )
       dynamicValidation.validationPreventingErrors.push(error)
       return
@@ -920,8 +920,11 @@ export function trackDynamicHoleInNavigation(
   if (clientDynamic.syncDynamicErrorWithStack) {
     // This task was the task that called the sync error.
     const syncError = clientDynamic.syncDynamicErrorWithStack
-    if (dynamicValidation.debugInstantStack && syncError.cause === undefined) {
-      syncError.cause = dynamicValidation.debugInstantStack
+    if (
+      dynamicValidation.createInstantStack !== null &&
+      syncError.cause === undefined
+    ) {
+      syncError.cause = dynamicValidation.createInstantStack()
     }
     dynamicValidation.dynamicErrors.push(syncError)
     return
@@ -935,7 +938,7 @@ export function trackDynamicHoleInNavigation(
   const error = createErrorWithComponentOrOwnerStack(
     message,
     componentStack,
-    dynamicValidation.debugInstantStack
+    dynamicValidation.createInstantStack
   )
   dynamicValidation.dynamicErrors.push(error)
   return
@@ -1083,14 +1086,15 @@ export function trackDynamicHoleInStaticShell(
 function createErrorWithComponentOrOwnerStack(
   message: string,
   componentStack: string,
-  cause: Error | null
+  createInstantStack: (() => Error) | null
 ) {
   const ownerStack =
     process.env.NODE_ENV !== 'production' && React.captureOwnerStack
       ? React.captureOwnerStack()
       : null
 
-  const error = new Error(message, cause !== null ? { cause } : {})
+  const cause = createInstantStack !== null ? createInstantStack() : null
+  const error = new Error(message, cause !== null ? { cause } : undefined)
   // TODO go back to owner stack here if available. This is temporarily using componentStack to get the right
   //
   error.stack = error.name + ': ' + message + (ownerStack || componentStack)
@@ -1245,31 +1249,29 @@ export function getNavigationDisallowedDynamicReasons(
   }
 
   if (boundaryState.renderedIds.size < boundaryState.expectedIds.size) {
-    const { thrownErrorsOutsideBoundary, debugInstantStack } = dynamicValidation
-    const causeOption = debugInstantStack ? { cause: debugInstantStack } : {}
+    const { thrownErrorsOutsideBoundary, createInstantStack } =
+      dynamicValidation
     if (thrownErrorsOutsideBoundary.length === 0) {
-      return [
-        new Error(
-          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`,
-          causeOption
-        ),
-      ]
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`
+      const error =
+        createInstantStack !== null ? createInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return [error]
     } else if (thrownErrorsOutsideBoundary.length === 1) {
-      return [
-        new Error(
-          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`,
-          causeOption
-        ),
-        thrownErrorsOutsideBoundary[0] as Error,
-      ]
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
+      const error =
+        createInstantStack !== null ? createInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return [error, thrownErrorsOutsideBoundary[0] as Error]
     } else {
-      return [
-        new Error(
-          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`,
-          causeOption
-        ),
-        ...(thrownErrorsOutsideBoundary as Error[]),
-      ]
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
+      const error =
+        createInstantStack !== null ? createInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return [error, ...(thrownErrorsOutsideBoundary as Error[])]
     }
   }
 

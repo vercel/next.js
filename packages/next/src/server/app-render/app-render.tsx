@@ -4158,14 +4158,14 @@ async function validateInstantConfigs(
       : false
   })
 
-  // Collect the first debug stack from segments with instant configs so we can
-  // pass it into validation state for setting `cause` on errors.
-  const debugInstantStack =
+  // Collect the first stack factory from segments with instant configs so we can
+  // pass it into validation state for creating errors with the config's stack trace.
+  const createInstantStack =
     segmentsWithInstantConfigs
       .map(
-        (segmentPath) => treeNodes.get(segmentPath)?.module?.debugInstantStack
+        (segmentPath) => treeNodes.get(segmentPath)?.module?.createInstantStack
       )
-      .find((stack): stack is Error => stack != null) ?? null
+      .find((factory): factory is () => Error => factory != null) ?? null
 
   const clientReferenceManifest = getClientReferenceManifest()
 
@@ -4207,7 +4207,7 @@ async function validateInstantConfigs(
       validationRouteTree,
       navigationParent,
       false, // use static stage for static segments
-      debugInstantStack
+      createInstantStack
     )
     if (initialResults.errors.length === 0) {
       debug?.(`  ✅ Validation successful`)
@@ -4227,7 +4227,7 @@ async function validateInstantConfigs(
           validationRouteTree,
           navigationParent,
           true, // use runtime stage for static segments instead
-          debugInstantStack
+          createInstantStack
         )
         if (runtimeResults.errors.length > 0) {
           // The errors remained in the runtime stage, so they were caused by a dynamic access.
@@ -4260,7 +4260,7 @@ async function validateInstantConfigNavigation(
   routeTree: InstantValidation.RouteTree,
   navigationParent: InstantValidation.SegmentPath,
   useRuntimeStageForPartialSegments: boolean,
-  debugInstantStack: Error | null
+  createInstantStack: (() => Error) | null
 ): Promise<{ dynamicHoleKind: DynamicHoleKind; errors: Array<unknown> }> {
   const { implicitTags, nonce, workStore } = ctx
   const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
@@ -4276,7 +4276,7 @@ async function validateInstantConfigNavigation(
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
-  const dynamicValidation = createInstantValidationState(debugInstantStack)
+  const dynamicValidation = createInstantValidationState(createInstantStack)
   const boundaryState = createValidationBoundaryTracking()
 
   const finalClientPrerenderStore: PrerenderStore = {

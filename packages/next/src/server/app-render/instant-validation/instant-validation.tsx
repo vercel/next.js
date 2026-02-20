@@ -86,7 +86,7 @@ export type RouteTree = {
     // TODO(instant-validation): We should know if a layout segment is shared
     instantConfig: InstantConfig | null
     conventionPath: string
-    debugInstantStack: Error | null
+    createInstantStack: (() => Error) | null
   }
 
   slots: { [parallelRouteKey: string]: RouteTree } | null
@@ -144,17 +144,15 @@ export async function findNavigationsToValidate(
       // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
       const instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
-      const createInstantConfigStack: unknown = (layoutOrPageMod as any)
+      const rawFactory: unknown = (layoutOrPageMod as any)
         .__debugCreateInstantConfigStack
-      const debugInstantStack: Error | null =
-        typeof createInstantConfigStack === 'function'
-          ? createInstantConfigStack()
-          : null
+      const createInstantStack: (() => Error) | null =
+        typeof rawFactory === 'function' ? (rawFactory as () => Error) : null
       moduleInfo = {
         type: modType!,
         instantConfig,
         conventionPath: conventionPath!,
-        debugInstantStack,
+        createInstantStack,
       }
 
       if (isInsideParallelSlot) {
@@ -179,10 +177,13 @@ export async function findNavigationsToValidate(
             } else {
               const isRootLayout = parentLayoutPath === null
               if (isRootLayout && instantConfig.prefetch === 'runtime') {
-                throw new Error(
-                  `${conventionPath}: \`unstable_instant\` with mode 'runtime' is not supported in root layouts.`,
-                  debugInstantStack ? { cause: debugInstantStack } : {}
-                )
+                const message = `${conventionPath}: \`unstable_instant\` with mode 'runtime' is not supported in root layouts.`
+                const error =
+                  createInstantStack !== null
+                    ? createInstantStack()
+                    : new Error()
+                error.message = message
+                throw error
               }
 
               const task: ValidationTask = {
