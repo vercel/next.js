@@ -96,7 +96,6 @@ describe('instant validation causes', () => {
        "cause": [
          {
            "label": "Caused by: Instant Validation",
-           "message": " ",
            "source": "app/named-export/page.tsx (3:26) @ unstable_instant
      > 3 | const unstable_instant = { prefetch: 'static' }
          |                          ^",
@@ -141,7 +140,6 @@ describe('instant validation causes', () => {
        "cause": [
          {
            "label": "Caused by: Instant Validation",
-           "message": " ",
            "source": "app/aliased-export/page.tsx (3:17) @ unstable_instant
      > 3 | const instant = { prefetch: 'static' }
          |                 ^",
@@ -186,7 +184,6 @@ describe('instant validation causes', () => {
        "cause": [
          {
            "label": "Caused by: Instant Validation",
-           "message": " ",
            "source": "app/reexport/page.tsx (3:10) @ unstable_instant
      > 3 | export { unstable_instant } from './config'
          |          ^",
@@ -234,7 +231,6 @@ describe('instant validation causes', () => {
        "cause": [
          {
            "label": "Caused by: Instant Validation",
-           "message": " ",
            "source": "app/indirect-export/page.tsx (4:17) @ unstable_instant
      > 4 | const instant = _instant
          |                 ^",

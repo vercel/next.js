@@ -55,6 +55,11 @@ function GenericErrorDescription({ error }: { error: Error }) {
     message = message.slice(envPrefix.length)
   }
 
+  message = message.trim()
+  if (!message) {
+    return null
+  }
+
   return (
     <>
       <HotlinkedText text={message} matcher={matchLinkType} />

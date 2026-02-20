@@ -19,6 +19,10 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
     }
   }, [errorMessage])
 
+  if (!errorMessage) {
+    return null
+  }
+
   // The "Blocking Route" error message is specifically formatted to look nice
   // in the overlay (rather than just passed through from the console), so we
   // intentionally don't truncate it and rely on the scroll overflow instead.
