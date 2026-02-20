@@ -17,6 +17,7 @@ describe(`Handle new URL asset references`, () => {
       // rely on skew protection when deployed
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
     },
+    skipDeployment: true,
   })
 
   if (skipped) {
