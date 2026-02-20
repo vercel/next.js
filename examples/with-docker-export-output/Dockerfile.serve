@@ -1,6 +1,6 @@
-# ============================================
-# Stage 1: Dependencies Installation Stage
-# ============================================
+# =========================================
+# Stage 1: Install Dependencies
+# =========================================
 
 # IMPORTANT: Node.js Version Maintenance
 # This Dockerfile uses Node.js 24.13.0-slim, which was the latest LTS version at the time of writing.
@@ -9,11 +9,11 @@ ARG NODE_VERSION=24.13.0-slim
 
 FROM node:${NODE_VERSION} AS dependencies
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
 # Copy package-related files first to leverage Docker's caching mechanism
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
 
 # Install project dependencies with frozen lockfile for reproducible builds
 RUN --mount=type=cache,target=/root/.npm \
@@ -30,12 +30,12 @@ RUN --mount=type=cache,target=/root/.npm \
   fi
 
 # ============================================
-# Stage 2: Build Next.js application in standalone mode
+# Stage 2: Build Next.js Application
 # ============================================
 
 FROM node:${NODE_VERSION} AS builder
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
 # Copy project dependencies from dependencies stage
@@ -52,6 +52,7 @@ ENV NODE_ENV=production
 # ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build Next.js application
+# Cache mount speeds up subsequent builds by persisting Next.js build cache
 RUN --mount=type=cache,target=/app/.next/cache \
   if [ -f package-lock.json ]; then \
     npm run build; \
@@ -63,35 +64,34 @@ RUN --mount=type=cache,target=/app/.next/cache \
     echo "No lockfile found." && exit 1; \
   fi
 
-# ============================================
-# Stage 3: Run Next.js application
-# ============================================
+# =========================================
+# Stage 3: Serve Static Files with serve
+# =========================================
 
 FROM node:${NODE_VERSION} AS runner
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Set production environment variables
-ENV NODE_ENV=production
+# Install serve globally (pinned version for reproducibility, update to the latest version as needed)
+# Cache npm global installs to speed up builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g serve@14.2.5
+
+# Set the port for serve (default is 3000)
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the run time.
-# ENV NEXT_TELEMETRY_DISABLED=1
+# Copy the static build output from the build stage
+COPY --from=builder --chown=node:node /app/out ./out
 
-# Copy production assets
-COPY --from=builder --chown=node:node /app/public ./public
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
-
-# Switch to non-root user for security best practices
+# Use the built-in non-root user for security best practices
 USER node
 
 # Expose port 3000 to allow HTTP traffic
 EXPOSE 3000
 
-# Start Next.js standalone server
-CMD ["node", "server.js"]
+# Start serve to serve static files
+# -s: serve single-page application (SPA) mode
+# -l: listen on specified port
+# -n: no clipper (don't show file listing)
+CMD ["serve", "-s", "out", "-l", "3000", "-n"]

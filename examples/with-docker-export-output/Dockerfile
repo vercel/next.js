@@ -2,14 +2,16 @@
 # Stage 1: Dependencies Installation Stage
 # ============================================
 
-# IMPORTANT: Node.js Version Maintenance
-# This Dockerfile uses Node.js 24.13.0-slim, which was the latest LTS version at the time of writing.
-# To ensure security and compatibility, regularly update the NODE_VERSION ARG to the latest LTS version.
+# IMPORTANT: Node.js and Nginxinc Image Version Maintenance
+# This Dockerfile uses Node.js 24.13.0-slim and Nginxinc image with alpine3.22, which was the latest LTS version at the time of writing.
+# To ensure security and compatibility, regularly validate and update the NODE_VERSION ARG and NGINXINC_IMAGE_TAG to the latest LTS versions.
+
 ARG NODE_VERSION=24.13.0-slim
+ARG NGINXINC_IMAGE_TAG=alpine3.22
 
 FROM node:${NODE_VERSION} AS dependencies
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
 # Copy package-related files first to leverage Docker's caching mechanism
@@ -30,12 +32,12 @@ RUN --mount=type=cache,target=/root/.npm \
   fi
 
 # ============================================
-# Stage 2: Build Next.js application in standalone mode
+# Stage 2: Build Next.js Application
 # ============================================
 
 FROM node:${NODE_VERSION} AS builder
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
 # Copy project dependencies from dependencies stage
@@ -63,35 +65,32 @@ RUN --mount=type=cache,target=/app/.next/cache \
     echo "No lockfile found." && exit 1; \
   fi
 
-# ============================================
-# Stage 3: Run Next.js application
-# ============================================
+# =========================================
+# Stage 3: Serve Static Files with Nginx
+# =========================================
 
-FROM node:${NODE_VERSION} AS runner
+FROM nginxinc/nginx-unprivileged:${NGINXINC_IMAGE_TAG} AS runner
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
-
-# Set production environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the run time.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy production assets
-COPY --from=builder --chown=node:node /app/public ./public
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+# Copy custom Nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Switch to non-root user for security best practices
-USER node
+# Copy the static build output from the build stage to Nginx's default HTML serving directory
+COPY --from=builder /app/out /usr/share/nginx/html
 
-# Expose port 3000 to allow HTTP traffic
-EXPOSE 3000
+# Non-root user for security best practices
+USER nginx
 
-# Start Next.js standalone server
-CMD ["node", "server.js"]
+# Expose port 8080 to allow HTTP traffic
+EXPOSE 8080
+
+# Start Nginx directly with custom config
+ENTRYPOINT ["nginx", "-c", "/etc/nginx/nginx.conf"]
+CMD ["-g", "daemon off;"]
