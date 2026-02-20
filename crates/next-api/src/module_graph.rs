@@ -10,7 +10,7 @@ use next_core::{
     },
     next_manifests::ActionLayer,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -24,6 +24,7 @@ use turbopack_core::{
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
+use turbopack_ecmascript::side_effect_optimization::locals::module::EcmascriptModuleLocalsModule;
 
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
@@ -788,10 +789,17 @@ async fn validate_pages_css_imports_individual(
 
     let mut candidates = vec![];
 
+    // Track modules that are equivalent to _app.js for CSS import validation.
+    // When _app.js is split into facade+locals (due to export name mangling),
+    // CSS imports become references of the locals module, which must also be
+    // recognized as part of _app.js.
+    let mut app_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
+    app_modules.insert(app_module);
+
     graph.traverse_edges_dfs(
         entries,
-        &mut (),
-        |parent_info, node, _| {
+        &mut app_modules,
+        |parent_info, node, app_modules| {
             let module = node;
 
             // If we're at a root node, there is nothing importing this module and we can skip
@@ -801,8 +809,13 @@ async fn validate_pages_css_imports_individual(
             };
             let parent_module = parent_node;
 
-            // Importing CSS from _app.js is always allowed.
-            if parent_module == app_module {
+            // Track internal module splits (like locals) of the app module as
+            // app-equivalent, so their CSS imports are also allowed.
+            if app_modules.contains(&parent_module) {
+                if ResolvedVc::try_downcast_type::<EcmascriptModuleLocalsModule>(module).is_some() {
+                    app_modules.insert(module);
+                }
+                // Importing CSS from _app.js (or its internal splits) is always allowed.
                 return Ok(GraphTraversalAction::Continue);
             }
 
@@ -825,12 +838,9 @@ async fn validate_pages_css_imports_individual(
                 return Ok(GraphTraversalAction::Continue);
             }
 
-            // If all of the above invariants have been checked, we look to see if the parent
-            // module is the same as the app module. If it isn't we know it
+            // If all of the above invariants have been checked, we know it
             // isn't a valid place to import global css.
-            if parent_module != app_module {
-                candidates.push(CssGlobalImportIssue::new(parent_module, module))
-            }
+            candidates.push(CssGlobalImportIssue::new(parent_module, module));
 
             Ok(GraphTraversalAction::Continue)
         },
