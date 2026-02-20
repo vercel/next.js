@@ -38,20 +38,15 @@ pub async fn main_inner(
         options.watch.enable = false;
     }
 
-    #[turbo_tasks::function(operation)]
-    async fn init_project_operation(options: ProjectOptions) -> Result<Vc<ProjectContainer>> {
-        let project = ProjectContainer::new(rcstr!("next-build-test"), options.dev)
-            .to_resolved()
-            .await?;
-        project.initialize(options).await?;
-        Ok(*project)
-    }
-
     let project = tt
         .run(async {
-            init_project_operation(options)
-                .resolve_strongly_consistent()
-                .await
+            #[turbo_tasks::function(operation)]
+            fn new_operation(is_dev: bool) -> Vc<ProjectContainer> {
+                ProjectContainer::new(rcstr!("next.js"), is_dev)
+            }
+            let container_op = new_operation(options.dev);
+            ProjectContainer::initialize(container_op, options).await?;
+            container_op.resolve_strongly_consistent().await
         })
         .await?;
 

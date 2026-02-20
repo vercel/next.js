@@ -291,10 +291,8 @@ impl DebugBuildPathsRouteKeys {
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
-    Hash,
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
@@ -566,10 +564,18 @@ fn define_env_diff_report(old: &DefineEnv, new: &DefineEnv) -> String {
 }
 
 impl ProjectContainer {
-    pub async fn initialize(self: ResolvedVc<Self>, options: ProjectOptions) -> Result<()> {
+    /// Set up filesystems, watchers, and construct the [`Project`] instance inside the container.
+    ///
+    /// This function is intended to be called inside of [`turbo_tasks::TurboTasks::run`], but not
+    /// part of a [`turbo_tasks::function`]. We don't want it to be possibly re-executed.
+    ///
+    /// This is an associated function instead of a method because we don't currently implement
+    /// [`std::ops::Receiver`] on [`OperationVc`].
+    pub async fn initialize(this_op: OperationVc<Self>, options: ProjectOptions) -> Result<()> {
+        let this = this_op.read_strongly_consistent().await?;
         let span = tracing::info_span!(
             "initialize project",
-            project_name = %self.await?.name,
+            project_name = %this.name,
             version = options.next_version.as_str(),
             env_diff = Empty
         );
@@ -577,7 +583,6 @@ impl ProjectContainer {
         async move {
             let watch = options.watch;
 
-            let this = self.await?;
             if let Some(old_options) = &*this.options_state.get_untracked() {
                 span.record(
                     "env_diff",
@@ -586,7 +591,15 @@ impl ProjectContainer {
             }
             this.options_state.set(Some(options));
 
-            let project = self.project().to_resolved().await?;
+            #[turbo_tasks::function(operation)]
+            fn project_from_container_operation(
+                container: OperationVc<ProjectContainer>,
+            ) -> Vc<Project> {
+                container.connect().project()
+            }
+            let project = project_from_container_operation(this_op)
+                .resolve_strongly_consistent()
+                .await?;
             let project_fs = project_fs_operation(project)
                 .read_strongly_consistent()
                 .await?;
