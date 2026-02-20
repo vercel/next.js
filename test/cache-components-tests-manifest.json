@@ -257,6 +257,7 @@
       "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts",
       "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts",
       "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts",
+      "test/e2e/app-dir/segment-cache/force-stale/force-stale.test.ts",
       "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts",
       "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts",
       "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts",
