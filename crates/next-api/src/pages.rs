@@ -1606,13 +1606,12 @@ impl Endpoint for PageEndpoint {
             let node_root = project.node_root().owned().await?;
             let client_relative_root = project.client_relative_path().owned().await?;
 
-            let output_assets = self.output().output_assets();
+            let output_assets = output.output_assets();
 
             let (server_paths, client_paths) = if project.next_mode().await?.is_development() {
                 let server_paths = all_asset_paths(output_assets, node_root.clone(), None)
                     .owned()
                     .await?;
-
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .owned()
                     .await?;
