@@ -41,13 +41,28 @@ describe('action-queue-transition-deadlock', () => {
         const url = await browser.url()
         expect(url).toContain('/other')
       },
-      15000,
-      1000,
+      20000,
+      500,
       'waiting for navigation to /other'
     )
 
     // Verify we're on the other page
-    const heading = await browser.elementById('other-page').text()
-    expect(heading).toBe('Other Page')
+    await retry(async () => {
+      const heading = await browser.elementById('other-page').text()
+      expect(heading).toBe('Other Page')
+    })
+
+    // Most importantly: verify that the transition eventually completes
+    // and isPending returns to false. This is the key indicator that
+    // the deadlock was prevented.
+    await retry(
+      async () => {
+        const status = await browser.elementById('status').text()
+        expect(status).toBe('idle')
+      },
+      15000,
+      500,
+      'waiting for transition to complete'
+    )
   })
 })
