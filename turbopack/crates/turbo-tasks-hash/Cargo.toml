@@ -13,5 +13,8 @@ bench = false
 workspace = true
 
 [dependencies]
+bincode = { workspace = true }
+data-encoding = { workspace = true }
+sha2 = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 twox-hash = { workspace = true }

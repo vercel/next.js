@@ -7,6 +7,7 @@ use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::AssetContent,
     context::AssetContext,
@@ -33,13 +34,8 @@ async fn dynamic_image_metadata_with_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash_query = format!(
-        "?{:x}",
-        path.read()
-            .content_hash()
-            .await?
-            .context("metadata file not found")?
-    );
+    let hash = path.read().content_hash(HashAlgorithm::default()).await?;
+    let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
@@ -70,7 +66,7 @@ async fn dynamic_image_metadata_with_generator_source(
                     const data = {{
                         alt: imageMetadata.alt,
                         type: imageMetadata.contentType || 'image/png',
-                        url: imageUrl + (idParam ? ('/' + idParam) : '') + {hash_query},
+                        url: imageUrl + (idParam ? ('/' + idParam) : '') + '?' + {hash},
                     }}
                     const {{ size }} = imageMetadata
                     if (size) {{
@@ -91,7 +87,7 @@ async fn dynamic_image_metadata_with_generator_source(
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,
-        hash_query = StringifyJs(&hash_query),
+        hash = StringifyJs(&hash),
     };
 
     let file = File::from(code);
@@ -113,13 +109,8 @@ async fn dynamic_image_metadata_without_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash_query = format!(
-        "?{:x}",
-        path.read()
-            .content_hash()
-            .await?
-            .context("metadata file not found")?
-    );
+    let hash = path.read().content_hash(HashAlgorithm::default()).await?;
+    let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
@@ -148,7 +139,7 @@ async fn dynamic_image_metadata_without_generator_source(
                     const data = {{
                         alt: imageMetadata.alt,
                         type: imageMetadata.contentType || 'image/png',
-                        url: imageUrl + (idParam ? ('/' + idParam) : '') + {hash_query},
+                        url: imageUrl + (idParam ? ('/' + idParam) : '') + '?' + {hash},
                     }}
                     const {{ size }} = imageMetadata
                     if (size) {{
@@ -165,7 +156,7 @@ async fn dynamic_image_metadata_without_generator_source(
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,
-        hash_query = StringifyJs(&hash_query),
+        hash = StringifyJs(&hash),
     };
 
     let file = File::from(code);

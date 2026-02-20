@@ -39,7 +39,7 @@ impl From<AssetPath> for NapiAssetPath {
     fn from(asset_path: AssetPath) -> Self {
         Self {
             path: asset_path.path.into_owned(),
-            content_hash: format!("{:x}", asset_path.content_hash),
+            content_hash: asset_path.content_hash.into_owned(),
         }
     }
 }

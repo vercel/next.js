@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
-use turbo_tasks_hash::Xxh3Hash64Hasher;
+use turbo_tasks_hash::{HashAlgorithm, Xxh3Hash64Hasher};
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
@@ -121,9 +121,9 @@ impl AssetContent {
     /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and nothing
     /// else. If there is no file content, it returns `None`.
     #[turbo_tasks::function]
-    pub async fn content_hash(&self) -> Result<Vc<Option<u64>>> {
+    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
         match self {
-            AssetContent::File(content) => Ok(content.content_hash()),
+            AssetContent::File(content) => Ok(content.content_hash(algorithm)),
             AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
         }
     }

@@ -3,7 +3,6 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::encode_hex;
 use turbopack_core::{
     asset::Asset,
     chunk::{
@@ -455,13 +454,13 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     async fn asset_path(
         &self,
-        content_hash: Vc<u64>,
+        content_hash: Vc<RcStr>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
-        let content_hash = encode_hex(*content_hash.await?);
+        let content_hash = content_hash.await?;
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{content_hash}.{ext}",

@@ -9646,6 +9646,9 @@ dependencies = [
 name = "turbo-tasks-hash"
 version = "0.1.0"
 dependencies = [
+ "bincode 2.0.1",
+ "data-encoding",
+ "sha2",
  "turbo-tasks-macros",
  "twox-hash 2.1.0",
 ]
