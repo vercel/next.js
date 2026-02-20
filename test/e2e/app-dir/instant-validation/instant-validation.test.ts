@@ -189,7 +189,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33) @ unstable_instant
        > 3 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
@@ -234,7 +234,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
        > 3 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
@@ -277,7 +277,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33) @ unstable_instant
        > 4 | export const unstable_instant = {
            |                                 ^",
@@ -322,7 +322,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
        > 4 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
@@ -367,7 +367,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
        > 4 | export const unstable_instant = {
            |                                 ^",
@@ -411,7 +411,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:33) @ unstable_instant
        > 1 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
@@ -465,7 +465,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:33) @ unstable_instant
        > 1 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
@@ -532,7 +532,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (3:33) @ unstable_instant
        > 3 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
@@ -577,7 +577,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33) @ unstable_instant
        > 4 | export const unstable_instant = {
            |                                 ^",
@@ -707,7 +707,7 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "message": "​",
+             "message": " ",
              "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (4:33) @ unstable_instant
        > 4 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
@@ -759,7 +759,7 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "message": "​",
+               "message": " ",
                "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
          > 3 | export const unstable_instant = { prefetch: 'static' }
              |                                 ^",
@@ -818,7 +818,7 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "message": "​",
+               "message": " ",
                "source": "app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33) @ unstable_instant
          > 1 | export const unstable_instant = { prefetch: 'static' }
              |                                 ^",
@@ -863,7 +863,7 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "message": "​",
+               "message": " ",
                "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33) @ unstable_instant
          > 3 | export const unstable_instant = {
              |                                 ^",
@@ -909,7 +909,7 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "message": "​",
+               "message": " ",
                "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/page.tsx (3:33) @ unstable_instant
          > 3 | export const unstable_instant = { prefetch: 'static' }
              |                                 ^",
@@ -955,7 +955,7 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "message": "​",
+               "message": " ",
                "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33) @ unstable_instant
          > 1 | export const unstable_instant = { prefetch: 'static' }
              |                                 ^",
@@ -1001,7 +1001,7 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "message": "​",
+               "message": " ",
                "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33) @ unstable_instant
          > 1 | export const unstable_instant = { prefetch: 'static' }
              |                                 ^",
@@ -1049,7 +1049,7 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "message": "​",
+               "message": " ",
                "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33) @ unstable_instant
          > 1 | export const unstable_instant = {
              |                                 ^",
