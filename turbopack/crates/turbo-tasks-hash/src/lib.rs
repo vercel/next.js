@@ -13,10 +13,14 @@ use bincode::{Decode, Encode};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Decode, Encode)]
 pub enum HashAlgorithm {
+    /// The default hash algorithm, use this when the exact hashing algorithm doesn't matter.
     #[default]
     Xxh3Hash64Hex,
+    /// Used for https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
     Sha256Base64,
+    /// Used for https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
     Sha384Base64,
+    /// Used for https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
     Sha512Base64,
 }
 
