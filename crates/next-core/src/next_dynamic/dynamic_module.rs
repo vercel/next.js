@@ -9,7 +9,7 @@ use turbopack_core::{
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-    resolve::{ExportUsage, ModulePart},
+    resolve::ExportUsage,
     source::OptionSource,
 };
 use turbopack_ecmascript::{
@@ -34,11 +34,8 @@ pub struct NextDynamicEntryModule {
 #[turbo_tasks::value_impl]
 impl NextDynamicEntryModule {
     #[turbo_tasks::function]
-    pub async fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Result<Vc<Self>> {
-        // Get the facade module if splitting is needed (e.g., due to export name mangling).
-        // This ensures we re-export with original names, not mangled names.
-        let module = module.get_split(ModulePart::Facade).to_resolved().await?;
-        Ok(NextDynamicEntryModule { module }.cell())
+    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
+        NextDynamicEntryModule { module }.cell()
     }
 }
 

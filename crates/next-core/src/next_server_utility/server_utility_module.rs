@@ -10,7 +10,6 @@ use turbopack_core::{
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
-    resolve::ModulePart,
     source::OptionSource,
 };
 use turbopack_ecmascript::{
@@ -33,14 +32,9 @@ pub struct NextServerUtilityModule {
 
 #[turbo_tasks::value_impl]
 impl NextServerUtilityModule {
-    /// Creates a new server utility module wrapper.
-    ///
-    /// This normalizes the input to the facade module (if splitting is enabled)
-    /// to ensure we re-export with original names, not mangled names.
     #[turbo_tasks::function]
-    pub async fn new(module: Vc<Box<dyn EcmascriptChunkPlaceable>>) -> Result<Vc<Self>> {
-        let facade = module.get_split(ModulePart::Facade).to_resolved().await?;
-        Ok(NextServerUtilityModule { module: facade }.cell())
+    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
+        NextServerUtilityModule { module }.cell()
     }
 
     #[turbo_tasks::function]
