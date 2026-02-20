@@ -704,7 +704,9 @@ export class ImageOptimizerCache {
       const lru = await this.cacheDiskLRU
       const success = lru?.set(cacheKey, value.buffer.byteLength)
       if (!success) {
-        throw new Error('image could not be tracked by lru cache')
+        throw new Error(
+          `image of size ${value.buffer.byteLength} could not be tracked by lru cache`
+        )
       }
 
       await writeToCacheDir(
