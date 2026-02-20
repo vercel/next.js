@@ -19,28 +19,22 @@ pub fn decompress_into_arc(
          zero-copy mmap path"
     );
 
-    // We directly allocate the buffer in an Arc to avoid copying it into an Arc and avoiding
-    // double indirection. This is a dynamically sized arc.
-    let buffer: Arc<[MaybeUninit<u8>]> = Arc::new_zeroed_slice(uncompressed_length as usize);
-    // Assume that the buffer is initialized.
-    let buffer = Arc::into_raw(buffer);
-    // Safety: Assuming that the buffer is initialized is safe because we just created it as
-    // zeroed slice and u8 doesn't require initialization.
-    let mut buffer = unsafe { Arc::from_raw(buffer as *mut [u8]) };
-    // Safety: We know that the buffer is not shared yet.
-    let decompressed = unsafe { Arc::get_mut_unchecked(&mut buffer) };
-    let bytes_writes = if let Some(dict) = compression_dictionary {
-        // Safety: decompress_with_dict will only write to `decompressed` and not read from it.
+    // Allocate directly into an Arc to avoid a copy. The buffer is uninitialized;
+    // decompression will overwrite it completely (verified by the assert below).
+    let buffer: Arc<[MaybeUninit<u8>]> = Arc::new_uninit_slice(uncompressed_length as usize);
+    // Safety: decompression will fully initialize the buffer we verify with an assert
+    let mut buffer = unsafe { buffer.assume_init() };
+    // We just created this Arc so refcount is 1; get_mut always succeeds.
+    let decompressed = Arc::get_mut(&mut buffer).expect("Arc refcount should be 1");
+    let bytes_written = if let Some(dict) = compression_dictionary {
         decompress_with_dict(block, decompressed, dict)?
     } else {
-        // Safety: decompress will only write to `decompressed` and not read from it.
         decompress(block, decompressed)?
     };
     assert_eq!(
-        bytes_writes, uncompressed_length as usize,
+        bytes_written, uncompressed_length as usize,
         "Decompressed length does not match expected length"
     );
-    // Safety: The buffer is now fully initialized and can be used.
     Ok(buffer)
 }
 

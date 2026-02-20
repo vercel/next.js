@@ -35,7 +35,7 @@ use crate::{
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
-    static_sorted_file::{BlockCache, SstLookupResult},
+    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
     value_block_count_tracker::ValueBlockCountTracker,
     write_batch::{FinishResult, WriteBatch},
@@ -780,6 +780,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             );
         }
 
+        // Free block caches and SST mmaps before compaction. The block caches
+        // are not used during compaction (we iterate uncached), and any cached
+        // SST mmaps would use MADV_RANDOM which is wrong for sequential scans.
+        // Clearing them upfront frees memory for the merge work.
+        self.clear_cache();
+
         let mut sequence_number;
         let mut new_meta_files = Vec::new();
         let mut new_sst_files = Vec::new();
@@ -887,8 +893,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             sst_by_family[sst.range.family as usize].push(sst);
         }
 
-        let key_block_cache = &self.key_block_cache;
-        let value_block_cache = &self.value_block_cache;
         let path = &self.path;
 
         let log_mutex = Mutex::new(());
@@ -916,22 +920,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })
             .collect::<Vec<_>>();
 
-        let mut used_key_hashes = [(); FAMILIES].map(|_| Vec::new());
-
-        {
-            for &(family, ..) in merge_jobs.iter() {
-                used_key_hashes[family].extend(
-                    meta_files
-                        .iter()
-                        .filter(|m| m.family() == family as u32)
-                        .filter_map(|meta_file| {
-                            meta_file.deserialize_used_key_hashes_amqf().transpose()
-                        })
-                        .collect::<Result<Vec<_>>>()?,
-                );
-            }
-        }
-
         let result = self
             .parallel_scheduler
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(
@@ -948,6 +936,41 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             keys_written: 0,
                         });
                     }
+
+                    // Deserialize and merge used key hash filters per-family into
+                    // a single filter. This avoids O(entries × N) filter probes
+                    // during the merge loop. Empty filters (from commits with no
+                    // reads) are discarded.
+                    let used_key_hashes: Option<qfilter::Filter> = {
+                        let filters: Vec<qfilter::Filter> = meta_files
+                            .iter()
+                            .filter(|m| m.family() == family)
+                            .filter_map(|meta_file| {
+                                meta_file.deserialize_used_key_hashes_amqf().transpose()
+                            })
+                            .collect::<Result<Vec<_>>>()?
+                            .into_iter()
+                            .filter(|amqf| !amqf.is_empty())
+                            .collect();
+                        if filters.is_empty() {
+                            None
+                        } else if filters.len() == 1 {
+                            // Just directly use the single item
+                            filters.into_iter().next()
+                        } else {
+                            let total_len: u64 = filters.iter().map(|f| f.len()).sum();
+                            let mut merged =
+                                qfilter::Filter::with_fingerprint_size(total_len, u64::BITS as u8)
+                                    .expect("Failed to create merged AMQF filter");
+                            for filter in &filters {
+                                merged
+                                    .merge(false, filter)
+                                    .expect("Failed to merge AMQF filters");
+                            }
+                            merged.shrink_to_fit();
+                            Some(merged)
+                        }
+                    };
 
                     // Later we will remove the merged files
                     let sst_seq_numbers_to_delete = merge_jobs
@@ -1002,9 +1025,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     });
                                 }
 
-                                fn create_sst_file<'l, S: ParallelScheduler>(
+                                fn create_sst_file<S: ParallelScheduler>(
                                     parallel_scheduler: &S,
-                                    entries: &[LookupEntry<'l>],
+                                    entries: &[LookupEntry],
                                     total_key_size: usize,
                                     path: &Path,
                                     seq: u32,
@@ -1024,16 +1047,20 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     Ok((seq, file, meta))
                                 }
 
-                                // Iterate all SST files
+                                // Open SST files independently for compaction.
+                                // Uses MADV_SEQUENTIAL for better OS page management
+                                // and avoids caching mmaps on MetaEntry's OnceLock.
                                 let iters = indicies
                                     .iter()
                                     .map(|&index| {
                                         let meta_index = ssts_with_ranges[index].meta_index;
                                         let index_in_meta = ssts_with_ranges[index].index_in_meta;
-                                        let meta = &meta_files[meta_index];
-                                        meta.entry(index_in_meta)
-                                            .sst(meta)?
-                                            .iter(key_block_cache, value_block_cache)
+                                        let entry = meta_files[meta_index].entry(index_in_meta);
+                                        StaticSortedFile::open_for_compaction(
+                                            path,
+                                            entry.sst_metadata(),
+                                        )?
+                                        .try_into_iter()
                                     })
                                     .collect::<Result<Vec<_>>>()?;
 
@@ -1045,18 +1072,34 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                                 let mut keys_written = 0;
 
-                                let mut current: Option<LookupEntry<'_>> = None;
+                                let mut current: Option<LookupEntry> = None;
 
                                 #[derive(Default)]
-                                struct Collector<'l> {
-                                    entries: Vec<LookupEntry<'l>>,
+                                struct Collector {
+                                    entries: Vec<LookupEntry>,
                                     total_key_size: usize,
                                     total_value_size: usize,
                                     value_block_tracker: ValueBlockCountTracker,
-                                    last_entries: Vec<LookupEntry<'l>>,
+                                    last_entries: Vec<LookupEntry>,
                                     last_entries_total_key_size: usize,
                                     new_sst_files:
                                         Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                                }
+                                impl Collector {
+                                    fn is_full(&self) -> bool {
+                                        self.total_key_size + self.total_value_size
+                                            > DATA_THRESHOLD_PER_COMPACTED_FILE
+                                            || self.entries.len() >= MAX_ENTRIES_PER_COMPACTED_FILE
+                                            || self.value_block_tracker.is_full()
+                                    }
+
+                                    fn is_half_full(&self) -> bool {
+                                        self.total_key_size + self.total_value_size
+                                            > DATA_THRESHOLD_PER_COMPACTED_FILE / 2
+                                            || self.entries.len()
+                                                >= MAX_ENTRIES_PER_COMPACTED_FILE / 2
+                                            || self.value_block_tracker.is_half_full()
+                                    }
                                 }
                                 let mut used_collector = Collector::default();
                                 let mut unused_collector = Collector::default();
@@ -1067,9 +1110,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     if let Some(current) = current.take() {
                                         if current.key != entry.key {
                                             let is_used =
-                                                used_key_hashes[family as usize].iter().any(
-                                                    |amqf| amqf.contains_fingerprint(current.hash),
-                                                );
+                                                used_key_hashes.as_ref().is_some_and(|amqf| {
+                                                    amqf.contains_fingerprint(current.hash)
+                                                });
                                             let collector = if is_used {
                                                 &mut used_collector
                                             } else {
@@ -1086,12 +1129,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                 .value_block_tracker
                                                 .track(is_medium, small_size);
 
-                                            if collector.total_key_size + collector.total_value_size
-                                                > DATA_THRESHOLD_PER_COMPACTED_FILE
-                                                || collector.entries.len()
-                                                    >= MAX_ENTRIES_PER_COMPACTED_FILE
-                                                || collector.value_block_tracker.is_full()
-                                            {
+                                            if collector.is_full() {
                                                 let selected_total_key_size =
                                                     collector.last_entries_total_key_size;
                                                 swap(
@@ -1129,6 +1167,31 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             }
 
                                             collector.entries.push(current);
+
+                                            // Early flush: once entries is past 50%
+                                            // of any limit, the final file won't be
+                                            // undersized, so flush last_entries to
+                                            // reduce peak memory.
+                                            if !collector.last_entries.is_empty()
+                                                && collector.is_half_full()
+                                            {
+                                                let seq = sequence_number
+                                                    .fetch_add(1, Ordering::SeqCst)
+                                                    + 1;
+                                                keys_written += collector.last_entries.len() as u64;
+                                                let mut flags = MetaEntryFlags::default();
+                                                flags.set_cold(!is_used);
+                                                collector.new_sst_files.push(create_sst_file(
+                                                    &self.parallel_scheduler,
+                                                    &collector.last_entries,
+                                                    collector.last_entries_total_key_size,
+                                                    path,
+                                                    seq,
+                                                    flags,
+                                                )?);
+                                                collector.last_entries.clear();
+                                                collector.last_entries_total_key_size = 0;
+                                            }
                                         } else {
                                             // Override value
                                             // TODO delete blob file
@@ -1137,9 +1200,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     current = Some(entry);
                                 }
                                 if let Some(entry) = current {
-                                    let is_used = used_key_hashes[family as usize]
-                                        .iter()
-                                        .any(|amqf| amqf.contains_fingerprint(entry.hash));
+                                    let is_used = used_key_hashes
+                                        .as_ref()
+                                        .is_some_and(|amqf| amqf.contains_fingerprint(entry.hash));
                                     let collector = if is_used {
                                         &mut used_collector
                                     } else {
