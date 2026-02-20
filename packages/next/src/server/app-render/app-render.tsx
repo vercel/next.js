@@ -269,6 +269,7 @@ export type AppRenderContext = {
   renderOpts: RenderOpts
   parsedRequestHeaders: ParsedRequestHeaders
   getDynamicParamFromSegment: GetDynamicParamFromSegment
+  interpolatedParams: Params
   query: NextParsedUrlQuery
   isPrefetch: boolean
   isPossibleServerAction: boolean
@@ -523,7 +524,6 @@ async function generateDynamicRSCPayload(
       createMetadataComponents,
       Fragment,
     },
-    getDynamicParamFromSegment,
     query,
     requestId,
     flightRouterState,
@@ -549,7 +549,7 @@ async function generateDynamicRSCPayload(
       parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
-      getDynamicParamFromSegment,
+      interpolatedParams: ctx.interpolatedParams,
       serveStreamingMetadata,
     })
 
@@ -1442,7 +1442,7 @@ async function getRSCPayload(
     parsedQuery: query,
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
-    getDynamicParamFromSegment,
+    interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata,
   })
 
@@ -1562,7 +1562,7 @@ async function getErrorRSCPayload(
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
-    getDynamicParamFromSegment,
+    interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
@@ -2020,6 +2020,7 @@ async function renderToHTMLOrFlightImpl(
     workStore,
     parsedRequestHeaders,
     getDynamicParamFromSegment,
+    interpolatedParams,
     query,
     isPrefetch: isPrefetchRequest,
     isPossibleServerAction: isPossibleActionRequest,
