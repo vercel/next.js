@@ -70,7 +70,7 @@ export async function buildPagesStaticPaths({
   ) {
     throw new Error(
       `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
-      expectedReturnVal
+        expectedReturnVal
     )
   }
 
@@ -79,7 +79,7 @@ export async function buildPagesStaticPaths({
   if (!Array.isArray(toPrerender)) {
     throw new Error(
       `Invalid \`paths\` value returned from getStaticPaths in ${page}.\n` +
-      `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
+        `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
     )
   }
 
@@ -137,11 +137,11 @@ export async function buildPagesStaticPaths({
       if (invalidKeys.length) {
         throw new Error(
           `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
-          `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
-          `\n\n\treturn { params: { ${routeParameterKeys
-            .map((k) => `${k}: ...`)
-            .join(', ')} } }` +
-          `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
+            `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
+            `\n\n\treturn { params: { ${routeParameterKeys
+              .map((k) => `${k}: ...`)
+              .join(', ')} } }` +
+            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
         )
       }
 
@@ -162,8 +162,12 @@ export async function buildPagesStaticPaths({
           paramValue = []
         }
 
+        const hasValidRepeatParam =
+          Array.isArray(paramValue) &&
+          paramValue.every((value) => typeof value === 'string')
+
         if (
-          (repeat && !Array.isArray(paramValue)) ||
+          (repeat && !hasValidRepeatParam) ||
           (!repeat && typeof paramValue !== 'string') ||
           typeof paramValue === 'undefined'
         ) {
@@ -186,10 +190,10 @@ export async function buildPagesStaticPaths({
 
           throw new TypeError(
             `A required parameter (${validParamKey}) was not provided as ${expectedType} in getStaticPaths for ${page}.\n` +
-            `Received: ${receivedType}${receivedValueDisplay}\n` +
-            `\nMake sure to provide the parameter as ${expectedType}. For example:\n` +
-            `  { params: { ${validParamKey}: ${repeat ? '["value1", "value2"]' : '"value"'} } }\n` +
-            `\nSee: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
+              `Received: ${receivedType}${receivedValueDisplay}\n` +
+              `\nMake sure to provide the parameter as ${expectedType}. For example:\n` +
+              `  { params: { ${validParamKey}: ${repeat ? '["value1", "value2"]' : '"value"'} } }\n` +
+              `\nSee: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
           )
         }
 
@@ -229,7 +233,8 @@ export async function buildPagesStaticPaths({
           params,
           pathname,
           encodedPathname: normalizePathname(
-            `${curLocale ? `/${curLocale}` : ''}${curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
+            `${curLocale ? `/${curLocale}` : ''}${
+              curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
             }`
           ),
           fallbackRouteParams: undefined,

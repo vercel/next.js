@@ -237,7 +237,7 @@ function runInvalidPagesTests(buildFn) {
 }
 
 describe('Dynamic Optional Routing', () => {
-  ; (process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {
       describe('rendering', () => {
@@ -263,34 +263,34 @@ describe('Dynamic Optional Routing', () => {
       })
     }
   )
-    ; (process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        beforeAll(async () => {
-          const curConfig = await fs.readFile(nextConfig, 'utf8')
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const curConfig = await fs.readFile(nextConfig, 'utf8')
 
-          if (curConfig.includes('target')) {
-            await fs.writeFile(nextConfig, `module.exports = {}`)
-          }
-          await nextBuild(appDir)
+        if (curConfig.includes('target')) {
+          await fs.writeFile(nextConfig, `module.exports = {}`)
+        }
+        await nextBuild(appDir)
 
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-        })
-        afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-        runTests()
+      runTests()
 
-        runInvalidPagesTests(async (appDir) => {
-          ; ({ stderr } = await nextBuild(appDir, [], { stderr: true }))
-        })
+      runInvalidPagesTests(async (appDir) => {
+        ;({ stderr } = await nextBuild(appDir, [], { stderr: true }))
+      })
 
-        it('should fail to build when param is not explicitly defined', async () => {
-          const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
-          try {
-            await fs.outputFile(
-              invalidRoute,
-              `
+      it('should fail to build when param is not explicitly defined', async () => {
+        const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
+        try {
+          await fs.outputFile(
+            invalidRoute,
+            `
             export async function getStaticPaths() {
               return {
                 paths: [
@@ -310,16 +310,54 @@ describe('Dynamic Optional Routing', () => {
               )
             }
           `,
-              'utf-8'
-            )
-            const { stderr } = await nextBuild(appDir, [], { stderr: true })
-            await expect(stderr).toMatch(
-              'A required parameter (slug) was not provided as an array of strings in getStaticPaths for /invalid/[[...slug]]'
-            )
-          } finally {
-            await fs.unlink(invalidRoute)
-          }
-        })
-      }
-    )
+            'utf-8'
+          )
+          const { stderr } = await nextBuild(appDir, [], { stderr: true })
+          expect(stderr).toContain(
+            'A required parameter (slug) was not provided as an array of strings in getStaticPaths for /invalid/[[...slug]].'
+          )
+          expect(stderr).toContain('Received: undefined')
+        } finally {
+          await fs.unlink(invalidRoute)
+        }
+      })
+
+      it('should fail to build when catch-all param array contains non-string values', async () => {
+        const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
+        try {
+          await fs.outputFile(
+            invalidRoute,
+            `
+            export async function getStaticPaths() {
+              return {
+                paths: [
+                  { params: { slug: [123] } },
+                ],
+                fallback: false,
+              }
+            }
+
+            export async function getStaticProps({ params }) {
+              return { props: { params } }
+            }
+
+            export default function Index(props) {
+              return (
+                <div>Invalid</div>
+              )
+            }
+          `,
+            'utf-8'
+          )
+          const { stderr } = await nextBuild(appDir, [], { stderr: true })
+          expect(stderr).toContain(
+            'A required parameter (slug) was not provided as an array of strings in getStaticPaths for /invalid/[[...slug]].'
+          )
+          expect(stderr).toContain('Received: an array ([123])')
+        } finally {
+          await fs.unlink(invalidRoute)
+        }
+      })
+    }
+  )
 })
