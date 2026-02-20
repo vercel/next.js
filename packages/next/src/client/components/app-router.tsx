@@ -31,7 +31,10 @@ import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-import { getSelectedParams } from './router-reducer/compute-changed-path'
+import {
+  extractSourcePageFromFlightRouterState,
+  getSelectedParams,
+} from './router-reducer/compute-changed-path'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
@@ -190,6 +193,16 @@ function Router({
       }
     }, [cache, tree])
   }
+
+  useEffect(() => {
+    const sourcePage = extractSourcePageFromFlightRouterState(state.tree)
+
+    if (sourcePage !== undefined) {
+      window.next.__internal_src_page = sourcePage
+    } else {
+      delete window.next.__internal_src_page
+    }
+  }, [state.tree])
 
   useEffect(() => {
     // If the app is restored from bfcache, it's possible that
@@ -362,7 +375,11 @@ function Router({
      */
     const onPopState = (event: PopStateEvent) => {
       if (!event.state) {
-        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+        // This case happens when pushState/replaceState was called outside
+        // of Next.js with a null state, or the initial history entry has no
+        // state. The router tree would be completely out of sync so we need
+        // to do a hard navigation to get back to a consistent state.
+        window.location.reload()
         return
       }
 

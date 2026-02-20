@@ -11,15 +11,16 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
+  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  delayUntilRuntimeStage,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
+  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
@@ -201,7 +202,9 @@ function makeUntrackedHeadersWithDevWarnings(
   requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
   if (requestStore.asyncApiPromises) {
-    const promise = requestStore.asyncApiPromises.headers
+    const promise = isInEarlyRenderStage(requestStore)
+      ? requestStore.asyncApiPromises.earlyHeaders
+      : requestStore.asyncApiPromises.headers
     return instrumentHeadersPromiseWithDevWarnings(promise, route)
   }
 

@@ -76,29 +76,32 @@ export function appBootstrap(hydrate: (assetPrefix: string) => void) {
       }
     }
 
-    // Instant Navigation Testing API: If the page was loaded with the instant
-    // test cookie set (from an MPA navigation while locked), skip hydration
-    // and set up a minimal testing API. Hydration would fail because the
-    // static shell response doesn't include the full Flight data stream.
-    // When unlock() is called, we clear the cookie and reload the page.
+    // Instant Navigation Testing API: If the server returned a partial static
+    // shell (indicated by the __next_instant_test global injected into the
+    // HTML), skip hydration. The response doesn't include the full Flight data
+    // stream. When the test framework deletes the cookie, the CookieStore
+    // change event triggers a page reload.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
-      const NEXT_INSTANT_TEST_COOKIE = 'next-instant-navigation-testing'
-      if (document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')) {
-        // Set up minimal testing API for the static shell
-        window.__EXPERIMENTAL_NEXT_TESTING__ = {
-          navigation: {
-            lock: () => {
-              console.error(
-                'Navigation lock already acquired. Concurrent locks are not allowed. ' +
-                  'Did you forget to release the previous lock?'
-              )
-            },
-            unlock: () => {
-              // Clear the cookie and reload to get the full page with dynamic data
-              document.cookie = `${NEXT_INSTANT_TEST_COOKIE}=;path=/;max-age=0`
-              window.location.reload()
-            },
-          },
+      if (self.__next_instant_test) {
+        const NEXT_INSTANT_TEST_COOKIE = 'next-instant-navigation-testing'
+        if (
+          typeof cookieStore !== 'undefined' &&
+          document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')
+        ) {
+          // Cookie is still set. Wait for the test framework to delete it,
+          // then reload to get the full response.
+          cookieStore.addEventListener('change', (event: CookieChangeEvent) => {
+            for (const cookie of event.deleted) {
+              if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
+                window.location.reload()
+                return
+              }
+            }
+          })
+        } else {
+          // Cookie is already gone (or not accessible). Refresh immediately
+          // to get the full response.
+          window.location.reload()
         }
         return
       }

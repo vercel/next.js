@@ -41,13 +41,17 @@ import {
   getConventionPathByType,
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
+import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
+import { RenderStage, type StagedRenderingController } from './staged-rendering'
 
 /**
  * Use the provided loader tree to create the React Component tree.
  */
+// TODO convert these arguments to non-object form. the entrypoint doesn't need most of them
 export function createComponentTree(props: {
   loaderTree: LoaderTree
   parentParams: Params
+  parentRuntimePrefetchable: false
   rootLayoutIncluded: boolean
   injectedCSS: Set<string>
   injectedJS: Set<string>
@@ -83,6 +87,7 @@ async function createComponentTreeInternal(
   {
     loaderTree: tree,
     parentParams,
+    parentRuntimePrefetchable,
     rootLayoutIncluded,
     injectedCSS,
     injectedJS,
@@ -95,6 +100,7 @@ async function createComponentTreeInternal(
   }: {
     loaderTree: LoaderTree
     parentParams: Params
+    parentRuntimePrefetchable: boolean
     rootLayoutIncluded: boolean
     injectedCSS: Set<string>
     injectedJS: Set<string>
@@ -223,6 +229,15 @@ async function createComponentTreeInternal(
         injectedJS: injectedJSWithCurrentLayout,
       })
     : []
+
+  const instantConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+    : undefined
+  const hasRuntimePrefetch =
+    instantConfig && typeof instantConfig === 'object'
+      ? instantConfig.prefetch === 'runtime'
+      : false
+  const isRuntimePrefetchable = hasRuntimePrefetch || parentRuntimePrefetchable
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
@@ -526,6 +541,7 @@ async function createComponentTreeInternal(
             {
               loaderTree: parallelRoute,
               parentParams: currentParams,
+              parentRuntimePrefetchable: isRuntimePrefetchable,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
               injectedJS: injectedJSWithCurrentLayout,
@@ -685,6 +701,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      isRuntimePrefetchable,
+
       // No user-provided component, so no params will be accessed. Use the
       // pre-resolved empty tracker.
       emptyVaryParamsAccumulator
@@ -724,6 +742,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
+      isRuntimePrefetchable,
+
       // force-dynamic postpones without rendering the component, so no params
       // are accessed. The vary params are empty.
       emptyVaryParamsAccumulator
@@ -790,7 +810,8 @@ async function createComponentTreeInternal(
       const params = createServerParamsForServerSegment(
         currentParams,
         workStore,
-        varyParamsAccumulator
+        varyParamsAccumulator,
+        isRuntimePrefetchable
       )
 
       // If we are passing searchParams to a server component Page we need to
@@ -799,7 +820,8 @@ async function createComponentTreeInternal(
       let searchParams = createServerSearchParamsForServerPage(
         query,
         workStore,
-        varyParamsAccumulator
+        varyParamsAccumulator,
+        isRuntimePrefetchable
       )
 
       if (isUseCacheFunction(PageComponent)) {
@@ -851,6 +873,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      isRuntimePrefetchable,
+
       varyParamsAccumulator
     )
   } else {
@@ -970,7 +994,8 @@ async function createComponentTreeInternal(
       const params = createServerParamsForServerSegment(
         currentParams,
         workStore,
-        varyParamsAccumulator
+        varyParamsAccumulator,
+        isRuntimePrefetchable
       )
 
       let serverSegment: React.ReactNode
@@ -1065,6 +1090,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      isRuntimePrefetchable,
+
       varyParamsAccumulator
     )
   }
@@ -1216,8 +1243,46 @@ function createSeedData(
   parallelRoutes: Record<string, CacheNodeSeedData | null>,
   loading: LoadingModuleData | null,
   isPossiblyPartialResponse: boolean,
+  isRuntimePrefetchable: boolean,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): CacheNodeSeedData {
+  const createElement = ctx.componentMod.createElement
+
+  // When this segment is NOT runtime-prefetchable, delay it until the Static
+  // stage by wrapping the node in a promise. This allows runtime-prefetchable
+  // segments (the lower tree) to render first during EarlyStatic, so their
+  // runtime data resolves in EarlyRuntime where sync IO can be checked.
+  // React will suspend on the thenable and resume when the stage advances.
+  if (!isRuntimePrefetchable) {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (workUnitStore) {
+      let stagedRendering: StagedRenderingController | null | undefined
+      switch (workUnitStore.type) {
+        case 'request':
+        case 'prerender-runtime':
+          stagedRendering = workUnitStore.stagedRendering
+          if (stagedRendering) {
+            const deferredRsc = rsc
+            rsc = stagedRendering
+              .waitForStage(RenderStage.Static)
+              .then(() => deferredRsc)
+          }
+          break
+        case 'prerender':
+        case 'prerender-client':
+        case 'validation-client':
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
+      }
+    }
+  }
+
   if (loading !== null) {
     // If a loading.tsx boundary is present, wrap the component data in an
     // additional context provider to pass the loading data to the next
@@ -1225,7 +1290,6 @@ function createSeedData(
     // NOTE: The reason this is a separate wrapper from LayoutRouter is because
     // not all segments render a LayoutRouter component, e.g. the root segment.
     const LoadingBoundaryProvider = ctx.componentMod.LoadingBoundaryProvider
-    const createElement = ctx.componentMod.createElement
     rsc = createElement(LoadingBoundaryProvider, {
       loading: loading,
       children: rsc,
