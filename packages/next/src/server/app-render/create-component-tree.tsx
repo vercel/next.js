@@ -784,8 +784,7 @@ async function createComponentTreeInternal(
       } else if (isStaticGeneration) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
-        const promiseOfSearchParams =
-          createPrerenderSearchParamsForClientPage(workStore)
+        const promiseOfSearchParams = createPrerenderSearchParamsForClientPage()
         pageElement = createElement(ClientPageRoot, {
           Component: PageComponent,
           serverProvidedParams: {
@@ -809,7 +808,6 @@ async function createComponentTreeInternal(
       // their usage in case the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
-        workStore,
         varyParamsAccumulator,
         isRuntimePrefetchable
       )
@@ -819,7 +817,6 @@ async function createComponentTreeInternal(
       // usage.
       let searchParams = createServerSearchParamsForServerPage(
         query,
-        workStore,
         varyParamsAccumulator,
         isRuntimePrefetchable
       )
@@ -993,7 +990,6 @@ async function createComponentTreeInternal(
     } else {
       const params = createServerParamsForServerSegment(
         currentParams,
-        workStore,
         varyParamsAccumulator,
         isRuntimePrefetchable
       )

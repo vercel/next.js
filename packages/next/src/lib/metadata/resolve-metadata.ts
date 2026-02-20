@@ -758,7 +758,7 @@ async function resolveMetadataItemsImpl(
     }
   }
 
-  const params = createServerParamsForMetadata(currentParams, workStore)
+  const params = createServerParamsForMetadata(currentParams)
   const props: SegmentProps = isPage ? { params, searchParams } : { params }
 
   await collectMetadata({
@@ -854,7 +854,7 @@ async function resolveViewportItemsImpl(
     }
   }
 
-  const params = createServerParamsForMetadata(currentParams, workStore)
+  const params = createServerParamsForMetadata(currentParams)
 
   let layerProps: LayoutProps | PageProps
   if (isPage) {

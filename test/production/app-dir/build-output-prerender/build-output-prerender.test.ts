@@ -225,7 +225,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at Page (webpack:///app/client/page.tsx:4:28)
-               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:74:12)
+               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:61:12)
              2 |
              3 | export default function Page() {
            > 4 |   return <p>Current time: {new Date().toISOString()}</p>

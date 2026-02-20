@@ -1,4 +1,7 @@
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import type { VaryParamsAccumulator } from '../app-render/vary-params'
 import {
   createVaryingSearchParams,
@@ -42,9 +45,12 @@ import { RenderStage } from '../app-render/staged-rendering'
 export type SearchParams = { [key: string]: string | string[] | undefined }
 
 export function createSearchParamsFromClient(
-  underlyingSearchParams: SearchParams,
-  workStore: WorkStore
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -86,13 +92,11 @@ export function createSearchParamsFromClient(
 // TODO: metadata should inherit the runtime prefetchability of the page segment
 const metadataIsRuntimePrefetchable = false
 export function createServerSearchParamsForMetadata(
-  underlyingSearchParams: SearchParams,
-  workStore: WorkStore
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
   return createServerSearchParamsForServerPage(
     underlyingSearchParams,
-    workStore,
     metadataVaryParamsAccumulator,
     metadataIsRuntimePrefetchable
   )
@@ -100,10 +104,13 @@ export function createServerSearchParamsForMetadata(
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  workStore: WorkStore,
   varyParamsAccumulator: VaryParamsAccumulator | null,
   isRuntimePrefetchable: boolean
 ): Promise<SearchParams> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -143,9 +150,11 @@ export function createServerSearchParamsForServerPage(
   throwInvariantForMissingStore()
 }
 
-export function createPrerenderSearchParamsForClientPage(
-  workStore: WorkStore
-): Promise<SearchParams> {
+export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
@@ -381,9 +390,11 @@ function makeErroringSearchParams(
  * error on access, because accessing searchParams inside of `"use cache"` is
  * not allowed.
  */
-export function makeErroringSearchParamsForUseCache(
-  workStore: WorkStore
-): Promise<SearchParams> {
+export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const cachedSearchParams = CachedSearchParamsForUseCache.get(workStore)
   if (cachedSearchParams) {
     return cachedSearchParams
