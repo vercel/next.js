@@ -144,9 +144,11 @@ export async function findNavigationsToValidate(
       // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
       const instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
+      const createInstantConfigStack: unknown = (layoutOrPageMod as any)
+        .__debugCreateInstantConfigStack
       const debugInstantStack: Error | null =
-        (layoutOrPageMod as any).__debugInstantStack instanceof Error
-          ? (layoutOrPageMod as any).__debugInstantStack
+        typeof createInstantConfigStack === 'function'
+          ? createInstantConfigStack()
           : null
       moduleInfo = {
         type: modType!,

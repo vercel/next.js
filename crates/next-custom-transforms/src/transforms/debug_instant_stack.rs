@@ -46,41 +46,24 @@ impl Fold for DebugInstantStack {
                 new_expr.span = source_span;
             }
 
-            // (function unstable_instant() { ... })()
-            // The stackTraceLimit mostly works around app-page
-            // sourcemapping being broken and thus
-            // not ignore-listing Next.js module evaluation frames.
-            // We'd still want to ignore-list the module evaluation frame of
-            // `const __debugInstantStack = ...`
-            // so that we can get rid of manually limiting the stackTraceLimit.
-            // This really is only fine because Next.js controls how the page is loaded.
             let mut cons = quote!(
-                "(function unstable_instant() {
-                    const previousStackTraceLimit = Error.stackTraceLimit
-                    Error.stackTraceLimit = 1
+                "function unstable_instant() {
                     const error = $new_error
-                    Error.stackTraceLimit = previousStackTraceLimit
                     error.name = 'Instant Validation'
                     return error
-                })()" as Expr,
+                }" as Expr,
                 new_error: Expr = new_error,
             );
 
-            // Patch source_span onto the inner Function
+            // Patch source_span onto the Function
             // for sourcemap mapping back to the unstable_instant config value
-            if let Expr::Call(call) = &mut cons {
-                if let Callee::Expr(e) = &mut call.callee {
-                    if let Expr::Paren(p) = e.as_mut() {
-                        if let Expr::Fn(f) = p.expr.as_mut() {
-                            f.function.span = source_span;
-                        }
-                    }
-                }
+            if let Expr::Fn(f) = &mut cons {
+                f.function.span = source_span;
             }
 
             let export = quote!(
-                "export const __debugInstantStack =
-                    process.env.NODE_ENV !== 'production' ? $cons : undefined"
+                "export const __debugCreateInstantConfigStack =
+                    process.env.NODE_ENV !== 'production' ? $cons : null"
                     as ModuleItem,
                 cons: Expr = cons,
             );
