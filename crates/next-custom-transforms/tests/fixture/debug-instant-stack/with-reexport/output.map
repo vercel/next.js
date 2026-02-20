@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["export { unstable_instant } from './config'\n\nexport default function Page() {\n  return <div>Hello</div>\n}\n"],"names":[],"mappings":"AAAA,SAAS,gBAAgB,QAAQ,WAAU;AAE3C,eAAe,SAAS;IACtB,QAAQ,IAAI,KAAK,EAAE;AACrB;uFAJS;kBAAA"}
