@@ -8,16 +8,23 @@ import process from 'node:process'
 const dir = dirname(fileURLToPath(import.meta.url))
 
 function getEnv(id, mode) {
+  const base = {
+    ...process.env,
+    DIST_DIR: id,
+    // Required so the build includes the __NEXT_HYDRATED callback used by
+    // webdriver() to detect hydration. Without this, the hydration check
+    // always times out and tests may interact with the page before the
+    // React app router is initialized.
+    __NEXT_TEST_MODE: 'e2e',
+  }
   if (mode === 'BUILD_ID') {
     return {
-      ...process.env,
-      DIST_DIR: id,
+      ...base,
       NEXT_PUBLIC_BUILD_ID: id,
     }
   } else if (mode === 'DEPLOYMENT_ID') {
     return {
-      ...process.env,
-      DIST_DIR: id,
+      ...base,
       NEXT_DEPLOYMENT_ID: id,
     }
   } else {
@@ -78,6 +85,18 @@ export async function start(
   // Create a proxy server. If search params include `deployment=2`, proxy to
   // to the second next server. Otherwise, proxy to the first.
   const proxy = httpProxy.createProxyServer()
+
+  // Simulate deployment skew for server action responses. When a POST
+  // (server action) is handled by deployment 1, inject a foreign
+  // x-nextjs-deployment-id header so the client detects a build ID
+  // mismatch and triggers an MPA navigation. This simulates the real-world
+  // scenario where a CDN/load balancer adds skew protection headers.
+  proxy.on('proxyRes', (proxyRes, req) => {
+    if (req.method === 'POST') {
+      proxyRes.headers['x-nextjs-deployment-id'] = 'foreign-deployment'
+    }
+  })
+
   const server = createServer((req, res) => {
     let port = nextPort1
     if (req.url) {

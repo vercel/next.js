@@ -165,14 +165,19 @@ function runTests(getPort: () => number) {
       const heading = await browser.elementById('action-page')
       expect(await heading.text()).toBe('Action Redirect Page')
 
-      // Click the button that triggers the server action redirect
+      // Click the button that triggers the server action redirect.
+      // The proxy intercepts the server action response and injects a
+      // foreign x-nextjs-deployment-id header, simulating a deployment
+      // skew scenario where the server response comes from a different
+      // deployment than the client.
       const button = await browser.elementById('redirect-action-button')
       await button.click()
 
       // Wait for the navigation to complete.
-      // The redirect target is served by deployment 2, which has a different
-      // build ID. The client should detect the build ID mismatch and perform
-      // an MPA navigation (full page load) instead of a client-side transition.
+      // The client detects the deployment ID mismatch in the response
+      // header and discards the flight data, triggering an MPA navigation
+      // (full page load) to the redirect target. The redirect URL
+      // (/dynamic-page?deployment=2) goes through the proxy to deployment 2.
       const buildId = await browser.waitForElementByCss('#build-id', 30000)
       expect(await buildId.text()).toBe('Build ID: 2')
     },
