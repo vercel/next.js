@@ -1,6 +1,6 @@
 import React, { Suspense, cache } from 'react'
 import type { ParsedUrlQuery } from 'querystring'
-import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import type { Params } from '../../server/request/params'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { SearchParams } from '../../server/request/search-params'
 import {
@@ -38,7 +38,7 @@ export function createMetadataComponents({
   pathname,
   parsedQuery,
   metadataContext,
-  getDynamicParamFromSegment,
+  interpolatedParams,
   errorType,
   serveStreamingMetadata,
 }: {
@@ -46,7 +46,7 @@ export function createMetadataComponents({
   pathname: string
   parsedQuery: SearchParams
   metadataContext: MetadataContext
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
+  interpolatedParams: Params
   errorType?: MetadataErrorType | 'redirect'
   serveStreamingMetadata: boolean
 }): {
@@ -61,7 +61,7 @@ export function createMetadataComponents({
     const tags = await getResolvedViewport(
       tree,
       searchParams,
-      getDynamicParamFromSegment,
+      interpolatedParams,
       errorType
     ).catch((viewportErr) => {
       // When Legacy PPR is enabled viewport can reject with a Postpone type
@@ -74,7 +74,7 @@ export function createMetadataComponents({
         return getNotFoundViewport(
           tree,
           searchParams,
-          getDynamicParamFromSegment
+          interpolatedParams
         ).catch(() => null)
       }
       // We're going to throw the error from the metadata outlet so we just render null here instead
@@ -98,7 +98,7 @@ export function createMetadataComponents({
       tree,
       pathnameForMetadata,
       searchParams,
-      getDynamicParamFromSegment,
+      interpolatedParams,
       metadataContext,
       errorType
     ).catch((metadataErr) => {
@@ -113,7 +113,7 @@ export function createMetadataComponents({
           tree,
           pathnameForMetadata,
           searchParams,
-          getDynamicParamFromSegment,
+          interpolatedParams,
           metadataContext
         ).catch(() => null)
       }
@@ -153,16 +153,11 @@ export function createMetadataComponents({
         tree,
         pathnameForMetadata,
         searchParams,
-        getDynamicParamFromSegment,
+        interpolatedParams,
         metadataContext,
         errorType
       ),
-      getResolvedViewport(
-        tree,
-        searchParams,
-        getDynamicParamFromSegment,
-        errorType
-      ),
+      getResolvedViewport(tree, searchParams, interpolatedParams, errorType),
     ]).then(() => null)
 
     // TODO: We shouldn't change what we render based on whether we are streaming or not.
@@ -191,7 +186,7 @@ async function getResolvedMetadataImpl(
   tree: LoaderTree,
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  interpolatedParams: Params,
   metadataContext: MetadataContext,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
@@ -200,7 +195,7 @@ async function getResolvedMetadataImpl(
     tree,
     pathname,
     searchParams,
-    getDynamicParamFromSegment,
+    interpolatedParams,
     metadataContext,
     errorConvention
   )
@@ -211,7 +206,7 @@ async function getNotFoundMetadataImpl(
   tree: LoaderTree,
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  interpolatedParams: Params,
   metadataContext: MetadataContext
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
@@ -219,7 +214,7 @@ async function getNotFoundMetadataImpl(
     tree,
     pathname,
     searchParams,
-    getDynamicParamFromSegment,
+    interpolatedParams,
     metadataContext,
     notFoundErrorConvention
   )
@@ -229,29 +224,24 @@ const getResolvedViewport = cache(getResolvedViewportImpl)
 async function getResolvedViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  interpolatedParams: Params,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-  return renderViewport(
-    tree,
-    searchParams,
-    getDynamicParamFromSegment,
-    errorConvention
-  )
+  return renderViewport(tree, searchParams, interpolatedParams, errorConvention)
 }
 
 const getNotFoundViewport = cache(getNotFoundViewportImpl)
 async function getNotFoundViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
+  interpolatedParams: Params
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
   return renderViewport(
     tree,
     searchParams,
-    getDynamicParamFromSegment,
+    interpolatedParams,
     notFoundErrorConvention
   )
 }
@@ -260,7 +250,7 @@ async function renderMetadata(
   tree: LoaderTree,
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  interpolatedParams: Params,
   metadataContext: MetadataContext,
   errorConvention?: MetadataErrorType
 ) {
@@ -269,7 +259,7 @@ async function renderMetadata(
     pathname,
     searchParams,
     errorConvention,
-    getDynamicParamFromSegment,
+    interpolatedParams,
     metadataContext
   )
   return <>{createMetadataElements(resolvedMetadata)}</>
@@ -278,14 +268,14 @@ async function renderMetadata(
 async function renderViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  interpolatedParams: Params,
   errorConvention?: MetadataErrorType
 ) {
   const resolvedViewport = await resolveViewport(
     tree,
     searchParams,
     errorConvention,
-    getDynamicParamFromSegment
+    interpolatedParams
   )
   return <>{createViewportElements(resolvedViewport)}</>
 }
