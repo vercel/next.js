@@ -2,7 +2,7 @@ use std::num::NonZeroU16;
 
 use anyhow::Error;
 use once_cell::sync::Lazy;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::{
     TraitType, ValueType,
@@ -68,17 +68,20 @@ impl<T: RegistryItem> Registry<T> {
         items.sort_unstable_by_key(|item| item.global_name());
 
         let mut item_to_id = FxHashMap::with_capacity_and_hasher(items.len(), Default::default());
-        let mut names = FxHashSet::with_capacity_and_hasher(items.len(), Default::default());
 
         let mut id = NonZeroU16::MIN;
+        let mut prev_name: Option<&str> = None;
         for &item in items.iter() {
-            item_to_id.insert(item, id.into());
             let global_name = item.global_name();
-            assert!(
-                names.insert(global_name),
-                "multiple {ty} items registered with name: {global_name}!",
-                ty = T::TYPE_NAME
-            );
+            if let Some(prev) = prev_name {
+                assert!(
+                    prev != global_name,
+                    "multiple {ty} items registered with name: {global_name}!",
+                    ty = T::TYPE_NAME
+                );
+            }
+            prev_name = Some(global_name);
+            item_to_id.insert(item, id.into());
             id = id.checked_add(1).expect("overflowing item ids");
         }
 

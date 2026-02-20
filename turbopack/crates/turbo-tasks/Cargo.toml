@@ -13,6 +13,7 @@ default = []
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
 task_id_details = []
+verify_determinism = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.
@@ -44,7 +45,6 @@ serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "smallvec", "nightly"] }
 smallvec = { workspace = true }
-thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }

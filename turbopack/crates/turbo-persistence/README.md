@@ -23,13 +23,28 @@ There are four different file types:
 - Delete files (`*.del`): These files contain a list of sequence numbers of files that should be considered as deleted.
 - Meta files (`*.meta`): These files contain metadata about the SST files. They contains the hash range and a AMQF for quick filtering.
 
-Therefore there are there value types:
+Therefore there are these value types:
 
-- INLINE: Small values that are stored directly in the `*.sst` files.
-- BLOB: Large values that are stored in `*.blob` files.
+- INLINE: Values ≤ 8 bytes stored directly in key blocks within `*.sst` files.
+- SMALL: Values 9–4096 bytes packed into shared value blocks within `*.sst` files.
+- MEDIUM: Values 4097 bytes – 64 MB stored in dedicated value blocks within `*.sst` files.
+- BLOB: Values > 64 MB stored in separate `*.blob` files.
 - DELETED: Values that are deleted. (Tombstone)
 - Future:
   - MERGE: An application specific update operation that is applied on the old value.
+
+### Value type trade-offs
+
+|                       | Inline            | Small                                           | Medium                                | Blob                                      |
+| --------------------- | ----------------- | ----------------------------------------------- | ------------------------------------- | ----------------------------------------- |
+| Size                  | ≤ 8 B             | 9 B .. 4 kB                                     | 4 kB .. 64 MB                         | > 64 MB                                   |
+| Compression unit      | key block         | shared value block (≥ 8 kB)                     | dedicated value block                 | separate file                             |
+| Compression unit size | ≤ 16 kB           | 8 kB .. 12 kB                                   | 4 kB .. 64 MB                         | > 64 MB                                   |
+| Access cost           | no extra overhead | decompress shared block (~8 kB)                 | decompress value size                 | open separate file, decompress value size |
+| Storage overhead      | 0                 | 8 B in key block + 8 B per ~8 kB in block table | 2 B in key block + 8 B in block table | 4 B in key block + 4 B in blob header     |
+| Compaction            | re-compressed     | re-compressed                                   | copied compressed                     | pointer copied                            |
+
+Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BLOCK_SIZE` (8 kB) of data. This means actual block sizes range from 8 kB up to 8 kB + `MAX_SMALL_VALUE_SIZE` (4 kB) = 12 kB. This provides a good balance between compression efficiency (blocks ≥ 4 kB don't need a compression dictionary) and access cost (only ~8–12 kB needs to be decompressed per lookup).
 
 ### Meta file
 
@@ -90,7 +105,7 @@ The hashes are sorted.
 - foreach entry
   - 1 byte type
   - 3 bytes position in block after header
-- Max block size: 16 MB
+- Max block size: 16 KB
 
 A Key block contains n keys, which specify n key value pairs.
 
@@ -125,12 +140,15 @@ Depending on the `type` field entry has a different format:
   - 2 byte block index
   - 3 bytes size
   - 4 bytes position in block
-- 8..255: inlined key (future)
+- 8..255: inlined value (currently only values ≤8 bytes are inlined, though the format supports up to 247)
   - 8 bytes key hash (if block type 1)
   - key data
-  - type - 8 bytes value data
+  - (type - 8) bytes value data (inline, no separate value block)
 
 The entries are sorted by key hash and key.
+
+Future:
+ * Some tables have fixed sized keys with consistent values (4 byte task ids).  We could optimize key block representation in this case by skipping offset tables.
 
 #### Value Block
 
@@ -155,6 +173,7 @@ Reading start from the current sequence number and goes downwards.
       - not found -> break
     - Key Block: find key by binary search
       - found -> lookup value from value block, return
+          - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
 
 ## Writing
@@ -179,7 +198,7 @@ Compaction chooses a few SST files and runs the merge step of merge sort on tham
 
 Example:
 
-``` text
+```text
 key hash range: | 0    ...    u64::MAX |
 SST 1:             |----------------|
 SST 2:                |----------------|
@@ -188,7 +207,7 @@ SST 3:            |-----|
 
 can be compacted into:
 
-``` text
+```text
 key hash range: | 0    ...    u64::MAX |
 SST 1':           |-------|
 SST 2':                   |------|
@@ -216,7 +235,7 @@ Full example:
 
 Example:
 
-``` text
+```text
 key hash range: | 0    ...    u64::MAX | Family
 SST 1:             |-|                   1
 SST 2:             |----------------|    1
@@ -244,7 +263,7 @@ Then we delete SST files 2, 3, 6 and 4, 5, 8 and 7, 9. The
 
 SST files 1 stays unchanged.
 
-``` text
+```text
 key hash range: | 0    ...    u64::MAX | Family
 SST 1:             |-|                   1
 SST 10:            |-----|               1

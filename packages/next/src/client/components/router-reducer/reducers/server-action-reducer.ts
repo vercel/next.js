@@ -73,10 +73,7 @@ let createDebugChannel:
   | typeof import('../../../dev/debug-channel').createDebugChannel
   | undefined
 
-if (
-  process.env.NODE_ENV !== 'production' &&
-  process.env.__NEXT_REACT_DEBUG_CHANNEL
-) {
+if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REACT_DEBUG_CHANNEL) {
   createDebugChannel = (
     require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
   ).createDebugChannel
@@ -103,13 +100,7 @@ async function fetchServerAction(
 ): Promise<FetchServerActionResult> {
   const temporaryReferences = createTemporaryReferenceSet()
   const info = extractInfoFromServerReferenceId(actionId)
-
-  // TODO: Currently, we're only omitting unused args for the experimental "use
-  // cache" functions. Once the server reference info byte feature is stable, we
-  // should apply this to server actions as well.
-  const usedArgs =
-    info.type === 'use-cache' ? omitUnusedArgs(actionArgs, info) : actionArgs
-
+  const usedArgs = omitUnusedArgs(actionArgs, info)
   const body = await encodeReply(usedArgs, { temporaryReferences })
 
   const headers: Record<string, string> = {
@@ -129,7 +120,7 @@ async function fetchServerAction(
     headers[NEXT_URL] = nextUrl
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     if (self.__next_r) {
       headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
     }

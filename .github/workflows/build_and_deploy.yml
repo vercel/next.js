@@ -3,9 +3,9 @@ name: build-and-deploy
 
 on:
   push:
-    # Don't run when tags are pushed
-    branches:
-      - '**'
+    # Don't run when tags or graphite base branches are pushed
+    branches-ignore:
+      - 'graphite-base/**'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]

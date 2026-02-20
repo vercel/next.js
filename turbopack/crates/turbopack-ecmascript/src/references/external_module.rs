@@ -8,7 +8,7 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, ro
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     ident::{AssetIdent, Layer},
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -30,8 +30,8 @@ use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 use crate::{
     EcmascriptModuleContent,
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
     },
     references::async_module::{AsyncModule, OptionAsyncModule},
     runtime_functions::{
@@ -323,7 +323,15 @@ impl Module for CachedExternalModule {
                 let references = external_result
                     .affecting_sources
                     .iter()
-                    .map(|s| Vc::upcast::<Box<dyn Module>>(RawModule::new(**s)))
+                    .map(|s| {
+                        // Add a modifier
+                        // it is possible to reference a module as an affecting source and as Module
+                        // so this will distinguish them
+                        Vc::upcast::<Box<dyn Module>>(RawModule::new_with_modifier(
+                            **s,
+                            rcstr!("affecting source"),
+                        ))
+                    })
                     .chain(
                         external_result
                             .primary_modules_raw_iter()
@@ -367,16 +375,10 @@ impl ChunkableModule for CachedExternalModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn ChunkItem>> {
-        Vc::upcast(
-            CachedExternalModuleChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        )
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -410,25 +412,34 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
             },
         )
     }
-}
 
-#[turbo_tasks::value]
-pub struct CachedExternalModuleChunkItem {
-    module: ResolvedVc<CachedExternalModule>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let module = self.module.await?;
+    fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Vc<EcmascriptChunkItemContent> {
+        let async_module_options = self.get_async_module().module_options(async_module_info);
+
+        EcmascriptChunkItemContent::new(self.content(), chunking_context, async_module_options)
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_output_assets(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let module = self.await?;
+        let chunking_context_resolved = chunking_context.to_resolved().await?;
         let assets = if let Some(target) = &module.target {
             ResolvedVc::cell(vec![ResolvedVc::upcast(
                 ExternalsSymlinkAsset::new(
-                    *self.chunking_context,
+                    *chunking_context_resolved,
                     hashed_package_name(target).into(),
-                    module.target.clone().unwrap(),
+                    target.clone(),
                 )
                 .to_resolved()
                 .await?,
@@ -442,55 +453,6 @@ impl OutputAssetsReference for CachedExternalModuleChunkItem {
             references: OutputAssetsReferences::empty_resolved(),
         }
         .cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for CachedExternalModuleChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn ty(self: Vc<Self>) -> Vc<Box<dyn ChunkType>> {
-        Vc::upcast(Vc::<EcmascriptChunkType>::default())
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(*self.module)
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
-        panic!("content() should not be called");
-    }
-
-    #[turbo_tasks::function]
-    fn content_with_async_module_info(
-        &self,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-        _estimated: bool,
-    ) -> Vc<EcmascriptChunkItemContent> {
-        let async_module_options = self
-            .module
-            .get_async_module()
-            .module_options(async_module_info);
-
-        EcmascriptChunkItemContent::new(
-            self.module.content(),
-            *self.chunking_context,
-            async_module_options,
-        )
     }
 }
 

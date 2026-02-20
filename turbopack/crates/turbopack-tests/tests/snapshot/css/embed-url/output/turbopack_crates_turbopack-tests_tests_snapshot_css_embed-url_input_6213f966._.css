@@ -12,4 +12,10 @@
   list-style-image: url("../static/image.0ccdd6e3.png");
 }
 
+.style-unresolveable {
+  cursor: url("./missing1.png");
+  background-image: url("missing3.png");
+  list-style-image: url("missing2.png");
+}
+
 /*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_6213f966._.css.map*/

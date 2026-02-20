@@ -57,7 +57,7 @@ describe('build trace with extra entries', () => {
         ]
 
         // Skip hello.json check for Turbopack as it doesn't support webpack entry modifications
-        if (!process.env.TURBOPACK_BUILD) {
+        if (!process.env.IS_TURBOPACK_TEST) {
           expect(tracedFiles.some((file) => file.endsWith('hello.json'))).toBe(
             true
           )

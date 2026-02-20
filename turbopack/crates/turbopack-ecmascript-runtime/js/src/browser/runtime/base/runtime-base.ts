@@ -9,7 +9,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../base/globals.d.ts" />
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../shared/runtime/runtime-utils.ts" />
 
 // Used in WebWorkers to tell the runtime about the chunk suffix
 declare var TURBOPACK_ASSET_SUFFIX: string
@@ -58,27 +58,6 @@ type ChunkList = {
   source: 'entry' | 'dynamic'
 }
 
-enum SourceType {
-  /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */
-  Runtime = 0,
-  /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */
-  Parent = 1,
-  /**
-   * The module was instantiated because it was included in a chunk's hot module
-   * update.
-   * SourceData is an array of ModuleIds or undefined.
-   */
-  Update = 2,
-}
-
-type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
 interface RuntimeBackend {
   registerChunk: (
     chunkPath: ChunkPath | ChunkScript,
@@ -115,31 +94,6 @@ contextPrototype.M = moduleFactories
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
-
-function factoryNotAvailableMessage(
-  moduleId: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): string {
-  let instantiationReason
-  switch (sourceType) {
-    case SourceType.Runtime:
-      instantiationReason = `as a runtime entry of chunk ${sourceData}`
-      break
-    case SourceType.Parent:
-      instantiationReason = `because it was required from module ${sourceData}`
-      break
-    case SourceType.Update:
-      instantiationReason = 'because of an HMR update'
-      break
-    default:
-      invariant(
-        sourceType,
-        (sourceType) => `Unknown source type: ${sourceType}`
-      )
-  }
-  return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
-}
 
 function loadChunk(
   this: TurbopackBrowserBaseContext<Module>,

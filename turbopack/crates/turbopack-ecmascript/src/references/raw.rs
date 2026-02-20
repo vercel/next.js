@@ -1,10 +1,10 @@
 use anyhow::{Result, bail};
 use tracing::Instrument;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingType, ChunkingTypeOption},
     file_source::FileSource,
     issue::IssueSource,
     raw_module::RawModule,
@@ -19,7 +19,8 @@ use turbopack_core::{
 use crate::references::util::check_and_emit_too_many_matches_warning;
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("raw asset {path}")]
 pub struct FileSourceReference {
     context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,
@@ -76,27 +77,16 @@ impl ModuleReference for FileSourceReference {
         .instrument(span)
         .await
     }
-}
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for FileSourceReference {
+
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Traced))
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for FileSourceReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("raw asset {}", self.path.to_string().await?,).into(),
-        ))
-    }
-}
-
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("directory assets {path}")]
 pub struct DirAssetReference {
     context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,
@@ -216,22 +206,9 @@ impl ModuleReference for DirAssetReference {
         .instrument(span)
         .await
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for DirAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Traced))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for DirAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("directory assets {}", self.path.to_string().await?,).into(),
-        ))
     }
 }

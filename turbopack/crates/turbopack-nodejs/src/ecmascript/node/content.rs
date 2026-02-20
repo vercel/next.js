@@ -7,11 +7,14 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
-    version::{Version, VersionedContent},
+    version::{Update, Version, VersionedContent},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
 
-use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
+use super::{
+    chunk::EcmascriptBuildNodeChunk, update::update_node_chunk,
+    version::EcmascriptBuildNodeChunkVersion,
+};
 use crate::NodeJsChunkingContext;
 
 #[turbo_tasks::value]
@@ -113,5 +116,13 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
         Vc::upcast(self.own_version())
+    }
+
+    #[turbo_tasks::function]
+    async fn update(
+        self: Vc<Self>,
+        from_version: ResolvedVc<Box<dyn Version>>,
+    ) -> Result<Vc<Update>> {
+        Ok(update_node_chunk(self, from_version).await?.cell())
     }
 }

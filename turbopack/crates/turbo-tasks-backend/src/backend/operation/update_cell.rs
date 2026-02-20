@@ -4,9 +4,10 @@ use bincode::{Decode, Encode};
 use once_cell::unsync::Lazy;
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
-#[cfg(not(feature = "verify_determinism"))]
-use turbo_tasks::backend::VerificationMode;
-use turbo_tasks::{CellId, FxIndexMap, TaskId, TypedSharedReference, backend::CellContent};
+use turbo_tasks::{
+    CellId, FxIndexMap, TaskId, TypedSharedReference,
+    backend::{CellContent, VerificationMode},
+};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -80,11 +81,14 @@ impl UpdateCellOperation {
 
                 // Check if this assumption holds.
                 #[cfg(feature = "verify_determinism")]
-                if !is_stateful
-                    && matches!(verification_mode, VerificationMode::EqualityCheck)
+                if !task.stateful()
+                    && matches!(
+                        verification_mode,
+                        turbo_tasks::backend::VerificationMode::EqualityCheck
+                    )
                     && content != task.get_cell_data(is_serializable_cell_content, cell)
                 {
-                    let task_description = ctx.get_task_description(task_id);
+                    let task_description = task.get_task_description();
                     let cell_type = turbo_tasks::registry::get_value_type(cell.type_id).global_name;
                     eprintln!(
                         "Task {} updated cell #{} (type: {}) while recomputing",

@@ -10,6 +10,7 @@ use next_core::{
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
+    next_app::{AppPage, AppPath},
     next_client::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
@@ -57,8 +58,8 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
-        StyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage,
+        OptionStyledString, StyledString,
     },
     module::Module,
     module_graph::{
@@ -166,6 +167,51 @@ pub struct DebugBuildPaths {
     pub pages: Vec<RcStr>,
 }
 
+/// Target for HMR operations - client-side (browser) or server-side (Node.js).
+#[derive(
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub enum HmrTarget {
+    #[default]
+    Client,
+    Server,
+}
+
+impl std::fmt::Display for HmrTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HmrTarget::Client => write!(f, "client"),
+            HmrTarget::Server => write!(f, "server"),
+        }
+    }
+}
+
+impl std::str::FromStr for HmrTarget {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "client" => Ok(HmrTarget::Client),
+            "server" => Ok(HmrTarget::Server),
+            _ => Err(format!(
+                "Invalid HMR target: '{}'. Expected 'client' or 'server'",
+                s
+            )),
+        }
+    }
+}
+
 /// Pre-converted route keys from debug build paths for O(1) lookups.
 struct DebugBuildPathsRouteKeys {
     app: FxHashSet<RcStr>,
@@ -173,37 +219,70 @@ struct DebugBuildPathsRouteKeys {
 }
 
 impl DebugBuildPathsRouteKeys {
-    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Self {
-        Self {
+    fn app_route_key_from_debug_path(path: &str) -> Result<RcStr> {
+        let mut segments = path
+            .trim_start_matches('/')
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect::<Vec<_>>();
+
+        if let Some(last_segment) = segments.last()
+            && (*last_segment == "page"
+                || last_segment.starts_with("page.")
+                || *last_segment == "route"
+                || last_segment.starts_with("route."))
+        {
+            segments.pop();
+        }
+
+        let normalized_path = segments.join("/");
+        Ok(AppPath::from(AppPage::parse(&normalized_path)?)
+            .to_string()
+            .into())
+    }
+
+    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
+        Ok(Self {
             app: paths
                 .app
                 .iter()
-                .map(|path| {
-                    // App router: "/blog/[slug]/page.tsx" -> "/blog/[slug]"
-                    if let Some(last_slash_idx) = path.rfind('/') {
-                        if last_slash_idx == 0 {
-                            "/".into() // Root: "/page.tsx" -> "/"
-                        } else {
-                            path[..last_slash_idx].into()
-                        }
-                    } else {
-                        path.clone()
-                    }
-                })
-                .collect(),
+                .map(|path| Self::app_route_key_from_debug_path(path))
+                .collect::<Result<FxHashSet<_>>>()?,
             pages: paths
                 .pages
                 .iter()
                 .map(|path| {
                     // Pages router: "/foo.tsx" -> "/foo"
-                    if let Some(dot_idx) = path.rfind('.') {
-                        path[..dot_idx].into()
-                    } else {
-                        path.clone()
+                    // Catch-all routes like "/foo/[...slug]" contain dots in the segment name;
+                    // only treat the suffix as an extension when it is a plain alphanumeric token.
+                    let file_name = path.rsplit('/').next().unwrap_or(path);
+                    if let Some(dot_idx) = file_name.rfind('.') {
+                        let ext = &file_name[dot_idx + 1..];
+                        if !ext.is_empty() && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+                            let trimmed_len = path.len() - (file_name.len() - dot_idx);
+                            return path[..trimmed_len].into();
+                        }
                     }
+                    path.clone()
                 })
                 .collect(),
+        })
+    }
+
+    fn should_include_app_route(&self, route_key: &RcStr) -> bool {
+        // Special app router framework routes
+        if matches!(route_key.as_str(), "/_not-found" | "/_global-error") {
+            return true;
         }
+        self.app.contains(route_key)
+    }
+
+    fn should_include_pages_route(&self, route_key: &RcStr) -> bool {
+        // Special pages router framework routes
+        if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
+            return true;
+        }
+        self.pages.contains(route_key)
     }
 }
 
@@ -276,10 +355,14 @@ pub struct ProjectOptions {
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
 
+    /// App-router page routes that should be built after non-deferred routes.
+    pub deferred_entries: Option<Vec<RcStr>>,
+
     /// Whether to enable persistent caching
     pub is_persistent_caching_enabled: bool,
 }
 
+#[derive(Default)]
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
@@ -479,24 +562,6 @@ fn define_env_diff_report(old: &DefineEnv, new: &DefineEnv) -> String {
     report
 }
 
-/// Checks if an app router route should be included based on pre-converted route keys.
-fn should_include_app_route(route_key: &RcStr, route_keys: &FxHashSet<RcStr>) -> bool {
-    // Special app router framework routes
-    if matches!(route_key.as_str(), "/_not-found" | "/_global-error") {
-        return true;
-    }
-    route_keys.contains(route_key)
-}
-
-/// Checks if a pages router route should be included based on pre-converted route keys.
-fn should_include_pages_route(route_key: &RcStr, route_keys: &FxHashSet<RcStr>) -> bool {
-    // Special pages router framework routes
-    if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
-        return true;
-    }
-    route_keys.contains(route_key)
-}
-
 impl ProjectContainer {
     pub async fn initialize(self: ResolvedVc<Self>, options: ProjectOptions) -> Result<()> {
         let span = tracing::info_span!(
@@ -680,6 +745,7 @@ impl ProjectContainer {
         let write_routes_hashes_manifest;
         let current_node_js_version;
         let debug_build_paths;
+        let deferred_entries;
         let is_persistent_caching_enabled;
         {
             let options = self.options_state.get();
@@ -706,6 +772,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
             debug_build_paths = options.debug_build_paths.clone();
+            deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
         }
 
@@ -734,6 +801,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest,
             current_node_js_version,
             debug_build_paths,
+            deferred_entries,
             is_persistent_caching_enabled,
         }
         .cell())
@@ -745,10 +813,10 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
-    /// See [Project::hmr_identifiers].
+    /// See [Project::hmr_chunk_names].
     #[turbo_tasks::function]
-    pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<RcStr>> {
-        self.project().hmr_identifiers()
+    pub fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Vc<Vec<RcStr>> {
+        self.project().hmr_chunk_names(target)
     }
 
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
@@ -829,6 +897,9 @@ pub struct Project {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     debug_build_paths: Option<DebugBuildPaths>,
+
+    /// App-router page routes that should be built after non-deferred routes.
+    deferred_entries: Vec<RcStr>,
 
     /// Whether to enable persistent caching
     is_persistent_caching_enabled: bool,
@@ -1041,6 +1112,16 @@ impl Project {
         *self.next_config
     }
 
+    /// Build the `IssueFilter` for this project, incorporating any
+    /// `turbopack.ignoreIssue` rules from the Next.js config.
+    #[turbo_tasks::function]
+    pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
+        let ignore_rules = self.next_config().turbopack_ignore_issue_rules().await?;
+        Ok(IssueFilter::warnings_and_foreign_errors()
+            .with_ignore_rules(ignore_rules.to_vec())
+            .cell())
+    }
+
     #[turbo_tasks::function]
     pub(super) fn is_persistent_caching_enabled(&self) -> Vc<bool> {
         Vc::cell(self.is_persistent_caching_enabled)
@@ -1059,6 +1140,11 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn should_write_routes_hashes_manifest(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.write_routes_hashes_manifest))
+    }
+
+    #[turbo_tasks::function]
+    pub fn deferred_entries(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.deferred_entries.clone())
     }
 
     #[turbo_tasks::function]
@@ -1124,9 +1210,20 @@ impl Project {
         self: Vc<Self>,
         app_dir_only: bool,
     ) -> Result<Vc<EndpointGroups>> {
+        Ok(self.get_all_endpoint_groups_with_app_route_filter(app_dir_only, None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_all_endpoint_groups_with_app_route_filter(
+        self: Vc<Self>,
+        app_dir_only: bool,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<Vc<EndpointGroups>> {
         let mut endpoint_groups = Vec::new();
 
-        let entrypoints = self.entrypoints().await?;
+        let entrypoints = self
+            .entrypoints_with_app_route_filter(app_route_filter)
+            .await?;
         let mut add_pages_entries = false;
 
         if let Some(middleware) = &entrypoints.middleware {
@@ -1385,6 +1482,7 @@ impl Project {
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1404,6 +1502,7 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), true),
             debug_ids: self.next_config().turbopack_debug_ids(),
             should_use_absolute_url_references: self.next_config().inline_css(),
+            css_url_suffix,
         }))
     }
 
@@ -1412,6 +1511,7 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
         let options = ServerChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1431,6 +1531,7 @@ impl Project {
             debug_ids: self.next_config().turbopack_debug_ids(),
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
+            css_url_suffix,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1444,6 +1545,7 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
         let options = EdgeChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1462,6 +1564,7 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), false),
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
+            css_url_suffix,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
@@ -1563,6 +1666,14 @@ impl Project {
     /// provided page_extensions).
     #[turbo_tasks::function]
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
+        Ok(self.entrypoints_with_app_route_filter(None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn entrypoints_with_app_route_filter(
+        self: Vc<Self>,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<Vc<Entrypoints>> {
         self.collect_project_feature_telemetry().await?;
 
         let this = self.await?;
@@ -1574,10 +1685,11 @@ impl Project {
         let debug_build_paths_route_keys = this
             .debug_build_paths
             .as_ref()
-            .map(DebugBuildPathsRouteKeys::from_debug_build_paths);
+            .map(DebugBuildPathsRouteKeys::from_debug_build_paths)
+            .transpose()?;
 
         if let Some(app_project) = &*app_project.await? {
-            let app_routes = app_project.routes();
+            let app_routes = app_project.routes_with_filter(app_route_filter);
             routes.extend(
                 app_routes
                     .await?
@@ -1585,17 +1697,20 @@ impl Project {
                     .filter(|(k, _)| {
                         debug_build_paths_route_keys
                             .as_ref()
-                            .is_none_or(|keys| should_include_app_route(k, &keys.app))
+                            .is_none_or(|keys| keys.should_include_app_route(k))
                     })
                     .map(|(k, v)| (k.clone(), v.clone())),
             );
         }
 
-        for (pathname, page_route) in pages_project.routes().await?.iter().filter(|(k, _)| {
-            debug_build_paths_route_keys
+        for (pathname, page_route) in &pages_project.routes().await? {
+            if debug_build_paths_route_keys
                 .as_ref()
-                .is_none_or(|keys| should_include_pages_route(k, &keys.pages))
-        }) {
+                .is_some_and(|keys| !keys.should_include_pages_route(pathname))
+            {
+                continue;
+            }
+
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
                     ConflictIssue {
@@ -1800,7 +1915,7 @@ impl Project {
     async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new()));
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -1984,7 +2099,7 @@ impl Project {
     ) -> Result<Vc<Box<dyn Endpoint>>> {
         let instrumentation = self.find_instrumentation();
         let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new()));
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -2050,19 +2165,39 @@ impl Project {
         .await
     }
 
+    /// Returns the root path for HMR content based on the target.
+    /// Client uses client_relative_path, Server uses node_root.
     #[turbo_tasks::function]
-    async fn hmr_content(self: Vc<Self>, identifier: RcStr) -> Result<Vc<OptionVersionedContent>> {
+    async fn hmr_root_path(self: Vc<Self>, target: HmrTarget) -> Result<Vc<FileSystemPath>> {
+        Ok(match target {
+            HmrTarget::Client => self.client_relative_path(),
+            HmrTarget::Server => self.node_root(),
+        })
+    }
+
+    /// Get HMR content by chunk_name for the specified target.
+    #[turbo_tasks::function]
+    async fn hmr_content(
+        self: Vc<Self>,
+        chunk_name: RcStr,
+        target: HmrTarget,
+    ) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            let content = map.get(self.client_relative_path().await?.join(&identifier)?);
+            let content = map.get(self.hmr_root_path(target).await?.join(&chunk_name)?);
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
         }
     }
 
+    /// Get HMR version for the specified target.
     #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.hmr_content(identifier).await?;
+    async fn hmr_version(
+        self: Vc<Self>,
+        chunk_name: RcStr,
+        target: HmrTarget,
+    ) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.hmr_content(chunk_name, target).await?;
         if let Some(content) = &*content {
             Ok(content.version())
         } else {
@@ -2070,15 +2205,16 @@ impl Project {
         }
     }
 
-    /// Get the version state for a session. Initialized with the first seen
+    /// Get the version state for an HMR session. Initialized with the first seen
     /// version in that session.
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
+        target: HmrTarget,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
-        let version = self.hmr_version(identifier);
+        let version = self.hmr_version(chunk_name, target);
 
         // The session argument is important to avoid caching this function between
         // sessions.
@@ -2099,15 +2235,16 @@ impl Project {
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
-    /// internally known as `identifier`.
+    /// internally known as `chunk_name` for the specified target.
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
+        target: HmrTarget,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        let content = self.hmr_content(identifier).await?;
+        let content = self.hmr_content(chunk_name, target).await?;
         if let Some(content) = *content {
             Ok(content.update(from))
         } else {
@@ -2115,12 +2252,13 @@ impl Project {
         }
     }
 
-    /// Gets a list of all HMR identifiers that can be subscribed to. This is
-    /// only needed for testing purposes and isn't used in real apps.
+    /// Gets a list of all HMR chunk names that can be subscribed to for the
+    /// specified target. This is only needed for testing purposes and isn't
+    /// used in real apps.
     #[turbo_tasks::function]
-    pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
-            Ok(map.keys_in_path(self.client_relative_path().owned().await?))
+            Ok(map.keys_in_path(self.hmr_root_path(target).owned().await?))
         } else {
             bail!("must be in dev mode to hmr")
         }

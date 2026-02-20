@@ -69,12 +69,24 @@ impl Module for WebpackModuleAsset {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("webpack chunk {}", self.chunk_id())]
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+}
+
+impl WebpackChunkAssetReference {
+    fn chunk_id(&self) -> RcStr {
+        match &self.chunk_id {
+            Lit::Str(s) => RcStr::from(s.value.to_string_lossy().to_string()),
+            Lit::Num(n) => RcStr::from(n.to_string()),
+            _ => panic!("Unexpected literal type"),
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -107,20 +119,9 @@ impl ModuleReference for WebpackChunkAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for WebpackChunkAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        let chunk_id = match &self.chunk_id {
-            Lit::Str(str) => str.value.to_string_lossy().into_owned(),
-            Lit::Num(num) => format!("{num}"),
-            _ => todo!(),
-        };
-        Vc::cell(format!("webpack chunk {chunk_id}").into())
-    }
-}
-
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("webpack entry")]
 pub struct WebpackEntryAssetReference {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub runtime: ResolvedVc<WebpackRuntime>,
@@ -139,15 +140,9 @@ impl ModuleReference for WebpackEntryAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for WebpackEntryAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("webpack entry"))
-    }
-}
-
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("webpack {request}")]
 pub struct WebpackRuntimeAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -181,15 +176,5 @@ impl ModuleReference for WebpackRuntimeAssetReference {
             })
             .await?
             .cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for WebpackRuntimeAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("webpack {}", self.request.to_string().await?,).into(),
-        ))
     }
 }

@@ -238,7 +238,6 @@ export class NextDeployInstance extends NextInstance {
     if (TEST_TEAM_NAME) {
       vercelFlags.push('--scope', TEST_TEAM_NAME)
     }
-
     const vercelEnv = { ...process.env }
 
     // If the token is available in the environment, use it as the token in the
@@ -301,6 +300,16 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
+    if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
+      )
+    }
+    if (process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL=${process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL}`
+      )
+    }
 
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
@@ -310,6 +319,8 @@ export class NextDeployInstance extends NextInstance {
     }
     if (process.env.NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
+    } else {
+      additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
     }
 
     const deployRes = await execa(

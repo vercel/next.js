@@ -818,7 +818,7 @@ export async function retry<T>(
   fn: () => T | Promise<T>,
   duration: number = 3000,
   interval: number = 500,
-  description?: string
+  description: string = fn.name
 ): Promise<T> {
   if (duration % interval !== 0) {
     throw new Error(
@@ -896,11 +896,14 @@ export async function waitForNoRedbox(
   }
 }
 
-export async function waitForNoErrorToast(browser: Playwright): Promise<void> {
+export async function waitForNoErrorToast(
+  browser: Playwright,
+  { waitInMs }: { waitInMs?: number } = {}
+): Promise<void> {
   let didOpenRedbox = false
 
   try {
-    await browser.waitForElementByCss('[data-issues]').click()
+    await browser.waitForElementByCss('[data-issues]', waitInMs).click()
     didOpenRedbox = true
   } catch {
     // We expect this to fail.
@@ -1486,12 +1489,13 @@ const nextjsClientComponentNames = [
   'HTTPAccessFallbackBoundary',
   'HTTPAccessFallbackErrorBoundary',
   'InnerLayoutRouter',
-  'InnerScrollAndFocusHandler',
+  'InnerScrollAndFocusHandlerOld',
+  'InnerScrollHandlerNew',
   'RedirectBoundary',
   'RedirectErrorBoundary',
   'RenderFromTemplateContext',
   'Root',
-  'ScrollAndFocusHandler',
+  'ScrollAndMaybeFocusHandler',
   'SegmentViewNode',
   'SegmentTrieNode',
   // These are added due to user actions e.g. loading.js -> LoadingBoundary
@@ -1553,6 +1557,52 @@ export async function hasRedboxCallStack(browser: Playwright) {
   })
 }
 
+export interface RedboxCauseEntry {
+  label: string | null
+  message: string | null
+  source: string | null
+  stack: string[]
+}
+
+export async function getRedboxCause(
+  browser: Playwright
+): Promise<RedboxCauseEntry[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    const causeElements = root?.querySelectorAll('[data-nextjs-error-cause]')
+    if (!causeElements || causeElements.length === 0) return null
+
+    const causes: {
+      label: string | null
+      message: string | null
+      source: string | null
+      stack: string[]
+    }[] = []
+    for (const el of causeElements) {
+      const stackFrameElements = el.querySelectorAll(
+        ':scope > [data-nextjs-call-stack-container] > [data-nextjs-call-stack-frame]'
+      )
+      const stack: string[] = []
+      for (const frameEl of stackFrameElements) {
+        stack.push(frameEl.innerText.replace(/\n+/g, ' '))
+      }
+
+      causes.push({
+        label: el.querySelector('.error-cause-label')?.innerText ?? null,
+        message: el.querySelector('.error-cause-message')?.innerText ?? null,
+        source:
+          el.querySelector(':scope > [data-nextjs-codeframe]')?.innerText ??
+          null,
+        stack,
+      })
+    }
+    return causes
+  })
+}
+
 export async function getRedboxCallStack(
   browser: Playwright
 ): Promise<string[] | null> {
@@ -1569,6 +1619,10 @@ export async function getRedboxCallStack(
     if (frameElements !== undefined) {
       let foundInternalFrame = false
       for (const frameElement of frameElements) {
+        // Skip frames that belong to an Error.cause section
+        if (frameElement.closest('[data-nextjs-error-cause]')) {
+          continue
+        }
         // `innerText` will be "${methodName}\n${location}".
         // Ideally `innerText` would be "${methodName} ${location}"
         // so that c&p automatically does the right thing.

@@ -45,7 +45,7 @@ mod capture_future;
 mod collectibles;
 mod completion;
 pub mod debug;
-mod display;
+pub mod display;
 pub mod duration_span;
 mod effect;
 mod error;
@@ -116,12 +116,12 @@ pub use crate::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
         UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
-        mark_session_dependent, prevent_gc, run, run_once, run_once_with_reason, trait_call,
-        turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
+        mark_session_dependent, mark_stateful, prevent_gc, run, run_once, run_once_with_reason,
+        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
+    raw_vc::{CellId, RawVc, ReadRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,

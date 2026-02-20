@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared/runtime/runtime-utils.ts" />
 
 function readWebAssemblyAsResponse(path: string) {
   const { createReadStream } = require('fs') as typeof import('fs')
