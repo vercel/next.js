@@ -10,18 +10,24 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_functions() {
-    run_once(&REGISTRATION, || async {
-        test_functions_operation()
-            .read_strongly_consistent()
-            .await?;
-        anyhow::Ok(())
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || {
+        // pass a nonce to re-run the test body on every turbo-tasks restart
+        nonce += 1;
+        async move {
+            test_functions_operation(nonce)
+                .read_strongly_consistent()
+                .await
+        }
     })
     .await
     .unwrap()
 }
 
 #[turbo_tasks::function(operation)]
-async fn test_functions_operation() -> Result<Vc<()>> {
+async fn test_functions_operation(nonce: u32) -> Result<Vc<()>> {
+    let _ = nonce; // ensure the nonce is part of our cache key
+
     assert_eq!(*fn_plain().await?, 42);
     assert_eq!(*fn_arg(43).await?, 43);
     assert_eq!(*fn_vc_arg(Vc::cell(44)).await?, 44);

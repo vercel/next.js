@@ -35,18 +35,24 @@ struct Iteration(State<usize>);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_bug() {
-    run_once(&REGISTRATION, move || async move {
-        test_graph_bug_operation()
-            .read_strongly_consistent()
-            .await?;
-        anyhow::Ok(())
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || {
+        // pass a nonce to re-run the test body on every turbo-tasks restart
+        nonce += 1;
+        async move {
+            test_graph_bug_operation(nonce)
+                .read_strongly_consistent()
+                .await
+        }
     })
     .await
     .unwrap()
 }
 
 #[turbo_tasks::function(operation)]
-async fn test_graph_bug_operation() -> Result<Vc<()>> {
+async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
+    let _ = nonce; // ensure the nonce is part of our cache key
+
     let spec = vec![
         TaskSpec {
             references: vec![TaskReferenceSpec {

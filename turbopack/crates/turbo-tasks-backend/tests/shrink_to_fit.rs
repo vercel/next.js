@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -14,18 +14,13 @@ struct Wrapper(Vec<u32>);
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_shrink_to_fit() -> Result<()> {
     run_once(&REGISTRATION, || async {
-        test_shrink_to_fit_operation()
-            .read_strongly_consistent()
-            .await?;
+        #[turbo_tasks::function(operation)]
+        async fn capacity_operation(wrapper: ResolvedVc<Wrapper>) -> Result<Vc<usize>> {
+            Ok(Vc::cell(wrapper.await?.capacity()))
+        }
+        let a = ResolvedVc::<Wrapper>::cell(Vec::with_capacity(100));
+        assert_eq!(*capacity_operation(a).read_strongly_consistent().await?, 0);
         Ok(())
     })
     .await
-}
-
-#[turbo_tasks::function(operation)]
-async fn test_shrink_to_fit_operation() -> Result<Vc<()>> {
-    // `Vec::shrink_to_fit` is implicitly called when a cell is constructed.
-    let a: Vc<Wrapper> = Vc::cell(Vec::with_capacity(100));
-    assert_eq!(a.await?.capacity(), 0);
-    Ok(Vc::cell(()))
 }

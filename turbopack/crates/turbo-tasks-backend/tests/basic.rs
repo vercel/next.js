@@ -10,16 +10,20 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_basic() {
-    run_once(&REGISTRATION, || async {
-        test_basic_operation().read_strongly_consistent().await?;
-        anyhow::Ok(())
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || {
+        // pass a nonce to re-run the test body on every turbo-tasks restart
+        nonce += 1;
+        async move { test_basic_operation(nonce).read_strongly_consistent().await }
     })
     .await
     .unwrap()
 }
 
 #[turbo_tasks::function(operation)]
-async fn test_basic_operation() -> Result<Vc<()>> {
+async fn test_basic_operation(nonce: u32) -> Result<Vc<()>> {
+    let _ = nonce; // ensure the nonce is part of our cache key
+
     let output1 = func_without_args();
     assert_eq!(output1.await?.value, 123);
 

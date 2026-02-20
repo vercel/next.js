@@ -26,19 +26,23 @@ struct TasksSpec(Vec<TaskSpec>);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_bug() {
-    // see https://github.com/vercel/next.js/pull/79451
-    run_once(&REGISTRATION, || async {
-        test_graph_bug_operation()
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || async move {
+        // pass a nonce to re-run the test body on every turbo-tasks restart
+        nonce += 1;
+        test_graph_bug_operation(nonce)
             .read_strongly_consistent()
-            .await?;
-        anyhow::Ok(())
+            .await
     })
     .await
     .unwrap()
 }
 
 #[turbo_tasks::function(operation)]
-async fn test_graph_bug_operation() -> Result<Vc<()>> {
+async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
+    let _ = nonce; // ensure the nonce is part of our cache key
+
+    // see https://github.com/vercel/next.js/pull/79451
     let spec = vec![
         TaskSpec {
             references: vec![
