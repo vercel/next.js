@@ -29,7 +29,7 @@ import { parseLoaderTree } from '../../../shared/lib/router/utils/parse-loader-t
 import type { GetDynamicParamFromSegment } from '../app-render'
 import type {
   AppSegmentConfig,
-  InstantConfig,
+  Instant,
 } from '../../../build/segment-config/app/app-segment-config'
 import { Readable } from 'node:stream'
 import {
@@ -84,7 +84,7 @@ export type RouteTree = {
   module: null | {
     type: 'layout' | 'page'
     // TODO(instant-validation): We should know if a layout segment is shared
-    instantConfig: InstantConfig | null
+    instantConfig: Instant | null
     conventionPath: string
   }
 
