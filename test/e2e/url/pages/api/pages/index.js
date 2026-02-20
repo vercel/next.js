@@ -12,7 +12,7 @@ export default (req, res) => {
   }
 
   res.send({
-    imported,
+    imported: imported.src,
     url: url.toString(),
     size,
   })

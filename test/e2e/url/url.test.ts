@@ -1,5 +1,7 @@
+import path from 'path'
+import url from 'url'
 import { retry } from 'next-test-utils'
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 
 // |         | Pages Client            | Pages Server (SSR,RSC)  | API Routes/Middleware/Metadata |
 // |---------|-------------------------|-------------------------|--------------------------------|
@@ -13,74 +15,87 @@ import { nextTestSetup } from 'e2e-utils'
 describe(`Handle new URL asset references`, () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    // Workaround for `Error: invariant: htmlFsRef != null && jsonFsRef != null /ssg` errors
-    skipDeployment: true,
+    env: {
+      NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
+    },
   })
 
   if (skipped) {
     return
   }
 
-  const serverFilePath = expect.stringMatching(
-    /file:.*\/.next(\/dev)?\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
-  )
-  const serverEdgeUrl = expect.stringMatching(
-    /^blob:.*vercel\.[0-9a-f]{8,}\.png$/
-  )
-  const clientFilePath = expect.stringMatching(
-    /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-  )
+  let serverFilePath: string
+  let clientUrl: string
+  const serverEdgeUrl = process.env.IS_TURBOPACK_TEST
+    ? `blob:server/edge/assets/vercel.HASH.png`
+    : `blob:vercel.HASH.png`
+  const expectedPageContent = (count: number) =>
+    'Hello ' + Array(count).fill(clientUrl).join('+')
+
+  beforeAll(() => {
+    serverFilePath = url
+      .pathToFileURL(
+        path.join(
+          next.testDir,
+          next.distDir,
+          'server',
+          process.env.IS_TURBOPACK_TEST ? 'assets' : 'chunks/static/media',
+          'vercel.HASH.png'
+        )
+      )
+      .toString()
+
+    const expectedToken = next.deploymentId
+    if (!isNextDev && !expectedToken) {
+      throw new Error('Missing expected deployment id')
+    }
+    clientUrl = `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
+  })
 
   it('should respond on middleware api', async () => {
     const data = await next
       .fetch('/middleware')
-      .then((res) => res.ok && res.json())
+      .then((res) => res.ok && res.text())
+    const json = JSON.parse(stripVercelPngHash(data))
 
-    expect(data).toEqual({
-      imported: expect.objectContaining({
-        src: clientFilePath,
-      }),
+    expect(json).toEqual({
+      imported: clientUrl,
       url: serverEdgeUrl,
     })
   })
-
-  const expectedPage =
-    /^Hello \/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png(\+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png(\+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png)?)?$/
 
   describe('app router', () => {
     it('should respond on webmanifest', async () => {
       const data = await next
         .fetch('/manifest.webmanifest')
-        .then((res) => res.ok && res.json())
+        .then((res) => res.ok && res.text())
+      const json = JSON.parse(stripVercelPngHash(data))
 
-      expect(data).toEqual({
+      expect(json).toEqual({
         short_name: 'Next.js',
         name: 'Next.js',
         icons: [
           {
-            src: clientFilePath,
+            src: clientUrl,
             type: 'image/png',
             sizes: '512x512',
           },
         ],
         // TODO Webpack bug?
-        description: process.env.IS_TURBOPACK_TEST
-          ? serverFilePath
-          : clientFilePath,
+        description: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientUrl,
       })
     })
 
     it('should respond on opengraph-image', async () => {
       const data = await next
         .fetch('/opengraph-image')
-        .then((res) => res.ok && res.json())
+        .then((res) => res.ok && res.text())
+      const json = JSON.parse(stripVercelPngHash(data))
 
-      expect(data).toEqual({
-        imported: expect.objectContaining({
-          src: clientFilePath,
-        }),
+      expect(json).toEqual({
+        imported: clientUrl,
         // TODO Webpack bug?
-        url: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientFilePath,
+        url: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientUrl,
       })
     })
 
@@ -95,7 +110,9 @@ describe(`Handle new URL asset references`, () => {
         async () => {
           const $ = await next.render$(page)
           // eslint-disable-next-line jest/no-standalone-expect
-          expect($('main').text()).toMatch(expectedPage)
+          expect(stripVercelPngHash($('main').text())).toEqual(
+            expectedPageContent(2)
+          )
         }
       )
       ;(shouldSkip ? it.skip : it)(
@@ -103,35 +120,34 @@ describe(`Handle new URL asset references`, () => {
         async () => {
           const browser = await next.browser(page)
           await retry(async () =>
-            expect(await browser.elementByCss('main').text()).toMatch(
-              expectedPage
-            )
+            expect(
+              stripVercelPngHash(await browser.elementByCss('main').text())
+            ).toEqual(expectedPageContent(2))
           )
         }
       )
     }
 
     it('should respond on API', async () => {
-      const data = await next.fetch('/api').then((res) => res.ok && res.json())
+      const data = await next.fetch('/api').then((res) => res.ok && res.text())
+      const json = JSON.parse(stripVercelPngHash(data))
 
-      expect(data).toEqual({
-        imported: expect.objectContaining({
-          src: clientFilePath,
-        }),
+      expect(json).toEqual({
+        imported: clientUrl,
         // TODO Webpack bug?
-        url: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientFilePath,
+        url: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientUrl,
       })
     })
   })
 
   describe('pages router', () => {
-    for (const page of [
-      '/pages/static',
-      '/pages/ssr',
-      '/pages/ssg',
-      '/pages-edge/static',
-      '/pages-edge/ssr',
-    ]) {
+    for (const [page, count] of [
+      ['/pages/static', 2],
+      ['/pages/ssr', 3],
+      ['/pages/ssg', 3],
+      ['/pages-edge/static', 2],
+      ['/pages-edge/ssr', 3],
+    ] as const) {
       // TODO Webpack bug?
       let shouldSkip = process.env.IS_TURBOPACK_TEST
         ? false
@@ -142,7 +158,9 @@ describe(`Handle new URL asset references`, () => {
         async () => {
           const $ = await next.render$(page)
           // eslint-disable-next-line jest/no-standalone-expect
-          expect($('main').text()).toMatch(expectedPage)
+          expect(stripVercelPngHash($('main').text())).toEqual(
+            expectedPageContent(count)
+          )
         }
       )
       ;(shouldSkip ? it.skip : it)(
@@ -150,9 +168,9 @@ describe(`Handle new URL asset references`, () => {
         async () => {
           const browser = await next.browser(page)
           await retry(async () =>
-            expect(await browser.elementByCss('main').text()).toMatch(
-              expectedPage
-            )
+            expect(
+              stripVercelPngHash(await browser.elementByCss('main').text())
+            ).toEqual(expectedPageContent(count))
           )
         }
       )
@@ -161,12 +179,11 @@ describe(`Handle new URL asset references`, () => {
     it('should respond on API', async () => {
       const data = await next
         .fetch('/api/pages/')
-        .then((res) => res.ok && res.json())
+        .then((res) => res.ok && res.text())
+      const json = JSON.parse(stripVercelPngHash(data))
 
-      expect(data).toEqual({
-        imported: expect.objectContaining({
-          src: clientFilePath,
-        }),
+      expect(json).toEqual({
+        imported: clientUrl,
         url: serverFilePath,
         size: 30079,
       })
@@ -175,14 +192,17 @@ describe(`Handle new URL asset references`, () => {
     it('should respond on edge API', async () => {
       const data = await next
         .fetch('/api/pages-edge/')
-        .then((res) => res.ok && res.json())
+        .then((res) => res.ok && res.text())
+      const json = JSON.parse(stripVercelPngHash(data))
 
-      expect(data).toEqual({
-        imported: expect.objectContaining({
-          src: clientFilePath,
-        }),
+      expect(json).toEqual({
+        imported: clientUrl,
         url: serverEdgeUrl,
       })
     })
   })
 })
+
+function stripVercelPngHash(text: string) {
+  return text.replace(/vercel\.[0-9a-f]{8,}\.png/g, 'vercel.HASH.png')
+}
