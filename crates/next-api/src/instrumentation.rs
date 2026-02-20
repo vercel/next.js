@@ -210,7 +210,7 @@ impl Endpoint for InstrumentationEndpoint {
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root().owned().await?;
-                all_asset_paths(output_assets, node_root, Default::default())
+                all_asset_paths(output_assets, node_root, None)
                     .owned()
                     .await?
             } else {
