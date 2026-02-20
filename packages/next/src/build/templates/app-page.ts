@@ -1098,6 +1098,26 @@ export async function handler(
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
 
+      // For staged dynamic rendering (cached navigations), pass the fallback
+      // params via request meta so the RequestStore knows which params to defer
+      // to the runtime stage. We don't pass them as fallbackRouteParams because
+      // that would replace actual param values with opaque placeholders during
+      // segment resolution.
+      if (
+        isProduction &&
+        nextConfig.cacheComponents &&
+        !isPrerendered &&
+        prerenderInfo?.fallbackRouteParams
+      ) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
+
       // Perform the render.
       return doRender({
         span,

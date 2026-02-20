@@ -1511,7 +1511,6 @@ export function convertRouteTreeToFlightRouterState(
 
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
-  task: PrefetchTask,
   key: RouteCacheKey
 ): Promise<PrefetchSubtaskResult<null> | null> {
   // This function is allowed to use async/await because it contains the actual
@@ -1755,7 +1754,6 @@ export async function fetchRouteOnCacheMiss(
           : null
       writeDynamicTreeResponseIntoCache(
         Date.now(),
-        task,
         // The non-PPR response format is what we'd get if we prefetched these segments
         // using the LoadingBoundary fetch strategy, so mark their cache entries accordingly.
         FetchStrategy.LoadingBoundary,
@@ -2071,9 +2069,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // in the LRU as more data comes in.
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
-      task,
       fetchStrategy,
-      response as RSCResponse<NavigationFlightResponse>,
+      response.headers,
       serverData,
       isResponsePartial,
       headVaryParams,
@@ -2093,7 +2090,6 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 
 function writeDynamicTreeResponseIntoCache(
   now: number,
-  task: PrefetchTask,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
@@ -2176,9 +2172,8 @@ function writeDynamicTreeResponseIntoCache(
   // remove the "client-only" option. Then, we can delete this function call.
   writeDynamicRenderResponseIntoCache(
     now,
-    task,
     fetchStrategy,
-    response,
+    response.headers,
     serverData,
     isResponsePartial,
     headVaryParams,
@@ -2203,14 +2198,13 @@ function rejectSegmentEntriesIfStillPending(
   return fulfilledEntries
 }
 
-function writeDynamicRenderResponseIntoCache(
+export function writeDynamicRenderResponseIntoCache(
   now: number,
-  task: PrefetchTask,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  response: RSCResponse<NavigationFlightResponse>,
+  headers: Headers | undefined,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
@@ -2218,10 +2212,8 @@ function writeDynamicRenderResponseIntoCache(
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
-  if (
-    (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b) !==
-    getNavigationBuildId()
-  ) {
+  const buildId = headers?.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
+  if (buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
     if (spawnedEntries !== null) {
@@ -2232,8 +2224,6 @@ function writeDynamicRenderResponseIntoCache(
 
   const flightDatas = normalizeFlightData(serverData.f)
   if (typeof flightDatas === 'string') {
-    // This means navigating to this route will result in an MPA navigation.
-    // TODO: We should cache this, too, so that the MPA navigation is immediate.
     return null
   }
 
@@ -2263,7 +2253,6 @@ function writeDynamicRenderResponseIntoCache(
 
       writeSeedDataIntoCache(
         now,
-        task,
         fetchStrategy,
         tree,
         staleAt,
@@ -2308,7 +2297,6 @@ function writeDynamicRenderResponseIntoCache(
 
 function writeSeedDataIntoCache(
   now: number,
-  task: PrefetchTask,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
@@ -2354,7 +2342,6 @@ function writeSeedDataIntoCache(
       if (childSeedData !== null && childSeedData !== undefined) {
         writeSeedDataIntoCache(
           now,
-          task,
           fetchStrategy,
           childTree,
           staleAt,
@@ -2617,7 +2604,7 @@ function getStaleAtFromHeader(
 async function getStaleAt(
   now: number,
   serverData: NavigationFlightResponse,
-  response: RSCResponse<unknown>
+  response?: RSCResponse<unknown>
 ): Promise<number> {
   if (serverData.s !== undefined) {
     // Iterate the async iterable and take the last yielded value. The server
@@ -2644,7 +2631,55 @@ async function getStaleAt(
     }
   }
 
-  return getStaleAtFromHeader(now, response)
+  if (response !== undefined) {
+    return getStaleAtFromHeader(now, response)
+  }
+
+  return now + STATIC_STALETIME_MS
+}
+
+/**
+ * Writes the static stage of a dynamic navigation response into the segment
+ * cache. Awaits the decoded static stage response, reads its stale time, and
+ * writes the segment data.
+ */
+export async function writeStaticStageResponseIntoCache(
+  staticStageResponse: Promise<NavigationFlightResponse>,
+  route: FulfilledRouteCacheEntry
+): Promise<void> {
+  try {
+    const serverData = await staticStageResponse
+    const now = Date.now()
+    const staleAt = await getStaleAt(now, serverData)
+
+    const headVaryParams =
+      serverData.h !== null ? readVaryParams(serverData.h) : null
+
+    // The truncated stream contains only the static stage, so all segments are
+    // partial — they need a dynamic fetch to fill in runtime/dynamic content
+    // within their subtrees.
+    const isResponsePartial = true
+
+    // The static stage contains only cached/static content — no runtime or
+    // dynamic data. This is the least specific fetch strategy, so a subsequent
+    // runtime prefetch or full navigation can replace it.
+    const fetchStrategy = FetchStrategy.LoadingBoundary
+
+    writeDynamicRenderResponseIntoCache(
+      now,
+      fetchStrategy,
+      undefined, // headers — build ID already verified by fetchServerResponse
+      serverData,
+      isResponsePartial,
+      headVaryParams,
+      staleAt,
+      route,
+      null // spawnedEntries — no pre-created entries; will create or upsert
+    )
+  } catch {
+    // The static stage decode failed. This is not fatal — the navigation
+    // still completed normally, we just won't write into the cache.
+  }
 }
 
 /**

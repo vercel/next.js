@@ -19,6 +19,7 @@ import {
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
+  writeStaticStageResponseIntoCache,
   type RouteTree,
   type FulfilledRouteCacheEntry,
 } from './cache'
@@ -368,6 +369,7 @@ async function navigateToUnknownRoute(
     renderedSearch,
     couldBeIntercepted,
     prerendered,
+    staticStageResponse,
     debugInfo,
   } = result
 
@@ -387,7 +389,7 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
   if (metadataVaryPath !== null) {
-    discoverKnownRoute(
+    const fulfilledRoute = discoverKnownRoute(
       now,
       url.pathname,
       nextUrl,
@@ -399,6 +401,12 @@ async function navigateToUnknownRoute(
       prerendered,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
+
+    // Write the static stage of the response into the segment cache so
+    // that subsequent navigations can serve cached static segments instantly.
+    if (staticStageResponse !== null) {
+      writeStaticStageResponseIntoCache(staticStageResponse, fulfilledRoute)
+    }
   }
 
   return navigateToKnownRoute(
