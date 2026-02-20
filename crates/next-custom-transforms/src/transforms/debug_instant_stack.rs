@@ -39,8 +39,10 @@ impl Fold for DebugInstantStack {
         if let Some(source_span) = self.instant_export_span {
             let mut new_items = items;
 
-            // TODO: Change React to deserialize errors with an empty message
+            // TODO: Change React to deserialize errors with a zero-length message
             // instead of using a fallback message ("no message was provided").
+            // We're working around this by using a message that'll appear empty
+            // but isn't to JavaScript ('\u{200B}'.length === 1).
             let mut new_error = quote!("new Error('\u{200B}')" as Expr);
             if let Expr::New(new_expr) = &mut new_error {
                 new_expr.span = source_span;
