@@ -102,6 +102,11 @@ export class NextInstance {
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
+    const nextTestWasm =
+      process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
+    if (nextTestWasm) {
+      this.env.NEXT_TEST_WASM = nextTestWasm
+    }
 
     if (!isNextDeploy) {
       this.env = {
@@ -279,7 +284,7 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + require("fs").readFileSync("${this.distDir}/BUILD_ID"))'`,
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT_ID: " + process.env.NEXT_DEPLOYMENT_ID)'`,
                       }
                     : {}),
                   ...pkgScripts,
@@ -632,6 +637,14 @@ export class NextInstance {
 
   public get buildId(): string {
     return ''
+  }
+
+  public get deploymentId(): string | undefined {
+    return undefined
+  }
+
+  public get deploymentIdQuery(): string {
+    return this.deploymentId ? `?dpl=${this.deploymentId}` : ''
   }
 
   public get cliOutput(): string {

@@ -8,6 +8,7 @@ use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
+    debug_instant_stack::debug_instant_stack,
     dynamic::{next_dynamic, NextDynamicMode},
     fonts::{next_font_loaders, Config as FontLoaderConfig},
     named_import_transform::named_import_transform,
@@ -869,6 +870,22 @@ fn test_debug_name(input: PathBuf) {
     );
 }
 
+#[fixture("tests/fixture/debug-instant-stack/**/input.js")]
+fn test_debug_instant_stack(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|_| debug_instant_stack(),
+        &input,
+        &output,
+        FixtureTestConfig {
+            sourcemap: true,
+            ..Default::default()
+        },
+    );
+}
+
 #[fixture("tests/fixture/edge-assert/**/input.js")]
 fn test_edge_assert(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
@@ -954,12 +971,12 @@ fn track_dynamic_imports_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
             (
                 resolver(unresolved_mark, top_level_mark, false),
-                track_dynamic_imports(unresolved_mark),
+                track_dynamic_imports(unresolved_mark, tr.comments.as_ref().clone()),
             )
         },
         &input,

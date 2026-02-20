@@ -367,8 +367,7 @@ When running Next.js integration tests, you must rebuild if source files have ch
 
 - **First run after branch switch/bootstrap (or if unsure)?** → `pnpm build`
 - **Edited only core Next.js files (`packages/next/**`) after bootstrap?** → `pnpm --filter=next build`
-- **Edited Turbopack (Rust)?** → `pnpm swc-build-native`
-- **Edited both?** → `pnpm turbo build build-native`
+- **Edited Next.js code or Turbopack (Rust)?** → `pnpm build`
 
 ## Development Anti-Patterns
 

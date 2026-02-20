@@ -15,6 +15,7 @@ pub mod bytes_source_transform;
 pub mod chunk;
 pub mod code_gen;
 mod errors;
+pub mod json_source_transform;
 pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
