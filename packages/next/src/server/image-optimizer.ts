@@ -376,7 +376,7 @@ export class ImageOptimizerCache {
   private nextConfig: NextConfigRuntime
   private cacheHandler?: CacheHandler
   private cacheDiskLRU?: ReturnType<typeof getOrInitDiskLRU>
-  private isDiskCacheEnabled: boolean
+  private isDiskCacheEnabled?: boolean
 
   static validateParams(
     req: IncomingMessage,
@@ -566,13 +566,14 @@ export class ImageOptimizerCache {
     this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
     this.cacheHandler = cacheHandler
-    this.isDiskCacheEnabled =
-      !cacheHandler &&
-      nextConfig.images.maximumDiskCacheSize !== 0 &&
-      nextConfig.experimental.isrFlushToDisk === true
 
     // Eagerly start LRU initialization for filesystem cache
-    if (this.isDiskCacheEnabled) {
+    if (
+      !cacheHandler &&
+      nextConfig.images.maximumDiskCacheSize !== 0 &&
+      nextConfig.experimental.isrFlushToDisk
+    ) {
+      this.isDiskCacheEnabled = true
       this.cacheDiskLRU = getOrInitDiskLRU(
         this.cacheDir,
         nextConfig.images.maximumDiskCacheSize,
