@@ -34,6 +34,7 @@ import {
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
+  writeStaticStageResponseIntoCache,
   EntryStatus,
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
@@ -1248,7 +1249,8 @@ export function spawnDynamicRequests(
     dynamicRequestTree,
     primaryUrl,
     nextUrl,
-    freshnessPolicy
+    freshnessPolicy,
+    routeCacheEntry
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1299,7 +1301,8 @@ export function spawnDynamicRequests(
             // if a refresh fails due to a mismatch, it will trigger a
             // hard refresh.
             nextUrl,
-            freshnessPolicy
+            freshnessPolicy,
+            routeCacheEntry
           )
         )
       }
@@ -1507,7 +1510,8 @@ async function fetchMissingDynamicData(
   dynamicRequestTree: FlightRouterState,
   url: URL,
   nextUrl: string | null,
-  freshnessPolicy: FreshnessPolicy
+  freshnessPolicy: FreshnessPolicy,
+  routeCacheEntry: FulfilledRouteCacheEntry | null
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1541,6 +1545,13 @@ async function fetchMissingDynamicData(
     // UI state.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
       await waitForNavigationLock()
+    }
+
+    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
+      writeStaticStageResponseIntoCache(
+        result.staticStageResponse,
+        routeCacheEntry
+      )
     }
 
     const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(

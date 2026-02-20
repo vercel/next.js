@@ -184,6 +184,99 @@ describe('cached navigations', () => {
     }
   )
 
+  it('caches static segments when navigating to a known route without a prefetch', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+    await page.clock.install()
+
+    // First navigation — seeds the route cache (stale after 5 min) and
+    // segment cache (stale after 120s, from cacheLife({ stale: 120 })).
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/partially-static"]').click()
+      },
+      { includes: 'Dynamic content' }
+    )
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+
+    // Navigate back to home
+    await browser.back()
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Fast-forward past the segment cache stale time (120s) but under the
+    // route cache stale time (5 min). Segment entries are now expired, but
+    // the route is still known.
+    await page.clock.fastForward(130_000)
+
+    // Second navigation — the route is known but all segment entries have
+    // expired, so nothing is served from the cache. The server responds
+    // with fresh data including a static stage, which is written into the
+    // segment cache for future navigations.
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/partially-static"]').click()
+      },
+      { includes: 'Dynamic content' }
+    )
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+
+    // Navigate back to home again
+    await browser.back()
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Fast-forward 60s — well under the 120s stale time that the segment
+    // entries would have if the second navigation had cached them.
+    await page.clock.fastForward(60_000)
+
+    // Third navigation — block the dynamic request to test whether cached
+    // static segments are available.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser.elementByCss('a[href="/partially-static"]').click()
+        },
+        {
+          includes: 'Dynamic content',
+          block: true,
+        }
+      )
+
+      // The second navigation wrote the static stage into the segment
+      // cache. These entries are still fresh (60s < 120s) so the cached
+      // content is visible while the dynamic request is pending.
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+
+      expect(await browser.elementById('connection-boundary').text()).toBe(
+        'Loading connection...'
+      )
+    })
+
+    // After unblocking, all content should be visible
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+  })
+
   it('includes static params in the cached static stage', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
