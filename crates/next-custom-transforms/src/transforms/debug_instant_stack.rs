@@ -1,9 +1,10 @@
 use swc_core::{
-    common::{Span, Spanned, DUMMY_SP},
+    common::{Span, Spanned},
     ecma::{
         ast::*,
         visit::{fold_pass, Fold},
     },
+    quote,
 };
 
 pub fn debug_instant_stack() -> impl Pass {
@@ -37,72 +38,60 @@ impl Fold for DebugInstantStack {
 
         if let Some(source_span) = self.instant_export_span {
             let mut new_items = items;
-            new_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                span: DUMMY_SP,
-                decl: Decl::Var(Box::new(VarDecl {
-                    decls: vec![VarDeclarator {
-                        name: Pat::Ident(BindingIdent {
-                            id: Ident {
-                                sym: "__debugInstantStack".into(),
-                                ..Default::default()
-                            },
-                            type_ann: None,
-                        }),
-                        init: Some(Box::new(Expr::Cond(CondExpr {
-                            span: DUMMY_SP,
-                            // process.env.NODE_ENV !== "production"
-                            test: Box::new(Expr::Bin(BinExpr {
-                                span: DUMMY_SP,
-                                op: BinaryOp::NotEqEq,
-                                left: Box::new(Expr::Member(MemberExpr {
-                                    span: DUMMY_SP,
-                                    obj: Box::new(Expr::Member(MemberExpr {
-                                        span: DUMMY_SP,
-                                        obj: Box::new(Expr::Ident(Ident {
-                                            sym: "process".into(),
-                                            ..Default::default()
-                                        })),
-                                        prop: MemberProp::Ident(IdentName {
-                                            sym: "env".into(),
-                                            span: DUMMY_SP,
-                                        }),
-                                    })),
-                                    prop: MemberProp::Ident(IdentName {
-                                        sym: "NODE_ENV".into(),
-                                        span: DUMMY_SP,
-                                    }),
-                                })),
-                                right: Box::new(Expr::Lit(Lit::Str(Str {
-                                    span: DUMMY_SP,
-                                    value: "production".into(),
-                                    raw: None,
-                                }))),
-                            })),
-                            // new Error()
-                            cons: Box::new(Expr::New(NewExpr {
-                                callee: Box::new(Expr::Ident(Ident {
-                                    sym: "Error".into(),
-                                    span: source_span,
-                                    ..Default::default()
-                                })),
-                                args: Some(vec![]),
-                                span: source_span,
-                                ..Default::default()
-                            })),
-                            // undefined
-                            alt: Box::new(Expr::Ident(Ident {
-                                sym: "undefined".into(),
-                                ..Default::default()
-                            })),
-                        }))),
-                        span: DUMMY_SP,
-                        definite: false,
-                    }],
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Const,
+
+            // Build new Error() with source_span for sourcemapping
+            let new_error = Expr::New(NewExpr {
+                span: source_span,
+                callee: Box::new(Expr::Ident(Ident {
+                    sym: "Error".into(),
+                    span: source_span,
                     ..Default::default()
                 })),
-            })));
+                args: Some(vec![]),
+                ..Default::default()
+            });
+
+            // (function unstable_instant() { ... })()
+            // The stackTraceLimit mostly works around app-page
+            // sourcemapping being broken and thus
+            // not ignore-listing Next.js module evaluation frames.
+            // We'd still want to ignore-list the module evaluation frame of
+            // `const __debugInstantStack = ...`
+            // so that we can get rid of manually limiting the stackTraceLimit.
+            // This really is only fine because Next.js controls how the page is loaded.
+            let mut cons = quote!(
+                "(function unstable_instant() {
+                    const previousStackTraceLimit = Error.stackTraceLimit
+                    Error.stackTraceLimit = 1
+                    const error = $new_error
+                    Error.stackTraceLimit = previousStackTraceLimit
+                    error.name = 'Instant Config'
+                    return error
+                })()" as Expr,
+                new_error: Expr = new_error,
+            );
+
+            // Patch source_span onto the IIFE CallExpr and inner Function
+            // for sourcemap mapping back to the unstable_instant config value
+            if let Expr::Call(call) = &mut cons {
+                call.span = source_span;
+                if let Callee::Expr(e) = &mut call.callee {
+                    if let Expr::Paren(p) = e.as_mut() {
+                        if let Expr::Fn(f) = p.expr.as_mut() {
+                            f.function.span = source_span;
+                        }
+                    }
+                }
+            }
+
+            let export = quote!(
+                "export const __debugInstantStack =
+                    process.env.NODE_ENV !== 'production' ? $cons : undefined"
+                    as ModuleItem,
+                cons: Expr = cons,
+            );
+
+            new_items.push(export);
             new_items
         } else {
             items
