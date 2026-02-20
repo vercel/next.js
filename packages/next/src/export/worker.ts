@@ -53,7 +53,7 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
-import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
+import { loadConfigForBuildWorker } from '../server/config'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -345,7 +345,7 @@ export async function exportPages(
     renderResumeDataCachesByPage = {},
   } = input
 
-  installGlobalBehaviors(nextConfig)
+  loadConfigForBuildWorker(nextConfig)
 
   if (nextConfig.enablePrerenderSourceMaps) {
     try {

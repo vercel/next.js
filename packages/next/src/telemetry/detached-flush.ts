@@ -1,3 +1,4 @@
+import '../server/node-environment'
 import fs from 'fs'
 import path from 'path'
 import type { TelemetryEvent } from './storage'

@@ -1480,23 +1480,49 @@ type LoadConfigOptions = {
   debugPrerender?: boolean
 }
 
-export default async function loadConfig(
+export default async function loadConfigFromFile(
   phase: typeof PHASE_DEVELOPMENT_SERVER,
   dir: string,
   opts?: LoadConfigOptions
 ): Promise<NextConfigComplete>
-export default async function loadConfig(
+export default async function loadConfigFromFile(
   phase: typeof PHASE_PRODUCTION_SERVER | typeof PHASE_DEVELOPMENT_SERVER,
   dir: string,
   opts?: LoadConfigOptions
 ): Promise<NextConfigRuntime | NextConfigComplete>
-export default async function loadConfig(
+export default async function loadConfigFromFile(
   phase: PHASE_TYPE,
   dir: string,
   opts?: LoadConfigOptions
 ): Promise<NextConfigComplete>
 
-export default async function loadConfig(
+export default async function loadConfigFromFile(
+  phase: PHASE_TYPE,
+  dir: string,
+  opts: LoadConfigOptions = {}
+): Promise<NextConfigComplete> {
+  const config = await loadConfigImpl(phase, dir, opts)
+  const { installGlobalBehaviors } =
+    require('./node-environment-extensions/global-behaviors') as typeof import('./node-environment-extensions/global-behaviors')
+  installGlobalBehaviors(config)
+  return config
+}
+
+/**
+ * Initialize global behaviors from a pre-resolved config received via IPC
+ * in a build worker process. The parent process already loaded and serialized
+ * the config — this sets up the worker's globals.
+ */
+export function loadConfigForBuildWorker(
+  config: NextConfigComplete
+): NextConfigComplete {
+  const { installGlobalBehaviors } =
+    require('./node-environment-extensions/global-behaviors') as typeof import('./node-environment-extensions/global-behaviors')
+  installGlobalBehaviors(config)
+  return config
+}
+
+async function loadConfigImpl(
   phase: PHASE_TYPE,
   dir: string,
   {

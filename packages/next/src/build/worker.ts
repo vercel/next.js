@@ -1,3 +1,4 @@
+import '../server/node-environment'
 import '../server/require-hook'
 // Import cpu-profile to start profiling early if enabled
 import '../server/lib/cpu-profile'

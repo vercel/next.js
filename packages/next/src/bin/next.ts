@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import '../server/node-environment'
 import '../server/require-hook'
 
 import {
