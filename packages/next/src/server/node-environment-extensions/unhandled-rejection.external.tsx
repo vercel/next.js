@@ -116,6 +116,11 @@ type ListenerMetadata = {
   once: boolean
 }
 
+// We use a global symbol to detect if the filter has already been installed.
+// If two instances of this module are loaded, each captures the other's handler
+// as an underlying listener, creating mutual recursion that overflows the stack.
+// We error defensively rather than silently degrading.
+const FILTER_INSTALLED_KEY = Symbol.for('next.unhandledRejectionFilter')
 let filterInstalled = false
 
 // We store the proxied listeners for unhandled rejections here.
@@ -194,10 +199,10 @@ const MACGUFFIN_EVENT = 'Next.UnhandledRejectionFilter.MacguffinEvent'
  * This should be called once during server startup to install the global filter.
  */
 function installUnhandledRejectionFilter(): void {
-  if (filterInstalled) {
-    warnWithTrace?.(
-      'Unexpected subsequent filter installation. This is a bug in Next.js'
-    )
+  if ((globalThis as any)[FILTER_INSTALLED_KEY] || filterInstalled) {
+    // Already installed by another evaluation of this module in the same
+    // process (e.g., Jest's module system re-evaluating an already-loaded
+    // module). Safe to skip since the filter is already active.
     return
   }
 
@@ -526,6 +531,7 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
   )
 
   filterInstalled = true
+  ;(globalThis as any)[FILTER_INSTALLED_KEY] = true
 }
 
 /**
@@ -578,10 +584,18 @@ function uninstallUnhandledRejectionFilter(): void {
 /**
  * The filtering handler that decides whether to suppress or delegate unhandled rejections.
  */
+let handlingRejection = false
+
 function filteringUnhandledRejectionHandler(
   reason: any,
   promise: Promise<any>
 ): void {
+  if (handlingRejection) {
+    // An underlying listener synchronously re-emitted 'unhandledRejection'.
+    // Re-entering the listener loop would overflow the stack.
+    return
+  }
+
   const capturedListenerMetadata = Array.from(listenerMetadata)
 
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -622,6 +636,7 @@ function filteringUnhandledRejectionHandler(
     // do not automatically terminate the process.
     console.error('Unhandled Rejection:', reason)
   } else {
+    handlingRejection = true
     try {
       for (const meta of capturedListenerMetadata) {
         if (meta.once) {
@@ -640,6 +655,8 @@ function filteringUnhandledRejectionHandler(
       setImmediate(() => {
         throw error
       })
+    } finally {
+      handlingRejection = false
     }
   }
 }
