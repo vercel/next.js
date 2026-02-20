@@ -1470,6 +1470,15 @@ export async function handler(
         body.push(
           new ReadableStream({
             start(controller) {
+              if (isInstantNavigationTest) {
+                // Inject a global so the client can detect that this response
+                // is a partial static shell, independent of document.cookie
+                // (which may be empty on the new page in some browsers).
+                const encoder = new TextEncoder()
+                controller.enqueue(
+                  encoder.encode('<script>self.__next_instant_test=1</script>')
+                )
+              }
               controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
               controller.close()
             },

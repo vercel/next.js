@@ -51,34 +51,37 @@ describe('instant-navigation-testing-api', () => {
     return page!
   }
 
+  const INSTANT_COOKIE = 'next-instant-navigation-testing'
+
   /**
    * Runs a function with instant navigation enabled. Within this scope,
    * navigations render the prefetched UI immediately and wait for the
    * callback to complete before streaming in dynamic data.
    *
-   * This is the inline implementation of what will eventually be extracted
-   * to a Playwright helper package.
+   * Uses the cookie-based protocol: setting the cookie acquires the
+   * navigation lock (via CookieStore change event), and clearing it
+   * releases the lock.
    */
   async function instant<T>(
     page: Playwright.Page,
     fn: () => Promise<T>
   ): Promise<T> {
-    await page.evaluate(() =>
-      (window as any).__EXPERIMENTAL_NEXT_TESTING__?.navigation.lock()
-    )
+    // Acquire the lock by setting the cookie from within the page context.
+    // This triggers the CookieStore change event in navigation-testing-lock.ts,
+    // which acquires the in-memory navigation lock.
+    await page.evaluate((name) => {
+      document.cookie = name + '=1; path=/'
+    }, INSTANT_COOKIE)
     try {
       return await fn()
     } finally {
-      // Wait for the page to be ready before unlocking. This is only necessary
-      // when fn() triggers a full page navigation (e.g. page.reload() or
-      // clicking a plain anchor), since the new page needs time to initialize.
-      await page.waitForFunction(
-        () =>
-          typeof (window as any).__EXPERIMENTAL_NEXT_TESTING__ !== 'undefined'
-      )
-      await page.evaluate(() =>
-        (window as any).__EXPERIMENTAL_NEXT_TESTING__?.navigation.unlock()
-      )
+      // Release the lock by clearing the cookie. For SPA navigations, this
+      // triggers the CookieStore change event which resolves the in-memory
+      // lock. For MPA navigations (reload, plain anchor), the listener in
+      // app-bootstrap.ts triggers a page reload to fetch dynamic data.
+      await page.evaluate((name) => {
+        document.cookie = name + '=; path=/; max-age=0'
+      }, INSTANT_COOKIE)
     }
   }
 
@@ -167,19 +170,23 @@ describe('instant-navigation-testing-api', () => {
   it('logs an error when attempting to nest instant scopes', async () => {
     const page = await openPage('/')
 
-    const errors: string[] = []
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        errors.push(msg.text())
-      }
+    // Listen for the specific error message
+    const consolePromise = page.waitForEvent('console', {
+      predicate: (msg) =>
+        msg.type() === 'error' && msg.text().includes('already acquired'),
+      timeout: 5000,
     })
 
     await instant(page, async () => {
-      // Attempt to nest another instant scope - should log an error
-      await instant(page, async () => {})
+      // Attempt to acquire the lock again by changing the cookie value.
+      // The CookieStore change event fires, and the handler detects that
+      // the lock is already held, logging an error.
+      await page.evaluate((name) => {
+        document.cookie = name + '=nested; path=/'
+      }, INSTANT_COOKIE)
+      const msg = await consolePromise
+      expect(msg.text()).toContain('already acquired')
     })
-
-    expect(errors.some((e) => e.includes('already acquired'))).toBe(true)
   })
 
   it('renders static shell on page reload', async () => {
