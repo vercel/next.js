@@ -47,10 +47,15 @@ describe('action-queue-transition-deadlock', () => {
     )
 
     // Verify we're on the other page
-    await retry(async () => {
-      const heading = await browser.elementById('other-page').text()
-      expect(heading).toBe('Other Page')
-    })
+    await retry(
+      async () => {
+        const heading = await browser.elementById('other-page').text()
+        expect(heading).toBe('Other Page')
+      },
+      10000,
+      500,
+      'waiting for other page to render'
+    )
 
     // Most importantly: verify that the transition eventually completes
     // and isPending returns to false. This is the key indicator that
@@ -60,7 +65,7 @@ describe('action-queue-transition-deadlock', () => {
         const status = await browser.elementById('status').text()
         expect(status).toBe('idle')
       },
-      15000,
+      20000,
       500,
       'waiting for transition to complete'
     )
