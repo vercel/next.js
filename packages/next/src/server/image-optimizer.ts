@@ -376,6 +376,7 @@ export class ImageOptimizerCache {
   private nextConfig: NextConfigRuntime
   private cacheHandler?: CacheHandler
   private cacheDiskLRU?: ReturnType<typeof getOrInitDiskLRU>
+  private isDiskCacheEnabled: boolean
 
   static validateParams(
     req: IncomingMessage,
@@ -565,9 +566,13 @@ export class ImageOptimizerCache {
     this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
     this.cacheHandler = cacheHandler
+    this.isDiskCacheEnabled =
+      !cacheHandler &&
+      nextConfig.images.maximumDiskCacheSize !== 0 &&
+      nextConfig.experimental.isrFlushToDisk === true
 
     // Eagerly start LRU initialization for filesystem cache
-    if (!cacheHandler) {
+    if (this.isDiskCacheEnabled) {
       this.cacheDiskLRU = getOrInitDiskLRU(
         this.cacheDir,
         nextConfig.images.maximumDiskCacheSize,
@@ -618,7 +623,7 @@ export class ImageOptimizerCache {
     }
 
     // If the filesystem cache is disabled, return early
-    if (this.nextConfig.images.maximumDiskCacheSize === 0) {
+    if (!this.isDiskCacheEnabled) {
       return null
     }
 
@@ -629,7 +634,8 @@ export class ImageOptimizerCache {
         await readFromCacheDir(this.cacheDir, cacheKey)
 
       // Promote entry in LRU (mark as recently used)
-      ;(await this.cacheDiskLRU)?.get(cacheKey)
+      const lru = await this.cacheDiskLRU
+      lru?.get(cacheKey)
 
       return {
         value: {
@@ -694,10 +700,7 @@ export class ImageOptimizerCache {
     }
 
     // If the filesystem cache is disabled, return early
-    if (
-      !this.nextConfig.experimental.isrFlushToDisk ||
-      this.nextConfig.images.maximumDiskCacheSize === 0
-    ) {
+    if (!this.isDiskCacheEnabled) {
       return
     }
 
@@ -709,7 +712,7 @@ export class ImageOptimizerCache {
     try {
       const lru = await this.cacheDiskLRU
       const success = lru?.set(cacheKey, value.buffer.byteLength)
-      if (!success) {
+      if (success === false) {
         throw new Error(
           `image of size ${value.buffer.byteLength} could not be tracked by lru cache`
         )
