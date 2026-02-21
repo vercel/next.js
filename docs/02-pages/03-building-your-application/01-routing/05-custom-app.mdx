@@ -1,89 +1,400 @@
----
-title: Custom App
-description: Control page initialization and add a layout that persists for all pages by overriding the default App component used by Next.js.
----
+import type { Metadata } from "next";
 
-Next.js uses the `App` component to initialize pages. You can override it and control the page initialization and:
+const BRAND = "Vault501BZ";
+const WHATSAPP_1_DISPLAY = "613-8041";
+const WHATSAPP_2_DISPLAY = "633-5455";
 
-- Create a shared layout between page changes
-- Inject additional data into pages
-- [Add global CSS](/docs/app/getting-started/css)
+// Belize country code is +501.
+// wa.me format: https://wa.me/<countrycode><number>
+// Remove dashes/spaces from the local number.
+const WHATSAPP_1_LINK = "https://wa.me/5016138041";
+const WHATSAPP_2_LINK = "https://wa.me/5016335455";
 
-## Usage
+const prices = [
+  { usd: 10, bzd: 20 },
+  { usd: 15, bzd: 30 },
+  { usd: 20, bzd: 40 },
+  { usd: 25, bzd: 50 },
+  { usd: 50, bzd: 100 },
+  { usd: 75, bzd: 150 },
+  { usd: 100, bzd: 200 },
+];
 
-To override the default `App`, create the file `pages/_app` as shown below:
+// NOTE: Above is the currency conversion only (1 USD = 2 BZD).
+// If you're MARKING UP prices (e.g., selling $10 USD card for $24 BZD),
+// update the bzd values accordingly.
 
-```tsx filename="pages/_app.tsx" switcher
-import type { AppProps } from 'next/app'
-
-export default function MyApp({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />
-}
-```
-
-```jsx filename="pages/_app.jsx" switcher
-export default function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
-}
-```
-
-The `Component` prop is the active `page`, so whenever you navigate between routes, `Component` will change to the new `page`. Therefore, any props you send to `Component` will be received by the `page`.
-
-`pageProps` is an object with the initial props that were preloaded for your page by one of our [data fetching methods](/docs/pages/building-your-application/data-fetching), otherwise it's an empty object.
-
-> **Good to know**:
->
-> - If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
-> - `App` does not support Next.js [Data Fetching methods](/docs/pages/building-your-application/data-fetching) like [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) or [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props).
-
-## `getInitialProps` with `App`
-
-Using [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) in `App` will disable [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) for pages without [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props).
-
-**We do not recommend using this pattern.** Instead, consider [incrementally adopting](/docs/app/guides/migrating/app-router-migration) the App Router, which allows you to more easily fetch data for pages and layouts.
-
-```tsx filename="pages/_app.tsx" switcher
-import App, { AppContext, AppInitialProps, AppProps } from 'next/app'
-
-type AppOwnProps = { example: string }
-
-export default function MyApp({
-  Component,
-  pageProps,
-  example,
-}: AppProps & AppOwnProps) {
+function WhatsAppButtons() {
   return (
-    <>
-      <p>Data: {example}</p>
-      <Component {...pageProps} />
-    </>
-  )
+    <div className="flex flex-col gap-3 sm:flex-row">
+      <a
+        href={WHATSAPP_1_LINK}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:opacity-90"
+      >
+        WhatsApp {WHATSAPP_1_DISPLAY}
+      </a>
+      <a
+        href={WHATSAPP_2_LINK}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
+      >
+        WhatsApp {WHATSAPP_2_DISPLAY}
+      </a>
+    </div>
+  );
 }
 
-MyApp.getInitialProps = async (
-  context: AppContext
-): Promise<AppOwnProps & AppInitialProps> => {
-  const ctx = await App.getInitialProps(context)
-
-  return { ...ctx, example: 'data' }
-}
-```
-
-```jsx filename="pages/_app.jsx" switcher
-import App from 'next/app'
-
-export default function MyApp({ Component, pageProps, example }) {
+function SectionTitle({
+  eyebrow,
+  title,
+  desc,
+}: {
+  eyebrow?: string;
+  title: string;
+  desc?: string;
+}) {
   return (
-    <>
-      <p>Data: {example}</p>
-      <Component {...pageProps} />
-    </>
-  )
+    <div className="mb-8">
+      {eyebrow ? (
+        <p className="text-xs font-semibold tracking-[0.25em] text-white/60">
+          {eyebrow}
+        </p>
+      ) : null}
+      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        {title}
+      </h2>
+      {desc ? <p className="mt-2 max-w-2xl text-white/70">{desc}</p> : null}
+    </div>
+  );
 }
 
-MyApp.getInitialProps = async (context) => {
-  const ctx = await App.getInitialProps(context)
+export default function Page() {
+  return (
+    <div className="min-h-dvh bg-[#070A12] text-white">
+      {/* Top gradient glow */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-gradient-to-b from-[#0b2a7a]/25 via-[#c70039]/10 to-transparent" />
 
-  return { ...ctx, example: 'data' }
+      {/* Nav */}
+      <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#c70039] via-white to-[#0b2a7a] p-[1px]">
+            <div className="grid h-full w-full place-items-center rounded-2xl bg-[#070A12] text-xs font-bold tracking-widest">
+              V
+            </div>
+          </div>
+          <div className="leading-tight">
+            <div className="text-sm font-semibold">{BRAND}</div>
+            <div className="text-xs text-white/60">Streetwear • Belize</div>
+          </div>
+        </div>
+
+        <nav className="hidden items-center gap-6 text-sm text-white/70 sm:flex">
+          <a className="hover:text-white" href="#drops">
+            Drops
+          </a>
+          <a className="hover:text-white" href="#giftcards">
+            Gift Cards
+          </a>
+          <a className="hover:text-white" href="#faq">
+            FAQ
+          </a>
+          <a className="hover:text-white" href="#contact">
+            Contact
+          </a>
+        </nav>
+
+        <div className="hidden sm:block">
+          <a
+            href="#contact"
+            className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90"
+          >
+            Order on WhatsApp
+          </a>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <main className="relative mx-auto w-full max-w-6xl px-5 pb-16 pt-8 sm:pt-14">
+        <div className="grid items-center gap-10 lg:grid-cols-2">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/70">
+              <span className="h-2 w-2 rounded-full bg-[#c70039]" />
+              New drops + gift cards • Local Belize support
+            </p>
+
+            <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
+              Streetwear built in Belize.
+              <span className="block bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
+                Clean. Bold. Vault-coded.
+              </span>
+            </h1>
+
+            <p className="mt-4 max-w-xl text-white/70">
+              Vault501BZ is a streetwear brand with fast local ordering. We also
+              offer prepaid gaming gift cards on request. Order via WhatsApp for
+              quick response in Belize.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <a
+                href="#drops"
+                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#c70039] via-white to-[#0b2a7a] px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:opacity-95"
+              >
+                View Drops
+              </a>
+              <WhatsAppButtons />
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3 text-xs text-white/60">
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                Red • White • Blue
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                Local delivery / pickup
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                Custom HTV printing
+              </span>
+            </div>
+          </div>
+
+          {/* Hero card */}
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
+            <div className="rounded-2xl bg-gradient-to-br from-[#c70039]/25 via-white/10 to-[#0b2a7a]/25 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.25em] text-white/60">
+                    FEATURED
+                  </p>
+                  <h3 className="mt-2 text-xl font-semibold">
+                    “Vault Mark” Tee
+                  </h3>
+                  <p className="mt-1 text-white/70">
+                    Minimal chest print + bold back hit.
+                  </p>
+                </div>
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/10 text-sm font-bold">
+                  501
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-[#070A12]/60 p-4">
+                  <p className="text-xs text-white/60">Material</p>
+                  <p className="mt-1 text-sm font-semibold">Cotton</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-[#070A12]/60 p-4">
+                  <p className="text-xs text-white/60">Print</p>
+                  <p className="mt-1 text-sm font-semibold">HTV</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-[#070A12]/60 p-4">
+                  <p className="text-xs text-white/60">Ordering</p>
+                  <p className="mt-1 text-sm font-semibold">WhatsApp</p>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <a
+                  href="#contact"
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
+                >
+                  Order this drop
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Drops */}
+        <section id="drops" className="mt-16">
+          <SectionTitle
+            eyebrow="STREETWEAR"
+            title="Featured Drops"
+            desc="Swap these placeholders with your real products (photos, prices, sizes)."
+          />
+
+          <div className="grid gap-5 md:grid-cols-3">
+            {[
+              { name: "Vault Mark Tee", desc: "Clean front • bold back", tag: "New" },
+              { name: "501 Crest Hoodie", desc: "Heavyweight street fit", tag: "Soon" },
+              { name: "BZ Colorway Cap", desc: "Red/white/blue stitch", tag: "Limited" },
+            ].map((p) => (
+              <div
+                key={p.name}
+                className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur transition hover:bg-white/7"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">{p.name}</p>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
+                    {p.tag}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-white/70">{p.desc}</p>
+                <div className="mt-4 h-32 rounded-2xl bg-gradient-to-br from-[#c70039]/20 via-white/5 to-[#0b2a7a]/20" />
+                <div className="mt-4">
+                  <a
+                    href="#contact"
+                    className="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Order via WhatsApp
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Gift Cards */}
+        <section id="giftcards" className="mt-16">
+          <SectionTitle
+            eyebrow="DIGITAL"
+            title="Gift Card Price Board"
+            desc="These are USD→BZD conversions. If you apply markup, edit the BZD column."
+          />
+
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+            <div className="flex flex-col gap-3 border-b border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Prepaid Gift Cards</p>
+                <p className="text-sm text-white/70">
+                  Order on WhatsApp • Delivery after payment confirmation
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <a
+                  href={WHATSAPP_1_LINK}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90"
+                >
+                  {WHATSAPP_1_DISPLAY}
+                </a>
+                <a
+                  href={WHATSAPP_2_LINK}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  {WHATSAPP_2_DISPLAY}
+                </a>
+              </div>
+            </div>
+
+            <div className="p-5">
+              <div className="grid gap-3">
+                <div className="grid grid-cols-3 rounded-2xl border border-white/10 bg-[#070A12]/40 px-4 py-3 text-xs font-semibold text-white/70">
+                  <div>Amount (USD)</div>
+                  <div>Price (BZD)</div>
+                  <div className="text-right">Action</div>
+                </div>
+
+                {prices.map((row) => (
+                  <div
+                    key={row.usd}
+                    className="grid grid-cols-3 items-center rounded-2xl border border-white/10 bg-[#070A12]/20 px-4 py-3"
+                  >
+                    <div className="text-sm font-semibold">${row.usd}</div>
+                    <div className="text-sm text-white/80">BZD ${row.bzd}</div>
+                    <div className="text-right">
+                      <a
+                        href={`${WHATSAPP_1_LINK}?text=${encodeURIComponent(
+                          `Hi ${BRAND}, I want a $${row.usd} USD gift card.`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-xl bg-gradient-to-r from-[#c70039] via-white to-[#0b2a7a] px-3 py-2 text-xs font-semibold text-black transition hover:opacity-95"
+                      >
+                        Order
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="mt-4 text-xs text-white/60">
+                Disclaimer: {BRAND} is not affiliated with Roblox Corporation or
+                any game platform. We sell prepaid gift cards and clothing.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className="mt-16">
+          <SectionTitle
+            eyebrow="HELP"
+            title="FAQ"
+            desc="Short answers that reduce customer back-and-forth."
+          />
+
+          <div className="grid gap-5 md:grid-cols-2">
+            {[
+              {
+                q: "How do I order?",
+                a: "Message us on WhatsApp with the item/amount you want. We confirm availability, payment method, then deliver (digital) or arrange pickup/delivery (clothing).",
+              },
+              {
+                q: "What payment methods do you accept in Belize?",
+                a: "Cash and online bank transfers. We confirm delivery after payment verification.",
+              },
+              {
+                q: "Do you deliver gift card codes instantly?",
+                a: "Delivery time depends on payment confirmation. For transfers, we usually deliver shortly after verification.",
+              },
+              {
+                q: "Can I request custom shirts (HTV)?",
+                a: "Yes. Send your design idea, size, shirt color, and we’ll quote you.",
+              },
+            ].map((item) => (
+              <div
+                key={item.q}
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur"
+              >
+                <p className="text-sm font-semibold">{item.q}</p>
+                <p className="mt-2 text-sm text-white/70">{item.a}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Contact */}
+        <section id="contact" className="mt-16">
+          <SectionTitle
+            eyebrow="CONTACT"
+            title="Order on WhatsApp"
+            desc="Fastest way to place an order in Belize."
+          />
+
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">{BRAND} Support</p>
+                <p className="mt-1 text-sm text-white/70">
+                  WhatsApp: {WHATSAPP_1_DISPLAY} • {WHATSAPP_2_DISPLAY}
+                </p>
+                <p className="mt-2 text-xs text-white/60">
+                  For orders: include size, color, quantity (clothing) or amount
+                  (gift cards).
+                </p>
+              </div>
+              <WhatsAppButtons />
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="mt-16 border-t border-white/10 py-10 text-sm text-white/60">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p>© {new Date().getFullYear()} {BRAND}. All rights reserved.</p>
+            <p className="text-xs">
+              Not affiliated with Roblox Corporation. Brand colors: red/white/blue.
+            </p>
+          </div>
+        </footer>
+      </main>
+    </div>
+  );
 }
-```
