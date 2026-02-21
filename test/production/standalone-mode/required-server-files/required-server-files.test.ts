@@ -17,7 +17,7 @@ import {
   waitFor,
   withInvocationId,
 } from 'next-test-utils'
-import { ChildProcess } from 'child_process'
+import { ChildProcess, spawnSync } from 'child_process'
 
 describe('required server files', () => {
   let next: NextInstance
@@ -449,6 +449,24 @@ describe('required server files', () => {
         (f) => !fs.pathExistsSync(join(next.testDir, 'standalone', f))
       )
     ).toBeEmpty()
+  })
+
+  it('should resolve styled-jsx/style from standalone output', async () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        '-e',
+        "require('next/dist/server/require-hook');console.log(require.resolve('styled-jsx/style'))",
+      ],
+      {
+        cwd: join(next.testDir, 'standalone'),
+        env: process.env,
+        encoding: 'utf8',
+      }
+    )
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('styled-jsx')
   })
 
   it('should de-dupe HTML/data requests', async () => {
