@@ -10,6 +10,7 @@ import {
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 
 import path from 'path'
+import { fileURLToPath } from 'url'
 import fs from 'fs/promises'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../server/ci-info'
@@ -147,11 +148,14 @@ export async function collectBuildTraces({
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
       if (cacheHandler) {
+        const resolvedCacheHandler = cacheHandler.startsWith('file://')
+          ? fileURLToPath(cacheHandler)
+          : cacheHandler
         sharedEntriesSet.push(
           require.resolve(
-            path.isAbsolute(cacheHandler)
-              ? cacheHandler
-              : path.join(dir, cacheHandler)
+            path.isAbsolute(resolvedCacheHandler)
+              ? resolvedCacheHandler
+              : path.join(dir, resolvedCacheHandler)
           )
         )
       }
