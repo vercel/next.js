@@ -7,15 +7,15 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
-use super::{
-    errors::{FontFileNotFound, FontResult},
-    options::{FontDescriptor, FontDescriptors, FontWeight, NextFontLocalOptions},
-    request::AdjustFontFallback,
-};
 use crate::next_font::{
     font_fallback::{
         AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, DefaultFallbackFont,
         FontAdjustment, FontFallback, FontFallbacks,
+    },
+    local::{
+        errors::{FontFileNotFound, FontResult},
+        options::{FontDescriptor, FontDescriptors, FontWeight, NextFontLocalOptions},
+        request::AdjustFontFallback,
     },
     util::{FontFamilyType, get_scoped_font_family},
 };

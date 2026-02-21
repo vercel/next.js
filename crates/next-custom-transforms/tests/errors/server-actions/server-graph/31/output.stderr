@@ -1,7 +1,0 @@
-  x Only async functions are allowed to be exported in a "use cache" file.
-  | 
-   ,-[input.js:3:1]
- 2 |     
- 3 | ,-> export const foo = {},
- 4 | `->   bar = [1]
-   `----

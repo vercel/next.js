@@ -2,6 +2,7 @@
   "name": "dep-b",
   "version": "1.0.0",
   "dependencies": {
+    "@storybook/global": "5.0.0",
     "lodash": "4.17.21"
   }
 }

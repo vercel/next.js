@@ -2,7 +2,7 @@
 
 import useSWR from 'swr'
 import { Check, ChevronsUpDown, Loader, Route } from 'lucide-react'
-import { forwardRef, useImperativeHandle, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -19,27 +19,44 @@ import {
 } from '@/components/ui/popover'
 import { cn, jsonFetcher } from '@/lib/utils'
 import { NetworkError } from '@/lib/errors'
+import { Kbd } from '@/components/ui/kbd'
 
 interface RouteTypeaheadProps {
   selectedRoute: string | null
   onRouteSelected: (routeName: string) => void
 }
 
-export interface RouteTypeaheadRef {
-  focus: () => void
-}
-
-export const RouteTypeahead = forwardRef<
-  RouteTypeaheadRef,
-  RouteTypeaheadProps
->(function RouteTypeahead({ selectedRoute, onRouteSelected }, ref) {
+export function RouteTypeahead({
+  selectedRoute,
+  onRouteSelected,
+}: RouteTypeaheadProps) {
   const [open, setOpen] = useState(false)
+  const [shortcutLabel, setShortcutLabel] = useState<string | null>(null)
 
-  useImperativeHandle(ref, () => ({
-    focus: () => {
-      setOpen(true)
-    },
-  }))
+  useEffect(() => {
+    const isAppleDevice = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent)
+    setShortcutLabel(isAppleDevice ? '⌘K' : 'Ctrl+K')
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeElement = document.activeElement
+      const isInputFocused =
+        activeElement && ['INPUT', 'TEXTAREA'].includes(activeElement.tagName)
+
+      if (isInputFocused) return
+
+      const isShortcutPressed = isAppleDevice
+        ? e.metaKey && e.key === 'k'
+        : e.ctrlKey && e.key === 'k'
+
+      if (isShortcutPressed) {
+        e.preventDefault()
+        setOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const {
     data: routes,
@@ -96,7 +113,10 @@ export const RouteTypeahead = forwardRef<
 
               {ctaText}
             </div>
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <div className="flex items-center gap-2">
+              {shortcutLabel && <Kbd>{shortcutLabel}</Kbd>}
+              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+            </div>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-96 p-0">
@@ -133,4 +153,4 @@ export const RouteTypeahead = forwardRef<
       </Popover>
     </div>
   )
-})
+}

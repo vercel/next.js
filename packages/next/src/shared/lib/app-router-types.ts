@@ -4,83 +4,30 @@
  * This file contains type definitions that can be safely imported
  * by both client-side and server-side code without circular dependencies.
  */
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
+
 import type React from 'react'
 
 export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
+import type { VaryParamsThenable } from './segment-cache/vary-params-decoding'
+
 /** viewport metadata node */
 export type HeadData = React.ReactNode
-
-export type ChildSegmentMap = Map<string, CacheNode>
 
 /**
  * Cache node used in app-router / layout-router.
  */
-export type CacheNode = ReadyCacheNode | LazyCacheNode
 
-export type LazyCacheNode = {
-  /**
-   * When rsc is null, this is a lazily-initialized cache node.
-   *
-   * If the app attempts to render it, it triggers a lazy data fetch,
-   * postpones the render, and schedules an update to a new tree.
-   *
-   * TODO: This mechanism should not be used when PPR is enabled, though it
-   * currently is in some cases until we've implemented partial
-   * segment fetching.
-   */
-  rsc: null
-
-  /**
-   * A prefetched version of the segment data. See explanation in corresponding
-   * field of ReadyCacheNode (below).
-   *
-   * Since LazyCacheNode mostly only exists in the non-PPR implementation, this
-   * will usually be null, but it could have been cloned from a previous
-   * CacheNode that was created by the PPR implementation. Eventually we want
-   * to migrate everything away from LazyCacheNode entirely.
-   */
-  prefetchRsc: React.ReactNode
-
-  /**
-   * A pending response for the lazy data fetch. If this is not present
-   * during render, it is lazily created.
-   */
-  lazyData: Promise<FetchServerResponseResult> | null
-
-  prefetchHead: HeadData | null
-
-  head: HeadData
-
-  loading: LoadingModuleData | Promise<LoadingModuleData>
-
-  /**
-   * Child parallel routes.
-   */
-  parallelRoutes: Map<string, ChildSegmentMap>
-
-  /**
-   * The timestamp of the navigation that last updated the CacheNode's data. If
-   * a CacheNode is reused from a previous navigation, this value is not
-   * updated. Used to track the staleness of the data.
-   */
-  navigatedAt: number
-}
-
-export type ReadyCacheNode = {
+export type CacheNode = {
   /**
    * When rsc is not null, it represents the RSC data for the
    * corresponding segment.
    *
    * `null` is a valid React Node but because segment data is always a
-   * <LayoutRouter> component, we can use `null` to represent empty.
-   *
-   * TODO: For additional type safety, update this type to
-   * Exclude<React.ReactNode, null>. Need to update createEmptyCacheNode to
-   * accept rsc as an argument, or just inline the callers.
+   * <LayoutRouter> component, we can use `null` to represent empty. When it is
+   * null, it represents missing data, and rendering should suspend.
    */
   rsc: React.ReactNode
 
@@ -97,19 +44,11 @@ export type ReadyCacheNode = {
    */
   prefetchRsc: React.ReactNode
 
-  /**
-   * There should never be a lazy data request in this case.
-   */
-  lazyData: null
   prefetchHead: HeadData | null
 
   head: HeadData
 
-  loading: LoadingModuleData | Promise<LoadingModuleData>
-
-  parallelRoutes: Map<string, ChildSegmentMap>
-
-  navigatedAt: number
+  slots: Record<string, CacheNode> | null
 }
 
 export type DynamicParamTypes =
@@ -138,21 +77,29 @@ export type DynamicParamTypesShort =
   | 'di(..)'
   | 'di(...)'
 
-export type Segment =
-  | string
-  | [
-      // Param name
-      paramName: string,
-      // Param cache key (almost the same as the value, but arrays are
-      // concatenated into strings)
-      // TODO: We should change this to just be the value. Currently we convert
-      // it back to a value when passing to useParams. It only needs to be
-      // a string when converted to a a cache key, but that doesn't mean we
-      // need to store it as that representation.
-      paramCacheKey: string,
-      // Dynamic param type
-      dynamicParamType: DynamicParamTypesShort,
-    ]
+// The tuple form of a segment, used for dynamic route params
+export type DynamicSegmentTuple = [
+  // Param name
+  paramName: string,
+  // Param cache key (almost the same as the value, but arrays are
+  // concatenated into strings)
+  // TODO: We should change this to just be the value. Currently we convert
+  // it back to a value when passing to useParams. It only needs to be
+  // a string when converted to a a cache key, but that doesn't mean we
+  // need to store it as that representation.
+  paramCacheKey: string,
+  // Dynamic param type
+  dynamicParamType: DynamicParamTypesShort,
+  // Static sibling segments at the same URL level. Used by the client
+  // router to determine if a prefetch can be reused when navigating to
+  // a static sibling of a dynamic route. For example, if the route is
+  // /products/[id] and there's also /products/sale, then staticSiblings
+  // would be ['sale']. null means the siblings are unknown (e.g. in
+  // webpack dev mode).
+  staticSiblings: readonly string[] | null,
+]
+
+export type Segment = string | DynamicSegmentTuple
 
 /**
  * Router state
@@ -160,16 +107,10 @@ export type Segment =
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string | null,
+  refreshState?: CompressedRefreshState | null,
   /**
-   * "refresh" and "refetch", despite being similarly named, have different
-   * semantics:
    * - "refetch" is used during a request to inform the server where rendering
    *   should start from.
-   *
-   * - "refresh" is used by the client to mark that a segment should re-fetch the
-   *   data from the server for the current segment. It uses the "url" property
-   *   above to determine where to fetch from.
    *
    * - "inside-shared-layout" is used during a prefetch request to inform the
    *   server that even if the segment matches, it should be treated as if it's
@@ -189,29 +130,42 @@ export type FlightRouterState = [
    *   make sense for the client to send a FlightRouterState, since this type is
    *   overloaded with concerns.
    */
-  refresh?:
-    | 'refetch'
-    | 'refresh'
-    | 'inside-shared-layout'
-    | 'metadata-only'
-    | null,
-  isRootLayout?: boolean,
+  refresh?: 'refetch' | 'inside-shared-layout' | 'metadata-only' | null,
   /**
-   * Only present when responding to a tree prefetch request. Indicates whether
-   * there is a loading boundary somewhere in the tree. The client cache uses
-   * this to determine if it can skip the data prefetch request.
+   * Bitmask of PrefetchHint flags. Encodes route structure metadata:
+   * root layout, loading boundaries, instant configs, and runtime prefetch
+   * hints. Only set when non-zero.
    */
-  hasLoadingBoundary?: HasLoadingBoundary,
+  prefetchHints?: number,
 ]
 
-export const enum HasLoadingBoundary {
-  // There is a loading boundary in this particular segment
-  SegmentHasLoadingBoundary = 1,
-  // There is a loading boundary somewhere in the subtree (but not in
-  // this segment)
-  SubtreeHasLoadingBoundary = 2,
-  // There is no loading boundary in this segment or any of its descendants
-  SubtreeHasNoLoadingBoundary = 3,
+/**
+ * When rendering a parallel route, some of the parallel paths may not match
+ * the current URL. In that case, the Next client has to render something,
+ * so it will render whichever was the last route to match that slot. We use
+ * this type to track when this has happened. It's a tuple of the original
+ * URL that was used to fetch the segment, and the (possibly rewritten) search
+ * query that was rendered by the server. The URL is needed when performing
+ * a refresh of the segment, and the search query is needed for looking up
+ * matching entries in the segment cache.
+ */
+export type CompressedRefreshState = [url: string, renderedSearch: string]
+
+export const enum PrefetchHint {
+  // This segment has a runtime prefetch enabled (via unstable_instant with
+  // prefetch: 'runtime'). Per-segment only, does not propagate to ancestors.
+  HasRuntimePrefetch = 0b00001,
+  // This segment or one of its descendants has an instant config defined
+  // (any truthy unstable_instant, regardless of prefetch mode). Propagates
+  // upward so the root segment reflects the entire subtree.
+  SubtreeHasInstant = 0b00010,
+  // This segment itself has a loading.tsx boundary.
+  SegmentHasLoadingBoundary = 0b00100,
+  // A descendant segment (but not this one) has a loading.tsx boundary.
+  // Propagates upward so the root reflects the entire subtree.
+  SubtreeHasLoadingBoundary = 0b01000,
+  // This segment is the root layout of the application.
+  IsRootLayout = 0b10000,
 }
 
 /**
@@ -242,10 +196,24 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
+  // TODO: This field is no longer used. Remove it.
+  loading: null,
   isPartial: boolean,
-  /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
-  hasRuntimePrefetch: boolean,
+  /**
+   * A thenable that resolves to the set of route params this segment accessed
+   * during server rendering. Used by the client router to determine cache key
+   * specificity - segments that only access certain params can be reused across
+   * navigations where unaccessed params change.
+   *
+   * - null thenable: tracking was not enabled for this render (e.g., not a
+   *   prerender). Treat conservatively - assume all params vary.
+   * - Thenable resolves to empty Set: segment accesses no params (e.g., client
+   *   components, or server components that don't read params). Can be shared
+   *   across all param values.
+   * - Thenable resolves to non-empty Set: segment depends on those params.
+   *   Can only reuse when those specific params match.
+   */
+  varyParams: VaryParamsThenable | null,
 ]
 
 export type FlightDataSegment = [
@@ -274,8 +242,8 @@ export type FlightData = Array<FlightDataPath> | string
 export type ActionResult = Promise<any>
 
 export type InitialRSCPayload = {
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** initialCanonicalUrlParts */
   c: string[]
   /** initialRenderedSearch */
@@ -290,28 +258,42 @@ export type InitialRSCPayload = {
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** prerendered */
   S: boolean
+  /**
+   * headVaryParams - vary params for the head (metadata) of the response.
+   */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for normal rendering
 export type NavigationFlightResponse = {
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** flightData */
   f: FlightData
   /** prerendered */
   S: boolean
-  /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
-  rp?: [boolean, number]
+  /** renderedSearch */
+  q: string
+  /** couldBeIntercepted */
+  i: boolean
+  /** staleTime - Only present in dynamic runtime prefetch responses. */
+  s?: AsyncIterable<number>
+  /** headVaryParams */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
 export type ActionFlightResponse = {
   /** actionResult */
   a: ActionResult
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** flightData */
   f: FlightData
+  /** renderedSearch */
+  q: string
+  /** couldBeIntercepted */
+  i: boolean
 }
 
 export type RSCPayload =

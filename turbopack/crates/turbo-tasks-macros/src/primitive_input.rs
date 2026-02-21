@@ -1,14 +1,11 @@
-use proc_macro2::Span;
 use syn::{
-    Meta, Result, Token, Type,
+    MacroDelimiter, Meta, MetaList, Result, Token, Type,
     parse::{Parse, ParseStream},
-    spanned::Spanned,
 };
 
-#[derive(Debug)]
 pub struct PrimitiveInput {
     pub ty: Type,
-    pub manual_shrink_to_fit: Option<Span>,
+    pub bincode_wrappers: Option<BincodeWrappers>,
 }
 
 impl Parse for PrimitiveInput {
@@ -16,7 +13,7 @@ impl Parse for PrimitiveInput {
         let ty: Type = input.parse()?;
         let mut parsed_input = PrimitiveInput {
             ty,
-            manual_shrink_to_fit: None,
+            bincode_wrappers: None,
         };
         if input.parse::<Option<Token![,]>>()?.is_some() {
             let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
@@ -27,20 +24,54 @@ impl Parse for PrimitiveInput {
                         .map(ToString::to_string)
                         .as_deref()
                         .unwrap_or_default(),
-                    &meta,
+                    meta,
                 ) {
-                    ("manual_shrink_to_fit", Meta::Path(_)) => {
-                        parsed_input.manual_shrink_to_fit = Some(meta.span())
+                    ("bincode_wrappers", meta) => {
+                        let Meta::List(MetaList {
+                            tokens: wrapper_tokens,
+                            delimiter: MacroDelimiter::Paren(..),
+                            ..
+                        }) = meta
+                        else {
+                            return Err(syn::Error::new_spanned(
+                                meta,
+                                "expected parenthesized (EncodeTy, DecodeTy) list",
+                            ));
+                        };
+                        parsed_input.bincode_wrappers = Some(syn::parse2(wrapper_tokens)?);
                     }
                     (_, meta) => {
                         return Err(syn::Error::new_spanned(
                             meta,
-                            "unexpected token, expected: \"manual_shrink_to_fit\"",
+                            "unexpected token, expected: \"bincode_wrappers\"",
                         ));
                     }
                 }
             }
         }
         Ok(parsed_input)
+    }
+}
+
+pub struct BincodeWrappers {
+    pub encode_ty: Type,
+    pub decode_ty: Type,
+}
+
+impl Parse for BincodeWrappers {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let punctuated = input.parse_terminated(Type::parse, Token![,])?;
+        let items: [Type; 2] = punctuated
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .map_err(|_| {
+                syn::Error::new(input.span(), "expected exactly two comma-separated types")
+            })?;
+        let (encode_ty, decode_ty) = items.into();
+        Ok(BincodeWrappers {
+            encode_ty,
+            decode_ty,
+        })
     }
 }

@@ -4,6 +4,7 @@ use std::{io::Cursor, str::FromStr};
 
 use anyhow::{Context, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
+use bincode::{Decode, Encode};
 use image::{
     DynamicImage, GenericImageView, ImageEncoder, ImageFormat,
     codecs::{
@@ -15,13 +16,12 @@ use image::{
     imageops::FilterType,
 };
 use mime::Mime;
-use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, serde_as};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, PrettyPrintError, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
-    error::PrettyPrintError,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
@@ -32,7 +32,7 @@ use turbopack_core::{
 use self::svg::calculate;
 
 /// Small placeholder version of the image.
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct BlurPlaceholder {
     pub data_url: String,
     pub width: u32,
@@ -53,7 +53,6 @@ impl BlurPlaceholder {
 
 /// Gathered meta information about an image.
 #[allow(clippy::manual_non_exhaustive)]
-#[serde_as]
 #[turbo_tasks::value]
 #[derive(Default)]
 #[non_exhaustive]
@@ -61,7 +60,7 @@ pub struct ImageMetaData {
     pub width: u32,
     pub height: u32,
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[bincode(with = "turbo_bincode::mime_option")]
     pub mime_type: Option<Mime>,
     pub blur_placeholder: Option<BlurPlaceholder>,
 }

@@ -1,11 +1,11 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 
 use crate::{
     asset::{Asset, AssetContent},
@@ -16,7 +16,7 @@ use crate::{
     source_map::{GenerateSourceMap, SourceMap},
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, NonLocalValue, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, NonLocalValue, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
 enum PathType {
     Fixed {
         path: FileSystemPath,
@@ -103,7 +103,7 @@ impl Asset for SourceMapAsset {
             Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(
-                File::from(SourceMap::empty_rope()).into(),
+                FileContent::Content(File::from(SourceMap::empty_rope())).cell(),
             ))
         }
     }

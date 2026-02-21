@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -58,7 +58,7 @@ impl Asset for SingleItemCssChunkSourceMapAsset {
             Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(
-                File::from(SourceMap::empty_rope()).into(),
+                FileContent::Content(File::from(SourceMap::empty_rope())).cell(),
             ))
         }
     }

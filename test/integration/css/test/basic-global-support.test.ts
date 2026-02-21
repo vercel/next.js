@@ -404,6 +404,13 @@ module.exports = {
              .blue-text{color:#00f}",
              ]
             `)
+          } else if (process.env.NEXT_RSPACK && useLightningcss) {
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red;font-weight:bolder}.blue-text{color:#00f;font-weight:bolder}",
+             ]
+            `)
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
@@ -557,8 +564,8 @@ module.exports = {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
-             .red-text{color:red;background-image:url(../media/dark.8425d343.svg),url(../media/dark2.8425d343.svg)}
-             .blue-text{color:orange;background-image:url(../media/light.fc9b5caa.svg);font-weight:bolder}
+             .red-text{color:red;background-image:url(../media/dark.656fe8ee.svg),url(../media/dark2.656fe8ee.svg)}
+             .blue-text{color:orange;background-image:url(../media/light.750c956a.svg);font-weight:bolder}
              .blue-text{color:#00f}",
              ]
             `)
@@ -566,9 +573,16 @@ module.exports = {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
-             .red-text{color:red;background-image:url(../media/dark.8425d343.svg),url(../media/dark2.8425d343.svg)}
-             .blue-text{color:orange;background-image:url(../media/light.fc9b5caa.svg);font-weight:bolder}
+             .red-text{color:red;background-image:url(../media/dark.656fe8ee.svg),url(../media/dark2.656fe8ee.svg)}
+             .blue-text{color:orange;background-image:url(../media/light.750c956a.svg);font-weight:bolder}
              .blue-text{color:#00f}",
+             ]
+            `)
+          } else if (process.env.NEXT_RSPACK && useLightningcss) {
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg),url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:#00f;background-image:url(/_next/static/media/light.2da1d3d6.svg);font-weight:bolder}",
              ]
             `)
           } else if (useLightningcss) {
@@ -626,8 +640,8 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
           expect(cssContent).toMatchInlineSnapshot(`
            [
              "/_next/static/chunks/HASH.css:
-           .red-text{color:red;background-image:url(../media/dark.8425d343.svg) url(../media/dark2.8425d343.svg)}
-           .blue-text{color:orange;background-image:url(../media/light.fc9b5caa.svg);font-weight:bolder}
+           .red-text{color:red;background-image:url(../media/dark.656fe8ee.svg) url(../media/dark2.656fe8ee.svg)}
+           .blue-text{color:orange;background-image:url(../media/light.750c956a.svg);font-weight:bolder}
            .blue-text{color:#00f}",
            ]
           `)
@@ -678,8 +692,8 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
           expect(cssContent).toMatchInlineSnapshot(`
            [
              "/_next/static/chunks/HASH.css:
-           .red-text{color:red;background-image:url(../media/dark.8425d343.svg) url(../media/dark2.8425d343.svg)}
-           .blue-text{color:orange;background-image:url(../media/light.fc9b5caa.svg);font-weight:bolder}
+           .red-text{color:red;background-image:url(../media/dark.656fe8ee.svg) url(../media/dark2.656fe8ee.svg)}
+           .blue-text{color:orange;background-image:url(../media/light.750c956a.svg);font-weight:bolder}
            .blue-text{color:#00f}",
            ]
           `)

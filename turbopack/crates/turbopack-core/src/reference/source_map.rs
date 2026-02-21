@@ -1,5 +1,4 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath};
 
@@ -12,6 +11,8 @@ use crate::{
 };
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("source map file is referenced by {from}")]
 pub struct SourceMapReference {
     from: FileSystemPath,
     file: FileSystemPath,
@@ -63,23 +64,9 @@ impl GenerateSourceMap for SourceMapReference {
         let content = file.read().await?;
         let content = content.as_content().map(|file| file.content());
         if let Some(source_map) = resolve_source_map_sources(content, &self.from).await? {
-            Ok(File::from(source_map).into())
+            Ok(FileContent::Content(File::from(source_map)).cell())
         } else {
             Ok(FileContent::NotFound.cell())
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for SourceMapReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "source map file is referenced by {}",
-                self.from.value_to_string().await?
-            )
-            .into(),
-        ))
     }
 }

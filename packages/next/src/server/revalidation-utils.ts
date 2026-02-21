@@ -183,26 +183,39 @@ async function revalidateTags(
   await Promise.all(promises)
 }
 
-export async function executeRevalidates(
+export function executeRevalidates(
   workStore: WorkStore,
   state?: RevalidationState
-) {
+): false | Promise<void> {
+  const promises: Promise<unknown>[] = []
+
   const pendingRevalidatedTags =
     state?.pendingRevalidatedTags ?? workStore.pendingRevalidatedTags ?? []
 
-  const pendingRevalidates =
+  if (pendingRevalidatedTags.length > 0) {
+    promises.push(
+      revalidateTags(
+        pendingRevalidatedTags,
+        workStore.incrementalCache,
+        workStore
+      )
+    )
+  }
+
+  const pendingRevalidates = Object.values(
     state?.pendingRevalidates ?? workStore.pendingRevalidates ?? {}
+  )
+
+  promises.push(...pendingRevalidates)
 
   const pendingRevalidateWrites =
     state?.pendingRevalidateWrites ?? workStore.pendingRevalidateWrites ?? []
 
-  return Promise.all([
-    revalidateTags(
-      pendingRevalidatedTags,
-      workStore.incrementalCache,
-      workStore
-    ),
-    ...Object.values(pendingRevalidates),
-    ...pendingRevalidateWrites,
-  ])
+  promises.push(...pendingRevalidateWrites)
+
+  if (promises.length === 0) {
+    return false
+  }
+
+  return Promise.all(promises).then(() => undefined)
 }

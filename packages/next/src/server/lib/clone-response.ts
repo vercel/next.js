@@ -46,24 +46,6 @@ export function cloneResponse(original: Response): [Response, Response] {
     writable: false,
   })
 
-  // The Fetch Standard allows users to skip consuming the response body by
-  // relying on garbage collection to release connection resources.
-  // https://github.com/nodejs/undici?tab=readme-ov-file#garbage-collection
-  //
-  // To cancel the stream you then need to cancel both resulting branches.
-  // Teeing a stream will generally lock it for the duration, preventing other
-  // readers from locking it.
-  // https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream/tee
-
-  // cloned2 is stored in a react cache and cloned for subsequent requests.
-  // It is the original request, and is is garbage collected by a
-  // FinalizationRegistry in Undici, but since we're tee-ing the stream
-  // ourselves, we need to cancel clone1's stream (the response returned from
-  // our dedupe fetch) when clone1 is reclaimed, otherwise we leak memory.
-  if (registry && cloned1.body) {
-    registry.register(cloned1, new WeakRef(cloned1.body))
-  }
-
   const cloned2 = new Response(body2, {
     status: original.status,
     statusText: original.statusText,
@@ -77,6 +59,24 @@ export function cloneResponse(original: Response): [Response, Response] {
     enumerable: true,
     writable: false,
   })
+
+  // The Fetch Standard allows users to skip consuming the response body by
+  // relying on garbage collection to release connection resources.
+  // https://github.com/nodejs/undici?tab=readme-ov-file#garbage-collection
+  //
+  // To cancel the stream you then need to cancel both resulting branches.
+  // Teeing a stream will generally lock it for the duration, preventing other
+  // readers from locking it.
+  // https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream/tee
+  if (registry) {
+    if (cloned1.body) {
+      registry.register(cloned1, new WeakRef(cloned1.body))
+    }
+
+    if (cloned2.body) {
+      registry.register(cloned2, new WeakRef(cloned2.body))
+    }
+  }
 
   return [cloned1, cloned2]
 }

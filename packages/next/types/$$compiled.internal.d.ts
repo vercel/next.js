@@ -117,6 +117,7 @@ declare module 'react-server-dom-webpack/client.browser' {
     debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
     startTime?: number
     endTime?: number
+    unstable_allowPartialStream?: boolean
   }
 
   export function createFromFetch<T>(
@@ -169,6 +170,7 @@ declare module 'react-server-dom-webpack/server.edge' {
       onError?: (error: unknown) => void
       signal?: AbortSignal
       debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+      startTime?: number
     }
   ): ReadableStream<Uint8Array>
 
@@ -226,9 +228,9 @@ declare module 'react-server-dom-webpack/server.node' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export type ImportManifestEntry = {
-    id: string
+    id: string | number
     // chunks is a double indexed array of chunkId / chunkFilename pairs
-    chunks: Array<string>
+    chunks: ReadonlyArray<string>
     name: string
     async?: boolean
   }
@@ -279,7 +281,7 @@ declare module 'react-server-dom-webpack/static' {
     webpackMap: {
       readonly [id: string]: {
         readonly id: string | number
-        readonly chunks: readonly string[]
+        readonly chunks: ReadonlyArray<string>
         readonly name: string
         readonly async?: boolean
       }
@@ -708,8 +710,7 @@ declare module 'next/dist/compiled/@vercel/nft' {
 }
 
 declare module 'next/dist/compiled/tar' {
-  import m from 'tar'
-  export = m
+  export * from 'tar'
 }
 
 declare module 'next/dist/compiled/terser' {

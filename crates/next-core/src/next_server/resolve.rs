@@ -1,6 +1,6 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use next_taskless::NEVER_EXTERNAL_RE;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
@@ -65,7 +65,7 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(
+    AfterResolvePluginCondition::new_with_glob(
         root,
         Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
     )
@@ -322,18 +322,19 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         let target = result_from_original_location.ident().path().owned().await?;
 
-        Ok(ResolveResultOption::some(*ResolveResult::primary(
-            ResolveResultItem::External {
+        Ok(ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::External {
                 name: request_str.into(),
                 ty: external_type,
                 traced: ExternalTraced::Traced,
                 target: Some(target),
-            },
-        )))
+            })
+            .cell(),
+        ))
     }
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue)]
+#[derive(TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub struct PackagesGlobs {
     path_glob: ResolvedVc<Glob>,
     request_glob: ResolvedVc<Glob>,

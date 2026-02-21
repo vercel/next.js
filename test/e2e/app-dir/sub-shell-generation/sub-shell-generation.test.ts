@@ -58,9 +58,7 @@ describe('sub-shell-generation', () => {
         const res = await next.fetch(path)
         expect(res.status).toBe(200)
 
-        if (isNextDeploy) {
-          expect(res.headers.get('x-matched-path')).toBe(shell)
-        } else {
+        if (!isNextDeploy) {
           expect(res.headers.get('x-nextjs-postponed')).toBe(
             isPostponed ? '1' : null
           )

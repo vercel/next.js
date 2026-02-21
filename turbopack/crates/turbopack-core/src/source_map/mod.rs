@@ -1,12 +1,17 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use bytes_str::BytesStr;
 use either::Either;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
@@ -626,7 +631,7 @@ impl SourceMap {
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
     fn generate_source_map(&self) -> Result<Vc<FileContent>> {
-        Ok(File::from(self.to_rope()?).into())
+        Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
     }
 }
 
@@ -676,20 +681,23 @@ impl Deref for CrateMapWrapper {
     }
 }
 
-impl Serialize for CrateMapWrapper {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let mut bytes = vec![];
-        self.0.to_writer(&mut bytes).map_err(Error::custom)?;
-        serializer.serialize_bytes(bytes.as_slice())
+impl Encode for CrateMapWrapper {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        let mut bytes = Vec::new();
+        self.0
+            .to_writer(&mut bytes)
+            .map_err(|e| EncodeError::OtherString(e.to_string()))?;
+        bytes.encode(encoder)
     }
 }
 
-impl<'de> Deserialize<'de> for CrateMapWrapper {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let bytes = <&[u8]>::deserialize(deserializer)?;
-        let map = DecodedMap::from_reader(bytes).map_err(Error::custom)?;
+impl<Context> Decode<Context> for CrateMapWrapper {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let bytes = Vec::<u8>::decode(decoder)?;
+        let map = DecodedMap::from_reader(&*bytes)
+            .map_err(|e| DecodeError::OtherString(e.to_string()))?;
         Ok(CrateMapWrapper(map))
     }
 }
+
+bincode::impl_borrow_decode!(CrateMapWrapper);

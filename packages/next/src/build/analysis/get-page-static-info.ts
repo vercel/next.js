@@ -113,8 +113,10 @@ export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
 const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 
+// Match JSON object that may contain nested objects (for loc info)
+// The JSON ends right before the closing " */"
 const ACTION_MODULE_LABEL =
-  /\/\* __next_internal_action_entry_do_not_use__ (\{[^}]+\}) \*\//
+  /\/\* __next_internal_action_entry_do_not_use__ (\{.*\}) \*\//
 
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
@@ -125,8 +127,9 @@ export function getRSCModuleInformation(
   isReactServerLayer: boolean
 ): RSCMeta {
   const actionsJson = source.match(ACTION_MODULE_LABEL)
+  // Parse action metadata - supports both old format (string) and new format (object with loc)
   const parsedActionsMeta = actionsJson
-    ? (JSON.parse(actionsJson[1]) as Record<string, string>)
+    ? (JSON.parse(actionsJson[1]) as RSCMeta['actionIds'])
     : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
@@ -681,9 +684,9 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
+  if ('unstable_instant' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
+      `Page "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
     )
   }
 

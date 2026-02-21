@@ -1,8 +1,14 @@
 use std::fmt::Display;
 
 use anyhow::{Result, bail};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use regex::bytes::{Regex, RegexBuilder};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{TaskInput, Vc, trace::TraceRawVcs};
 
@@ -20,9 +26,8 @@ use crate::globset::parse;
 // Note: a/**/b does match a/b, so we need some special logic about path
 // separators
 
-#[turbo_tasks::value(eq = "manual")]
+#[turbo_tasks::value(eq = "manual", serialization = "custom")]
 #[derive(Debug, Clone)]
-#[serde(into = "GlobForm", try_from = "GlobForm")]
 pub struct Glob {
     glob: RcStr,
     #[turbo_tasks(trace_ignore)]
@@ -46,8 +51,27 @@ impl Display for Glob {
         write!(f, "Glob({})", self.glob)
     }
 }
+
+impl Encode for Glob {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.glob.encode(encoder)?;
+        self.opts.encode(encoder)?;
+        Ok(())
+    }
+}
+
+impl<Context> Decode<Context> for Glob {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let glob = RcStr::decode(decoder)?;
+        let opts = GlobOptions::decode(decoder)?;
+        Glob::parse(glob, opts).map_err(|err| DecodeError::OtherString(err.to_string()))
+    }
+}
+
+impl_borrow_decode!(Glob);
+
 #[derive(
-    Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash, Default, TaskInput, TraceRawVcs, Debug,
+    Copy, Clone, PartialEq, Eq, Hash, Default, TaskInput, TraceRawVcs, Debug, Encode, Decode,
 )]
 
 pub struct GlobOptions {
@@ -57,28 +81,6 @@ pub struct GlobOptions {
     /// match `foo_node_modules/package_name_bar` If you want to match a _directory_ named
     /// `node_modules/package_name` you should use `**/node_modules/package_name/**`
     pub contains: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-struct GlobForm {
-    glob: RcStr,
-    opts: GlobOptions,
-}
-
-impl From<Glob> for GlobForm {
-    fn from(value: Glob) -> Self {
-        Self {
-            glob: value.glob,
-            opts: value.opts,
-        }
-    }
-}
-
-impl TryFrom<GlobForm> for Glob {
-    type Error = anyhow::Error;
-    fn try_from(value: GlobForm) -> Result<Self, Self::Error> {
-        Glob::parse(value.glob, value.opts)
-    }
 }
 
 impl Glob {

@@ -1,27 +1,24 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
-    context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-    resolve::{ExportUsage, ModulePart, origin::ResolveOrigin},
+    resolve::{ExportUsage, ModulePart},
 };
 
-use super::{
-    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module,
-    split_module,
-};
+use super::{SplitResult, get_part_id, part_of_module, split_module};
 use crate::{
-    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
-    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
-    EcmascriptParsable,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
+    EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptModuleContent,
+    EcmascriptModuleContentOptions, EcmascriptParsable,
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
+    },
     parse::ParseResult,
     references::{
         FollowExportsResult, analyze_ecmascript_module, esm::FoundExportType, follow_reexports,
@@ -175,17 +172,11 @@ impl EcmascriptModulePartAsset {
                         ),
                     ));
                 }
-                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
                 let source_module = Vc::upcast(module);
                 let FollowExportsWithSideEffectsResult {
                     side_effects,
                     result,
-                } = &*follow_reexports_with_side_effects(
-                    source_module,
-                    export.clone(),
-                    side_effect_free_packages,
-                )
-                .await?;
+                } = &*follow_reexports_with_side_effects(source_module, export.clone()).await?;
                 let FollowExportsResult {
                     module: final_module,
                     export_name: new_export,
@@ -256,30 +247,20 @@ struct FollowExportsWithSideEffectsResult {
 async fn follow_reexports_with_side_effects(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
-    side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<FollowExportsWithSideEffectsResult>> {
     let mut side_effects = vec![];
 
     let mut current_module = module;
     let mut current_export_name = export_name;
     let result = loop {
-        let is_side_effect_free = *current_module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
-            .await?;
-
-        if !is_side_effect_free {
+        if *current_module.side_effects().await? != ModuleSideEffects::SideEffectFree {
             side_effects.push(only_effects(*current_module).to_resolved().await?);
         }
 
         // We ignore the side effect of the entry module here, because we need to proceed.
-        let result = follow_reexports(
-            *current_module,
-            current_export_name.clone(),
-            side_effect_free_packages,
-            true,
-        )
-        .to_resolved()
-        .await?;
+        let result = follow_reexports(*current_module, current_export_name.clone(), true)
+            .to_resolved()
+            .await?;
 
         let FollowExportsResult {
             module,
@@ -353,24 +334,13 @@ impl Module for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        &self,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
+    async fn side_effects(&self) -> Vc<ModuleSideEffects> {
         match self.part {
-            ModulePart::Exports | ModulePart::Export(..) => Ok(Vc::cell(true)),
-            _ => Ok(self
-                .full_module
-                .is_marked_as_side_effect_free(side_effect_free_packages)),
+            ModulePart::Exports | ModulePart::Export(..) => {
+                ModuleSideEffects::SideEffectFree.cell()
+            }
+            _ => self.full_module.side_effects(),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModulePartAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.full_module.content()
     }
 }
 
@@ -380,6 +350,26 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         Ok(*self.analyze().await?.exports)
     }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let analyze = self.analyze().await?;
+        let async_module_options = analyze.async_module.module_options(async_module_info);
+
+        let content = self.module_content(chunking_context, async_module_info);
+
+        Ok(EcmascriptChunkItemContent::new(
+            content,
+            chunking_context,
+            async_module_options,
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -387,16 +377,10 @@ impl ChunkableModule for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: ResolvedVc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
-            EcmascriptModulePartChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        )
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 

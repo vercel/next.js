@@ -2,14 +2,21 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'node:path'
 
-describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
-  'deployment-id-handling enabled with %s',
-  (envKey) => {
+describe.each([
+  ['NEXT_DEPLOYMENT_ID', ''],
+  ['CUSTOM_DEPLOYMENT_ID', ''],
+  ['NEXT_DEPLOYMENT_ID', ' and runtimeServerDeploymentId'],
+])(
+  'deployment-id-handling enabled with %s%s',
+  (envKey, runtimeServerDeploymentId) => {
     const deploymentId = Date.now() + ''
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       env: {
         [envKey]: deploymentId,
+        RUNTIME_SERVER_DEPLOYMENT_ID: runtimeServerDeploymentId
+          ? '1'
+          : undefined,
       },
     })
 
@@ -21,6 +28,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
     ])(
       'should append dpl query to all assets correctly for $urlPath',
       async ({ urlPath }) => {
+        // Validate SSR response
         const $ = await next.render$(urlPath)
 
         expect($('#deploymentId').text()).toBe(deploymentId)
@@ -39,33 +47,52 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
 
         for (const link of links) {
           if (link.attribs.href && link.attribs.rel !== 'expect') {
-            if (link.attribs.as === 'font') {
-              expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-            } else {
-              expect(link.attribs.href).toContain('dpl=' + deploymentId)
-            }
+            expect(link.attribs.href).toContain('dpl=' + deploymentId)
           }
         }
 
-        const browser = await next.browser(urlPath)
-        const requests = []
+        // Validate all requests ever performed by a browser
 
-        browser.on('request', (req) => {
-          if (req.url().includes('/_next/static')) {
-            requests.push(req.url())
-          }
+        const clientRequests = []
+
+        const browser = await next.browser(urlPath, {
+          beforePageLoad(page) {
+            page.on('request', async (req) => {
+              if (req.url().includes('/_next/static')) {
+                clientRequests.push(req.url())
+              }
+            })
+          },
         })
 
+        const dynamicImportRequests = []
+        browser.on('request', (req) => {
+          if (req.url().includes('/_next/static')) {
+            dynamicImportRequests.push(req.url())
+          }
+        })
         await browser.elementByCss('#dynamic-import').click()
-
-        await retry(() => expect(requests).not.toBeEmpty())
+        await retry(() => expect(dynamicImportRequests).not.toBeEmpty())
 
         try {
           expect(
-            requests.every((item) => item.includes('dpl=' + deploymentId))
+            dynamicImportRequests.every((item) =>
+              item.includes('dpl=' + deploymentId)
+            )
           ).toBe(true)
         } finally {
-          require('console').error('requests', requests)
+          require('console').error(
+            'dynamicImportRequests',
+            dynamicImportRequests
+          )
+        }
+
+        try {
+          expect(
+            clientRequests.every((item) => item.includes('dpl=' + deploymentId))
+          ).toBe(true)
+        } finally {
+          require('console').error('clientRequests', clientRequests)
         }
       }
     )
@@ -170,11 +197,7 @@ describe('deployment-id-handling disabled', () => {
 
       for (const link of links) {
         if (link.attribs.href) {
-          if (link.attribs.as === 'font') {
-            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-          } else {
-            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-          }
+          expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
         }
       }
 

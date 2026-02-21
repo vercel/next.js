@@ -70,4 +70,12 @@ describe('app dir - metadata missing metadataBase', () => {
     const output = next.cliOutput.slice(outputLength)
     expect(output).not.toContain('Unsupported metadata viewport')
   })
+
+  it('should warn for deprecated fields in other property', async () => {
+    const logStartPosition = next.cliOutput.length
+    await next.fetch('/deprecated-other-fields')
+    const output = getCliOutput(logStartPosition)
+    expect(output).toInclude('Use appleWebApp instead')
+    expect(output).toInclude('Use icons.apple instead')
+  })
 })

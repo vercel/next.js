@@ -2,21 +2,21 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
 const EXPECTED_TRACE: &str = "\
-Adder::add_method (read cell of type turbo-tasks@turbo_tasks::primitives::u64)
+Adder::add_method (read cell of type u64)
   self:
-    Adder::new (read cell of type turbo-tasks-backend@trace_transient::Adder)
+    Adder::new (read cell of type trace_transient::Adder)
       args:
-        unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::())
+        unknown transient task (read cell of type ())
   args:
-    unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::u16)
-    unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::u32)";
+    unknown transient task (read cell of type u16)
+    unknown transient task (read cell of type u32)";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trace_transient() {
@@ -62,9 +62,7 @@ async fn read_incorrect_task_input_operation(value: IncorrectTaskInput) -> Resul
 
 /// Has an intentionally incorrect `TaskInput` implementation, representing some code that the debug
 /// tracing might be particularly useful with.
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct IncorrectTaskInput(ResolvedVc<u64>);
 
 impl TaskInput for IncorrectTaskInput {

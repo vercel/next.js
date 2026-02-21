@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -64,8 +65,9 @@ use crate::{
 /// [`NonLocalValue`]: crate::NonLocalValue
 /// [rewritten external signature]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#external-signature-rewriting
 /// [`ReadRef`]: crate::ReadRef
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent, bound = "")]
+#[bincode(bounds = "T: ?Sized")]
 #[repr(transparent)]
 pub struct ResolvedVc<T>
 where
@@ -133,11 +135,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> Default for ResolvedVc<T>
+impl<T, Inner> Default for ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync + Default,
-    Repr: VcValueType,
 {
     fn default() -> Self {
         Self::cell(Default::default())
@@ -176,11 +177,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> ResolvedVc<T>
+impl<T, Inner> ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync,
-    Repr: VcValueType,
 {
     pub fn cell(inner: Inner) -> Self {
         Self {
@@ -260,8 +260,6 @@ where
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
     /// That method provides stronger guarantees, removing the need for a [`Option`] return type.
-    ///
-    /// See also: [`Vc::try_resolve_sidecast`].
     pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: VcValueTrait + ?Sized,
@@ -292,8 +290,6 @@ where
     /// is of the form `Box<dyn L>`, and `L` is a value trait.
     ///
     /// Returns `None` if the underlying value type is not a `K`.
-    ///
-    /// See also: [`Vc::try_resolve_downcast`].
     pub fn try_downcast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: UpcastStrict<T> + VcValueTrait + ?Sized,
@@ -305,8 +301,6 @@ where
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
     ///
     /// Returns `None` if the underlying value type is not a `K`.
-    ///
-    /// See also: [`Vc::try_resolve_downcast_type`].
     pub fn try_downcast_type<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: UpcastStrict<T> + VcValueType,

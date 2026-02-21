@@ -1,4 +1,7 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type {
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
@@ -73,12 +76,50 @@ import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
-import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
+import type {
+  AppRouteModule,
+  AppRouteRouteModule,
+} from '../server/route-modules/app-route/module'
 import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
 import type { TurbopackResult } from './swc/types'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseAppRoute } from '../shared/lib/router/routes/app'
+import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
+import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
+
+// Build a set of static metadata image filenames for quick lookup
+const staticMetadataImageFilenames = new Set<string>(
+  Object.values(STATIC_METADATA_IMAGES).map((meta) => meta.filename)
+)
+
+/**
+ * Get the display path for build output. For static metadata files under
+ * dynamic routes, this normalizes the path to use "-" placeholder.
+ * e.g., /dynamic/[id]/icon.png -> /dynamic/-/icon.png
+ */
+function getTreeViewDisplayPath(pagePath: string): string {
+  // Check if the path contains dynamic segments
+  if (!isDynamicRoute(pagePath)) {
+    return pagePath
+  }
+
+  // Check if the filename is a static metadata image
+  const lastSlash = pagePath.lastIndexOf('/')
+  const filename = pagePath.slice(lastSlash + 1)
+  const dotIndex = filename.lastIndexOf('.')
+  const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename
+
+  // Check against known static metadata image filenames (e.g., icon, apple-icon, opengraph-image)
+  if (!staticMetadataImageFilenames.has(baseName)) {
+    return pagePath
+  }
+
+  // Transform using fillMetadataSegment with isStatic=true
+  const segment = pagePath.slice(0, lastSlash)
+  const lastSegment = filename
+  return fillMetadataSegment(segment, {}, lastSegment, true)
+}
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -410,10 +451,12 @@ export async function printTreeView(
         symbol = 'ƒ'
       }
 
+      const displayPath = getTreeViewDisplayPath(item)
+
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
         messages.push([
-          `${border} ƒ ${item}${
+          `${border} ƒ ${displayPath}${
             totalDuration > MIN_DURATION
               ? ` (${getPrettyDuration(totalDuration)})`
               : ''
@@ -430,7 +473,7 @@ export async function printTreeView(
       usedSymbols.add(symbol)
 
       messages.push([
-        `${border} ${symbol} ${item}${
+        `${border} ${symbol} ${displayPath}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -603,13 +646,14 @@ export function printCustomRoutes({
   redirects,
   rewrites,
   headers,
+  onMatchHeaders,
 }: CustomRoutes) {
   const printRoutes = (
     routes: Redirect[] | Rewrite[] | Header[],
-    type: 'Redirects' | 'Rewrites' | 'Headers'
+    type: 'Redirects' | 'Rewrites' | 'Headers' | 'On Match Headers'
   ) => {
     const isRedirects = type === 'Redirects'
-    const isHeaders = type === 'Headers'
+    const isHeaders = type === 'Headers' || type === 'On Match Headers'
     print(underline(type))
 
     /*
@@ -662,6 +706,9 @@ export function printCustomRoutes({
   if (headers.length) {
     printRoutes(headers, 'Headers')
   }
+  if (onMatchHeaders.length) {
+    printRoutes(onMatchHeaders, 'On Match Headers')
+  }
 
   const combinedRewrites = [
     ...rewrites.beforeFiles,
@@ -710,6 +757,7 @@ export async function isPageStatic({
   cacheLifeProfiles,
   pprConfig,
   buildId,
+  deploymentId,
   sriEnabled,
 }: {
   dir: string
@@ -736,6 +784,7 @@ export async function isPageStatic({
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
   buildId: string
+  deploymentId: string
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
@@ -789,6 +838,7 @@ export async function isPageStatic({
           name: edgeInfo.name,
           useCache: true,
           distDir,
+          deploymentId,
         })
         const mod = (
           await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]
@@ -829,7 +879,9 @@ export async function isPageStatic({
       let isRoutePPREnabled: boolean = false
 
       if (pageType === 'app') {
-        const ComponentMod: AppPageModule = componentsResult.ComponentMod
+        // @ts-expect-error pageType is app, so we can assume AppPageModule | AppRouteModule
+        const ComponentMod: AppPageModule | AppRouteModule =
+          componentsResult.ComponentMod
 
         let segments: AppSegment[]
         try {
@@ -1078,11 +1130,14 @@ export async function hasCustomGetInitialProps({
   let mod = ComponentMod
 
   if (checkingApp) {
+    // @ts-expect-error very dynamic code
     mod = (await mod._app) || mod.default || mod
   } else {
+    // @ts-expect-error very dynamic code
     mod = mod.default || mod
   }
   mod = await mod
+  // @ts-expect-error very dynamic code
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
@@ -1105,7 +1160,7 @@ export async function getDefinedNamedExports({
   })
 
   return Object.keys(ComponentMod).filter((key) => {
-    return typeof ComponentMod[key] !== 'undefined'
+    return typeof ComponentMod[key as keyof typeof ComponentMod] !== 'undefined'
   })
 }
 
@@ -1203,7 +1258,7 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: NextConfigComplete,
+  serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
   hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
@@ -1221,7 +1276,10 @@ export async function copyTracedFiles(
   }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
-    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8')
+    const packageJsonContent = await fs.readFile(
+      /* turbopackIgnore: true */ packageJsonPath,
+      'utf8'
+    )
     const packageJson = JSON.parse(packageJsonContent)
     moduleType = packageJson.type === 'module'
 
@@ -1238,7 +1296,9 @@ export async function copyTracedFiles(
   const copiedFiles = new Set()
 
   async function handleTraceFiles(traceFilePath: string) {
-    const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
+    const traceData = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
+    ) as {
       files: string[]
     }
     const copySema = new Sema(10, { capacity: traceData.files.length })
@@ -1263,9 +1323,29 @@ export async function copyTracedFiles(
           if (symlink) {
             try {
               await fs.symlink(symlink, fileOutputPath)
-            } catch (e: any) {
-              if (e.code !== 'EEXIST') {
-                throw e
+            } catch (err: any) {
+              // Windows doesn't support creating symlinks without elevated privileges, unless
+              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
+              // creating a junction point instead.
+              //
+              // Ideally we'd just preserve the input file type (junction point or symlink), but
+              // there's no API in node.js to differentiate between a junction point and a symlink,
+              // so we just try making a symlink first. Symlinks are preferred because they support
+              // relative paths and non-directory (file) targets.
+              if (
+                process.platform === 'win32' &&
+                err.code === 'EPERM' &&
+                path.isAbsolute(symlink)
+              ) {
+                try {
+                  await fs.symlink(symlink, fileOutputPath, 'junction')
+                } catch (junctionErr: any) {
+                  if (junctionErr.code !== 'EEXIST') {
+                    throw junctionErr
+                  }
+                }
+              } else if (err.code !== 'EEXIST') {
+                throw err
               }
             }
           } else {

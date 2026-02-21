@@ -1,19 +1,7 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
-
-type SpanId = number
-
-type TraceEvent = {
-  traceId?: string
-  parentId?: SpanId
-  name: string
-  id: SpanId
-  timestamp: number
-  duration: number
-  tags?: Object
-  startTime?: number
-}
+import type { TraceEvent } from 'next/dist/trace'
 
 interface TraceStructure {
   events: TraceEvent[]

@@ -8,7 +8,7 @@ use swc_core::{
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
-        preset_env::{self, Targets},
+        preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
             base::{
                 assumptions::Assumptions,
@@ -33,9 +33,7 @@ pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>),
     React {
-        #[serde(default)]
         development: bool,
-        #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
         import_source: ResolvedVc<Option<RcStr>>,
@@ -45,17 +43,12 @@ pub enum EcmascriptInputTransform {
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
     TypeScript {
-        #[serde(default)]
         use_define_for_class_fields: bool,
     },
     Decorators {
-        #[serde(default)]
         is_legacy: bool,
-        #[serde(default)]
         is_ecma: bool,
-        #[serde(default)]
         emit_decorators_metadata: bool,
-        #[serde(default)]
         use_define_for_class_fields: bool,
     },
 }
@@ -210,6 +203,13 @@ impl EcmascriptInputTransform {
                     swc_core::ecma::preset_env::Config {
                         targets: Some(Targets::Versions(*versions)),
                         mode: None, // Don't insert core-js polyfills
+                        // Disable some ancient ES3 transforms, ReservedWords breaks resolving of
+                        // some idents references
+                        exclude: vec![
+                            FeatureOrModule::Feature(Feature::ReservedWords),
+                            FeatureOrModule::Feature(Feature::MemberExpressionLiterals),
+                            FeatureOrModule::Feature(Feature::PropertyLiterals),
+                        ],
                         ..Default::default()
                     },
                 );

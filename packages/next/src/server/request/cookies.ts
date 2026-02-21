@@ -13,15 +13,16 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
+  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  delayUntilRuntimeStage,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
+  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
@@ -76,6 +77,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
         case 'prerender':
           return makeHangingCookies(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`cookies`'
           throw new InvariantError(
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
@@ -190,11 +192,16 @@ function makeUntrackedCookiesWithDevWarnings(
   route?: string
 ): Promise<ReadonlyRequestCookies> {
   if (requestStore.asyncApiPromises) {
+    const early = isInEarlyRenderStage(requestStore)
     let promise: Promise<ReadonlyRequestCookies>
     if (underlyingCookies === requestStore.mutableCookies) {
-      promise = requestStore.asyncApiPromises.mutableCookies
+      promise = early
+        ? requestStore.asyncApiPromises.earlyMutableCookies
+        : requestStore.asyncApiPromises.mutableCookies
     } else if (underlyingCookies === requestStore.cookies) {
-      promise = requestStore.asyncApiPromises.cookies
+      promise = early
+        ? requestStore.asyncApiPromises.earlyCookies
+        : requestStore.asyncApiPromises.cookies
     } else {
       throw new InvariantError(
         'Received an underlying cookies object that does not match either `cookies` or `mutableCookies`'

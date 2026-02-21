@@ -3,4 +3,13 @@ module.exports = {
   cacheHandlers: {
     custom: require.resolve('next/dist/server/lib/cache-handlers/default.external'),
   },
+  webpack(config) {
+    if (process.env.NEXT_RSPACK) {
+      // Disable persistent cache.
+      // If enabled, test case modules will not be recompiled by loaders,
+      // which prevents the Telemetry plugin from collecting information.
+      config.cache = false
+    }
+    return config
+  }
 }

@@ -4,7 +4,6 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
 } from '../../server/config-shared'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -50,6 +49,10 @@ const segmentSchema = s.union([
     s.string(),
     // Dynamic param type
     dynamicParamTypesSchema,
+    // Static siblings at the same URL level. Used by the client router to
+    // determine if a prefetch can be reused when navigating to a static
+    // sibling of a dynamic route. null means siblings are unknown.
+    s.nullable(s.array(s.string())),
   ]),
 ])
 
@@ -62,18 +65,17 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
     s.string(),
     s.lazy(() => flightRouterStateSchema)
   ),
-  s.optional(s.nullable(s.string())),
+  s.optional(s.nullable(s.tuple([s.string(), s.string()]))),
   s.optional(
     s.nullable(
       s.union([
         s.literal('refetch'),
-        s.literal('refresh'),
         s.literal('inside-shared-layout'),
         s.literal('metadata-only'),
       ])
     )
   ),
-  s.optional(s.boolean()),
+  s.optional(s.number()),
 ])
 
 export type ServerOnInstrumentationRequestError = (
@@ -81,19 +83,18 @@ export type ServerOnInstrumentationRequestError = (
   // The request could be middleware, node server or web server request,
   // we normalized them into an aligned format to `onRequestError` API later.
   request: NextRequestHint | BaseNextRequest | IncomingMessage,
-  errorContext: Parameters<InstrumentationOnRequestError>[2]
+  errorContext: Parameters<InstrumentationOnRequestError>[2],
+  silenceLog: boolean
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
   dir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
-  dev?: boolean
   basePath: string
   cacheComponents: boolean
   trailingSlash: boolean
   images: ImageConfigComplete
-  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -120,11 +121,10 @@ export interface RenderOptsPartial {
     errorsRscStream: ReadableStream<Uint8Array>,
     htmlRequestId: string
   ) => void
-  nextExport?: boolean
+  isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
-  deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
     phase: string,
@@ -137,6 +137,7 @@ export interface RenderOptsPartial {
     bodySizeLimit?: SizeLimit
     allowedOrigins?: string[]
   }
+  logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined
@@ -157,8 +158,15 @@ export interface RenderOptsPartial {
      */
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
+    optimisticRouting: boolean
     inlineCss: boolean
     authInterrupts: boolean
+
+    /**
+     * The maximum size (in bytes) of the postponed state body for PPR resume
+     * requests. Used to calculate decompression limits (5x this value).
+     */
+    maxPostponedStateSizeBytes: number | undefined
   }
   postponed?: string
 
@@ -183,13 +191,6 @@ export interface RenderOptsPartial {
   isDebugDynamicAccesses?: boolean
 
   /**
-   * This is true when:
-   * - source maps are generated
-   * - source maps are applied
-   * - minification is disabled
-   */
-  hasReadableErrorStacks?: boolean
-
   /**
    * The maximum length of the headers that are emitted by React and added to
    * the response.

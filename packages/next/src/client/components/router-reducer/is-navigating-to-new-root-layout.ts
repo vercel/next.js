@@ -1,12 +1,14 @@
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
+import type { RouteTree } from '../segment-cache/cache'
 
 export function isNavigatingToNewRootLayout(
   currentTree: FlightRouterState,
-  nextTree: FlightRouterState
+  nextTree: RouteTree
 ): boolean {
   // Compare segments
   const currentTreeSegment = currentTree[0]
-  const nextTreeSegment = nextTree[0]
+  const nextTreeSegment = nextTree.segment
 
   // If any segment is different before we find the root layout, the root layout has changed.
   // E.g. /same/(group1)/layout.js -> /same/(group2)/layout.js
@@ -25,19 +27,32 @@ export function isNavigatingToNewRootLayout(
   }
 
   // Current tree root layout found
-  if (currentTree[4]) {
+  const currentIsRootLayout =
+    ((currentTree[4] ?? 0) & PrefetchHint.IsRootLayout) !== 0
+  const nextIsRootLayout =
+    (nextTree.prefetchHints & PrefetchHint.IsRootLayout) !== 0
+  if (currentIsRootLayout) {
     // If the next tree doesn't have the root layout flag, it must have changed.
-    return !nextTree[4]
+    return !nextIsRootLayout
   }
   // Current tree didn't have its root layout here, must have changed.
-  if (nextTree[4]) {
+  if (nextIsRootLayout) {
     return true
   }
-  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
-  // But it's not possible to be more than one parallelRoutes before the root layout is found
-  // TODO-APP: change to traverse all parallel routes
-  const currentTreeChild = Object.values(currentTree[1])[0]
-  const nextTreeChild = Object.values(nextTree[1])[0]
-  if (!currentTreeChild || !nextTreeChild) return true
-  return isNavigatingToNewRootLayout(currentTreeChild, nextTreeChild)
+
+  const slots = nextTree.slots
+  const currentTreeChildren = currentTree[1]
+  if (slots !== null) {
+    for (const slot in slots) {
+      const nextTreeChild = slots[slot]
+      const currentTreeChild = currentTreeChildren[slot]
+      if (
+        currentTreeChild === undefined ||
+        isNavigatingToNewRootLayout(currentTreeChild, nextTreeChild)
+      ) {
+        return true
+      }
+    }
+  }
+  return false
 }

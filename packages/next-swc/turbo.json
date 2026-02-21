@@ -2,6 +2,23 @@
   "$schema": "https://turborepo.org/schema.json",
   "extends": ["//"],
   "tasks": {
+    "build": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../Cargo.toml",
+        "../../Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": [
+        "native/*.node",
+        "native/index.d.ts",
+        "../../packages/next/src/build/swc/generated-native.d.ts"
+      ]
+    },
     "build-native": {
       "inputs": [
         "../../.cargo/**",
@@ -13,7 +30,7 @@
         "../../rust-toolchain"
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node"]
+      "outputs": ["native/*.node", "native/index.d.ts"]
     },
     "build-native-release": {
       "inputs": [
@@ -26,7 +43,7 @@
         "../../rust-toolchain"
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node"]
+      "outputs": ["native/*.node", "native/index.d.ts"]
     },
     "build-native-release-with-assertions": {
       "inputs": [
@@ -39,7 +56,7 @@
         "../../rust-toolchain"
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node"]
+      "outputs": ["native/*.node", "native/index.d.ts"]
     },
     "build-native-no-plugin": {
       "inputs": [
@@ -52,7 +69,7 @@
         "../../rust-toolchain"
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node"]
+      "outputs": ["native/*.node", "native/index.d.ts"]
     },
     "build-native-no-plugin-release": {
       "inputs": [
@@ -65,7 +82,7 @@
         "../../rust-toolchain"
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node"]
+      "outputs": ["native/*.node", "native/index.d.ts"]
     },
     "build-wasm": {
       "inputs": [
@@ -104,7 +121,7 @@
         "../../rust-toolchain"
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node"]
+      "outputs": ["native/*.node", "native/index.d.ts"]
     },
     "rust-check": {
       "dependsOn": ["rust-check-fmt", "rust-check-clippy", "rust-check-napi"]

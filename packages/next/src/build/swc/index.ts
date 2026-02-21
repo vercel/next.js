@@ -27,8 +27,9 @@ import type {
   CompilationEvent,
   DefineEnv,
   Endpoint,
-  HmrIdentifiers,
+  HmrChunkNames,
   Lockfile,
+  NodeJsHmrUpdate,
   PartialProjectOptions,
   Project,
   ProjectOptions,
@@ -42,6 +43,11 @@ import type {
   WrittenEndpoint,
 } from './types'
 import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
+
+export enum HmrTarget {
+  Client = 'client',
+  Server = 'server',
+}
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -108,11 +114,11 @@ const triples = (() => {
 
   if (rawTargetTriple) {
     Log.warn(
-      `Trying to load next-swc for target triple ${rawTargetTriple}, but there next-swc does not have native bindings support`
+      `next-swc does not have native bindings support for target triple ${rawTargetTriple}. Native features like Turbopack will not be available.`
     )
   } else {
     Log.warn(
-      `Trying to load next-swc for unsupported platforms ${PlatformName}/${ArchName}`
+      `next-swc does not have native bindings for platform ${PlatformName}/${ArchName}. Native features like Turbopack will not be available.`
     )
   }
 
@@ -488,6 +494,9 @@ function rustifyOptionEnv(
   }))
 }
 
+const normalizePathOnWindows = (p: string) =>
+  path.sep === '\\' ? p.replace(/\\/g, '/') : p
+
 // TODO(sokra) Support wasm option.
 function bindingToApi(
   binding: RawBindings,
@@ -732,17 +741,39 @@ function bindingToApi(
       })()
     }
 
-    hmrEvents(identifier: string) {
-      return subscribe<TurbopackResult<Update>>(true, async (callback) =>
-        binding.projectHmrEvents(this._nativeProject, identifier, callback)
+    hmrEvents(
+      chunkName: string,
+      target: HmrTarget.Client
+    ): AsyncIterableIterator<TurbopackResult<Update>>
+    hmrEvents(
+      chunkName: string,
+      target: HmrTarget.Server
+    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
+      return subscribe(true, async (callback) =>
+        binding.projectHmrEvents(
+          this._nativeProject,
+          chunkName,
+          target,
+          callback
+        )
       )
     }
 
-    hmrIdentifiersSubscribe() {
-      return subscribe<TurbopackResult<HmrIdentifiers>>(
+    /**
+     * Subscribe to the list of output chunk paths that can receive HMR updates.
+     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
+     * or "_next/static/chunks/app/page.js" for client.
+     */
+    hmrChunkNamesSubscribe(target: HmrTarget) {
+      return subscribe<TurbopackResult<HmrChunkNames>>(
         false,
         async (callback) =>
-          binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
+          binding.projectHmrChunkNamesSubscribe(
+            this._nativeProject,
+            target,
+            callback
+          )
       )
     }
 
@@ -852,11 +883,10 @@ function bindingToApi(
     // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
     let nextConfigSerializable: Record<string, any> = { ...nextConfig }
 
-    nextConfigSerializable.generateBuildId =
-      await nextConfigSerializable.generateBuildId?.()
-
-    // TODO: these functions takes arguments, have to be supported in a different way
+    // These values are never read by Turbopack and are potentially non-serializable.
     nextConfigSerializable.exportPathMap = {}
+    nextConfigSerializable.generateBuildId =
+      nextConfigSerializable.generateBuildId && {}
     nextConfigSerializable.webpack = nextConfigSerializable.webpack && {}
 
     if (nextConfigSerializable.modularizeImports) {
@@ -876,13 +906,23 @@ function bindingToApi(
       )
     }
 
+    // These are relative paths, but might be backslash-separated on Windows
+    nextConfigSerializable.distDir = normalizePathOnWindows(
+      nextConfigSerializable.distDir
+    )
+    nextConfigSerializable.distDirRoot = normalizePathOnWindows(
+      nextConfigSerializable.distDirRoot
+    )
+
     // loaderFile is an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.images.loaderFile) {
       nextConfigSerializable.images = {
         ...nextConfigSerializable.images,
         loaderFile:
           './' +
-          path.relative(projectPath, nextConfigSerializable.images.loaderFile),
+          normalizePathOnWindows(
+            path.relative(projectPath, nextConfigSerializable.images.loaderFile)
+          ),
       }
     }
 
@@ -890,9 +930,11 @@ function bindingToApi(
     if (nextConfigSerializable.cacheHandler) {
       nextConfigSerializable.cacheHandler =
         './' +
-        (path.isAbsolute(nextConfigSerializable.cacheHandler)
-          ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
-          : nextConfigSerializable.cacheHandler)
+        normalizePathOnWindows(
+          path.isAbsolute(nextConfigSerializable.cacheHandler)
+            ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
+            : nextConfigSerializable.cacheHandler
+        )
     }
     if (nextConfigSerializable.cacheHandlers) {
       nextConfigSerializable.cacheHandlers = Object.fromEntries(
@@ -903,9 +945,11 @@ function bindingToApi(
           .map(([key, value]) => [
             key,
             './' +
-              (path.isAbsolute(value)
-                ? path.relative(projectPath, value)
-                : value),
+              normalizePathOnWindows(
+                path.isAbsolute(value)
+                  ? path.relative(projectPath, value)
+                  : value
+              ),
           ])
       )
     }
@@ -916,6 +960,41 @@ function bindingToApi(
 
       if (turbopack.rules) {
         turbopack.rules = serializeTurbopackRules(turbopack.rules)
+      }
+
+      // Serialize ignoreIssue rules: convert RegExp to {source, flags}
+      if (turbopack.ignoreIssue) {
+        function serializePatternField(
+          value: string | RegExp,
+          stringType: 'glob' | 'string'
+        ) {
+          if (value instanceof RegExp) {
+            return {
+              type: 'regex' as const,
+              source: value.source,
+              flags: value.flags,
+            }
+          }
+          return { type: stringType, value }
+        }
+
+        turbopack.ignoreIssue = turbopack.ignoreIssue.map(
+          (rule: {
+            path: string | RegExp
+            title?: string | RegExp
+            description?: string | RegExp
+          }) => ({
+            path: serializePatternField(rule.path, 'glob'),
+            title:
+              rule.title != null
+                ? serializePatternField(rule.title, 'string')
+                : undefined,
+            description:
+              rule.description != null
+                ? serializePatternField(rule.description, 'string')
+                : undefined,
+          })
+        )
       }
 
       nextConfigSerializable.turbopack = turbopack
@@ -934,6 +1013,12 @@ function bindingToApi(
           | { type: 'regex'; value: { source: string; flags: string } }
           | { type: 'glob'; value: string }
         content?: { source: string; flags: string }
+        query?:
+          | { type: 'regex'; value: { source: string; flags: string } }
+          | { type: 'constant'; value: string }
+        contentType?:
+          | { type: 'regex'; value: { source: string; flags: string } }
+          | { type: 'glob'; value: string }
       }
 
   // converts regexes to a `RegexComponents` object so that it can be JSON-serialized when passed to
@@ -969,6 +1054,24 @@ function bindingToApi(
                 }
               : { type: 'glob', value: cond.path },
         content: cond.content && regexComponents(cond.content),
+        query:
+          cond.query == null
+            ? undefined
+            : cond.query instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: regexComponents(cond.query),
+                }
+              : { type: 'constant', value: cond.query },
+        contentType:
+          cond.contentType == null
+            ? undefined
+            : cond.contentType instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: regexComponents(cond.contentType),
+                }
+              : { type: 'glob', value: cond.contentType },
       }
     }
   }
@@ -981,10 +1084,13 @@ function bindingToApi(
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
         serializedRules[glob] = rule.map((item) => {
-          if (typeof item !== 'string' && 'loaders' in item) {
-            return serializeConfigItem(item, glob)
+          if (
+            typeof item !== 'string' &&
+            ('loaders' in item || 'type' in item || 'condition' in item)
+          ) {
+            return serializeConfigItem(item as TurbopackRuleConfigItem, glob)
           } else {
-            checkLoaderItem(item, glob)
+            checkLoaderItem(item as TurbopackLoaderItem, glob)
             return item
           }
         })
@@ -1000,8 +1106,10 @@ function bindingToApi(
       glob: string
     ): any {
       if (!rule) return rule
-      for (const item of rule.loaders) {
-        checkLoaderItem(item, glob)
+      if (rule.loaders) {
+        for (const item of rule.loaders) {
+          checkLoaderItem(item, glob)
+        }
       }
       let serializedRule: any = rule
       if (rule.condition != null) {
@@ -1112,7 +1220,8 @@ function bindingToApi(
 
   return async function createProject(
     options: ProjectOptions,
-    turboEngineOptions
+    turboEngineOptions,
+    callbacks?: import('./types').TurbopackProjectCallbacks
   ) {
     return new ProjectImpl(
       await binding.projectNew(
@@ -1120,6 +1229,7 @@ function bindingToApi(
         turboEngineOptions || {},
         {
           throwTurbopackInternalError,
+          onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
       )
     )
@@ -1244,10 +1354,13 @@ async function loadWasm(importPath = '') {
     turbo: {
       createProject(
         _options: ProjectOptions,
-        _turboEngineOptions?: TurboEngineOptions | undefined
+        _turboEngineOptions?: TurboEngineOptions | undefined,
+        _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
       ): Promise<Project> {
         throw new Error(
-          '`turbo.createProject` is not supported by the wasm bindings.'
+          `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. ` +
+            `Use the --webpack flag instead.`
         )
       },
       startTurbopackTraceServer(
@@ -1255,7 +1368,8 @@ async function loadWasm(importPath = '') {
         _port: number | undefined
       ): void {
         throw new Error(
-          '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
+          `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
         )
       },
     },
@@ -1310,12 +1424,12 @@ async function loadWasm(importPath = '') {
         imports
       )
     },
-    lockfileTryAcquire(_filePath: string) {
+    lockfileTryAcquire(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquire` is not supported by the wasm bindings.'
       )
     },
-    lockfileTryAcquireSync(_filePath: string) {
+    lockfileTryAcquireSync(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquireSync` is not supported by the wasm bindings.'
       )
@@ -1530,11 +1644,11 @@ function loadNative(importPath?: string) {
           imports
         )
       },
-      lockfileTryAcquire(filePath: string) {
-        return bindings.lockfileTryAcquire(filePath)
+      lockfileTryAcquire(filePath: string, content?: string | null) {
+        return bindings.lockfileTryAcquire(filePath, content)
       },
-      lockfileTryAcquireSync(filePath: string) {
-        return bindings.lockfileTryAcquireSync(filePath)
+      lockfileTryAcquireSync(filePath: string, content?: string | null) {
+        return bindings.lockfileTryAcquireSync(filePath, content)
       },
       lockfileUnlock(lockfile: Lockfile) {
         return bindings.lockfileUnlock(lockfile)

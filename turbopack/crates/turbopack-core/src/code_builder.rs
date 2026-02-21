@@ -260,7 +260,7 @@ impl GenerateSourceMap for Code {
     #[turbo_tasks::function]
     pub async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
         let debug_id = self.debug_id().owned().await?;
-        Ok(File::from(self.await?.generate_source_map_ref(debug_id)).into())
+        Ok(FileContent::Content(File::from(self.await?.generate_source_map_ref(debug_id))).cell())
     }
 }
 
