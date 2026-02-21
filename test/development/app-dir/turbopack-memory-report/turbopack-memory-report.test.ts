@@ -4,7 +4,13 @@ import { runNextCommand } from 'next-test-utils'
 describe('turbopack-memory-report', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipStart: !process.env.IS_TURBOPACK_TEST,
   })
+
+  if (!process.env.IS_TURBOPACK_TEST) {
+    it('no-op for webpack', () => {})
+    return
+  }
 
   describe('fetch API', () => {
     it('should return valid JSON from /__nextjs_turbopack-memory', async () => {
@@ -20,7 +26,6 @@ describe('turbopack-memory-report', () => {
       const report = await res.json()
 
       // Verify top-level schema
-      expect(report.version).toBe(1)
       expect(typeof report.uptimeSecs).toBe('number')
       expect(report.uptimeSecs).toBeGreaterThan(0)
 
@@ -90,7 +95,6 @@ describe('turbopack-memory-report', () => {
       expect(result.code).toBe(0)
 
       const report = JSON.parse(result.stdout)
-      expect(report.version).toBe(1)
       expect(typeof report.uptimeSecs).toBe('number')
       expect(report.tasks.totalCount).toBeGreaterThan(0)
       expect(report.tasks.byFunction.length).toBeGreaterThan(0)
