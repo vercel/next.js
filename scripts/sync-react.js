@@ -106,10 +106,7 @@ async function sync({ channel, newVersionStr, noInstall }) {
     return
   }
 
-  const newSchedulerVersionStr = await getSchedulerVersion(
-    newVersionStr,
-    useExperimental
-  )
+  const newSchedulerVersionStr = await getSchedulerVersion(newVersionStr)
   console.log(`Updating "scheduler@${channel}" to ${newSchedulerVersionStr}...`)
 
   for (const packageName of ['react', 'react-dom']) {
@@ -281,7 +278,7 @@ async function main() {
     .options('install', { default: true, type: 'boolean' })
     .options('version', { default: null, type: 'string' }).argv
   let { actor, createPull, commit, install, version } = argv
-  if (version.startsWith('/')) {
+  if (version !== null && version.startsWith('/')) {
     version = pathToFileURL(version).href
     // Ensure trailing slash so that the URL is treated as a directory.
     if (!version.endsWith('/')) {
@@ -381,7 +378,7 @@ Or, run this command with no arguments to use the most recently published versio
   )
 
   let experimentalNewVersionStr = `0.0.0-experimental-${newSha}-${newDateString}`
-  if (version.startsWith('file://')) {
+  if (version !== null && version.startsWith('file://')) {
     experimentalNewVersionStr = new URL('build/oss-experimental/', version).href
     newVersionStr = new URL('build/oss-stable/', version).href
   }
