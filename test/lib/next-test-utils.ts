@@ -522,6 +522,7 @@ export function nextBuild(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.VERCEL_IMMUTABLE_DEPLOYMENT_ID = 'test-immutable-tkn-7890'
   }
 
   return runNextCommand(['build', dir, ...args], opts)
@@ -549,6 +550,7 @@ export function nextStart(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.VERCEL_IMMUTABLE_DEPLOYMENT_ID = 'test-immutable-tkn-7890'
   }
 
   return runNextCommandDev(
