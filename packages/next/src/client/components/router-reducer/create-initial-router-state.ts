@@ -1,4 +1,5 @@
 import type { FlightDataPath } from '../../../shared/lib/app-router-types'
+import type { VaryParamsThenable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
@@ -6,7 +7,10 @@ import { extractPathFromFlightRouterState } from './compute-changed-path'
 import type { AppRouterState } from './router-reducer-types'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 import { createInitialCacheNodeForHydration } from './ppr-navigations'
-import { convertRootFlightRouterStateToRouteTree } from '../segment-cache/cache'
+import {
+  convertRootFlightRouterStateToRouteTree,
+  writeInitialSeedDataIntoCache,
+} from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 
@@ -17,6 +21,8 @@ export interface InitialRouterStateParameters {
   initialFlightData: FlightDataPath[]
   initialCouldBeIntercepted: boolean
   initialSupportsPerSegmentPrefetching: boolean
+  initialStaleTime: AsyncIterable<number> | undefined
+  initialHeadVaryParams: VaryParamsThenable | null
   location: Location | null
 }
 
@@ -27,6 +33,8 @@ export function createInitialRouterState({
   initialRenderedSearch,
   initialCouldBeIntercepted,
   initialSupportsPerSegmentPrefetching,
+  initialStaleTime,
+  initialHeadVaryParams,
   location,
 }: InitialRouterStateParameters): AppRouterState {
   // When initialized on the server, the canonical URL is provided as an array of parts.
@@ -51,7 +59,7 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
-  // Conver the initial FlightRouterState into the RouteTree type.
+  // Convert the initial FlightRouterState into the RouteTree type.
   // NOTE: The metadataVaryPath isn't used for anything currently because the
   // head is embedded into the CacheNode tree, but eventually we'll lift it out
   // and store it on the top-level state object.
@@ -69,11 +77,11 @@ export function createInitialRouterState({
     initialHead
   )
 
-  // Learn the route pattern so we can predict it for future navigations.
-  // Only do this in the browser (location !== null) since route learning
-  // state doesn't persist from SSR to client.
+  // The following only applies in the browser (location !== null) since neither
+  // route learning nor segment cache state persists from SSR to client.
   if (location !== null && metadataVaryPath !== null) {
-    discoverKnownRoute(
+    // Learn the route pattern so we can predict it for future navigations.
+    const route = discoverKnownRoute(
       Date.now(),
       location.pathname,
       null, // nextUrl — initial render is never an interception
@@ -85,6 +93,19 @@ export function createInitialRouterState({
       initialSupportsPerSegmentPrefetching,
       false // hasDynamicRewrite
     )
+
+    // Write the initial seed data into the segment cache so subsequent
+    // navigations to the initial page can serve cached segments instantly.
+    if (initialSeedData !== null && initialStaleTime !== undefined) {
+      writeInitialSeedDataIntoCache(
+        route,
+        initialRouteTree,
+        initialSeedData,
+        initialHead,
+        initialStaleTime,
+        initialHeadVaryParams
+      )
+    }
   }
 
   // NOTE: We intentionally don't check if any data needs to be fetched from the

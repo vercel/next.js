@@ -7,11 +7,13 @@ import type {
 } from '../../../server/app-render/collect-segment-data'
 import type {
   CacheNodeSeedData,
+  HeadData,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
 import {
   readVaryParams,
   type VaryParams,
+  type VaryParamsThenable,
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   NEXT_DID_POSTPONE_HEADER,
@@ -2277,7 +2279,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         : null
 
     const now = Date.now()
-    const staleAt = await getStaleAt(now, serverData, response)
+    const staleAt = await getStaleAt(now, serverData.s, response)
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
@@ -2823,24 +2825,28 @@ function getStaleAtFromHeader(
   return now + staleTimeMs
 }
 
+/**
+ * Reads the stale time from an async iterable or a response header and
+ * returns a staleAt timestamp.
+ *
+ * TODO: Buffer the response and then read the iterable values
+ * synchronously, similar to readVaryParams. This would avoid the need to
+ * make this async, and we could also use it in
+ * writeDynamicTreeResponseIntoCache. This will also be needed when React
+ * starts leaving async iterables hanging when the outer RSC stream is
+ * aborted e.g. due to sync I/O (with unstable_allowPartialStream).
+ */
 async function getStaleAt(
   now: number,
-  serverData: NavigationFlightResponse,
+  staleTimeIterable: AsyncIterable<number> | undefined,
   response?: RSCResponse<unknown>
 ): Promise<number> {
-  if (serverData.s !== undefined) {
+  if (staleTimeIterable !== undefined) {
     // Iterate the async iterable and take the last yielded value. The server
     // yields updated staleTime values during the render; the last one is the
     // final staleTime.
     let staleTimeSeconds: number | undefined
-
-    // TODO: Buffer the response and then read the iterable values
-    // synchronously, similar to readVaryParams. This would avoid the need to
-    // make getStaleAt async, and we could also use it in
-    // writeDynamicTreeResponseIntoCache. This will also be needed when React
-    // starts leaving async iterables hanging when the outer RSC stream is
-    // aborted e.g. due to sync I/O (with unstable_allowPartialStream).
-    for await (const value of serverData.s) {
+    for await (const value of staleTimeIterable) {
       staleTimeSeconds = value
     }
 
@@ -2876,7 +2882,7 @@ export async function processStaticStageResponse(
   staticStageResponse: Promise<NavigationFlightResponse>
 ): Promise<ProcessedStaticStageResponse> {
   const serverData = await staticStageResponse
-  const staleAt = await getStaleAt(now, serverData)
+  const staleAt = await getStaleAt(now, serverData.s)
 
   const headVaryParams =
     serverData.h !== null ? readVaryParams(serverData.h) : null
@@ -2915,6 +2921,68 @@ export function writeStaticStageResponseIntoCache(
     route,
     null // spawnedEntries — no pre-created entries; will create or upsert
   )
+}
+
+/**
+ * Writes the initial HTML RSC payload (seed data from hydration) into the
+ * segment cache. This allows subsequent client-side navigations to serve cached
+ * segments instantly instead of re-fetching them from the server.
+ *
+ * Called during createInitialRouterState when the server included a stale time
+ * in the InitialRSCPayload (currently only for fully static prerendered pages
+ * with Cache Components enabled).
+ */
+export async function writeInitialSeedDataIntoCache(
+  route: FulfilledRouteCacheEntry,
+  routeTree: RouteTree,
+  seedData: CacheNodeSeedData,
+  head: HeadData,
+  staleTimeIterable: AsyncIterable<number>,
+  headVaryParamsThenable: VaryParamsThenable | null
+): Promise<void> {
+  const now = Date.now()
+  const staleAt = await getStaleAt(now, staleTimeIterable)
+
+  // We currently only reach this branch for fully static pages (where
+  // initialStaleTimeSeconds is set), so the head is never partial.
+  const isHeadPartial = false
+
+  // For fully static prerendered pages, the entire payload is static — all
+  // segments are complete and don't need a dynamic follow-up request.
+  const isResponsePartial = false
+
+  // Use Full fetch strategy since the initial HTML contains the complete
+  // render, not just a loading boundary prefix.
+  const fetchStrategy = FetchStrategy.Full
+
+  writeSeedDataIntoCache(
+    now,
+    fetchStrategy,
+    routeTree,
+    staleAt,
+    seedData,
+    isResponsePartial,
+    null // spawnedEntries — no pre-created entries; will create or upsert
+  )
+
+  // Write the head (metadata) into the cache.
+  if (head !== null) {
+    const headVaryParams =
+      headVaryParamsThenable !== null
+        ? readVaryParams(headVaryParamsThenable)
+        : null
+
+    fulfillEntrySpawnedByRuntimePrefetch(
+      now,
+      fetchStrategy,
+      head,
+      isHeadPartial,
+      staleAt,
+      headVaryParams,
+      route.metadata,
+      null // spawnedEntries
+    )
+  }
 }
 
 /**

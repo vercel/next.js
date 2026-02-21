@@ -262,6 +262,8 @@ export type InitialRSCPayload = {
    * headVaryParams - vary params for the head (metadata) of the response.
    */
   h: VaryParamsThenable | null
+  /** staleTime in seconds - Only present when Cache Components is enabled. */
+  s?: AsyncIterable<number>
 }
 
 // Response from `createFromFetch` for normal rendering
