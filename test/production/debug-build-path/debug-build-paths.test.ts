@@ -46,7 +46,7 @@ describe('debug-build-paths', () => {
         `)
       })
 
-      it('should normalize pages index routes with debug-prerender', async () => {
+      it('should include pages index routes with debug-prerender', async () => {
         const buildResult = await next.build({
           args: ['--debug-prerender', '--debug-build-paths', 'pages/**'],
         })
@@ -54,7 +54,7 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toBeDefined()
 
         expect(buildResult.cliOutput).toContain('Route (pages)')
-        expect(buildResult.cliOutput).toContain('○ /product-tour')
+        expect(buildResult.cliOutput).toContain('○ /with-index')
         expect(buildResult.cliOutput).not.toContain(
           'Cannot find module for page'
         )
