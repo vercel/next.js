@@ -1,6 +1,6 @@
 import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
-import { pathToFileURL } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
@@ -1253,7 +1253,10 @@ function assignDefaultsAndValidate(
           }
         )[key]
 
-        if (handlerPath && !existsSync(handlerPath)) {
+        const resolvedHandlerPath = handlerPath?.startsWith('file://')
+          ? fileURLToPath(handlerPath)
+          : handlerPath
+        if (resolvedHandlerPath && !existsSync(resolvedHandlerPath)) {
           invalidHandlerItems.push({
             key,
             reason: `cache handler path provided does not exist, received ${handlerPath}`,
