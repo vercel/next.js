@@ -701,12 +701,19 @@ impl EcmascriptModuleAsset {
 impl EcmascriptModuleAsset {
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
+        let layer_for_filename = self
+            .asset_context
+            .into_trait_ref()
+            .await
+            .ok()
+            .map(|ctx| ctx.layer().name().clone());
         Ok(parse(
             *self.source,
             self.ty,
             *self.transforms,
             options.analyze_mode == AnalyzeMode::Tracing,
             options.inline_helpers,
+            layer_for_filename,
         ))
     }
 
