@@ -114,31 +114,29 @@ describe('Validations for <Link legacyBehavior>', () => {
         }
       })
 
-      if (!process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
-        it('does not warn or throw if you pass a client component', async () => {
-          const browser = await next.browser(
-            '/validations/rsc-that-renders-link/client'
-          )
+      it('does not warn or throw if you pass a client component', async () => {
+        const browser = await next.browser(
+          '/validations/rsc-that-renders-link/client'
+        )
 
-          if (isNextDev) {
-            await waitForNoRedbox(browser)
-          } else {
-            expect(newConsoleOutput()).toEqual('')
-          }
-        })
+        if (isNextDev) {
+          await waitForNoRedbox(browser)
+        } else {
+          expect(newConsoleOutput()).toEqual('')
+        }
+      })
 
-        it('does not warn or throw if you pass a server component into a client component', async () => {
-          const browser = await next.browser(
-            '/validations/rsc-that-renders-link/client-with-rsc-child'
-          )
+      it('does not warn or throw if you pass a server component into a client component', async () => {
+        const browser = await next.browser(
+          '/validations/rsc-that-renders-link/client-with-rsc-child'
+        )
 
-          if (isNextDev) {
-            await waitForNoRedbox(browser)
-          } else {
-            expect(newConsoleOutput()).toEqual('')
-          }
-        })
-      }
+        if (isNextDev) {
+          await waitForNoRedbox(browser)
+        } else {
+          expect(newConsoleOutput()).toEqual('')
+        }
+      })
 
       it('warns if the child is a lazy component', async () => {
         const browser = await next.browser(
@@ -233,31 +231,29 @@ describe('Validations for <Link legacyBehavior>', () => {
         }
       })
 
-      if (!process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
-        it('does not warn or throw if you pass a client component', async () => {
-          const browser = await next.browser(
-            '/validations/rsc-that-renders-client/client'
-          )
+      it('does not warn or throw if you pass a client component', async () => {
+        const browser = await next.browser(
+          '/validations/rsc-that-renders-client/client'
+        )
 
-          if (isNextDev) {
-            await waitForNoRedbox(browser)
-          } else {
-            expect(newConsoleOutput()).toEqual('')
-          }
-        })
+        if (isNextDev) {
+          await waitForNoRedbox(browser)
+        } else {
+          expect(newConsoleOutput()).toEqual('')
+        }
+      })
 
-        it('does not warn or throw if you pass a server component into a client component', async () => {
-          const browser = await next.browser(
-            '/validations/rsc-that-renders-client/client-with-rsc-child'
-          )
+      it('does not warn or throw if you pass a server component into a client component', async () => {
+        const browser = await next.browser(
+          '/validations/rsc-that-renders-client/client-with-rsc-child'
+        )
 
-          if (isNextDev) {
-            await waitForNoRedbox(browser)
-          } else {
-            expect(newConsoleOutput()).toEqual('')
-          }
-        })
-      }
+        if (isNextDev) {
+          await waitForNoRedbox(browser)
+        } else {
+          expect(newConsoleOutput()).toEqual('')
+        }
+      })
     })
   })
 
