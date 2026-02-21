@@ -496,8 +496,9 @@ export function getMemoryReportMiddleware(project: Project) {
     try {
       const reportJson = await project.getMemoryReport()
 
-      // Augment with Node.js process-level stats
+      // Augment with Node.js process-level stats and uptime
       const report = JSON.parse(reportJson)
+      report.uptime_secs = process.uptime()
       const mem = process.memoryUsage()
       report.process = {
         pid: process.pid,
@@ -525,18 +526,17 @@ export function getMemoryReportMiddleware(project: Project) {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes.toLocaleString()} B`
+  if (bytes < 1024) return `${bytes.toLocaleString('en-US')} B`
   if (bytes < 1024 * 1024)
-    return `${(bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`
+    return `${(bytes / 1024).toLocaleString('en-US', { maximumFractionDigits: 1 })} KB`
   if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`
-  return `${(bytes / 1024 / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 })} GB`
+    return `${(bytes / 1024 / 1024).toLocaleString('en-US', { maximumFractionDigits: 1 })} MB`
+  return `${(bytes / 1024 / 1024 / 1024).toLocaleString('en-US', { maximumFractionDigits: 2 })} GB`
 }
-const formatCount = (n: number) => n.toLocaleString()
+const formatCount = (n: number) => n.toLocaleString('en-US')
 
 function renderMemoryReportMarkdown(report: any): string {
   let md = `# Turbopack Memory Report\n\n`
-  md += `Generated: ${report.generated_at}  \n`
   md += `Uptime: ${(report.uptime_secs / 60).toFixed(1)} minutes  \n`
   md += `PID: ${report.process.pid}\n\n`
 
@@ -561,7 +561,11 @@ function renderMemoryReportMarkdown(report: any): string {
   md += `| Type | Count | Est. Size |\n`
   md += `|------|------:|----------:|\n`
   for (const cell of report.cells.by_type) {
-    md += `| \`${cell.type}\` | ${formatCount(cell.count)} | ${formatBytes(cell.estimated_size_bytes)} |\n`
+    const size =
+      cell.estimated_size_bytes != null
+        ? formatBytes(cell.estimated_size_bytes)
+        : 'N/A (transient)'
+    md += `| \`${cell.type}\` | ${formatCount(cell.count)} | ${size} |\n`
   }
 
   return md

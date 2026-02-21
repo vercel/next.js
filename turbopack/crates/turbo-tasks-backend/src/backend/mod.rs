@@ -234,8 +234,7 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
     /// This iterates all tasks in the storage, so it may take some time on large
     /// graphs.
     pub fn collect_memory_report(&self) -> memory_report::MemoryReport {
-        let uptime_secs = self.0.start_time.elapsed().as_secs_f64();
-        memory_report::collect_memory_report(&self.0.storage, uptime_secs)
+        memory_report::collect_memory_report(&self.0.storage)
     }
 }
 

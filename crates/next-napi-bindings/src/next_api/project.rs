@@ -2437,7 +2437,7 @@ pub async fn project_write_analyze_data(
 }
 
 #[napi]
-pub async fn project_get_memory_report(
+pub fn project_get_memory_report(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<String> {
     let report = project

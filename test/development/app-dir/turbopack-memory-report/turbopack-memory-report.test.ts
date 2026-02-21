@@ -21,7 +21,6 @@ describe('turbopack-memory-report', () => {
 
       // Verify top-level schema
       expect(report.version).toBe(1)
-      expect(typeof report.generated_at).toBe('string')
       expect(typeof report.uptime_secs).toBe('number')
       expect(report.uptime_secs).toBeGreaterThan(0)
 
@@ -93,7 +92,6 @@ describe('turbopack-memory-report', () => {
 
       const report = JSON.parse(result.stdout)
       expect(report.version).toBe(1)
-      expect(typeof report.generated_at).toBe('string')
       expect(typeof report.uptime_secs).toBe('number')
       expect(report.tasks.total_count).toBeGreaterThan(0)
       expect(report.tasks.by_function.length).toBeGreaterThan(0)

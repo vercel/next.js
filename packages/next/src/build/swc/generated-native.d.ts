@@ -394,7 +394,7 @@ export declare function projectWriteAnalyzeData(
 ): Promise<TurbopackResult>
 export declare function projectGetMemoryReport(project: {
   __napiType: 'Project'
-}): Promise<string>
+}): string
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

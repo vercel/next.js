@@ -827,7 +827,7 @@ function bindingToApi(
       return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }
 
-    getMemoryReport(): Promise<string> {
+    getMemoryReport(): string {
       return binding.projectGetMemoryReport(this._nativeProject)
     }
 
