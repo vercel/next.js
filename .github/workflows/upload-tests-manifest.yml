@@ -13,6 +13,9 @@ on:
     paths:
       - 'test/*-manifest.json'
 
+permissions:
+  contents: read
+
 jobs:
   upload_test_results:
     name: Upload test results

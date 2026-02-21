@@ -13,6 +13,9 @@ on:
 
 name: Test examples
 
+permissions:
+  contents: read
+
 jobs:
   testExamples:
     # Don't execute using cron on forks

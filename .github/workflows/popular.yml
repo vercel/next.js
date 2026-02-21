@@ -5,6 +5,11 @@ on:
     - cron: '0 10 * * 1' # Every Monday at 10AM UTC (6AM EST)
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
 jobs:
   run:
     if: github.repository_owner == 'vercel'

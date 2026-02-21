@@ -4,6 +4,10 @@ on:
   issues:
     types: [labeled]
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   close:
     if: github.event.label.name == 'please use the correct issue template'

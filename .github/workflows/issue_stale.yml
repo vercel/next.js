@@ -5,6 +5,8 @@ on:
     # This runs every day 20 minutes before midnight: https://crontab.guru/#40_23_*_*_*
     - cron: '40 23 * * *'
 
+permissions: {}
+
 jobs:
   stale:
     runs-on: ubuntu-latest
