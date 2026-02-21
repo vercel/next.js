@@ -312,12 +312,6 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
       )
     }
-    if (process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL=${process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL}`
-      )
-    }
-
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }
