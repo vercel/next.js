@@ -253,31 +253,17 @@ impl DebugBuildPathsRouteKeys {
                 .iter()
                 .map(|path| {
                     // Pages router: "/foo.tsx" -> "/foo"
-                    // Also: "/foo/index.tsx" -> "/foo" (strip "/index" suffix).
                     // Catch-all routes like "/foo/[...slug]" contain dots in the segment name;
                     // only treat the suffix as an extension when it is a plain alphanumeric token.
                     let file_name = path.rsplit('/').next().unwrap_or(path);
-                    let mut result: RcStr = if let Some(dot_idx) = file_name.rfind('.') {
+                    if let Some(dot_idx) = file_name.rfind('.') {
                         let ext = &file_name[dot_idx + 1..];
                         if !ext.is_empty() && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
                             let trimmed_len = path.len() - (file_name.len() - dot_idx);
-                            path[..trimmed_len].into()
-                        } else {
-                            path.clone()
+                            return path[..trimmed_len].into();
                         }
-                    } else {
-                        path.clone()
-                    };
-
-                    if let Some(stripped) = result.strip_suffix("/index") {
-                        result = if stripped.is_empty() {
-                            "/".into()
-                        } else {
-                            stripped.into()
-                        };
                     }
-
-                    result
+                    path.clone()
                 })
                 .collect(),
         })
