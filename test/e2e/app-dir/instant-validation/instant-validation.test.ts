@@ -759,18 +759,62 @@ describe('instant validation', () => {
       await expectNoValidationErrors(browser, await browser.url())
     })
 
-    it('valid - no suspense needed around dynamic if loading.js is present', async () => {
+    it('valid - no suspense needed around dynamic in page if loading.js is present', async () => {
       const browser = await navigateTo(
         '/suspense-in-root/static/valid-only-loading-around-dynamic'
       )
       await expectNoValidationErrors(browser, await browser.url())
     })
 
-    it('valid - no suspense needed around dynamic if loading.js is present in a non-layout segment above', async () => {
+    it('valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above', async () => {
       const browser = await navigateTo(
         '/suspense-in-root/static/valid-only-loading-around-dynamic-higher'
       )
       await expectNoValidationErrors(browser, await browser.url())
+    })
+
+    it('invalid - loading.js covers page, but not layout at the same level', async () => {
+      const browser = await navigateTo(
+        '/suspense-in-root/static/invalid-dynamic-layout-with-loading'
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33) @ unstable_instant
+       > 4 | export const unstable_instant = { prefetch: 'static' }
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+       To fix this, you can either:
+
+       Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "environmentLabel": "Server",
+         "label": "Blocking Route",
+         "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19) @ Dynamic
+       > 24 |   await connection()
+            |                   ^",
+         "stack": [
+           "Dynamic app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19)",
+           "Layout app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (15:9)",
+         ],
+       }
+      `)
     })
 
     describe('blocking', () => {

@@ -91,6 +91,12 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/static/valid-only-loading-around-dynamic" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/static/valid-only-loading-around-dynamic-higher" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-dynamic-layout-with-loading" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/static/missing-suspense-around-runtime" />
         </li>
         <li>
