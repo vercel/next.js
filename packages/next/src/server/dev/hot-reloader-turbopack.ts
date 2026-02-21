@@ -450,6 +450,7 @@ export async function createHotReloaderTurbopack(
     encryptionKey,
     dev: true,
     deploymentId: nextConfig.deploymentId,
+    sriEnabled: false,
   })
 
   // Dev specific

@@ -1820,11 +1820,10 @@ impl NextConfig {
         Vc::cell(self.experimental.swc_plugins.clone().unwrap_or_default())
     }
 
-    // TODO not implemented yet
-    // #[turbo_tasks::function]
-    // pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
-    //     Vc::cell(self.experimental.sri.clone())
-    // }
+    #[turbo_tasks::function]
+    pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
+        Vc::cell(self.experimental.sri.clone())
+    }
 
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_babel(&self) -> Vc<Option<bool>> {

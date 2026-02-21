@@ -80,6 +80,7 @@ use crate::{
     },
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
+    sri_manifest::get_sri_manifest_asset,
     webpack_stats::generate_webpack_stats,
 };
 
@@ -1607,6 +1608,23 @@ impl Endpoint for PageEndpoint {
             let client_relative_root = project.client_relative_path().owned().await?;
 
             let output_assets = output.output_assets();
+            let output_assets = if let Some(sri) =
+                &*project.next_config().experimental_sri().await?
+                && let Some(algorithm) = sri.algorithm.clone()
+            {
+                let sri_manifest = get_sri_manifest_asset(
+                    node_root.join(&format!(
+                        "server/pages{}/subresource-integrity-manifest.json",
+                        get_asset_prefix_from_pathname(&this.pathname)
+                    ))?,
+                    output_assets,
+                    client_relative_root.clone(),
+                    algorithm,
+                );
+                output_assets.concat_asset(sri_manifest)
+            } else {
+                output_assets
+            };
 
             let (server_paths, client_paths) = if project.next_mode().await?.is_development() {
                 let server_paths = all_asset_paths(output_assets, node_root.clone(), None)
