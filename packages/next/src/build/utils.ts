@@ -1293,7 +1293,70 @@ export async function copyTracedFiles(
     await fs.mkdir(path.dirname(packageJsonOutputPath), { recursive: true })
     await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
-  const copiedFiles = new Set()
+  const copiedFiles = new Set<string>()
+
+  const isInsideTracingRoot = (filePath: string) => {
+    const relativePath = path.relative(tracingRoot, filePath)
+    return (
+      relativePath === '' ||
+      (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+    )
+  }
+
+  const createSymlinkWithFallback = async (
+    symlinkTarget: string,
+    fileOutputPath: string
+  ) => {
+    try {
+      await fs.symlink(symlinkTarget, fileOutputPath)
+    } catch (err: any) {
+      // Windows doesn't support creating symlinks without elevated privileges, unless
+      // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
+      // creating a junction point instead.
+      //
+      // Ideally we'd just preserve the input file type (junction point or symlink), but
+      // there's no API in node.js to differentiate between a junction point and a symlink,
+      // so we just try making a symlink first. Symlinks are preferred because they support
+      // relative paths and non-directory (file) targets.
+      if (
+        process.platform === 'win32' &&
+        err.code === 'EPERM' &&
+        path.isAbsolute(symlinkTarget)
+      ) {
+        try {
+          await fs.symlink(symlinkTarget, fileOutputPath, 'junction')
+        } catch (junctionErr: any) {
+          if (junctionErr.code !== 'EEXIST') {
+            throw junctionErr
+          }
+        }
+      } else if (err.code !== 'EEXIST') {
+        throw err
+      }
+    }
+  }
+
+  const copySymlinkTarget = async (
+    symlinkTarget: string,
+    tracedFilePath: string,
+    fileOutputPath: string
+  ) => {
+    const resolvedTargetPath = path.resolve(
+      path.dirname(tracedFilePath),
+      symlinkTarget
+    )
+    const targetStats = await fs.stat(resolvedTargetPath)
+
+    if (targetStats.isDirectory()) {
+      await fs.cp(resolvedTargetPath, fileOutputPath, {
+        recursive: true,
+        dereference: true,
+        force: true,
+      })
+    } else {
+      await fs.copyFile(resolvedTargetPath, fileOutputPath)
+    }
+  }
 
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(
@@ -1321,32 +1384,27 @@ export async function copyTracedFiles(
           const symlink = await fs.readlink(tracedFilePath).catch(() => null)
 
           if (symlink) {
-            try {
-              await fs.symlink(symlink, fileOutputPath)
-            } catch (err: any) {
-              // Windows doesn't support creating symlinks without elevated privileges, unless
-              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
-              // creating a junction point instead.
-              //
-              // Ideally we'd just preserve the input file type (junction point or symlink), but
-              // there's no API in node.js to differentiate between a junction point and a symlink,
-              // so we just try making a symlink first. Symlinks are preferred because they support
-              // relative paths and non-directory (file) targets.
-              if (
-                process.platform === 'win32' &&
-                err.code === 'EPERM' &&
-                path.isAbsolute(symlink)
-              ) {
-                try {
-                  await fs.symlink(symlink, fileOutputPath, 'junction')
-                } catch (junctionErr: any) {
-                  if (junctionErr.code !== 'EEXIST') {
-                    throw junctionErr
-                  }
-                }
-              } else if (err.code !== 'EEXIST') {
-                throw err
-              }
+            const resolvedTargetPath = path.resolve(
+              path.dirname(tracedFilePath),
+              symlink
+            )
+
+            if (isInsideTracingRoot(resolvedTargetPath)) {
+              const outputTargetPath = path.join(
+                outputPath,
+                path.relative(tracingRoot, resolvedTargetPath)
+              )
+              const relativeOutputTarget = path.relative(
+                path.dirname(fileOutputPath),
+                outputTargetPath
+              )
+
+              await createSymlinkWithFallback(
+                relativeOutputTarget,
+                fileOutputPath
+              )
+            } else {
+              await copySymlinkTarget(symlink, tracedFilePath, fileOutputPath)
             }
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
