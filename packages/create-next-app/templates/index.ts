@@ -237,8 +237,8 @@ export const installTemplate = async ({
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),
       ...(ultracite && {
-        check: "npx ultracite@latest check",
-        fix: "npx ultracite@latest fix",
+        check: "ultracite check",
+        fix: "ultracite fix",
       }),
     },
     /**
@@ -314,8 +314,8 @@ export const installTemplate = async ({
   if (ultracite) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      "@biomejs/biome": "latest",
-      ultracite: "latest",
+      "@biomejs/biome": "2.4.0",
+      ultracite: "7.2.3",
     };
   }
 
@@ -333,6 +333,8 @@ export const installTemplate = async ({
     // Remove linting scripts for API-only templates
     delete packageJson.scripts.lint;
     delete packageJson.scripts.format;
+    delete packageJson.scripts.check;
+    delete packageJson.scripts.fix;
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;
