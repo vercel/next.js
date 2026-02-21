@@ -539,6 +539,27 @@ export function getDraftModeProviderForCacheScope(
   return undefined
 }
 
+export function getStagedRenderingController(
+  workUnitStore: WorkUnitStore
+): StagedRenderingController | null {
+  switch (workUnitStore.type) {
+    case 'request':
+    case 'prerender-runtime':
+      return workUnitStore.stagedRendering ?? null
+    case 'prerender':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
+}
+
 export function getCacheSignal(
   workUnitStore: WorkUnitStore
 ): CacheSignal | null {
