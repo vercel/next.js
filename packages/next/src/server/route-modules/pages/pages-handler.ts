@@ -738,7 +738,7 @@ export const getHandler = ({
           result:
             isNextDataRequest && !isErrorPage && !is500Page
               ? new RenderResult(
-                  Buffer.from(JSON.stringify(result.value.pageData)),
+                  JSON.stringify(result.value.pageData),
                   {
                     contentType: JSON_CONTENT_TYPE_HEADER,
                     metadata: result.value.html.metadata,
