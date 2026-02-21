@@ -8,7 +8,6 @@ use crate::backend::{SpecificTaskDataCategory, storage::Storage, storage_schema:
 
 #[derive(Debug, Serialize)]
 pub struct MemoryReport {
-    pub version: u32,
     pub tasks: TaskStats,
     pub cells: CellStats,
     pub allocator: AllocatorStats,
@@ -187,7 +186,6 @@ pub fn collect_memory_report(storage: &Storage) -> MemoryReport {
     let allocator = collect_allocator_stats();
 
     MemoryReport {
-        version: 1,
         tasks: TaskStats {
             total_count: total_task_count,
             total_estimated_size_bytes: total_task_size,

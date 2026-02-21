@@ -392,9 +392,37 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export interface NapiMemoryReport {
+  tasks: NapiTaskStats
+  cells: NapiCellStats
+  allocator: NapiAllocatorStats
+}
+export interface NapiTaskStats {
+  totalCount: number
+  totalEstimatedSizeBytes: number
+  byFunction: Array<NapiFunctionTaskStats>
+}
+export interface NapiFunctionTaskStats {
+  function: string
+  count: number
+  estimatedSizeBytes: number
+}
+export interface NapiCellStats {
+  totalCount: number
+  totalEstimatedSizeBytes: number
+  byType: Array<NapiTypeCellStats>
+}
+export interface NapiTypeCellStats {
+  type: string
+  count: number
+  estimatedSizeBytes?: number
+}
+export interface NapiAllocatorStats {
+  allocatedBytes: number
+}
 export declare function projectGetMemoryReport(project: {
   __napiType: 'Project'
-}): string
+}): NapiMemoryReport
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

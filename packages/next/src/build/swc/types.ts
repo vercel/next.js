@@ -7,6 +7,7 @@ import type {
   NapiSourceDiagnostic,
   NapiProjectOptions,
   NapiPartialProjectOptions,
+  NapiMemoryReport,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -306,7 +307,7 @@ export interface Project {
 
   invalidateFileSystemCache(): Promise<void>
 
-  getMemoryReport(): string
+  getMemoryReport(): NapiMemoryReport
 
   shutdown(): Promise<void>
 

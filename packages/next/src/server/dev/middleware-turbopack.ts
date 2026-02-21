@@ -494,19 +494,21 @@ export function getMemoryReportMiddleware(project: Project) {
     }
 
     try {
-      const reportJson = await project.getMemoryReport()
+      const turbopackReport = project.getMemoryReport()
 
       // Augment with Node.js process-level stats and uptime
-      const report = JSON.parse(reportJson)
-      report.uptime_secs = process.uptime()
       const mem = process.memoryUsage()
-      report.process = {
-        pid: process.pid,
-        node_version: process.version,
-        rss_bytes: mem.rss,
-        heap_used_bytes: mem.heapUsed,
-        heap_total_bytes: mem.heapTotal,
-        external_bytes: mem.external,
+      const report = {
+        ...turbopackReport,
+        uptimeSecs: process.uptime(),
+        process: {
+          pid: process.pid,
+          nodeVersion: process.version,
+          rssBytes: mem.rss,
+          heapUsedBytes: mem.heapUsed,
+          heapTotalBytes: mem.heapTotal,
+          externalBytes: mem.external,
+        },
       }
 
       if (format === 'markdown') {
@@ -537,33 +539,33 @@ const formatCount = (n: number) => n.toLocaleString('en-US')
 
 function renderMemoryReportMarkdown(report: any): string {
   let md = `# Turbopack Memory Report\n\n`
-  md += `Uptime: ${(report.uptime_secs / 60).toFixed(1)} minutes  \n`
+  md += `Uptime: ${(report.uptimeSecs / 60).toFixed(1)} minutes  \n`
   md += `PID: ${report.process.pid}\n\n`
 
   md += `## Process Memory\n\n`
   md += `| Metric | Value |\n|--------|------:|\n`
-  md += `| RSS | ${formatBytes(report.process.rss_bytes)} |\n`
-  md += `| Node Heap Used | ${formatBytes(report.process.heap_used_bytes)} |\n`
-  md += `| Node Heap Total | ${formatBytes(report.process.heap_total_bytes)} |\n`
-  md += `| Node External | ${formatBytes(report.process.external_bytes)} |\n`
-  md += `| Rust Allocated | ${formatBytes(report.allocator.allocated_bytes)} |\n`
+  md += `| RSS | ${formatBytes(report.process.rssBytes)} |\n`
+  md += `| Node Heap Used | ${formatBytes(report.process.heapUsedBytes)} |\n`
+  md += `| Node Heap Total | ${formatBytes(report.process.heapTotalBytes)} |\n`
+  md += `| Node External | ${formatBytes(report.process.externalBytes)} |\n`
+  md += `| Rust Allocated | ${formatBytes(report.allocator.allocatedBytes)} |\n`
 
-  md += `\n## Tasks - ${formatCount(report.tasks.total_count)} total, `
-  md += `${formatBytes(report.tasks.total_estimated_size_bytes)} estimated\n\n`
+  md += `\n## Tasks - ${formatCount(report.tasks.totalCount)} total, `
+  md += `${formatBytes(report.tasks.totalEstimatedSizeBytes)} estimated\n\n`
   md += `| Function | Count | Est. Size |\n`
   md += `|----------|------:|----------:|\n`
-  for (const fn_ of report.tasks.by_function) {
-    md += `| \`${fn_.function}\` | ${formatCount(fn_.count)} | ${formatBytes(fn_.estimated_size_bytes)} |\n`
+  for (const fn_ of report.tasks.byFunction) {
+    md += `| \`${fn_.function}\` | ${formatCount(fn_.count)} | ${formatBytes(fn_.estimatedSizeBytes)} |\n`
   }
 
-  md += `\n## Cells - ${formatCount(report.cells.total_count)} total, `
-  md += `${formatBytes(report.cells.total_estimated_size_bytes)} estimated\n\n`
+  md += `\n## Cells - ${formatCount(report.cells.totalCount)} total, `
+  md += `${formatBytes(report.cells.totalEstimatedSizeBytes)} estimated\n\n`
   md += `| Type | Count | Est. Size |\n`
   md += `|------|------:|----------:|\n`
-  for (const cell of report.cells.by_type) {
+  for (const cell of report.cells.byType) {
     const size =
-      cell.estimated_size_bytes != null
-        ? formatBytes(cell.estimated_size_bytes)
+      cell.estimatedSizeBytes != null
+        ? formatBytes(cell.estimatedSizeBytes)
         : 'N/A (transient)'
     md += `| \`${cell.type}\` | ${formatCount(cell.count)} | ${size} |\n`
   }

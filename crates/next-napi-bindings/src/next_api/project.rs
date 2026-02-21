@@ -2436,16 +2436,88 @@ pub async fn project_write_analyze_data(
     })
 }
 
+#[napi(object)]
+pub struct NapiMemoryReport {
+    pub tasks: NapiTaskStats,
+    pub cells: NapiCellStats,
+    pub allocator: NapiAllocatorStats,
+}
+
+#[napi(object)]
+pub struct NapiTaskStats {
+    pub total_count: f64,
+    pub total_estimated_size_bytes: f64,
+    pub by_function: Vec<NapiFunctionTaskStats>,
+}
+
+#[napi(object)]
+pub struct NapiFunctionTaskStats {
+    pub function: String,
+    pub count: f64,
+    pub estimated_size_bytes: f64,
+}
+
+#[napi(object)]
+pub struct NapiCellStats {
+    pub total_count: f64,
+    pub total_estimated_size_bytes: f64,
+    pub by_type: Vec<NapiTypeCellStats>,
+}
+
+#[napi(object)]
+pub struct NapiTypeCellStats {
+    #[napi(js_name = "type")]
+    pub type_name: String,
+    pub count: f64,
+    pub estimated_size_bytes: Option<f64>,
+}
+
+#[napi(object)]
+pub struct NapiAllocatorStats {
+    pub allocated_bytes: f64,
+}
+
 #[napi]
 pub fn project_get_memory_report(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-) -> napi::Result<String> {
+) -> napi::Result<NapiMemoryReport> {
     let report = project
         .turbopack_ctx
         .turbo_tasks()
         .backend()
         .collect_memory_report();
 
-    serde_json::to_string(&report)
-        .map_err(|e| napi::Error::from_reason(format!("Failed to serialize memory report: {e}")))
+    Ok(NapiMemoryReport {
+        tasks: NapiTaskStats {
+            total_count: report.tasks.total_count as f64,
+            total_estimated_size_bytes: report.tasks.total_estimated_size_bytes as f64,
+            by_function: report
+                .tasks
+                .by_function
+                .into_iter()
+                .map(|f| NapiFunctionTaskStats {
+                    function: f.function.to_string(),
+                    count: f.count as f64,
+                    estimated_size_bytes: f.estimated_size_bytes as f64,
+                })
+                .collect(),
+        },
+        cells: NapiCellStats {
+            total_count: report.cells.total_count as f64,
+            total_estimated_size_bytes: report.cells.total_estimated_size_bytes as f64,
+            by_type: report
+                .cells
+                .by_type
+                .into_iter()
+                .map(|c| NapiTypeCellStats {
+                    type_name: c.type_name.to_string(),
+                    count: c.count as f64,
+                    estimated_size_bytes: c.estimated_size_bytes.map(|s| s as f64),
+                })
+                .collect(),
+        },
+        allocator: NapiAllocatorStats {
+            allocated_bytes: report.allocator.allocated_bytes as f64,
+        },
+    })
 }
