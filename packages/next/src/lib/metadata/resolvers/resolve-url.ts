@@ -1,5 +1,4 @@
 import path from '../../../shared/lib/isomorphic/path'
-import type { MetadataContext } from '../types/resolvers'
 
 export type MetadataBaseURL = URL | null
 
@@ -103,8 +102,7 @@ function isFilePattern(pathname: string): boolean {
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
   metadataBase: MetadataBaseURL,
-  pathname: string,
-  _metadataContext: MetadataContext
+  pathname: string
 ): string {
   // Resolve url with pathname that always starts with `/`
   url = resolveRelativeUrl(url, pathname)

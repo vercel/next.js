@@ -51,9 +51,7 @@ describe('resolveOpenGraph', () => {
         { type: 'article', authors: '' },
         null,
         pathname,
-        {
-          isStaticMetadataRouteFile: false,
-        },
+        false,
         ''
       )
     ).toEqual({
@@ -74,9 +72,7 @@ describe('resolveOpenGraph', () => {
         { type: 'article', authors: null },
         null,
         pathname,
-        {
-          isStaticMetadataRouteFile: false,
-        },
+        false,
         ''
       )
     ).toEqual({

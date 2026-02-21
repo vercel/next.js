@@ -7,7 +7,6 @@ import type {
 import type {
   FieldResolverExtraArgs,
   AsyncFieldResolverExtraArgs,
-  MetadataContext,
 } from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
 import { resolveArray, resolveAsArrayOrUndefined } from '../generate/utils'
@@ -160,12 +159,12 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
 
 export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
   'openGraph',
-  [MetadataBaseURL, Promise<string>, MetadataContext, string | null]
+  [MetadataBaseURL, Promise<string>, boolean, string | null]
 > = async (
   openGraph,
   metadataBase,
   pathname,
-  metadataContext,
+  isStaticMetadataRouteFile,
   titleTemplate
 ) => {
   if (!openGraph) return null
@@ -184,7 +183,7 @@ export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
     target.images = resolveImages(
       og.images,
       metadataBase,
-      metadataContext.isStaticMetadataRouteFile
+      isStaticMetadataRouteFile
     )
   }
 
@@ -198,8 +197,7 @@ export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
     ? resolveAbsoluteUrlWithPathname(
         openGraph.url,
         metadataBase,
-        await pathname,
-        metadataContext
+        await pathname
       )
     : null
 
@@ -216,8 +214,8 @@ const TwitterBasicInfoKeys = [
 
 export const resolveTwitter: FieldResolverExtraArgs<
   'twitter',
-  [MetadataBaseURL, MetadataContext, string | null]
-> = (twitter, metadataBase, metadataContext, titleTemplate) => {
+  [MetadataBaseURL, boolean, string | null]
+> = (twitter, metadataBase, isStaticMetadataRouteFile, titleTemplate) => {
   if (!twitter) return null
   let card = 'card' in twitter ? twitter.card : undefined
   const resolved = {
@@ -231,7 +229,7 @@ export const resolveTwitter: FieldResolverExtraArgs<
   resolved.images = resolveImages(
     twitter.images,
     metadataBase,
-    metadataContext.isStaticMetadataRouteFile
+    isStaticMetadataRouteFile
   )
 
   card = card || (resolved.images?.length ? 'summary_large_image' : 'summary')

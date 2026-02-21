@@ -19,7 +19,3 @@ export type AsyncFieldResolverExtraArgs<
   Data = Metadata,
   ResolvedData = ResolvedMetadataWithURLs,
 > = (T: Data[Key], ...args: ExtraArgs) => Promise<ResolvedData[Key]>
-
-export type MetadataContext = {
-  isStaticMetadataRouteFile: boolean
-}

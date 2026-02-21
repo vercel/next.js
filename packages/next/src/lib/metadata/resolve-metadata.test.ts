@@ -20,9 +20,7 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   ])
   const route = '/test'
   const pathname = Promise.resolve('/test')
-  return originAccumulateMetadata(route, fullMetadataItems, pathname, {
-    isStaticMetadataRouteFile: false,
-  })
+  return originAccumulateMetadata(route, fullMetadataItems, pathname, false)
 }
 
 function accumulateViewport(viewportExports: Viewport[]) {

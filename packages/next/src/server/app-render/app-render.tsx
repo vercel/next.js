@@ -57,7 +57,6 @@ import {
   NEXT_REQUEST_ID_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
-import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
 import {
@@ -551,7 +550,6 @@ async function generateDynamicRSCPayload(
       tree: loaderTree,
       parsedQuery: query,
       pathname: url.pathname,
-      metadataContext: createMetadataContext(),
       interpolatedParams: ctx.interpolatedParams,
       serveStreamingMetadata,
       isRuntimePrefetchable: metadataIsRuntimePrefetchable,
@@ -1449,7 +1447,6 @@ async function getRSCPayload(
     errorType: is404 && !hasGlobalNotFound ? 'not-found' : undefined,
     parsedQuery: query,
     pathname: url.pathname,
-    metadataContext: createMetadataContext(),
     interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata,
     isRuntimePrefetchable: metadataIsRuntimePrefetchable,
@@ -1571,7 +1568,6 @@ async function getErrorRSCPayload(
     tree,
     parsedQuery: query,
     pathname: url.pathname,
-    metadataContext: createMetadataContext(),
     errorType,
     interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata: serveStreamingMetadata,
