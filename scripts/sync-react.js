@@ -19,6 +19,8 @@ const yargs = require('yargs')
 //
 // Sync from a local checkout of React (requires having React built first):
 //   pnpm run sync-react --version /path/to/react/checkout/
+// Sync from a React commit (can be a commit on a PR)
+//   pnpm run sync-react --version vp:///commit-sha
 
 const repoOwner = 'vercel'
 const repoName = 'next.js'
@@ -57,6 +59,9 @@ async function getSchedulerVersion(reactVersion) {
   if (reactVersion.startsWith('file://')) {
     return reactVersion
   }
+  if (reactVersion.startsWith('vp:')) {
+    return reactVersion
+  }
 
   const url = `https://registry.npmjs.org/react-dom/${reactVersion}`
   const response = await fetch(url, {
@@ -83,6 +88,14 @@ async function getSchedulerVersion(reactVersion) {
 function getPackageVersion(packageName, versionStr) {
   if (versionStr.startsWith('file://')) {
     return new URL(packageName, versionStr).href
+  }
+  if (versionStr.startsWith('vp:')) {
+    const { pathname } = new URL(versionStr)
+    const [, commit, releaseChannel] = pathname.split('/')
+    return new URL(
+      `/react/commits/${commit}/${packageName}@${releaseChannel}`,
+      'https://vercel-packages.vercel.app'
+    ).href
   }
 
   return `npm:${packageName}@${versionStr}`
@@ -139,10 +152,14 @@ async function sync({ channel, newVersionStr, noInstall }) {
     // TODO: Should be handled like the other React packages
     devDependencies['react-is-builtin'] = newVersionStr.startsWith('file://')
       ? new URL('react-is', newVersionStr).href
-      : `npm:react-is@${newVersionStr}`
+      : newVersionStr.startsWith('vp:')
+        ? getPackageVersion('react-is', newVersionStr)
+        : `npm:react-is@${newVersionStr}`
     pnpmOverrides['react-is'] = newVersionStr.startsWith('file://')
       ? new URL('react-is', newVersionStr).href
-      : `npm:react-is@${newVersionStr}`
+      : newVersionStr.startsWith('vp:')
+        ? getPackageVersion('react-is', newVersionStr)
+        : `npm:react-is@${newVersionStr}`
   }
 
   await fsp.writeFile(
@@ -168,6 +185,16 @@ function extractInfoFromReactVersion(versionStr) {
       releaseLabel: 'local',
       semverVersion: '0.0.0',
       sha: 'local',
+    }
+  }
+  if (versionStr.startsWith('vp:')) {
+    const { pathname } = new URL(versionStr)
+    const [, commit] = pathname.split('/')
+    return {
+      dateString: new Date().toISOString().split('T')[0],
+      releaseLabel: 'vercel-packages',
+      semverVersion: '0.0.0',
+      sha: commit,
     }
   }
 
@@ -276,7 +303,12 @@ async function main() {
         'Creates commits for each intermediate step. Useful to create better diffs for GitHub.',
     })
     .options('install', { default: true, type: 'boolean' })
-    .options('version', { default: null, type: 'string' }).argv
+    .options('version', {
+      default: null,
+      type: 'string',
+      description:
+        'e.g. 19.3.0-canary-?-? or vp:///commit-sha for a build from a specific React commit (can be a commit on a PR)',
+    }).argv
   let { actor, createPull, commit, install, version } = argv
   if (version !== null && version.startsWith('/')) {
     version = pathToFileURL(version).href
@@ -334,12 +366,19 @@ Or, run this command with no arguments to use the most recently published versio
 `
     )
   }
-  const { sha: newSha, dateString: newDateString } = newVersionInfo
+  const {
+    sha: newSha,
+    dateString: newDateString,
+    releaseLabel,
+  } = newVersionInfo
 
-  const branchName = newVersionStr.startsWith('file://')
-    ? // left to user to name their local sync branch
-      `update/react/local`
-    : `update/react/${newVersionStr}`
+  const branchName =
+    releaseLabel === 'local'
+      ? // left to user to name their local sync branch
+        `update/react/local`
+      : releaseLabel === 'vercel-packages'
+        ? `update/react/remote/vercel-packages/${newSha}`
+        : `update/react/${newVersionStr}`
   if (createPull) {
     const { exitCode, all, command } = await execa(
       'git',
@@ -381,6 +420,9 @@ Or, run this command with no arguments to use the most recently published versio
   if (version !== null && version.startsWith('file://')) {
     experimentalNewVersionStr = new URL('build/oss-experimental/', version).href
     newVersionStr = new URL('build/oss-stable/', version).href
+  } else if (releaseLabel === 'vercel-packages') {
+    experimentalNewVersionStr = `vp:///${newSha}/experimental`
+    newVersionStr = `vp:///${newSha}/canary`
   }
 
   await sync({
