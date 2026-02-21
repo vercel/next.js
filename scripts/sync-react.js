@@ -537,23 +537,27 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   let prDescription = ''
-  if (syncPagesRouterReact) {
-    prDescription += `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${pagesRouterReactVersion}\`**\n\n`
-  }
-
-  // Fetch the changelog from GitHub and print it to the console.
-  prDescription += `[diff facebook/react@${baseSha}...${newSha}](https://github.com/facebook/react/compare/${baseSha}...${newSha})\n\n`
-  try {
-    const changelog = await getChangelogFromGitHub(baseSha, newSha)
-    if (changelog === null) {
-      prDescription += `GitHub reported no changes between ${baseSha} and ${newSha}.`
-    } else {
-      prDescription += `<details>\n<summary>React upstream changes</summary>\n\n${changelog}\n\n</details>`
+  if (newVersionInfo.releaseLabel === 'local') {
+    prDescription = "Can't generate a changelog for local builds"
+  } else {
+    if (syncPagesRouterReact) {
+      prDescription += `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${pagesRouterReactVersion}\`**\n\n`
     }
-  } catch (error) {
-    console.error(error)
-    prDescription +=
-      '\nFailed to fetch changelog from GitHub. Changes were applied, anyway.\n'
+
+    // Fetch the changelog from GitHub and print it to the console.
+    prDescription += `[diff facebook/react@${baseSha}...${newSha}](https://github.com/facebook/react/compare/${baseSha}...${newSha})\n\n`
+    try {
+      const changelog = await getChangelogFromGitHub(baseSha, newSha)
+      if (changelog === null) {
+        prDescription += `GitHub reported no changes between ${baseSha} and ${newSha}.`
+      } else {
+        prDescription += `<details>\n<summary>React upstream changes</summary>\n\n${changelog}\n\n</details>`
+      }
+    } catch (error) {
+      console.error(error)
+      prDescription +=
+        '\nFailed to fetch changelog from GitHub. Changes were applied, anyway.\n'
+    }
   }
 
   if (!install) {
