@@ -228,6 +228,7 @@ import { ImageConfigContext } from '../../shared/lib/image-config-context.shared
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
 import {
+  anySegmentHasRuntimePrefetchEnabled,
   isPageAllowedToBlock,
   anySegmentNeedsInstantValidation,
 } from './instant-validation/instant-config'
@@ -544,6 +545,8 @@ async function generateDynamicRSCPayload(
       !options?.actionResult && // Only for navigations
       (await anySegmentNeedsInstantValidation(loaderTree))
 
+    const metadataIsRuntimePrefetchable =
+      await anySegmentHasRuntimePrefetchEnabled(loaderTree)
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
@@ -551,6 +554,7 @@ async function generateDynamicRSCPayload(
       metadataContext: createMetadataContext(ctx.renderOpts),
       interpolatedParams: ctx.interpolatedParams,
       serveStreamingMetadata,
+      isRuntimePrefetchable: metadataIsRuntimePrefetchable,
     })
 
     const rscHead = createElement(
@@ -943,6 +947,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         devFallbackParams,
         validationDebugChannelClient
       )
+    } else {
+      logValidationSkipped(ctx)
     }
 
     debugChannel = returnedDebugChannel
@@ -1431,6 +1437,8 @@ async function getRSCPayload(
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
+  const metadataIsRuntimePrefetchable =
+    await anySegmentHasRuntimePrefetchEnabled(tree)
   const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
     tree,
     // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
@@ -1444,6 +1452,7 @@ async function getRSCPayload(
     metadataContext: createMetadataContext(ctx.renderOpts),
     interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata,
+    isRuntimePrefetchable: metadataIsRuntimePrefetchable,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -1556,6 +1565,8 @@ async function getErrorRSCPayload(
   } = ctx
 
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
+  const metadataIsRuntimePrefetchable =
+    await anySegmentHasRuntimePrefetchEnabled(tree)
   const { Viewport, Metadata } = createMetadataComponents({
     tree,
     parsedQuery: query,
@@ -1564,6 +1575,7 @@ async function getErrorRSCPayload(
     errorType,
     interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata: serveStreamingMetadata,
+    isRuntimePrefetchable: metadataIsRuntimePrefetchable,
   })
 
   const initialHead = createElement(
@@ -2714,6 +2726,8 @@ async function renderToStream(
           requestStore = finalRequestStore
           debugChannel = returnedDebugChannel
         } else {
+          logValidationSkipped(ctx)
+
           // We're either bypassing caches or we can't restart the render.
           // Do a dynamic render, but with (basic) environment labels.
 
@@ -3610,6 +3624,23 @@ async function logMessagesAndSendErrorsToBrowser(
     )
 
     sendErrorsToBrowser(errorsRscStream, htmlRequestId)
+  }
+}
+
+function logValidationSkipped(ctx: AppRenderContext) {
+  if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
+    const requestId = ctx.requestId
+    const url = ctx.url.href
+    console.log(
+      '<VALIDATION_MESSAGE>' +
+        JSON.stringify({ type: 'validation_start', requestId, url }) +
+        '</VALIDATION_MESSAGE>'
+    )
+    console.log(
+      '<VALIDATION_MESSAGE>' +
+        JSON.stringify({ type: 'validation_end', requestId, url }) +
+        '</VALIDATION_MESSAGE>'
+    )
   }
 }
 

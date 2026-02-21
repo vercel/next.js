@@ -17,6 +17,11 @@ import type { MetadataContext } from './types/resolvers'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
+import {
+  workUnitAsyncStorage,
+  getStagedRenderingController,
+} from '../../server/app-render/work-unit-async-storage.external'
+import { RenderStage } from '../../server/app-render/staged-rendering'
 
 import {
   MetadataBoundary,
@@ -41,6 +46,7 @@ export function createMetadataComponents({
   interpolatedParams,
   errorType,
   serveStreamingMetadata,
+  isRuntimePrefetchable,
 }: {
   tree: LoaderTree
   pathname: string
@@ -49,19 +55,37 @@ export function createMetadataComponents({
   interpolatedParams: Params
   errorType?: MetadataErrorType | 'redirect'
   serveStreamingMetadata: boolean
+  isRuntimePrefetchable: boolean
 }): {
   Viewport: React.ComponentType
   Metadata: React.ComponentType
   MetadataOutlet: React.ComponentType
 } {
-  const searchParams = createServerSearchParamsForMetadata(parsedQuery)
+  const searchParams = createServerSearchParamsForMetadata(
+    parsedQuery,
+    isRuntimePrefetchable
+  )
   const pathnameForMetadata = createServerPathnameForMetadata(pathname)
 
   async function Viewport() {
+    // Gate metadata to the correct render stage. If the page is not
+    // runtime-prefetchable, defer until the Static stage so that
+    // prefetchable segments get a head start.
+    if (!isRuntimePrefetchable) {
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      if (workUnitStore) {
+        const stagedRendering = getStagedRenderingController(workUnitStore)
+        if (stagedRendering) {
+          await stagedRendering.waitForStage(RenderStage.Static)
+        }
+      }
+    }
+
     const tags = await getResolvedViewport(
       tree,
       searchParams,
       interpolatedParams,
+      isRuntimePrefetchable,
       errorType
     ).catch((viewportErr) => {
       // When Legacy PPR is enabled viewport can reject with a Postpone type
@@ -74,7 +98,8 @@ export function createMetadataComponents({
         return getNotFoundViewport(
           tree,
           searchParams,
-          interpolatedParams
+          interpolatedParams,
+          isRuntimePrefetchable
         ).catch(() => null)
       }
       // We're going to throw the error from the metadata outlet so we just render null here instead
@@ -94,12 +119,26 @@ export function createMetadataComponents({
   }
 
   async function Metadata() {
+    // Gate metadata to the correct render stage. If the page is not
+    // runtime-prefetchable, defer until the Static stage so that
+    // prefetchable segments get a head start.
+    if (!isRuntimePrefetchable) {
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      if (workUnitStore) {
+        const stagedRendering = getStagedRenderingController(workUnitStore)
+        if (stagedRendering) {
+          await stagedRendering.waitForStage(RenderStage.Static)
+        }
+      }
+    }
+
     const tags = await getResolvedMetadata(
       tree,
       pathnameForMetadata,
       searchParams,
       interpolatedParams,
       metadataContext,
+      isRuntimePrefetchable,
       errorType
     ).catch((metadataErr) => {
       // When Legacy PPR is enabled metadata can reject with a Postpone type
@@ -114,7 +153,8 @@ export function createMetadataComponents({
           pathnameForMetadata,
           searchParams,
           interpolatedParams,
-          metadataContext
+          metadataContext,
+          isRuntimePrefetchable
         ).catch(() => null)
       }
       // We're going to throw the error from the metadata outlet so we just render null here instead
@@ -155,9 +195,16 @@ export function createMetadataComponents({
         searchParams,
         interpolatedParams,
         metadataContext,
+        isRuntimePrefetchable,
         errorType
       ),
-      getResolvedViewport(tree, searchParams, interpolatedParams, errorType),
+      getResolvedViewport(
+        tree,
+        searchParams,
+        interpolatedParams,
+        isRuntimePrefetchable,
+        errorType
+      ),
     ]).then(() => null)
 
     // TODO: We shouldn't change what we render based on whether we are streaming or not.
@@ -188,6 +235,7 @@ async function getResolvedMetadataImpl(
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
   metadataContext: MetadataContext,
+  isRuntimePrefetchable: boolean,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
@@ -197,6 +245,7 @@ async function getResolvedMetadataImpl(
     searchParams,
     interpolatedParams,
     metadataContext,
+    isRuntimePrefetchable,
     errorConvention
   )
 }
@@ -207,7 +256,8 @@ async function getNotFoundMetadataImpl(
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
-  metadataContext: MetadataContext
+  metadataContext: MetadataContext,
+  isRuntimePrefetchable: boolean
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
   return renderMetadata(
@@ -216,6 +266,7 @@ async function getNotFoundMetadataImpl(
     searchParams,
     interpolatedParams,
     metadataContext,
+    isRuntimePrefetchable,
     notFoundErrorConvention
   )
 }
@@ -225,23 +276,32 @@ async function getResolvedViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
+  isRuntimePrefetchable: boolean,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-  return renderViewport(tree, searchParams, interpolatedParams, errorConvention)
+  return renderViewport(
+    tree,
+    searchParams,
+    interpolatedParams,
+    isRuntimePrefetchable,
+    errorConvention
+  )
 }
 
 const getNotFoundViewport = cache(getNotFoundViewportImpl)
 async function getNotFoundViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
-  interpolatedParams: Params
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
   return renderViewport(
     tree,
     searchParams,
     interpolatedParams,
+    isRuntimePrefetchable,
     notFoundErrorConvention
   )
 }
@@ -252,6 +312,7 @@ async function renderMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
   metadataContext: MetadataContext,
+  isRuntimePrefetchable: boolean,
   errorConvention?: MetadataErrorType
 ) {
   const resolvedMetadata = await resolveMetadata(
@@ -260,7 +321,8 @@ async function renderMetadata(
     searchParams,
     errorConvention,
     interpolatedParams,
-    metadataContext
+    metadataContext,
+    isRuntimePrefetchable
   )
   return <>{createMetadataElements(resolvedMetadata)}</>
 }
@@ -269,13 +331,15 @@ async function renderViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
+  isRuntimePrefetchable: boolean,
   errorConvention?: MetadataErrorType
 ) {
   const resolvedViewport = await resolveViewport(
     tree,
     searchParams,
     errorConvention,
-    interpolatedParams
+    interpolatedParams,
+    isRuntimePrefetchable
   )
   return <>{createViewportElements(resolvedViewport)}</>
 }
