@@ -30,8 +30,8 @@ export type DocumentType = NextComponentType<
 
 export type AppType<P = {}> = NextComponentType<
   AppContextType,
-  P,
-  AppPropsType<any, P>
+  any,
+  AppPropsType<any> & P
 >
 
 export type AppTreeType = ComponentType<
