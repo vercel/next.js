@@ -2439,18 +2439,13 @@ pub async fn project_write_analyze_data(
 #[napi]
 pub async fn project_get_memory_report(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    top_n: Option<u32>,
 ) -> napi::Result<String> {
-    let top_n = top_n.unwrap_or(1000) as usize;
-    let turbo_tasks = project.turbopack_ctx.turbo_tasks().clone();
+    let report = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .backend()
+        .collect_memory_report();
 
-    let report =
-        tokio::task::spawn_blocking(move || turbo_tasks.backend().collect_memory_report(top_n))
-            .await
-            .map_err(|e| {
-                napi::Error::from_reason(format!("Failed to collect memory report: {e}"))
-            })?;
-
-    serde_json::to_string_pretty(&report)
+    serde_json::to_string(&report)
         .map_err(|e| napi::Error::from_reason(format!("Failed to serialize memory report: {e}")))
 }

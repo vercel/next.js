@@ -74,10 +74,8 @@ fn estimate_encoded_size(
     scratch.clear();
     let mut encoder = new_turbo_bincode_encoder(scratch);
     if encode(&mut encoder).is_ok() {
-        drop(encoder);
         scratch.len() as u64
     } else {
-        drop(encoder);
         0
     }
 }
@@ -98,7 +96,7 @@ fn estimate_task_size(task: &TaskStorage, scratch: &mut TurboBincodeBuffer) -> u
 /// encode-and-discard with a reusable scratch buffer.
 ///
 /// This is not fast and could be parallelized, but as an on demand tool that might be fine.
-pub fn collect_memory_report(storage: &Storage, uptime_secs: f64, top_n: usize) -> MemoryReport {
+pub fn collect_memory_report(storage: &Storage, uptime_secs: f64) -> MemoryReport {
     let generated_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
 
     // Accumulate task stats grouped by function name
@@ -170,7 +168,6 @@ pub fn collect_memory_report(storage: &Storage, uptime_secs: f64, top_n: usize) 
         })
         .collect();
     by_function.sort_by_key(|a| std::cmp::Reverse(a.estimated_size_bytes));
-    by_function.truncate(top_n);
 
     // Build sorted cell stats (by count, descending)
     let mut by_type: Vec<TypeCellStats> = cell_groups
@@ -182,7 +179,6 @@ pub fn collect_memory_report(storage: &Storage, uptime_secs: f64, top_n: usize) 
         })
         .collect();
     by_type.sort_by_key(|a| std::cmp::Reverse(a.estimated_size_bytes));
-    by_type.truncate(top_n);
 
     let allocator = collect_allocator_stats();
 

@@ -480,18 +480,14 @@ export function getMemoryReportMiddleware(project: Project) {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(req.url!, 'http://n')
 
-    if (pathname !== '/__nextjs_turbopack_memory') {
+    if (pathname !== '/__nextjs_turbopack-memory') {
       return next()
     }
 
-    const topNParam = searchParams.get('top_n')
-    const topN = topNParam != null ? parseInt(topNParam, 10) : undefined
     const format = searchParams.get('format') ?? 'json'
 
     try {
-      const reportJson = await project.getMemoryReport(
-        topN != null && !isNaN(topN) ? topN : undefined
-      )
+      const reportJson = await project.getMemoryReport()
 
       // Augment with Node.js process-level stats
       const report = JSON.parse(reportJson)
@@ -505,14 +501,11 @@ export function getMemoryReportMiddleware(project: Project) {
         external_bytes: mem.external,
       }
 
-      if (format === 'html') {
-        res.setHeader('Content-Type', 'text/html')
-        res.end(renderMemoryReportHtml(report))
-      } else if (format === 'markdown') {
-        res.setHeader('Content-Type', 'text/markdown')
+      if (format === 'markdown') {
+        res.setHeader('Content-Type', 'text/markdown; charset=utf-8')
         res.end(renderMemoryReportMarkdown(report))
       } else {
-        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
         res.end(JSON.stringify(report, null, 2))
       }
     } catch (cause) {
@@ -524,7 +517,14 @@ export function getMemoryReportMiddleware(project: Project) {
   }
 }
 
-const formatMb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes.toLocaleString()} B`
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`
+  return `${(bytes / 1024 / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 })} GB`
+}
 const formatCount = (n: number) => n.toLocaleString()
 
 function renderMemoryReportMarkdown(report: any): string {
@@ -535,98 +535,29 @@ function renderMemoryReportMarkdown(report: any): string {
 
   md += `## Process Memory\n\n`
   md += `| Metric | Value |\n|--------|------:|\n`
-  md += `| RSS | ${formatMb(report.process.rss_bytes)} |\n`
-  md += `| Node Heap Used | ${formatMb(report.process.heap_used_bytes)} |\n`
-  md += `| Node Heap Total | ${formatMb(report.process.heap_total_bytes)} |\n`
-  md += `| Node External | ${formatMb(report.process.external_bytes)} |\n`
-  md += `| Rust Allocated | ${formatMb(report.allocator.allocated_bytes)} |\n`
+  md += `| RSS | ${formatBytes(report.process.rss_bytes)} |\n`
+  md += `| Node Heap Used | ${formatBytes(report.process.heap_used_bytes)} |\n`
+  md += `| Node Heap Total | ${formatBytes(report.process.heap_total_bytes)} |\n`
+  md += `| Node External | ${formatBytes(report.process.external_bytes)} |\n`
+  md += `| Rust Allocated | ${formatBytes(report.allocator.allocated_bytes)} |\n`
 
-  md += `\n## Tasks — ${formatCount(report.tasks.total_count)} total, `
-  md += `${formatMb(report.tasks.total_estimated_size_bytes)} estimated\n\n`
+  md += `\n## Tasks - ${formatCount(report.tasks.total_count)} total, `
+  md += `${formatBytes(report.tasks.total_estimated_size_bytes)} estimated\n\n`
   md += `| Function | Count | Est. Size |\n`
   md += `|----------|------:|----------:|\n`
   for (const fn_ of report.tasks.by_function) {
-    md += `| \`${fn_.function}\` | ${formatCount(fn_.count)} | ${formatMb(fn_.estimated_size_bytes)} |\n`
+    md += `| \`${fn_.function}\` | ${formatCount(fn_.count)} | ${formatBytes(fn_.estimated_size_bytes)} |\n`
   }
 
-  md += `\n## Cells — ${formatCount(report.cells.total_count)} total, `
-  md += `${formatMb(report.cells.total_estimated_size_bytes)} estimated\n\n`
+  md += `\n## Cells - ${formatCount(report.cells.total_count)} total, `
+  md += `${formatBytes(report.cells.total_estimated_size_bytes)} estimated\n\n`
   md += `| Type | Count | Est. Size |\n`
   md += `|------|------:|----------:|\n`
   for (const cell of report.cells.by_type) {
-    md += `| \`${cell.type}\` | ${formatCount(cell.count)} | ${formatMb(cell.estimated_size_bytes)} |\n`
+    md += `| \`${cell.type}\` | ${formatCount(cell.count)} | ${formatBytes(cell.estimated_size_bytes)} |\n`
   }
 
   return md
-}
-
-function renderMemoryReportHtml(report: any): string {
-  const esc = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-  const processRows = [
-    ['RSS', formatMb(report.process.rss_bytes)],
-    ['Node Heap Used', formatMb(report.process.heap_used_bytes)],
-    ['Node Heap Total', formatMb(report.process.heap_total_bytes)],
-    ['Node External', formatMb(report.process.external_bytes)],
-    ['Rust Allocated', formatMb(report.allocator.allocated_bytes)],
-  ]
-
-  const taskRows = report.tasks.by_function
-    .map(
-      (fn_: any) =>
-        `<tr><td><code>${esc(fn_.function)}</code></td><td class="r">${formatCount(fn_.count)}</td><td class="r">${formatMb(fn_.estimated_size_bytes)}</td></tr>`
-    )
-    .join('\n')
-
-  const cellRows = report.cells.by_type
-    .map(
-      (cell: any) =>
-        `<tr><td><code>${esc(cell.type)}</code></td><td class="r">${formatCount(cell.count)}</td><td class="r">${formatMb(cell.estimated_size_bytes)}</td></tr>`
-    )
-    .join('\n')
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Turbopack Memory Report</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
-  h1 { border-bottom: 2px solid #eee; padding-bottom: 0.5rem; }
-  h2 { margin-top: 2rem; }
-  .meta { color: #666; font-size: 0.9rem; }
-  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
-  th { background: #f5f5f5; }
-  .r { text-align: right; font-variant-numeric: tabular-nums; }
-  code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.85em; }
-  tr:hover { background: #fafafa; }
-</style>
-</head>
-<body>
-<h1>Turbopack Memory Report</h1>
-<p class="meta">Generated: ${esc(report.generated_at)} &middot; Uptime: ${(report.uptime_secs / 60).toFixed(1)} min &middot; PID: ${report.process.pid}</p>
-
-<h2>Process Memory</h2>
-<table>
-<tr><th>Metric</th><th class="r">Value</th></tr>
-${processRows.map(([label, val]) => `<tr><td>${label}</td><td class="r">${val}</td></tr>`).join('\n')}
-</table>
-
-<h2>Tasks &mdash; ${formatCount(report.tasks.total_count)} total, ${formatMb(report.tasks.total_estimated_size_bytes)} estimated</h2>
-<table>
-<tr><th>Function</th><th class="r">Count</th><th class="r">Est. Size</th></tr>
-${taskRows}
-</table>
-
-<h2>Cells &mdash; ${formatCount(report.cells.total_count)} total, ${formatMb(report.cells.total_estimated_size_bytes)} estimated</h2>
-<table>
-<tr><th>Type</th><th class="r">Count</th><th class="r">Est. Size</th></tr>
-${cellRows}
-</table>
-</body>
-</html>`
 }
 
 export async function getOriginalStackFrames({

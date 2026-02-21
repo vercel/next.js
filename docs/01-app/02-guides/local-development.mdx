@@ -271,6 +271,28 @@ It provides detailed information about the time taken for each module to compile
 
 > **Good to know**: The trace file is placed under the development server directory, which defaults to `.next/dev`.
 
+### Turbopack memory reporting
+
+If your dev server is using too much memory, you can generate a memory report from a running Turbopack dev server. The report shows memory usage broken down by task function and cell type, helping you identify what's consuming memory.
+
+While your dev server is running, use the CLI command:
+
+```bash
+npx next internal turbopack-memory
+```
+
+This outputs a JSON report by default. You can also request a human-readable markdown format:
+
+```bash
+npx next internal turbopack-memory --format markdown
+```
+
+If you know the host and port of your dev server, you can skip lock file discovery with `--server`:
+
+```bash
+npx next internal turbopack-memory --server localhost:3000
+```
+
 ### Still having problems?
 
 Share the trace file generated in the [Turbopack Tracing](#turbopack-tracing) section and share it on [GitHub Discussions](https://github.com/vercel/next.js/discussions) or [Discord](https://nextjs.org/discord).

@@ -565,18 +565,12 @@ internal
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .option('--format <format>', 'Output format: "json" or "markdown".', 'json')
   .option(
-    '--format <format>',
-    'Output format: "json", "markdown", or "html".',
-    'json'
+    '--server <host:port>',
+    'Connect to a dev server at the given host:port instead of discovering via lock file.'
   )
-  .addOption(
-    new Option(
-      '--top-n <count>',
-      'Number of top entries to show per category. Defaults to 100.'
-    ).argParser(parseValidPositiveInteger)
-  )
-  .action((directory: string, options: { format?: string; topN?: number }) =>
+  .action((directory: string, options: { format?: string; server?: string }) =>
     import('../cli/internal/next-turbopack-memory.js').then((mod) =>
       mod.nextTurbopackMemory(options, directory)
     )

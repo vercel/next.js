@@ -13,7 +13,9 @@ describe('turbopack-memory-report', () => {
 
       const res = await next.fetch('/__nextjs_turbopack_memory')
       expect(res.status).toBe(200)
-      expect(res.headers.get('content-type')).toBe('application/json')
+      expect(res.headers.get('content-type')).toBe(
+        'application/json; charset=utf-8'
+      )
 
       const report = await res.json()
 
@@ -66,39 +68,15 @@ describe('turbopack-memory-report', () => {
 
       const res = await next.fetch('/__nextjs_turbopack_memory?format=markdown')
       expect(res.status).toBe(200)
-      expect(res.headers.get('content-type')).toBe('text/markdown')
+      expect(res.headers.get('content-type')).toBe(
+        'text/markdown; charset=utf-8'
+      )
 
       const body = await res.text()
       expect(body).toContain('# Turbopack Memory Report')
       expect(body).toContain('## Process Memory')
       expect(body).toContain('## Tasks')
       expect(body).toContain('## Cells')
-    })
-
-    it('should return HTML format when requested', async () => {
-      await next.render('/')
-
-      const res = await next.fetch('/__nextjs_turbopack_memory?format=html')
-      expect(res.status).toBe(200)
-      expect(res.headers.get('content-type')).toBe('text/html')
-
-      const body = await res.text()
-      expect(body).toContain('<!DOCTYPE html>')
-      expect(body).toContain('<title>Turbopack Memory Report</title>')
-      expect(body).toContain('Process Memory')
-      expect(body).toContain('Tasks')
-      expect(body).toContain('Cells')
-    })
-
-    it('should respect top_n parameter', async () => {
-      await next.render('/')
-
-      const res = await next.fetch('/__nextjs_turbopack_memory?top_n=5')
-      expect(res.status).toBe(200)
-
-      const report = await res.json()
-      expect(report.tasks.by_function.length).toBeLessThanOrEqual(5)
-      expect(report.cells.by_type.length).toBeLessThanOrEqual(5)
     })
   })
 
@@ -133,28 +111,6 @@ describe('turbopack-memory-report', () => {
       expect(result.code).toBe(0)
       expect(result.stdout).toContain('# Turbopack Memory Report')
       expect(result.stdout).toContain('## Tasks')
-    })
-
-    it('should respect --top-n flag', async () => {
-      await next.render('/')
-
-      const result = await runNextCommand(
-        [
-          'internal',
-          'turbopack-memory',
-          next.testDir,
-          '--format',
-          'json',
-          '--top-n',
-          '3',
-        ],
-        { stdout: true }
-      )
-      expect(result.code).toBe(0)
-
-      const report = JSON.parse(result.stdout)
-      expect(report.tasks.by_function.length).toBeLessThanOrEqual(3)
-      expect(report.cells.by_type.length).toBeLessThanOrEqual(3)
     })
   })
 })
