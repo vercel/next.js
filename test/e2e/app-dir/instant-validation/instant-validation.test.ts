@@ -1452,6 +1452,7 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static'
         )
+        // TODO(instant-validation): why aren't we pointing to `await connection()` here?
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "cause": [
@@ -1481,11 +1482,11 @@ describe('instant validation', () => {
          Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
            "environmentLabel": "Server",
            "label": "Blocking Route",
-           "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (7:19) @ Module.generateViewport
-         >  7 |   await connection()
-              |                   ^",
+           "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23) @ Module.generateViewport
+         > 6 | export async function generateViewport(): Promise<Viewport> {
+             |                       ^",
            "stack": [
-             "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (7:19)",
+             "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23)",
            ],
          }
         `)
