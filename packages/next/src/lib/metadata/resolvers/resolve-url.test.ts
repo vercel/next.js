@@ -52,16 +52,13 @@ describe('resolveAbsoluteUrlWithPathname', () => {
   describe('trailingSlash is false', () => {
     const metadataBase = new URL('https://example.com/')
     const pathname = '/'
-    const opts = {
-      isStaticMetadataRouteFile: false,
-    }
 
     beforeEach(() => {
       setNextInvariantsForTest({ trailingSlash: false })
     })
 
     const resolver = (url: string | URL) =>
-      resolveAbsoluteUrlWithPathname(url, metadataBase, pathname, opts)
+      resolveAbsoluteUrlWithPathname(url, metadataBase, pathname)
     it('should resolve absolute internal url', () => {
       expect(resolver('https://example.com/foo')).toBe(
         'https://example.com/foo'
@@ -78,16 +75,13 @@ describe('resolveAbsoluteUrlWithPathname', () => {
   describe('trailingSlash is true', () => {
     const metadataBase = new URL('https://example.com/')
     const pathname = '/'
-    const opts = {
-      isStaticMetadataRouteFile: false,
-    }
 
     beforeEach(() => {
       setNextInvariantsForTest({ trailingSlash: true })
     })
 
     const resolver = (url: string | URL) =>
-      resolveAbsoluteUrlWithPathname(url, metadataBase, pathname, opts)
+      resolveAbsoluteUrlWithPathname(url, metadataBase, pathname)
     it('should add trailing slash to relative url', () => {
       expect(resolver('/foo')).toBe('https://example.com/foo/')
     })

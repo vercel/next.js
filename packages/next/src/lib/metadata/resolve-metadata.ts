@@ -12,7 +12,6 @@ import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
 import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
-import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type {
   AbsoluteTemplateString,
@@ -162,7 +161,6 @@ async function mergeStaticMetadata(
   source: Metadata | null,
   target: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata,
-  metadataContext: MetadataContext,
   titleTemplates: TitleTemplates,
   leafSegmentStaticIcons: StaticIcons,
   pathname: Promise<string>
@@ -181,10 +179,11 @@ async function mergeStaticMetadata(
 
   // file based metadata is specified and current level metadata twitter.images is not specified
   if (twitter && !source?.twitter?.hasOwnProperty('images')) {
+    const isStaticFile = true
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
       metadataBase,
-      { ...metadataContext, isStaticMetadataRouteFile: true },
+      isStaticFile,
       titleTemplates.twitter
     )
     target.twitter = convertUrlsToStrings(resolvedTwitter)
@@ -192,11 +191,12 @@ async function mergeStaticMetadata(
 
   // file based metadata is specified and current level metadata openGraph.images is not specified
   if (openGraph && !source?.openGraph?.hasOwnProperty('images')) {
+    const isStaticFile = true
     const resolvedOpenGraph = await resolveOpenGraph(
       { ...target.openGraph, images: openGraph } as OpenGraph,
       metadataBase,
       pathname,
-      { ...metadataContext, isStaticMetadataRouteFile: true },
+      isStaticFile,
       titleTemplates.openGraph
     )
     target.openGraph = convertUrlsToStrings(resolvedOpenGraph)
@@ -219,7 +219,7 @@ async function mergeMetadata(
     resolvedMetadata,
     staticFilesMetadata,
     titleTemplates,
-    metadataContext,
+    isStaticMetadataRouteFile,
     buildState,
     leafSegmentStaticIcons,
   }: {
@@ -227,7 +227,7 @@ async function mergeMetadata(
     resolvedMetadata: ResolvedMetadata
     staticFilesMetadata: StaticMetadata
     titleTemplates: TitleTemplates
-    metadataContext: MetadataContext
+    isStaticMetadataRouteFile: boolean
     buildState: BuildState
     leafSegmentStaticIcons: StaticIcons
   }
@@ -253,12 +253,7 @@ async function mergeMetadata(
       }
       case 'alternates': {
         newResolvedMetadata.alternates = convertUrlsToStrings(
-          await resolveAlternates(
-            metadata.alternates,
-            metadataBase,
-            pathname,
-            metadataContext
-          )
+          await resolveAlternates(metadata.alternates, metadataBase, pathname)
         )
         break
       }
@@ -268,7 +263,7 @@ async function mergeMetadata(
             metadata.openGraph,
             metadataBase,
             pathname,
-            metadataContext,
+            isStaticMetadataRouteFile,
             titleTemplates.openGraph
           )
         )
@@ -279,7 +274,7 @@ async function mergeMetadata(
           resolveTwitter(
             metadata.twitter,
             metadataBase,
-            metadataContext,
+            isStaticMetadataRouteFile,
             titleTemplates.twitter
           )
         )
@@ -331,8 +326,7 @@ async function mergeMetadata(
         newResolvedMetadata[key] = await resolveItunes(
           metadata.itunes,
           metadataBase,
-          pathname,
-          metadataContext
+          pathname
         )
         break
       }
@@ -340,8 +334,7 @@ async function mergeMetadata(
         newResolvedMetadata.pagination = await resolvePagination(
           metadata.pagination,
           metadataBase,
-          pathname,
-          metadataContext
+          pathname
         )
         break
       }
@@ -439,7 +432,6 @@ async function mergeMetadata(
     metadata,
     newResolvedMetadata,
     staticFilesMetadata,
-    metadataContext,
     titleTemplates,
     leafSegmentStaticIcons,
     pathname
@@ -938,7 +930,7 @@ function postProcessMetadata(
   metadata: ResolvedMetadata,
   favicon: any,
   titleTemplates: TitleTemplates,
-  metadataContext: MetadataContext
+  isStaticMetadataRouteFile: boolean
 ): ResolvedMetadata {
   const { openGraph, twitter } = metadata
 
@@ -971,7 +963,7 @@ function postProcessMetadata(
       const partialTwitter = resolveTwitter(
         autoFillProps,
         normalizeMetadataBase(metadata.metadataBase),
-        metadataContext,
+        isStaticMetadataRouteFile,
         titleTemplates.twitter
       )
       if (metadata.twitter) {
@@ -1114,7 +1106,7 @@ export async function accumulateMetadata(
   route: string,
   metadataItems: MetadataItems,
   pathname: Promise<string>,
-  metadataContext: MetadataContext
+  isStaticMetadataRouteFile: boolean
 ): Promise<ResolvedMetadata> {
   let resolvedMetadata = createDefaultMetadata()
 
@@ -1173,7 +1165,7 @@ export async function accumulateMetadata(
     resolvedMetadata = await mergeMetadata(route, pathname, {
       resolvedMetadata,
       metadata,
-      metadataContext,
+      isStaticMetadataRouteFile,
       staticFilesMetadata,
       titleTemplates,
       buildState,
@@ -1220,7 +1212,7 @@ export async function accumulateMetadata(
     resolvedMetadata,
     favicon,
     titleTemplates,
-    metadataContext
+    isStaticMetadataRouteFile
   )
 }
 
@@ -1267,7 +1259,6 @@ export async function resolveMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   interpolatedParams: Params,
-  metadataContext: MetadataContext,
   isRuntimePrefetchable: boolean
 ): Promise<ResolvedMetadata> {
   const metadataItems = await resolveMetadataItems(
@@ -1281,11 +1272,15 @@ export async function resolveMetadata(
   if (!workStore) {
     throw new InvariantError('Expected workStore to be initialized')
   }
+  // isStaticMetadataRouteFile is always false from external callers.
+  // mergeStaticMetadata overrides it to true internally when processing
+  // static metadata route files (opengraph-image, twitter-image, etc.).
+  const isStaticMetadataRouteFile = false
   return accumulateMetadata(
     workStore.route,
     metadataItems,
     pathname,
-    metadataContext
+    isStaticMetadataRouteFile
   )
 }
 

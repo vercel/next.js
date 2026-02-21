@@ -13,7 +13,6 @@ import type {
   ResolvedViewport,
 } from './types/metadata-interface'
 import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
-import type { MetadataContext } from './types/resolvers'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
@@ -42,7 +41,6 @@ export function createMetadataComponents({
   tree,
   pathname,
   parsedQuery,
-  metadataContext,
   interpolatedParams,
   errorType,
   serveStreamingMetadata,
@@ -51,7 +49,6 @@ export function createMetadataComponents({
   tree: LoaderTree
   pathname: string
   parsedQuery: SearchParams
-  metadataContext: MetadataContext
   interpolatedParams: Params
   errorType?: MetadataErrorType | 'redirect'
   serveStreamingMetadata: boolean
@@ -137,7 +134,6 @@ export function createMetadataComponents({
       pathnameForMetadata,
       searchParams,
       interpolatedParams,
-      metadataContext,
       isRuntimePrefetchable,
       errorType
     ).catch((metadataErr) => {
@@ -153,7 +149,6 @@ export function createMetadataComponents({
           pathnameForMetadata,
           searchParams,
           interpolatedParams,
-          metadataContext,
           isRuntimePrefetchable
         ).catch(() => null)
       }
@@ -194,7 +189,6 @@ export function createMetadataComponents({
         pathnameForMetadata,
         searchParams,
         interpolatedParams,
-        metadataContext,
         isRuntimePrefetchable,
         errorType
       ),
@@ -234,7 +228,6 @@ async function getResolvedMetadataImpl(
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
-  metadataContext: MetadataContext,
   isRuntimePrefetchable: boolean,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
@@ -244,7 +237,6 @@ async function getResolvedMetadataImpl(
     pathname,
     searchParams,
     interpolatedParams,
-    metadataContext,
     isRuntimePrefetchable,
     errorConvention
   )
@@ -256,7 +248,6 @@ async function getNotFoundMetadataImpl(
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
-  metadataContext: MetadataContext,
   isRuntimePrefetchable: boolean
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
@@ -265,7 +256,6 @@ async function getNotFoundMetadataImpl(
     pathname,
     searchParams,
     interpolatedParams,
-    metadataContext,
     isRuntimePrefetchable,
     notFoundErrorConvention
   )
@@ -311,7 +301,6 @@ async function renderMetadata(
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
-  metadataContext: MetadataContext,
   isRuntimePrefetchable: boolean,
   errorConvention?: MetadataErrorType
 ) {
@@ -321,7 +310,6 @@ async function renderMetadata(
     searchParams,
     errorConvention,
     interpolatedParams,
-    metadataContext,
     isRuntimePrefetchable
   )
   return <>{createMetadataElements(resolvedMetadata)}</>
