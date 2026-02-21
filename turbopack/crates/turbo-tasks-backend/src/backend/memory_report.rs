@@ -158,7 +158,7 @@ pub fn collect_memory_report(storage: &Storage, uptime_secs: f64) -> MemoryRepor
         }
     }
 
-    // Build sorted task stats (by estimated size, descending)
+    // Build sorted task stats (by estimated_size_bytes, descending)
     let mut by_function: Vec<FunctionTaskStats> = task_groups
         .into_iter()
         .map(|(function, accum)| FunctionTaskStats {
@@ -169,7 +169,7 @@ pub fn collect_memory_report(storage: &Storage, uptime_secs: f64) -> MemoryRepor
         .collect();
     by_function.sort_by_key(|a| std::cmp::Reverse(a.estimated_size_bytes));
 
-    // Build sorted cell stats (by count, descending)
+    // Build sorted cell stats (by estimated_size_bytes, descending)
     let mut by_type: Vec<TypeCellStats> = cell_groups
         .into_iter()
         .map(|(_, accum)| TypeCellStats {

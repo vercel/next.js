@@ -7,11 +7,11 @@ describe('turbopack-memory-report', () => {
   })
 
   describe('fetch API', () => {
-    it('should return valid JSON from /__nextjs_turbopack_memory', async () => {
+    it('should return valid JSON from /__nextjs_turbopack-memory', async () => {
       // Ensure the app is loaded so there are tasks in the graph
       await next.render('/')
 
-      const res = await next.fetch('/__nextjs_turbopack_memory')
+      const res = await next.fetch('/__nextjs_turbopack-memory')
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toBe(
         'application/json; charset=utf-8'
@@ -66,7 +66,7 @@ describe('turbopack-memory-report', () => {
     it('should return markdown format when requested', async () => {
       await next.render('/')
 
-      const res = await next.fetch('/__nextjs_turbopack_memory?format=markdown')
+      const res = await next.fetch('/__nextjs_turbopack-memory?format=markdown')
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toBe(
         'text/markdown; charset=utf-8'

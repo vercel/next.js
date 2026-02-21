@@ -277,7 +277,9 @@ impl Storage {
 
     /// Returns an iterator over all tasks in storage (read-only).
     /// Used for diagnostics like memory reporting.
-    /// NOTE: This is not safe to call while holding any `StorageWriteGuards`
+    /// NOTE: This is not safe to call while holding any `StorageWriteGuards`, A write guard grabs a
+    /// write lock on a shard and exhausting this iterator requires taking a read lock on all shards
+    /// eventually, so you can deadlock.
     pub fn iter_all(
         &self,
     ) -> impl Iterator<Item = dashmap::mapref::multiple::RefMulti<'_, TaskId, Box<TaskStorage>>>

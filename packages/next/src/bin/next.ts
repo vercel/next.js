@@ -565,7 +565,11 @@ internal
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option('--format <format>', 'Output format: "json" or "markdown".', 'json')
+  .addOption(
+    new Option('--format <format>', 'Output format.')
+      .choices(['json', 'markdown'])
+      .default('json')
+  )
   .option(
     '--server <host:port>',
     'Connect to a dev server at the given host:port instead of discovering via lock file.'

@@ -486,6 +486,13 @@ export function getMemoryReportMiddleware(project: Project) {
 
     const format = searchParams.get('format') ?? 'json'
 
+    if (format !== 'json' && format !== 'markdown') {
+      return middlewareResponse.badRequest(
+        res,
+        `Invalid format "${format}". Expected "json" or "markdown".`
+      )
+    }
+
     try {
       const reportJson = await project.getMemoryReport()
 

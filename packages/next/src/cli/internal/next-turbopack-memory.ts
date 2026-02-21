@@ -26,7 +26,7 @@ export async function nextTurbopackMemory(
     // Discover the running dev server from the lock file
     const dir = directory ? path.resolve(directory) : process.cwd()
 
-    let distDir = path.join('.next', 'dev')
+    let distDir = '.next'
     try {
       const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
       distDir = config.distDir

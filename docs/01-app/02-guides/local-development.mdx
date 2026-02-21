@@ -273,7 +273,9 @@ It provides detailed information about the time taken for each module to compile
 
 ### Turbopack memory reporting
 
-If your dev server is using too much memory, you can generate a memory report from a running Turbopack dev server. The report shows memory usage broken down by task function and cell type, helping you identify what's consuming memory.
+> **Note:** This is an advanced debugging tool intended for diagnosing memory issues in the Turbopack bundler. It is only available when using Turbopack (the default bundler), not webpack.
+
+If your dev server is using too much memory, you can generate a memory report from a running Turbopack dev server. The report shows memory usage broken down by task function and cell type, helping you identify what's consuming memory. In Turbopack's model, **tasks** are cached computations (e.g. parsing a module, resolving imports) and **cells** are their stored output values.
 
 While your dev server is running, use the CLI command:
 
