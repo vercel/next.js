@@ -159,7 +159,7 @@ function getBaseSWCOptions({
         optimizer: {
           simplify: false,
           globals: jest
-            ? null
+            ? {}
             : {
                 typeofs: {
                   window: globalWindow ? 'object' : 'undefined',
