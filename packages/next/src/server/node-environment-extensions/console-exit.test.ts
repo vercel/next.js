@@ -132,7 +132,7 @@ describe('console-exit patches', () => {
         }
 
         // Install patches - this wraps the current console.log
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         // Test outside storage context
         console.log('outside')
@@ -160,7 +160,7 @@ describe('console-exit patches', () => {
         } = require('next/dist/server/app-render/work-unit-async-storage.external')
 
         // Install patches first
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         // Assign a new console.log after patching - this will NOT be wrapped
         console.log = function (...args) {
@@ -206,7 +206,7 @@ describe('console-exit patches', () => {
         })
 
         // install patch
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         // Test that patched methods preserve name and other properties
         reportResult({
@@ -247,7 +247,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.log('inside')
@@ -279,7 +279,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.error('inside')
@@ -311,7 +311,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.warn('inside')
@@ -343,7 +343,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.info('inside')
@@ -375,7 +375,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.debug('inside')
@@ -407,7 +407,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.trace('inside')
@@ -439,7 +439,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.dir('inside')
@@ -471,7 +471,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.dirxml('inside')
@@ -503,7 +503,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.table('inside')
@@ -535,7 +535,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.assert('inside')
@@ -567,7 +567,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.group('inside')
@@ -599,7 +599,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.groupCollapsed('inside')
@@ -631,7 +631,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           console.groupEnd()
@@ -665,7 +665,7 @@ describe('console-exit patches', () => {
           })
         }
 
-        require('next/dist/server/node-environment-extensions/console-exit')
+        require('next/dist/server/node-environment-extensions/console-exit.external')
 
         workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, () => {
           // @ts-expect-error - calling our custom property

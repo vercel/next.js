@@ -9,7 +9,7 @@ import type {
 } from '../route-modules/app-route/module.compiled'
 
 import '../require-hook'
-import '../node-environment'
+import '../node-environment.external'
 
 import { collectSegments } from '../../build/segment-config/app/app-segments'
 import type { StaticPathsResult } from '../../build/static-paths/types'

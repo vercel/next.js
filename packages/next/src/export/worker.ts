@@ -10,7 +10,7 @@ import type {
 import type { AppPageModule } from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
-import '../server/node-environment'
+import '../server/node-environment.external'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
@@ -53,7 +53,7 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
-import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
+import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors.external'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }

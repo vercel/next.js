@@ -1,4 +1,3 @@
-import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
 
@@ -128,8 +127,8 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
-import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
-import { installProcessErrorHandlers } from './node-environment-extensions/process-error-handlers'
+import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors.external'
+import { installProcessErrorHandlers } from './node-environment-extensions/process-error-handlers.external'
 
 export * from './base-server'
 

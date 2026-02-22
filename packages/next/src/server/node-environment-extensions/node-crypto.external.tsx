@@ -7,7 +7,7 @@
  * The extensions here never error nor alter the underlying return values and thus should be transparent to callers.
  */
 
-import { io } from './io-utils'
+import { syncIO } from './sync-io-utils.external'
 
 if (process.env.NEXT_RUNTIME === 'edge') {
   // nothing to patch
@@ -23,7 +23,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   try {
     const _randomUUID = nodeCrypto.randomUUID
     nodeCrypto.randomUUID = function randomUUID() {
-      io(randomUUIDExpression, 'random')
+      syncIO(randomUUIDExpression, 'random')
       return _randomUUID.apply(this, arguments as any)
     }
   } catch {
@@ -39,7 +39,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     nodeCrypto.randomBytes = function randomBytes() {
       if (typeof arguments[1] !== 'function') {
         // randomBytes is sync if the second arg is undefined
-        io(randomBytesExpression, 'random')
+        syncIO(randomBytesExpression, 'random')
       }
       return _randomBytes.apply(this, arguments as any)
     }
@@ -55,7 +55,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     const _randomFillSync = nodeCrypto.randomFillSync
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.randomFillSync = function randomFillSync() {
-      io(randomFillSyncExpression, 'random')
+      syncIO(randomFillSyncExpression, 'random')
       return _randomFillSync.apply(this, arguments as any)
     }
   } catch {
@@ -71,7 +71,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     nodeCrypto.randomInt = function randomInt() {
       if (typeof arguments[2] !== 'function') {
         // randomInt is sync if the third arg is undefined
-        io(randomIntExpression, 'random')
+        syncIO(randomIntExpression, 'random')
       }
       return _randomInt.apply(this, arguments as any)
     }
@@ -87,7 +87,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     const _generatePrimeSync = nodeCrypto.generatePrimeSync
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.generatePrimeSync = function generatePrimeSync() {
-      io(generatePrimeSyncExpression, 'random')
+      syncIO(generatePrimeSyncExpression, 'random')
       return _generatePrimeSync.apply(this, arguments as any)
     }
   } catch {
@@ -102,7 +102,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     const _generateKeyPairSync = nodeCrypto.generateKeyPairSync
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.generateKeyPairSync = function generateKeyPairSync() {
-      io(generateKeyPairSyncExpression, 'random')
+      syncIO(generateKeyPairSyncExpression, 'random')
       return _generateKeyPairSync.apply(this, arguments as any)
     }
   } catch {
@@ -116,7 +116,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   try {
     const _generateKeySync = nodeCrypto.generateKeySync
     nodeCrypto.generateKeySync = function generateKeySync() {
-      io(generateKeySyncExpression, 'random')
+      syncIO(generateKeySyncExpression, 'random')
       return _generateKeySync.apply(this, arguments as any)
     }
   } catch {

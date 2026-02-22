@@ -1,14 +1,23 @@
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
+/**
+ * The real IO handler implementation. This module depends on app router
+ * internals (dynamic-rendering, work-unit-async-storage, etc.) and must only
+ * be imported when the app router rendering runtime is loaded — never at
+ * environment setup time.
+ *
+ * Registered via registerIOHandler() in the app-page route module.
+ */
+
+import { workAsyncStorage } from './work-async-storage.external'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { abortOnSynchronousPlatformIOAccess } from './dynamic-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { RenderStage } from '../app-render/staged-rendering'
+import { RenderStage } from './staged-rendering'
 
 import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 type ApiType = 'time' | 'random' | 'crypto'
 
-export function io(expression: string, type: ApiType) {
+export function handleSyncIO(expression: string, type: ApiType): void {
   const workUnitStore = workUnitAsyncStorage.getStore()
   const workStore = workAsyncStorage.getStore()
 

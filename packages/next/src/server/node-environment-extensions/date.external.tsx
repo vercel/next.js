@@ -9,12 +9,12 @@
  *
  * The extensions here never error nor alter the underlying Date objects, strings, and numbers created and thus should be transparent to callers.
  */
-import { io } from './io-utils'
+import { syncIO } from './sync-io-utils.external'
 
 function createNow(originalNow: typeof Date.now) {
   return {
     now: function now() {
-      io('`Date.now()`', 'time')
+      syncIO('`Date.now()`', 'time')
       return originalNow()
     },
   }['now'.slice() as 'now'].bind(null)
@@ -31,11 +31,11 @@ function createDate(originalConstructor: typeof Date): typeof Date {
     // Ideally this should not minify the name.
     function Date() {
       if (new.target === undefined) {
-        io('`Date()`', 'time')
+        syncIO('`Date()`', 'time')
         return apply(originalConstructor, undefined, arguments)
       }
       if (arguments.length === 0) {
-        io('`new Date()`', 'time')
+        syncIO('`new Date()`', 'time')
       }
       return construct(originalConstructor, arguments, new.target)
     },

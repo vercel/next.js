@@ -1,3 +1,4 @@
+import '../../app-render/attach-node-environment-handlers'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'

@@ -4,7 +4,7 @@
 // as expected without require `next-server`
 if (process.env.NEXT_RUNTIME !== 'edge') {
   // eslint-disable-next-line @next/internal/typechecked-require
-  require('next/dist/server/node-environment')
+  require('next/dist/server/node-environment.external')
   // eslint-disable-next-line @next/internal/typechecked-require
   require('next/dist/server/require-hook')
   // eslint-disable-next-line @next/internal/typechecked-require

@@ -948,7 +948,7 @@ export abstract class RouteModule<
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
       const { installProcessErrorHandlers } =
-        require('../node-environment-extensions/process-error-handlers') as typeof import('../node-environment-extensions/process-error-handlers')
+        require('../node-environment-extensions/process-error-handlers.external') as typeof import('../node-environment-extensions/process-error-handlers.external')
 
       installProcessErrorHandlers(
         Boolean(

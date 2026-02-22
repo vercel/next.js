@@ -19,7 +19,7 @@ async function main() {
   const port = await getPort()
   const hostname = 'localhost'
 
-  require('next/dist/server/node-environment')
+  require('next/dist/server/node-environment.external')
 
   const entrypointPath = path.join(
     __dirname,

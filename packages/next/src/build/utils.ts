@@ -36,7 +36,7 @@ import type { NextComponentType } from '../shared/lib/utils'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
-import '../server/node-environment'
+import '../server/node-environment.external'
 
 import { bold, cyan, green, red, underline, yellow } from '../lib/picocolors'
 import textTable from 'next/dist/compiled/text-table'

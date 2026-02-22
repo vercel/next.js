@@ -1,3 +1,4 @@
+import '../../app-render/attach-node-environment-handlers'
 import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'

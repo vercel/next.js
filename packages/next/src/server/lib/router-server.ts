@@ -4,7 +4,7 @@ import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 
 // This is required before other imports to ensure the require hook is setup.
-import '../node-environment'
+import '../node-environment.external'
 import '../require-hook'
 
 import url from 'url'

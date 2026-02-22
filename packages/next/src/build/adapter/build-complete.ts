@@ -578,7 +578,7 @@ export async function handleBuildComplete({
       if (bundler !== Bundler.Turbopack) {
         // These are modules that are necessary for bootstrapping node env
         const necessaryNodeDependencies = [
-          require.resolve('next/dist/server/node-environment'),
+          require.resolve('next/dist/server/node-environment.external'),
           require.resolve('next/dist/server/require-hook'),
           require.resolve('next/dist/server/node-polyfill-crypto'),
           ...Object.values(defaultOverrides).filter((item) =>
