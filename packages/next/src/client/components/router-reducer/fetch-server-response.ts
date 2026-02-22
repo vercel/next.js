@@ -72,6 +72,7 @@ type SpaFetchServerResponseResult = {
   postponed: boolean
   staleTime: number
   staticStageResponse: Promise<NavigationFlightResponse> | null
+  responseHeaders: Headers
   debugInfo: Array<any> | null
 }
 
@@ -284,6 +285,7 @@ export async function fetchServerResponse(
       postponed,
       staleTime,
       staticStageResponse,
+      responseHeaders: res.headers,
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {

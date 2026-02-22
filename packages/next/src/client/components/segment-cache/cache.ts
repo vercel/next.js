@@ -2246,7 +2246,7 @@ export function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  headers: Headers | undefined,
+  responseHeaders: Headers,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
@@ -2254,7 +2254,9 @@ export function writeDynamicRenderResponseIntoCache(
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
-  const buildId = headers?.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
+  const buildId =
+    responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
+
   if (buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
@@ -2689,6 +2691,7 @@ async function getStaleAt(
  */
 export async function writeStaticStageResponseIntoCache(
   staticStageResponse: Promise<NavigationFlightResponse>,
+  responseHeaders: Headers,
   route: FulfilledRouteCacheEntry
 ): Promise<void> {
   try {
@@ -2712,7 +2715,7 @@ export async function writeStaticStageResponseIntoCache(
     writeDynamicRenderResponseIntoCache(
       now,
       fetchStrategy,
-      undefined, // headers — build ID already verified by fetchServerResponse
+      responseHeaders,
       serverData,
       isResponsePartial,
       headVaryParams,
