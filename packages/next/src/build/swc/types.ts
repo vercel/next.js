@@ -230,6 +230,7 @@ export interface HmrChunkNames {
 export interface TurbopackStackFrame {
   isServer: boolean
   isInternal?: boolean
+  isIgnored?: boolean
   file: string
   originalFile?: string
   /** 1-indexed, unlike source map tokens */
