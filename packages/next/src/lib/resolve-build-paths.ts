@@ -79,18 +79,20 @@ export async function resolveBuildPaths(
     )
   }
 
-  if (matches.length === 0) {
+  const matchedFiles = matches
+    .filter((file) => !fs.statSync(path.join(projectDir, file)).isDirectory())
+    .sort()
+
+  if (matchedFiles.length === 0) {
     throw new Error(`Pattern "${patterns.join(',')}" did not match any files`)
   }
 
   Log.info(
-    `Pattern "${patterns.join(',')}" did match ${matches.length} file(s)`
+    `Pattern "${patterns.join(',')}" did match ${matchedFiles.length} file(s):\n  ${matchedFiles.join('\n  ')}`
   )
 
-  for (const file of matches) {
-    if (!fs.statSync(path.join(projectDir, file)).isDirectory()) {
-      categorizeAndAddPath(file, appPaths, pagePaths)
-    }
+  for (const file of matchedFiles) {
+    categorizeAndAddPath(file, appPaths, pagePaths)
   }
 
   return {

@@ -194,9 +194,8 @@ describe('debug-build-paths', () => {
 
         expect(buildResult.cliOutput).toContain('Route (app)')
         expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        expect(buildResult.cliOutput).not.toMatch(
-          /[○ƒ] \/blog\/\[slug\]\/comments/
-        )
+        // Leading whitespace since the pattern "!app/blog/[slug]/comments/**" is in cliOutput and fails the test.
+        expect(buildResult.cliOutput).not.toContain(' /blog/[slug]/comments')
       })
 
       it('should support multiple negation patterns', async () => {
@@ -255,6 +254,20 @@ describe('debug-build-paths', () => {
         // Should not build other routes
         expect(buildResult.cliOutput).not.toContain('○ /about')
         expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+      })
+
+      it('should list matched files in debug output with indentation', async () => {
+        const buildResult = await next.build({
+          args: [
+            '--debug-build-paths',
+            'app/**/page.tsx,!app/with-type-error/**',
+          ],
+        })
+        expect(buildResult.exitCode).toBe(0)
+        expect(buildResult.cliOutput).toMatch(
+          /Pattern "app\/\*\*\/page\.tsx,!app\/with-type-error\/\*\*" did match \d+ file\(s\):/
+        )
+        expect(buildResult.cliOutput).toContain('\n  app/page.tsx')
       })
 
       it('should log when pattern matches files', async () => {
