@@ -973,6 +973,24 @@ function generateDiffsSection(result) {
   return content
 }
 
+function generatePrTarballSection(actionInfo) {
+  if (actionInfo.isRelease || !actionInfo.issueId) return ''
+
+  const prNumber = String(actionInfo.issueId).trim()
+  if (!/^\d+$/.test(prNumber)) return ''
+
+  return `<details>
+<summary><strong>📎 Tarball URL</strong></summary>
+
+\`\`\`
+next@https://vercel-packages.vercel.app/next/prs/${prNumber}/next
+\`\`\`
+
+</details>
+
+`
+}
+
 // ============================================================================
 // Main Export
 // ============================================================================
@@ -1033,6 +1051,8 @@ module.exports = async function addComment(
       comment += '<hr/>\n\n'
     }
   }
+
+  comment += generatePrTarballSection(actionInfo)
 
   // Save canary stats to history (only for releases, not PR comparisons)
   // This ensures we only track official canary metrics, not PR-specific data
