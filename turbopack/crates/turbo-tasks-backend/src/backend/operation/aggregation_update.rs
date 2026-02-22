@@ -1875,6 +1875,90 @@ impl AggregationUpdateQueue {
         }
     }
 
+    /// Returns true if a node with `follower_aggregation_number` should be a follower (not an
+    /// inner node) of a node with `upper_aggregation_number`.
+    ///
+    /// This encapsulates the classification condition used at STEP 3 in
+    /// `inner_of_upper_has_new_follower` and its batched variants. A root node always gets inner
+    /// nodes (never followers), so this returns false for root nodes.
+    fn should_be_follower(upper_aggregation_number: u32, follower_aggregation_number: u32) -> bool {
+        !is_root_node(upper_aggregation_number)
+            && upper_aggregation_number <= follower_aggregation_number
+    }
+
+    /// Returns true if a node should be an inner node (not a follower) of the upper.
+    /// This is the complement of `should_be_follower`.
+    fn should_be_inner(upper_aggregation_number: u32, follower_aggregation_number: u32) -> bool {
+        !Self::should_be_follower(upper_aggregation_number, follower_aggregation_number)
+    }
+
+    /// Adds a new follower to an upper node (STEP 3a-3b-3f of the new follower algorithm).
+    ///
+    /// Updates the follower count on the upper, pushes an optimize job if needed, and pushes a
+    /// `BalanceEdge` job if the aggregation numbers are equal. Returns true if this was a new
+    /// follower (i.e., `update_followers_count` returned true).
+    fn add_new_follower_to_upper(
+        &mut self,
+        upper: &mut impl TaskGuard,
+        upper_id: TaskId,
+        follower_id: TaskId,
+        count: u32,
+        upper_aggregation_number: u32,
+        follower_aggregation_number: u32,
+    ) -> bool {
+        if upper.update_followers_count(follower_id, count) {
+            // May optimize the task when crossing a power-of-two boundary
+            if upper.followers_len().is_power_of_two() {
+                self.push_optimize_task(upper_id);
+            }
+
+            // Balancing is only needed when aggregation numbers are equal. The follower's
+            // aggregation number can increase concurrently, but that only makes the
+            // balancing obsolete, not incorrect.
+            if upper_aggregation_number == follower_aggregation_number {
+                self.push(AggregationUpdateJob::BalanceEdge {
+                    upper_id,
+                    task_id: follower_id,
+                });
+            }
+
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Adds an upper to a new inner node (STEP 6a-6c of the new follower algorithm).
+    ///
+    /// Updates the upper count on the follower, pushes an optimize job if needed, extracts
+    /// aggregated data and followers from the task. Returns `Some((data, followers))` if this was
+    /// a new upper, `None` if it was already an upper.
+    ///
+    /// Note: the caller is responsible for dropping the returned TaskGuard (via the mutable
+    /// reference) before using the returned data.
+    fn add_upper_to_inner(
+        &mut self,
+        new_follower: &mut impl TaskGuard,
+        new_follower_id: TaskId,
+        upper_id: TaskId,
+        count: u32,
+    ) -> Option<(AggregatedDataUpdate, TaskIdVec)> {
+        if new_follower.update_upper_count(upper_id, count) {
+            // May optimize the task when crossing a power-of-two boundary
+            if new_follower.upper_len().is_power_of_two() {
+                self.push_optimize_task(new_follower_id);
+            }
+
+            // Extract aggregated data and followers for propagation to the upper
+            let data = AggregatedDataUpdate::from_task(new_follower);
+            let followers = get_followers(new_follower);
+
+            Some((data, followers))
+        } else {
+            None
+        }
+    }
+
     /// Batched version of `inner_of_upper_has_new_follower`.
     /// See detailed comments in that function, follow the STEP numbers.
     fn inner_of_uppers_has_new_follower<T: TaskIdWithOptionalCount + Clone, const N: usize>(
@@ -1922,18 +2006,19 @@ impl AggregationUpdateQueue {
                 let upper_aggregation_number = get_aggregation_number(&upper);
 
                 // STEP 3
-                if !is_root_node(upper_aggregation_number)
-                    && upper_aggregation_number <= min_follower_aggregation_number
-                {
-                    // STEP 3a
-                    // It's a follower of the upper node
-                    if upper.update_followers_count(new_follower_id, count) {
-                        // STEP 3b
-                        // May optimize the task
-                        if upper.followers_len().is_power_of_two() {
-                            self.push_optimize_task(upper_id);
-                        }
-
+                if Self::should_be_follower(
+                    upper_aggregation_number,
+                    min_follower_aggregation_number,
+                ) {
+                    // STEP 3a, 3b, 3f
+                    if self.add_new_follower_to_upper(
+                        &mut upper,
+                        upper_id,
+                        new_follower_id,
+                        count,
+                        upper_aggregation_number,
+                        min_follower_aggregation_number,
+                    ) {
                         // STEP 3c
                         if ctx.should_track_activeness() {
                             // update active count
@@ -1955,17 +2040,6 @@ impl AggregationUpdateQueue {
                         }
                     }
                     drop(upper);
-
-                    // STEP 3f
-                    // Balancing is only needed when they are equal. Follower's aggregation number
-                    // can increase concurrently, but that only makes the balancing obsolete, not
-                    // incorrect.
-                    if upper_aggregation_number == min_follower_aggregation_number {
-                        self.push(AggregationUpdateJob::BalanceEdge {
-                            upper_id,
-                            task_id: new_follower_id,
-                        });
-                    }
                 } else {
                     // STEP 4
                     // It's an inner node, continue with the list
@@ -1999,10 +2073,10 @@ impl AggregationUpdateQueue {
                     let (upper_id, count) = upper_item.task_id_and_count();
 
                     // STEP 6
-                    if !is_root_node(*min_upper_aggregation_number)
-                        && follower_aggregation_number >= *min_upper_aggregation_number
-                    {
-                        // Should be a follower.
+                    if Self::should_be_follower(
+                        *min_upper_aggregation_number,
+                        follower_aggregation_number,
+                    ) {
                         upper_ids.push(upper_item.clone());
                         return false;
                     }
@@ -2177,33 +2251,25 @@ impl AggregationUpdateQueue {
                 if !is_root_node(upper_aggregation_number) {
                     followers_with_min_aggregation_number.retain(
                         |(follower_id, count, follower_aggregation_number)| {
-                            if upper_aggregation_number > *follower_aggregation_number {
+                            if Self::should_be_inner(
+                                upper_aggregation_number,
+                                *follower_aggregation_number,
+                            ) {
                                 // It's an inner node, continue with the list
                                 return true;
                             }
 
-                            // STEP 3a
-                            // It's a follower of the upper node
-                            if upper.update_followers_count(*follower_id, *count) {
-                                // STEP 3b
-                                // May optimize the task
-                                if upper.followers_len().is_power_of_two() {
-                                    self.push_optimize_task(upper_id);
-                                }
-
+                            // STEP 3a, 3b, 3f
+                            if self.add_new_follower_to_upper(
+                                &mut upper,
+                                upper_id,
+                                *follower_id,
+                                *count,
+                                upper_aggregation_number,
+                                *follower_aggregation_number,
+                            ) {
                                 // STEP 3d and 3e are enqueued with this vec
                                 new_followers_of_upper_uppers.push(*follower_id);
-
-                                // STEP 3f
-                                if upper_aggregation_number == *follower_aggregation_number {
-                                    // Balancing is only needed when they are equal. This is not
-                                    // perfect from concurrent perspective, but we
-                                    // can accept a few incorrect invariants in the graph.
-                                    self.push(AggregationUpdateJob::BalanceEdge {
-                                        upper_id,
-                                        task_id: *follower_id,
-                                    })
-                                }
                             }
                             false
                         },
@@ -2269,25 +2335,18 @@ impl AggregationUpdateQueue {
                     let follower_aggregation_number = get_aggregation_number(&new_follower);
 
                     // STEP 6
-                    if !is_root_node(min_upper_aggregation_number)
-                        && follower_aggregation_number >= min_upper_aggregation_number
-                    {
-                        // It should be a follower
+                    if Self::should_be_follower(
+                        min_upper_aggregation_number,
+                        follower_aggregation_number,
+                    ) {
                         *min_follower_aggregation_number = follower_aggregation_number;
                         return true;
                     }
 
-                    // STEP 6a
-                    if new_follower.update_upper_count(upper_id, count) {
-                        // STEP 6b
-                        if new_follower.upper_len().is_power_of_two() {
-                            self.push_optimize_task(new_follower_id);
-                        }
-
-                        // STEP 6c
-                        // It's a new upper
-                        let data = AggregatedDataUpdate::from_task(&mut new_follower);
-                        let children = get_followers(&new_follower);
+                    // STEP 6a, 6b, 6c
+                    if let Some((data, children)) =
+                        self.add_upper_to_inner(&mut new_follower, new_follower_id, upper_id, count)
+                    {
                         drop(new_follower);
 
                         // STEP 6d
@@ -2415,21 +2474,19 @@ impl AggregationUpdateQueue {
             let upper_aggregation_number = get_aggregation_number(&upper);
 
             // STEP 3
-            if !is_root_node(upper_aggregation_number)
-                && upper_aggregation_number <= min_follower_aggregation_number
-            {
+            if Self::should_be_follower(upper_aggregation_number, min_follower_aggregation_number) {
                 #[cfg(feature = "trace_aggregation_update")]
                 let _span = trace_span!("new follower").entered();
 
-                // STEP 3a
-                // It's a follower of the upper node
-                if upper.update_followers_count(new_follower_id, count) {
-                    // STEP 3b
-                    // May optimize the task
-                    if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
-                    }
-
+                // STEP 3a, 3b, 3f
+                if self.add_new_follower_to_upper(
+                    &mut upper,
+                    upper_id,
+                    new_follower_id,
+                    count,
+                    upper_aggregation_number,
+                    min_follower_aggregation_number,
+                ) {
                     // STEP 3c
                     let has_active_count = ctx.should_track_activeness()
                         && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
@@ -2453,17 +2510,6 @@ impl AggregationUpdateQueue {
                             new_follower_id,
                         });
                     }
-
-                    // STEP 3f
-                    // Balancing is only needed when they are equal. Follower's aggregation number
-                    // can increase concurrently, but that only makes the balancing obsolete, not
-                    // incorrect.
-                    if upper_aggregation_number == min_follower_aggregation_number {
-                        self.push(AggregationUpdateJob::BalanceEdge {
-                            upper_id,
-                            task_id: new_follower_id,
-                        });
-                    }
                 }
                 return;
             }
@@ -2483,23 +2529,14 @@ impl AggregationUpdateQueue {
             let follower_aggregation_number = get_aggregation_number(&new_follower);
 
             // STEP 6
-            if is_root_node(min_upper_aggregation_number)
-                || follower_aggregation_number < min_upper_aggregation_number
-            {
+            if Self::should_be_inner(min_upper_aggregation_number, follower_aggregation_number) {
                 #[cfg(feature = "trace_aggregation_update")]
                 let _span = trace_span!("new inner").entered();
 
-                // STEP 6a
-                if new_follower.update_upper_count(upper_id, count) {
-                    // STEP 6b
-                    if new_follower.upper_len().is_power_of_two() {
-                        self.push_optimize_task(new_follower_id);
-                    }
-
-                    // STEP 6c
-                    // It's a new upper
-                    let data = AggregatedDataUpdate::from_task(&mut new_follower);
-                    let followers = get_followers(&new_follower);
+                // STEP 6a, 6b, 6c
+                if let Some((data, followers)) =
+                    self.add_upper_to_inner(&mut new_follower, new_follower_id, upper_id, count)
+                {
                     drop(new_follower);
 
                     // STEP 6d
