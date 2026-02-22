@@ -15,11 +15,110 @@ describe('instant validation', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    env: {
+      NEXT_TEST_LOG_VALIDATION: '1',
+    },
   })
   if (skipped) return
   if (!isNextDev) {
     it.skip('Only implemented in dev', () => {})
     return
+  }
+
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    currentCliOutputIndex = next.cliOutput.length
+  })
+
+  function getCliOutputSinceMark(): string {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      // cliOutput shrank since we started the test, so something (like a `sandbox`) reset the logs
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  type ValidationEvent =
+    | { type: 'validation_start'; requestId: string; url: string }
+    | { type: 'validation_end'; requestId: string; url: string }
+
+  async function waitForValidationStart(targetUrl: string): Promise<string> {
+    const parsedTargetUrl = new URL(targetUrl)
+    const relativeTargetUrl =
+      parsedTargetUrl.pathname + parsedTargetUrl.search + parsedTargetUrl.hash
+
+    const requestId = await retry(
+      async () => {
+        const events = parseValidationMessages(getCliOutputSinceMark())
+        const start = events.find(
+          (e) =>
+            e.type === 'validation_start' &&
+            normalizeValidationUrl(e.url) === relativeTargetUrl
+        )
+        expect(start).toBeDefined()
+        return start!.requestId
+      },
+      undefined,
+      undefined,
+      `wait for validation of '${relativeTargetUrl}' to start`
+    )
+    return requestId
+  }
+
+  async function waitForValidationEnd(requestId: string): Promise<void> {
+    await retry(
+      async () => {
+        const events = parseValidationMessages(getCliOutputSinceMark())
+        const end = events.find(
+          (e) => e.type === 'validation_end' && e.requestId === requestId
+        )
+        expect(end).toBeDefined()
+      },
+      undefined,
+      undefined,
+      'wait for validation to end'
+    )
+  }
+
+  async function waitForValidation(url: string) {
+    const requestId = await waitForValidationStart(url)
+    await waitForValidationEnd(requestId)
+  }
+
+  const NO_VALIDATION_ERRORS_WAIT: Parameters<typeof waitForNoErrorToast>[1] = {
+    waitInMs: 500,
+  }
+
+  async function expectNoValidationErrors(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    url: string
+  ): Promise<void> {
+    await waitForValidation(url)
+    await waitForNoErrorToast(browser, NO_VALIDATION_ERRORS_WAIT)
+  }
+
+  function parseValidationMessages(output: string): ValidationEvent[] {
+    const messageRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g
+    const events: ValidationEvent[] = []
+    let match: RegExpExecArray | null
+    while ((match = messageRe.exec(output)) !== null) {
+      try {
+        events.push(JSON.parse(match[1]))
+      } catch (err) {
+        throw new Error(`Failed to parse message '${match[1]}'`, {
+          cause: err,
+        })
+      }
+    }
+    return events
+  }
+
+  function normalizeValidationUrl(url: string): string {
+    // RSC requests include ?_rsc=... in the URL. Strip it so the event URL
+    // matches what browser.url() returns (which has no _rsc param).
+    const parsed = new URL(url, 'http://n')
+    parsed.searchParams.delete('_rsc')
+    return parsed.pathname + parsed.search + parsed.hash
   }
 
   describe.each([
@@ -56,7 +155,7 @@ describe('instant validation', () => {
           expect(await browser.url()).toContain(href)
         },
         undefined,
-        undefined,
+        100,
         'wait for url to change'
       )
 
@@ -72,13 +171,13 @@ describe('instant validation', () => {
       const browser = await navigateTo(
         '/suspense-in-root/static/suspense-around-dynamic'
       )
-      await waitForNoErrorToast(browser)
+      await expectNoValidationErrors(browser, await browser.url())
     })
     it('valid - runtime prefetch - suspense only around dynamic', async () => {
       const browser = await navigateTo(
         '/suspense-in-root/runtime/suspense-around-dynamic'
       )
-      await waitForNoErrorToast(browser)
+      await expectNoValidationErrors(browser, await browser.url())
     })
 
     it('invalid - static prefetch - missing suspense around runtime', async () => {
@@ -87,6 +186,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33) @ unstable_instant
+       > 3 | export const unstable_instant = { prefetch: 'static' }
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -119,6 +230,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
+       > 3 | export const unstable_instant = { prefetch: 'static' }
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -149,6 +272,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33) @ unstable_instant
+       > 4 | export const unstable_instant = {
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -181,6 +316,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
+       > 4 | export const unstable_instant = { prefetch: 'static' }
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -213,6 +360,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
+       > 4 | export const unstable_instant = {
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -244,6 +403,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:33) @ unstable_instant
+       > 1 | export const unstable_instant = { prefetch: 'static' }
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -276,7 +447,7 @@ describe('instant validation', () => {
       const browser = await navigateTo(
         '/suspense-in-root/runtime/valid-no-suspense-around-params/123'
       )
-      await waitForNoErrorToast(browser)
+      await expectNoValidationErrors(browser, await browser.url())
     })
 
     it('invalid - static prefetch - missing suspense around search params', async () => {
@@ -285,6 +456,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:33) @ unstable_instant
+       > 1 | export const unstable_instant = { prefetch: 'static' }
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -316,7 +499,7 @@ describe('instant validation', () => {
       const browser = await navigateTo(
         '/suspense-in-root/runtime/valid-no-suspense-around-search-params?foo=bar'
       )
-      await waitForNoErrorToast(browser)
+      await expectNoValidationErrors(browser, await browser.url())
     })
 
     it('valid - target segment not visible in all navigations', async () => {
@@ -330,7 +513,7 @@ describe('instant validation', () => {
       // in all navigations (which would require that its parent layouts must never
       // block the children slots)
       const browser = await navigateTo('/default/static/valid-blocked-children')
-      await waitForNoErrorToast(browser)
+      await expectNoValidationErrors(browser, await browser.url())
     })
 
     it('invalid - static prefetch - suspense too high', async () => {
@@ -339,6 +522,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (3:33) @ unstable_instant
+       > 3 | export const unstable_instant = { prefetch: 'static' }
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/suspense-too-high/page.tsx (3:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -371,6 +566,18 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33) @ unstable_instant
+       > 4 | export const unstable_instant = {
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -417,12 +624,158 @@ describe('instant validation', () => {
       `)
     })
 
+    it('invalid - runtime prefetch - sync IO in runtime segment with valid static parent', async () => {
+      // The static parent layout has sync IO after cookies() which is fine
+      // because it's not runtime-prefetchable. But the page itself has
+      // runtime prefetch enabled and also has sync IO after cookies(),
+      // which should error.
+      const browser = await navigateTo(
+        '/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent'
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+         "environmentLabel": "Server",
+         "label": "Console Error",
+         "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (14:20) @ Page
+       > 14 |   const now = Date.now()
+            |                    ^",
+         "stack": [
+           "Page app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (14:20)",
+           "Page <anonymous>",
+         ],
+       }
+      `)
+    })
+
+    it('invalid - runtime prefetch - sync IO after public cache with cookie input', async () => {
+      // A public "use cache" function receives cookies() as a promise
+      // input (for cache keying). The cache body doesn't read the cookies.
+      // After the cache resolves, Date.now() is sync IO that should error
+      // because the cookies input causes the cache to resolve during the
+      // EarlyRuntime stage where canSyncInterrupt returns true.
+      //
+      // If the stage discrimination for cache inputs were broken (always
+      // using Runtime instead of getRuntimeStage), the cookies would
+      // resolve at Runtime where canSyncInterrupt returns false, and the
+      // sync IO would be silently allowed.
+      const browser = await navigateTo(
+        '/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input'
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+         "environmentLabel": "Server",
+         "label": "Console Error",
+         "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (30:20) @ Page
+       > 30 |   const now = Date.now()
+            |                    ^",
+         "stack": [
+           "Page app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (30:20)",
+           "Page <anonymous>",
+         ],
+       }
+      `)
+    })
+
+    it('valid - runtime prefetch - sync IO in a static parent layout is allowed', async () => {
+      // Sync IO (Date.now()) in a layout that is NOT runtime-prefetchable
+      // should not error, even though the child page has runtime prefetch
+      // enabled. Only segments that are runtime-prefetchable should be
+      // validated for sync IO after runtime APIs.
+      const browser = await navigateTo(
+        '/suspense-in-root/runtime/valid-sync-io-in-static-parent'
+      )
+      await expectNoValidationErrors(browser, await browser.url())
+    })
+
+    it('invalid - runtime prefetch - sync IO in generateMetadata', async () => {
+      // The page has runtime prefetch enabled. generateMetadata uses
+      // cookies() then Date.now(). Since metadata belongs to the Page
+      // and the Page is runtime-prefetchable, this should error.
+      const browser = await navigateTo(
+        '/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata'
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+         "environmentLabel": "Server",
+         "label": "Console Error",
+         "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (11:20) @ Module.generateMetadata
+       > 11 |   const now = Date.now()
+            |                    ^",
+         "stack": [
+           "Module.generateMetadata app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (11:20)",
+           "Next.MetadataOutlet <anonymous>",
+         ],
+       }
+      `)
+    })
+
+    it('valid - runtime prefetch - sync IO in generateMetadata on a static page is allowed', async () => {
+      // The page does NOT have runtime prefetch. generateMetadata uses
+      // cookies() then Date.now(). Since no segment is runtime-prefetchable,
+      // sync IO in generateMetadata should be allowed.
+      const browser = await navigateTo(
+        '/suspense-in-root/runtime/valid-sync-io-in-generate-metadata-static-page'
+      )
+      await expectNoValidationErrors(browser, await browser.url())
+    })
+
+    it('invalid - runtime prefetch - sync IO in layout generateMetadata when page is prefetchable', async () => {
+      // The layout has generateMetadata with sync IO after cookies().
+      // The layout itself does NOT have runtime prefetch, but the child
+      // page does. Since metadata belongs to the Page, and the Page is
+      // runtime-prefetchable, sync IO in the layout's generateMetadata
+      // should error.
+      const browser = await navigateTo(
+        '/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata'
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+         "environmentLabel": "Server",
+         "label": "Console Error",
+         "source": "app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx (11:20) @ Module.generateMetadata
+       > 11 |   const now = Date.now()
+            |                    ^",
+         "stack": [
+           "Module.generateMetadata app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx (11:20)",
+           "Next.MetadataOutlet <anonymous>",
+         ],
+       }
+      `)
+    })
+
+    it('valid - runtime prefetch - sync IO in layout generateMetadata when page is NOT prefetchable', async () => {
+      // The layout has generateMetadata with sync IO after cookies().
+      // Neither the layout nor the page has runtime prefetch. Since no
+      // segment is runtime-prefetchable, sync IO in generateMetadata
+      // should be allowed.
+      const browser = await navigateTo(
+        '/suspense-in-root/runtime/valid-sync-io-in-layout-generate-metadata-static-page'
+      )
+      await expectNoValidationErrors(browser, await browser.url())
+    })
+
     it('invalid - missing suspense around dynamic (with loading.js)', async () => {
       const browser = await navigateTo(
         '/suspense-in-root/static/invalid-only-loading-around-dynamic'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (4:33) @ unstable_instant
+       > 4 | export const unstable_instant = { prefetch: 'static' }
+           |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (4:33)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -438,11 +791,11 @@ describe('instant validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (32:19) @ Dynamic
-       > 32 |   await connection()
+         "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (31:19) @ Dynamic
+       > 31 |   await connection()
             |                   ^",
          "stack": [
-           "Dynamic app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (32:19)",
+           "Dynamic app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (31:19)",
            "Page app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (19:9)",
          ],
        }
@@ -454,7 +807,7 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/blocking-layout'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
       it('invalid - missing suspense inside blocking layout', async () => {
         const browser = await navigateTo(
@@ -462,6 +815,18 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
+         > 3 | export const unstable_instant = { prefetch: 'static' }
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -493,13 +858,13 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/default/static/valid-blocking-inside-static'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
       it('valid - blocking page inside a runtime layout is allowed if the layout has suspense', async () => {
         const browser = await navigateTo(
           '/suspense-in-root/runtime/valid-blocking-inside-runtime'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
 
       it('invalid - blocking page inside a static layout is not allowed if the layout has no suspense', async () => {
@@ -508,6 +873,18 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33) @ unstable_instant
+         > 1 | export const unstable_instant = { prefetch: 'static' }
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -540,6 +917,18 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33) @ unstable_instant
+         > 3 | export const unstable_instant = {
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
            "description": "Data that blocks navigation was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -573,6 +962,18 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/page.tsx (3:33) @ unstable_instant
+         > 3 | export const unstable_instant = { prefetch: 'static' }
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/page.tsx (3:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -606,6 +1007,18 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33) @ unstable_instant
+         > 1 | export const unstable_instant = { prefetch: 'static' }
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -639,6 +1052,18 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33) @ unstable_instant
+         > 1 | export const unstable_instant = { prefetch: 'static' }
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -674,6 +1099,18 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33) @ unstable_instant
+         > 1 | export const unstable_instant = {
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
            "description": "Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -692,26 +1129,26 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-client-data-does-not-block-validation'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
 
       it('valid - parent uses sync IO in a client component', async () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-client-api-in-parent/sync-io'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
       it('valid - parent uses dynamic usePathname() in a client component', async () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/123'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
       it('valid - parent uses useSearchPatams() in a client component', async () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-client-api-in-parent/search-params'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
     })
 
@@ -770,8 +1207,12 @@ describe('instant validation', () => {
              "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
              "environmentLabel": "Server",
              "label": "Console Error",
-             "source": null,
-             "stack": [],
+             "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33) @ unstable_instant
+         > 1 | export const unstable_instant = {
+             |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33)",
+             ],
            },
            {
              "description": "No SSR please",
@@ -823,8 +1264,12 @@ describe('instant validation', () => {
              "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
              "environmentLabel": "Server",
              "label": "Console Error",
-             "source": null,
-             "stack": [],
+             "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33) @ unstable_instant
+         > 1 | export const unstable_instant = {
+             |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33)",
+             ],
            },
            {
              "description": "No SSR please",
@@ -845,9 +1290,10 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation'
         )
+        await waitForValidation(await browser.url())
         if (isClientNav) {
           // In a client nav, no errors should be reported.
-          await waitForNoErrorToast(browser)
+          await waitForNoErrorToast(browser, NO_VALIDATION_ERRORS_WAIT)
         } else {
           // In SSR, we expect to only see the error coming from react.
           await expect(browser).toDisplayCollapsedRedbox(`
@@ -874,19 +1320,19 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/disable-validation/in-layout'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
       it('in a page', async () => {
         const browser = await navigateTo(
           '/suspense-in-root/disable-validation/in-page'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
       it('in a page with a parent that has a config', async () => {
         const browser = await navigateTo(
           '/suspense-in-root/disable-validation/in-page-with-outer'
         )
-        await waitForNoErrorToast(browser)
+        await expectNoValidationErrors(browser, await browser.url())
       })
     })
   })

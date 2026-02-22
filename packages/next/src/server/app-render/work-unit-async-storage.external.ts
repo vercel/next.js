@@ -21,6 +21,7 @@ import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
+import { RenderStage } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
@@ -79,13 +80,40 @@ export interface RequestStore extends CommonWorkUnitStore {
 
 type DevAsyncApiPromises = {
   cookies: Promise<ReadonlyRequestCookies>
+  earlyCookies: Promise<ReadonlyRequestCookies>
+
   mutableCookies: Promise<ReadonlyRequestCookies>
+  earlyMutableCookies: Promise<ReadonlyRequestCookies>
+
   headers: Promise<ReadonlyHeaders>
+  earlyHeaders: Promise<ReadonlyHeaders>
 
   sharedParamsParent: Promise<string>
-  sharedSearchParamsParent: Promise<string>
+  earlySharedParamsParent: Promise<string>
 
+  sharedSearchParamsParent: Promise<string>
+  earlySharedSearchParamsParent: Promise<string>
+
+  // Connection is not a runtime promise and doesn't
+  // need to distinguish between early and late
   connection: Promise<undefined>
+}
+
+/**
+ * Returns true if the current render stage is an early stage (EarlyStatic or
+ * EarlyRuntime). The early stages are for runtime-prefetchable segments. When
+ * true, runtime APIs should use the early promise variant that resolves at
+ * EarlyRuntime rather than Runtime.
+ */
+export function isInEarlyRenderStage(requestStore: RequestStore): boolean {
+  const stagedRendering = requestStore.stagedRendering
+  if (stagedRendering) {
+    return (
+      stagedRendering.currentStage === RenderStage.EarlyStatic ||
+      stagedRendering.currentStage === RenderStage.EarlyRuntime
+    )
+  }
+  return false
 }
 
 /**
@@ -509,6 +537,27 @@ export function getDraftModeProviderForCacheScope(
   }
 
   return undefined
+}
+
+export function getStagedRenderingController(
+  workUnitStore: WorkUnitStore
+): StagedRenderingController | null {
+  switch (workUnitStore.type) {
+    case 'request':
+    case 'prerender-runtime':
+      return workUnitStore.stagedRendering ?? null
+    case 'prerender':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
 }
 
 export function getCacheSignal(

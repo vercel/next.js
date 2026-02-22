@@ -21,6 +21,7 @@ import {
   ACTION_DEVTOOLS_SCALE,
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
+  ACTION_CACHE_ONLY_TOGGLE,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
 import { LoadingIcon } from '../icons/loading-icon'
@@ -104,6 +105,31 @@ const MenuPanel = () => {
           label: 'Cache Components',
           value: 'Enabled',
         },
+        isAppRouter &&
+          !!process.env.__NEXT_INSTANT_NAV_TOGGLE && {
+            title:
+              'When enabled, navigations show only the cached/prefetched state.',
+            label: 'Instant Navigation Mode',
+            value: state.cacheOnly ? 'On' : 'Off',
+            onClick: () => {
+              if (state.cacheOnly) {
+                // Turn off: delete cookie and reload to get dynamic data
+                document.cookie =
+                  'next-instant-navigation-testing=; path=/; max-age=0'
+                dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
+                window.location.reload()
+              } else {
+                // Turn on: set cookie to lock dynamic requests
+                document.cookie = 'next-instant-navigation-testing=1; path=/'
+                dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
+                setPanel(null)
+                setSelectedIndex(-1)
+              }
+            },
+            attributes: {
+              'data-cache-only': true,
+            },
+          },
         isAppRouter && {
           label: 'Route Info',
           value: <ChevronRight />,

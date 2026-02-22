@@ -38,6 +38,27 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/runtime/valid-blocking-inside-runtime" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-static-parent" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-generate-metadata-static-page" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-layout-generate-metadata-static-page" />
+        </li>
       </ul>
 
       <h2>Static</h2>

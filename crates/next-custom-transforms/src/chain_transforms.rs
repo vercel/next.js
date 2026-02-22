@@ -329,6 +329,7 @@ where
                 true => Either::Left(
                     crate::transforms::track_dynamic_imports::track_dynamic_imports(
                         unresolved_mark,
+                        comments.clone(),
                     ),
                 ),
                 false => Either::Right(noop_pass()),
@@ -346,6 +347,7 @@ where
                 crate::transforms::debug_fn_name::debug_fn_name(),
                 opts.debug_function_name,
             ),
+            crate::transforms::debug_instant_stack::debug_instant_stack(),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(
                 linter(lint_codemod_comments(comments)),

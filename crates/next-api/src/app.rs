@@ -80,7 +80,7 @@ use crate::{
     module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft_json::NftJsonAsset,
     paths::{
-        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
+        all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::{BaseAndFullModuleGraph, Project},
@@ -88,6 +88,7 @@ use crate::{
         AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
+    sri_manifest::get_sri_manifest_asset,
     webpack_stats::generate_webpack_stats,
 };
 
@@ -1576,6 +1577,16 @@ impl AppEndpoint {
                     file_paths_from_root.insert(rcstr!("server/server-reference-manifest.js"));
                 }
 
+                if project
+                    .next_config()
+                    .experimental_sri()
+                    .await?
+                    .as_ref()
+                    .is_some_and(|v| v.algorithm.is_some())
+                {
+                    file_paths_from_root.insert(rcstr!("server/subresource-integrity-manifest.js"));
+                }
+
                 let mut wasm_paths_from_root = fxindexset![];
 
                 let node_root_value = node_root.clone();
@@ -2007,24 +2018,31 @@ impl Endpoint for AppEndpoint {
 
         async move {
             let output = self.output();
+            let project = this.app_project.project();
+            let node_root = project.node_root().owned().await?;
+            let client_relative_root = project.client_relative_path().owned().await?;
+
             let output_assets = output.output_assets();
-            let output = output.await?;
-            let node_root = &*this.app_project.project().node_root().await?;
-
-            let (server_paths, client_paths) = if this
-                .app_project
-                .project()
-                .next_mode()
-                .await?
-                .is_development()
+            let output_assets = if let Some(sri) =
+                &*project.next_config().experimental_sri().await?
+                && let Some(algorithm) = sri.algorithm.clone()
             {
-                let node_root = this.app_project.project().node_root().owned().await?;
-                let server_paths = all_server_paths(output_assets, node_root).owned().await?;
+                let sri_manifest = get_sri_manifest_asset(
+                    node_root.join(&format!(
+                        "server/app{}/subresource-integrity-manifest.json",
+                        &self.app_endpoint_entry().await?.original_name
+                    ))?,
+                    output_assets,
+                    client_relative_root.clone(),
+                    algorithm,
+                );
+                output_assets.concat_asset(sri_manifest)
+            } else {
+                output_assets
+            };
 
-                let client_relative_root = this
-                    .app_project
-                    .project()
-                    .client_relative_path()
+            let (server_paths, client_paths) = if project.next_mode().await?.is_development() {
+                let server_paths = all_asset_paths(output_assets, node_root.clone(), None)
                     .owned()
                     .await?;
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
@@ -2035,7 +2053,7 @@ impl Endpoint for AppEndpoint {
                 (vec![], vec![])
             };
 
-            let written_endpoint = match *output {
+            let written_endpoint = match *output.await? {
                 AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
                     server_entry_path: node_root
                         .get_path_to(&*rsc_chunk.path().await?)
@@ -2054,7 +2072,7 @@ impl Endpoint for AppEndpoint {
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
-                    project: this.app_project.project().to_resolved().await?,
+                    project: project.to_resolved().await?,
                 }
                 .cell(),
             )
