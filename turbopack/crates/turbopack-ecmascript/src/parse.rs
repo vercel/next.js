@@ -222,6 +222,8 @@ pub fn generate_js_source_map<'a>(
         // TODO: Make this more efficient
         map.adjust_mappings(new_mappings);
 
+        // TODO: Enable this when we have a way to handle the ignore list
+        // add_default_ignore_list(&mut map);
         let map = map.into_raw_sourcemap();
         let result = serde_json::to_vec(&map)?;
         Ok(Rope::from(result))
