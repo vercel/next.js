@@ -757,6 +757,7 @@ export async function isPageStatic({
   cacheLifeProfiles,
   pprConfig,
   buildId,
+  deploymentId,
   sriEnabled,
 }: {
   dir: string
@@ -783,6 +784,7 @@ export async function isPageStatic({
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
   buildId: string
+  deploymentId: string
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
@@ -836,6 +838,7 @@ export async function isPageStatic({
           name: edgeInfo.name,
           useCache: true,
           distDir,
+          deploymentId,
         })
         const mod = (
           await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]

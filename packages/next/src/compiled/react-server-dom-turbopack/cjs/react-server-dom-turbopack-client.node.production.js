@@ -916,7 +916,7 @@ function initializeModelChunk(chunk) {
   chunk.value = null;
   chunk.reason = null;
   try {
-    var value = JSON.parse(resolvedModel, response._fromJSON),
+    var value = parseModel(response, resolvedModel),
       resolveListeners = chunk.value;
     if (null !== resolveListeners)
       for (
@@ -1520,12 +1520,10 @@ function ResponseInstance(
   this._nonce = nonce;
   this._chunks = chunks;
   this._stringDecoder = new util.TextDecoder();
-  this._fromJSON = null;
   this._closed = !1;
   this._closedReason = null;
   this._allowPartialStream = allowPartialStream;
   this._tempRefs = temporaryReferences;
-  this._fromJSON = createFromJSONCallback(this);
 }
 function createStreamState() {
   return { _rowState: 0, _rowID: 0, _rowTag: 0, _rowLength: 0, _buffer: [] };
@@ -1541,7 +1539,7 @@ function resolveBuffer(response, id, buffer) {
 function resolveModule(response, id, model) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
-  model = JSON.parse(model, response._fromJSON);
+  model = parseModel(response, model);
   var clientReference = resolveClientReference(response._bundlerConfig, model);
   prepareDestinationWithChunks(
     response._moduleLoading,
@@ -1876,7 +1874,7 @@ function processFullStringRow(response, streamState, id, tag, row) {
     case 72:
       id = row[0];
       row = row.slice(1);
-      response = JSON.parse(row, response._fromJSON);
+      response = parseModel(response, row);
       row = ReactDOMSharedInternals.d;
       switch (id) {
         case "D":
@@ -2063,42 +2061,53 @@ function processBinaryChunk(weakResponse, streamState, chunk) {
   streamState._rowTag = rowTag;
   streamState._rowLength = rowLength;
 }
-function createFromJSONCallback(response) {
-  return function (key, value) {
-    if ("__proto__" !== key) {
-      if ("string" === typeof value)
-        return parseModelString(response, this, key, value);
-      if ("object" === typeof value && null !== value) {
-        if (value[0] === REACT_ELEMENT_TYPE) {
-          if (
-            ((key = {
+function parseModel(response, json) {
+  json = JSON.parse(json);
+  return reviveModel(response, json, { "": json }, "");
+}
+function reviveModel(response, value, parentObject, key) {
+  if ("string" === typeof value)
+    return "$" === value[0]
+      ? parseModelString(response, parentObject, key, value)
+      : value;
+  if ("object" !== typeof value || null === value) return value;
+  if (isArrayImpl(value)) {
+    for (var i = 0; i < value.length; i++)
+      value[i] = reviveModel(response, value[i], value, "" + i);
+    return value[0] === REACT_ELEMENT_TYPE
+      ? (value[0] === REACT_ELEMENT_TYPE
+          ? ((response = {
               $$typeof: REACT_ELEMENT_TYPE,
               type: value[1],
               key: value[2],
               ref: null,
               props: value[3]
             }),
-            null !== initializingHandler)
-          )
-            if (
+            null !== initializingHandler &&
               ((value = initializingHandler),
               (initializingHandler = value.parent),
-              value.errored)
-            )
-              (key = new ReactPromise("rejected", null, value.reason)),
-                (key = createLazyChunkWrapper(key));
-            else if (0 < value.deps) {
-              var blockedChunk = new ReactPromise("blocked", null, null);
-              value.value = key;
-              value.chunk = blockedChunk;
-              key = createLazyChunkWrapper(blockedChunk);
-            }
-        } else key = value;
-        return key;
-      }
-      return value;
-    }
-  };
+              value.errored
+                ? ((response = new ReactPromise(
+                    "rejected",
+                    null,
+                    value.reason
+                  )),
+                  (response = createLazyChunkWrapper(response)))
+                : 0 < value.deps &&
+                  ((i = new ReactPromise("blocked", null, null)),
+                  (value.value = response),
+                  (value.chunk = i),
+                  (response = createLazyChunkWrapper(i)))))
+          : (response = value),
+        response)
+      : value;
+  }
+  for (i in value)
+    "__proto__" === i
+      ? delete value[i]
+      : ((parentObject = reviveModel(response, value[i], value, i)),
+        void 0 !== parentObject ? (value[i] = parentObject) : delete value[i]);
+  return value;
 }
 function close(weakResponse) {
   weakResponse._allowPartialStream

@@ -228,6 +228,7 @@ import { ImageConfigContext } from '../../shared/lib/image-config-context.shared
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
 import {
+  anySegmentHasRuntimePrefetchEnabled,
   isPageAllowedToBlock,
   anySegmentNeedsInstantValidation,
 } from './instant-validation/instant-config'
@@ -269,6 +270,7 @@ export type AppRenderContext = {
   renderOpts: RenderOpts
   parsedRequestHeaders: ParsedRequestHeaders
   getDynamicParamFromSegment: GetDynamicParamFromSegment
+  interpolatedParams: Params
   query: NextParsedUrlQuery
   isPrefetch: boolean
   isPossibleServerAction: boolean
@@ -523,7 +525,6 @@ async function generateDynamicRSCPayload(
       createMetadataComponents,
       Fragment,
     },
-    getDynamicParamFromSegment,
     query,
     requestId,
     flightRouterState,
@@ -544,14 +545,16 @@ async function generateDynamicRSCPayload(
       !options?.actionResult && // Only for navigations
       (await anySegmentNeedsInstantValidation(loaderTree))
 
+    const metadataIsRuntimePrefetchable =
+      await anySegmentHasRuntimePrefetchEnabled(loaderTree)
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
-      getDynamicParamFromSegment,
-      workStore,
+      interpolatedParams: ctx.interpolatedParams,
       serveStreamingMetadata,
+      isRuntimePrefetchable: metadataIsRuntimePrefetchable,
     })
 
     const rscHead = createElement(
@@ -944,6 +947,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         devFallbackParams,
         validationDebugChannelClient
       )
+    } else {
+      logValidationSkipped(ctx)
     }
 
     debugChannel = returnedDebugChannel
@@ -1432,6 +1437,8 @@ async function getRSCPayload(
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
+  const metadataIsRuntimePrefetchable =
+    await anySegmentHasRuntimePrefetchEnabled(tree)
   const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
     tree,
     // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
@@ -1443,9 +1450,9 @@ async function getRSCPayload(
     parsedQuery: query,
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
-    getDynamicParamFromSegment,
-    workStore,
+    interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata,
+    isRuntimePrefetchable: metadataIsRuntimePrefetchable,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -1558,15 +1565,17 @@ async function getErrorRSCPayload(
   } = ctx
 
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
+  const metadataIsRuntimePrefetchable =
+    await anySegmentHasRuntimePrefetchEnabled(tree)
   const { Viewport, Metadata } = createMetadataComponents({
     tree,
     parsedQuery: query,
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
-    getDynamicParamFromSegment,
-    workStore,
+    interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata: serveStreamingMetadata,
+    isRuntimePrefetchable: metadataIsRuntimePrefetchable,
   })
 
   const initialHead = createElement(
@@ -2023,6 +2032,7 @@ async function renderToHTMLOrFlightImpl(
     workStore,
     parsedRequestHeaders,
     getDynamicParamFromSegment,
+    interpolatedParams,
     query,
     isPrefetch: isPrefetchRequest,
     isPossibleServerAction: isPossibleActionRequest,
@@ -2716,6 +2726,8 @@ async function renderToStream(
           requestStore = finalRequestStore
           debugChannel = returnedDebugChannel
         } else {
+          logValidationSkipped(ctx)
+
           // We're either bypassing caches or we can't restart the render.
           // Do a dynamic render, but with (basic) environment labels.
 
@@ -3615,13 +3627,56 @@ async function logMessagesAndSendErrorsToBrowser(
   }
 }
 
+function logValidationSkipped(ctx: AppRenderContext) {
+  if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
+    const requestId = ctx.requestId
+    const url = ctx.url.href
+    console.log(
+      '<VALIDATION_MESSAGE>' +
+        JSON.stringify({ type: 'validation_start', requestId, url }) +
+        '</VALIDATION_MESSAGE>'
+    )
+    console.log(
+      '<VALIDATION_MESSAGE>' +
+        JSON.stringify({ type: 'validation_end', requestId, url }) +
+        '</VALIDATION_MESSAGE>'
+    )
+  }
+}
+
+async function spawnStaticShellValidationInDev(
+  ...args: Parameters<typeof spawnStaticShellValidationInDevImpl>
+) {
+  if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
+    const ctx: AppRenderContext = args[5]
+    const requestId = ctx.requestId
+    const url = ctx.url.href
+    console.log(
+      '<VALIDATION_MESSAGE>' +
+        JSON.stringify({ type: 'validation_start', requestId, url }) +
+        '</VALIDATION_MESSAGE>'
+    )
+    try {
+      return await spawnStaticShellValidationInDevImpl(...args)
+    } finally {
+      console.log(
+        '<VALIDATION_MESSAGE>' +
+          JSON.stringify({ type: 'validation_end', requestId, url }) +
+          '</VALIDATION_MESSAGE>'
+      )
+    }
+  } else {
+    return await spawnStaticShellValidationInDevImpl(...args)
+  }
+}
+
 /**
  * This function is a fork of prerenderToStream cacheComponents branch.
  * While it doesn't return a stream we want it to have identical
  * prerender semantics to prerenderToStream and should update it
  * in conjunction with any changes to that function.
  */
-async function spawnStaticShellValidationInDev(
+async function spawnStaticShellValidationInDevImpl(
   accumulatedChunksPromise: Promise<AccumulatedStreamChunks>,
   syncInterruptReason: Error | null,
   startTime: number,
@@ -4120,7 +4175,7 @@ async function validateInstantConfigs(
   const {
     tree: validationRouteTree,
     treeNodes,
-    navigationParents,
+    validationTasks,
     segmentsWithInstantConfigs,
   } = init
 
@@ -4131,6 +4186,7 @@ async function validateInstantConfigs(
       ? instantConfig.prefetch === 'runtime'
       : false
   })
+
   const clientReferenceManifest = getClientReferenceManifest()
 
   const {
@@ -4151,59 +4207,66 @@ async function validateInstantConfigs(
 
   const getFilepathForSegment = (segmentPath: InstantValidation.SegmentPath) =>
     treeNodes.get(segmentPath)?.module?.conventionPath
+  const getCreateInstantStackForSegment = (
+    segmentPath: InstantValidation.SegmentPath
+  ) => treeNodes.get(segmentPath)?.module?.createInstantStack ?? null
 
-  for (const navigationParent of navigationParents) {
-    // TODO(instant-validation): report which segment had errors
-    debug?.(
-      `-------------------------------\n` +
-        `Validating navigation\n` +
-        `  from '${navigationParent}/*' (${getFilepathForSegment(navigationParent) ?? '<no file>'})\n` +
-        `  to   '${workAsyncStorage.getStore()!.route}'`
-    )
-    const initialResults = await validateInstantConfigNavigation(
-      initialRscPayload,
-      cache,
-      startTime,
-      stageEndTimes,
-      rootParams,
-      ctx,
-      hmrRefreshHash,
-      validationRouteTree,
-      navigationParent,
-      false // use static stage for static segments
-    )
-    if (initialResults.errors.length === 0) {
-      debug?.(`  ✅ Validation successful`)
-    }
-
-    if (initialResults.errors.length > 0) {
-      if (initialResults.dynamicHoleKind !== DynamicHoleKind.Dynamic) {
-        debug?.('  Retrying to gather more info...')
-        const runtimeResults = await validateInstantConfigNavigation(
-          initialRscPayload,
-          cache,
-          startTime,
-          stageEndTimes,
-          rootParams,
-          ctx,
-          hmrRefreshHash,
-          validationRouteTree,
-          navigationParent,
-          true // use runtime stage for static segments instead
-        )
-        if (runtimeResults.errors.length > 0) {
-          // The errors remained in the runtime stage, so they were caused by a dynamic access.
-          debug?.(
-            `  ❌ Failed after runtime retry (${runtimeResults.errors.length} errors)`
-          )
-          return runtimeResults.errors
-        }
-        // Otherwise, the errors disappeared in the runtime stage, so they were caused
-        // by a runtime access. report the original errors.
+  for (const { parents, target } of validationTasks) {
+    const createInstantStack = getCreateInstantStackForSegment(target)
+    for (const navigationParent of parents) {
+      debug?.(
+        `-------------------------------\n` +
+          `Validating navigation\n` +
+          `  from '${navigationParent}/*' (${getFilepathForSegment(navigationParent) ?? '<no file>'})\n` +
+          `  to   '${workAsyncStorage.getStore()!.route}'`
+      )
+      const initialResults = await validateInstantConfigNavigation(
+        initialRscPayload,
+        cache,
+        startTime,
+        stageEndTimes,
+        rootParams,
+        ctx,
+        hmrRefreshHash,
+        validationRouteTree,
+        navigationParent,
+        false, // use static stage for static segments
+        createInstantStack
+      )
+      if (initialResults.errors.length === 0) {
+        debug?.(`  ✅ Validation successful`)
       }
 
-      debug?.(`  ❌ Failed (${initialResults.errors.length} errors)`)
-      return initialResults.errors
+      if (initialResults.errors.length > 0) {
+        if (initialResults.dynamicHoleKind !== DynamicHoleKind.Dynamic) {
+          debug?.('  Retrying to gather more info...')
+          const runtimeResults = await validateInstantConfigNavigation(
+            initialRscPayload,
+            cache,
+            startTime,
+            stageEndTimes,
+            rootParams,
+            ctx,
+            hmrRefreshHash,
+            validationRouteTree,
+            navigationParent,
+            true, // use runtime stage for static segments instead
+            createInstantStack
+          )
+          if (runtimeResults.errors.length > 0) {
+            // The errors remained in the runtime stage, so they were caused by a dynamic access.
+            debug?.(
+              `  ❌ Failed after runtime retry (${runtimeResults.errors.length} errors)`
+            )
+            return runtimeResults.errors
+          }
+          // Otherwise, the errors disappeared in the runtime stage, so they were caused
+          // by a runtime access. report the original errors.
+        }
+
+        debug?.(`  ❌ Failed (${initialResults.errors.length} errors)`)
+        return initialResults.errors
+      }
     }
   }
 
@@ -4221,7 +4284,8 @@ async function validateInstantConfigNavigation(
   hmrRefreshHash: string | undefined,
   routeTree: InstantValidation.RouteTree,
   navigationParent: InstantValidation.SegmentPath,
-  useRuntimeStageForPartialSegments: boolean
+  useRuntimeStageForPartialSegments: boolean,
+  createInstantStack: (() => Error) | null
 ): Promise<{ dynamicHoleKind: DynamicHoleKind; errors: Array<unknown> }> {
   const { implicitTags, nonce, workStore } = ctx
   const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
@@ -4237,7 +4301,7 @@ async function validateInstantConfigNavigation(
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
-  const dynamicValidation = createInstantValidationState()
+  const dynamicValidation = createInstantValidationState(createInstantStack)
   const boundaryState = createValidationBoundaryTracking()
 
   const finalClientPrerenderStore: PrerenderStore = {

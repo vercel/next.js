@@ -65,16 +65,6 @@ declare global {
      */
     __next_r?: string
     __next_f: NextFlight
-    /**
-     * Testing API that allows e2e tests to assert on the prefetched UI state
-     * before dynamic data streams in. Dev-only.
-     */
-    __EXPERIMENTAL_NEXT_TESTING__?: {
-      navigation: {
-        lock: () => void
-        unlock: () => void
-      }
-    }
   }
 }
 
