@@ -2313,7 +2313,7 @@ impl AggregationUpdateQueue {
             }
             // STEP 6g
             if is_active {
-                self.extend_find_and_schedule_dirty(inner_tasks.into_iter());
+                self.extend_find_and_schedule_dirty(inner_tasks);
             }
         }
     }
