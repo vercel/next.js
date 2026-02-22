@@ -558,7 +558,6 @@ export default defineConfig([
     files: [
       'packages/next/src/build/swc/generated-native.d.ts',
       'packages/next/src/build/swc/generated-wasm.d.ts',
-      'packages/next-swc/native/**/*.d.ts',
       'rspack/crates/binding/index.d.ts',
     ],
     linterOptions: {
