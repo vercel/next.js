@@ -49,6 +49,7 @@ export default globalIgnores([
   'test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx',
   'test/production/debug-build-path/fixtures/with-compile-error/app/broken/page.tsx',
   'packages/next-swc/docs/assets/**/*',
+  'packages/next-swc/native/**/*',
   'test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js',
   'test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js',
   'test/development/next-lint-eslint-formatter-compact/**/*.js',
