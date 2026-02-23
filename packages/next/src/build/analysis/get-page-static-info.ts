@@ -684,6 +684,13 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  // Prevent use client and unstable_instant in the same file.
+  if (directives?.has('client') && 'unstable_instant' in config) {
+    throw new Error(
+      `Page "${page}" cannot use both "use client" and export const "unstable_instant".`
+    )
+  }
+
   if ('unstable_instant' in config && !nextConfig.cacheComponents) {
     throw new Error(
       `Page "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
