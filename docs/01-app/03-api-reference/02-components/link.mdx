@@ -884,6 +884,58 @@ export default function Home() {
 
 </PagesOnly>
 
+### Scroll offset with sticky headers
+
+Because Next.js skips sticky and fixed positioned elements when finding the scroll target, content may end up behind a sticky header after navigation. For example, if your layout has a sticky header:
+
+```tsx filename="app/layout.tsx" switcher
+import './globals.css'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <header className="sticky top-0 h-16 bg-white">
+          {/* Navigation */}
+        </header>
+        {children}
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import './globals.css'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <header className="sticky top-0 h-16 bg-white">
+          {/* Navigation */}
+        </header>
+        {children}
+      </body>
+    </html>
+  )
+}
+```
+
+You can account for its height using [`scroll-padding-top`](https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-padding-top) on the scroll container:
+
+```css filename="app/globals.css"
+html {
+  scroll-padding-top: 64px; /* Match the height of your sticky header */
+}
+```
+
+This is a browser CSS property that offsets scroll-based positioning. It applies whenever Next.js uses the native [`scrollIntoView()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) API, including hash fragment (`#id`) navigation. Alternatively, you can use [`scroll-margin-top`](https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-margin-top) on individual target elements instead of setting a global offset.
+
 ### Prefetching links in Proxy
 
 It's common to use [Proxy](/docs/app/api-reference/file-conventions/proxy) for authentication or other purposes that involve rewriting the user to a different page. In order for the `<Link />` component to properly prefetch links with rewrites via Proxy, you need to tell Next.js both the URL to display and the URL to prefetch. This is required to avoid un-necessary fetches to proxy to know the correct route to prefetch.
