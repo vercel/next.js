@@ -1717,6 +1717,13 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
+        incrementalCache:
+          (globalThis as any).__incrementalCache ||
+          getRequestMeta(params.request, 'incrementalCache'),
+        serverComponentsHmrCache: getRequestMeta(
+          params.request,
+          'serverComponentsHmrCache'
+        ),
         deploymentId: this.deploymentId,
       })
     }
