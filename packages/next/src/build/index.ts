@@ -21,6 +21,7 @@ import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import path from 'path'
+import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
@@ -1794,7 +1795,10 @@ export default async function build(
             runtimeConfig.cacheHandlers || {}
           )) {
             if (key && value) {
-              normalizedCacheHandlers[key] = path.relative(distDir, value)
+              normalizedCacheHandlers[key] = path.relative(
+                distDir,
+                resolveCacheHandlerPathToFilesystem(value)
+              )
             }
           }
 
@@ -1813,7 +1817,12 @@ export default async function build(
                   }
                 : {}),
               cacheHandler: runtimeConfig.cacheHandler
-                ? path.relative(distDir, runtimeConfig.cacheHandler)
+                ? path.relative(
+                    distDir,
+                    resolveCacheHandlerPathToFilesystem(
+                      runtimeConfig.cacheHandler
+                    )
+                  )
                 : runtimeConfig.cacheHandler,
               cacheHandlers: normalizedCacheHandlers,
               experimental: {
