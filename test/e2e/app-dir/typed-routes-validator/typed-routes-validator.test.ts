@@ -48,8 +48,7 @@ describe('typed-routes-validator', () => {
       })
 
       expect({ stdout, stderr }).toEqual({
-        stdout:
-          ".next/dev/types/validator.ts(5,79): error TS2307: Cannot find module './routes.js' or its corresponding type declarations.",
+        stdout: '',
         stderr: '',
       })
     } finally {

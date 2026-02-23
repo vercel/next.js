@@ -24,7 +24,7 @@ describe('typed-routes', () => {
 
   it('should generate route types correctly', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
       expect(dts).toContain(expectedDts)
     })
   })
@@ -38,8 +38,7 @@ describe('typed-routes', () => {
       })
 
       expect({ stdout, stderr }).toEqual({
-        stdout:
-          ".next/dev/types/validator.ts(5,79): error TS2307: Cannot find module './routes.js' or its corresponding type declarations.",
+        stdout: '',
         stderr: '',
       })
     } finally {
@@ -49,7 +48,7 @@ describe('typed-routes', () => {
 
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
 
       // Test standard dynamic segment: :slug -> [slug]
       expect(dts).toContain('"/project/[slug]"')
@@ -77,7 +76,7 @@ describe('typed-routes', () => {
 
       await retry(async () => {
         const routeTypesContent = await next.readFile(
-          `${next.distDir}/types/route-types.d.ts`
+          `${next.distDir}/types/routes.d.ts`
         )
 
         expect(routeTypesContent).toContain(
@@ -89,7 +88,7 @@ describe('typed-routes', () => {
 
   it('should generate RouteContext type for route handlers', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
       expect(dts).toContain(
         'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
       )
