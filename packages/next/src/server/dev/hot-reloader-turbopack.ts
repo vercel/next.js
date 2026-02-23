@@ -586,26 +586,28 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
+    const { type: entryType } = splitEntryKey(key)
+    const usesServerHmr = entryType === 'app' && writtenEndpoint.type !== 'edge'
+
     for (const file of serverPaths) {
-      // Skip clearing cache for server chunks with active HMR subscriptions
-      // Server HMR already applied granular updates to the turbopack module cache
+      deleteCache(file)
+
       const relativePath = relative(distDir, file)
-      if (serverHmrSubscriptions?.has(relativePath)) {
+      if (usesServerHmr && serverHmrSubscriptions?.has(relativePath)) {
         continue
       }
 
       clearModuleContext(file)
-      deleteCache(file)
     }
 
-    // Clear Turbopack's module cache when server HMR is not active.
-    // When server HMR IS active, HMR manages the module cache granularly,
-    // so we must not clear it here.
-    // Not available in:
-    // - Pages Router (no server-side HMR)
-    // - Edge Runtime (uses browser runtime which already disposes chunks individually)
+    // Clear Turbopack's chunk-loading cache so chunks are re-required from disk on
+    // the next request.
+    //
+    // For App Router with server HMR, this is normally skipped as server HMR
+    // manages module updates in-place. However, it *is* required when force is `true`
+    // (like for .env file or tsconfig changes).
     if (
-      !serverHmrSubscriptions &&
+      (!usesServerHmr || force) &&
       typeof __next__clear_chunk_cache__ === 'function'
     ) {
       __next__clear_chunk_cache__()
