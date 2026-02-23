@@ -89,9 +89,7 @@ async function batchedTraceSource(
   const ignored =
     // Check the sourcemap's ignoreList (e.g. from 3rd party packages)
     !!sourceFrame.isIgnored ||
-    shouldIgnorePath(originalFile ?? sourceFrame.file) ||
-    // isInternal means resource starts with turbopack:///[turbopack]
-    !!sourceFrame.isInternal
+    shouldIgnorePath(originalFile ?? sourceFrame.file)
   if (originalFile && !ignored) {
     let sourcePromise = currentSourcesByFile.get(originalFile)
     if (!sourcePromise) {

@@ -362,7 +362,6 @@ export declare function projectCompilationEventsSubscribe(
 ): void
 export interface StackFrame {
   isServer: boolean
-  isInternal?: boolean
   isIgnored?: boolean
   originalFile?: RcStr
   file: RcStr
