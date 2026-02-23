@@ -1,3 +1,4 @@
+import execa from 'execa'
 import { nextTestSetup } from 'e2e-utils'
 import { getDistDir } from 'next-test-utils'
 
@@ -22,9 +23,40 @@ describe('typed-routes-validator', () => {
     } else {
       await next.build()
     }
-    const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
-    // sanity check that dev generation is working
-    expect(dts).toContain('const handler = {} as typeof import(')
+
+    try {
+      const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
+      // sanity check that dev generation is working
+      expect(dts).toContain('const handler = {} as typeof import(')
+    } finally {
+      if (isNextDev) {
+        await next.stop()
+      }
+    }
+  })
+
+  it('should have passing tsc after the server generated types', async () => {
+    if (isNextDev) {
+      await next.start()
+    } else {
+      await next.build()
+    }
+    try {
+      const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+        cwd: next.testDir,
+        reject: false,
+      })
+
+      expect({ stdout, stderr }).toEqual({
+        stdout:
+          ".next/dev/types/validator.ts(5,79): error TS2307: Cannot find module './routes.js' or its corresponding type declarations.",
+        stderr: '',
+      })
+    } finally {
+      if (isNextDev) {
+        await next.stop()
+      }
+    }
   })
 
   if (isNextStart) {
