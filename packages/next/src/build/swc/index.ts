@@ -1483,7 +1483,7 @@ function loadNative(importPath?: string) {
           `Failed to load triple ${triple.platformArchABI}: ${e.message ?? e}`
         )
       }
-    } else {
+    } else if (process.env.NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL !== 'true') {
       try {
         bindings = require(
           `@next/swc/native/next-swc.${triple.platformArchABI}.node`
