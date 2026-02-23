@@ -363,6 +363,7 @@ export declare function projectCompilationEventsSubscribe(
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
+  isIgnored?: boolean
   originalFile?: RcStr
   file: RcStr
   /** 1-indexed, unlike source map tokens */

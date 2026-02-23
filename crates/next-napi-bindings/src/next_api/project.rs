@@ -2128,6 +2128,7 @@ pub fn project_compilation_events_subscribe(
 pub struct StackFrame {
     pub is_server: bool,
     pub is_internal: Option<bool>,
+    pub is_ignored: Option<bool>,
     pub original_file: Option<RcStr>,
     pub file: RcStr,
     /// 1-indexed, unlike source map tokens
@@ -2235,7 +2236,7 @@ pub async fn project_trace_source_operation(
         frame.column.unwrap_or(1).saturating_sub(1),
     );
 
-    let (original_file, line, column, method_name) = match token {
+    let (original_file, line, column, method_name, is_ignored) = match token {
         Token::Original(token) => (
             match urlencoding::decode(&token.original_file)? {
                 Cow::Borrowed(_) => token.original_file,
@@ -2245,12 +2246,13 @@ pub async fn project_trace_source_operation(
             Some(token.original_line + 1),
             Some(token.original_column + 1),
             token.name,
+            token.is_ignored,
         ),
         Token::Synthetic(token) => {
             let Some(original_file) = token.guessed_original_file else {
                 return Ok(Vc::cell(None));
             };
-            (original_file, None, None, None)
+            (original_file, None, None, None, false)
         }
     };
 
@@ -2303,6 +2305,7 @@ pub async fn project_trace_source_operation(
         column,
         is_server: frame.is_server,
         is_internal: Some(is_internal),
+        is_ignored: Some(is_ignored),
     })))
 }
 
