@@ -56,11 +56,11 @@ pub enum Liveness {
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
-    /// The last bool is true if the binding is a mutable binding
+    /// Fields: (local_name, liveness)
     LocalBinding(RcStr, Liveness),
     /// An imported binding that is exported (export { a as b } from "...")
     ///
-    /// The last bool is true if the binding is a mutable binding
+    /// Fields: (module_reference, name, is_mutable)
     ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, bool),
     /// An imported namespace that is exported (export * from "...")
     ImportedNamespace(ResolvedVc<Box<dyn ModuleReference>>),
@@ -490,7 +490,9 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmExports {
+    /// Explicit exports
     pub exports: BTreeMap<RcStr, EsmExport>,
+    /// Unexpanded `export * from ...` statements (expanded in `expand_star_exports`)
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
 
@@ -508,6 +510,34 @@ pub struct ExpandedExports {
 
 #[turbo_tasks::value_impl]
 impl EsmExports {
+    /// Creates an EsmExports that re-exports all exports from another module.
+    /// This is useful for wrapper modules that simply forward all exports.
+    ///
+    /// The resulting exports will have:
+    /// - A default export binding to the module's default
+    /// - A star export that re-exports all named exports
+    #[turbo_tasks::function]
+    pub async fn reexport_including_default(
+        module_reference: Vc<Box<dyn ModuleReference>>,
+    ) -> Result<Vc<EcmascriptExports>> {
+        let module_reference = module_reference.to_resolved().await?;
+        let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
+        exports.insert(
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
+        );
+
+        Ok(EcmascriptExports::EsmExports(
+            EsmExports {
+                exports,
+                star_exports: vec![module_reference],
+            }
+            .resolved_cell(),
+        )
+        .cell())
+    }
+
     #[turbo_tasks::function]
     pub async fn expand_exports(
         &self,

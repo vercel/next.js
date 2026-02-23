@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
@@ -9,7 +7,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::{ModuleReferences, SingleChunkableModuleReference},
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     resolve::ExportUsage,
     source::OptionSource,
 };
@@ -18,7 +16,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
-    references::esm::{EsmExport, EsmExports},
+    references::esm::EsmExports,
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -90,32 +88,14 @@ impl ChunkableModule for NextDynamicEntryModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
     #[turbo_tasks::function]
-    async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let module_reference = ResolvedVc::upcast(
-            SingleChunkableModuleReference::new(
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
+        let module_reference: Vc<Box<dyn ModuleReference>> =
+            Vc::upcast(SingleChunkableModuleReference::new(
                 Vc::upcast(*self.module),
                 dynamic_ref_description(),
                 ExportUsage::all(),
-            )
-            .to_resolved()
-            .await?,
-        );
-
-        let mut exports = BTreeMap::new();
-        let default = rcstr!("default");
-        exports.insert(
-            default.clone(),
-            EsmExport::ImportedBinding(module_reference, default, false),
-        );
-
-        Ok(EcmascriptExports::EsmExports(
-            EsmExports {
-                exports,
-                star_exports: vec![module_reference],
-            }
-            .resolved_cell(),
-        )
-        .cell())
+            ));
+        EsmExports::reexport_including_default(module_reference)
     }
 
     #[turbo_tasks::function]
