@@ -88,6 +88,7 @@ use crate::{
         AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
+    sri_manifest::get_sri_manifest_asset,
     webpack_stats::generate_webpack_stats,
 };
 
@@ -1576,6 +1577,16 @@ impl AppEndpoint {
                     file_paths_from_root.insert(rcstr!("server/server-reference-manifest.js"));
                 }
 
+                if project
+                    .next_config()
+                    .experimental_sri()
+                    .await?
+                    .as_ref()
+                    .is_some_and(|v| v.algorithm.is_some())
+                {
+                    file_paths_from_root.insert(rcstr!("server/subresource-integrity-manifest.js"));
+                }
+
                 let mut wasm_paths_from_root = fxindexset![];
 
                 let node_root_value = node_root.clone();
@@ -2012,6 +2023,23 @@ impl Endpoint for AppEndpoint {
             let client_relative_root = project.client_relative_path().owned().await?;
 
             let output_assets = output.output_assets();
+            let output_assets = if let Some(sri) =
+                &*project.next_config().experimental_sri().await?
+                && let Some(algorithm) = sri.algorithm.clone()
+            {
+                let sri_manifest = get_sri_manifest_asset(
+                    node_root.join(&format!(
+                        "server/app{}/subresource-integrity-manifest.json",
+                        &self.app_endpoint_entry().await?.original_name
+                    ))?,
+                    output_assets,
+                    client_relative_root.clone(),
+                    algorithm,
+                );
+                output_assets.concat_asset(sri_manifest)
+            } else {
+                output_assets
+            };
 
             let (server_paths, client_paths) = if project.next_mode().await?.is_development() {
                 let server_paths = all_asset_paths(output_assets, node_root.clone(), None)
