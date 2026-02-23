@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use swc_core::{
     atoms::{Atom, Wtf8Atom},
-    common::{errors::HANDLER, SourceMap, Span},
+    common::{SourceMap, Span, errors::HANDLER},
     ecma::{
         ast::{
-            op, BinExpr, CallExpr, Callee, CondExpr, Expr, IdentName, IfStmt, ImportDecl, Lit,
-            MemberExpr, MemberProp, NamedExport, UnaryExpr,
+            BinExpr, CallExpr, Callee, CondExpr, Expr, IdentName, IfStmt, ImportDecl, Lit,
+            MemberExpr, MemberProp, NamedExport, UnaryExpr, op,
         },
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},

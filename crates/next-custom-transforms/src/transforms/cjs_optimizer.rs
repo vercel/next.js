@@ -1,16 +1,16 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Wtf8Atom},
-    common::{util::take::Take, SyntaxContext, DUMMY_SP},
+    atoms::{Wtf8Atom, atom},
+    common::{DUMMY_SP, SyntaxContext, util::take::Take},
     ecma::{
         ast::{
             CallExpr, Callee, Decl, Expr, Id, Ident, IdentName, Lit, MemberExpr, MemberProp,
             Module, ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::Atom,
-        utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
-        visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith, VisitWith},
+        utils::{ExprFactory, IdentRenamer, prepend_stmts, private_ident},
+        visit::{Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type},
     },
 };
 
@@ -119,10 +119,10 @@ impl VisitMut for CjsOptimizer {
                                                     self.unresolved_ctxt,
                                                 )
                                                 .as_callee(),
-                                                args: vec![Expr::Lit(Lit::Str(
-                                                    renamed.clone().into(),
-                                                ))
-                                                .as_arg()],
+                                                args: vec![
+                                                    Expr::Lit(Lit::Str(renamed.clone().into()))
+                                                        .as_arg(),
+                                                ],
                                                 ..Default::default()
                                             })),
                                             prop: MemberProp::Ident(IdentName::new(

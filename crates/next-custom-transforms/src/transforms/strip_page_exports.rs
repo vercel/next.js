@@ -9,13 +9,13 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
     common::{
+        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
-        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{fold_pass, noop_fold_type, noop_visit_type, Fold, FoldWith, Visit, VisitWith},
+        visit::{Fold, FoldWith, Visit, VisitWith, fold_pass, noop_fold_type, noop_visit_type},
     },
 };
 
