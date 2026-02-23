@@ -217,7 +217,6 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
-  writeRouteTypesEntryFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
 import {
@@ -1367,13 +1366,7 @@ export default async function build(
       await nextBuildSpan
         .traceChild('generate-route-types')
         .traceAsyncFn(async () => {
-          // Actual type files go to route-types.d.ts (not routes.d.ts)
-          // routes.d.ts is reserved for the entry file
-          const routeTypesFilePath = path.join(
-            distDir,
-            'types',
-            'route-types.d.ts'
-          )
+          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
           const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
           await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
@@ -1400,20 +1393,6 @@ export default async function build(
             validatorFilePath,
             Boolean(config.experimental.strictRouteTypes)
           )
-
-          // Write the entry file at {distDirRoot}/types/routes.d.ts
-          // This ensures next-env.d.ts has a consistent import path
-          const entryFilePath = path.join(
-            dir,
-            config.distDirRoot,
-            'types',
-            'routes.d.ts'
-          )
-          const actualTypesDir = path.join(distDir, 'types')
-          await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
-            strictRouteTypes: Boolean(config.experimental.strictRouteTypes),
-            typedRoutes: Boolean(config.typedRoutes),
-          })
         })
 
       // Turbopack already handles conflicting app and page routes.
