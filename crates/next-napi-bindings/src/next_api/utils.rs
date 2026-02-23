@@ -8,6 +8,7 @@ use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
+use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_tasks::{
@@ -124,6 +125,94 @@ pub async fn get_diagnostics<T: Send>(
     Ok(Arc::new(diags))
 }
 
+/// Returns true if the file path refers to a Next.js/React internal file whose
+/// source code frames would be unhelpful (e.g. large bundled vendored files).
+///
+/// Mirrors the JS `isInternal()` check from
+/// `packages/next/src/shared/lib/is-internal.ts`.
+fn is_internal(file_path: &str) -> bool {
+    // Normalize backslashes so Windows paths are matched too.
+    // (Turbopack typically uses forward slashes, but be defensive.)
+    let normalized;
+    let path = if file_path.contains('\\') {
+        normalized = file_path.replace('\\', "/");
+        &normalized
+    } else {
+        file_path
+    };
+
+    // React vendored in Next.js dist/compiled
+    // Matches: reactVendoredRe from is-internal.ts
+    path.contains("/next/dist/compiled/react/")
+        || path.contains("/next/dist/compiled/react-dom/")
+        || path.contains("/next/dist/compiled/react-server-dom-webpack/")
+        || path.contains("/next/dist/compiled/react-server-dom-turbopack/")
+        || path.contains("/next/dist/compiled/scheduler/")
+        // React in node_modules
+        // Matches: reactNodeModulesRe from is-internal.ts
+        || path.contains("node_modules/react/")
+        || path.contains("node_modules/react-dom/")
+        || path.contains("node_modules/scheduler/")
+        // Next.js internals
+        // Matches: nextInternalsRe from is-internal.ts
+        || path.contains("node_modules/next/")
+        || path.contains("/.next/static/chunks/webpack.js")
+        || path.ends_with("edge-runtime-webpack.js")
+        || path.ends_with("webpack-runtime.js")
+}
+
+/// Renders a code frame for the issue's source location, if available.
+///
+/// This avoids transferring the full source file content across the NAPI
+/// boundary just to call back into Rust for code frame rendering.
+fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
+    let Some(source) = issue.source.as_ref() else {
+        return Ok(None);
+    };
+    let Some((start, end)) = source.range else {
+        return Ok(None);
+    };
+
+    if is_internal(&issue.file_path) {
+        return Ok(None);
+    }
+
+    let content = match &*source.asset.content {
+        FileContent::Content(c) => {
+            let Ok(content) = c.content().to_str() else {
+                return Ok(None);
+            };
+            content
+        }
+        FileContent::NotFound => return Ok(None),
+    };
+
+    // SourcePos is 0-indexed; Location is 1-indexed
+    let location = CodeFrameLocation {
+        start: Location {
+            line: (start.line + 1) as usize,
+            column: Some((start.column + 1) as usize),
+        },
+        end: Some(Location {
+            line: (end.line + 1) as usize,
+            column: Some((end.column + 1) as usize),
+        }),
+    };
+
+    render_code_frame(
+        &content,
+        &location,
+        &CodeFrameOptions {
+            color: true,
+            highlight_code: true,
+            max_width: terminal_size::terminal_size()
+                .map(|(w, _)| w.0 as usize)
+                .unwrap_or(100),
+            ..Default::default()
+        },
+    )
+}
+
 #[napi(object)]
 pub struct NapiIssue {
     pub severity: String,
@@ -135,6 +224,9 @@ pub struct NapiIssue {
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
     pub import_traces: serde_json::Value,
+    /// Pre-rendered code frame for the issue's source location, if available.
+    /// Rendered in Rust to avoid transferring full source file content to JS.
+    pub code_frame: Option<String>,
 }
 
 impl From<&PlainIssue> for NapiIssue {
@@ -155,6 +247,7 @@ impl From<&PlainIssue> for NapiIssue {
             source: issue.source.as_ref().map(|source| source.into()),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
             import_traces: serde_json::to_value(&issue.import_traces).unwrap(),
+            code_frame: render_issue_code_frame(issue).unwrap_or_default(),
         }
     }
 }
@@ -233,20 +326,12 @@ impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
 #[napi(object)]
 pub struct NapiSource {
     pub ident: String,
-    pub content: Option<String>,
 }
 
 impl From<&PlainSource> for NapiSource {
     fn from(source: &PlainSource) -> Self {
         Self {
             ident: source.ident.to_string(),
-            content: match &*source.content {
-                FileContent::Content(content) => match content.content().to_str() {
-                    Ok(str) => Some(str.into_owned()),
-                    Err(_) => None,
-                },
-                FileContent::NotFound => None,
-            },
         }
     }
 }
