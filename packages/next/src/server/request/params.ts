@@ -42,9 +42,12 @@ export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
 
 export function createParamsFromClient(
-  underlyingParams: Params,
-  workStore: WorkStore
+  underlyingParams: Params
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -101,28 +104,28 @@ export function createParamsFromClient(
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
-// TODO: metadata should inherit the runtime prefetchability of the page segment
-const metadataIsRuntimePrefetchable = false
 export type CreateServerParamsForMetadata = typeof createServerParamsForMetadata
 export function createServerParamsForMetadata(
   underlyingParams: Params,
-  workStore: WorkStore
+  isRuntimePrefetchable: boolean
 ): Promise<Params> {
   const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
   return createServerParamsForServerSegment(
     underlyingParams,
-    workStore,
     metadataVaryParamsAccumulator,
-    metadataIsRuntimePrefetchable
+    isRuntimePrefetchable
   )
 }
 
 // routes always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerParamsForRoute(
   underlyingParams: Params,
-  workStore: WorkStore,
   varyParamsAccumulator: VaryParamsAccumulator | null = null
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -183,10 +186,13 @@ export function createServerParamsForRoute(
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
-  workStore: WorkStore,
   varyParamsAccumulator: VaryParamsAccumulator | null,
   isRuntimePrefetchable: boolean
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {

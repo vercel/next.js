@@ -2127,7 +2127,7 @@ pub fn project_compilation_events_subscribe(
 )]
 pub struct StackFrame {
     pub is_server: bool,
-    pub is_internal: Option<bool>,
+    pub is_ignored: Option<bool>,
     pub original_file: Option<RcStr>,
     pub file: RcStr,
     /// 1-indexed, unlike source map tokens
@@ -2235,7 +2235,7 @@ pub async fn project_trace_source_operation(
         frame.column.unwrap_or(1).saturating_sub(1),
     );
 
-    let (original_file, line, column, method_name) = match token {
+    let (original_file, line, column, method_name, is_ignored) = match token {
         Token::Original(token) => (
             match urlencoding::decode(&token.original_file)? {
                 Cow::Borrowed(_) => token.original_file,
@@ -2245,18 +2245,19 @@ pub async fn project_trace_source_operation(
             Some(token.original_line + 1),
             Some(token.original_column + 1),
             token.name,
+            token.is_ignored,
         ),
         Token::Synthetic(token) => {
             let Some(original_file) = token.guessed_original_file else {
                 return Ok(Vc::cell(None));
             };
-            (original_file, None, None, None)
+            (original_file, None, None, None, false)
         }
     };
 
     let project_root_uri =
         uri_from_file(container.project().project_root_path().owned().await?, None).await? + "/";
-    let (file, original_file, is_internal) =
+    let (file, original_file) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://
             (
@@ -2266,7 +2267,6 @@ pub async fn project_trace_source_operation(
                         .trim_start_matches("./"),
                 ),
                 Some(RcStr::from(source_file)),
-                false,
             )
         } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT) {
             // Server code uses turbopack:///[project]
@@ -2281,12 +2281,10 @@ pub async fn project_trace_source_operation(
                     .trim_start_matches("./"),
                 ),
                 Some(RcStr::from(source_file)),
-                false,
             )
         } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
-            // All other code like turbopack:///[turbopack] is internal code
             // TODO(veil): Should the protocol be preserved?
-            (RcStr::from(source_file), None, true)
+            (RcStr::from(source_file), None)
         } else {
             bail!(
                 "Original file ({}) outside project ({})",
@@ -2302,7 +2300,7 @@ pub async fn project_trace_source_operation(
         line,
         column,
         is_server: frame.is_server,
-        is_internal: Some(is_internal),
+        is_ignored: Some(is_ignored),
     })))
 }
 
