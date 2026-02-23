@@ -16,6 +16,7 @@ workspace = true
 default = []
 print_cache_item_size = ["dep:lzzzz"]
 no_fast_stale = []
+aggregation_update_no_batch = []
 verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
