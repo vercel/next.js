@@ -8,8 +8,8 @@ import { retry } from 'next-test-utils'
 const bundlerName = process.env.IS_TURBOPACK_TEST ? 'Turbopack' : 'Webpack'
 const enableNewScrollHandler =
   process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true'
-const innerScrollAndFocusHandlerName = enableNewScrollHandler
-  ? 'InnerScrollAndFocusHandlerNew'
+const innerScrollAndMaybeFocusHandlerName = enableNewScrollHandler
+  ? 'InnerScrollHandlerNew'
   : 'InnerScrollAndFocusHandlerOld'
 
 function setupLogCapture() {
@@ -336,8 +336,8 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
          ...
            <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <${innerScrollAndFocusHandlerName} segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+             <ScrollAndMaybeFocusHandler segmentPath={[...]}>
+               <${innerScrollAndMaybeFocusHandlerName} segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                    <LoadingBoundary name="hydration-..." loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>

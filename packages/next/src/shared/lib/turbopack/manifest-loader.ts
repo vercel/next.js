@@ -24,6 +24,7 @@ import {
   NEXT_FONT_MANIFEST,
   PAGES_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
   TURBOPACK_CLIENT_BUILD_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   WEBPACK_STATS,
@@ -54,6 +55,7 @@ import {
   processRoute,
   createEdgeRuntimeManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin-utils'
+import type { SubresourceIntegrityManifest } from '../../../build'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -71,6 +73,7 @@ type ManifestName =
   | typeof WEBPACK_STATS
   | typeof APP_PATHS_MANIFEST
   | `${typeof SERVER_REFERENCE_MANIFEST}.json`
+  | `${typeof SUBRESOURCE_INTEGRITY_MANIFEST}.json`
   | `${typeof NEXT_FONT_MANIFEST}.json`
   | typeof REACT_LOADABLE_MANIFEST
   | typeof TURBOPACK_CLIENT_BUILD_MANIFEST
@@ -200,6 +203,8 @@ export class TurbopackManifestLoader {
     new ManifestsMap()
   private webpackStats: ManifestsMap<EntryKey, WebpackStats> =
     new ManifestsMap()
+  private sriManifests: ManifestsMap<EntryKey, SubresourceIntegrityManifest> =
+    new ManifestsMap()
   private encryptionKey: string
   /// interceptionRewrites that have been written to disk
   /// This is used to avoid unnecessary writes if the rewrites haven't changed
@@ -209,6 +214,7 @@ export class TurbopackManifestLoader {
   private readonly buildId: string
   private readonly deploymentId: string
   private readonly dev: boolean
+  private readonly sriEnabled: boolean
 
   constructor({
     distDir,
@@ -216,18 +222,21 @@ export class TurbopackManifestLoader {
     encryptionKey,
     dev,
     deploymentId,
+    sriEnabled,
   }: {
     buildId: string
     distDir: string
     encryptionKey: string
     dev: boolean
     deploymentId: string
+    sriEnabled: boolean
   }) {
     this.distDir = distDir
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dev = dev
     this.deploymentId = deploymentId
+    this.sriEnabled = sriEnabled
   }
 
   delete(key: EntryKey) {
@@ -363,6 +372,32 @@ export class TurbopackManifestLoader {
     writeFileAtomic(path, JSON.stringify(webpackStats, null, 2))
   }
 
+  private writeSriManifest(): void {
+    if (!this.sriEnabled || !this.sriManifests.takeChanged()) {
+      return
+    }
+    const sriManifest = this.mergeSriManifests(this.sriManifests.values())
+    const pathJson = join(
+      this.distDir,
+      'server',
+      `${SUBRESOURCE_INTEGRITY_MANIFEST}.json`
+    )
+    const pathJs = join(
+      this.distDir,
+      'server',
+      `${SUBRESOURCE_INTEGRITY_MANIFEST}.js`
+    )
+    deleteCache(pathJson)
+    deleteCache(pathJs)
+    writeFileAtomic(pathJson, JSON.stringify(sriManifest, null, 2))
+    writeFileAtomic(
+      pathJs,
+      `self.__SUBRESOURCE_INTEGRITY_MANIFEST=${JSON.stringify(
+        JSON.stringify(sriManifest)
+      )}`
+    )
+  }
+
   loadBuildManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
     this.buildManifests.set(
       getEntryKey(type, 'server', pageName),
@@ -389,6 +424,19 @@ export class TurbopackManifestLoader {
     this.webpackStats.set(
       getEntryKey(type, 'client', pageName),
       readPartialManifestContent(this.distDir, WEBPACK_STATS, pageName, type)
+    )
+  }
+
+  loadSriManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
+    if (!this.sriEnabled) return
+    this.sriManifests.set(
+      getEntryKey(type, 'client', pageName),
+      readPartialManifestContent(
+        this.distDir,
+        `${SUBRESOURCE_INTEGRITY_MANIFEST}.json`,
+        pageName,
+        type
+      )
     )
   }
 
@@ -882,6 +930,14 @@ export class TurbopackManifestLoader {
     return sortObjectByKey(manifest)
   }
 
+  private mergeSriManifests(manifests: Iterable<SubresourceIntegrityManifest>) {
+    const manifest: SubresourceIntegrityManifest = {}
+    for (const m of manifests) {
+      Object.assign(manifest, m)
+    }
+    return sortObjectByKey(manifest)
+  }
+
   private writePagesManifest(): void {
     if (!this.pagesManifests.takeChanged()) {
       return
@@ -913,6 +969,8 @@ export class TurbopackManifestLoader {
     this.writeInterceptionRouteRewriteManifest(devRewrites, productionRewrites)
     this.writeNextFontManifest()
     this.writePagesManifest()
+
+    this.writeSriManifest()
 
     if (process.env.TURBOPACK_STATS != null) {
       this.writeWebpackStats()
