@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import execa from 'execa'
 import { retry, runNextCommand } from 'next-test-utils'
 
 const expectedDts = `
@@ -23,14 +24,31 @@ describe('typed-routes', () => {
 
   it('should generate route types correctly', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
       expect(dts).toContain(expectedDts)
     })
   })
 
+  it('should have passing tsc after start', async () => {
+    await next.stop()
+    try {
+      const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+        cwd: next.testDir,
+        reject: false,
+      })
+
+      expect({ stdout, stderr }).toEqual({
+        stdout: '',
+        stderr: '',
+      })
+    } finally {
+      await next.start()
+    }
+  })
+
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
 
       // Test standard dynamic segment: :slug -> [slug]
       expect(dts).toContain('"/project/[slug]"')
@@ -58,7 +76,7 @@ describe('typed-routes', () => {
 
       await retry(async () => {
         const routeTypesContent = await next.readFile(
-          `${next.distDir}/types/route-types.d.ts`
+          `${next.distDir}/types/routes.d.ts`
         )
 
         expect(routeTypesContent).toContain(
@@ -70,7 +88,7 @@ describe('typed-routes', () => {
 
   it('should generate RouteContext type for route handlers', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
       expect(dts).toContain(
         'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
       )

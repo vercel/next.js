@@ -16,7 +16,6 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
-  writeRouteTypesEntryFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
 import { installBindings } from '../build/swc/install-bindings'
@@ -46,10 +45,10 @@ const nextTypegen = async (
   await verifyTypeScriptSetup({
     dir: baseDir,
     distDir: nextConfig.distDir,
-    distDirRoot: nextConfig.distDirRoot,
     strictRouteTypes,
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
+    typedRoutes: Boolean(nextConfig.typedRoutes),
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
@@ -59,9 +58,7 @@ const nextTypegen = async (
 
   console.log('Generating route types...')
 
-  // Actual type files go to route-types.d.ts (not routes.d.ts)
-  // routes.d.ts is reserved for the entry file
-  const routeTypesFilePath = join(distDir, 'types', 'route-types.d.ts')
+  const routeTypesFilePath = join(distDir, 'types', 'routes.d.ts')
   const validatorFilePath = join(distDir, 'types', 'validator.ts')
   await mkdir(join(distDir, 'types'), { recursive: true })
 
@@ -114,20 +111,6 @@ const nextTypegen = async (
   // Generate cache-life types if cacheLife config exists
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
   writeCacheLifeTypes(nextConfig.cacheLife, cacheLifeFilePath)
-
-  // Write the entry file at {distDirRoot}/types/routes.d.ts
-  // This ensures next-env.d.ts has a consistent import path
-  const entryFilePath = join(
-    baseDir,
-    nextConfig.distDirRoot,
-    'types',
-    'routes.d.ts'
-  )
-  const actualTypesDir = join(distDir, 'types')
-  await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
-    strictRouteTypes,
-    typedRoutes: Boolean(nextConfig.typedRoutes),
-  })
 
   console.log('✓ Types generated successfully')
 }
