@@ -4,7 +4,7 @@ nav_title: Forms
 description: Learn how to handle form submissions and data mutations with Next.js.
 ---
 
-Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle data mutations using **API Routes**. This guide walks you through handling form submission on the server.
+Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle data mutations using **API Routes**. This guide will walk you through how to handle form submission on the server.
 
 ## Server Forms
 
@@ -96,7 +96,7 @@ export default function Page() {
 
 We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
 
-For more advanced server-side validation, you can use a schema validation library like [zod](https://zod.dev/) to validate the form fields before mutating data:
+For more advanced server-side validation, you can use a schema validation library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
 
 ```ts filename="pages/api/submit.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -232,7 +232,7 @@ export default function Page() {
 
 ## Displaying loading state
 
-You can use React state to show a loading state while a form is submitting on the server:
+You can use React state to show a loading state when a form is submitting on the server:
 
 ```tsx filename="pages/index.tsx" switcher
 import React, { useState, FormEvent } from 'react'
