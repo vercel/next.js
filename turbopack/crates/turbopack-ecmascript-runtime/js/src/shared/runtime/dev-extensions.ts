@@ -22,6 +22,9 @@ interface HotState {
   selfDeclined: boolean
   selfInvalidated: boolean
   disposeHandlers: ((data: object) => void)[]
+  acceptedDependencies: Record<string, AcceptCallback | (() => void)>
+  acceptedErrorHandlers: Record<string, AcceptErrorHandler | undefined>
+  declinedDependencies: Record<string, true>
 }
 
 type AcceptErrorHandler = (

@@ -67,9 +67,16 @@ type ModuleEffect =
       moduleId: ModuleId
     }
   | {
+      type: 'declined'
+      dependencyChain: ModuleId[]
+      moduleId: ModuleId
+      parentId: ModuleId
+    }
+  | {
       type: 'accepted'
       moduleId: ModuleId
       outdatedModules: Set<ModuleId>
+      outdatedDependencies: Map<ModuleId, ModuleId[]>
     }
 
 /**
@@ -111,6 +118,7 @@ function getAffectedModuleEffects(
   autoAcceptRootModules: boolean
 ): ModuleEffect {
   const outdatedModules: Set<ModuleId> = new Set()
+  const outdatedDependencies: Map<ModuleId, ModuleId[]> = new Map()
 
   type QueueItem = { moduleId?: ModuleId; dependencyChain: ModuleId[] }
 
@@ -142,6 +150,7 @@ function getAffectedModuleEffects(
           type: 'accepted',
           moduleId,
           outdatedModules,
+          outdatedDependencies,
         }
       }
       return {
@@ -186,13 +195,36 @@ function getAffectedModuleEffects(
       const parent = devModuleCache[parentId]
 
       if (!parent) {
-        // TODO(alexkirsz) Is this even possible?
         continue
       }
 
-      // TODO(alexkirsz) Dependencies: check accepted and declined
-      // dependencies here.
+      const parentHotState = moduleHotState.get(parent)
 
+      // Check if parent declined this dependency
+      if (parentHotState?.declinedDependencies[moduleId as string]) {
+        return {
+          type: 'declined',
+          dependencyChain: [...dependencyChain, moduleId],
+          moduleId,
+          parentId,
+        }
+      }
+
+      // Skip if parent is already outdated
+      if (outdatedModules.has(parentId)) {
+        continue
+      }
+
+      // Check if parent accepts this dependency
+      if (parentHotState?.acceptedDependencies[moduleId as string]) {
+        if (!outdatedDependencies.has(parentId)) {
+          outdatedDependencies.set(parentId, [])
+        }
+        outdatedDependencies.get(parentId)!.push(moduleId)
+        continue
+      }
+
+      // Neither accepted nor declined — propagate to parent
       queue.push({
         moduleId: parentId,
         dependencyChain: [...dependencyChain, moduleId],
@@ -209,6 +241,7 @@ function getAffectedModuleEffects(
     type: 'accepted',
     moduleId,
     outdatedModules,
+    outdatedDependencies,
   }
 }
 
@@ -221,8 +254,12 @@ function getAffectedModuleEffects(
 function computedInvalidatedModules(
   invalidated: Iterable<ModuleId>,
   autoAcceptRootModules: boolean
-): Set<ModuleId> {
+): {
+  outdatedModules: Set<ModuleId>
+  outdatedDependencies: Map<ModuleId, ModuleId[]>
+} {
   const outdatedModules = new Set<ModuleId>()
+  const outdatedDependencies = new Map<ModuleId, ModuleId[]>()
 
   for (const moduleId of invalidated) {
     const effect = getAffectedModuleEffects(moduleId, autoAcceptRootModules)
@@ -242,18 +279,36 @@ function computedInvalidatedModules(
           )}.`,
           effect.dependencyChain
         )
+      case 'declined':
+        throw new UpdateApplyError(
+          `cannot apply update: declined dependency. ${formatDependencyChain(
+            effect.dependencyChain
+          )}. Declined by ${effect.parentId}.`,
+          effect.dependencyChain
+        )
       case 'accepted':
         for (const outdatedModuleId of effect.outdatedModules) {
           outdatedModules.add(outdatedModuleId)
         }
+        for (const [parentId, deps] of effect.outdatedDependencies) {
+          const existing = outdatedDependencies.get(parentId)
+          if (existing) {
+            for (const dep of deps) {
+              if (existing.indexOf(dep) === -1) {
+                existing.push(dep)
+              }
+            }
+          } else {
+            outdatedDependencies.set(parentId, [...deps])
+          }
+        }
         break
-      // TODO(alexkirsz) Dependencies: handle dependencies effects.
       default:
         invariant(effect, (effect) => `Unknown effect type: ${effect?.type}`)
     }
   }
 
-  return outdatedModules
+  return { outdatedModules, outdatedDependencies }
 }
 
 /**
@@ -270,6 +325,9 @@ function createModuleHot(
     selfDeclined: false,
     selfInvalidated: false,
     disposeHandlers: [],
+    acceptedDependencies: {},
+    acceptedErrorHandlers: {},
+    declinedDependencies: {},
   }
 
   const hot: Hot = {
@@ -280,26 +338,35 @@ function createModuleHot(
 
     data: hotData ?? {},
 
-    // TODO(alexkirsz) Support full (dep, callback, errorHandler) form.
     accept: (
       modules?: string | string[] | AcceptErrorHandler,
-      _callback?: AcceptCallback,
-      _errorHandler?: AcceptErrorHandler
+      callback?: AcceptCallback,
+      errorHandler?: AcceptErrorHandler
     ) => {
       if (modules === undefined) {
         hotState.selfAccepted = true
       } else if (typeof modules === 'function') {
         hotState.selfAccepted = modules
+      } else if (typeof modules === 'object' && modules !== null) {
+        for (let i = 0; i < modules.length; i++) {
+          hotState.acceptedDependencies[modules[i]] = callback || function () {}
+          hotState.acceptedErrorHandlers[modules[i]] = errorHandler
+        }
       } else {
-        throw new Error('unsupported `accept` signature')
+        hotState.acceptedDependencies[modules] = callback || function () {}
+        hotState.acceptedErrorHandlers[modules] = errorHandler
       }
     },
 
-    decline: (dep) => {
+    decline: (dep?: string | string[]) => {
       if (dep === undefined) {
         hotState.selfDeclined = true
+      } else if (typeof dep === 'object' && dep !== null) {
+        for (let i = 0; i < dep.length; i++) {
+          hotState.declinedDependencies[dep[i]] = true
+        }
       } else {
-        throw new Error('unsupported `decline` signature')
+        hotState.declinedDependencies[dep] = true
       }
     },
 
@@ -350,20 +417,37 @@ function createModuleHot(
  */
 function applyInvalidatedModules(
   outdatedModules: Set<ModuleId>,
+  outdatedDependencies: Map<ModuleId, ModuleId[]>,
   autoAcceptRootModules: boolean
-): Set<ModuleId> {
+): {
+  outdatedModules: Set<ModuleId>
+  outdatedDependencies: Map<ModuleId, ModuleId[]>
+} {
   if (queuedInvalidatedModules.size > 0) {
-    computedInvalidatedModules(
+    const result = computedInvalidatedModules(
       queuedInvalidatedModules,
       autoAcceptRootModules
-    ).forEach((moduleId) => {
+    )
+    for (const moduleId of result.outdatedModules) {
       outdatedModules.add(moduleId)
-    })
+    }
+    for (const [parentId, deps] of result.outdatedDependencies) {
+      const existing = outdatedDependencies.get(parentId)
+      if (existing) {
+        for (const dep of deps) {
+          if (existing.indexOf(dep) === -1) {
+            existing.push(dep)
+          }
+        }
+      } else {
+        outdatedDependencies.set(parentId, [...deps])
+      }
+    }
 
     queuedInvalidatedModules.clear()
   }
 
-  return outdatedModules
+  return { outdatedModules, outdatedDependencies }
 }
 
 /**
@@ -424,8 +508,6 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
 
   moduleHotState.delete(module)
 
-  // TODO(alexkirsz) Dependencies: delete the module from outdated deps.
-
   // Remove the disposed module from its children's parent list.
   // It will be added back once the module re-instantiates and imports its
   // children again.
@@ -461,7 +543,8 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
 
 function disposePhase(
   outdatedModules: Iterable<ModuleId>,
-  disposedModules: Iterable<ModuleId>
+  disposedModules: Iterable<ModuleId>,
+  outdatedDependencies: Map<ModuleId, ModuleId[]>
 ): { outdatedModuleParents: Map<ModuleId, Array<ModuleId>> } {
   for (const moduleId of outdatedModules) {
     disposeModule(moduleId, 'replace')
@@ -480,8 +563,21 @@ function disposePhase(
     delete devModuleCache[moduleId]
   }
 
-  // TODO(alexkirsz) Dependencies: remove outdated dependency from module
-  // children.
+  // Remove outdated dependencies from parent module's children list.
+  // When a parent accepts a child's update, the child is re-instantiated
+  // but the parent stays alive. We remove the old child reference so it
+  // gets re-added when the child re-imports.
+  for (const [parentId, deps] of outdatedDependencies) {
+    const module = devModuleCache[parentId]
+    if (module) {
+      for (const dep of deps) {
+        const idx = module.children.indexOf(dep)
+        if (idx >= 0) {
+          module.children.splice(idx, 1)
+        }
+      }
+    }
+  }
 
   return { outdatedModuleParents }
 }
@@ -670,6 +766,7 @@ function computeOutdatedModules(
   autoAcceptRootModules: boolean
 ): {
   outdatedModules: Set<ModuleId>
+  outdatedDependencies: Map<ModuleId, ModuleId[]>
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>
 } {
   const newModuleFactories = new Map<ModuleId, HotModuleFactoryFunction>()
@@ -682,7 +779,7 @@ function computeOutdatedModules(
   }
 
   // Walk dependency tree to find all modules affected by modifications
-  const outdatedModules = computedInvalidatedModules(
+  const { outdatedModules, outdatedDependencies } = computedInvalidatedModules(
     modified.keys(),
     autoAcceptRootModules
   )
@@ -692,7 +789,7 @@ function computeOutdatedModules(
     newModuleFactories.set(moduleId, evalModuleEntry(entry))
   }
 
-  return { outdatedModules, newModuleFactories }
+  return { outdatedModules, outdatedDependencies, newModuleFactories }
 }
 
 /**
@@ -706,6 +803,7 @@ function applyPhase(
   }[],
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>,
   outdatedModuleParents: Map<ModuleId, Array<ModuleId>>,
+  outdatedDependencies: Map<ModuleId, ModuleId[]>,
   moduleFactories: ModuleFactories,
   devModuleCache: ModuleCache<HotModule>,
   instantiateModuleFn: (
@@ -724,7 +822,53 @@ function applyPhase(
 
   // TODO(alexkirsz) Run new runtime entries here.
 
-  // TODO(alexkirsz) Dependencies: call accept handlers for outdated deps.
+  // Call accept handlers for outdated dependencies.
+  // This runs BEFORE re-instantiating self-accepted modules, matching
+  // webpack's behavior.
+  for (const [parentId, deps] of outdatedDependencies) {
+    const module = devModuleCache[parentId]
+    if (!module) continue
+
+    const hotState = moduleHotState.get(module)
+    if (!hotState) continue
+
+    const callbacks: (AcceptCallback | (() => void))[] = []
+    const errorHandlers: (AcceptErrorHandler | undefined)[] = []
+    const dependenciesForCallbacks: ModuleId[] = []
+
+    for (const dep of deps) {
+      const acceptCallback = hotState.acceptedDependencies[dep as string]
+      const errorHandler = hotState.acceptedErrorHandlers[dep as string]
+
+      if (acceptCallback) {
+        // Deduplicate callbacks (same callback may be registered for multiple deps)
+        if (callbacks.indexOf(acceptCallback) !== -1) continue
+        callbacks.push(acceptCallback)
+        errorHandlers.push(errorHandler)
+        dependenciesForCallbacks.push(dep)
+      }
+    }
+
+    for (let k = 0; k < callbacks.length; k++) {
+      try {
+        callbacks[k].call(null, deps as string[])
+      } catch (err: any) {
+        if (typeof errorHandlers[k] === 'function') {
+          try {
+            errorHandlers[k]!(err, {
+              moduleId: parentId as string,
+              dependencyId: dependenciesForCallbacks[k] as string,
+            })
+          } catch (err2) {
+            reportError(err2)
+            reportError(err)
+          }
+        } else {
+          reportError(err)
+        }
+      }
+    }
+  }
 
   // Re-instantiate all outdated self-accepted modules
   for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules) {
@@ -757,6 +901,7 @@ function applyPhase(
  */
 function applyInternal(
   outdatedModules: Set<ModuleId>,
+  outdatedDependencies: Map<ModuleId, ModuleId[]>,
   disposedModules: Iterable<ModuleId>,
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>,
   moduleFactories: ModuleFactories,
@@ -769,10 +914,11 @@ function applyInternal(
   applyModuleFactoryNameFn: (factory: HotModuleFactoryFunction) => void,
   autoAcceptRootModules: boolean
 ) {
-  outdatedModules = applyInvalidatedModules(
+  ;({ outdatedModules, outdatedDependencies } = applyInvalidatedModules(
     outdatedModules,
+    outdatedDependencies,
     autoAcceptRootModules
-  )
+  ))
 
   // Find self-accepted modules to re-instantiate
   const outdatedSelfAcceptedModules =
@@ -781,7 +927,8 @@ function applyInternal(
   // Run dispose handlers, save hot.data, clear caches
   const { outdatedModuleParents } = disposePhase(
     outdatedModules,
-    disposedModules
+    disposedModules,
+    outdatedDependencies
   )
 
   let error: any
@@ -794,6 +941,7 @@ function applyInternal(
     outdatedSelfAcceptedModules,
     newModuleFactories,
     outdatedModuleParents,
+    outdatedDependencies,
     moduleFactories,
     devModuleCache,
     instantiateModuleFn,
@@ -809,6 +957,7 @@ function applyInternal(
   if (queuedInvalidatedModules.size > 0) {
     applyInternal(
       new Set(),
+      new Map(),
       [],
       new Map(),
       moduleFactories,
@@ -855,15 +1004,17 @@ function applyEcmascriptMergedUpdateShared(options: {
     autoAcceptRootModules,
   } = options
 
-  const { outdatedModules, newModuleFactories } = computeOutdatedModules(
-    added,
-    modified,
-    evalModuleEntry,
-    autoAcceptRootModules
-  )
+  const { outdatedModules, outdatedDependencies, newModuleFactories } =
+    computeOutdatedModules(
+      added,
+      modified,
+      evalModuleEntry,
+      autoAcceptRootModules
+    )
 
   applyInternal(
     outdatedModules,
+    outdatedDependencies,
     disposedModules,
     newModuleFactories,
     moduleFactories,
