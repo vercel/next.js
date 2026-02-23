@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2024"
 name = "next-custom-transforms"
 version = "0.0.0"
 publish = false

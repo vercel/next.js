@@ -9,13 +9,13 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
     common::{
+        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
-        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{fold_pass, noop_fold_type, noop_visit_type, Fold, FoldWith, Visit, VisitWith},
+        visit::{Fold, FoldWith, Visit, VisitWith, fold_pass, noop_fold_type, noop_visit_type},
     },
 };
 
@@ -347,10 +347,10 @@ impl Visit for Analyzer<'_> {
                 self.state
                     .encounter_export(exported_ident, local_ident, export_type);
 
-                if let Some(local_ident) = local_ident {
-                    if self.state.should_retain_export_type(export_type) {
-                        self.add_ref(local_ident.to_id());
-                    }
+                if let Some(local_ident) = local_ident
+                    && self.state.should_retain_export_type(export_type)
+                {
+                    self.add_ref(local_ident.to_id());
                 }
             }
         }
@@ -793,13 +793,13 @@ impl Fold for NextSsg {
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
                 Decl::Fn(f) => {
-                    if let Some(export_type) = self.state.export_type(&f.ident.to_id()) {
-                        if self.state.dropping_export(export_type) {
-                            tracing::trace!(
-                                "Dropping an export specifier because it's an SSR/SSG function"
-                            );
-                            return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                        }
+                    if let Some(export_type) = self.state.export_type(&f.ident.to_id())
+                        && self.state.dropping_export(export_type)
+                    {
+                        tracing::trace!(
+                            "Dropping an export specifier because it's an SSR/SSG function"
+                        );
+                        return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                     }
                 }
 
@@ -950,20 +950,19 @@ impl Fold for NextSsg {
                     }
                 }
                 Pat::Expr(expr) => {
-                    if let Expr::Member(member_expr) = &**expr {
-                        if let Some(id) = find_member_root_id(member_expr) {
-                            if self.should_remove(&id) {
-                                self.state.should_run_again = true;
-                                tracing::trace!(
-                                    "Dropping member expression object `{}{:?}` because it should \
-                                     be removed",
-                                    id.0,
-                                    id.1
-                                );
+                    if let Expr::Member(member_expr) = &**expr
+                        && let Some(id) = find_member_root_id(member_expr)
+                        && self.should_remove(&id)
+                    {
+                        self.state.should_run_again = true;
+                        tracing::trace!(
+                            "Dropping member expression object `{}{:?}` because it should be \
+                             removed",
+                            id.0,
+                            id.1
+                        );
 
-                                return Pat::Invalid(Invalid { span: DUMMY_SP });
-                            }
-                        }
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
                 _ => {}
@@ -976,32 +975,31 @@ impl Fold for NextSsg {
     fn fold_simple_assign_target(&mut self, mut n: SimpleAssignTarget) -> SimpleAssignTarget {
         n = n.fold_children_with(self);
 
-        if let SimpleAssignTarget::Ident(name) = &n {
-            if self.should_remove(&name.id.to_id()) {
-                self.state.should_run_again = true;
-                tracing::trace!(
-                    "Dropping var `{}{:?}` because it should be removed",
-                    name.id.sym,
-                    name.id.ctxt
-                );
+        if let SimpleAssignTarget::Ident(name) = &n
+            && self.should_remove(&name.id.to_id())
+        {
+            self.state.should_run_again = true;
+            tracing::trace!(
+                "Dropping var `{}{:?}` because it should be removed",
+                name.id.sym,
+                name.id.ctxt
+            );
 
-                return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
-            }
+            return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
         }
 
-        if let SimpleAssignTarget::Member(member_expr) = &n {
-            if let Some(id) = find_member_root_id(member_expr) {
-                if self.should_remove(&id) {
-                    self.state.should_run_again = true;
-                    tracing::trace!(
-                        "Dropping member expression object `{}{:?}` because it should be removed",
-                        id.0,
-                        id.1
-                    );
+        if let SimpleAssignTarget::Member(member_expr) = &n
+            && let Some(id) = find_member_root_id(member_expr)
+            && self.should_remove(&id)
+        {
+            self.state.should_run_again = true;
+            tracing::trace!(
+                "Dropping member expression object `{}{:?}` because it should be removed",
+                id.0,
+                id.1
+            );
 
-                    return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
-                }
-            }
+            return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
         }
 
         n

@@ -37,10 +37,10 @@ impl VisitMut for MiddlewareDynamic {
             let callee = &call_expr.callee;
             if let Callee::Expr(callee) = callee {
                 // `eval('some')`, or `Function('some')`
-                if let Expr::Ident(ident) = &**callee {
-                    if ident.sym == "eval" || ident.sym == "Function" {
-                        should_wrap = Some(WrappedExpr::Eval);
-                    }
+                if let Expr::Ident(ident) = &**callee
+                    && (ident.sym == "eval" || ident.sym == "Function")
+                {
+                    should_wrap = Some(WrappedExpr::Eval);
                 }
 
                 if let Expr::Member(MemberExpr {
@@ -70,16 +70,15 @@ impl VisitMut for MiddlewareDynamic {
                         prop: MemberProp::Ident(member_prop_ident),
                         ..
                     }) = &**obj
+                        && let Expr::Ident(ident) = &**obj
                     {
-                        if let Expr::Ident(ident) = &**obj {
-                            // `global.WebAssembly.compile('some')` &
-                            // `global.WebAssembly.instantiate('some')`
-                            if ident.sym == "global" && member_prop_ident.sym == "WebAssembly" {
-                                if prop_ident.sym == "compile" {
-                                    should_wrap = Some(WrappedExpr::WasmCompile);
-                                } else if prop_ident.sym == "instantiate" {
-                                    should_wrap = Some(WrappedExpr::WasmInstantiate);
-                                }
+                        // `global.WebAssembly.compile('some')` &
+                        // `global.WebAssembly.instantiate('some')`
+                        if ident.sym == "global" && member_prop_ident.sym == "WebAssembly" {
+                            if prop_ident.sym == "compile" {
+                                should_wrap = Some(WrappedExpr::WasmCompile);
+                            } else if prop_ident.sym == "instantiate" {
+                                should_wrap = Some(WrappedExpr::WasmInstantiate);
                             }
                         }
                     }
@@ -100,12 +99,11 @@ impl VisitMut for MiddlewareDynamic {
             }
         }
 
-        if let Expr::New(NewExpr { callee, .. }) = &expr {
-            if let Expr::Ident(ident) = &**callee {
-                if ident.sym == "Function" {
-                    *expr = quote!("__next_eval__(function() { return $orig_call });" as Expr, orig_call: Expr = expr.clone());
-                }
-            }
+        if let Expr::New(NewExpr { callee, .. }) = &expr
+            && let Expr::Ident(ident) = &**callee
+            && ident.sym == "Function"
+        {
+            *expr = quote!("__next_eval__(function() { return $orig_call });" as Expr, orig_call: Expr = expr.clone());
         }
     }
 }
