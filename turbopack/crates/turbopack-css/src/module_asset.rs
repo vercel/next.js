@@ -8,7 +8,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{AsyncModuleInfo, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
     issue::{
@@ -23,10 +23,7 @@ use turbopack_core::{
     source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
-    chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
-    },
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports},
     parse::generate_js_source_map,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
     utils::StringifyJs,
@@ -244,17 +241,7 @@ impl ModuleCssAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for ModuleCssAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(ModuleCssAsset, ecmascript);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ModuleCssAsset {

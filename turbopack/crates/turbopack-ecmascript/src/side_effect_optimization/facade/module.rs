@@ -18,10 +18,7 @@ use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions,
     MergedEcmascriptModule, SpecifiedModuleType,
-    chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
-    },
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
     export::Liveness,
     references::{
@@ -367,17 +364,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for EcmascriptModuleFacadeModule {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(
+    EcmascriptModuleFacadeModule,
+    crate::chunk::ecmascript_chunk_item
+);
 
 #[turbo_tasks::value_impl]
 impl EvaluatableAsset for EcmascriptModuleFacadeModule {}

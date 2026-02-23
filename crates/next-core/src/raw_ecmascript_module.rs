@@ -11,7 +11,7 @@ use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     asset::Asset,
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkingContext},
     code_builder::CodeBuilder,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegmentRef, DefinableNameSegmentRefs,
@@ -29,7 +29,7 @@ use turbopack_ecmascript::{
     EcmascriptInputTransforms,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
-        EcmascriptExports, ecmascript_chunk_item,
+        EcmascriptExports,
     },
     source_map::{extract_source_mapping_url_from_content, parse_source_map_comment},
     utils::StringifyJs,
@@ -104,17 +104,7 @@ impl Module for RawEcmascriptModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for RawEcmascriptModule {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(RawEcmascriptModule, ecmascript);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for RawEcmascriptModule {

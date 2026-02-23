@@ -88,6 +88,42 @@ pub trait ChunkableModule: Module {
     ) -> Vc<Box<dyn ChunkItem>>;
 }
 
+/// Implements `ChunkableModule` for a type that implements `EcmascriptChunkPlaceable`.
+///
+/// Usage:
+///   turbopack_core::chunk_item!(MyModule, ecmascript);
+///
+/// When called from within `turbopack-ecmascript` itself, use the explicit path form:
+///   turbopack_core::chunk_item!(MyModule, crate::chunk::item::ecmascript_chunk_item);
+///
+/// This generates the standard `impl ChunkableModule` that delegates to
+/// `ecmascript_chunk_item()`.
+#[macro_export]
+macro_rules! chunk_item {
+    ($ty:ty, ecmascript) => {
+        turbopack_core::chunk_item!($ty, turbopack_ecmascript::chunk::ecmascript_chunk_item);
+    };
+    ($ty:ty, $chunk_item_fn:path) => {
+        #[turbo_tasks::value_impl]
+        impl turbopack_core::chunk::ChunkableModule for $ty {
+            #[turbo_tasks::function]
+            fn as_chunk_item(
+                self: turbo_tasks::ResolvedVc<Self>,
+                module_graph: turbo_tasks::ResolvedVc<turbopack_core::module_graph::ModuleGraph>,
+                chunking_context: turbo_tasks::ResolvedVc<
+                    Box<dyn turbopack_core::chunk::ChunkingContext>,
+                >,
+            ) -> turbo_tasks::Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+                $chunk_item_fn(
+                    turbo_tasks::ResolvedVc::upcast(self),
+                    module_graph,
+                    chunking_context,
+                )
+            }
+        }
+    };
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct ChunkableModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
 

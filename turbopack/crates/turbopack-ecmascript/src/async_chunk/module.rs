@@ -20,7 +20,7 @@ use turbopack_core::{
 use crate::{
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        data::EcmascriptChunkData, ecmascript_chunk_item,
+        data::EcmascriptChunkData,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD},
     utils::{StringifyJs, StringifyModuleId},
@@ -134,17 +134,7 @@ impl Module for AsyncLoaderModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for AsyncLoaderModule {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(AsyncLoaderModule, crate::chunk::ecmascript_chunk_item);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for AsyncLoaderModule {

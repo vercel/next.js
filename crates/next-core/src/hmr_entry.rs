@@ -7,8 +7,8 @@ use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, ChunkingType,
-        ChunkingTypeOption, EvaluatableAsset,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        EvaluatableAsset,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -20,7 +20,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
-        EcmascriptExports, ecmascript_chunk_item,
+        EcmascriptExports,
     },
     runtime_functions::TURBOPACK_REQUIRE,
     utils::StringifyJs,
@@ -81,17 +81,7 @@ impl Module for HmrEntryModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for HmrEntryModule {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(HmrEntryModule, ecmascript);
 
 #[turbo_tasks::value_impl]
 impl Asset for HmrEntryModule {

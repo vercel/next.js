@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{AsyncModuleInfo, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -15,10 +15,7 @@ use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptModuleContent,
     EcmascriptModuleContentOptions, EcmascriptParsable,
-    chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
-    },
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::{
         FollowExportsResult, analyze_ecmascript_module, esm::FoundExportType, follow_reexports,
@@ -372,17 +369,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for EcmascriptModulePartAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(
+    EcmascriptModulePartAsset,
+    crate::chunk::ecmascript_chunk_item
+);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModulePartAsset {

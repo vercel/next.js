@@ -8,7 +8,7 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, ro
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkingContext},
     ident::{AssetIdent, Layer},
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -29,10 +29,7 @@ use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
 use crate::{
     EcmascriptModuleContent,
-    chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
-    },
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports},
     references::async_module::{AsyncModule, OptionAsyncModule},
     runtime_functions::{
         TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXTERNAL_IMPORT,
@@ -370,17 +367,7 @@ impl Module for CachedExternalModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for CachedExternalModule {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(CachedExternalModule, crate::chunk::ecmascript_chunk_item);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for CachedExternalModule {

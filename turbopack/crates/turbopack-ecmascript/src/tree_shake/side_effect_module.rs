@@ -3,9 +3,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, ModuleChunkItemIdExt,
-    },
+    chunk::{AsyncModuleInfo, ChunkingContext, EvaluatableAsset, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -17,7 +15,7 @@ use crate::{
     EcmascriptModuleAsset,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
-        EcmascriptExports, ecmascript_chunk_item, item::RewriteSourcePath,
+        EcmascriptExports, item::RewriteSourcePath,
     },
     references::async_module::AsyncModuleOptions,
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
@@ -204,17 +202,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for SideEffectsModule {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(SideEffectsModule, crate::chunk::ecmascript_chunk_item);
 
 #[turbo_tasks::value_impl]
 impl EvaluatableAsset for SideEffectsModule {}
