@@ -129,14 +129,12 @@ impl<C: Comments> VisitMut for ImportReplacer<C> {
         //
         // Only extract names when `await` is present — without await, the
         // destructuring targets the Promise, not the module namespace.
-        if let Some(init) = &decl.init {
-            if let Some(import_span) = find_awaited_import_call_span(init) {
-                if let Pat::Object(obj_pat) = &decl.name {
-                    if let Some(names) = extract_export_names_from_pat(obj_pat) {
-                        self.import_export_names.insert(import_span.lo, names);
-                    }
-                }
-            }
+        if let Some(init) = &decl.init
+            && let Some(import_span) = find_awaited_import_call_span(init)
+            && let Pat::Object(obj_pat) = &decl.name
+            && let Some(names) = extract_export_names_from_pat(obj_pat)
+        {
+            self.import_export_names.insert(import_span.lo, names);
         }
 
         decl.visit_mut_children_with(self);
@@ -158,24 +156,24 @@ impl<C: Comments> VisitMut for ImportReplacer<C> {
             self.has_dynamic_import = true;
 
             // Add /* webpackExports: [...] */ comment if we detected destructuring
-            if let Some(names) = self.import_export_names.remove(&call_expr.span.lo) {
-                if let Some(first_arg) = call_expr.args.first() {
-                    let comment_text = if names.is_empty() {
-                        " webpackExports: [] ".to_string()
-                    } else {
-                        let names_json: Vec<String> =
-                            names.iter().map(|n| format!("\"{}\"", n)).collect();
-                        format!(" webpackExports: [{}] ", names_json.join(", "))
-                    };
-                    self.comments.add_leading(
-                        first_arg.span_lo(),
-                        Comment {
-                            span: DUMMY_SP,
-                            kind: CommentKind::Block,
-                            text: comment_text.into(),
-                        },
-                    );
-                }
+            if let Some(names) = self.import_export_names.remove(&call_expr.span.lo)
+                && let Some(first_arg) = call_expr.args.first()
+            {
+                let comment_text = if names.is_empty() {
+                    " webpackExports: [] ".to_string()
+                } else {
+                    let names_json: Vec<String> =
+                        names.iter().map(|n| format!("\"{}\"", n)).collect();
+                    format!(" webpackExports: [{}] ", names_json.join(", "))
+                };
+                self.comments.add_leading(
+                    first_arg.span_lo(),
+                    Comment {
+                        span: DUMMY_SP,
+                        kind: CommentKind::Block,
+                        text: comment_text.into(),
+                    },
+                );
             }
 
             let replacement_expr = quote!(

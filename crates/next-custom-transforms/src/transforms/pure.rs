@@ -74,11 +74,11 @@ where
     }
 
     fn visit_mut_module_item(&mut self, m: &mut ModuleItem) {
-        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = m {
-            if import.src.value == MODULE {
-                *m = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                return;
-            }
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = m
+            && import.src.value == MODULE
+        {
+            *m = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+            return;
         }
 
         m.visit_mut_children_with(self);

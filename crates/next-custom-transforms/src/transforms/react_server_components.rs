@@ -162,15 +162,13 @@ impl<C: Comments> ReactServerComponents<C> {
     /// removes specific directive from the AST.
     fn remove_top_level_directive(&mut self, module: &mut Module) {
         module.body.retain(|item| {
-            if let ModuleItem::Stmt(stmt) = item {
-                if let Some(expr_stmt) = stmt.as_expr() {
-                    if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr_stmt.expr {
-                        if &**value == "use client" {
-                            // Remove the directive.
-                            return false;
-                        }
-                    }
-                }
+            if let ModuleItem::Stmt(stmt) = item
+                && let Some(expr_stmt) = stmt.as_expr()
+                && let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr_stmt.expr
+                && &**value == "use client"
+            {
+                // Remove the directive.
+                return false;
             }
             true
         });
@@ -454,14 +452,14 @@ fn collect_module_info(
                             // an exception because they are not valid directives.
                             Expr::Paren(ParenExpr { expr, .. }) => {
                                 finished_directives = true;
-                                if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
-                                    if &**value == "use client" {
-                                        report_error(
-                                            app_dir,
-                                            filepath,
-                                            RSCErrorKind::NextRscErrClientDirective(expr_stmt.span),
-                                        );
-                                    }
+                                if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr
+                                    && &**value == "use client"
+                                {
+                                    report_error(
+                                        app_dir,
+                                        filepath,
+                                        RSCErrorKind::NextRscErrClientDirective(expr_stmt.span),
+                                    );
                                 }
                             }
                             _ => {
@@ -825,24 +823,22 @@ impl ReactServerComponentValidator {
 
         let is_error_file = RE.is_match(&self.filepath);
 
-        if is_error_file {
-            if let Some(app_dir) = &self.app_dir {
-                if let Some(app_dir) = app_dir.to_str() {
-                    if self.filepath.starts_with(app_dir) {
-                        let span = if let Some(first_item) = module.body.first() {
-                            first_item.span()
-                        } else {
-                            module.span
-                        };
+        if is_error_file
+            && let Some(app_dir) = &self.app_dir
+            && let Some(app_dir) = app_dir.to_str()
+            && self.filepath.starts_with(app_dir)
+        {
+            let span = if let Some(first_item) = module.body.first() {
+                first_item.span()
+            } else {
+                module.span
+            };
 
-                        report_error(
-                            &self.app_dir,
-                            &self.filepath,
-                            RSCErrorKind::NextRscErrErrorFileServerComponent(span),
-                        );
-                    }
-                }
-            }
+            report_error(
+                &self.app_dir,
+                &self.filepath,
+                RSCErrorKind::NextRscErrErrorFileServerComponent(span),
+            );
         }
     }
 
