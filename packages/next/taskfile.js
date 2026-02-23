@@ -348,6 +348,7 @@ export async function ncc_fast_webstreams(task, opts) {
     await task
       .source(relative(__dirname, join(srcDir, 'patch.js')))
       .ncc({
+        minify: false,
         packageName: 'experimental-fast-webstreams',
         externals: {
           ...externals,
