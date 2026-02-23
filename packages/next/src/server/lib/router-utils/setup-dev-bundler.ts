@@ -114,7 +114,6 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
-  experimentalServerFastRefresh?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -237,8 +236,7 @@ async function startWatcher(
           serverFields,
           distDir,
           resetFetch,
-          lockfile,
-          opts.experimentalServerFastRefresh
+          lockfile
         )
       })()
     : await (async () => {

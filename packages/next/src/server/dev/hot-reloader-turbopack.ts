@@ -299,8 +299,7 @@ export async function createHotReloaderTurbopack(
   serverFields: ServerFields,
   distDir: string,
   resetFetch: () => void,
-  lockfile: Lockfile | undefined,
-  experimentalServerFastRefresh?: boolean
+  lockfile: Lockfile | undefined
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -1806,24 +1805,22 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
-  if (experimentalServerFastRefresh) {
-    serverHmrSubscriptions = setupServerHmr(project, {
-      onUpdateFailed: async () => {
-        if (typeof __next__clear_chunk_cache__ === 'function') {
-          __next__clear_chunk_cache__()
-        }
+  serverHmrSubscriptions = setupServerHmr(project, {
+    onUpdateFailed: async () => {
+      if (typeof __next__clear_chunk_cache__ === 'function') {
+        __next__clear_chunk_cache__()
+      }
 
-        // Clear all module contexts so they're re-evaluated on next request
-        await clearAllModuleContexts()
+      // Clear all module contexts so they're re-evaluated on next request
+      await clearAllModuleContexts()
 
-        // Tell browsers to refetch RSC (soft refresh, not full page reload)
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          hash: String(++hmrHash),
-        })
-      },
-    })
-  }
+      // Tell browsers to refetch RSC (soft refresh, not full page reload)
+      hotReloader.send({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+        hash: String(++hmrHash),
+      })
+    },
+  })
 
   return hotReloader
 }

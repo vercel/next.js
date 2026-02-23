@@ -47,7 +47,6 @@ function parseTraceFile(tracePath: string): TraceStructure {
 describe('enabled features in trace', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    startArgs: ['--experimental-server-fast-refresh'],
   })
 
   if (!isNextDev) {

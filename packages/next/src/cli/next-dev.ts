@@ -60,7 +60,6 @@ export type NextDevOptions = {
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
-  experimentalServerFastRefresh?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -255,7 +254,6 @@ const nextDev = async (
 
   const enabledFeatures = Object.fromEntries(
     Object.entries({
-      experimentalServerFastRefresh: options.experimentalServerFastRefresh,
       experimentalCpuProf: options.experimentalCpuProf,
     }).filter(([_, value]) => value)
   )
@@ -275,7 +273,6 @@ const nextDev = async (
     allowRetry,
     isDev: true,
     hostname: host,
-    experimentalServerFastRefresh: options.experimentalServerFastRefresh,
   }
 
   const startServerPath = require.resolve('../server/lib/start-server')
