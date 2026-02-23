@@ -74,7 +74,7 @@ You can use [`generateMetadata`](/docs/app/api-reference/functions/generate-meta
 import type { Metadata, ResolvingMetadata } from 'next'
 
 export async function generateMetadata(
-  { params, searchParams }: PageProps<'blog/[slug]'>,
+  { params, searchParams }: PageProps<'/blog/[slug]'>,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const { slug } = await params
@@ -90,7 +90,10 @@ export async function generateMetadata(
   }
 }
 
-export default function Page({ params, searchParams }: PageProps<'blog/[slug]'>) {}
+export default function Page({
+  params,
+  searchParams,
+}: PageProps<'/blog/[slug]'>) {}
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
