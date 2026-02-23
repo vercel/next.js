@@ -5372,7 +5372,8 @@ async function prerenderToStream(
       })
 
       const flightData = await streamToBuffer(reactServerResult.asStream())
-      metadata.flightData = flightData
+      const isPartialMarker = Buffer.from([serverIsDynamic ? 0x7e : 0x23])
+      metadata.flightData = Buffer.concat([isPartialMarker, flightData])
       metadata.segmentData = await collectSegmentData(
         flightData,
         finalServerPrerenderStore,

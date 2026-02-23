@@ -147,42 +147,38 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: To be implemented.
-  it.failing(
-    'serves a fully static page without any requests on the second navigation',
-    async () => {
-      let page: Playwright.Page
-      const browser = await next.browser('/', {
-        beforePageLoad(p: Playwright.Page) {
-          page = p
-        },
-      })
-      const act = createRouterAct(page)
+  it('serves a fully static page without any requests on the second navigation', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
 
-      // First navigation — full request, no prefetch
-      await act(
-        async () => {
-          await browser.elementByCss('a[href="/fully-static"]').click()
-        },
-        { includes: 'Cached content' }
-      )
-      expect(await browser.elementById('cached-content').text()).toContain(
-        'Cached content'
-      )
-
-      // Navigate back to home
-      await browser.back()
-      expect(await browser.elementByCss('h1').text()).toBe('Home')
-
-      // Second navigation — fully cached, should not issue any requests
-      await act(async () => {
+    // First navigation — full request, no prefetch
+    await act(
+      async () => {
         await browser.elementByCss('a[href="/fully-static"]').click()
-      }, 'no-requests')
-      expect(await browser.elementById('cached-content').text()).toContain(
-        'Cached content'
-      )
-    }
-  )
+      },
+      { includes: 'Cached content' }
+    )
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+
+    // Navigate back to home
+    await browser.back()
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Second navigation — fully cached, should not issue any requests
+    await act(async () => {
+      await browser.elementByCss('a[href="/fully-static"]').click()
+    }, 'no-requests')
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+  })
 
   it('caches static segments when navigating to a known route without a prefetch', async () => {
     let page: Playwright.Page
@@ -443,13 +439,9 @@ describe('cached navigations', () => {
     )
 
     // Navigate back to home again
-    await act(
-      async () => {
-        await browser.elementByCss('a[href="/"]').click()
-      },
-      // TODO: Should be `no-requests` when fully static pages are handled.
-      { includes: 'Home' }
-    )
+    await act(async () => {
+      await browser.elementByCss('a[href="/"]').click()
+    }, 'no-requests')
     expect(await browser.elementByCss('h1').text()).toBe('Home')
 
     // Fast-forward past the stale time (120s from cacheLife({ stale: 120 })).

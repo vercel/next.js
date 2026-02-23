@@ -1581,13 +1581,14 @@ async function fetchMissingDynamicData(
       await waitForNavigationLock()
     }
 
-    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
+    if (routeCacheEntry !== null && result.staticStageData !== null) {
       const now = Date.now()
-      processStaticStageResponse(now, result.staticStageResponse).then(
-        ({ serverData, headVaryParams, staleAt }) =>
+      const { staticStageData } = result
+      processStaticStageResponse(now, staticStageData.response).then(
+        ({ headVaryParams, staleAt }) =>
           writeStaticStageResponseIntoCache(
             now,
-            serverData,
+            staticStageData,
             result.responseHeaders,
             headVaryParams,
             staleAt,
