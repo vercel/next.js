@@ -105,10 +105,22 @@ const nextTypegen = async (
     nextConfig
   )
 
+  // Compute the entry file path (routes.d.ts) before writeValidatorFile so we
+  // can pass it as routesDtsPath. In dev mode the validator lives at
+  // .next/dev/types/validator.ts while routes.d.ts is at .next/types/routes.d.ts,
+  // so the import path must be computed rather than assumed to be "./routes.d.ts".
+  const entryFilePath = join(
+    baseDir,
+    nextConfig.distDirRoot,
+    'types',
+    'routes.d.ts'
+  )
+
   await writeValidatorFile(
     routeTypesManifest,
     validatorFilePath,
-    strictRouteTypes
+    strictRouteTypes,
+    entryFilePath
   )
 
   // Generate cache-life types if cacheLife config exists
@@ -117,12 +129,6 @@ const nextTypegen = async (
 
   // Write the entry file at {distDirRoot}/types/routes.d.ts
   // This ensures next-env.d.ts has a consistent import path
-  const entryFilePath = join(
-    baseDir,
-    nextConfig.distDirRoot,
-    'types',
-    'routes.d.ts'
-  )
   const actualTypesDir = join(distDir, 'types')
   await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
     strictRouteTypes,

@@ -382,7 +382,8 @@ export async function writeRouteTypesManifest(
 export async function writeValidatorFile(
   manifest: RouteTypesManifest,
   filePath: string,
-  strict: boolean
+  strict: boolean,
+  routesDtsPath: string
 ) {
   const dirname = path.dirname(filePath)
 
@@ -390,11 +391,20 @@ export async function writeValidatorFile(
     await fs.promises.mkdir(dirname, { recursive: true })
   }
 
+  // Compute the relative import path from validator.ts to routes.d.ts.
+  // In dev mode, validator.ts lives at .next/dev/types/validator.ts while
+  // routes.d.ts lives at .next/types/routes.d.ts, so we must compute the
+  // real relative path rather than assuming "./routes.d.ts".
+  // Ensure the path starts with "./" so TypeScript treats it as a relative
+  // import rather than a bare module specifier.
+  const rel = normalizePathSep(path.relative(dirname, routesDtsPath))
+  const routesImportPath = rel.startsWith('.') ? rel : `./${rel}`
+
   await fs.promises.writeFile(
     filePath,
     strict
-      ? generateValidatorFileStrict(manifest)
-      : generateValidatorFile(manifest)
+      ? generateValidatorFileStrict(manifest, routesImportPath)
+      : generateValidatorFile(manifest, routesImportPath)
   )
 }
 

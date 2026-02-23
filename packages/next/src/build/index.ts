@@ -1387,20 +1387,24 @@ export default async function build(
             routeTypesFilePath,
             config
           )
-          await writeValidatorFile(
-            routeTypesManifest,
-            validatorFilePath,
-            Boolean(config.experimental.strictRouteTypes)
-          )
-
-          // Write the entry file at {distDirRoot}/types/routes.d.ts
-          // This ensures next-env.d.ts has a consistent import path
+          // Compute the entry file path (routes.d.ts) before writeValidatorFile so we
+          // can pass it as routesDtsPath and compute the correct relative import.
           const entryFilePath = path.join(
             dir,
             config.distDirRoot,
             'types',
             'routes.d.ts'
           )
+
+          await writeValidatorFile(
+            routeTypesManifest,
+            validatorFilePath,
+            Boolean(config.experimental.strictRouteTypes),
+            entryFilePath
+          )
+
+          // Write the entry file at {distDirRoot}/types/routes.d.ts
+          // This ensures next-env.d.ts has a consistent import path
           const actualTypesDir = path.join(distDir, 'types')
           await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
             strictRouteTypes: Boolean(config.experimental.strictRouteTypes),

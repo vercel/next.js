@@ -409,7 +409,8 @@ declare module 'next/form' {
 }
 
 export function generateValidatorFile(
-  routesManifest: RouteTypesManifest
+  routesManifest: RouteTypesManifest,
+  routesImportPath: string = './routes.d.ts'
 ): string {
   const generateValidations = (
     paths: string[],
@@ -610,7 +611,7 @@ export function generateValidatorFile(
 
   const routeImportStatement =
     routeImports.length > 0
-      ? `import type { ${routeImports.join(', ')} } from "./routes.d.ts"`
+      ? `import type { ${routeImports.join(', ')} } from "${routesImportPath}"`
       : ''
 
   const nextRequestImport = hasAppRouteHandlers
@@ -650,7 +651,8 @@ ${layoutValidations}
 }
 
 export function generateValidatorFileStrict(
-  routesManifest: RouteTypesManifest
+  routesManifest: RouteTypesManifest,
+  routesImportPath: string = './routes.d.ts'
 ): string {
   const generateValidations = (
     paths: string[],
@@ -845,7 +847,7 @@ export function generateValidatorFileStrict(
 
   const routeImportStatement =
     routeImports.length > 0
-      ? `import type { ${routeImports.join(', ')} } from "./routes.d.ts"`
+      ? `import type { ${routeImports.join(', ')} } from "${routesImportPath}"`
       : ''
 
   const nextRequestImport = hasAppRouteHandlers
