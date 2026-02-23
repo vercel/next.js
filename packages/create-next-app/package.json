@@ -48,6 +48,6 @@
     "validate-npm-package-name": "5.0.1"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.20.0"
   }
 }

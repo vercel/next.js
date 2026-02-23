@@ -19,7 +19,7 @@
     "typescript": "5.1.6"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.20.0"
   },
   "packageManager": "pnpm@9.6.0"
 }
