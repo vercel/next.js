@@ -4,7 +4,6 @@ import { retry } from 'next-test-utils'
 describe('server-hmr', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
-    startArgs: ['--experimental-server-fast-refresh'],
   })
 
   // Server HMR is a Turbopack-only feature, only available in dev mode

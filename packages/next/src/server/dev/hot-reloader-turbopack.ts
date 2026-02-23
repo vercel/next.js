@@ -307,8 +307,7 @@ export async function createHotReloaderTurbopack(
   serverFields: ServerFields,
   distDir: string,
   resetFetch: () => void,
-  lockfile: Lockfile | undefined,
-  experimentalServerFastRefresh?: boolean
+  lockfile: Lockfile | undefined
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -1819,32 +1818,30 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
-  if (experimentalServerFastRefresh) {
-    serverHmrSubscriptions = setupServerHmr(project, {
-      clear: async () => {
-        // Clear Node's require cache of all Turbopack-built modules
-        for (const chunkPath of serverHmrSubscriptions?.keys() ?? []) {
-          deleteCache(join(distDir, chunkPath))
-        }
+  serverHmrSubscriptions = setupServerHmr(project, {
+    clear: async () => {
+      // Clear Node's require cache of all Turbopack-built modules
+      for (const chunkPath of serverHmrSubscriptions?.keys() ?? []) {
+        deleteCache(join(distDir, chunkPath))
+      }
 
-        // Clear Turbopack's runtime caches
-        if (typeof __next__clear_chunk_cache__ === 'function') {
-          __next__clear_chunk_cache__()
-        }
+      // Clear Turbopack's runtime caches
+      if (typeof __next__clear_chunk_cache__ === 'function') {
+        __next__clear_chunk_cache__()
+      }
 
-        // Clear all edge contexts
-        await clearAllModuleContexts()
+      // Clear all edge contexts
+      await clearAllModuleContexts()
 
-        resetFetch()
+      resetFetch()
 
-        // Tell browsers to refetch RSC (soft refresh, not full page reload)
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          hash: String(++hmrHash),
-        })
-      },
-    })
-  }
+      // Tell browsers to refetch RSC (soft refresh, not full page reload)
+      hotReloader.send({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+        hash: String(++hmrHash),
+      })
+    },
+  })
 
   return hotReloader
 }
