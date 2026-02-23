@@ -1,5 +1,1 @@
-module.exports = {
-  experimental: {
-    serverMinification: true,
-  },
-}
+module.exports = {}

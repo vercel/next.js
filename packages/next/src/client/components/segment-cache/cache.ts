@@ -11,7 +11,6 @@ import {
   readVaryParams,
   type VaryParams,
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
-import { HasLoadingBoundary } from '../../../shared/lib/app-router-types'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
@@ -145,20 +144,9 @@ type RouteTreeShared = {
   slots: null | {
     [parallelRouteKey: string]: RouteTree
   }
-  isRootLayout: boolean
-
-  // If this is a dynamic route, indicates whether there is a loading boundary
-  // somewhere in the tree. If not, we can skip the prefetch for the data,
-  // because we know it would be an empty response. (For a static/PPR route,
-  // this value is disregarded, because in that model `loading.tsx` is treated
-  // like any other Suspense boundary.)
-  hasLoadingBoundary: HasLoadingBoundary
-
-  // Bitmask of PrefetchHint flags. Indicates whether this segment has a
-  // runtime prefetch, and whether the subtree contains any instant configs.
-  // Determined by the server; not purely a user configuration because the
-  // server may determine that a route is fully static and doesn't need
-  // runtime prefetching regardless of the configuration.
+  // Bitmask of PrefetchHint flags. Encodes route structure metadata:
+  // root layout, loading boundaries, instant configs, and runtime prefetch
+  // hints.
   prefetchHints: number
 }
 
@@ -721,8 +709,7 @@ function deprecated_createOptimisticRouteTree(
       ),
       isPage: true,
       slots: clonedSlots,
-      isRootLayout: tree.isRootLayout,
-      hasLoadingBoundary: tree.hasLoadingBoundary,
+
       prefetchHints: tree.prefetchHints,
     }
   }
@@ -734,8 +721,6 @@ function deprecated_createOptimisticRouteTree(
     varyPath: tree.varyPath,
     isPage: false,
     slots: clonedSlots,
-    isRootLayout: tree.isRootLayout,
-    hasLoadingBoundary: tree.hasLoadingBoundary,
     prefetchHints: tree.prefetchHints,
   }
 }
@@ -1017,8 +1002,6 @@ export function createMetadataRouteTree(
     // one. If this logic ever gets more complex we can change this to an enum.
     isPage: true,
     slots: null,
-    isRootLayout: false,
-    hasLoadingBoundary: HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
     prefetchHints: 0,
   }
   return metadata
@@ -1318,10 +1301,6 @@ function convertTreePrefetchToRouteTree(
     varyPath: varyPath as any,
     isPage: isPage as boolean as any,
     slots,
-    isRootLayout: prefetch.isRootLayout,
-    // This field is only relevant to dynamic routes. For a PPR/static route,
-    // there's always some partial loading state we can fetch.
-    hasLoadingBoundary: HasLoadingBoundary.SegmentHasLoadingBoundary,
     prefetchHints: prefetch.prefetchHints,
   }
 }
@@ -1501,15 +1480,7 @@ function convertFlightRouterStateToRouteTree(
     varyPath: varyPath as any,
     isPage: isPage as boolean as any,
     slots,
-    isRootLayout: flightRouterState[4] === true,
-    hasLoadingBoundary:
-      flightRouterState[5] !== undefined
-        ? flightRouterState[5]
-        : HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
-
-    // Non-static tree responses are only used by apps that haven't adopted
-    // Cache Components. So this is always 0.
-    prefetchHints: 0,
+    prefetchHints: flightRouterState[4] ?? 0,
   }
 }
 
@@ -1529,7 +1500,6 @@ export function convertRouteTreeToFlightRouterState(
     parallelRoutes,
     null,
     null,
-    routeTree.isRootLayout,
   ]
   return flightRouterState
 }
@@ -2042,13 +2012,23 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // Track when the network connection closes.
     const closed = createPromiseWithResolvers<void>()
 
+    let isResponsePartial = false
+    let responseBody = response.body
+    // For runtime prefetches, strip the leading isPartial byte before passing
+    // the stream to Flight.
+    if (fetchStrategy === FetchStrategy.PPRRuntime) {
+      const stripped = await stripIsPartialByte(responseBody)
+      isResponsePartial = stripped.isPartial
+      responseBody = stripped.stream
+    }
+
     let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null = null
     const prefetchStream = createPrefetchResponseStream(
-      response.body,
+      responseBody,
       closed.resolve,
       function onResponseSizeUpdate(totalBytesReceivedSoFar) {
         // When processing a dynamic response, we don't know how large each
-        // individual segment is, so approximate by assiging each segment
+        // individual segment is, so approximate by assigning each segment
         // the average of the total response size.
         if (fulfilledEntries === null) {
           // Haven't received enough data yet to know which segments
@@ -2068,13 +2048,6 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         { allowPartialStream: true }
       )
 
-    const isResponsePartial =
-      fetchStrategy === FetchStrategy.PPRRuntime
-        ? // A runtime prefetch may have holes.
-          serverData.rp?.[0] === true
-        : // Full and LoadingBoundary prefetches cannot have holes.
-          // (even if we did set the prefetch header, we only use this codepath for non-PPR-enabled routes)
-          false
     // Read head vary params synchronously. Individual segments carry their
     // own thenables in CacheNodeSeedData.
     const headVaryParamsThenable = serverData.h
@@ -2083,17 +2056,21 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         ? readVaryParams(headVaryParamsThenable)
         : null
 
+    const now = Date.now()
+    const staleAt = await getStaleAt(now, serverData, response)
+
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
     // in the LRU as more data comes in.
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
-      Date.now(),
+      now,
       task,
       fetchStrategy,
       response as RSCResponse<NavigationFlightResponse>,
       serverData,
       isResponsePartial,
       headVaryParams,
+      staleAt,
       route,
       spawnedEntries
     )
@@ -2196,6 +2173,7 @@ function writeDynamicTreeResponseIntoCache(
     serverData,
     isResponsePartial,
     headVaryParams,
+    getStaleAtFromHeader(now, response),
     fulfilledEntry,
     null
   )
@@ -2227,6 +2205,7 @@ function writeDynamicRenderResponseIntoCache(
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
+  staleAt: number,
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
@@ -2248,17 +2227,6 @@ function writeDynamicRenderResponseIntoCache(
     // TODO: We should cache this, too, so that the MPA navigation is immediate.
     return null
   }
-
-  // For runtime prefetches, stale time is in the payload at rp[1].
-  // For other responses, fall back to the header.
-  const staleTimeSeconds =
-    typeof serverData.rp?.[1] === 'number'
-      ? serverData.rp[1]
-      : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
-  const staleTimeMs = !isNaN(staleTimeSeconds)
-    ? getStaleTimeMs(staleTimeSeconds)
-    : STATIC_STALETIME_MS
-  const staleAt = now + staleTimeMs
 
   for (const flightData of flightDatas) {
     const seedData = flightData.seedData
@@ -2349,7 +2317,7 @@ function writeSeedDataIntoCache(
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
   const isPartial = rsc === null || isResponsePartial
-  const varyParamsThenable = seedData[5]
+  const varyParamsThenable = seedData[4]
   // Each segment carries its own vary params thenable in the seed data. The
   // thenable resolves to the set of params the segment accessed during render.
   // A null thenable means tracking was not enabled (not a prerender).
@@ -2618,5 +2586,110 @@ function addInstantPrefetchHeaderIfLocked(
     if (isNavigationLocked()) {
       headers[NEXT_INSTANT_PREFETCH_HEADER] = '1'
     }
+  }
+}
+
+function getStaleAtFromHeader(
+  now: number,
+  response: RSCResponse<unknown>
+): number {
+  const staleTimeSeconds = parseInt(
+    response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '',
+    10
+  )
+
+  const staleTimeMs = !isNaN(staleTimeSeconds)
+    ? getStaleTimeMs(staleTimeSeconds)
+    : STATIC_STALETIME_MS
+
+  return now + staleTimeMs
+}
+
+async function getStaleAt(
+  now: number,
+  serverData: NavigationFlightResponse,
+  response: RSCResponse<unknown>
+): Promise<number> {
+  if (serverData.s !== undefined) {
+    // Iterate the async iterable and take the last yielded value. The server
+    // yields updated staleTime values during the render; the last one is the
+    // final staleTime.
+    let staleTimeSeconds: number | undefined
+
+    // TODO: Buffer the response and then read the iterable values
+    // synchronously, similar to readVaryParams. This would avoid the need to
+    // make getStaleAt async, and we could also use it in
+    // writeDynamicTreeResponseIntoCache. This will also be needed when React
+    // starts leaving async iterables hanging when the outer RSC stream is
+    // aborted e.g. due to sync I/O (with unstable_allowPartialStream).
+    for await (const value of serverData.s) {
+      staleTimeSeconds = value
+    }
+
+    if (staleTimeSeconds !== undefined) {
+      const staleTimeMs = isNaN(staleTimeSeconds)
+        ? STATIC_STALETIME_MS
+        : getStaleTimeMs(staleTimeSeconds)
+
+      return now + staleTimeMs
+    }
+  }
+
+  return getStaleAtFromHeader(now, response)
+}
+
+/**
+ * Checks for and strips the leading isPartial byte from a runtime prefetch
+ * response stream. If the first byte is a recognized marker ('~' for partial,
+ * '#' for complete), it is stripped and isPartial is set accordingly. If the
+ * first byte is not a recognized marker (e.g. for static responses that were
+ * not generated by the runtime prefetch codepath), the stream is returned
+ * intact with isPartial set to false.
+ *
+ * This is safe because the marker bytes (0x7e '~', 0x23 '#') cannot appear as
+ * the first byte of a valid RSC Flight response. Flight rows start with either
+ * a row ID (a hex character) or ':' (0x3a) for hint and debug chunks. Neither
+ * overlaps with the marker bytes.
+ */
+async function stripIsPartialByte(
+  stream: ReadableStream<Uint8Array>
+): Promise<{ stream: ReadableStream<Uint8Array>; isPartial: boolean }> {
+  const reader = stream.getReader()
+  const { done, value } = await reader.read()
+  if (done || !value || value.byteLength === 0) {
+    return {
+      stream: new ReadableStream({ start: (c) => c.close() }),
+      isPartial: false,
+    }
+  }
+
+  const firstByte = value[0]
+  // '~' (0x7e) = partial, '#' (0x23) = complete
+  const hasMarker = firstByte === 0x7e || firstByte === 0x23
+  const isPartial = firstByte === 0x7e
+
+  const remainder = hasMarker
+    ? value.byteLength > 1
+      ? value.subarray(1)
+      : null
+    : value
+
+  return {
+    isPartial,
+    stream: new ReadableStream<Uint8Array>({
+      start(controller) {
+        if (remainder) {
+          controller.enqueue(remainder)
+        }
+      },
+      async pull(controller) {
+        const result = await reader.read()
+        if (result.done) {
+          controller.close()
+        } else {
+          controller.enqueue(result.value)
+        }
+      },
+    }),
   }
 }

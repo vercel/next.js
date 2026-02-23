@@ -1,54 +1,76 @@
-# -----------------------------------------------------------------------------
+# ============================================
+# Stage 1: Dependencies Installation Stage
+# ============================================
+
 # This Dockerfile.bun is specifically configured for projects using Bun
 # For npm/pnpm or yarn, refer to the Dockerfile instead
-# -----------------------------------------------------------------------------
 
-# Use Bun's official image
-FROM oven/bun:1 AS base
+FROM oven/bun:1 AS dependencies
 
+# Set working directory
 WORKDIR /app
 
-# Install dependencies with bun
-FROM base AS deps
+# Copy package-related files first to leverage Docker's caching mechanism
 COPY package.json bun.lock* ./
-RUN bun install --no-save --frozen-lockfile
 
-# Rebuild the source code only when needed
-FROM base AS builder
+# Install project dependencies with frozen lockfile for reproducible builds
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --no-save --frozen-lockfile
+
+# ============================================
+# Stage 2: Build Next.js application in standalone mode
+# ============================================
+
+FROM oven/bun:1 AS builder
+
+# Set working directory
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+
+# Copy project dependencies from dependencies stage
+COPY --from=dependencies /app/node_modules ./node_modules
+
+# Copy application source code
 COPY . .
+
+ENV NODE_ENV=production
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
+# Build Next.js application
 RUN bun run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# ============================================
+# Stage 3: Run Next.js application
+# ============================================
+
+FROM oven/bun:1 AS runner
+
+# Set working directory
 WORKDIR /app
 
-# Uncomment the following line in case you want to disable telemetry during runtime.
+# Set production environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the run time.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
-ENV NODE_ENV=production \
-    PORT=3000 \
-    HOSTNAME="0.0.0.0"
+# Copy production assets
+COPY --from=builder --chown=bun:bun /app/public ./public
+COPY --from=builder --chown=bun:bun /app/.next/standalone ./
+COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 
-RUN groupadd --system --gid 1001 nodejs && \
-    useradd --system --uid 1001 --no-log-init -g nodejs nextjs
+# Switch to non-root user for security best practices
+USER bun
 
-COPY --from=builder /app/public ./public
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
+# Expose port 3000 to allow HTTP traffic
 EXPOSE 3000
 
-CMD ["bun", "./server.js"]
+# Start Next.js standalone server with Bun
+CMD ["bun", "server.js"]

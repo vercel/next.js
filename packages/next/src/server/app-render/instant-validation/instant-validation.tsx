@@ -9,17 +9,18 @@ import type { VaryParamsThenable } from '../../../shared/lib/segment-cache/vary-
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
-import {
-  runInSequentialTasks,
-  scheduleInSequentialTasks,
-} from '../app-render-render-utils'
+import { runInSequentialTasks } from '../app-render-render-utils'
 import { workAsyncStorage } from '../work-async-storage.external'
 import {
   Phase,
   printDebugThrownValueForProspectiveRender,
 } from '../prospective-render-utils'
 import { getDigestForWellKnownError } from '../create-error-handler'
-import { InstantValidationBoundary } from './boundary'
+import {
+  // NOTE: we're in the server layer, so this is a client reference
+  InstantValidationBoundary,
+} from './boundary'
+import type { ValidationBoundaryTracking } from './boundary-tracking'
 import {
   getLayoutOrPageModule,
   type LoaderTree,
@@ -28,7 +29,7 @@ import { parseLoaderTree } from '../../../shared/lib/router/utils/parse-loader-t
 import type { GetDynamicParamFromSegment } from '../app-render'
 import type {
   AppSegmentConfig,
-  InstantConfig,
+  Instant,
 } from '../../../build/segment-config/app/app-segment-config'
 import { Readable } from 'node:stream'
 import {
@@ -83,8 +84,9 @@ export type RouteTree = {
   module: null | {
     type: 'layout' | 'page'
     // TODO(instant-validation): We should know if a layout segment is shared
-    instantConfig: InstantConfig | null
+    instantConfig: Instant | null
     conventionPath: string
+    createInstantStack: (() => Error) | null
   }
 
   slots: { [parallelRouteKey: string]: RouteTree } | null
@@ -142,10 +144,15 @@ export async function findNavigationsToValidate(
       // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
       const instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
+      const rawFactory: unknown = (layoutOrPageMod as any)
+        .__debugCreateInstantConfigStack
+      const createInstantStack: (() => Error) | null =
+        typeof rawFactory === 'function' ? (rawFactory as () => Error) : null
       moduleInfo = {
         type: modType!,
         instantConfig,
         conventionPath: conventionPath!,
+        createInstantStack,
       }
 
       if (isInsideParallelSlot) {
@@ -170,9 +177,13 @@ export async function findNavigationsToValidate(
             } else {
               const isRootLayout = parentLayoutPath === null
               if (isRootLayout && instantConfig.prefetch === 'runtime') {
-                throw new Error(
-                  `${conventionPath}: \`unstable_instant\` with mode 'runtime' is not supported in root layouts.`
-                )
+                const message = `${conventionPath}: \`unstable_instant\` with mode 'runtime' is not supported in root layouts.`
+                const error =
+                  createInstantStack !== null
+                    ? createInstantStack()
+                    : new Error()
+                error.message = message
+                throw error
               }
 
               const task: ValidationTask = {
@@ -255,8 +266,7 @@ export async function findNavigationsToValidate(
   return {
     tree: routeTree,
     treeNodes,
-    // TODO: do we want to preserve info about which config caused a validation to occur?
-    navigationParents: validationTasks.flatMap((task) => task.parents),
+    validationTasks,
     segmentsWithInstantConfigs,
   }
 }
@@ -680,9 +690,9 @@ export async function createCombinedPayloadStream(
   const debugChunks: Uint8Array[] | null = isDebugChannelEnabled ? [] : null
   const debugChannel = isDebugChannelEnabled ? createDebugChannel() : null
 
-  let streamFinished: Promise<any> = null!
+  let streamFinished: Promise<any>
 
-  await scheduleInSequentialTasks(
+  await runInSequentialTasks(
     () => {
       const stream = renderToReadableStream(
         payload,
@@ -738,7 +748,7 @@ export async function createCombinedPayloadStream(
     }
   )
 
-  await streamFinished
+  await streamFinished!
 
   return {
     stream: createNodeStreamWithLateRelease(
@@ -785,6 +795,7 @@ export async function createCombinedPayload(
    * */
   navigationParent: SegmentPath,
   releaseSignal: AbortSignal,
+  boundaryState: ValidationBoundaryTracking,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
   /** Only used when retrying a failed validation to see what caused a dynamic hole. */
@@ -798,6 +809,7 @@ export async function createCombinedPayload(
     validationRouteTree,
     navigationParent,
     releaseSignal,
+    boundaryState,
     clientReferenceManifest,
     stageEndTimes,
     useRuntimeStageForPartialSegments,
@@ -838,6 +850,7 @@ function createValidationSeedData(
   rootRouteTree: RouteTree,
   navigationParent: SegmentPath,
   releaseSignal: AbortSignal,
+  boundaryState: ValidationBoundaryTracking,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean,
@@ -945,12 +958,17 @@ function createValidationSeedData(
       debug?.(
         `    ['${path}' is in the new subtree, adding validation boundary around it]`
       )
+      const boundaryId = path
+      boundaryState.expectedIds.add(boundaryId)
       segmentData = {
         ...segmentData,
         node: (
           // bundled in the server layer
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-          <InstantValidationBoundary key="c" /* matching `cacheNodeKey` */>
+          <InstantValidationBoundary
+            id={boundaryId}
+            key="c" /* matching `cacheNodeKey` */
+          >
             {segmentData.node}
           </InstantValidationBoundary>
         ),
@@ -1041,23 +1059,14 @@ function deserializeFromChunks<T>(
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
-  prefetchHints: number
   varyParams: VaryParamsThenable | null
 }
 
 function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
-  const [
-    node,
-    _parallelRoutesData,
-    _unused,
-    isPartial,
-    prefetchHints,
-    varyParams,
-  ] = seedData
+  const [node, _parallelRoutesData, _unused, isPartial, varyParams] = seedData
   return {
     node,
     isPartial,
-    prefetchHints,
     varyParams,
   }
 }
@@ -1072,7 +1081,6 @@ function getCacheNodeSeedDataFromSegment(
     slots,
     /* unused (previously `loading`) */ null,
     data.isPartial,
-    data.prefetchHints,
     data.varyParams,
   ]
 }

@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{hash_map, BTreeMap},
+    collections::{BTreeMap, hash_map},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
+        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{SourceMapGenConfig, PURE_SP},
+        source_map::{PURE_SP, SourceMapGenConfig},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, text_writer::JsWriter, Emitter},
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        codegen::{self, Emitter, text_writer::JsWriter},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
-use turbo_rcstr::{rcstr, RcStr};
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::FxIndexMap;
 
@@ -155,7 +155,7 @@ pub fn server_actions<C: Comments>(
     cm: Arc<SourceMap>,
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
     mode: ServerActionsMode,
-) -> impl Pass {
+) -> impl Pass + use<C> {
     visit_mut_pass(ServerActions {
         config,
         mode,
@@ -510,11 +510,11 @@ impl<C: Comments> ServerActions<C> {
 
         // If this is an exported arrow, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(arrow_ident) = &self.arrow_or_fn_expr_ident {
-                self.export_name_by_local_id
-                    .swap_remove(&arrow_ident.to_id());
-            }
+        if self.current_export_name.is_some()
+            && let Some(arrow_ident) = &self.arrow_or_fn_expr_ident
+        {
+            self.export_name_by_local_id
+                .swap_remove(&arrow_ident.to_id());
         }
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
@@ -677,10 +677,10 @@ impl<C: Comments> ServerActions<C> {
 
         // If this is an exported function, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(ref fn_name) = fn_name {
-                self.export_name_by_local_id.swap_remove(&fn_name.to_id());
-            }
+        if self.current_export_name.is_some()
+            && let Some(ref fn_name) = fn_name
+        {
+            self.export_name_by_local_id.swap_remove(&fn_name.to_id());
         }
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -821,11 +821,11 @@ impl<C: Comments> ServerActions<C> {
 
         // If this is an exported arrow, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(arrow_ident) = &self.arrow_or_fn_expr_ident {
-                self.export_name_by_local_id
-                    .swap_remove(&arrow_ident.to_id());
-            }
+        if self.current_export_name.is_some()
+            && let Some(arrow_ident) = &self.arrow_or_fn_expr_ident
+        {
+            self.export_name_by_local_id
+                .swap_remove(&arrow_ident.to_id());
         }
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
@@ -926,10 +926,10 @@ impl<C: Comments> ServerActions<C> {
 
         // If this is an exported function, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(ref fn_name) = fn_name {
-                self.export_name_by_local_id.swap_remove(&fn_name.to_id());
-            }
+        if self.current_export_name.is_some()
+            && let Some(ref fn_name) = fn_name
+        {
+            self.export_name_by_local_id.swap_remove(&fn_name.to_id());
         }
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -1247,10 +1247,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if !self.validate_async_function(f.is_async, f.span, fn_name.as_ref(), &directive) {
                 // If this is an exported function that failed validation, remove it from
                 // export_name_by_local_id so the post-pass doesn't register it.
-                if self.current_export_name.is_some() {
-                    if let Some(fn_name) = fn_name {
-                        self.export_name_by_local_id.swap_remove(&fn_name.to_id());
-                    }
+                if self.current_export_name.is_some()
+                    && let Some(fn_name) = fn_name
+                {
+                    self.export_name_by_local_id.swap_remove(&fn_name.to_id());
                 }
 
                 return;
@@ -1266,39 +1266,38 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // client layers).
             if matches!(self.file_directive, Some(Directive::UseServer))
                 && matches!(directive, Directive::UseServer)
+                && let Some(export_name) = self.current_export_name.clone()
             {
-                if let Some(export_name) = self.current_export_name.clone() {
-                    let params = f.params.clone();
-                    let span = f.span;
+                let params = f.params.clone();
+                let span = f.span;
 
-                    self.register_server_action_export(
-                        &export_name,
-                        fn_name.as_ref(),
-                        Some(&params),
-                        span,
-                        &mut || {
-                            Box::new(Expr::Fn(FnExpr {
-                                ident: fn_name.clone(),
-                                function: Box::new(f.take()),
-                            }))
-                        },
-                    );
+                self.register_server_action_export(
+                    &export_name,
+                    fn_name.as_ref(),
+                    Some(&params),
+                    span,
+                    &mut || {
+                        Box::new(Expr::Fn(FnExpr {
+                            ident: fn_name.clone(),
+                            function: Box::new(f.take()),
+                        }))
+                    },
+                );
 
-                    return;
-                }
+                return;
             }
 
             // For the client layer, register cache exports without hoisting.
             if !self.config.is_react_server_layer {
-                if matches!(directive, Directive::UseCache { .. }) {
-                    if let Some(export_name) = self.current_export_name.clone() {
-                        self.register_cache_export_on_client(
-                            &export_name,
-                            fn_name.as_ref(),
-                            Some(&f.params),
-                            f.span,
-                        );
-                    }
+                if matches!(directive, Directive::UseCache { .. })
+                    && let Some(export_name) = self.current_export_name.clone()
+                {
+                    self.register_cache_export_on_client(
+                        &export_name,
+                        fn_name.as_ref(),
+                        Some(&f.params),
+                        f.span,
+                    );
                 }
 
                 return;
@@ -1399,10 +1398,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
         let old_current_export_name = self.current_export_name.take();
-        if self.in_module_level {
-            if let Some(export_name) = self.export_name_by_local_id.get(&f.ident.to_id()) {
-                self.current_export_name = Some(export_name.clone());
-            }
+        if self.in_module_level
+            && let Some(export_name) = self.export_name_by_local_id.get(&f.ident.to_id())
+        {
+            self.current_export_name = Some(export_name.clone());
         }
         let old_fn_decl_ident = self.fn_decl_ident.replace(f.ident.clone());
         f.visit_mut_children_with(self);
@@ -1460,11 +1459,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if !self.validate_async_function(a.is_async, a.span, arrow_ident.as_ref(), &directive) {
                 // If this is an exported arrow function that failed validation, remove it from
                 // export_name_by_local_id so the post-pass doesn't register it.
-                if self.current_export_name.is_some() {
-                    if let Some(arrow_ident) = arrow_ident {
-                        self.export_name_by_local_id
-                            .swap_remove(&arrow_ident.to_id());
-                    }
+                if self.current_export_name.is_some()
+                    && let Some(arrow_ident) = arrow_ident
+                {
+                    self.export_name_by_local_id
+                        .swap_remove(&arrow_ident.to_id());
                 }
 
                 return;
@@ -1480,37 +1479,35 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // client layers).
             if matches!(self.file_directive, Some(Directive::UseServer))
                 && matches!(directive, Directive::UseServer)
+                && let Some(export_name) = self.current_export_name.clone()
             {
-                if let Some(export_name) = self.current_export_name.clone() {
-                    let params: Vec<Param> =
-                        a.params.iter().map(|p| Param::from(p.clone())).collect();
+                let params: Vec<Param> = a.params.iter().map(|p| Param::from(p.clone())).collect();
 
-                    self.register_server_action_export(
-                        &export_name,
-                        arrow_ident.as_ref(),
-                        Some(&params),
-                        a.span,
-                        &mut || Box::new(Expr::Arrow(a.take())),
-                    );
+                self.register_server_action_export(
+                    &export_name,
+                    arrow_ident.as_ref(),
+                    Some(&params),
+                    a.span,
+                    &mut || Box::new(Expr::Arrow(a.take())),
+                );
 
-                    return;
-                }
+                return;
             }
 
             // For the client layer, register cache exports without hoisting.
             if !self.config.is_react_server_layer {
-                if matches!(directive, Directive::UseCache { .. }) {
-                    if let Some(export_name) = self.current_export_name.clone() {
-                        let params: Vec<Param> =
-                            a.params.iter().map(|p| Param::from(p.clone())).collect();
+                if matches!(directive, Directive::UseCache { .. })
+                    && let Some(export_name) = self.current_export_name.clone()
+                {
+                    let params: Vec<Param> =
+                        a.params.iter().map(|p| Param::from(p.clone())).collect();
 
-                        self.register_cache_export_on_client(
-                            &export_name,
-                            arrow_ident.as_ref(),
-                            Some(&params),
-                            a.span,
-                        );
-                    }
+                    self.register_cache_export_on_client(
+                        &export_name,
+                        arrow_ident.as_ref(),
+                        Some(&params),
+                        a.span,
+                    );
                 }
 
                 return;
@@ -1604,14 +1601,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             _ => {}
         }
 
-        if !self.in_module_level && self.should_track_names {
-            if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
-                self.names.push(Name::from(&*i));
-                self.should_track_names = false;
-                n.visit_mut_children_with(self);
-                self.should_track_names = true;
-                return;
-            }
+        if !self.in_module_level
+            && self.should_track_names
+            && let PropOrSpread::Prop(box Prop::Shorthand(i)) = n
+        {
+            self.names.push(Name::from(&*i));
+            self.should_track_names = false;
+            n.visit_mut_children_with(self);
+            self.should_track_names = true;
+            return;
         }
 
         n.visit_mut_children_with(self);
@@ -1688,17 +1686,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
-        if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee {
-            if sym == "jsxDEV" || sym == "_jsxDEV" {
-                // Do not visit the 6th arg in a generated jsxDEV call, which is a `this`
-                // expression, to avoid emitting an error for using `this` if it's
-                // inside of a server function. https://github.com/facebook/react/blob/9106107/packages/react/src/jsx/ReactJSXElement.js#L429
-                if n.args.len() > 4 {
-                    for arg in &mut n.args[0..4] {
-                        arg.visit_mut_with(self);
-                    }
-                    return;
+        if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee
+            && (sym == "jsxDEV" || sym == "_jsxDEV")
+        {
+            // Do not visit the 6th arg in a generated jsxDEV call, which is a `this`
+            // expression, to avoid emitting an error for using `this` if it's
+            // inside of a server function. https://github.com/facebook/react/blob/9106107/packages/react/src/jsx/ReactJSXElement.js#L429
+            if n.args.len() > 4 {
+                for arg in &mut n.args[0..4] {
+                    arg.visit_mut_with(self);
                 }
+                return;
             }
         }
 
@@ -1714,22 +1712,23 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_expr(&mut self, n: &mut Expr) {
-        if !self.in_module_level && self.should_track_names {
-            if let Ok(mut name) = Name::try_from(&*n) {
-                if self.in_callee {
-                    // This is a callee i.e. `foo.bar()`,
-                    // we need to track the actual value instead of the method name.
-                    if !name.1.is_empty() {
-                        name.1.pop();
-                    }
+        if !self.in_module_level
+            && self.should_track_names
+            && let Ok(mut name) = Name::try_from(&*n)
+        {
+            if self.in_callee {
+                // This is a callee i.e. `foo.bar()`,
+                // we need to track the actual value instead of the method name.
+                if !name.1.is_empty() {
+                    name.1.pop();
                 }
-
-                self.names.push(name);
-                self.should_track_names = false;
-                n.visit_mut_children_with(self);
-                self.should_track_names = true;
-                return;
             }
+
+            self.names.push(name);
+            self.should_track_names = false;
+            n.visit_mut_children_with(self);
+            self.should_track_names = true;
+            return;
         }
 
         self.rewrite_expr_to_proxy_expr = None;
@@ -1766,13 +1765,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(export_default_decl)) => {
                         // export default function foo() {}
-                        if let DefaultDecl::Fn(f) = &export_default_decl.decl {
-                            if let Some(ident) = &f.ident {
-                                self.export_name_by_local_id.insert(
-                                    ident.to_id(),
-                                    ModuleExportName::Ident(atom!("default").into()),
-                                );
-                            }
+                        if let DefaultDecl::Fn(f) = &export_default_decl.decl
+                            && let Some(ident) = &f.ident
+                        {
+                            self.export_name_by_local_id.insert(
+                                ident.to_id(),
+                                ModuleExportName::Ident(atom!("default").into()),
+                            );
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
@@ -1853,13 +1852,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
                         // Track which declarations need cache runtime wrappers if exported.
                         for decl in &var_decl.decls {
-                            if let Pat::Ident(ident_pat) = &decl.name {
-                                if let Some(init) = &decl.init {
-                                    if may_need_cache_runtime_wrapper(init) {
-                                        self.local_ids_that_need_cache_runtime_wrapper_if_exported
-                                            .insert(ident_pat.id.to_id());
-                                    }
-                                }
+                            if let Pat::Ident(ident_pat) = &decl.name
+                                && let Some(init) = &decl.init
+                                && may_need_cache_runtime_wrapper(init)
+                            {
+                                self.local_ids_that_need_cache_runtime_wrapper_if_exported
+                                    .insert(ident_pat.id.to_id());
                             }
                         }
                     }
@@ -1910,17 +1908,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let mut has_export_needing_wrapper = false;
 
                                 for decl in &var.decls {
-                                    if let Pat::Ident(_) = &decl.name {
-                                        if let Some(init) = &decl.init {
-                                            // Disallow exporting literals. Admittedly, this is
-                                            // pretty arbitrary. We don't disallow exporting object
-                                            // and array literals, as that would be too restrictive,
-                                            // especially for page and layout files with
-                                            // 'use cache', that may want to export metadata or
-                                            // viewport objects.
-                                            if let Expr::Lit(_) = &**init {
-                                                disallowed_export_span = *span;
-                                            }
+                                    if let Pat::Ident(_) = &decl.name
+                                        && let Some(init) = &decl.init
+                                    {
+                                        // Disallow exporting literals. Admittedly, this is
+                                        // pretty arbitrary. We don't disallow exporting object
+                                        // and array literals, as that would be too restrictive,
+                                        // especially for page and layout files with
+                                        // 'use cache', that may want to export metadata or
+                                        // viewport objects.
+                                        if let Expr::Lit(_) = &**init {
+                                            disallowed_export_span = *span;
                                         }
                                     }
 
@@ -2857,10 +2855,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
             (&var_declarator.name, &var_declarator.init)
         {
-            if self.in_module_level {
-                if let Some(export_name) = self.export_name_by_local_id.get(&ident.to_id()) {
-                    self.current_export_name = Some(export_name.clone());
-                }
+            if self.in_module_level
+                && let Some(export_name) = self.export_name_by_local_id.get(&ident.to_id())
+            {
+                self.current_export_name = Some(export_name.clone());
             }
 
             self.arrow_or_fn_expr_ident = Some(ident.id.clone());
@@ -2908,14 +2906,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_ident(&mut self, n: &mut Ident) {
-        if n.sym == *"arguments" {
-            if let ThisStatus::Forbidden { directive } = &self.this_status {
-                emit_error(ServerActionsErrorKind::ForbiddenExpression {
-                    span: n.span,
-                    expr: "arguments".into(),
-                    directive: directive.clone(),
-                });
-            }
+        if n.sym == *"arguments"
+            && let ThisStatus::Forbidden { directive } = &self.this_status
+        {
+            emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                span: n.span,
+                expr: "arguments".into(),
+                directive: directive.clone(),
+            });
         }
     }
 
