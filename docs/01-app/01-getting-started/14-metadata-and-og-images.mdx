@@ -73,16 +73,11 @@ You can use [`generateMetadata`](/docs/app/api-reference/functions/generate-meta
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 import type { Metadata, ResolvingMetadata } from 'next'
 
-type Props = {
-  params: Promise<{ slug: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}
-
 export async function generateMetadata(
-  { params, searchParams }: Props,
+  { params, searchParams }: PageProps<'blog/[slug]'>,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const slug = (await params).slug
+  const { slug } = await params
 
   // fetch post information
   const post = await fetch(`https://api.vercel.app/blog/${slug}`).then((res) =>
@@ -95,7 +90,7 @@ export async function generateMetadata(
   }
 }
 
-export default function Page({ params, searchParams }: Props) {}
+export default function Page({ params, searchParams }: PageProps<'blog/[slug]'>) {}
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
