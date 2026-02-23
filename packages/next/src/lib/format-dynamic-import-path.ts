@@ -1,5 +1,5 @@
 import path from 'path'
-import { pathToFileURL } from 'url'
+import { pathToFileURL, fileURLToPath } from 'url'
 
 /**
  * The path for a dynamic route must be URLs with a valid scheme.
@@ -7,12 +7,18 @@ import { pathToFileURL } from 'url'
  * When an absolute Windows path is passed to it, it interprets the beginning of the path as a protocol (`C:`).
  * Therefore, it is important to always construct a complete path.
  * @param dir File directory
- * @param filePath Absolute or relative path
+ * @param filePath Absolute or relative path, or file:// URL (e.g. from import.meta.resolve)
  */
 export const formatDynamicImportPath = (dir: string, filePath: string) => {
-  const absoluteFilePath = path.isAbsolute(filePath)
-    ? filePath
-    : path.join(dir, filePath)
+  // Convert file:// URL to filesystem path (e.g. from import.meta.resolve in ESM)
+  let resolvedFilePath = filePath
+  if (filePath.startsWith('file://')) {
+    resolvedFilePath = fileURLToPath(filePath)
+  }
+
+  const absoluteFilePath = path.isAbsolute(resolvedFilePath)
+    ? resolvedFilePath
+    : path.join(dir, resolvedFilePath)
   const formattedFilePath = pathToFileURL(absoluteFilePath).toString()
 
   return formattedFilePath
