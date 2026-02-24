@@ -1,11 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { NextInstanceOpts } from '../../lib/next-modes/base'
 
 describe('React Profiling Mode', () => {
-  describe('without config enabled', () => {
+  describe('default is disabled', () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      env: { TEST_REACT_PRODUCTION_PROFILING: 'false' },
     })
 
     it('should not have used the react-dom profiling bundle', async () => {
@@ -16,10 +16,21 @@ describe('React Profiling Mode', () => {
     })
   })
 
-  describe('with config enabled', () => {
+  describe.each([
+    {
+      name: 'config setting',
+      opts: {
+        env: { TEST_REACT_PRODUCTION_PROFILING: 'true' },
+      } satisfies Partial<NextInstanceOpts>,
+    },
+    {
+      name: 'CLI flag',
+      opts: { buildArgs: ['--profile'] } satisfies Partial<NextInstanceOpts>,
+    },
+  ])('enabled with $name', ({ opts }) => {
     const { next } = nextTestSetup({
       files: __dirname,
-      env: { TEST_REACT_PRODUCTION_PROFILING: 'true' },
+      ...opts,
     })
 
     it('should have used the react-dom profiling bundle for pages', async () => {
