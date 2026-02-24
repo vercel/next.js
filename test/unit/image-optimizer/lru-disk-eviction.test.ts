@@ -44,7 +44,11 @@ async function initEntries(
 }
 
 async function rmEntry(cacheDir: string, cacheKey: string): Promise<void> {
-  await promises.rm(join(cacheDir, cacheKey), { recursive: true, force: true })
+  await promises.rm(join(cacheDir, cacheKey), {
+    recursive: true,
+    force: true,
+    maxRetries: 3,
+  })
 }
 
 describe('LRU disk eviction', () => {
