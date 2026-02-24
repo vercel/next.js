@@ -44,3 +44,18 @@ index 977a4b3622b9eaac27689f06347ea4c5173a96cd..88b2d0fcfa03c3aafa47c7e6d38e6441
  
          cntr--;
        }
+diff --git a/lib/http-proxy/passes/web-incoming.js b/lib/http-proxy/passes/web-incoming.js
+index 7ae735514190eea569c605fff7d27c045fe8d601..41b419c2d881da4f106dbf2eab61d0c13cd17b5f 100644
+--- a/lib/http-proxy/passes/web-incoming.js
++++ b/lib/http-proxy/passes/web-incoming.js
+@@ -33,8 +33,8 @@ module.exports = {
+ 
+   deleteLength: function deleteLength(req, res, options) {
+     if((req.method === 'DELETE' || req.method === 'OPTIONS')
+-       && !req.headers['content-length']) {
++       && !req.headers['content-length']
++       && !req.headers['transfer-encoding']) {
+       req.headers['content-length'] = '0';
+-      delete req.headers['transfer-encoding'];
+     }
+   },
