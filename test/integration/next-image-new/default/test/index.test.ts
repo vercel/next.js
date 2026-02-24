@@ -29,17 +29,15 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-async function hasImageMatchingUrl(browser, url) {
-  const links = await browser.elementsByCss('img')
-  let foundMatch = false
-  for (const link of links) {
-    const src = await link.getAttribute('src')
-    if (new URL(src, `http://localhost:${appPort}`).toString() === url) {
-      foundMatch = true
-      break
-    }
-  }
-  return foundMatch
+async function getImageUrls(browser) {
+  return await Promise.all(
+    (await browser.elementsByCss('img')).map(async (link) =>
+      new URL(
+        await link.getAttribute('src'),
+        `http://localhost:${appPort}`
+      ).toString()
+    )
+  )
 }
 
 async function getComputed(browser, id, prop) {
@@ -93,12 +91,9 @@ function runTests(mode) {
         return 'result-correct'
       }, /result-correct/)
 
-      expect(
-        await hasImageMatchingUrl(
-          browser,
-          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
-        )
-      ).toBe(true)
+      expect(await getImageUrls(browser)).toContain(
+        `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
+      )
     } finally {
       if (browser) {
         await browser.close()

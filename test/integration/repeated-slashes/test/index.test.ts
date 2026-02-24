@@ -411,24 +411,11 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 }
 
 describe('404 handling', () => {
-  let nextOpts = {}
-  beforeAll(async () => {
-    const hasLocalNext = fs.existsSync(join(appDir, 'node_modules/next'))
-
-    if (hasLocalNext) {
-      nextOpts = {
-        nextBin: join(appDir, 'node_modules/next/dist/bin/next'),
-        cwd: appDir,
-      }
-      console.log('Using next options', nextOpts)
-    }
-  })
-
   const devStartAndExport = (isPages404) => {
     describe('next dev', () => {
       beforeAll(async () => {
         appPort = await findPort()
-        app = await launchApp(appDir, appPort, nextOpts)
+        app = await launchApp(appDir, appPort)
 
         // prebuild pages
         await renderViaHTTP(appPort, '/')
@@ -446,21 +433,19 @@ describe('404 handling', () => {
       () => {
         describe('next start', () => {
           beforeAll(async () => {
-            await nextBuild(appDir, [], nextOpts)
+            await nextBuild(appDir)
             appPort = await findPort()
-            app = await nextStart(appDir, appPort, nextOpts)
+            app = await nextStart(appDir, appPort)
           })
           afterAll(() => killApp(app))
-
           runTests({
             isPages404,
           })
         })
-
         describe('next export', () => {
           beforeAll(async () => {
             nextConfig.write(`module.exports = { output: 'export' }`)
-            await nextBuild(appDir, [], nextOpts)
+            await nextBuild(appDir)
             app = await startStaticServer(outdir, join(outdir, '404.html'))
             appPort = app.address().port
           })
@@ -468,7 +453,6 @@ describe('404 handling', () => {
             await stopApp(app)
             nextConfig.restore()
           })
-
           runTests({
             isPages404,
             isExport: true,
@@ -483,17 +467,14 @@ describe('404 handling', () => {
   })
 
   describe('pages/404', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        const pagesErr = join(appDir, 'pages/_error.js')
-        const pages404 = join(appDir, 'pages/404.js')
+    const pagesErr = join(appDir, 'pages/_error.js')
+    const pages404 = join(appDir, 'pages/404.js')
 
-        beforeAll(async () => {
-          await fs.move(pagesErr, pagesErr + '.bak')
-          await fs.writeFile(
-            pages404,
-            `
+    beforeAll(async () => {
+      await fs.move(pagesErr, pagesErr + '.bak')
+      await fs.writeFile(
+        pages404,
+        `
           if (typeof window !== 'undefined') {
             window.errorLoad = true
           }
@@ -501,16 +482,13 @@ describe('404 handling', () => {
             return <p id='error'>custom 404</p>
           }
         `
-          )
-          await nextBuild(appDir, [], nextOpts)
-        })
-        afterAll(async () => {
-          await fs.move(pagesErr + '.bak', pagesErr)
-          await fs.remove(pages404)
-        })
+      )
+    })
+    afterAll(async () => {
+      await fs.move(pagesErr + '.bak', pagesErr)
+      await fs.remove(pages404)
+    })
 
-        devStartAndExport(true)
-      }
-    )
+    devStartAndExport(true)
   })
 })
