@@ -48,6 +48,7 @@ async function rmEntry(cacheDir: string, cacheKey: string): Promise<void> {
     recursive: true,
     force: true,
     maxRetries: 3,
+    retryDelay: 500,
   })
 }
 
@@ -61,7 +62,12 @@ describe('LRU disk eviction', () => {
 
   afterEach(async () => {
     resetDiskLRU()
-    await promises.rm(cacheDir, { recursive: true, force: true })
+    await promises.rm(cacheDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 500,
+    })
   })
 
   it('should evict oldest entries on initialization', async () => {
