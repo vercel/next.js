@@ -237,7 +237,7 @@ function generateImgAttrs({
       const srcDpl = srcUrl.searchParams.get('dpl')
       if (!srcDpl && deploymentId) {
         // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
-        srcUrl.searchParams.append('dpl', deploymentId)
+        srcUrl.searchParams.set('dpl', deploymentId)
         src = srcUrl.href.slice('http://n'.length)
       }
     }
