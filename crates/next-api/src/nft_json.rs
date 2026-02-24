@@ -7,6 +7,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit},
+    turbobail, turbofmt,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, File, FileContent, FileSystem, FileSystemPath,
@@ -286,11 +287,10 @@ impl Asset for NftJsonAsset {
                             &*current_path.get_type().await?,
                             FileSystemEntryType::Symlink
                         ) {
-                            bail!(
-                                "Encountered file inside of symlink in NFT list: {} is a symlink, \
-                                 but {} was created inside of it",
-                                current_path.value_to_string().await?,
-                                referenced_chunk_path.value_to_string().await?
+                            turbobail!(
+                                "Encountered file inside of symlink in NFT list: {current_path} \
+                                 is a symlink, but {referenced_chunk_path} was created inside of \
+                                 it"
                             );
                         }
 
@@ -307,12 +307,14 @@ impl Asset for NftJsonAsset {
                 ) {
                     Ok(specifier) => specifier,
                     Err(err) => {
-                        return Err(err.context(format!(
-                            "NftJsonAsset: cannot handle filepath '{chunk_path}' for \
-                             {referenced_chunk:?} it is not under the output_root: \
-                             '{output_root_ref}' or the project_root: '{project_root_ref}'",
-                            chunk_path = referenced_chunk_path.value_to_string().await?
-                        )));
+                        return Err(err.context(
+                            turbofmt!(
+                                "NftJsonAsset: cannot handle filepath '{referenced_chunk_path}' \
+                                 for {referenced_chunk:?} it is not under the output_root: \
+                                 '{output_root_ref}' or the project_root: '{project_root_ref}'",
+                            )
+                            .await?,
+                        ));
                     }
                 };
 

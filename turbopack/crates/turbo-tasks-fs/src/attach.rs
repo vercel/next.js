@@ -1,6 +1,6 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 
 use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
@@ -57,10 +57,7 @@ impl AttachedFileSystem {
             fs if fs == this.child_fs => {
                 Ok(self.child_path().await?.join(&contained_path.path)?.cell())
             }
-            _ => bail!(
-                "path {} not part of self, the root fs or the child fs",
-                contained_path.value_to_string().await?
-            ),
+            _ => turbobail!("path {contained_path} not part of self, the root fs or the child fs"),
         }
     }
 
@@ -82,12 +79,9 @@ impl AttachedFileSystem {
         let self_fs: ResolvedVc<Box<dyn FileSystem>> = ResolvedVc::upcast(self);
 
         if path.fs != self_fs {
-            let self_fs_str = self_fs.to_string().await?;
-            let path_fs_str = path.fs.to_string().await?;
-            bail!(
-                "path fs does not match (expected {}, got {})",
-                self_fs_str,
-                path_fs_str
+            turbobail!(
+                "path fs does not match (expected {self_fs}, got {})",
+                path.fs
             )
         }
 

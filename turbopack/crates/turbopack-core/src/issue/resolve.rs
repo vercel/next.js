@@ -101,7 +101,7 @@ impl Issue for ResolvingIssue {
         writeln!(
             detail,
             "Path where resolving has started: {context}",
-            context = self.file_path.value_to_string().await?
+            context = self.file_path
         )?;
         writeln!(
             detail,
