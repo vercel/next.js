@@ -364,6 +364,7 @@ async function createComponentTreeInternal(
         case 'prerender-runtime':
         case 'prerender-legacy':
         case 'prerender-ppr':
+        case 'validation-client':
         case 'request':
           // Set stale time for static prerendering and dynamic requests
           // Used to set the x-nextjs-stale-time header
