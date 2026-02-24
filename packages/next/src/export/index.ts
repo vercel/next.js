@@ -477,7 +477,6 @@ async function exportAppImpl(
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
-    dev: false,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
     trailingSlash: nextConfig.trailingSlash,
@@ -516,14 +515,6 @@ async function exportAppImpl(
       ),
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
-    hasReadableErrorStacks:
-      nextConfig.experimental.serverSourceMaps === true &&
-      // TODO(NDX-531): Checking (and setting) the minify flags should be
-      // unnecessary once name mapping is fixed.
-      (process.env.TURBOPACK
-        ? nextConfig.experimental.turbopackMinify === false
-        : nextConfig.experimental.serverMinification === false) &&
-      nextConfig.enablePrerenderSourceMaps === true,
   }
 
   // We need this for server rendering the Link component.
@@ -1006,7 +997,7 @@ async function exportAppImpl(
   if (failedExportAttemptsByPage.size > 0) {
     const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${failedPages
+      `Export encountered errors on ${failedPages.length} ${failedPages.length === 1 ? 'path' : 'paths'}:\n\t${failedPages
         .sort()
         .join('\n\t')}`
     )

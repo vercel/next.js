@@ -16,7 +16,7 @@ use std::{
 use bincode::{Decode, Encode};
 use turbo_tasks::{
     CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
-    TypedSharedReference, backend::CachedTaskType,
+    TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
 };
 
 use crate::{
@@ -93,6 +93,7 @@ pub trait ExecuteContext<'e>: Sized {
     fn suspending_requested(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
+    fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -636,6 +637,10 @@ where
 
     fn should_track_activeness(&self) -> bool {
         self.backend.should_track_activeness()
+    }
+
+    fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi> {
+        self.turbo_tasks.pin()
     }
 }
 

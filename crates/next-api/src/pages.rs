@@ -75,11 +75,12 @@ use crate::{
     module_graph::{NextDynamicGraphs, validate_pages_css_imports},
     nft_json::NftJsonAsset,
     paths::{
-        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
+        all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
+    sri_manifest::get_sri_manifest_asset,
     webpack_stats::generate_webpack_stats,
 };
 
@@ -1601,26 +1602,32 @@ impl Endpoint for PageEndpoint {
             }
         };
         async move {
-            let output = self.output().await?;
-            let output_assets = self.output().output_assets();
+            let output = self.output();
+            let project = this.pages_project.project();
+            let node_root = project.node_root().owned().await?;
+            let client_relative_root = project.client_relative_path().owned().await?;
 
-            let node_root = this.pages_project.project().node_root().owned().await?;
-
-            let (server_paths, client_paths) = if this
-                .pages_project
-                .project()
-                .next_mode()
-                .await?
-                .is_development()
+            let output_assets = output.output_assets();
+            let output_assets = if let Some(sri) =
+                &*project.next_config().experimental_sri().await?
+                && let Some(algorithm) = sri.algorithm.clone()
             {
-                let server_paths = all_server_paths(output_assets, node_root.clone())
-                    .owned()
-                    .await?;
+                let sri_manifest = get_sri_manifest_asset(
+                    node_root.join(&format!(
+                        "server/pages{}/subresource-integrity-manifest.json",
+                        get_asset_prefix_from_pathname(&this.pathname)
+                    ))?,
+                    output_assets,
+                    client_relative_root.clone(),
+                    algorithm,
+                );
+                output_assets.concat_asset(sri_manifest)
+            } else {
+                output_assets
+            };
 
-                let client_relative_root = this
-                    .pages_project
-                    .project()
-                    .client_relative_path()
+            let (server_paths, client_paths) = if project.next_mode().await?.is_development() {
+                let server_paths = all_asset_paths(output_assets, node_root.clone(), None)
                     .owned()
                     .await?;
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
@@ -1631,8 +1638,7 @@ impl Endpoint for PageEndpoint {
                 (vec![], vec![])
             };
 
-            let node_root = node_root.clone();
-            let written_endpoint = match *output {
+            let written_endpoint = match *output.await? {
                 PageEndpointOutput::NodeJs { entry_chunk, .. } => {
                     // Only set server_entry_path if pages should be created
                     let pages_structure = this.pages_structure.await?;
@@ -1661,7 +1667,7 @@ impl Endpoint for PageEndpoint {
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
-                    project: this.pages_project.project().to_resolved().await?,
+                    project: project.to_resolved().await?,
                 }
                 .cell(),
             )
@@ -1733,6 +1739,11 @@ impl Endpoint for PageEndpoint {
         } else {
             vec![ssr_module_graph]
         }))
+    }
+
+    #[turbo_tasks::function]
+    async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
+        Ok(self.await?.pages_project.project())
     }
 }
 

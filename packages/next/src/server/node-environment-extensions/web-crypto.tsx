@@ -7,7 +7,7 @@
  * The extensions here never error nor alter the underlying return values and thus should be transparent to callers.
  */
 
-import { io } from './utils'
+import { io } from './io-utils'
 
 let webCrypto: typeof crypto
 if (process.env.NEXT_RUNTIME === 'edge') {

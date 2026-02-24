@@ -3,7 +3,7 @@ import type {
   Segment as FlightRouterStateSegment,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import { HasLoadingBoundary } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
@@ -44,6 +44,7 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
+import { cleanup } from './lru'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -237,7 +238,7 @@ export function startRevalidationCooldown(): void {
   revalidationCooldownTimeoutHandle = setTimeout(() => {
     revalidationCooldownTimeoutHandle = null
     // Retry the prefetch queue now that the cooldown has expired.
-    ensureWorkIsScheduled()
+    pingPrefetchScheduler()
   }, REVALIDATION_COOLDOWN_MS)
 }
 
@@ -295,7 +296,7 @@ export function schedulePrefetchTask(
   // By deferring to a microtask, we only process the queue once per JS task.
   // If they have different priorities, it also ensures they are processed in
   // the optimal order.
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 
   return task
 }
@@ -358,7 +359,7 @@ export function reschedulePrefetchTask(
   } else {
     heapPush(taskHeap, task)
   }
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 export function isPrefetchTaskDirty(
@@ -397,7 +398,7 @@ function trackMostRecentlyHoveredLink(task: PrefetchTask) {
   }
 }
 
-function ensureWorkIsScheduled() {
+export function pingPrefetchScheduler() {
   if (didScheduleMicrotask) {
     // Already scheduled a task to process the queue
     return
@@ -478,7 +479,7 @@ function onPrefetchConnectionClosed(): void {
 
   // Notify the scheduler that we have more bandwidth, and can continue
   // processing tasks.
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 /**
@@ -498,7 +499,7 @@ export function pingPrefetchTask(task: PrefetchTask) {
   }
   // Add the task back to the queue.
   heapPush(taskHeap, task)
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 function processQueueInMicrotask() {
@@ -562,6 +563,14 @@ function processQueueInMicrotask() {
       default:
         exitStatus satisfies never
     }
+  }
+
+  // Run LRU cleanup only when the scheduler is fully idle: no queued tasks and
+  // no in-progress requests. At that point, all active prefetch tasks have
+  // finished reading from the cache (moving recently used entries to the front
+  // of the list), so only genuinely stale data gets evicted.
+  if (task === null && inProgressRequests === 0) {
+    cleanup()
   }
 }
 
@@ -701,12 +710,28 @@ function pingRootRouteTree(
       // If it turned out that the route isn't PPR-enabled, we need to use `LoadingBoundary` instead.
       // We don't need to do this for runtime prefetches, because those are only available in
       // `cacheComponents`, where every route is PPR.
-      const fetchStrategy =
-        task.fetchStrategy === FetchStrategy.PPR
-          ? route.isPPREnabled
-            ? FetchStrategy.PPR
-            : FetchStrategy.LoadingBoundary
-          : task.fetchStrategy
+      let fetchStrategy: FetchStrategy
+      if (tree.prefetchHints & PrefetchHint.SubtreeHasInstant) {
+        // If `instant` is defined anywhere on the target route, ignore the
+        // fetch strategy and switch to unified strategy used by Cache
+        // Components (called `PPR` for now, will likely be renamed).
+        //
+        // In practice, this just means that a "full" prefetch (<Link
+        // prefetch={true}>) has no effect. You're meant to use Runtime
+        // Prefetching instead — that's the new pattern that replaces
+        // prefetch={true}.
+        //
+        // The reason we check for `instant` rather than the `cacheComponents`
+        // flag is to support incremental adoption. `prefetch={true}` will
+        // continue to work until you opt into `instant`.
+        fetchStrategy = FetchStrategy.PPR
+      } else if (task.fetchStrategy === FetchStrategy.PPR) {
+        fetchStrategy = route.isPPREnabled
+          ? FetchStrategy.PPR
+          : FetchStrategy.LoadingBoundary
+      } else {
+        fetchStrategy = task.fetchStrategy
+      }
 
       switch (fetchStrategy) {
         case FetchStrategy.PPR: {
@@ -953,7 +978,7 @@ function pingNewPartOfCacheComponentsTree(
   // shared layouts.) Segments in here default to being prefetched statically.
   // However, if the server instructs us to, we may switch to a runtime
   // prefetch instead. Traverse the tree and check at each segment.
-  if (tree.hasRuntimePrefetch) {
+  if (tree.prefetchHints & PrefetchHint.HasRuntimePrefetch) {
     // This route has a runtime prefetch response. Since we're below the shared
     // layout, everything from this point should be prefetched using a single,
     // combined runtime request, rather than using per-segment static requests.
@@ -1079,8 +1104,10 @@ function diffRouteTreeAgainstCurrent(
             // anywhere in the tree, the server will never return any data, so
             // we can skip the request.
             const subtreeHasLoadingBoundary =
-              newTreeChild.hasLoadingBoundary !==
-              HasLoadingBoundary.SubtreeHasNoLoadingBoundary
+              (newTreeChild.prefetchHints &
+                (PrefetchHint.SegmentHasLoadingBoundary |
+                  PrefetchHint.SubtreeHasLoadingBoundary)) !==
+              0
             const requestTreeChild = subtreeHasLoadingBoundary
               ? pingPPRDisabledRouteTreeUpToLoadingBoundary(
                   now,
@@ -1151,7 +1178,6 @@ function diffRouteTreeAgainstCurrent(
     requestTreeChildren,
     null,
     null,
-    newTree.isRootLayout,
   ]
   return requestTree
 }
@@ -1211,7 +1237,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     case EntryStatus.Fulfilled: {
       // The segment is already cached.
       const segmentHasLoadingBoundary =
-        tree.hasLoadingBoundary === HasLoadingBoundary.SegmentHasLoadingBoundary
+        (tree.prefetchHints & PrefetchHint.SegmentHasLoadingBoundary) !== 0
       if (segmentHasLoadingBoundary) {
         // This segment has a loading boundary, which means the server won't
         // render its children. So there's nothing left to prefetch along this
@@ -1259,7 +1285,6 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     requestTreeChildren,
     null,
     refetchMarker,
-    tree.isRootLayout,
   ]
   return requestTree
 }
@@ -1379,7 +1404,6 @@ function pingRouteTreeAndIncludeDynamicData(
     requestTreeChildren,
     null,
     refetchMarker,
-    tree.isRootLayout,
   ]
   return requestTree
 }

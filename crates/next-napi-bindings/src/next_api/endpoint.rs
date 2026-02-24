@@ -6,15 +6,18 @@ use napi::{JsFunction, bindgen_prelude::External};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
-    paths::ServerPath,
+    paths::AssetPath,
     route::{
-        EndpointOutputPaths, endpoint_client_changed_operation, endpoint_server_changed_operation,
-        endpoint_write_to_disk_operation,
+        Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
+        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
-use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
+use turbopack_core::{
+    diagnostics::PlainDiagnostic,
+    issue::{IssueFilter, PlainIssue},
+};
 
 use crate::next_api::utils::{
     DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
@@ -27,16 +30,16 @@ pub struct NapiEndpointConfig {}
 
 #[napi(object)]
 #[derive(Default)]
-pub struct NapiServerPath {
+pub struct NapiAssetPath {
     pub path: String,
     pub content_hash: String,
 }
 
-impl From<ServerPath> for NapiServerPath {
-    fn from(server_path: ServerPath) -> Self {
+impl From<AssetPath> for NapiAssetPath {
+    fn from(asset_path: AssetPath) -> Self {
         Self {
-            path: server_path.path.into_owned(),
-            content_hash: format!("{:x}", server_path.content_hash),
+            path: asset_path.path.into_owned(),
+            content_hash: asset_path.content_hash.into_owned(),
         }
     }
 }
@@ -47,7 +50,7 @@ pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
     pub client_paths: Vec<String>,
-    pub server_paths: Vec<NapiServerPath>,
+    pub server_paths: Vec<NapiAssetPath>,
     pub config: NapiEndpointConfig,
 }
 
@@ -98,6 +101,19 @@ impl Deref for ExternalEndpoint {
     }
 }
 
+/// Build an `IssueFilter` by reading the project from the endpoint's
+/// `OperationVc<OptionEndpoint>` and extracting ignore rules from its config.
+async fn issue_filter_from_endpoint(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> Result<Vc<IssueFilter>> {
+    let endpoint_option = endpoint_op.connect().await?;
+    if let Some(ep) = &*endpoint_option {
+        Ok(ep.project().issue_filter())
+    } else {
+        Ok(IssueFilter::warnings_and_foreign_errors().cell())
+    }
+}
+
 #[turbo_tasks::value(serialization = "none")]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
@@ -111,8 +127,9 @@ async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
+    let filter = issue_filter_from_endpoint(endpoint_op).await?;
     let (written, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -226,8 +243,9 @@ async fn subscribe_issues_and_diags_operation(
     let changed_op = endpoint_server_changed_operation(endpoint_op);
 
     if should_include_issues {
+        let filter = issue_filter_from_endpoint(endpoint_op).await?;
         let (changed_value, issues, diagnostics, effects) =
-            strongly_consistent_catch_collectables(changed_op).await?;
+            strongly_consistent_catch_collectables(changed_op, filter).await?;
         Ok(EndpointIssuesAndDiags {
             changed: changed_value,
             issues,

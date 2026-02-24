@@ -460,13 +460,14 @@ async fn process_content(
                         | lightningcss::error::ParserError::SelectorError(..)
                         | lightningcss::error::ParserError::EndOfInput => {
                             let source = match &err.loc {
-                                Some(loc) => {
-                                    let pos = SourcePos {
-                                        line: loc.line as _,
-                                        column: (loc.column - 1) as _,
-                                    };
-                                    IssueSource::from_line_col(source, pos, pos)
-                                }
+                                Some(loc) => IssueSource::from_single_line_col(
+                                    source,
+                                    SourcePos {
+                                        // lightningcss::ErrorLocation is 1-based for column only
+                                        line: loc.line,
+                                        column: loc.column - 1,
+                                    },
+                                ),
                                 None => IssueSource::from_source_only(source),
                             };
 
@@ -499,13 +500,14 @@ async fn process_content(
                     ..Default::default()
                 }) {
                     let source = match &e.loc {
-                        Some(loc) => {
-                            let pos = SourcePos {
-                                line: loc.line as _,
-                                column: (loc.column - 1) as _,
-                            };
-                            IssueSource::from_line_col(source, pos, pos)
-                        }
+                        Some(loc) => IssueSource::from_single_line_col(
+                            source,
+                            SourcePos {
+                                // lightningcss::ErrorLocation is 1-based for column only
+                                line: loc.line,
+                                column: loc.column - 1,
+                            },
+                        ),
                         None => IssueSource::from_source_only(source),
                     };
                     ParsingIssue {
@@ -522,13 +524,14 @@ async fn process_content(
             }
             Err(e) => {
                 let source = match &e.loc {
-                    Some(loc) => {
-                        let pos = SourcePos {
-                            line: loc.line as _,
-                            column: (loc.column - 1) as _,
-                        };
-                        IssueSource::from_line_col(source, pos, pos)
-                    }
+                    Some(loc) => IssueSource::from_single_line_col(
+                        source,
+                        SourcePos {
+                            // lightningcss::ErrorLocation is 1-based for column only
+                            line: loc.line,
+                            column: loc.column - 1,
+                        },
+                    ),
                     None => IssueSource::from_source_only(source),
                 };
                 ParsingIssue {

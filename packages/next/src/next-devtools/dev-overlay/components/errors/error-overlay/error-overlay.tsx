@@ -4,7 +4,7 @@ import {
   type OverlayState,
 } from '../../../shared'
 
-import { Suspense } from 'react'
+import { Activity } from 'react'
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
@@ -62,26 +62,20 @@ export function ErrorOverlay({
 
   // No Runtime Errors.
   if (!runtimeErrors.length) {
-    // Workaround React quirk that triggers "Switch to client-side rendering" if
-    // we return no Suspense boundary here.
-    return <Suspense />
-  }
-
-  if (!mounted) {
-    // Workaround React quirk that triggers "Switch to client-side rendering" if
-    // we return no Suspense boundary here.
-    return <Suspense />
+    return null
   }
 
   return (
-    <Errors
-      {...commonProps}
-      debugInfo={state.debugInfo}
-      getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
-      runtimeErrors={runtimeErrors}
-      onClose={() => {
-        dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
-      }}
-    />
+    <Activity mode={mounted ? 'visible' : 'hidden'}>
+      <Errors
+        {...commonProps}
+        debugInfo={state.debugInfo}
+        getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+        runtimeErrors={runtimeErrors}
+        onClose={() => {
+          dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
+        }}
+      />
+    </Activity>
   )
 }

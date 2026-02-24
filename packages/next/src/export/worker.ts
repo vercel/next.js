@@ -343,13 +343,7 @@ export async function exportPages(
     nextConfig,
     options,
     renderResumeDataCachesByPage = {},
-    deploymentId,
   } = input
-
-  // Set the global asset suffix for Turbopack compiled code to use during prerendering
-  ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = deploymentId
-    ? `?dpl=${deploymentId}`
-    : ''
 
   installGlobalBehaviors(nextConfig)
 

@@ -9,7 +9,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingType, ChunkingTypeOption},
     module::{Module, Modules},
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -23,18 +23,26 @@ pub mod source_map;
 pub use source_map::SourceMapReference;
 
 /// A reference to one or multiple [Module]s, [OutputAsset]s or other special
-/// things. There are a bunch of optional traits that can influence how these
-/// references are handled. e. g. [ChunkableModuleReference]
+/// things.
 ///
 /// [Module]: crate::module::Module
 /// [OutputAsset]: crate::output::OutputAsset
-/// [ChunkableModuleReference]: crate::chunk::ChunkableModuleReference
 #[turbo_tasks::value_trait]
 pub trait ModuleReference: ValueToString {
     #[turbo_tasks::function]
     fn resolve_reference(self: Vc<Self>) -> Vc<ModuleResolveResult>;
     // TODO think about different types
     // fn kind(&self) -> Vc<AssetReferenceType>;
+
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    fn binding_usage(self: Vc<Self>) -> Vc<BindingUsage> {
+        BindingUsage::all()
+    }
 }
 
 /// Multiple [ModuleReference]s
@@ -52,6 +60,8 @@ impl ModuleReferences {
 
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string(self.description)]
 pub struct SingleModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
     description: RcStr,
@@ -62,14 +72,6 @@ impl ModuleReference for SingleModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(self.asset)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for SingleModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.description.clone())
     }
 }
 
@@ -90,6 +92,8 @@ impl SingleModuleReference {
 }
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string(self.description)]
 pub struct SingleChunkableModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
     description: RcStr,
@@ -113,7 +117,12 @@ impl SingleChunkableModuleReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for SingleChunkableModuleReference {
+impl ModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.asset)
+    }
+
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Parallel {
@@ -132,24 +141,10 @@ impl ChunkableModuleReference for SingleChunkableModuleReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ModuleReference for SingleChunkableModuleReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(self.asset)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for SingleChunkableModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.description.clone())
-    }
-}
-
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string(self.description)]
 pub struct SingleOutputAssetReference {
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     description: RcStr,
@@ -160,14 +155,6 @@ impl ModuleReference for SingleOutputAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::output_asset(RequestKey::default(), self.asset)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for SingleOutputAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.description.clone())
     }
 }
 
@@ -225,6 +212,8 @@ pub async fn referenced_modules_and_affecting_sources(
 }
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("traced {}", self.module.ident())]
 pub struct TracedModuleReference {
     module: ResolvedVc<Box<dyn Module>>,
 }
@@ -235,20 +224,7 @@ impl ModuleReference for TracedModuleReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(self.module)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TracedModuleReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("traced {}", self.module.ident().to_string().await?).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for TracedModuleReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Traced))
@@ -303,9 +279,9 @@ pub struct ResolvedReference {
 #[turbo_tasks::value(transparent)]
 pub struct ModulesWithRefData(Vec<(ResolvedVc<Box<dyn ModuleReference>>, ResolvedReference)>);
 
-/// Aggregates all primary [Module]s referenced by an [Module] via [ChunkableModuleReference]s.
-/// This does not include transitively referenced [Module]s, only includes
-/// primary [Module]s referenced.
+/// Aggregates all primary [Module]s referenced by an [Module] via [ModuleReference]s with a
+/// non-empty chunking_type. This does not include transitively referenced [Module]s, only primary
+/// [Module]s referenced.
 ///
 /// [Module]: crate::module::Module
 #[turbo_tasks::function]
@@ -319,10 +295,7 @@ pub async fn primary_chunkable_referenced_modules(
         .await?
         .iter()
         .map(|reference| async {
-            if let Some(reference) =
-                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference)
-                && let Some(chunking_type) = &*reference.chunking_type().await?
-            {
+            if let Some(chunking_type) = &*reference.chunking_type().await? {
                 if !include_traced && matches!(chunking_type, ChunkingType::Traced) {
                     return Ok(None);
                 }
@@ -339,7 +312,7 @@ pub async fn primary_chunkable_referenced_modules(
                 };
 
                 return Ok(Some((
-                    ResolvedVc::upcast(reference),
+                    *reference,
                     ResolvedReference {
                         chunking_type: chunking_type.clone(),
                         binding_usage,

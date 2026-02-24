@@ -12,14 +12,20 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack::module_options::{
     ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
     WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
     chunk::SourceMapsType,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage,
+        OptionStyledString, StyledString,
+    },
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
@@ -605,6 +611,9 @@ pub struct TurbopackConfig {
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
+    /// Issue patterns to ignore (suppress) from Turbopack output.
+    #[serde(default)]
+    pub ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
 }
 
 #[derive(
@@ -964,6 +973,73 @@ pub enum ReactCompilerOptionsOrBoolean {
 #[turbo_tasks::value(transparent)]
 pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
+/// Serialized representation of a path pattern for `turbopack.ignoreIssue`.
+/// Strings are serialized as `{ "type": "glob", "value": "..." }` and
+/// RegExp as `{ "type": "regex", "source": "...", "flags": "..." }`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(tag = "type")]
+pub enum TurbopackIgnoreIssuePathPattern {
+    #[serde(rename = "glob")]
+    Glob { value: RcStr },
+    #[serde(rename = "regex")]
+    Regex { source: RcStr, flags: RcStr },
+}
+
+impl TurbopackIgnoreIssuePathPattern {
+    fn to_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+        match self {
+            TurbopackIgnoreIssuePathPattern::Glob { value } => Ok(IgnoreIssuePattern::Glob(
+                Glob::parse(value.clone(), GlobOptions::default())?,
+            )),
+            TurbopackIgnoreIssuePathPattern::Regex { source, flags } => {
+                Ok(IgnoreIssuePattern::Regex(EsRegex::new(source, flags)?))
+            }
+        }
+    }
+}
+
+/// Serialized representation of a text pattern (title/description) for
+/// `turbopack.ignoreIssue`. Strings are serialized as
+/// `{ "type": "string", "value": "..." }` and RegExp as
+/// `{ "type": "regex", "source": "...", "flags": "..." }`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(tag = "type")]
+pub enum TurbopackIgnoreIssueTextPattern {
+    #[serde(rename = "string")]
+    String { value: RcStr },
+    #[serde(rename = "regex")]
+    Regex { source: RcStr, flags: RcStr },
+}
+
+impl TurbopackIgnoreIssueTextPattern {
+    fn to_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+        match self {
+            TurbopackIgnoreIssueTextPattern::String { value } => {
+                Ok(IgnoreIssuePattern::ExactString(value.clone()))
+            }
+            TurbopackIgnoreIssueTextPattern::Regex { source, flags } => {
+                Ok(IgnoreIssuePattern::Regex(EsRegex::new(source, flags)?))
+            }
+        }
+    }
+}
+
+/// A single rule in `turbopack.ignoreIssue`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+pub struct TurbopackIgnoreIssueRule {
+    pub path: TurbopackIgnoreIssuePathPattern,
+    #[serde(default)]
+    pub title: Option<TurbopackIgnoreIssueTextPattern>,
+    #[serde(default)]
+    pub description: Option<TurbopackIgnoreIssueTextPattern>,
+}
+
 #[derive(
     Clone,
     Debug,
@@ -1022,6 +1098,7 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
+    app_new_scroll_handler: Option<bool>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -1079,6 +1156,7 @@ pub struct ExperimentalConfig {
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
+    turbopack_import_type_text: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
     turbopack_use_builtin_sass: Option<bool>,
@@ -1321,6 +1399,9 @@ pub struct OptionFileSystemPath(Option<FileSystemPath>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionServerActions(Option<ServerActions>);
+
+#[turbo_tasks::value(transparent)]
+pub struct IgnoreIssues(Vec<IgnoreIssue>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(
@@ -1739,11 +1820,10 @@ impl NextConfig {
         Vc::cell(self.experimental.swc_plugins.clone().unwrap_or_default())
     }
 
-    // TODO not implemented yet
-    // #[turbo_tasks::function]
-    // pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
-    //     Vc::cell(self.experimental.sri.clone())
-    // }
+    #[turbo_tasks::function]
+    pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
+        Vc::cell(self.experimental.sri.clone())
+    }
 
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_babel(&self) -> Vc<Option<bool>> {
@@ -1831,6 +1911,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_gesture_transition(&self) -> Vc<bool> {
         Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_app_new_scroll_handler(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.app_new_scroll_handler.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -2015,6 +2100,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn turbopack_import_type_text(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_import_type_text
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<SourceMapsType>> {
         let input_source_maps = self
             .experimental
@@ -2114,6 +2208,35 @@ impl NextConfig {
                 "`experimental.reportSystemEnvInlining` must be undefined, \"error\", or \"warn\""
             ),
         }
+    }
+
+    /// Returns the list of ignore-issue rules from the turbopack config,
+    /// converted to the `IgnoreIssue` type used by `IssueFilter`.
+    #[turbo_tasks::function]
+    pub fn turbopack_ignore_issue_rules(&self) -> Result<Vc<IgnoreIssues>> {
+        let rules = self
+            .turbopack
+            .as_ref()
+            .and_then(|tp| tp.ignore_issue.as_deref())
+            .unwrap_or_default()
+            .iter()
+            .map(|rule| {
+                Ok(IgnoreIssue {
+                    path: rule.path.to_ignore_pattern()?,
+                    title: rule
+                        .title
+                        .as_ref()
+                        .map(|t| t.to_ignore_pattern())
+                        .transpose()?,
+                    description: rule
+                        .description
+                        .as_ref()
+                        .map(|d| d.to_ignore_pattern())
+                        .transpose()?,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Vc::cell(rules))
     }
 }
 
