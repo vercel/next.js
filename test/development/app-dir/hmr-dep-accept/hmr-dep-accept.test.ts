@@ -137,6 +137,57 @@ describe('hmr-dep-accept', () => {
     )
   })
 
+  describe('dependency accept via module.hot (CJS)', () => {
+    itTurbopackDev(
+      'CJS module registers module.hot.accept and receives dep updates',
+      async () => {
+        const browser = await next.browser('/dep-accept-cjs')
+
+        // Wait for initial render
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-value').text()
+          expect(text).toBe('initial')
+        })
+        await retry(async () => {
+          const text = await browser.elementByCss('#parent-eval-time').text()
+          expect(text).toMatch(/Parent Evaluated At: \d+/)
+        })
+
+        const parentEvalTime = await browser
+          .elementByCss('#parent-eval-time')
+          .text()
+
+        expect(await browser.elementByCss('#accept-call-count').text()).toBe(
+          'Accept Calls: 0'
+        )
+
+        // Patch the dependency
+        await next.patchFile('app/dep-accept-cjs/dep.ts', (content) =>
+          content.replace("'initial'", "'updated'")
+        )
+
+        // dep-observer.cjs handles the update via module.hot.accept
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-value').text()
+          expect(text).toBe('updated')
+        })
+
+        await retry(async () => {
+          const callCount = await browser
+            .elementByCss('#accept-call-count')
+            .text()
+          expect(callCount).toBe('Accept Calls: 1')
+        })
+
+        // page.tsx should NOT have been re-evaluated (no full reload)
+        const newParentEvalTime = await browser
+          .elementByCss('#parent-eval-time')
+          .text()
+        expect(newParentEvalTime).toBe(parentEvalTime)
+      }
+    )
+  })
+
   describe('dependency decline', () => {
     itTurbopackDev(
       'declining a dependency triggers full reload on update',
