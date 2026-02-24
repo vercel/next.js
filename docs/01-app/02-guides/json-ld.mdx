@@ -6,9 +6,7 @@ description: Learn how to add JSON-LD to your Next.js application to describe yo
 
 [JSON-LD](https://json-ld.org/) is a format for structured data that can be used by search engines and AI to help them understand the structure of the page beyond pure content. For example, you can use it to describe a person, an event, an organization, a movie, a book, a recipe, and many other types of entities.
 
-Our current recommendation for JSON-LD is to render structured data using a native `<script>` tag instead of the `<Script>` component from `next/script` in your `layout.js` or `page.js`.
-
-> **Good to know**: `next/script` is designed for executable JavaScript. JSON-LD isn’t executable code — it’s structured data with a non-JS MIME type — so `next/script` isn’t the right fit.
+Our current recommendation for JSON-LD is to render structured data as a `<script>` tag in your `layout.js` or `page.js` components.
 
 The following snippet uses `JSON.stringify`, which does not sanitize malicious strings used in XSS injection. To prevent this type of vulnerability, you can scrub `HTML` tags from the `JSON-LD` payload, for example, by replacing the character, `<`, with its unicode equivalent, `\u003c`.
 
@@ -85,3 +83,5 @@ const jsonLd: WithContext<Product> = {
   description: 'Dynamic at the speed of static.',
 }
 ```
+
+> **Good to know**: The `next/script` component is optimized for loading and executing JavaScript. Since JSON-LD is structured data, not executable code, a native `<script>` tag is the right choice here.
