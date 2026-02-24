@@ -348,8 +348,9 @@ async function processFetch(response: Response): Promise<{
     }
 
     const { stream, isFullyStatic } = await stripIsPartialByte(response.body)
+    const [stream1, stream2] = stream.tee()
 
-    const strippedResponse = new Response(stream, {
+    const strippedResponse = new Response(stream1, {
       headers: response.headers,
       status: response.status,
       statusText: response.statusText,
@@ -360,10 +361,7 @@ async function processFetch(response: Response): Promise<{
 
     return {
       response: strippedResponse,
-      cacheData: {
-        isFullyStatic,
-        responseBodyClone: strippedResponse.clone().body!,
-      },
+      cacheData: { isFullyStatic, responseBodyClone: stream2 },
     }
   }
 
