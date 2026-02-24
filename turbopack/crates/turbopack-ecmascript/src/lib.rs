@@ -78,7 +78,7 @@ use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -1559,10 +1559,9 @@ async fn merge_modules(
     let (merged_ast, inserted) = match result {
         Ok(v) => v,
         Err((content_idx, err)) => {
-            return Err(err.context(format!(
-                "Processing {}",
-                contents[content_idx].0.ident().to_string().await?
-            )));
+            return Err(
+                err.context(turbofmt!("Processing {}", contents[content_idx].0.ident()).await?)
+            );
         }
     };
 
@@ -1803,7 +1802,7 @@ async fn process_parse_result(
                         Some(Comment {
                             kind: CommentKind::Line,
                             span: DUMMY_SP,
-                            text: format!(" MERGED MODULE: {}", ident.to_string().await?).into(),
+                            text: (&*turbofmt!(" MERGED MODULE: {}", ident).await?).into(),
                         })
                     } else {
                         None
@@ -1918,12 +1917,15 @@ async fn process_parse_result(
             Ok(match parse_result {
                 ParseResult::Ok { .. } => unreachable!(),
                 ParseResult::Unparsable { messages } => {
-                    let path = ident.path().to_string().await?;
                     let error_messages = messages
                         .as_ref()
                         .and_then(|m| m.first().map(|f| format!("\n{f}")))
                         .unwrap_or("".into());
-                    let msg = format!("Could not parse module '{path}'\n{error_messages}");
+                    let msg = &*turbofmt!(
+                        "Could not parse module '{}'\n{error_messages}",
+                        ident.path()
+                    )
+                    .await?;
                     let body = vec![
                         quote!(
                             "const e = new Error($msg);" as Stmt,
@@ -1949,8 +1951,9 @@ async fn process_parse_result(
                     }
                 }
                 ParseResult::NotFound => {
-                    let path = ident.path().to_string().await?;
-                    let msg = format!("Could not parse module '{path}', file not found");
+                    let msg =
+                        &*turbofmt!("Could not parse module '{}', file not found", ident.path())
+                            .await?;
                     let body = vec![
                         quote!(
                             "const e = new Error($msg);" as Stmt,
