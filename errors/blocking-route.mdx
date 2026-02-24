@@ -276,6 +276,40 @@ export default async function Page() {
 
 Alternatively you can add a Suspense boundary above the component that is accessing this short-lived cached data so Next.js understands what UI should be used while accessing this data on a user request.
 
+### Opting Into Fully Dynamic Rendering
+
+If your route is intentionally fully dynamic and you do not want to provide granular `Suspense` boundaries, you can wrap your document body in a `Suspense` boundary inside your Root Layout. This signals to Next.js that the entire page may need to load dynamically, opting out of the static shell requirement.
+
+Be aware that this disables prerendering for the route, meaning navigations may be slower because no static shell can be served while dynamic data loads.
+
+Before:
+
+```jsx filename="app/layout.tsx"
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/layout.tsx"
+import { Suspense } from 'react'
+
+export default function RootLayout({ children }) {
+  return (
+    <Suspense>
+      <html>
+        <body>{children}</body>
+      </html>
+    </Suspense>
+  )
+}
+```
+
 ## Useful Links
 
 - [`Suspense` React API](https://react.dev/reference/react/Suspense)
