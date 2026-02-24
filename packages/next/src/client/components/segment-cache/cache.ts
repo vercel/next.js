@@ -226,6 +226,11 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   tree: RouteTree
   metadata: RouteTree
   supportsPerSegmentPrefetching: boolean
+  // When true, the server explicitly marked this route as fully static
+  // (marker byte '#'). The segment cache entries may be marked as partial,
+  // but at navigation read time we can skip the dynamic follow-up request
+  // because the prerendered response contains all the data.
+  isFullyStatic: boolean
   // When true, this entry should not be used as a template for route
   // prediction. Set when we discover that the URL was rewritten by middleware
   // to a different route structure (e.g., /foo was rewritten to /bar). Since
@@ -667,6 +672,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
+    isFullyStatic: routeWithNoSearchParams.isFullyStatic,
     hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
 
     // Override the rendered search with the optimistic value.
@@ -1081,6 +1087,7 @@ export function fulfillRouteCacheEntry(
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.supportsPerSegmentPrefetching = supportsPerSegmentPrefetching
+  fulfilledEntry.isFullyStatic = false
   fulfilledEntry.hasDynamicRewrite = false
   pingBlockedTasks(entry)
   return fulfilledEntry
@@ -2275,10 +2282,11 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const now = Date.now()
     const staleAt = await getStaleAt(now, serverData.s, response)
 
-    // Determine completeness: PPRRuntime prefetches use the marker-derived
-    // value from cacheData. Full and LoadingBoundary prefetches are always
-    // complete (segments non-partial), but we use Complete rather than
-    // FullyStatic because the head may still be partial.
+    // Determine completeness based on fetch strategy and marker byte:
+    // - PPRRuntime + isFullyStatic: FullyStatic — overrides the server's
+    //   conservative isHeadPartial flag (see writeDynamicRenderResponseIntoCache)
+    // - PPRRuntime + !isFullyStatic: Partial — segments may have dynamic holes
+    // - Full/LoadingBoundary: Complete — always a complete response
     const completeness =
       fetchStrategy === FetchStrategy.PPRRuntime
         ? cacheData?.isFullyStatic
@@ -2940,13 +2948,15 @@ export function writeStaticStageResponseIntoCache(
   staleAt: number,
   route: FulfilledRouteCacheEntry
 ): void {
-  const { response: serverData, isFullyStatic } = staticStageData
+  const { response: serverData } = staticStageData
 
-  const completeness = isFullyStatic
-    ? ResponseCompleteness.FullyStatic
-    : ResponseCompleteness.Partial
-
-  const fetchStrategy = isFullyStatic ? FetchStrategy.Full : FetchStrategy.PPR
+  // Always write segments as partial. The isFullyStatic flag from the marker
+  // byte is a route-level signal that's checked at read time (in
+  // createCacheNodeForSegment) to skip the dynamic follow-up. Writing as
+  // partial here preserves correct behavior for refreshes and other
+  // navigations that may need to overwrite these segments.
+  const completeness = ResponseCompleteness.Partial
+  const fetchStrategy = FetchStrategy.LoadingBoundary
 
   writeDynamicRenderResponseIntoCache(
     now,

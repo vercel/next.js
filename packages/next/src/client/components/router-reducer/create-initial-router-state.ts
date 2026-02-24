@@ -97,6 +97,9 @@ export function createInitialRouterState({
     // Write the initial seed data into the segment cache so subsequent
     // navigations to the initial page can serve cached segments instantly.
     if (initialSeedData !== null && initialStaleTime !== undefined) {
+      // Currently only fully static pages include initialStaleTime.
+      route.isFullyStatic = true
+
       writeInitialSeedDataIntoCache(
         route,
         initialRouteTree,
