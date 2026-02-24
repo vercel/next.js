@@ -234,12 +234,20 @@ function generateImgAttrs({
     if (src.startsWith('/') && !src.startsWith('//')) {
       let deploymentId = getDeploymentId()
       if (deploymentId) {
-        const srcUrl = new URL(src, 'http://n')
-        const srcDpl = srcUrl.searchParams.get('dpl')
-        if (!srcDpl) {
+        // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+        // double-encoding with the `encodeURIComponent(src)` below
+        const qIndex = src.indexOf('?')
+        if (qIndex !== -1) {
+          const params = new URLSearchParams(src.slice(qIndex + 1))
+          const srcDpl = params.get('dpl')
+          if (!srcDpl) {
+            // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+            params.append('dpl', deploymentId)
+            src = src.slice(0, qIndex) + '?' + params.toString()
+          }
+        } else {
           // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
-          srcUrl.searchParams.set('dpl', deploymentId)
-          src = srcUrl.href.slice('http://n'.length)
+          src = src + `?dpl=${deploymentId}`
         }
       }
     }
