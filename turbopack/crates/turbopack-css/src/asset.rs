@@ -3,7 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunkingContextExt, MinifyType},
     context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
@@ -276,7 +276,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     if let Some(placeable) =
                         ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
-                        let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
+                        let item = chunking_context.chunk_item(Vc::upcast(*placeable), *self.module_graph);
                         if let Some(css_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(
                             item.to_resolved().await?,
                         ) {
@@ -298,7 +298,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     if let Some(placeable) =
                         ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
-                        let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
+                        let item = chunking_context.chunk_item(Vc::upcast(*placeable), *self.module_graph);
                         if let Some(css_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(
                             item.to_resolved().await?,
                         ) {

@@ -9,7 +9,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
-        ChunkingType, ChunkingTypeOption,
+        ChunkingContextExt, ChunkingType, ChunkingTypeOption,
     },
     code_builder::CodeBuilder,
     context::AssetContext,
@@ -257,9 +257,10 @@ impl ChunkableModule for EcmascriptClientReferenceModule {
         module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        let item = self
-            .proxy_module()
-            .as_chunk_item(module_graph, *chunking_context);
+        let item = chunking_context.chunk_item(
+            Vc::upcast(self.proxy_module()),
+            module_graph,
+        );
         let ecmascript_item =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(item.to_resolved().await?)
                 .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;

@@ -12,9 +12,9 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -917,10 +917,10 @@ impl ChunkingContext for BrowserChunkingContext {
                 availability_info,
             );
             let loader_module = ManifestLoaderModule::new(manifest_asset);
-            loader_module.as_chunk_item(module_graph, *chunking_context)
+            chunking_context.chunk_item(Vc::upcast(loader_module), module_graph)
         } else {
             let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);
-            module.as_chunk_item(module_graph, *chunking_context)
+            chunking_context.chunk_item(Vc::upcast(module), module_graph)
         })
     }
 

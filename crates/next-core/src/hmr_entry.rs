@@ -7,8 +7,8 @@ use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        EvaluatableAsset,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingContextExt, ChunkingType,
+        ChunkingTypeOption, EvaluatableAsset,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -108,7 +108,7 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let module = this.module;
-        let chunk_item = module.as_chunk_item(module_graph, chunking_context);
+        let chunk_item = chunking_context.chunk_item(Vc::upcast(*module), module_graph);
         let id = chunking_context
             .chunk_item_id_strategy()
             .await?
