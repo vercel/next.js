@@ -4,6 +4,16 @@ import ReactDOM from 'react-dom/server'
 import Image from 'next/legacy/image'
 import cheerio from 'cheerio'
 
+let deploymentId: string | undefined
+jest.mock('next/dist/shared/lib/deployment-id.js', () => {
+  return {
+    __esModule: true,
+    getDeploymentId() {
+      return deploymentId
+    },
+  }
+})
+
 describe('Image Legacy Rendering', () => {
   it('should render Image on its own', async () => {
     const element = React.createElement(Image, {
@@ -94,4 +104,63 @@ describe('Image Legacy Rendering', () => {
       '/_next/image?url=%2Ftest.png&w=384&q=75 384w'
     )
   })
+
+  it.each([
+    {
+      name: 'without deployment add',
+      src: '/_next/static/media/test.3f1a293b.png',
+      expected: `/_next/image?url=${encodeURIComponent('/_next/static/media/test.3f1a293b.png')}&w=3840&q=75`,
+    },
+    {
+      name: 'adding a deployment id',
+      src: '/_next/static/media/test.3f1a293b.png',
+      dpl: 'dpl_123',
+      expected: `/_next/image?url=${encodeURIComponent('/_next/static/media/test.3f1a293b.png')}&w=3840&q=75&dpl=dpl_123`,
+    },
+    {
+      name: 'respect existing deployment id',
+      src: '/_next/static/media/test.3f1a293b.png?dpl=dpl_existing',
+      dpl: 'dpl_123',
+      expected: `/_next/image?url=${encodeURIComponent('/_next/static/media/test.3f1a293b.png')}&w=3840&q=75&dpl=dpl_existing`,
+    },
+    {
+      name: 'unoptimized without deployment add',
+      unoptimized: true,
+      src: '/_next/static/media/test.3f1a293b.png',
+      expected: '/_next/static/media/test.3f1a293b.png',
+    },
+    {
+      name: 'unoptimized adding a deployment id',
+      unoptimized: true,
+      src: '/_next/static/media/test.3f1a293b.png',
+      dpl: 'dpl_123',
+      expected: '/_next/static/media/test.3f1a293b.png?dpl=dpl_123',
+    },
+    {
+      name: 'unoptimized respect existing deployment id',
+      unoptimized: true,
+      src: '/_next/static/media/test.3f1a293b.png?dpl=dpl_existing',
+      dpl: 'dpl_123',
+      expected: '/_next/static/media/test.3f1a293b.png?dpl=dpl_existing',
+    },
+  ])(
+    'should correctly deployment ids: $name',
+    async ({ src, unoptimized, dpl, expected }) => {
+      deploymentId = dpl
+      try {
+        const element = React.createElement(Image, {
+          src,
+          unoptimized,
+          width: 100,
+          height: 100,
+          sizes: '50vw',
+        })
+        const $ = cheerio.load(ReactDOM.renderToString(element))
+        const noscriptImg = $('noscript img')
+        expect(noscriptImg.attr('src')).toBe(expected)
+      } finally {
+        deploymentId = undefined
+      }
+    }
+  )
 })
