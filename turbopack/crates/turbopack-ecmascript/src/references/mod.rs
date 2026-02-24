@@ -7,6 +7,7 @@ pub mod dynamic_expression;
 pub mod esm;
 pub mod exports_info;
 pub mod external_module;
+pub mod hot_module;
 pub mod ident;
 pub mod member;
 pub mod node;
@@ -136,6 +137,10 @@ use crate::{
             base::EsmAssetReferences, export::EsmExport, module_id::EsmModuleIdAssetReference,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
+        hot_module::{
+            ModuleHotAcceptAssetReference, ModuleHotAcceptCodeGen, ModuleHotDeclineAssetReference,
+            ModuleHotDeclineCodeGen, ModuleHotDependencyRequest,
+        },
         ident::IdentReplacement,
         member::MemberReplacement,
         node::PackageJsonReference,
@@ -2914,10 +2919,96 @@ where
                 ),
             )
         }
+        WellKnownFunctionKind::ModuleHotAccept => {
+            let args = linked_args().await?;
+            if let Some(first_arg) = args.first()
+                && let Some(dep_strings) = extract_hot_dep_strings(first_arg)
+            {
+                let mut requests = Vec::new();
+                for dep_str in &dep_strings {
+                    let request = Request::parse_string(dep_str.clone().into())
+                        .to_resolved()
+                        .await?;
+                    let reference = ModuleHotAcceptAssetReference::new(
+                        *origin,
+                        *request,
+                        issue_source(source, span),
+                        error_mode,
+                    )
+                    .to_resolved()
+                    .await?;
+                    analysis.add_reference(reference);
+                    requests.push(ModuleHotDependencyRequest {
+                        request,
+                        request_str: dep_str.clone(),
+                    });
+                }
+                analysis.add_code_gen(ModuleHotAcceptCodeGen::new(
+                    requests,
+                    origin,
+                    ast_path.to_vec().into(),
+                    issue_source(source, span),
+                    error_mode,
+                ));
+            }
+        }
+        WellKnownFunctionKind::ModuleHotDecline => {
+            let args = linked_args().await?;
+            if let Some(first_arg) = args.first()
+                && let Some(dep_strings) = extract_hot_dep_strings(first_arg)
+            {
+                let mut requests = Vec::new();
+                for dep_str in &dep_strings {
+                    let request = Request::parse_string(dep_str.clone().into())
+                        .to_resolved()
+                        .await?;
+                    let reference = ModuleHotDeclineAssetReference::new(
+                        *origin,
+                        *request,
+                        issue_source(source, span),
+                        error_mode,
+                    )
+                    .to_resolved()
+                    .await?;
+                    analysis.add_reference(reference);
+                    requests.push(ModuleHotDependencyRequest {
+                        request,
+                        request_str: dep_str.clone(),
+                    });
+                }
+                analysis.add_code_gen(ModuleHotDeclineCodeGen::new(
+                    requests,
+                    origin,
+                    ast_path.to_vec().into(),
+                    issue_source(source, span),
+                    error_mode,
+                ));
+            }
+        }
         _ => {}
     };
     Ok(())
 }
+
+/// Extracts dependency strings from the first argument of module.hot.accept/decline.
+/// Returns None if the argument is not a string or array of strings (e.g., it's a function
+/// for self-accept).
+fn extract_hot_dep_strings(arg: &JsValue) -> Option<Vec<RcStr>> {
+    // Single string: module.hot.accept('./dep', cb)
+    if let Some(s) = arg.as_str() {
+        return Some(vec![s.into()]);
+    }
+    // Array of strings: module.hot.accept(['./dep-a', './dep-b'], cb)
+    if let JsValue::Array { items, .. } = arg {
+        let mut deps = Vec::new();
+        for item in items {
+            deps.push(item.as_str()?.into());
+        }
+        return Some(deps);
+    }
+    None
+}
+
 async fn handle_member(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue>> + Send + Sync,

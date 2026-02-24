@@ -1739,6 +1739,10 @@ impl JsValue {
                         "import.meta",
                         "The import.meta object"
                     ),
+                    WellKnownObjectKind::ModuleHot => (
+                        "module.hot",
+                        "The module.hot HMR API"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -1876,6 +1880,14 @@ impl JsValue {
                     WellKnownFunctionKind::URLConstructor => (
                       "URL".to_string(),
                       "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
+                    ),
+                    WellKnownFunctionKind::ModuleHotAccept => (
+                      "module.hot.accept".to_string(),
+                      "The module.hot.accept HMR API: https://webpack.js.org/api/hot-module-replacement/#accept"
+                    ),
+                    WellKnownFunctionKind::ModuleHotDecline => (
+                      "module.hot.decline".to_string(),
+                      "The module.hot.decline HMR API: https://webpack.js.org/api/hot-module-replacement/#decline"
                     ),
                 };
                 if depth > 0 {
@@ -3326,6 +3338,8 @@ pub enum WellKnownObjectKind {
     ImportMeta,
     /// An iterator object, used to model generator return values.
     Generator,
+    /// The `module.hot` object providing HMR API.
+    ModuleHot,
 }
 
 impl WellKnownObjectKind {
@@ -3471,6 +3485,10 @@ pub enum WellKnownFunctionKind {
     // The worker_threads Worker class
     NodeWorkerConstructor,
     URLConstructor,
+    /// `module.hot.accept(deps, callback, errorHandler)` — accept HMR updates for dependencies.
+    ModuleHotAccept,
+    /// `module.hot.decline(deps)` — decline HMR updates for dependencies.
+    ModuleHotDecline,
 }
 
 impl WellKnownFunctionKind {

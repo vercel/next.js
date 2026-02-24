@@ -60,6 +60,15 @@ pub async fn replace_well_known(
             ),
             _ => (value, false),
         },
+        // module.hot → WellKnownObject(ModuleHot)
+        JsValue::Member(_, box JsValue::FreeVar(ref name), box ref prop)
+            if &**name == "module" && prop.as_str() == Some("hot") =>
+        {
+            (
+                JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
+                true,
+            )
+        }
         _ => (value, false),
     })
 }
@@ -624,6 +633,20 @@ async fn well_known_object_member(
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
+        WellKnownObjectKind::ModuleHot => match prop.as_str() {
+            Some("accept") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotAccept),
+            Some("decline") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotDecline),
+            _ => {
+                return Ok((
+                    JsValue::unknown(
+                        JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
+                        true,
+                        "unsupported property on module.hot",
+                    ),
+                    true,
+                ));
+            }
+        },
         #[allow(unreachable_patterns)]
         _ => {
             return Ok((
