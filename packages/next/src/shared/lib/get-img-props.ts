@@ -235,15 +235,10 @@ function generateImgAttrs({
       let deploymentId = getDeploymentId()
       const srcUrl = new URL(src, 'http://n')
       const srcDpl = srcUrl.searchParams.get('dpl')
-      if (srcDpl) {
-        deploymentId = srcDpl
-        // Remove the dpl parameter from the src URL to avoid duplication
-        srcUrl.searchParams.delete('dpl')
+      if (!srcDpl && deploymentId) {
+        // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+        srcUrl.searchParams.append('dpl', deploymentId)
         src = srcUrl.href.slice('http://n'.length)
-      }
-
-      if (deploymentId) {
-        src += `${src.includes('?') ? '&' : '?'}dpl=${deploymentId}`
       }
     }
     return { src, srcSet: undefined, sizes: undefined }
