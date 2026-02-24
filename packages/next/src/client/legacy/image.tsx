@@ -422,12 +422,14 @@ function generateImgAttrs({
   if (unoptimized) {
     if (src.startsWith('/') && !src.startsWith('//')) {
       let deploymentId = getDeploymentId()
-      const srcUrl = new URL(src, 'http://n')
-      const srcDpl = srcUrl.searchParams.get('dpl')
-      if (!srcDpl && deploymentId) {
-        // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
-        srcUrl.searchParams.set('dpl', deploymentId)
-        src = srcUrl.href.slice('http://n'.length)
+      if (deploymentId) {
+        const srcUrl = new URL(src, 'http://n')
+        const srcDpl = srcUrl.searchParams.get('dpl')
+        if (!srcDpl) {
+          // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+          srcUrl.searchParams.set('dpl', deploymentId)
+          src = srcUrl.href.slice('http://n'.length)
+        }
       }
     }
     return { src, srcSet: undefined, sizes: undefined }
