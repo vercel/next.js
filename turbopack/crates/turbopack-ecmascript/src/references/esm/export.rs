@@ -343,7 +343,7 @@ async fn find_export_from_reexports(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
-    /// A map from export name to the immediate referenced module.
+    /// A map from export name to how each export is defined.
     #[bincode(with = "turbo_bincode::indexmap")]
     esm_exports: FxIndexMap<RcStr, EsmExport>,
     /// A list of all direct or indirectly referenced modules that are dynamically exporting

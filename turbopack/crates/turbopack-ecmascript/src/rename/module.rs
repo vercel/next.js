@@ -17,12 +17,14 @@ use turbopack_core::{
     source::OptionSource,
 };
 
-use super::chunk_item::EcmascriptModuleRenameChunkItem;
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions,
     MergedEcmascriptModule, SpecifiedModuleType,
-    chunk::{EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
+    },
     code_gen::CodeGens,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
@@ -49,7 +51,7 @@ impl EcmascriptModuleRenameModule {
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         part: ModulePart,
     ) -> Vc<Self> {
-        debug_assert!(
+        assert!(
             matches!(
                 part,
                 ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. }
@@ -79,43 +81,32 @@ impl EcmascriptModuleRenameModule {
 }
 
 impl EcmascriptModuleRenameModule {
-    pub async fn specific_references(
-        &self,
-    ) -> Result<(
-        Vec<ResolvedVc<EcmascriptModulePartReference>>,
-        ResolvedVc<EsmAssetReferences>,
-    )> {
-        Ok(match &self.part {
-            ModulePart::RenamedNamespace { .. } => (
-                vec![
-                    EcmascriptModulePartReference::new_normal(
-                        *self.module,
-                        self.part.clone(),
-                        ExportUsage::all(),
-                    )
-                    .to_resolved()
-                    .await?,
-                ],
-                EsmAssetReferences::empty().to_resolved().await?,
-            ),
+    pub async fn module_reference(&self) -> Result<ResolvedVc<EcmascriptModulePartReference>> {
+        match &self.part {
+            ModulePart::RenamedNamespace { .. } => {
+                EcmascriptModulePartReference::new_normal(
+                    *self.module,
+                    self.part.clone(),
+                    ExportUsage::all(),
+                )
+                .to_resolved()
+                .await
+            }
             ModulePart::RenamedExport {
                 original_export, ..
-            } => (
-                vec![
-                    EcmascriptModulePartReference::new_normal(
-                        *self.module,
-                        self.part.clone(),
-                        ExportUsage::named(original_export.clone()),
-                    )
-                    .to_resolved()
-                    .await?,
-                ],
-                EsmAssetReferences::empty().to_resolved().await?,
-            ),
+            } => {
+                EcmascriptModulePartReference::new_normal(
+                    *self.module,
+                    self.part.clone(),
+                    ExportUsage::named(original_export.clone()),
+                )
+                .to_resolved()
+                .await
+            }
             _ => {
                 bail!("Unexpected ModulePart for EcmascriptModuleRenameModule");
             }
-        })
+        }
     }
 }
 
@@ -133,13 +124,8 @@ impl Module for EcmascriptModuleRenameModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let (part_references, esm_references) = self.await?.specific_references().await?;
-        let references = part_references
-            .iter()
-            .map(|r| ResolvedVc::upcast(*r))
-            .chain(esm_references.await?.iter().map(|r| ResolvedVc::upcast(*r)))
-            .collect();
-        Ok(Vc::cell(references))
+        let reference = self.await?.module_reference().await?;
+        Ok(Vc::cell(vec![ResolvedVc::upcast(reference)]))
     }
 
     #[turbo_tasks::function]
@@ -193,7 +179,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
-        let (part_references, esm_references) = self.await?.specific_references().await?;
+        let reference = self.await?.module_reference().await?;
 
         Ok(EcmascriptModuleContentOptions {
             parsed: None,
@@ -201,8 +187,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
             specified_module_type: SpecifiedModuleType::EcmaScript,
             chunking_context,
             references: self.references().to_resolved().await?,
-            part_references,
-            esm_references,
+            part_references: vec![reference],
+            esm_references: EsmAssetReferences::empty().to_resolved().await?,
             code_generation: CodeGens::empty().to_resolved().await?,
             async_module: ResolvedVc::cell(Some(self.async_module().to_resolved().await?)),
             // The facade module cannot generate source maps, because the inserted references
@@ -221,6 +207,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
+        let reference = self.module_reference().await?;
         let mut exports = BTreeMap::new();
 
         match &self.part {
@@ -231,15 +218,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
                 exports.insert(
                     export.clone(),
                     EsmExport::ImportedBinding(
-                        ResolvedVc::upcast(
-                            EcmascriptModulePartReference::new_normal(
-                                *self.module,
-                                self.part.clone(),
-                                ExportUsage::named(original_export.clone()),
-                            )
-                            .to_resolved()
-                            .await?,
-                        ),
+                        ResolvedVc::upcast(reference),
                         original_export.clone(),
                         false,
                     ),
@@ -248,15 +227,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
             ModulePart::RenamedNamespace { export } => {
                 exports.insert(
                     export.clone(),
-                    EsmExport::ImportedNamespace(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new_normal(
-                            *self.module,
-                            self.part.clone(),
-                            ExportUsage::all(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    )),
+                    EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
                 );
             }
             _ => bail!("Unexpected ModulePart for EcmascriptModuleRenameModule"),
@@ -298,16 +269,10 @@ impl ChunkableModule for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: ResolvedVc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
-            EcmascriptModuleRenameChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        ))
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
