@@ -587,17 +587,26 @@ export async function createHotReloaderTurbopack(
     )
 
     const { type: entryType } = splitEntryKey(key)
+    // Server HMR only applies to App Router Node.js runtime endpoints.
+    // Pages Router uses Node's require(), root entries (middleware/instrumentation)
+    // use the edge runtime, and App Router edge routes all don't support server HMR.
     const usesServerHmr = entryType === 'app' && writtenEndpoint.type !== 'edge'
 
     for (const file of serverPaths) {
-      deleteCache(file)
-
       const relativePath = relative(distDir, file)
+
       if (usesServerHmr && serverHmrSubscriptions?.has(relativePath)) {
+        // Skip deleteCache for server HMR module chunks.
+        // Pages Router entries are excluded by usesServerHmr (always false for
+        // pages), so they always get deleteCache regardless of subscriptions.
         continue
       }
 
       clearModuleContext(file)
+      // For Pages Router, edge routes, middleware, and manifest files
+      // (e.g., *_client-reference-manifest.js): clear the sharedCache in
+      // evalManifest(), Node.js require.cache, and edge runtime module contexts.
+      deleteCache(file)
     }
 
     // Clear Turbopack's chunk-loading cache so chunks are re-required from disk on
