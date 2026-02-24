@@ -417,7 +417,7 @@ async function navigateToUnknownRoute(
         ({ headVaryParams, staleAt }) =>
           writeStaticStageResponseIntoCache(
             now,
-            staticStageData,
+            staticStageData.response,
             responseHeaders,
             headVaryParams,
             staleAt,
