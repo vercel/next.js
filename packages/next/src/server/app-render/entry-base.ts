@@ -10,6 +10,34 @@ export {
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { prerender } from 'react-server-dom-webpack/static'
 
+// Node.js-specific Flight APIs, needed by stream-ops.node.ts via ComponentMod.
+// These must be exported from entry-base (react-server layer) because direct
+// imports from react-server-dom-webpack/* fail outside this layer.
+type FlightRenderToPipeableStream = (...args: any[]) => {
+  pipe<Writable extends NodeJS.WritableStream>(destination: Writable): Writable
+  abort: (reason?: unknown) => void
+}
+
+type FlightPrerenderToNodeStream = (...args: any[]) => Promise<{
+  prelude: import('node:stream').Readable
+}>
+
+/* eslint-disable import/no-extraneous-dependencies */
+export let renderToPipeableStream: FlightRenderToPipeableStream | undefined
+export let prerenderToNodeStream: FlightPrerenderToNodeStream | undefined
+if (process.env.__NEXT_USE_NODE_STREAMS) {
+  renderToPipeableStream = (
+    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  ).renderToPipeableStream
+  prerenderToNodeStream = (
+    require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
+  ).prerenderToNodeStream
+} else {
+  renderToPipeableStream = undefined
+  prerenderToNodeStream = undefined
+}
+/* eslint-enable import/no-extraneous-dependencies */
+
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
 
@@ -45,15 +73,17 @@ export {
   collectPrefetchHints,
 } from './collect-segment-data'
 
-export const InstantValidation = () => {
-  if (
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    process.env.__NEXT_CACHE_COMPONENTS
-  ) {
-    return require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation')
-  } else {
-    return undefined
-  }
+export let InstantValidation:
+  | typeof import('./instant-validation/instant-validation')
+  | undefined
+if (
+  process.env.NEXT_RUNTIME !== 'edge' &&
+  process.env.__NEXT_CACHE_COMPONENTS
+) {
+  InstantValidation =
+    require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation')
+} else {
+  InstantValidation = undefined
 }
 
 import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'

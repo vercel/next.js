@@ -2020,6 +2020,43 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // Enable node streams via env var (for CI testing).
+  if (
+    process.env.__NEXT_USE_NODE_STREAMS === 'true' &&
+    (config.experimental.useNodeStreams === undefined ||
+      (isDefaultConfig && !config.experimental.useNodeStreams))
+  ) {
+    config.experimental.useNodeStreams = true
+  }
+
+  // Keep runtime bundle selection env in sync with the resolved config.
+  // Explicit user config (e.g. useNodeStreams: false) should win over an
+  // inherited shell env var to avoid selecting nodestream runtime bundles
+  // while define-env compiled user bundles with node streams disabled.
+  if (config.experimental.useNodeStreams) {
+    process.env.__NEXT_USE_NODE_STREAMS = 'true'
+  } else {
+    delete process.env.__NEXT_USE_NODE_STREAMS
+  }
+
+  // TODO: Remove this once using the debug channel is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.reactDebugChannel === undefined ||
+      (isDefaultConfig && !config.experimental.reactDebugChannel))
+  ) {
+    config.experimental.reactDebugChannel = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'reactDebugChannel',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
+      )
+    }
+  }
   // TODO: Remove this once strictRouteTypes is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true' &&

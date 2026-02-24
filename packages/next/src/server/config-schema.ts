@@ -350,10 +350,18 @@ export const experimentalSchema = {
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
-  turbopackImportTypeText: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
+  turbopackIgnoreIssue: z
+    .array(
+      z.object({
+        path: z.union([z.string(), z.instanceof(RegExp)]),
+        title: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+        description: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+      })
+    )
+    .optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
@@ -381,6 +389,7 @@ export const experimentalSchema = {
   serverComponentsHmrCache: z.boolean().optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
+  useNodeStreams: z.boolean().optional(),
   slowModuleDetection: z
     .object({
       buildTimeThresholdMs: z.number().int(),
