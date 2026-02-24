@@ -14,6 +14,7 @@ use std::{
         Arc, LazyLock,
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
+    time::SystemTime,
 };
 
 use anyhow::{Context, Result, bail};
@@ -36,7 +37,7 @@ use turbo_tasks::{
         VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
-    message_queue::TimingEvent,
+    message_queue::{TimingEvent, TraceEvent},
     registry::get_value_type,
     scope::scope_and_block,
     task_statistics::TaskStatisticsApi,
@@ -1006,6 +1007,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
                 .entered();
         let start = Instant::now();
+        let wall_start = SystemTime::now();
         debug_assert!(self.should_persist());
 
         let suspended_operations;
@@ -1228,11 +1230,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
 
         drop(snapshot_span);
+        let snapshot_duration = start.elapsed();
+        let task_count = task_snapshots.len();
 
         if persisted_task_cache_log.is_empty() && task_snapshots.is_empty() {
             return Some((snapshot_time, false));
         }
 
+        let persist_start = Instant::now();
         let _span = tracing::info_span!(parent: parent_span, "persist", reason = reason).entered();
         {
             if let Err(err) = self.backing_storage.save_snapshot(
@@ -1354,6 +1359,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let elapsed = start.elapsed();
+        let persist_duration = persist_start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
             turbo_tasks.send_compilation_event(Arc::new(TimingEvent::new(
@@ -1361,6 +1367,30 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 elapsed,
             )));
         }
+
+        let wall_start_ms = wall_start
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64()
+            * 1000.0;
+        let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
+        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+            "turbopack-persistence",
+            wall_start_ms,
+            wall_end_ms,
+            vec![
+                ("reason", serde_json::Value::from(reason)),
+                (
+                    "snapshot_duration_ms",
+                    serde_json::Value::from(snapshot_duration.as_secs_f64() * 1000.0),
+                ),
+                (
+                    "persist_duration_ms",
+                    serde_json::Value::from(persist_duration.as_secs_f64() * 1000.0),
+                ),
+                ("task_count", serde_json::Value::from(task_count)),
+            ],
+        )));
 
         Some((snapshot_time, true))
     }
