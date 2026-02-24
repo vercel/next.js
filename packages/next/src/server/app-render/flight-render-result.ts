@@ -1,3 +1,4 @@
+import type { Readable } from 'node:stream'
 import { RSC_CONTENT_TYPE_HEADER } from '../../client/components/app-router-headers'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
 
@@ -6,7 +7,7 @@ import RenderResult, { type RenderResultMetadata } from '../render-result'
  */
 export class FlightRenderResult extends RenderResult {
   constructor(
-    response: string | ReadableStream<Uint8Array>,
+    response: string | ReadableStream<Uint8Array> | Readable,
     metadata: RenderResultMetadata = {},
     waitUntil?: Promise<unknown>
   ) {

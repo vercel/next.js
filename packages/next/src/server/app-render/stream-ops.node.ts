@@ -1,0 +1,423 @@
+/**
+ * Node.js stream operations for the rendering pipeline.
+ * Loaded by stream-ops.ts when process.env.__NEXT_USE_NODE_STREAMS is true.
+ *
+ * AnyStream = Readable in this module.
+ * Rendering uses pipeable APIs; continue functions wrap the existing web
+ * transforms via Readable.fromWeb() on their output.
+ */
+
+import type { PostponedState, PrerenderOptions } from 'react-dom/static'
+import {
+  renderToPipeableStream,
+  resumeToPipeableStream,
+} from 'react-dom/server'
+import { prerender } from 'react-dom/static'
+import { PassThrough, Readable } from 'node:stream'
+
+import type { ReactDOMServerReadableStream } from 'react-dom/server'
+import {
+  continueFizzStream as webContinueFizzStream,
+  continueStaticPrerender as webContinueStaticPrerender,
+  continueDynamicPrerender as webContinueDynamicPrerender,
+  continueStaticFallbackPrerender as webContinueStaticFallbackPrerender,
+  continueDynamicHTMLResume as webContinueDynamicHTMLResume,
+  streamToBuffer as webStreamToBuffer,
+  streamToString as webStreamToString,
+  createDocumentClosingStream as webCreateDocumentClosingStream,
+  createRuntimePrefetchTransformStream,
+} from '../stream-utils/node-web-streams-helper'
+import { createInlinedDataReadableStream } from './use-flight-response'
+import type { StreamLike } from './app-render-prerender-utils'
+import { DetachedPromise } from '../../lib/detached-promise'
+import { getTracer } from '../lib/trace/tracer'
+import { AppRenderSpan } from '../lib/trace/constants'
+
+// ---------------------------------------------------------------------------
+// Re-export shared types from the web module
+// ---------------------------------------------------------------------------
+
+export type {
+  ContinueStreamSharedOptions,
+  ContinueFizzStreamOptions,
+  ContinueStaticPrerenderOptions,
+  ContinueDynamicHTMLResumeOptions,
+  ServerPrerenderComponentMod,
+  FlightPayload,
+  FlightClientModules,
+  FlightRenderOptions,
+} from './stream-ops.web'
+
+// ---------------------------------------------------------------------------
+// Override AnyStream and dependent types for Node path
+// ---------------------------------------------------------------------------
+
+export type AnyStream = Readable
+
+export type FlightComponentMod = {
+  renderToReadableStream: (
+    model: any,
+    webpackMap: any,
+    options?: any
+  ) => ReadableStream<Uint8Array>
+  renderToPipeableStream?: (
+    model: any,
+    webpackMap: any,
+    options?: any
+  ) => {
+    pipe<Writable extends NodeJS.WritableStream>(
+      destination: Writable
+    ): Writable
+    abort(reason?: unknown): void
+  }
+}
+
+export type FizzStreamResult = {
+  stream: AnyStream
+  allReady: Promise<void>
+  abort?: (reason?: unknown) => void
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+type WebReadableStream = import('stream/web').ReadableStream
+
+function readableToWeb(
+  stream: Readable | ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+  if (stream instanceof ReadableStream) {
+    return stream
+  }
+  // Readable.toWeb returns stream/web ReadableStream which is structurally
+  // identical to the global ReadableStream<Uint8Array>.
+  return Readable.toWeb(stream) as unknown as ReadableStream<Uint8Array>
+}
+
+function webToReadable(
+  stream: ReadableStream<Uint8Array> | Readable
+): Readable {
+  if (stream instanceof Readable) {
+    return stream
+  }
+  return Readable.fromWeb(stream as WebReadableStream)
+}
+
+// ---------------------------------------------------------------------------
+// Rendering functions (output Node Readable natively via PassThrough)
+// ---------------------------------------------------------------------------
+
+export function renderToFlightStream(
+  ComponentMod: FlightComponentMod,
+  payload: any,
+  clientModules: any,
+  opts: any,
+  runInContext?: <T>(fn: () => T) => T
+): AnyStream {
+  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
+
+  if (ComponentMod.renderToPipeableStream) {
+    const pt = new PassThrough()
+    const pipeable = run(() =>
+      ComponentMod.renderToPipeableStream!(payload, clientModules, opts)
+    )
+    pipeable.pipe(pt)
+    return pt
+  }
+
+  // Fallback: use web API and convert
+  const webStream = run(() =>
+    ComponentMod.renderToReadableStream(payload, clientModules, opts)
+  )
+  return webToReadable(webStream)
+}
+
+export async function renderToFizzStream(
+  element: React.ReactElement,
+  streamOptions: any,
+  runInContext?: <T>(fn: () => T) => T
+): Promise<FizzStreamResult> {
+  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
+
+  const pt = new PassThrough()
+  const shellReady = new DetachedPromise<void>()
+  const allReady = new DetachedPromise<void>()
+
+  // Node.js renderToPipeableStream passes a plain object to onHeaders,
+  // but callers expect a web Headers instance.
+  const originalOnHeaders = streamOptions?.onHeaders
+  const wrappedOnHeaders = originalOnHeaders
+    ? (headers: Record<string, string>) => {
+        originalOnHeaders(new Headers(headers))
+      }
+    : undefined
+
+  const pipeable = run(() =>
+    getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
+      renderToPipeableStream(element, {
+        ...streamOptions,
+        onHeaders: wrappedOnHeaders,
+        onShellReady() {
+          streamOptions?.onShellReady?.()
+          pipeable.pipe(pt)
+          shellReady.resolve()
+        },
+        onShellError(error: unknown) {
+          streamOptions?.onShellError?.(error)
+          shellReady.reject(error)
+        },
+        onAllReady() {
+          streamOptions?.onAllReady?.()
+          allReady.resolve()
+        },
+        onError: streamOptions?.onError,
+      })
+    )
+  )
+
+  await shellReady.promise
+
+  return {
+    stream: pt,
+    allReady: allReady.promise,
+    abort: (reason?: unknown) => pipeable.abort(reason),
+  }
+}
+
+export async function resumeToFizzStream(
+  element: React.ReactElement,
+  postponedState: PostponedState,
+  streamOptions: any,
+  runInContext?: <T>(fn: () => T) => T
+): Promise<FizzStreamResult> {
+  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
+
+  const pt = new PassThrough()
+  const allReady = new DetachedPromise<void>()
+
+  const pipeable = await run(() =>
+    resumeToPipeableStream(element, postponedState, {
+      ...streamOptions,
+      onAllReady() {
+        streamOptions?.onAllReady?.()
+        allReady.resolve()
+      },
+    })
+  )
+  pipeable.pipe(pt)
+
+  return {
+    stream: pt,
+    allReady: allReady.promise,
+    abort: (reason?: unknown) => pipeable.abort(reason),
+  }
+}
+
+export async function resumeAndAbort(
+  element: React.ReactElement,
+  postponed: PostponedState | null,
+  opts: any
+): Promise<AnyStream> {
+  const pt = new PassThrough()
+  const pipeable = await resumeToPipeableStream(
+    element,
+    postponed as PostponedState,
+    opts
+  )
+  pipeable.pipe(pt)
+  pipeable.abort()
+  return pt
+}
+
+// ---------------------------------------------------------------------------
+// Continue function wrappers
+// Bridge Node Readable → web, apply existing web transforms, Readable.fromWeb()
+// ---------------------------------------------------------------------------
+
+export async function continueFizzStream(
+  renderStream: AnyStream,
+  opts: import('./stream-ops.web').ContinueFizzStreamOptions
+): Promise<AnyStream> {
+  const webOpts = {
+    ...opts,
+    inlinedDataStream: opts.inlinedDataStream
+      ? readableToWeb(opts.inlinedDataStream)
+      : undefined,
+  }
+  const webResult = await webContinueFizzStream(
+    readableToWeb(renderStream) as ReactDOMServerReadableStream,
+    webOpts
+  )
+  return webToReadable(webResult)
+}
+
+export async function continueStaticPrerender(
+  prerenderStream: AnyStream,
+  opts: import('./stream-ops.web').ContinueStaticPrerenderOptions
+): Promise<AnyStream> {
+  const webResult = await webContinueStaticPrerender(
+    readableToWeb(prerenderStream),
+    {
+      ...opts,
+      inlinedDataStream: readableToWeb(opts.inlinedDataStream),
+    }
+  )
+  return webToReadable(webResult)
+}
+
+export async function continueDynamicPrerender(
+  prerenderStream: AnyStream,
+  opts: {
+    getServerInsertedHTML: () => Promise<string>
+    getServerInsertedMetadata: () => Promise<string>
+    deploymentId: string | undefined
+  }
+): Promise<AnyStream> {
+  const webResult = await webContinueDynamicPrerender(
+    readableToWeb(prerenderStream),
+    opts
+  )
+  return webToReadable(webResult)
+}
+
+export async function continueStaticFallbackPrerender(
+  prerenderStream: AnyStream,
+  opts: import('./stream-ops.web').ContinueStaticPrerenderOptions
+): Promise<AnyStream> {
+  const webResult = await webContinueStaticFallbackPrerender(
+    readableToWeb(prerenderStream),
+    {
+      ...opts,
+      inlinedDataStream: readableToWeb(opts.inlinedDataStream),
+    }
+  )
+  return webToReadable(webResult)
+}
+
+export async function continueDynamicHTMLResume(
+  renderStream: AnyStream,
+  opts: import('./stream-ops.web').ContinueDynamicHTMLResumeOptions
+): Promise<AnyStream> {
+  const webResult = await webContinueDynamicHTMLResume(
+    readableToWeb(renderStream),
+    {
+      ...opts,
+      inlinedDataStream: readableToWeb(opts.inlinedDataStream),
+    }
+  )
+  return webToReadable(webResult)
+}
+
+// ---------------------------------------------------------------------------
+// Utility functions (Node-native)
+// ---------------------------------------------------------------------------
+
+export function chainStreams(...streams: AnyStream[]): AnyStream {
+  if (streams.length === 0) {
+    const pt = new PassThrough()
+    pt.end()
+    return pt
+  }
+
+  if (streams.length === 1) {
+    return streams[0]
+  }
+
+  const out = new PassThrough()
+  let i = 0
+
+  function pipeNext() {
+    if (i >= streams.length) {
+      out.end()
+      return
+    }
+    const current = streams[i++]
+    current.pipe(out, { end: false })
+    current.on('end', pipeNext)
+    current.on('error', (err) => out.destroy(err))
+  }
+
+  pipeNext()
+  return out
+}
+
+export async function streamToBuffer(stream: AnyStream): Promise<Buffer> {
+  return webStreamToBuffer(readableToWeb(stream))
+}
+
+export async function streamToString(stream: AnyStream): Promise<string> {
+  return webStreamToString(readableToWeb(stream))
+}
+
+export function createInlinedDataStream(
+  source: StreamLike,
+  nonce: string | undefined,
+  formState: unknown | null
+): AnyStream {
+  const webSource = readableToWeb(source)
+  const webResult = createInlinedDataReadableStream(webSource, nonce, formState)
+  return webToReadable(webResult)
+}
+
+export function createPendingStream(): AnyStream {
+  return new PassThrough()
+}
+
+export function createDocumentClosingStream(): AnyStream {
+  const webStream = webCreateDocumentClosingStream()
+  return webToReadable(webStream)
+}
+
+export function createOnHeadersCallback(
+  appendHeader: (key: string, value: string) => void
+): NonNullable<PrerenderOptions['onHeaders']> {
+  return (headers: Headers) => {
+    headers.forEach((value, key) => {
+      appendHeader(key, value)
+    })
+  }
+}
+
+export function pipeRuntimePrefetchTransform(
+  stream: AnyStream,
+  sentinel: number,
+  isPartial: boolean,
+  staleTime: number
+): AnyStream {
+  const webStream = readableToWeb(stream)
+  const transformed = webStream.pipeThrough(
+    createRuntimePrefetchTransformStream(sentinel, isPartial, staleTime)
+  )
+  return webToReadable(transformed)
+}
+
+// ---------------------------------------------------------------------------
+// Re-exports (no stream involvement, identical to web)
+// ---------------------------------------------------------------------------
+
+export async function processPrelude(unprocessedPrelude: AnyStream) {
+  const pt1 = new PassThrough()
+  const pt2 = new PassThrough()
+  ;(unprocessedPrelude as Readable).pipe(pt1)
+  ;(unprocessedPrelude as Readable).pipe(pt2)
+
+  const firstChunk = await new Promise<Buffer | null>((resolve) => {
+    pt2.once('data', (chunk: Buffer) => {
+      pt2.destroy()
+      resolve(chunk)
+    })
+    pt2.once('end', () => resolve(null))
+  })
+
+  return { prelude: pt1 as AnyStream, preludeIsEmpty: firstChunk === null }
+}
+
+export function getServerPrerender(ComponentMod: {
+  prerender: (...args: any[]) => Promise<any>
+}): (...args: any[]) => any {
+  return ComponentMod.prerender
+}
+
+export const getClientPrerender: typeof import('react-dom/static').prerender =
+  prerender

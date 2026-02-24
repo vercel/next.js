@@ -1,28 +1,46 @@
+import type { Readable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
+
+export type StreamLike = ReadableStream<Uint8Array> | Readable
+
+function isWebStream(stream: StreamLike): stream is ReadableStream<Uint8Array> {
+  return typeof (stream as ReadableStream).tee === 'function'
+}
 
 // React's RSC prerender function will emit an incomplete flight stream when using `prerender`. If the connection
 // closes then whatever hanging chunks exist will be errored. This is because prerender (an experimental feature)
 // has not yet implemented a concept of resume. For now we will simulate a paused connection by wrapping the stream
 // in one that doesn't close even when the underlying is complete.
 export class ReactServerResult {
-  private _stream: null | ReadableStream<Uint8Array>
+  private _stream: null | StreamLike
 
-  constructor(stream: ReadableStream<Uint8Array>) {
+  constructor(stream: StreamLike) {
     this._stream = stream
   }
 
-  tee() {
+  tee(): StreamLike {
     if (this._stream === null) {
       throw new Error(
         'Cannot tee a ReactServerResult that has already been consumed'
       )
     }
-    const tee = this._stream.tee()
-    this._stream = tee[0]
-    return tee[1]
+    if (isWebStream(this._stream)) {
+      const tee = this._stream.tee()
+      this._stream = tee[0]
+      return tee[1]
+    }
+    // Node.js Readable: pipe to two PassThrough streams
+    const { PassThrough } =
+      require('node:stream') as typeof import('node:stream')
+    const pt1 = new PassThrough()
+    const pt2 = new PassThrough()
+    this._stream.pipe(pt1)
+    this._stream.pipe(pt2)
+    this._stream = pt1
+    return pt2
   }
 
-  consume() {
+  consume(): StreamLike {
     if (this._stream === null) {
       throw new Error(
         'Cannot consume a ReactServerResult that has already been consumed'
@@ -55,18 +73,32 @@ export async function createReactServerPrerenderResult(
 }
 
 export async function createReactServerPrerenderResultFromRender(
-  underlying: ReadableStream<Uint8Array>
+  underlying: StreamLike
 ): Promise<ReactServerPrerenderResult> {
   const chunks: Array<Uint8Array> = []
-  const reader = underlying.getReader()
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
-    } else {
-      chunks.push(value)
+
+  if (isWebStream(underlying)) {
+    const reader = underlying.getReader()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      } else {
+        chunks.push(value)
+      }
     }
+  } else {
+    // Node.js Readable stream
+    const readable: Readable = underlying
+    await new Promise<void>((resolve, reject) => {
+      readable.on('data', (chunk: Buffer | Uint8Array) => {
+        chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
+      })
+      readable.on('end', resolve)
+      readable.on('error', reject)
+    })
   }
+
   return new ReactServerPrerenderResult(chunks)
 }
 export class ReactServerPrerenderResult {

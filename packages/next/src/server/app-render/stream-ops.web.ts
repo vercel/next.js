@@ -14,6 +14,7 @@ import {
   continueFizzStream as webContinueFizzStream,
 } from '../stream-utils/node-web-streams-helper'
 import { createInlinedDataReadableStream } from './use-flight-response'
+import type { StreamLike } from './app-render-prerender-utils'
 
 // ---------------------------------------------------------------------------
 // Shared types (web-only for now; will move to stream-ops.node.ts later)
@@ -106,7 +107,7 @@ export const nodeReadableToWeb:
 // ---------------------------------------------------------------------------
 
 export function createInlinedDataStream(
-  source: AnyStream,
+  source: StreamLike,
   nonce: string | undefined,
   formState: unknown | null
 ): AnyStream {
