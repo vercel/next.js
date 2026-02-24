@@ -148,6 +148,8 @@ export async function turbopackBuild(): Promise<{
   )
   try {
     const buildEventsSpan = trace('turbopack-build-events')
+    // Stop immediately: this span is only used as a parent for
+    // manualTraceChild calls which carry their own timestamps.
     buildEventsSpan.stop()
     backgroundLogCompilationEvents(project, {
       parentSpan: buildEventsSpan,

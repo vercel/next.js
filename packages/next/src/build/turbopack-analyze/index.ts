@@ -102,6 +102,8 @@ export async function turbopackAnalyze(
 
   try {
     const analyzeEventsSpan = trace('turbopack-analyze-events')
+    // Stop immediately: this span is only used as a parent for
+    // manualTraceChild calls which carry their own timestamps.
     analyzeEventsSpan.stop()
     backgroundLogCompilationEvents(project, { parentSpan: analyzeEventsSpan })
 

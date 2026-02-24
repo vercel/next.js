@@ -1007,6 +1007,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
                 .entered();
         let start = Instant::now();
+        // SystemTime for wall-clock timestamps in trace events (milliseconds
+        // since epoch). Instant is monotonic but has no defined epoch, so it
+        // can't be used for cross-process trace correlation.
         let wall_start = SystemTime::now();
         debug_assert!(self.should_persist());
 

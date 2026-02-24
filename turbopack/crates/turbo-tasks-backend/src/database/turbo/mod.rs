@@ -173,8 +173,9 @@ fn do_compact(
     max_merge_segment_count: usize,
 ) -> Result<()> {
     let start = Instant::now();
+    // SystemTime for wall-clock timestamps in trace events (Instant has no
+    // defined epoch so it can't be used for cross-process trace correlation).
     let wall_start = SystemTime::now();
-    // Compact the database with the given max merge segment count
     let ran = db.compact(&CompactConfig {
         max_merge_segment_count,
         ..COMPACT_CONFIG
