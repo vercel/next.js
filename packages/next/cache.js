@@ -3,9 +3,7 @@ let cacheExports
 if (process.env.NEXT_RUNTIME === '') {
   const notAvailableInClient = (name) => {
     return function notAvailable() {
-      throw new Error(
-        `\`${name}\` from 'next/cache' cannot be used in Client Components. It is only available on the server.`
-      )
+      throw new Error(`\`${name}\` is only available in a Server Component.`)
     }
   }
 
