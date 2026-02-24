@@ -1496,10 +1496,7 @@ function loadNative(importPath?: string) {
 
   if (!bindings) {
     if (NEXT_TEST_NATIVE_DIR) {
-      throw new AggregateError(
-        attempts,
-        `Failed to load native bindings from '${NEXT_TEST_NATIVE_DIR}'`
-      )
+      throw attempts
     }
 
     for (const triple of triples) {
