@@ -324,7 +324,6 @@ export default async function getBaseWebpackConfig(
     deferredEntrypoints,
     isDevFallback = false,
     pagesDir,
-    reactProductionProfiling = false,
     rewrites,
     originalRewrites,
     originalRedirects,
@@ -352,7 +351,6 @@ export default async function getBaseWebpackConfig(
     deferredEntrypoints?: webpack.EntryObject
     isDevFallback?: boolean
     pagesDir: string | undefined
-    reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
     originalRewrites: CustomRoutes['rewrites'] | undefined
     originalRedirects: CustomRoutes['redirects'] | undefined
@@ -400,6 +398,8 @@ export default async function getBaseWebpackConfig(
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
+
+  const reactProductionProfiling = config.reactProductionProfiling ?? false
 
   const babelConfigFile = getBabelConfigFile(dir)
 
