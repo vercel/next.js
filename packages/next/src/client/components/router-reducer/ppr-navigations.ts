@@ -1470,6 +1470,7 @@ function dispatchRetryDueToTreeMismatch(
       discoverKnownRoute(
         now,
         retryUrl.pathname,
+        retryNextUrl,
         null,
         seed.routeTree,
         metadataVaryPath,

@@ -419,6 +419,7 @@ export function serverActionReducer(
           discoverKnownRoute(
             now,
             redirectUrl.pathname,
+            nextUrl,
             null, // No pending entry
             redirectSeed.routeTree,
             metadataVaryPath,
