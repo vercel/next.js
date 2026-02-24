@@ -7,7 +7,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
-use turbo_tasks_hash::encode_hex;
+use turbo_tasks_hash::HashAlgorithm;
 
 use crate::asset::AssetContent;
 
@@ -233,10 +233,12 @@ impl FileHashVersion {
     pub async fn compute(asset_content: &AssetContent) -> Result<Vc<Self>> {
         match asset_content {
             AssetContent::File(file_vc) => {
-                let hash = file_vc.content_hash().await?.context("file not found")?;
-                Ok(Self::cell(FileHashVersion {
-                    hash: encode_hex(hash).into(),
-                }))
+                let hash = file_vc
+                    .content_hash(HashAlgorithm::default())
+                    .owned()
+                    .await?
+                    .context("file not found")?;
+                Ok(Self::cell(FileHashVersion { hash }))
             }
             AssetContent::Redirect { .. } => Err(anyhow!("not a file")),
         }

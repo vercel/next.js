@@ -46,10 +46,8 @@ const InstantConfigSchema = z.union([
   z.literal(false),
 ])
 
-export type InstantConfig = InstantConfigStatic | InstantConfigRuntime | false
-export type InstantConfigForTypeCheckInternal =
-  | __GenericInstantConfig
-  | InstantConfig
+export type Instant = InstantConfigStatic | InstantConfigRuntime | false
+export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericPrefetch type is used to avoid type widening issues with
 // our choice to make exports the medium for programming a Next.js application
 // With exports the type is controlled by the module and all we can do is assert on it
@@ -233,7 +231,7 @@ export type AppSegmentConfig = {
   /**
    * How this segment should be prefetched.
    */
-  unstable_instant?: InstantConfig
+  unstable_instant?: Instant
 
   /**
    * The preferred region for the page.

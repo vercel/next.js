@@ -231,10 +231,17 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
-    const deploymentId = getDeploymentId()
-    if (src.startsWith('/') && !src.startsWith('//') && deploymentId) {
-      const sep = src.includes('?') ? '&' : '?'
-      src = `${src}${sep}dpl=${deploymentId}`
+    if (src.startsWith('/') && !src.startsWith('//')) {
+      let deploymentId = getDeploymentId()
+      if (deploymentId) {
+        const srcUrl = new URL(src, 'http://n')
+        const srcDpl = srcUrl.searchParams.get('dpl')
+        if (!srcDpl) {
+          // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+          srcUrl.searchParams.set('dpl', deploymentId)
+          src = srcUrl.href.slice('http://n'.length)
+        }
+      }
     }
     return { src, srcSet: undefined, sizes: undefined }
   }

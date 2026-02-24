@@ -114,6 +114,8 @@ export async function turbopackBuild(): Promise<{
     isShortSession: true,
   }
 
+  const sriEnabled = Boolean(config.experimental.sri?.algorithm)
+
   const project = await bindings.turbo.createProject(
     {
       ...sharedProjectOptions,
@@ -180,6 +182,7 @@ export async function turbopackBuild(): Promise<{
       encryptionKey,
       dev: false,
       deploymentId: config.deploymentId,
+      sriEnabled,
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(
