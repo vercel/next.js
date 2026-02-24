@@ -143,8 +143,45 @@ describe('Image Legacy Rendering', () => {
       dpl: 'dpl_123',
       expected: '/_next/static/media/test.3f1a293b.png?dpl=dpl_existing',
     },
+    {
+      name: 'unicode: without deployment add',
+      src: '/_next/static/media/äöüščří.3f1a293b.png',
+      expected: `/_next/image?url=${encodeURIComponent('/_next/static/media/äöüščří.3f1a293b.png')}&w=3840&q=75`,
+    },
+    {
+      name: 'unicode: adding a deployment id',
+      src: '/_next/static/media/äöüščří.3f1a293b.png',
+      dpl: 'dpl_123',
+      expected: `/_next/image?url=${encodeURIComponent('/_next/static/media/äöüščří.3f1a293b.png')}&w=3840&q=75&dpl=dpl_123`,
+    },
+    {
+      name: 'unicode: respect existing deployment id',
+      src: '/_next/static/media/äöüščří.3f1a293b.png?dpl=dpl_existing',
+      dpl: 'dpl_123',
+      expected: `/_next/image?url=${encodeURIComponent('/_next/static/media/äöüščří.3f1a293b.png')}&w=3840&q=75&dpl=dpl_existing`,
+    },
+    {
+      name: 'unicode: unoptimized without deployment add',
+      unoptimized: true,
+      src: '/_next/static/media/äöüščří.3f1a293b.png',
+      expected: '/_next/static/media/äöüščří.3f1a293b.png',
+    },
+    {
+      name: 'unicode: unoptimized adding a deployment id',
+      unoptimized: true,
+      src: '/_next/static/media/äöüščří.3f1a293b.png',
+      dpl: 'dpl_123',
+      expected: '/_next/static/media/äöüščří.3f1a293b.png?dpl=dpl_123',
+    },
+    {
+      name: 'unicode: unoptimized respect existing deployment id',
+      unoptimized: true,
+      src: '/_next/static/media/äöüščří.3f1a293b.png?dpl=dpl_existing',
+      dpl: 'dpl_123',
+      expected: '/_next/static/media/äöüščří.3f1a293b.png?dpl=dpl_existing',
+    },
   ])(
-    'should correctly deployment ids: $name',
+    'should correctly handle deployment ids: $name',
     async ({ src, unoptimized, dpl, expected }) => {
       deploymentId = dpl
       try {
