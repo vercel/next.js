@@ -138,8 +138,7 @@ use crate::{
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{
-            ModuleHotAcceptAssetReference, ModuleHotAcceptCodeGen, ModuleHotDeclineAssetReference,
-            ModuleHotDeclineCodeGen, ModuleHotDependencyRequest,
+            ModuleHotDependencyRequest, ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen,
         },
         ident::IdentReplacement,
         member::MemberReplacement,
@@ -487,6 +486,8 @@ struct AnalysisState<'a> {
     // Whether we are only tracing dependencies (no code generation). When true, synthetic
     // wrapper modules like WorkerLoaderModule should not be created.
     tracing_only: bool,
+    // Whether the module is an ESM module (affects resolution for hot module dependencies).
+    is_esm: bool,
 }
 
 impl AnalysisState<'_> {
@@ -1098,6 +1099,7 @@ async fn analyze_ecmascript_module_internal(
             url_rewrite_behavior: options.url_rewrite_behavior,
             collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
             tracing_only: !options.analyze_mode.is_code_gen(),
+            is_esm,
         };
 
         enum Action {
@@ -2919,70 +2921,51 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::ModuleHotAccept => {
+        WellKnownFunctionKind::ModuleHotAccept | WellKnownFunctionKind::ModuleHotDecline => {
             let args = linked_args().await?;
-            if let Some(first_arg) = args.first()
-                && let Some(dep_strings) = extract_hot_dep_strings(first_arg)
-            {
-                let mut requests = Vec::new();
-                for dep_str in &dep_strings {
-                    let request = Request::parse_string(dep_str.clone().into())
+            if let Some(first_arg) = args.first() {
+                if let Some(dep_strings) = extract_hot_dep_strings(first_arg) {
+                    let mut requests = Vec::new();
+                    for dep_str in &dep_strings {
+                        let request = Request::parse_string(dep_str.clone().into())
+                            .to_resolved()
+                            .await?;
+                        let reference = ModuleHotReferenceAssetReference::new(
+                            *origin,
+                            *request,
+                            issue_source(source, span),
+                            error_mode,
+                            state.is_esm,
+                        )
                         .to_resolved()
                         .await?;
-                    let reference = ModuleHotAcceptAssetReference::new(
-                        *origin,
-                        *request,
+                        analysis.add_reference(reference);
+                        requests.push(ModuleHotDependencyRequest {
+                            request,
+                            request_str: dep_str.clone(),
+                        });
+                    }
+                    analysis.add_code_gen(ModuleHotReferenceCodeGen::new(
+                        requests,
+                        origin,
+                        ast_path.to_vec().into(),
                         issue_source(source, span),
                         error_mode,
+                        state.is_esm,
+                    ));
+                } else if first_arg.is_unknown() {
+                    let (args_str, hints) = explain_args(&args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!(
+                            "module.hot.accept/decline({args_str}) is not statically \
+                             analyzable{hints}",
+                        ),
+                        DiagnosticId::Error(
+                            errors::failed_to_analyze::ecmascript::MODULE_HOT_ACCEPT.to_string(),
+                        ),
                     )
-                    .to_resolved()
-                    .await?;
-                    analysis.add_reference(reference);
-                    requests.push(ModuleHotDependencyRequest {
-                        request,
-                        request_str: dep_str.clone(),
-                    });
                 }
-                analysis.add_code_gen(ModuleHotAcceptCodeGen::new(
-                    requests,
-                    origin,
-                    ast_path.to_vec().into(),
-                    issue_source(source, span),
-                    error_mode,
-                ));
-            }
-        }
-        WellKnownFunctionKind::ModuleHotDecline => {
-            let args = linked_args().await?;
-            if let Some(first_arg) = args.first()
-                && let Some(dep_strings) = extract_hot_dep_strings(first_arg)
-            {
-                let mut requests = Vec::new();
-                for dep_str in &dep_strings {
-                    let request = Request::parse_string(dep_str.clone().into())
-                        .to_resolved()
-                        .await?;
-                    let reference = ModuleHotDeclineAssetReference::new(
-                        *origin,
-                        *request,
-                        issue_source(source, span),
-                        error_mode,
-                    )
-                    .to_resolved()
-                    .await?;
-                    analysis.add_reference(reference);
-                    requests.push(ModuleHotDependencyRequest {
-                        request,
-                        request_str: dep_str.clone(),
-                    });
-                }
-                analysis.add_code_gen(ModuleHotDeclineCodeGen::new(
-                    requests,
-                    origin,
-                    ast_path.to_vec().into(),
-                    issue_source(source, span),
-                    error_mode,
-                ));
             }
         }
         _ => {}

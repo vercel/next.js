@@ -76,7 +76,7 @@ type ModuleEffect =
       type: 'accepted'
       moduleId: ModuleId
       outdatedModules: Set<ModuleId>
-      outdatedDependencies: Map<ModuleId, ModuleId[]>
+      outdatedDependencies: Map<ModuleId, Set<ModuleId>>
     }
 
 /**
@@ -118,7 +118,7 @@ function getAffectedModuleEffects(
   autoAcceptRootModules: boolean
 ): ModuleEffect {
   const outdatedModules: Set<ModuleId> = new Set()
-  const outdatedDependencies: Map<ModuleId, ModuleId[]> = new Map()
+  const outdatedDependencies: Map<ModuleId, Set<ModuleId>> = new Map()
 
   type QueueItem = { moduleId?: ModuleId; dependencyChain: ModuleId[] }
 
@@ -218,9 +218,9 @@ function getAffectedModuleEffects(
       // Check if parent accepts this dependency
       if (parentHotState?.acceptedDependencies[moduleId as string]) {
         if (!outdatedDependencies.has(parentId)) {
-          outdatedDependencies.set(parentId, [])
+          outdatedDependencies.set(parentId, new Set())
         }
-        outdatedDependencies.get(parentId)!.push(moduleId)
+        outdatedDependencies.get(parentId)!.add(moduleId)
         continue
       }
 
@@ -246,6 +246,25 @@ function getAffectedModuleEffects(
 }
 
 /**
+ * Merges source dependency map into target dependency map.
+ */
+function mergeDependencies(
+  target: Map<ModuleId, Set<ModuleId>>,
+  source: Map<ModuleId, Set<ModuleId>>
+): void {
+  for (const [parentId, deps] of source) {
+    const existing = target.get(parentId)
+    if (existing) {
+      for (const dep of deps) {
+        existing.add(dep)
+      }
+    } else {
+      target.set(parentId, new Set(deps))
+    }
+  }
+}
+
+/**
  * Computes all modules that need to be invalidated based on which modules changed.
  *
  * @param invalidated - The modules that have been invalidated
@@ -256,10 +275,10 @@ function computedInvalidatedModules(
   autoAcceptRootModules: boolean
 ): {
   outdatedModules: Set<ModuleId>
-  outdatedDependencies: Map<ModuleId, ModuleId[]>
+  outdatedDependencies: Map<ModuleId, Set<ModuleId>>
 } {
   const outdatedModules = new Set<ModuleId>()
-  const outdatedDependencies = new Map<ModuleId, ModuleId[]>()
+  const outdatedDependencies = new Map<ModuleId, Set<ModuleId>>()
 
   for (const moduleId of invalidated) {
     const effect = getAffectedModuleEffects(moduleId, autoAcceptRootModules)
@@ -290,18 +309,7 @@ function computedInvalidatedModules(
         for (const outdatedModuleId of effect.outdatedModules) {
           outdatedModules.add(outdatedModuleId)
         }
-        for (const [parentId, deps] of effect.outdatedDependencies) {
-          const existing = outdatedDependencies.get(parentId)
-          if (existing) {
-            for (const dep of deps) {
-              if (existing.indexOf(dep) === -1) {
-                existing.push(dep)
-              }
-            }
-          } else {
-            outdatedDependencies.set(parentId, [...deps])
-          }
-        }
+        mergeDependencies(outdatedDependencies, effect.outdatedDependencies)
         break
       default:
         invariant(effect, (effect) => `Unknown effect type: ${effect?.type}`)
@@ -417,11 +425,11 @@ function createModuleHot(
  */
 function applyInvalidatedModules(
   outdatedModules: Set<ModuleId>,
-  outdatedDependencies: Map<ModuleId, ModuleId[]>,
+  outdatedDependencies: Map<ModuleId, Set<ModuleId>>,
   autoAcceptRootModules: boolean
 ): {
   outdatedModules: Set<ModuleId>
-  outdatedDependencies: Map<ModuleId, ModuleId[]>
+  outdatedDependencies: Map<ModuleId, Set<ModuleId>>
 } {
   if (queuedInvalidatedModules.size > 0) {
     const result = computedInvalidatedModules(
@@ -431,18 +439,7 @@ function applyInvalidatedModules(
     for (const moduleId of result.outdatedModules) {
       outdatedModules.add(moduleId)
     }
-    for (const [parentId, deps] of result.outdatedDependencies) {
-      const existing = outdatedDependencies.get(parentId)
-      if (existing) {
-        for (const dep of deps) {
-          if (existing.indexOf(dep) === -1) {
-            existing.push(dep)
-          }
-        }
-      } else {
-        outdatedDependencies.set(parentId, [...deps])
-      }
-    }
+    mergeDependencies(outdatedDependencies, result.outdatedDependencies)
 
     queuedInvalidatedModules.clear()
   }
@@ -544,7 +541,7 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
 function disposePhase(
   outdatedModules: Iterable<ModuleId>,
   disposedModules: Iterable<ModuleId>,
-  outdatedDependencies: Map<ModuleId, ModuleId[]>
+  outdatedDependencies: Map<ModuleId, Set<ModuleId>>
 ): { outdatedModuleParents: Map<ModuleId, Array<ModuleId>> } {
   for (const moduleId of outdatedModules) {
     disposeModule(moduleId, 'replace')
@@ -766,7 +763,7 @@ function computeOutdatedModules(
   autoAcceptRootModules: boolean
 ): {
   outdatedModules: Set<ModuleId>
-  outdatedDependencies: Map<ModuleId, ModuleId[]>
+  outdatedDependencies: Map<ModuleId, Set<ModuleId>>
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>
 } {
   const newModuleFactories = new Map<ModuleId, HotModuleFactoryFunction>()
@@ -803,7 +800,7 @@ function applyPhase(
   }[],
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>,
   outdatedModuleParents: Map<ModuleId, Array<ModuleId>>,
-  outdatedDependencies: Map<ModuleId, ModuleId[]>,
+  outdatedDependencies: Map<ModuleId, Set<ModuleId>>,
   moduleFactories: ModuleFactories,
   devModuleCache: ModuleCache<HotModule>,
   instantiateModuleFn: (
@@ -832,32 +829,40 @@ function applyPhase(
     const hotState = moduleHotState.get(module)
     if (!hotState) continue
 
-    const callbacks: (AcceptCallback | (() => void))[] = []
-    const errorHandlers: (AcceptErrorHandler | undefined)[] = []
-    const dependenciesForCallbacks: ModuleId[] = []
+    // Group deps by callback, deduplicating callbacks that handle multiple deps.
+    // Each callback receives only the deps it was registered for.
+    const callbackDeps = new Map<AcceptCallback | (() => void), ModuleId[]>()
+    const callbackErrorHandlers = new Map<
+      AcceptCallback | (() => void),
+      AcceptErrorHandler | undefined
+    >()
 
     for (const dep of deps) {
       const acceptCallback = hotState.acceptedDependencies[dep as string]
-      const errorHandler = hotState.acceptedErrorHandlers[dep as string]
-
       if (acceptCallback) {
-        // Deduplicate callbacks (same callback may be registered for multiple deps)
-        if (callbacks.indexOf(acceptCallback) !== -1) continue
-        callbacks.push(acceptCallback)
-        errorHandlers.push(errorHandler)
-        dependenciesForCallbacks.push(dep)
+        let depList = callbackDeps.get(acceptCallback)
+        if (!depList) {
+          depList = []
+          callbackDeps.set(acceptCallback, depList)
+          callbackErrorHandlers.set(
+            acceptCallback,
+            hotState.acceptedErrorHandlers[dep as string]
+          )
+        }
+        depList.push(dep)
       }
     }
 
-    for (let k = 0; k < callbacks.length; k++) {
+    for (const [callback, cbDeps] of callbackDeps) {
       try {
-        callbacks[k].call(null, deps as string[])
+        callback.call(null, cbDeps as string[])
       } catch (err: any) {
-        if (typeof errorHandlers[k] === 'function') {
+        const errorHandler = callbackErrorHandlers.get(callback)
+        if (typeof errorHandler === 'function') {
           try {
-            errorHandlers[k]!(err, {
+            errorHandler(err, {
               moduleId: parentId as string,
-              dependencyId: dependenciesForCallbacks[k] as string,
+              dependencyId: cbDeps[0] as string,
             })
           } catch (err2) {
             reportError(err2)
@@ -901,7 +906,7 @@ function applyPhase(
  */
 function applyInternal(
   outdatedModules: Set<ModuleId>,
-  outdatedDependencies: Map<ModuleId, ModuleId[]>,
+  outdatedDependencies: Map<ModuleId, Set<ModuleId>>,
   disposedModules: Iterable<ModuleId>,
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>,
   moduleFactories: ModuleFactories,

@@ -63,4 +63,120 @@ describe('hmr-dep-accept', () => {
       }
     )
   })
+
+  describe('dependency accept with array', () => {
+    itTurbopackDev(
+      'parent accepts multiple child dependencies via array',
+      async () => {
+        const browser = await next.browser('/dep-accept-array')
+
+        // Wait for initial render
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-a-value').text()
+          expect(text).toBe('initial-a')
+        })
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-b-value').text()
+          expect(text).toBe('initial-b')
+        })
+        await retry(async () => {
+          const text = await browser.elementByCss('#parent-eval-time').text()
+          expect(text).toMatch(/Parent Evaluated At: \d+/)
+        })
+
+        const parentEvalTime = await browser
+          .elementByCss('#parent-eval-time')
+          .text()
+
+        // Patch dep-a
+        await next.patchFile('app/dep-accept-array/dep-a.ts', (content) =>
+          content.replace("'initial-a'", "'updated-a'")
+        )
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-a-value').text()
+          expect(text).toBe('updated-a')
+        })
+
+        await retry(async () => {
+          const callCount = await browser
+            .elementByCss('#accept-call-count')
+            .text()
+          expect(callCount).toBe('Accept Calls: 1')
+        })
+
+        // Parent should NOT have been re-evaluated
+        const evalTimeAfterA = await browser
+          .elementByCss('#parent-eval-time')
+          .text()
+        expect(evalTimeAfterA).toBe(parentEvalTime)
+
+        // Patch dep-b
+        await next.patchFile('app/dep-accept-array/dep-b.ts', (content) =>
+          content.replace("'initial-b'", "'updated-b'")
+        )
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-b-value').text()
+          expect(text).toBe('updated-b')
+        })
+
+        await retry(async () => {
+          const callCount = await browser
+            .elementByCss('#accept-call-count')
+            .text()
+          expect(callCount).toBe('Accept Calls: 2')
+        })
+
+        // Parent should still NOT have been re-evaluated
+        const evalTimeAfterB = await browser
+          .elementByCss('#parent-eval-time')
+          .text()
+        expect(evalTimeAfterB).toBe(parentEvalTime)
+      }
+    )
+  })
+
+  describe('dependency decline', () => {
+    itTurbopackDev(
+      'declining a dependency triggers full reload on update',
+      async () => {
+        const browser = await next.browser('/dep-decline')
+
+        // Wait for initial render
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-value').text()
+          expect(text).toBe('initial')
+        })
+        await retry(async () => {
+          const text = await browser.elementByCss('#parent-eval-time').text()
+          expect(text).toMatch(/Parent Evaluated At: \d+/)
+        })
+
+        const parentEvalTime = await browser
+          .elementByCss('#parent-eval-time')
+          .text()
+
+        // Patch the declined dependency
+        await next.patchFile('app/dep-decline/dep.ts', (content) =>
+          content.replace("'initial'", "'updated'")
+        )
+
+        // Since the dep is declined, the update should cause a full page reload.
+        // After reload, the page re-evaluates with the new dep value.
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-value').text()
+          expect(text).toBe('updated')
+        })
+
+        // The parent module SHOULD have been re-evaluated (full reload)
+        await retry(async () => {
+          const newParentEvalTime = await browser
+            .elementByCss('#parent-eval-time')
+            .text()
+          expect(newParentEvalTime).not.toBe(parentEvalTime)
+        })
+      }
+    )
+  })
 })
