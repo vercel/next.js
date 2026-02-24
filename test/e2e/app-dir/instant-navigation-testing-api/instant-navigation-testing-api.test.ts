@@ -23,6 +23,7 @@
  */
 
 import { nextTestSetup } from 'e2e-utils'
+import { instant } from '@next/playwright'
 import type * as Playwright from 'playwright'
 
 describe('instant-navigation-testing-api', () => {
@@ -49,40 +50,6 @@ describe('instant-navigation-testing-api', () => {
       },
     })
     return page!
-  }
-
-  const INSTANT_COOKIE = 'next-instant-navigation-testing'
-
-  /**
-   * Runs a function with instant navigation enabled. Within this scope,
-   * navigations render the prefetched UI immediately and wait for the
-   * callback to complete before streaming in dynamic data.
-   *
-   * Uses the cookie-based protocol: setting the cookie acquires the
-   * navigation lock (via CookieStore change event), and clearing it
-   * releases the lock.
-   */
-  async function instant<T>(
-    page: Playwright.Page,
-    fn: () => Promise<T>
-  ): Promise<T> {
-    // Acquire the lock by setting the cookie from within the page context.
-    // This triggers the CookieStore change event in navigation-testing-lock.ts,
-    // which acquires the in-memory navigation lock.
-    await page.evaluate((name) => {
-      document.cookie = name + '=1; path=/'
-    }, INSTANT_COOKIE)
-    try {
-      return await fn()
-    } finally {
-      // Release the lock by clearing the cookie. For SPA navigations, this
-      // triggers the CookieStore change event which resolves the in-memory
-      // lock. For MPA navigations (reload, plain anchor), the listener in
-      // app-bootstrap.ts triggers a page reload to fetch dynamic data.
-      await page.evaluate((name) => {
-        document.cookie = name + '=; path=/; max-age=0'
-      }, INSTANT_COOKIE)
-    }
   }
 
   it('renders prefetched loading shell instantly during navigation', async () => {
@@ -178,12 +145,10 @@ describe('instant-navigation-testing-api', () => {
     })
 
     await instant(page, async () => {
-      // Attempt to acquire the lock again by changing the cookie value.
-      // The CookieStore change event fires, and the handler detects that
-      // the lock is already held, logging an error.
-      await page.evaluate((name) => {
-        document.cookie = name + '=nested; path=/'
-      }, INSTANT_COOKIE)
+      // Attempt to acquire the lock again by nesting instant() calls.
+      // The inner call sets the cookie again, and the handler detects
+      // that the lock is already held, logging an error.
+      await instant(page, async () => {})
       const msg = await consolePromise
       expect(msg.text()).toContain('already acquired')
     })
