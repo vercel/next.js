@@ -33,7 +33,7 @@ mod production;
 mod style_production;
 
 #[turbo_tasks::value]
-struct ChunkedItemsWithInfo {
+struct ChunkItemsWithInfo {
     #[allow(clippy::type_complexity)]
     by_type: SmallVec<
         [(
@@ -45,8 +45,8 @@ struct ChunkedItemsWithInfo {
 }
 
 #[turbo_tasks::value(transparent)]
-struct BatchChunkedItemsWithInfo(
-    FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, ResolvedVc<ChunkedItemsWithInfo>>,
+struct BatchChunkItemsWithInfo(
+    FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, ResolvedVc<ChunkItemsWithInfo>>,
 );
 
 #[derive(Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, ValueDebugFormat, Encode, Decode)]
@@ -101,7 +101,7 @@ async fn batch_size(
 async fn plain_chunk_items_with_info(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<ChunkedItemsWithInfo> {
+) -> Result<ChunkItemsWithInfo> {
     Ok(match chunk_item_or_batch {
         ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item_with_info) => {
             let ChunkItemWithAsyncModuleInfo {
@@ -115,7 +115,7 @@ async fn plain_chunk_items_with_info(
             let chunk_item_size =
                 ty.chunk_item_size(chunking_context, *chunk_item, async_info.map(|info| *info));
 
-            ChunkedItemsWithInfo {
+            ChunkItemsWithInfo {
                 by_type: smallvec![(
                     ty.to_resolved().await?,
                     smallvec![ChunkItemOrBatchWithInfo::ChunkItem {
@@ -141,7 +141,7 @@ async fn plain_chunk_items_with_info(
                 })
                 .try_join()
                 .await?;
-            ChunkedItemsWithInfo {
+            ChunkItemsWithInfo {
                 by_type: by_type.into_iter().collect(),
             }
         }
@@ -194,7 +194,7 @@ async fn plain_chunk_items_with_info_with_type(
 async fn chunk_items_with_info(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<ChunkedItemsWithInfo>> {
+) -> Result<Vc<ChunkItemsWithInfo>> {
     let chunk_items_with_info =
         plain_chunk_items_with_info(chunk_item_or_batch, chunking_context).await?;
     Ok(chunk_items_with_info.cell())
@@ -206,7 +206,7 @@ async fn chunk_items_with_info_with_type(
     ty: ResolvedVc<Box<dyn ChunkType>>,
     batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<ChunkedItemsWithInfo>> {
+) -> Result<Vc<ChunkItemsWithInfo>> {
     let result = plain_chunk_items_with_info_with_type(
         &chunk_item_or_batch,
         ty,
@@ -214,7 +214,7 @@ async fn chunk_items_with_info_with_type(
         chunking_context,
     )
     .await?;
-    Ok(ChunkedItemsWithInfo {
+    Ok(ChunkItemsWithInfo {
         by_type: smallvec![result],
     }
     .cell())
@@ -224,7 +224,7 @@ async fn chunk_items_with_info_with_type(
 async fn batch_chunk_items_with_info(
     batch_group: Vc<ChunkItemBatchGroup>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<BatchChunkedItemsWithInfo>> {
+) -> Result<Vc<BatchChunkItemsWithInfo>> {
     let split_batch_group = batch_group.split_by_chunk_type().await?;
     if split_batch_group.len() == 1 {
         let &(ty, batch) = split_batch_group.into_iter().next().unwrap();
@@ -255,7 +255,7 @@ async fn batch_chunk_items_with_info_with_type(
     batch_group: Vc<ChunkItemBatchGroup>,
     ty: Vc<Box<dyn ChunkType>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<BatchChunkedItemsWithInfo>> {
+) -> Result<Vc<BatchChunkItemsWithInfo>> {
     let map = batch_group
         .await?
         .items
@@ -298,7 +298,7 @@ pub async fn make_chunks(
         chunk_items_or_batches = chunk_items_or_batches.len(),
         batch_groups = batch_groups.len()
     );
-    let chunk_items: Vec<ReadRef<ChunkedItemsWithInfo>> = batch_info(
+    let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> = batch_info(
         &batch_groups,
         &chunk_items_or_batches,
         |batch_group| batch_chunk_items_with_info(batch_group, *chunking_context).into_future(),
