@@ -7,10 +7,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../Cargo.toml",
         "../../Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": [
@@ -24,10 +25,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../Cargo.toml",
         "../../Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": ["native/*.node", "native/index.d.ts"]
@@ -37,10 +39,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": ["native/*.node", "native/index.d.ts"]
@@ -50,10 +53,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": ["native/*.node", "native/index.d.ts"]
@@ -63,10 +67,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": ["native/*.node", "native/index.d.ts"]
@@ -76,10 +81,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": ["native/*.node", "native/index.d.ts"]
@@ -89,10 +95,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": ["../../crates/wasm/pkg/*"]
@@ -102,10 +109,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": ["native/*"]
@@ -115,10 +123,11 @@
         "../../.cargo/**",
         "../../crates/**",
         "../../turbopack/crates/**",
+        "!../../turbopack/crates/*/tests/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "env": ["CI"],
       "outputs": ["native/*.node", "native/index.d.ts"]
@@ -134,7 +143,7 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ],
       "cache": false
     },
@@ -146,7 +155,7 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ]
     },
     "rust-check-napi": {
@@ -157,7 +166,7 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ]
     },
     "test-cargo-unit": {
@@ -168,7 +177,7 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
+        "../../rust-toolchain.toml"
       ]
     }
   }
