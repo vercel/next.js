@@ -433,16 +433,16 @@ describe('app dir - basic', () => {
         false
       )
     })
-
-    it('should serve polyfills for browsers that do not support modules', async () => {
-      const html = await next.render('/dashboard/index')
-      expect(html).toMatch(
-        process.env.IS_TURBOPACK_TEST
-          ? /<script src="\/_next\/static\/chunks\/([\w-]*polyfill-nomodule|[0-9a-f]+)\.js" noModule="">/
-          : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
-      )
-    })
   }
+
+  it('should serve polyfills for browsers that do not support modules', async () => {
+    const html = await next.render('/dashboard/index')
+    expect(html).toMatch(
+      process.env.IS_TURBOPACK_TEST
+        ? /<script src="\/_next\/static\/chunks\/([\w-]*polyfill-nomodule|[0-9a-f]+)\.js(\?[^"]+)?" noModule="">/
+        : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js(\?[^"]+)?" noModule="">/
+    )
+  })
 
   // TODO-APP: handle css modules fouc in dev
   it.skip('should handle css imports in next/dynamic correctly', async () => {

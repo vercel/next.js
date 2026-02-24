@@ -378,15 +378,12 @@ export function runTests({
 
       if (!isNextDev) {
         let outputDir = join(next.testDir, 'out')
-        if (trailingSlash) {
-          expect(await getFiles(outputDir)).toEqual(
-            expectedWhenTrailingSlashTrue
-          )
-        } else {
-          expect(await getFiles(outputDir)).toEqual(
-            expectedWhenTrailingSlashFalse
-          )
-        }
+        const expected = trailingSlash
+          ? expectedWhenTrailingSlashTrue
+          : expectedWhenTrailingSlashFalse
+        const actualFiles = await getFiles(outputDir)
+        expect(actualFiles).toEqual(expect.arrayContaining(expected))
+        expect(actualFiles).toHaveLength(expected.length)
         const html404 = await fs.readFile(join(outputDir, '404.html'), 'utf8')
         expect(html404).toContain('<h1>My custom not found page</h1>')
       }
