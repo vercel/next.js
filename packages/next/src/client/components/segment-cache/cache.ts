@@ -2275,13 +2275,16 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const now = Date.now()
     const staleAt = await getStaleAt(now, serverData.s, response)
 
-    // Only PPRRuntime prefetches can be partial — Full and LoadingBoundary
-    // prefetches are by definition complete. Use the marker-derived value from
-    // cacheData only for PPRRuntime; default to false otherwise.
-    const isResponsePartial =
+    // Determine completeness: PPRRuntime prefetches use the marker-derived
+    // value from cacheData. Full and LoadingBoundary prefetches are always
+    // complete (segments non-partial), but we use Complete rather than
+    // FullyStatic because the head may still be partial.
+    const completeness =
       fetchStrategy === FetchStrategy.PPRRuntime
-        ? (cacheData?.isResponsePartial ?? false)
-        : false
+        ? cacheData?.isFullyStatic
+          ? ResponseCompleteness.FullyStatic
+          : ResponseCompleteness.Partial
+        : ResponseCompleteness.Complete
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
@@ -2291,7 +2294,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       fetchStrategy,
       response.headers,
       serverData,
-      isResponsePartial,
+      completeness,
       headVaryParams,
       staleAt,
       route,
@@ -2346,8 +2349,10 @@ function writeDynamicTreeResponseIntoCache(
   // that any individual segment might contain dynamic holes, and also the
   // head. If it did not contain dynamic holes, then we can assume every segment
   // and the head is completely static.
-  const isResponsePartial =
+  const completeness =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
+      ? ResponseCompleteness.Partial
+      : ResponseCompleteness.Complete
 
   // Convert the server-sent data into the RouteTree format used by the
   // client cache.
@@ -2393,7 +2398,7 @@ function writeDynamicTreeResponseIntoCache(
     fetchStrategy,
     response.headers,
     serverData,
-    isResponsePartial,
+    completeness,
     headVaryParams,
     getStaleAtFromHeader(now, response),
     fulfilledEntry,
@@ -2416,6 +2421,24 @@ function rejectSegmentEntriesIfStillPending(
   return fulfilledEntries
 }
 
+/**
+ * Describes how complete a cached response is. This determines both the segment
+ * partiality and whether the server's isHeadPartial flag can be overridden.
+ *
+ * - `Partial`: Segments may contain dynamic holes and need a dynamic follow-up
+ *   request to fill in runtime content.
+ * - `Complete`: All segments are complete, but the head (metadata) may still be
+ *   partial per the server's flag.
+ * - `FullyStatic`: The server explicitly marked the response as fully static
+ *   (marker byte '#'). Both segments and head are complete — no dynamic
+ *   follow-up needed.
+ */
+export const enum ResponseCompleteness {
+  Partial = 0,
+  Complete = 1,
+  FullyStatic = 2,
+}
+
 export function writeDynamicRenderResponseIntoCache(
   now: number,
   fetchStrategy:
@@ -2425,7 +2448,7 @@ export function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.Full,
   responseHeaders: Headers,
   serverData: NavigationFlightResponse,
-  isResponsePartial: boolean,
+  completeness: ResponseCompleteness,
   headVaryParams: VaryParams | null,
   staleAt: number,
   route: FulfilledRouteCacheEntry,
@@ -2480,7 +2503,7 @@ export function writeDynamicRenderResponseIntoCache(
         tree,
         staleAt,
         seedData,
-        isResponsePartial,
+        completeness,
         spawnedEntries
       )
     }
@@ -2489,9 +2512,14 @@ export function writeDynamicRenderResponseIntoCache(
     if (head !== null) {
       // The server conservatively marks the head as partial whenever PPR is
       // enabled, even for fully static pages where the head is actually
-      // complete. When we know the entire response is fully static, we can
-      // safely override this.
-      const isHeadPartial = isResponsePartial && flightData.isHeadPartial
+      // complete (see isPossiblyPartialHead in app-render.tsx and the hardcoded
+      // `true` in walk-tree-with-flight-router-state.tsx). When the response is
+      // fully static (marker byte '#'), we can safely override this since the
+      // server confirmed no dynamic content exists.
+      const isHeadPartial =
+        completeness === ResponseCompleteness.FullyStatic
+          ? false
+          : flightData.isHeadPartial
 
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
@@ -2535,7 +2563,7 @@ function writeSeedDataIntoCache(
   tree: RouteTree,
   staleAt: number,
   seedData: CacheNodeSeedData,
-  isResponsePartial: boolean,
+  completeness: ResponseCompleteness,
   entriesOwnedByCurrentTask: Map<
     SegmentRequestKey,
     PendingSegmentCacheEntry
@@ -2544,7 +2572,8 @@ function writeSeedDataIntoCache(
   // This function is used to write the result of a runtime server request
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
-  const isPartial = rsc === null || isResponsePartial
+  const isPartial =
+    rsc === null || completeness === ResponseCompleteness.Partial
   const varyParamsThenable = seedData[4]
   // Each segment carries its own vary params thenable in the seed data. The
   // thenable resolves to the set of params the segment accessed during render.
@@ -2577,7 +2606,7 @@ function writeSeedDataIntoCache(
           childTree,
           staleAt,
           childSeedData,
-          isResponsePartial,
+          completeness,
           entriesOwnedByCurrentTask
         )
       }
@@ -2899,10 +2928,9 @@ export async function processStaticStageResponse(
  * Writes the static stage of a dynamic navigation response into the segment
  * cache.
  *
- * When isResponsePartial is false, the response represents a fully static
- * page — all segments are cached as complete entries that don't need a dynamic
- * follow-up request. When true, the response contains only the static stage
- * and segments are marked as partial.
+ * When the response is fully static, all segments and the head are cached as
+ * complete entries. Otherwise, segments are marked as partial and need a
+ * dynamic follow-up.
  */
 export function writeStaticStageResponseIntoCache(
   now: number,
@@ -2912,18 +2940,20 @@ export function writeStaticStageResponseIntoCache(
   staleAt: number,
   route: FulfilledRouteCacheEntry
 ): void {
-  const { response: serverData, isResponsePartial } = staticStageData
+  const { response: serverData, isFullyStatic } = staticStageData
 
-  const fetchStrategy = isResponsePartial
-    ? FetchStrategy.PPR
-    : FetchStrategy.Full
+  const completeness = isFullyStatic
+    ? ResponseCompleteness.FullyStatic
+    : ResponseCompleteness.Partial
+
+  const fetchStrategy = isFullyStatic ? FetchStrategy.Full : FetchStrategy.PPR
 
   writeDynamicRenderResponseIntoCache(
     now,
     fetchStrategy,
     responseHeaders,
     serverData,
-    isResponsePartial,
+    completeness,
     headVaryParams,
     staleAt,
     route,
@@ -2957,7 +2987,7 @@ export async function writeInitialSeedDataIntoCache(
 
   // For fully static prerendered pages, the entire payload is static — all
   // segments are complete and don't need a dynamic follow-up request.
-  const isResponsePartial = false
+  const completeness = ResponseCompleteness.FullyStatic
 
   // Use Full fetch strategy since the initial HTML contains the complete
   // render, not just a loading boundary prefix.
@@ -2969,7 +2999,7 @@ export async function writeInitialSeedDataIntoCache(
     routeTree,
     staleAt,
     seedData,
-    isResponsePartial,
+    completeness,
     null // spawnedEntries — no pre-created entries; will create or upsert
   )
 
@@ -2999,12 +3029,12 @@ export async function writeInitialSeedDataIntoCache(
  * it is stripped. If the first byte is not a recognized marker, the stream is
  * returned intact.
  *
- * Returns `isResponsePartial`:
- * - `true` when the marker is '~' (partial), or when no marker is found.
+ * Returns `isFullyStatic`:
+ * - `true` only when the marker is '#' (complete), meaning the server
+ *   explicitly marked the response as fully static.
+ * - `false` when the marker is '~' (partial), or when no marker is found.
  *   This is the conservative default — unknown means "assume dynamic
  *   follow-up is needed".
- * - `false` only when the marker is '#' (complete), meaning the server
- *   explicitly marked the response as fully static.
  *
  * This is safe because the marker bytes (0x7e '~', 0x23 '#') cannot appear as
  * the first byte of a valid RSC Flight response. Flight rows start with either
@@ -3015,23 +3045,23 @@ export async function stripIsPartialByte(
   stream: ReadableStream<Uint8Array>
 ): Promise<{
   stream: ReadableStream<Uint8Array>
-  isResponsePartial: boolean
+  isFullyStatic: boolean
 }> {
   const reader = stream.getReader()
   const { done, value } = await reader.read()
   if (done || !value || value.byteLength === 0) {
     return {
       stream: new ReadableStream({ start: (c) => c.close() }),
-      isResponsePartial: true,
+      isFullyStatic: false,
     }
   }
 
   const firstByte = value[0]
   // '~' (0x7e) = partial, '#' (0x23) = complete
   const hasMarker = firstByte === 0x7e || firstByte === 0x23
-  // Only '#' (complete) is non-partial. Everything else — including
-  // no marker — defaults to partial as the conservative choice.
-  const isResponsePartial = firstByte !== 0x23
+  // Only '#' (complete) means fully static. Everything else — including
+  // no marker — defaults to not fully static as the conservative choice.
+  const isFullyStatic = firstByte === 0x23
 
   const remainder = hasMarker
     ? value.byteLength > 1
@@ -3040,7 +3070,7 @@ export async function stripIsPartialByte(
     : value
 
   return {
-    isResponsePartial,
+    isFullyStatic,
     stream: new ReadableStream<Uint8Array>({
       start(controller) {
         if (remainder) {
