@@ -3,12 +3,22 @@ use std::{mem::MaybeUninit, sync::Arc};
 use anyhow::{Context, Result};
 use lzzzz::lz4::{ACC_LEVEL_DEFAULT, decompress, decompress_with_dict};
 
+/// Decompresses a block into an Arc allocation.
+///
+/// The caller must ensure `uncompressed_length > 0` (i.e., the block is actually compressed).
+/// Uncompressed blocks should be handled via zero-copy mmap slices before calling this.
 pub fn decompress_into_arc(
     uncompressed_length: u32,
     block: &[u8],
     compression_dictionary: Option<&[u8]>,
     _long_term: bool,
 ) -> Result<Arc<[u8]>> {
+    debug_assert!(
+        uncompressed_length > 0,
+        "decompress_into_arc called with uncompressed_length=0; uncompressed blocks should use \
+         zero-copy mmap path"
+    );
+
     // We directly allocate the buffer in an Arc to avoid copying it into an Arc and avoiding
     // double indirection. This is a dynamically sized arc.
     let buffer: Arc<[MaybeUninit<u8>]> = Arc::new_zeroed_slice(uncompressed_length as usize);

@@ -21,7 +21,7 @@ use smallvec::SmallVec;
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
     QueryKey,
-    arc_slice::ArcSlice,
+    arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::decompress_into_arc,
     constants::{
@@ -377,7 +377,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
-    fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
+    fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
         #[cfg(unix)]
@@ -392,7 +392,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let uncompressed_length = compressed.read_u32::<BE>()?;
 
         let buffer = decompress_into_arc(uncompressed_length, compressed, None, true)?;
-        Ok(ArcSlice::from(buffer))
+        Ok(ArcBytes::from(buffer))
     }
 
     /// Returns true if the database is empty.
@@ -1357,7 +1357,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Get a value from the database. Returns None if the key is not found. The returned value
     /// might hold onto a block of the database and it should not be hold long-term.
-    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
+    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         let span = tracing::trace_span!(
             "database read",
@@ -1429,7 +1429,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         &self,
         family: usize,
         keys: &[K],
-    ) -> Result<Vec<Option<ArcSlice<u8>>>> {
+    ) -> Result<Vec<Option<ArcBytes>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         let span = tracing::trace_span!(
             "database batch read",
