@@ -13,7 +13,7 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemExt,
+        AsyncModuleInfo, Chunk, ChunkedItem, ChunkItemBatchGroup, ChunkItemExt,
         ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
         ChunkableModule, ChunkingContext, ChunkingContextExt, MinifyType, OutputChunk,
         OutputChunkRuntimeInfo, SourceMapSourceType, round_chunk_item_size,
@@ -464,7 +464,7 @@ pub struct CssChunkItemContent {
 }
 
 #[turbo_tasks::value_trait]
-pub trait CssChunkItem: ChunkItem + OutputAssetsReference {
+pub trait CssChunkItem: ChunkedItem + OutputAssetsReference {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<CssChunkItemContent>;
 }
@@ -577,7 +577,7 @@ impl ChunkType for CssChunkType {
     async fn chunk_item_size(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn ChunkedItem>>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
         let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(chunk_item) else {

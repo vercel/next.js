@@ -11,7 +11,7 @@ use turbo_tasks_hash::{DeterministicHash, HashAlgorithm};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkedItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, ChunkingContextExt,
         EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
@@ -907,7 +907,7 @@ impl ChunkingContext for BrowserChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+    ) -> Result<Vc<Box<dyn ChunkedItem>>> {
         let chunking_context = ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self);
         Ok(if self.await?.manifest_chunks {
             let manifest_asset = ManifestAsyncModule::new(

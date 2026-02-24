@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
+    chunk::{Chunk, ChunkedItem, ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,

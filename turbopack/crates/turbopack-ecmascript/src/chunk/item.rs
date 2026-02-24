@@ -11,7 +11,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+        AsyncModuleInfo, ChunkedItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder},
@@ -227,7 +227,7 @@ impl EcmascriptChunkItemWithAsyncInfo {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
+pub trait EcmascriptChunkItem: ChunkedItem + OutputAssetsReference {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
 
@@ -316,7 +316,7 @@ pub fn ecmascript_chunk_item(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-) -> Vc<Box<dyn ChunkItem>> {
+) -> Vc<Box<dyn ChunkedItem>> {
     Vc::upcast(
         EcmascriptModuleChunkItem {
             module,
@@ -328,7 +328,7 @@ pub fn ecmascript_chunk_item(
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for EcmascriptModuleChunkItem {
+impl ChunkedItem for EcmascriptModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()

@@ -85,7 +85,7 @@ pub trait ChunkableModule: Module {
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn ChunkItem>>;
+    ) -> Vc<Box<dyn ChunkedItem>>;
 }
 
 /// Implements `ChunkableModule` for a type that implements `EcmascriptChunkPlaceable`.
@@ -113,7 +113,7 @@ macro_rules! chunk_item {
                 chunking_context: turbo_tasks::ResolvedVc<
                     Box<dyn turbopack_core::chunk::ChunkingContext>,
                 >,
-            ) -> turbo_tasks::Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+            ) -> turbo_tasks::Vc<Box<dyn ChunkedItem>> {
                 $chunk_item_fn(
                     turbo_tasks::ResolvedVc::upcast(self),
                     module_graph,
@@ -425,7 +425,7 @@ pub struct ChunkGroupContent {
 }
 
 #[turbo_tasks::value_trait]
-pub trait ChunkItem: OutputAssetsReference {
+pub trait ChunkedItem: OutputAssetsReference {
     /// The [AssetIdent] of the [Module] that this [ChunkItem] was created from.
     /// For most chunk types this must uniquely identify the chunk item at
     /// runtime as it's the source of the module id used at runtime.
@@ -473,7 +473,7 @@ pub trait ChunkType: ValueToString {
     fn chunk_item_size(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
+        chunk_item: Vc<Box<dyn ChunkedItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<usize>;
 }
@@ -484,7 +484,15 @@ pub fn round_chunk_item_size(size: usize) -> usize {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
+pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkedItem>>>);
+
+/// A wrapper around a `ResolvedVc<Box<dyn ChunkedItem>>` that provides direct method access
+/// without needing the `ChunkedItem` trait in scope.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
+)]
+#[repr(transparent)]
+pub struct ChunkItem(pub ResolvedVc<Box<dyn ChunkedItem>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
@@ -506,13 +514,13 @@ impl AsyncModuleInfo {
     Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub struct ChunkItemWithAsyncModuleInfo {
-    pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    pub chunk_item: ResolvedVc<Box<dyn ChunkedItem>>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
+pub struct ChunkedItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt {
     /// Returns the module id of this chunk item.
@@ -521,7 +529,7 @@ pub trait ChunkItemExt {
 
 impl<T> ChunkItemExt for T
 where
-    T: Upcast<Box<dyn ChunkItem>> + Send,
+    T: Upcast<Box<dyn ChunkedItem>> + Send,
 {
     /// Returns the module id of this chunk item.
     async fn id(self: Vc<Self>) -> Result<ModuleId> {

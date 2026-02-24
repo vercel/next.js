@@ -3,7 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunkingContextExt, MinifyType},
+    chunk::{ChunkedItem, ChunkType, ChunkableModule, ChunkingContext, ChunkingContextExt, MinifyType},
     context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
@@ -177,7 +177,7 @@ impl ChunkableModule for CssModuleAsset {
         self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+    ) -> Vc<Box<dyn ChunkedItem>> {
         Vc::upcast(CssModuleChunkItem::cell(CssModuleChunkItem {
             module: self,
             module_graph,
@@ -231,7 +231,7 @@ impl OutputAssetsReference for CssModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for CssModuleChunkItem {
+impl ChunkedItem for CssModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()

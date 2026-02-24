@@ -40,12 +40,12 @@ pub async fn make_production_chunks(
         let merged_modules = module_graph.merged_modules().await?;
 
         #[derive(Default)]
-        struct GroupedChunkItems<'l> {
+        struct GroupedChunkedItems<'l> {
             chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
             batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
         }
 
-        let mut grouped_chunk_items = FxIndexMap::<_, GroupedChunkItems<'_>>::default();
+        let mut grouped_chunk_items = FxIndexMap::<_, GroupedChunkedItems<'_>>::default();
 
         enum Prepared {
             ChunkItem(MappedReadRef<ModuleToChunkGroups, RoaringBitmapWrapper>),
@@ -143,7 +143,7 @@ pub async fn make_production_chunks(
                 .map(
                     |(
                         key,
-                        GroupedChunkItems {
+                        GroupedChunkedItems {
                             chunk_items,
                             batch_group,
                         },

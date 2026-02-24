@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::chunk::{
-    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
+    AsyncModuleInfo, Chunk, ChunkedItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
     ChunkType, ChunkingContext, round_chunk_item_size,
 };
 
@@ -50,7 +50,7 @@ impl ChunkType for EcmascriptChunkType {
     async fn chunk_item_size(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn ChunkedItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
         let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)

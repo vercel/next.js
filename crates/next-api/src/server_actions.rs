@@ -27,7 +27,7 @@ use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder}
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        ChunkItem, ChunkItemExt, ChunkingContext, ChunkingContextExt, EvaluatableAsset, ModuleId,
+        ChunkedItem, ChunkItemExt, ChunkingContext, ChunkingContextExt, EvaluatableAsset, ModuleId,
     },
     context::AssetContext,
     file_source::FileSource,
@@ -158,7 +158,7 @@ async fn build_manifest(
     page_name: RcStr,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
-    chunk_item: Vc<Box<dyn ChunkItem>>,
+    chunk_item: Vc<Box<dyn ChunkedItem>>,
     async_module_info: Vc<AsyncModulesInfo>,
 ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = &page_name;

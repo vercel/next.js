@@ -7,7 +7,7 @@ use turbo_tasks::{
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;
-use crate::{chunk::ChunkItem, ident::AssetIdent, module::Module};
+use crate::{chunk::ChunkedItem, ident::AssetIdent, module::Module};
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ModuleIds(FxHashMap<ResolvedVc<AssetIdent>, ModuleId>);
@@ -29,7 +29,7 @@ pub struct ModuleIdStrategy {
 }
 
 impl ModuleIdStrategy {
-    pub async fn get_id(&self, chunk_item: Vc<Box<dyn ChunkItem>>) -> Result<ModuleId> {
+    pub async fn get_id(&self, chunk_item: Vc<Box<dyn ChunkedItem>>) -> Result<ModuleId> {
         let ident = chunk_item.asset_ident();
         self.get_id_from_ident(ident).await
     }
