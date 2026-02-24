@@ -19,6 +19,7 @@ import {
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
+  processStaticStageResponse,
   writeStaticStageResponseIntoCache,
   type RouteTree,
   type FulfilledRouteCacheEntry,
@@ -406,10 +407,20 @@ async function navigateToUnknownRoute(
     // Write the static stage of the response into the segment cache so
     // that subsequent navigations can serve cached static segments instantly.
     if (staticStageResponse !== null) {
-      writeStaticStageResponseIntoCache(
-        staticStageResponse,
-        responseHeaders,
-        fulfilledRoute
+      processStaticStageResponse(now, staticStageResponse).then(
+        ({ serverData, headVaryParams, staleAt }) =>
+          writeStaticStageResponseIntoCache(
+            now,
+            serverData,
+            responseHeaders,
+            headVaryParams,
+            staleAt,
+            fulfilledRoute
+          ),
+        () => {
+          // The static stage processing failed. Not fatal — the navigation
+          // completed normally, we just won't write into the cache.
+        }
       )
     }
   }

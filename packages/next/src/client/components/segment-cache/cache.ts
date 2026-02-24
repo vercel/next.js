@@ -2687,48 +2687,61 @@ async function getStaleAt(
   return now + STATIC_STALETIME_MS
 }
 
+type ProcessedStaticStageResponse = {
+  readonly serverData: NavigationFlightResponse
+  readonly headVaryParams: VaryParams | null
+  readonly staleAt: number
+}
+
+/**
+ * Resolves a static stage response promise and computes derived values
+ * (stale time, vary params). Callers should `.then()` the result into
+ * `writeStaticStageResponseIntoCache`.
+ */
+export async function processStaticStageResponse(
+  now: number,
+  staticStageResponse: Promise<NavigationFlightResponse>
+): Promise<ProcessedStaticStageResponse> {
+  const serverData = await staticStageResponse
+  const staleAt = await getStaleAt(now, serverData)
+
+  const headVaryParams =
+    serverData.h !== null ? readVaryParams(serverData.h) : null
+
+  return { serverData, headVaryParams, staleAt }
+}
+
 /**
  * Writes the static stage of a dynamic navigation response into the segment
- * cache. Awaits the decoded static stage response, reads its stale time, and
- * writes the segment data.
+ * cache.
  */
-export async function writeStaticStageResponseIntoCache(
-  staticStageResponse: Promise<NavigationFlightResponse>,
+export function writeStaticStageResponseIntoCache(
+  now: number,
+  serverData: NavigationFlightResponse,
   responseHeaders: Headers,
+  headVaryParams: VaryParams | null,
+  staleAt: number,
   route: FulfilledRouteCacheEntry
-): Promise<void> {
-  try {
-    const serverData = await staticStageResponse
-    const now = Date.now()
-    const staleAt = await getStaleAt(now, serverData)
+): void {
+  // All segments are partial — the static stage needs a dynamic fetch to fill
+  // in runtime/dynamic content within their subtrees.
+  const isResponsePartial = true
 
-    const headVaryParams =
-      serverData.h !== null ? readVaryParams(serverData.h) : null
+  // The static stage corresponds to the default prefetching strategy for
+  // Cache Components (FetchStrategy.PPR).
+  const fetchStrategy = FetchStrategy.PPR
 
-    // The truncated stream contains only the static stage, so all segments are
-    // partial — they need a dynamic fetch to fill in runtime/dynamic content
-    // within their subtrees.
-    const isResponsePartial = true
-
-    // The static stage corresponds to the default prefetching strategy for
-    // Cache Components (FetchStrategy.PPR).
-    const fetchStrategy = FetchStrategy.PPR
-
-    writeDynamicRenderResponseIntoCache(
-      now,
-      fetchStrategy,
-      responseHeaders,
-      serverData,
-      isResponsePartial,
-      headVaryParams,
-      staleAt,
-      route,
-      null // spawnedEntries — no pre-created entries; will create or upsert
-    )
-  } catch {
-    // The static stage decode failed. This is not fatal — the navigation
-    // still completed normally, we just won't write into the cache.
-  }
+  writeDynamicRenderResponseIntoCache(
+    now,
+    fetchStrategy,
+    responseHeaders,
+    serverData,
+    isResponsePartial,
+    headVaryParams,
+    staleAt,
+    route,
+    null // spawnedEntries — no pre-created entries; will create or upsert
+  )
 }
 
 /**

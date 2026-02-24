@@ -34,6 +34,7 @@ import {
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
+  processStaticStageResponse,
   writeStaticStageResponseIntoCache,
   EntryStatus,
 } from '../segment-cache/cache'
@@ -1548,10 +1549,21 @@ async function fetchMissingDynamicData(
     }
 
     if (routeCacheEntry !== null && result.staticStageResponse !== null) {
-      writeStaticStageResponseIntoCache(
-        result.staticStageResponse,
-        result.responseHeaders,
-        routeCacheEntry
+      const now = Date.now()
+      processStaticStageResponse(now, result.staticStageResponse).then(
+        ({ serverData, headVaryParams, staleAt }) =>
+          writeStaticStageResponseIntoCache(
+            now,
+            serverData,
+            result.responseHeaders,
+            headVaryParams,
+            staleAt,
+            routeCacheEntry
+          ),
+        () => {
+          // The static stage processing failed. Not fatal — the navigation
+          // completed normally, we just won't write into the cache.
+        }
       )
     }
 
