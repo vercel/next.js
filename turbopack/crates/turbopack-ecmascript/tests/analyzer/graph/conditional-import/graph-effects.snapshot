@@ -149,10 +149,7 @@
         ],
         span: 18..34,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -196,7 +193,7 @@
         ],
         span: 11..35,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     Member {
         obj: Member(
@@ -596,10 +593,7 @@
         ],
         span: 57..196,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Tenary(
@@ -687,7 +681,7 @@
         ],
         span: 47..198,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     Conditional {
         condition: Constant(
@@ -696,10 +690,7 @@
         kind: IfElse {
             then: EffectsBlock {
                 effects: [
-                    Call {
-                        func: FreeVar(
-                            "import",
-                        ),
+                    DynamicImport {
                         args: [
                             Value(
                                 Constant(
@@ -755,7 +746,7 @@
                         ],
                         span: 226..237,
                         in_try: false,
-                        new: false,
+                        export_usage: All,
                     },
                 ],
                 range: Exact(
@@ -782,10 +773,7 @@
             },
             else: EffectsBlock {
                 effects: [
-                    Call {
-                        func: FreeVar(
-                            "import",
-                        ),
+                    DynamicImport {
                         args: [
                             Value(
                                 Constant(
@@ -841,7 +829,7 @@
                         ],
                         span: 254..265,
                         in_try: false,
-                        new: false,
+                        export_usage: All,
                     },
                 ],
                 range: Exact(
@@ -1224,10 +1212,7 @@
         ],
         span: 399..434,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -1280,7 +1265,7 @@
         ],
         span: 438..449,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     ImportedBinding {
         esm_reference_index: 4,

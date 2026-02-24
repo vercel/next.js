@@ -10,7 +10,10 @@ use turbopack_core::{
     source_transform::SourceTransforms,
 };
 use turbopack_css::CssModuleAssetType;
-use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
+use turbopack_ecmascript::{
+    EcmascriptInputTransforms, EcmascriptOptions, bytes_source_transform::BytesSourceTransform,
+    json_source_transform::JsonSourceTransform,
+};
 use turbopack_wasm::source::WebAssemblySourceType;
 
 use crate::module_options::{CustomModuleType, RuleCondition, match_mode::MatchMode};
@@ -133,7 +136,6 @@ pub enum ModuleType {
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
-    Json,
     Raw,
     NodeAddon,
     CssModule,
@@ -149,7 +151,6 @@ pub enum ModuleType {
         /// The tag that is passed to ChunkingContext::asset_url
         tag: Option<RcStr>,
     },
-    InlinedBytesJs,
     WebAssembly {
         source_ty: WebAssemblySourceType,
     },
@@ -163,62 +164,119 @@ impl Display for ModuleType {
             ModuleType::Typescript { .. } => write!(f, "Typescript"),
             ModuleType::TypescriptDeclaration { .. } => write!(f, "TypescriptDeclaration"),
             ModuleType::EcmascriptExtensionless { .. } => write!(f, "EcmascriptExtensionless"),
-            ModuleType::Json => write!(f, "Json"),
             ModuleType::Raw => write!(f, "Raw"),
             ModuleType::NodeAddon => write!(f, "NodeAddon"),
             ModuleType::CssModule => write!(f, "CssModule"),
             ModuleType::Css { .. } => write!(f, "Css"),
             ModuleType::StaticUrlJs { .. } => write!(f, "StaticUrlJs"),
             ModuleType::StaticUrlCss { .. } => write!(f, "StaticUrlCss"),
-            ModuleType::InlinedBytesJs => write!(f, "InlinedBytesJs"),
             ModuleType::WebAssembly { .. } => write!(f, "WebAssembly"),
             ModuleType::Custom(_) => write!(f, "Custom"),
         }
     }
 }
 
-impl ModuleType {
-    /// Creates a ModuleType from a string identifier.
-    /// This is used for user-configured module types in turbopack rules.
-    pub fn from_str_with_defaults(
-        type_str: &str,
+/// User-facing module type names used in configuration.
+///
+/// This enum represents the semantic module types that users can specify in their config
+/// (e.g., next.config.js turbopack rules). Some of these map directly to internal `ModuleType`
+/// variants, while others (like `Bytes`) are implemented via source transforms.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfiguredModuleType {
+    Asset,
+    Ecmascript,
+    Typescript,
+    Css,
+    CssModule,
+    /// Parses JSON and exports it as an ES module default export.
+    /// Implemented as a source transform, not a ModuleType.
+    Json,
+    Wasm,
+    Raw,
+    Node,
+    /// Converts any file to an ES module exporting its contents as a Uint8Array.
+    /// Implemented as a source transform, not a ModuleType.
+    Bytes,
+}
+
+impl ConfiguredModuleType {
+    /// Parse a module type string from user configuration.
+    pub fn parse(type_str: &str) -> Result<Self> {
+        Ok(match type_str {
+            "asset" => ConfiguredModuleType::Asset,
+            "ecmascript" => ConfiguredModuleType::Ecmascript,
+            "typescript" => ConfiguredModuleType::Typescript,
+            "css" => ConfiguredModuleType::Css,
+            "css-module" => ConfiguredModuleType::CssModule,
+            "json" => ConfiguredModuleType::Json,
+            "wasm" => ConfiguredModuleType::Wasm,
+            "raw" => ConfiguredModuleType::Raw,
+            "node" => ConfiguredModuleType::Node,
+            "bytes" => ConfiguredModuleType::Bytes,
+            _ => bail!(
+                "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
+                 typescript, css, css-module, json, wasm, raw, node, bytes"
+            ),
+        })
+    }
+
+    /// Convert this configured module type into module rule effects.
+    ///
+    /// Some module types (like `Bytes`) are implemented as source transforms rather than
+    /// `ModuleType` variants, allowing them to compose with the standard Ecmascript pipeline.
+    pub async fn into_effect(
+        self,
         preprocess: ResolvedVc<EcmascriptInputTransforms>,
         main: ResolvedVc<EcmascriptInputTransforms>,
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         environment: Option<ResolvedVc<Environment>>,
-    ) -> Result<Self> {
-        Ok(match type_str {
-            "asset" => ModuleType::StaticUrlJs { tag: None },
-            "ecmascript" => ModuleType::Ecmascript {
-                preprocess,
-                main,
-                postprocess,
-                options,
-            },
-            "typescript" => ModuleType::Typescript {
-                preprocess,
-                main,
-                postprocess,
-                tsx: false,
-                analyze_types: false,
-                options,
-            },
-            "css" => ModuleType::Css {
+    ) -> Result<ModuleRuleEffect> {
+        Ok(match self {
+            ConfiguredModuleType::Bytes => {
+                // Use source transform instead of ModuleType - the transform produces .mjs
+                // which gets picked up by the standard Ecmascript rules
+                ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
+                    BytesSourceTransform::new().to_resolved().await?,
+                )]))
+            }
+            ConfiguredModuleType::Asset => {
+                ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs { tag: None })
+            }
+            ConfiguredModuleType::Ecmascript => {
+                ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                    preprocess,
+                    main,
+                    postprocess,
+                    options,
+                })
+            }
+            ConfiguredModuleType::Typescript => {
+                ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                    preprocess,
+                    main,
+                    postprocess,
+                    tsx: false,
+                    analyze_types: false,
+                    options,
+                })
+            }
+            ConfiguredModuleType::Css => ModuleRuleEffect::ModuleType(ModuleType::Css {
                 ty: CssModuleAssetType::Default,
                 environment,
-            },
-            "css-module" => ModuleType::CssModule,
-            "wasm" => ModuleType::WebAssembly {
+            }),
+            ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
+            ConfiguredModuleType::Json => {
+                ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
+                    // TODO: can we switch this to `new_esm`?
+                    JsonSourceTransform::new_cjs().to_resolved().await?,
+                )]))
+            }
+            ConfiguredModuleType::Wasm => ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
                 source_ty: WebAssemblySourceType::Binary,
-            },
-            "raw" => ModuleType::Raw,
-            "node" => ModuleType::NodeAddon,
-            "bytes" => ModuleType::InlinedBytesJs,
-            _ => bail!(
-                "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
-                 typescript, css, css-module, wasm, raw, node, bytes"
-            ),
+            }),
+            ConfiguredModuleType::Raw => ModuleRuleEffect::ModuleType(ModuleType::Raw),
+            ConfiguredModuleType::Node => ModuleRuleEffect::ModuleType(ModuleType::NodeAddon),
         })
     }
 }

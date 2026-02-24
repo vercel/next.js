@@ -352,19 +352,62 @@ impl SingleModuleGraph {
                 }
             });
             if *CHECK_FOR_DUPLICATE_MODULES {
-                let mut duplicates = Vec::new();
+                let mut duplicates = FxHashSet::default();
                 let mut set = FxHashSet::default();
                 for &module in modules.keys() {
                     let ident = module.ident().to_string().await?;
                     if !set.insert(ident.clone()) {
-                        duplicates.push(ident)
+                        duplicates.insert(ident);
                     }
                 }
                 if !duplicates.is_empty() {
-                    panic!(
-                        "Duplicate module idents in graph: {duplicates:#?}\n{:#?}",
-                        modules
-                    );
+                    use turbo_tasks::TryFlatJoinIterExt;
+
+                    let duplicates_clone = duplicates.clone();
+                    let duplicate_modules = modules
+                        .iter()
+                        .map(async |(&m, &idx)| {
+                            let id = m.ident().to_string().await?;
+                            if duplicates_clone.contains(&id) {
+                                // 3 is arbitrary but it is enough to reveal a little bit
+                                // of detail.
+                                let debug = m.value_debug_format(3).try_to_string().await?;
+
+                                // Collect reverse dependencies (parents) to help
+                                // diagnose how this module entered the graph.
+                                let parent_modules: Vec<_> = graph
+                                    .edges_directed(idx, petgraph::Direction::Incoming)
+                                    .filter_map(|edge| match graph.node_weight(edge.source()) {
+                                        Some(SingleModuleGraphNode::Module(m)) => Some(*m),
+                                        Some(SingleModuleGraphNode::VisitedModule {
+                                            module,
+                                            ..
+                                        }) => Some(*module),
+                                        None => None,
+                                    })
+                                    .collect();
+                                let parents: Vec<String> = parent_modules
+                                    .iter()
+                                    .map(async |p| {
+                                        let ident = p.ident().to_string().await?;
+                                        Ok((*ident).to_string())
+                                    })
+                                    .try_join()
+                                    .await?;
+
+                                Ok(Some((id, debug, parents)))
+                            } else {
+                                Ok(None)
+                            }
+                        })
+                        .try_flat_join()
+                        .await?;
+                    // group by ident
+                    let mut map: FxHashMap<_, Vec<(String, Vec<String>)>> = FxHashMap::default();
+                    for (key, debug, parents) in duplicate_modules {
+                        map.entry(key).or_default().push((debug, parents));
+                    }
+                    panic!("Duplicate module idents in graph: {map:#?}",);
                 }
             }
         }
@@ -675,7 +718,7 @@ impl ModuleGraph {
     /// Analyze the module graph and remove unused references (by determining the used exports and
     /// removing unused imports).
     ///
-    /// In particular, this removes ChunkableModuleReference-s that list only unused exports in the
+    /// In particular, this removes ModuleReference-s that list only unused exports in the
     /// `import_usage()`
     #[turbo_tasks::function(operation)]
     pub async fn from_single_graph_without_unused_references(
@@ -691,7 +734,7 @@ impl ModuleGraph {
     /// Analyze the module graph and remove unused references (by determining the used exports and
     /// removing unused imports).
     ///
-    /// In particular, this removes ChunkableModuleReference-s that list only unused exports in the
+    /// In particular, this removes ModuleReference-s that list only unused exports in the
     /// `import_usage()`
     #[turbo_tasks::function(operation)]
     pub async fn from_graphs_without_unused_references(
@@ -1562,7 +1605,7 @@ struct SingleModuleGraphBuilder<'a> {
     /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
 
-    /// Whether to read ChunkableModuleReference::binding_usage()
+    /// Whether to read ModuleReference::binding_usage()
     include_binding_usage: bool,
 }
 impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'_> {

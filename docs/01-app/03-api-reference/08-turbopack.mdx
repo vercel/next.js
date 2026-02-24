@@ -16,6 +16,24 @@ We built Turbopack to push the performance of Next.js, including:
 - **Incremental Computation:** Turbopack parallelizes work across cores and **caches** results down to the function level. Once a piece of work is done, Turbopack won’t repeat it.
 - **Lazy Bundling:** Turbopack only bundles what is actually requested by the dev server. This lazy approach can reduce initial compile times and memory usage.
 
+## Supported platforms
+
+Turbopack requires platform-specific native bindings. The following platforms are currently supported:
+
+| Platform       | Architecture |
+| -------------- | ------------ |
+| macOS (Darwin) | x64, ARM64   |
+| Windows        | x64, ARM64   |
+| Linux (glibc)  | x64, ARM64   |
+| Linux (musl)   | x64, ARM64   |
+
+On platforms without native bindings (e.g. FreeBSD, OpenBSD), Next.js falls back to WebAssembly (WASM) bindings. WASM bindings support core SWC features like compilation and minification, but **do not support Turbopack**. On these platforms, use the `--webpack` flag:
+
+```bash
+next dev --webpack
+next build --webpack
+```
+
 ## Getting started
 
 Turbopack is now the **default bundler** in Next.js. No configuration is needed to use Turbopack:
@@ -232,6 +250,29 @@ Turbopack can be configured via `next.config.js` (or `next.config.ts`) under the
   Create manual aliases (like `resolve.alias` in webpack).
 - **`resolveExtensions`**
   Change or extend file extensions for module resolution.
+- **[`ignoreIssue`](/docs/app/api-reference/config/next-config-js/turbopackIgnoreIssue)**
+  Suppress specific Turbopack errors and warnings from the CLI output and error overlay.
+
+Additionally, the following experimental options are available under `experimental` in `next.config.js`:
+
+| Option                                                                                                       | Description                                                                            | Default (dev) | Default (build)               |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------- | ----------------------------- |
+| [`turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)   | Enable filesystem cache for the dev server.                                            | `true`        | N/A                           |
+| [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                    | N/A           | `false`                       |
+| `turbopackMinify`                                                                                            | Enable minification.                                                                   | `false`       | `true`                        |
+| `turbopackSourceMaps`                                                                                        | Enable source maps.                                                                    | `true`        | `productionBrowserSourceMaps` |
+| `turbopackInputSourceMaps`                                                                                   | Enable extraction of source maps from input files.                                     | `true`        | `true`                        |
+| `turbopackTreeShaking`                                                                                       | Use advanced module-fragments tree shaking instead of the default reexports-only mode. | `false`       | `false`                       |
+| `turbopackRemoveUnusedImports`                                                                               | Enable removing unused imports. Requires `turbopackRemoveUnusedExports`.               | `false`       | `true`                        |
+| `turbopackRemoveUnusedExports`                                                                               | Enable removing unused exports.                                                        | `false`       | `true`                        |
+| `turbopackInferModuleSideEffects`                                                                            | Enable local analysis to infer side-effect-free modules for better tree shaking.       | `true`        | `true`                        |
+| `turbopackScopeHoisting`                                                                                     | Enable scope hoisting. Always disabled in dev mode.                                    | `false`       | `true`                        |
+| `turbopackClientSideNestedAsyncChunking`                                                                     | Enable nested async chunking for client-side assets.                                   | `false`       | `true`                        |
+| `turbopackServerSideNestedAsyncChunking`                                                                     | Enable nested async chunking for server-side assets.                                   | `false`       | `false`                       |
+| `turbopackImportTypeBytes`                                                                                   | Enable support for `with {type: "bytes"}` for ESM imports.                             | `false`       | `false`                       |
+| `turbopackUseBuiltinBabel`                                                                                   | Enable automatic Babel loader configuration when a Babel config file is present.       | `true`        | `true`                        |
+| `turbopackUseBuiltinSass`                                                                                    | Enable automatic Sass loader configuration.                                            | `true`        | `true`                        |
+| `turbopackModuleIds`                                                                                         | Module ID strategy: `'named'` or `'deterministic'`.                                    | `'named'`     | `'deterministic'`             |
 
 ```js filename="next.config.js"
 module.exports = {

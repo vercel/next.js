@@ -9,6 +9,7 @@ import { Span } from 'next/dist/trace'
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
+  private _deploymentId: string | undefined
   private _writtenHostsLine: string | null = null
 
   protected throwIfUnavailable(): void | never {
@@ -31,6 +32,10 @@ export class NextDeployInstance extends NextInstance {
     // get deployment ID via fetch since we can't access
     // build artifacts directly
     return this._buildId
+  }
+
+  public get deploymentId() {
+    return this._deploymentId
   }
 
   private async deployUsingCustomScript(): Promise<{ url: string }> {
@@ -162,13 +167,23 @@ export class NextDeployInstance extends NextInstance {
       }
 
       const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-
       if (!buildId) {
         throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
       }
       this._buildId = buildId
+      const deploymentId = this._cliOutput
+        .match(/DEPLOYMENT_ID: (.+)/)?.[1]
+        ?.trim()
+      if (!deploymentId) {
+        throw new Error(
+          `Failed to get deploymentId from logs ${this._cliOutput}`
+        )
+      }
+      this._deploymentId = deploymentId
 
-      require('console').log(`Got buildId: ${this._buildId}`)
+      require('console').log(
+        `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}`
+      )
       return
     }
 
@@ -238,7 +253,6 @@ export class NextDeployInstance extends NextInstance {
     if (TEST_TEAM_NAME) {
       vercelFlags.push('--scope', TEST_TEAM_NAME)
     }
-
     const vercelEnv = { ...process.env }
 
     // If the token is available in the environment, use it as the token in the
@@ -301,6 +315,16 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
+    if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
+      )
+    }
+    if (process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL=${process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL}`
+      )
+    }
 
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
@@ -310,6 +334,8 @@ export class NextDeployInstance extends NextInstance {
     }
     if (process.env.NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
+    } else {
+      additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
     }
 
     const deployRes = await execa(

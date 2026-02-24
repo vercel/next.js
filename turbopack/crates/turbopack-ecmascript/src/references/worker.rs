@@ -11,15 +11,16 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext, EvaluatableAsset},
+    chunk::{ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption, EvaluatableAsset},
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode, handle_resolve_error,
-        origin::ResolveOrigin, parse::Request, pattern::Pattern, resolve_raw, url_resolve,
+        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode,
+        error::handle_resolve_error, origin::ResolveOrigin, parse::Request, pattern::Pattern,
+        resolve_raw, url_resolve,
     },
 };
 
@@ -255,6 +256,14 @@ impl ModuleReference for WorkerAssetReference {
         }
         .cell())
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
 }
 
 impl WorkerAssetReference {
@@ -293,9 +302,6 @@ impl ValueToString for WorkerAssetReference {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for WorkerAssetReference {}
 
 impl IntoCodeGenReference for WorkerAssetReference {
     fn into_code_gen_reference(

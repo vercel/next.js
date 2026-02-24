@@ -324,7 +324,6 @@ turbopack-ecmascript-runtime = { path = "turbopack/crates/turbopack-ecmascript-r
 turbopack-ecmascript-hmr-protocol = { path = "turbopack/crates/turbopack-ecmascript-hmr-protocol" }
 turbopack-env = { path = "turbopack/crates/turbopack-env" }
 turbopack-image = { path = "turbopack/crates/turbopack-image" }
-turbopack-json = { path = "turbopack/crates/turbopack-json" }
 turbopack-mdx = { path = "turbopack/crates/turbopack-mdx" }
 turbopack-node = { path = "turbopack/crates/turbopack-node" }
 turbopack-resolve = { path = "turbopack/crates/turbopack-resolve" }
@@ -336,25 +335,25 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "54.0.0", features = [
+swc_core = { version = "57.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-swc_plugin_backend_wasmer = { version = "6.0.0" }
+swc_plugin_backend_wasmer = { version = "7.0.0" }
 testing = "19.0.0"
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.108.0"
-styled_components = "0.136.0"
-styled_jsx = "0.111.0"
-swc_emotion = "0.112.0"
-swc_relay = "0.82.0"
-react_remove_properties = "0.62.0"
-remove_console = "0.63.0"
-preset_env_base = "6.0.0"
+modularize_imports = "0.110.0"
+styled_components = "0.139.0"
+styled_jsx = "0.114.0"
+swc_emotion = "0.115.0"
+swc_relay = "0.85.0"
+react_remove_properties = "0.65.0"
+remove_console = "0.66.0"
+preset_env_base = "7.0.0"
 
 
 # General Deps
@@ -399,13 +398,13 @@ indexmap = "2.7.1"
 indoc = "2.0.0"
 inventory = "0.3.21"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.68", features = [
+lightningcss = { version = "1.0.0-alpha.70", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.5", default-features = false, features = [
+lightningcss-napi = { version = "0.4.6", default-features = false, features = [
   "visitor",
 ] }
 markdown = "1.0.0-alpha.18"
@@ -449,6 +448,7 @@ serde_json = "1.0.138"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"
 serde_with = "3.12.0"
+sha2 = "0.10.2"
 smallvec = { version = "1.15.1", features = [
   "serde",
   "const_generics",

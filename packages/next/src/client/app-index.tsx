@@ -65,16 +65,6 @@ declare global {
      */
     __next_r?: string
     __next_f: NextFlight
-    /**
-     * Testing API that allows e2e tests to assert on the prefetched UI state
-     * before dynamic data streams in. Dev-only.
-     */
-    __EXPERIMENTAL_NEXT_TESTING__?: {
-      navigation: {
-        lock: () => void
-        unlock: () => void
-      }
-    }
   }
 }
 
@@ -190,7 +180,7 @@ let debugChannel:
   | undefined
 
 if (
-  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_DEV_SERVER &&
   process.env.__NEXT_REACT_DEBUG_CHANNEL &&
   typeof window !== 'undefined'
 ) {
@@ -310,7 +300,7 @@ export async function hydrate(
   let staticIndicatorState: StaticIndicatorState | undefined
   let webSocket: WebSocket | undefined
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { createWebSocket } =
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
@@ -380,7 +370,7 @@ export async function hydrate(
   }
 
   // TODO-APP: Remove this logic when Float has GC built-in in development.
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { linkGc } =
       require('./app-link-gc') as typeof import('./app-link-gc')
     linkGc()

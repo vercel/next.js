@@ -31,7 +31,10 @@ import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-import { getSelectedParams } from './router-reducer/compute-changed-path'
+import {
+  extractSourcePageFromFlightRouterState,
+  getSelectedParams,
+} from './router-reducer/compute-changed-path'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
@@ -190,6 +193,16 @@ function Router({
       }
     }, [cache, tree])
   }
+
+  useEffect(() => {
+    const sourcePage = extractSourcePageFromFlightRouterState(state.tree)
+
+    if (sourcePage !== undefined) {
+      window.next.__internal_src_page = sourcePage
+    } else {
+      delete window.next.__internal_src_page
+    }
+  }, [state.tree])
 
   useEffect(() => {
     // If the app is restored from bfcache, it's possible that
@@ -479,7 +492,7 @@ function Router({
     </RedirectBoundary>
   )
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     // In development, we apply few error boundaries and hot-reloader:
     // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
     // - HotReloader:

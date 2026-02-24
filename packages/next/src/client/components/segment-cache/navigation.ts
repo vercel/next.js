@@ -390,6 +390,7 @@ async function navigateToUnknownRoute(
     discoverKnownRoute(
       now,
       url.pathname,
+      nextUrl,
       null, // No pending entry
       navigationSeed.routeTree,
       metadataVaryPath,
@@ -764,7 +765,6 @@ function convertServerPatchToFullTreeImpl(
     newSeedDataChildren,
     null,
     isEmptySeedDataPartial,
-    false,
     null,
   ]
 

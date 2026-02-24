@@ -43,6 +43,17 @@ declare function getOrInstantiateModuleFromParent<M>(
   sourceModule: M
 ): M
 
+// @ts-ignore Defined in `hmr-runtime.ts` (dev mode only)
+declare let devModuleCache: Record<ModuleId, any> | undefined
+
+/**
+ * Flag indicating which module object type to create when a module is merged. Set to `true`
+ * by each runtime that uses ModuleWithDirection (browser dev-base.ts, nodejs dev-base.ts,
+ * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
+ * uses plain Module objects.
+ */
+let createModuleWithDirectionFlag = false
+
 const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
 /**
@@ -111,9 +122,12 @@ function getOverwrittenModule(
 ): Module {
   let module = moduleCache[id]
   if (!module) {
-    // This is invoked when a module is merged into another module, thus it wasn't invoked via
-    // instantiateModule and the cache entry wasn't created yet.
-    module = createModuleObject(id)
+    if (createModuleWithDirectionFlag) {
+      // set in development modes for hmr support
+      module = createModuleWithDirection(id)
+    } else {
+      module = createModuleObject(id)
+    }
     moduleCache[id] = module
   }
   return module
@@ -537,7 +551,6 @@ function installCompressedModuleFactories(
 ) {
   let i = offset
   while (i < chunkModules.length) {
-    let moduleId = chunkModules[i] as ModuleId
     let end = i + 1
     // Find our factory function
     while (
@@ -550,26 +563,34 @@ function installCompressedModuleFactories(
       throw new Error('malformed chunk format, expected a factory function')
     }
 
-    // Check if ANY of the module IDs in this group already have factories (e.g., from HMR updates).
-    // If so, skip installing the old factory from disk to preserve the HMR-updated code.
-    let hasExistingFactory = false
-    const groupIds: ModuleId[] = []
+    // Install the factory for each module ID that doesn't already have one.
+    // When some IDs in this group already have a factory, reuse that existing
+    // group factory for the missing IDs to keep all IDs in the group consistent.
+    // Otherwise, install the factory from this chunk.
+    const moduleFactoryFn = chunkModules[end] as Function
+    let existingGroupFactory: Function | undefined = undefined
     for (let j = i; j < end; j++) {
       const id = chunkModules[j] as ModuleId
-      groupIds.push(id)
-      if (moduleFactories.has(id)) {
-        hasExistingFactory = true
+      const existingFactory = moduleFactories.get(id)
+      if (existingFactory) {
+        existingGroupFactory = existingFactory
         break
       }
     }
+    const factoryToInstall = existingGroupFactory ?? moduleFactoryFn
 
-    if (!hasExistingFactory) {
-      const moduleFactoryFn = chunkModules[end] as Function
-      applyModuleFactoryName(moduleFactoryFn)
-      newModuleId?.(moduleId)
-      for (; i < end; i++) {
-        moduleId = chunkModules[i] as ModuleId
-        moduleFactories.set(moduleId, moduleFactoryFn)
+    let didInstallFactory = false
+    for (let j = i; j < end; j++) {
+      const id = chunkModules[j] as ModuleId
+      if (!moduleFactories.has(id)) {
+        if (!didInstallFactory) {
+          if (factoryToInstall === moduleFactoryFn) {
+            applyModuleFactoryName(moduleFactoryFn)
+          }
+          didInstallFactory = true
+        }
+        moduleFactories.set(id, factoryToInstall)
+        newModuleId?.(id)
       }
     }
     i = end + 1 // end is pointing at the last factory advance to the next id or the end of the array.
@@ -772,6 +793,34 @@ contextPrototype.U = relativeURL
  */
 function invariant(never: never, computeMessage: (arg: any) => string): never {
   throw new Error(`Invariant: ${computeMessage(never)}`)
+}
+
+/**
+ * Constructs an error message for when a module factory is not available.
+ */
+function factoryNotAvailableMessage(
+  moduleId: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+): string {
+  let instantiationReason: string
+  switch (sourceType) {
+    case SourceType.Runtime:
+      instantiationReason = `as a runtime entry of chunk ${sourceData}`
+      break
+    case SourceType.Parent:
+      instantiationReason = `because it was required from module ${sourceData}`
+      break
+    case SourceType.Update:
+      instantiationReason = 'because of an HMR update'
+      break
+    default:
+      invariant(
+        sourceType,
+        (sourceType) => `Unknown source type: ${sourceType}`
+      )
+  }
+  return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
 }
 
 /**

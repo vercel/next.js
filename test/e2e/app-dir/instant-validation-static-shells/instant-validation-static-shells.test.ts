@@ -29,18 +29,12 @@ describe('instant validation - opting out of static shells', () => {
   })
 })
 
-describe.each([
-  { debugChannelEnabled: true, description: 'with debug channel' },
-  { debugChannelEnabled: false, description: 'without debug channel' },
-])('instant validation - $description', ({ debugChannelEnabled }) => {
+describe('instant validation', () => {
   describe('requires a static shell if a below a static layout page is configured as blocking', () => {
     const { next, skipped, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'invalid-blocking-page-below-static'),
       skipStart: true,
       skipDeployment: true,
-      env: {
-        REACT_DEBUG_CHANNEL: debugChannelEnabled ? '1' : '',
-      },
     })
     if (skipped) return
 

@@ -9,7 +9,7 @@ use std::{
 use anyhow::{Ok, Result};
 use parking_lot::Mutex;
 use turbo_persistence::{
-    ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+    ArcBytes, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
 use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
 
@@ -71,7 +71,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     }
 
     type ValueBuffer<'l>
-        = ArcSlice<u8>
+        = ArcBytes
     where
         Self: 'l;
 
@@ -176,7 +176,7 @@ pub struct TurboWriteBatch<'a> {
 
 impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     type ValueBuffer<'l>
-        = ArcSlice<u8>
+        = ArcBytes
     where
         Self: 'l,
         'a: 'l;

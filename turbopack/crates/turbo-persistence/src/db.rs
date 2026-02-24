@@ -21,7 +21,7 @@ use smallvec::SmallVec;
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
     QueryKey,
-    arc_slice::ArcSlice,
+    arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::decompress_into_arc,
     constants::{
@@ -37,6 +37,7 @@ use crate::{
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
+    value_block_count_tracker::ValueBlockCountTracker,
     write_batch::{FinishResult, WriteBatch},
 };
 
@@ -376,7 +377,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
-    fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
+    fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
         #[cfg(unix)]
@@ -391,7 +392,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let uncompressed_length = compressed.read_u32::<BE>()?;
 
         let buffer = decompress_into_arc(uncompressed_length, compressed, None, true)?;
-        Ok(ArcSlice::from(buffer))
+        Ok(ArcBytes::from(buffer))
     }
 
     /// Returns true if the database is empty.
@@ -1051,6 +1052,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     entries: Vec<LookupEntry<'l>>,
                                     total_key_size: usize,
                                     total_value_size: usize,
+                                    value_block_tracker: ValueBlockCountTracker,
                                     last_entries: Vec<LookupEntry<'l>>,
                                     last_entries_total_key_size: usize,
                                     new_sst_files:
@@ -1076,13 +1078,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             let key_size = current.key.len();
                                             let value_size =
                                                 current.value.uncompressed_size_in_sst();
+                                            let is_medium = current.value.is_medium_value();
+                                            let small_size = current.value.small_value_size();
                                             collector.total_key_size += key_size;
                                             collector.total_value_size += value_size;
+                                            collector
+                                                .value_block_tracker
+                                                .track(is_medium, small_size);
 
                                             if collector.total_key_size + collector.total_value_size
                                                 > DATA_THRESHOLD_PER_COMPACTED_FILE
                                                 || collector.entries.len()
                                                     >= MAX_ENTRIES_PER_COMPACTED_FILE
+                                                || collector.value_block_tracker.is_full()
                                             {
                                                 let selected_total_key_size =
                                                     collector.last_entries_total_key_size;
@@ -1094,6 +1102,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                     collector.total_key_size - key_size;
                                                 collector.total_key_size = key_size;
                                                 collector.total_value_size = value_size;
+                                                collector
+                                                    .value_block_tracker
+                                                    .reset_to(is_medium, small_size);
 
                                                 if !collector.entries.is_empty() {
                                                     let seq = sequence_number
@@ -1346,7 +1357,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Get a value from the database. Returns None if the key is not found. The returned value
     /// might hold onto a block of the database and it should not be hold long-term.
-    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
+    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         let span = tracing::trace_span!(
             "database read",
@@ -1418,7 +1429,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         &self,
         family: usize,
         keys: &[K],
-    ) -> Result<Vec<Option<ArcSlice<u8>>>> {
+    ) -> Result<Vec<Option<ArcBytes>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         let span = tracing::trace_span!(
             "database batch read",

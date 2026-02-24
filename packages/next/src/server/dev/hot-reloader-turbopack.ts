@@ -150,11 +150,20 @@ declare const __turbopack_server_hmr_apply__:
   | ((update: NodeJsPartialHmrUpdate) => boolean)
   | undefined
 
-function setupServerHmr(project: Project) {
-  const serverHmrSubscriptions = new Map<
-    string,
-    AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-  >()
+type ServerHmrSubscriptions = Map<
+  string,
+  AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+>
+
+function setupServerHmr(
+  project: Project,
+  {
+    onUpdateFailed,
+  }: {
+    onUpdateFailed: () => void | Promise<void>
+  }
+) {
+  const serverHmrSubscriptions: ServerHmrSubscriptions = new Map()
 
   /**
    * Subscribe to HMR updates for a server chunk.
@@ -175,67 +184,69 @@ function setupServerHmr(project: Project) {
 
       for await (const result of subscription) {
         const update = result as NodeJsHmrUpdate
-
-        // Only process partial updates with actual code changes
         if (update.type !== 'partial') {
           continue
         }
 
-        const entries = update.instruction?.entries
-        if (!entries || Object.keys(entries).length === 0) {
+        const instruction = update.instruction
+        if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
           continue
         }
 
         if (typeof __turbopack_server_hmr_apply__ === 'function') {
-          const applied = __turbopack_server_hmr_apply__(update as any)
-
-          if (applied) {
-            console.log(`[Server HMR] Applied update for ${chunkPath}`)
-            // TODO: Notify clients to refresh and get updated server content
-            // This will trigger the client to re-fetch the page with new server components
+          const applied = __turbopack_server_hmr_apply__(update)
+          if (!applied) {
+            await onUpdateFailed()
           }
         }
       }
-    })().catch((err) => {
+    })().catch(async (err) => {
       console.error('[Server HMR] Subscription error:', err)
       serverHmrSubscriptions.delete(chunkPath)
+      await onUpdateFailed()
     })
   }
 
   // Listen to the Rust bindings update us on changing server HMR chunk paths
   ;(async () => {
-    const serverHmrChunkPaths = project.hmrChunkNamesSubscribe(HmrTarget.Server)
-
-    // Process chunk paths (both initial and subsequent updates)
-    for await (const data of serverHmrChunkPaths) {
-      const currentChunkPaths = new Set(
-        data.chunkNames.filter((path) => path.endsWith('.js'))
+    try {
+      const serverHmrChunkPaths = project.hmrChunkNamesSubscribe(
+        HmrTarget.Server
       )
 
-      // Clean up subscriptions for removed chunk paths (like when pages are deleted)
-      const chunkPathsToRemove = []
-      for (const chunkPath of serverHmrSubscriptions.keys()) {
-        if (!currentChunkPaths.has(chunkPath)) {
-          chunkPathsToRemove.push(chunkPath)
+      // Process chunk paths (both initial and subsequent updates)
+      for await (const data of serverHmrChunkPaths) {
+        const currentChunkPaths = new Set<string>(
+          data.chunkNames.filter((path) => path.endsWith('.js'))
+        )
+
+        // Clean up subscriptions for removed chunk paths (like when pages are deleted)
+        const chunkPathsToRemove: string[] = []
+        for (const chunkPath of serverHmrSubscriptions.keys()) {
+          if (!currentChunkPaths.has(chunkPath)) {
+            chunkPathsToRemove.push(chunkPath)
+          }
+        }
+
+        for (const chunkPath of chunkPathsToRemove) {
+          const subscription = serverHmrSubscriptions.get(chunkPath)
+          subscription?.return?.()
+          serverHmrSubscriptions.delete(chunkPath)
+        }
+
+        // Subscribe to HMR events for new server chunks
+        for (const chunkPath of currentChunkPaths) {
+          if (!serverHmrSubscriptions.has(chunkPath)) {
+            subscribeToServerHmr(chunkPath)
+          }
         }
       }
-
-      for (const chunkPath of chunkPathsToRemove) {
-        const subscription = serverHmrSubscriptions.get(chunkPath)
-        subscription?.return?.()
-        serverHmrSubscriptions.delete(chunkPath)
-      }
-
-      // Subscribe to HMR events for new server chunks
-      for (const chunkPath of currentChunkPaths) {
-        if (!serverHmrSubscriptions.has(chunkPath)) {
-          subscribeToServerHmr(chunkPath)
-        }
-      }
+    } catch (err) {
+      console.error('[Server HMR Setup] Error in chunk path subscription:', err)
     }
-  })().catch((err) => {
-    console.error('[Server HMR] error:', err)
-  })
+  })()
+
+  return serverHmrSubscriptions
 }
 
 /**
@@ -296,6 +307,18 @@ export async function createHotReloaderTurbopack(
   const { nextConfig, dir: projectPath } = opts
 
   const bindings = getBindingsSync()
+
+  // Turbopack requires native bindings and cannot run with WASM bindings.
+  // Detect this early and give a clear, actionable error message.
+  if (bindings.isWasm) {
+    throw new Error(
+      `Turbopack is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
+        `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
+        `To use Next.js on this platform, use Webpack instead:\n` +
+        `  next dev --webpack\n\n` +
+        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+    )
+  }
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
@@ -372,7 +395,7 @@ export async function createHotReloaderTurbopack(
       }),
       buildId,
       encryptionKey,
-      previewProps: opts.fsChecker.prerenderManifest.preview,
+      previewProps: opts.fsChecker.previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling: false,
       writeRoutesHashesManifest: false,
@@ -427,6 +450,7 @@ export async function createHotReloaderTurbopack(
     encryptionKey,
     dev: true,
     deploymentId: nextConfig.deploymentId,
+    sriEnabled: false,
   })
 
   // Dev specific
@@ -558,20 +582,44 @@ export async function createHotReloaderTurbopack(
 
     resetFetch()
 
-    // Not available in:
-    // - Pages Router (no server-side HMR)
-    // - Edge Runtime (uses browser runtime which already disposes chunks individually)
-    if (typeof __next__clear_chunk_cache__ === 'function') {
-      __next__clear_chunk_cache__()
-    }
-
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
       join(distDir, p)
     )
 
+    const { type: entryType } = splitEntryKey(key)
+    // Server HMR only applies to App Router Node.js runtime endpoints.
+    // Pages Router uses Node's require(), root entries (middleware/instrumentation)
+    // use the edge runtime, and App Router edge routes all don't support server HMR.
+    const usesServerHmr = entryType === 'app' && writtenEndpoint.type !== 'edge'
+
     for (const file of serverPaths) {
+      const relativePath = relative(distDir, file)
+
+      if (usesServerHmr && serverHmrSubscriptions?.has(relativePath)) {
+        // Skip deleteCache for server HMR module chunks.
+        // Pages Router entries are excluded by usesServerHmr (always false for
+        // pages), so they always get deleteCache regardless of subscriptions.
+        continue
+      }
+
       clearModuleContext(file)
+      // For Pages Router, edge routes, middleware, and manifest files
+      // (e.g., *_client-reference-manifest.js): clear the sharedCache in
+      // evalManifest(), Node.js require.cache, and edge runtime module contexts.
       deleteCache(file)
+    }
+
+    // Clear Turbopack's chunk-loading cache so chunks are re-required from disk on
+    // the next request.
+    //
+    // For App Router with server HMR, this is normally skipped as server HMR
+    // manages module updates in-place. However, it *is* required when force is `true`
+    // (like for .env file or tsconfig changes).
+    if (
+      (!usesServerHmr || force) &&
+      typeof __next__clear_chunk_cache__ === 'function'
+    ) {
+      __next__clear_chunk_cache__()
     }
 
     return true
@@ -612,9 +660,7 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  if (experimentalServerFastRefresh) {
-    setupServerHmr(project)
-  }
+  let serverHmrSubscriptions: ServerHmrSubscriptions | undefined
 
   let hmrEventHappened = false
   let hmrHash = 0
@@ -1759,6 +1805,25 @@ export async function createHotReloaderTurbopack(
     console.error(err)
     process.exit(1)
   })
+
+  if (experimentalServerFastRefresh) {
+    serverHmrSubscriptions = setupServerHmr(project, {
+      onUpdateFailed: async () => {
+        if (typeof __next__clear_chunk_cache__ === 'function') {
+          __next__clear_chunk_cache__()
+        }
+
+        // Clear all module contexts so they're re-evaluated on next request
+        await clearAllModuleContexts()
+
+        // Tell browsers to refetch RSC (soft refresh, not full page reload)
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          hash: String(++hmrHash),
+        })
+      },
+    })
+  }
 
   return hotReloader
 }

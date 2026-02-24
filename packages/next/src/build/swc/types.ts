@@ -13,12 +13,17 @@ export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
+export interface TurbopackProjectCallbacks {
+  onBeforeDeferredEntries?: () => Promise<void>
+}
+
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions,
+      callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
     startTurbopackTraceServer(
       traceFilePath: string,
@@ -224,7 +229,7 @@ export interface HmrChunkNames {
 /** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
 export interface TurbopackStackFrame {
   isServer: boolean
-  isInternal?: boolean
+  isIgnored?: boolean
   file: string
   originalFile?: string
   /** 1-indexed, unlike source map tokens */

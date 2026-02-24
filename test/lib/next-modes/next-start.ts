@@ -8,12 +8,17 @@ import { quote as shellQuote } from 'shell-quote'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
+  private _deploymentId: string | undefined
   private _cliOutput: string = ''
 
   private _prerenderFinishedTimeMS: number | null = null
 
   public get buildId() {
     return this._buildId
+  }
+
+  public get deploymentId() {
+    return this._deploymentId
   }
 
   public get cliOutput() {
@@ -113,6 +118,21 @@ export class NextStartInstance extends NextInstance {
           )
           .catch(() => '')
       ).trim()
+
+      try {
+        const requiredServerFiles = JSON.parse(
+          await fs.readFile(
+            path.join(
+              this.testDir,
+              this.nextConfig?.distDir || '.next',
+              'required-server-files.json'
+            ),
+            'utf8'
+          )
+        )
+        this._deploymentId =
+          requiredServerFiles.config?.deploymentId || undefined
+      } catch {}
     }
 
     console.log('running', shellQuote(startArgs))
@@ -251,6 +271,20 @@ export class NextStartInstance extends NextInstance {
         )
         .catch(() => '')
     ).trim()
+
+    try {
+      const requiredServerFiles = JSON.parse(
+        await fs.readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'required-server-files.json'
+          ),
+          'utf8'
+        )
+      )
+      this._deploymentId = requiredServerFiles.config?.deploymentId || undefined
+    } catch {}
 
     return result
   }

@@ -17,7 +17,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, UnusedReferences, chunk_id_strategy::ModuleIdStrategy,
+        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -50,10 +50,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::{
-            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-            get_invalid_server_only_resolve_plugin,
-        },
+        resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
         transforms::{
             emotion::get_emotion_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
@@ -181,11 +178,6 @@ pub async fn get_client_resolve_options_context(
         browser: true,
         module: true,
         before_resolve_plugins: vec![
-            ResolvedVc::upcast(
-                get_invalid_server_only_resolve_plugin(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
             ResolvedVc::upcast(
                 ModuleFeatureReportResolvePlugin::new(project_path.clone())
                     .to_resolved()
@@ -341,6 +333,7 @@ pub async fn get_client_module_options_context(
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
+            enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             ..Default::default()
@@ -448,6 +441,7 @@ pub struct ClientChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
+    pub css_url_suffix: Vc<Option<RcStr>>,
 }
 
 #[turbo_tasks::function]
@@ -471,6 +465,7 @@ pub async fn get_client_chunking_context(
         nested_async_chunking,
         debug_ids,
         should_use_absolute_url_references,
+        css_url_suffix,
     } = options;
 
     let next_mode = mode.await?;
@@ -503,7 +498,11 @@ pub async fn get_client_chunking_context(
     .debug_ids(*debug_ids.await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix.to_resolved().await?,
+    });
 
     if next_mode.is_development() {
         builder = builder

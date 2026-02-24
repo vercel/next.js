@@ -27,10 +27,7 @@ use crate::{
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
-    next_shared::resolve::{
-        ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
-    },
+    next_shared::resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
@@ -130,25 +127,6 @@ pub async fn get_edge_resolve_options_context(
         ));
     };
 
-    if matches!(
-        ty,
-        ServerContextType::AppRSC { .. }
-            | ServerContextType::AppRoute { .. }
-            | ServerContextType::Middleware { .. }
-            | ServerContextType::Instrumentation { .. }
-    ) {
-        before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_client_only_resolve_plugin(project_path.clone())
-                .to_resolved()
-                .await?,
-        ));
-        before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_styled_jsx_resolve_plugin(project_path.clone())
-                .to_resolved()
-                .await?,
-        ));
-    }
-
     let after_resolve_plugins = vec![ResolvedVc::upcast(
         NextSharedRuntimeResolvePlugin::new(project_path.clone())
             .to_resolved()
@@ -223,6 +201,7 @@ pub struct EdgeChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
+    pub css_url_suffix: Vc<Option<RcStr>>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -246,6 +225,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         nested_async_chunking,
         client_root,
         asset_prefix,
+        css_url_suffix,
     } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -260,6 +240,10 @@ pub async fn get_edge_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_base_path(Some(asset_prefix))
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+        static_suffix: css_url_suffix.to_resolved().await?,
+    })
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -318,7 +302,9 @@ pub async fn get_edge_chunking_context(
         nested_async_chunking,
         client_root,
         asset_prefix,
+        css_url_suffix,
     } = options;
+    let css_url_suffix = css_url_suffix.to_resolved().await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -338,8 +324,13 @@ pub async fn get_edge_chunking_context(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix,
         },
     )
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: ResolvedVc::cell(None),
+    })
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the

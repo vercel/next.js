@@ -60,7 +60,6 @@ test-timings.json
 *.tsbuildinfo
 .swc/
 .turbo
-.jest-cache/
 
 # Storybook
 *storybook.log
