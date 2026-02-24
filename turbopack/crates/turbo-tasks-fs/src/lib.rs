@@ -1379,7 +1379,7 @@ impl FileSystemPath {
 }
 
 impl turbo_tasks::display::ValueToStringRef for FileSystemPath {
-    async fn to_string_ref(&self) -> Result<turbo_rcstr::RcStr> {
+    async fn to_string_ref(&self) -> Result<RcStr> {
         turbofmt!("[{}]/{}", self.fs, self.path).await
     }
 }
