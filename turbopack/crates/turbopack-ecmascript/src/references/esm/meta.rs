@@ -16,7 +16,7 @@ use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
     references::AstPath,
-    runtime_functions::TURBOPACK_RESOLVE_ABSOLUTE_PATH,
+    runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_ABSOLUTE_PATH},
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -63,14 +63,17 @@ impl ImportMetaBinding {
             },
         );
 
+        let turbopack_module: Expr = TURBOPACK_MODULE.into();
         Ok(CodeGeneration::hoisted_stmt(
             rcstr!("import.meta"),
             // [NOTE] url property is lazy-evaluated, as it should be computed once
             // turbopack_runtime injects a function to calculate an absolute path.
+            // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
             quote!(
-                "const $name = { get url() { return $path } };" as Stmt,
+                "const $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path.clone(),
+                m: Expr = turbopack_module,
             ),
         ))
     }

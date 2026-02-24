@@ -633,6 +633,16 @@ async fn well_known_object_member(
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
+        WellKnownObjectKind::ImportMeta => match prop.as_str() {
+            // import.meta.turbopackHot is the ESM equivalent of module.hot for HMR
+            Some("turbopackHot") => JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
+            _ => {
+                return Ok((
+                    JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
+                    false,
+                ));
+            }
+        },
         WellKnownObjectKind::ModuleHot => match prop.as_str() {
             Some("accept") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotAccept),
             Some("decline") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotDecline),
