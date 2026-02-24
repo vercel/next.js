@@ -1,6 +1,6 @@
 import execa from 'execa'
 import { nextTestSetup } from 'e2e-utils'
-import { getDistDir } from 'next-test-utils'
+import { getDistDir, retry } from 'next-test-utils'
 
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
@@ -42,6 +42,13 @@ describe('typed-routes-validator', () => {
       await next.build()
     }
     try {
+      // Wait for next-env.d.ts to be written; in dev mode this is generated
+      // asynchronously after the server starts.
+      await retry(async () => {
+        const content = await next.readFile('next-env.d.ts')
+        expect(content).toContain('reference types="next"')
+      })
+
       const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
         cwd: next.testDir,
         reject: false,
