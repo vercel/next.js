@@ -28,7 +28,7 @@ function defaultLoader({
 
   // Extract dpl parameter early so validation uses the clean URL
   let deploymentId = getDeploymentId()
-  if (src.startsWith('/')) {
+  if (src.startsWith('/') && !src.startsWith('//')) {
     // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
     // double-encoding with the `encodeURIComponent(src)` below
     const qIndex = src.indexOf('?')
