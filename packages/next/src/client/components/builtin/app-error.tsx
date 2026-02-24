@@ -16,7 +16,7 @@ function AppError() {
             <WarningIcon />
             <h1 style={errorStyles.title}>This page couldn&apos;t load</h1>
             <p style={{ ...errorStyles.message, margin: '0 0 20px 0' }}>
-              Try reloading or go back.
+              There was a server error. Try reloading.
             </p>
             <div style={errorStyles.buttonGroup}>
               <form style={{ margin: 0 }}>
@@ -34,6 +34,7 @@ function AppError() {
             </div>
           </div>
         </div>
+        <p id="digest" style={errorStyles.digestFooter} />
         <script
           dangerouslySetInnerHTML={{
             __html:

@@ -1,7 +1,7 @@
 'use client'
 
 import { HandleISRError } from '../handle-isr-error'
-import { errorStyles, errorThemeCss, ErrorIcon } from './error-styles'
+import { errorStyles, errorThemeCss, WarningIcon } from './error-styles'
 
 export type GlobalErrorComponent = React.ComponentType<{
   error: any
@@ -11,15 +11,9 @@ function DefaultGlobalError({ error }: { error: any }) {
   const digest: string | undefined = error?.digest
   const isServerError = !!digest
 
-  // Server error: "This page failed to load"
-  // Client error: "This page crashed"
-  const title = isServerError ? 'This page failed to load' : 'This page crashed'
   const message = isServerError
-    ? 'Something went wrong while loading this page.'
-    : 'An error occurred while running this page.'
-  const hint = isServerError
-    ? 'If this keeps happening, it may be a server issue.'
-    : null
+    ? 'There was a server error. Try reloading.'
+    : 'Try reloading or go back.'
 
   return (
     <html id="__next_error__">
@@ -30,19 +24,15 @@ function DefaultGlobalError({ error }: { error: any }) {
         <HandleISRError error={error} />
         <div style={errorStyles.container}>
           <div style={errorStyles.card}>
-            <ErrorIcon />
-            <h1 style={errorStyles.title}>{title}</h1>
-            <p style={errorStyles.message}>{message}</p>
-            {hint && <p style={errorStyles.messageHint}>{hint}</p>}
-            {!isServerError && (
-              <p style={errorStyles.messageHint}>
-                Reloading usually fixes this.
-              </p>
-            )}
+            <WarningIcon />
+            <h1 style={errorStyles.title}>This page couldn&apos;t load</h1>
+            <p style={{ ...errorStyles.message, margin: '0 0 20px 0' }}>
+              {message}
+            </p>
             <div style={errorStyles.buttonGroup}>
-              <form>
+              <form style={{ margin: 0 }}>
                 <button type="submit" style={errorStyles.button}>
-                  Reload page
+                  Reload
                 </button>
               </form>
               {!isServerError && (
@@ -57,7 +47,7 @@ function DefaultGlobalError({ error }: { error: any }) {
                     }
                   }}
                 >
-                  Go back
+                  Back
                 </button>
               )}
             </div>

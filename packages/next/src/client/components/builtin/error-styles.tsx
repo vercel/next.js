@@ -10,6 +10,7 @@ export const errorStyles = {
     justifyContent: 'center',
   },
   card: {
+    marginTop: '-32px',
     maxWidth: '420px',
     padding: '32px 28px',
     textAlign: 'left' as const,
@@ -91,6 +92,20 @@ export const errorStyles = {
     fontSize: '11px',
     color: 'var(--next-error-digest-code)',
     userSelect: 'all' as const,
+  },
+  digestFooter: {
+    position: 'fixed' as const,
+    bottom: '32px',
+    left: '0',
+    right: '0',
+    textAlign: 'center' as const,
+    fontFamily:
+      'ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace',
+    fontSize: '12px',
+    lineHeight: '18px',
+    fontWeight: 400,
+    margin: '0',
+    color: 'var(--next-error-message)',
   },
 } as const
 
