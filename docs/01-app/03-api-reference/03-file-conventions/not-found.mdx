@@ -10,7 +10,7 @@ Next.js provides two conventions to handle not found cases:
 
 ## `not-found.js`
 
-The **not-found** file is used to render UI when the [`notFound`](/docs/app/api-reference/functions/not-found) function is thrown within a route segment. Along with serving a custom UI, Next.js will return a `200` HTTP status code for streamed responses, and `404` for non-streamed responses.
+The **not-found** file is used to render UI when the [`notFound`](/docs/app/api-reference/functions/not-found) function is thrown within a route segment. Along with serving a custom UI, Next.js will return a `200` HTTP status code for streamed responses, and `404` for non-streamed responses (see [Status Codes](/docs/app/api-reference/file-conventions/loading#status-codes) for details about SEO).
 
 ```tsx filename="app/not-found.tsx" switcher
 import Link from 'next/link'
