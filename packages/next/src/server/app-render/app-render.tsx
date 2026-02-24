@@ -5212,6 +5212,17 @@ async function prerenderToStream(
 
       const flightData = await streamToBuffer(reactServerResult.asStream())
       metadata.flightData = flightData
+
+      // With cacheComponents, components may be cached from the prospective
+      // render, so create-component-tree may not re-run during the final
+      // render. Extract unstable_staleTime from the loader tree as a fallback.
+      if (finalServerPrerenderStore.stale === INFINITE_CACHE) {
+        const extractedStaleTime = await extractStaleTimeFromLoaderTree(tree)
+        if (typeof extractedStaleTime === 'number') {
+          finalServerPrerenderStore.stale = extractedStaleTime
+        }
+      }
+
       metadata.segmentData = await collectSegmentData(
         flightData,
         finalServerPrerenderStore,

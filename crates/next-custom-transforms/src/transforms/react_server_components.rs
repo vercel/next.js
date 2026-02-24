@@ -948,17 +948,7 @@ impl ReactServerComponentValidator {
                         }
                     }
                     "unstable_staleTime" => {
-                        if self.cache_components_enabled {
-                            possibly_invalid_exports.insert(
-                                export_name.clone(),
-                                (
-                                    InvalidExportKind::RouteSegmentConfig(
-                                        NextConfigProperty::CacheComponents,
-                                    ),
-                                    *span,
-                                ),
-                            );
-                        } else if is_layout {
+                        if is_layout {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),
                                 (InvalidExportKind::StaleTimeInLayout, *span),
