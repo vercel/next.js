@@ -512,18 +512,18 @@ function createFromNextFetch<T>(
 }
 
 async function decodeStaticStageResponse(
-  staticByteCountPromise: Promise<number>,
-  staticBodyPromise: Promise<ReadableStream<Uint8Array> | null>,
+  staticStageByteLengthPromise: Promise<number>,
+  staticStageBodyPromise: Promise<ReadableStream<Uint8Array> | null>,
   requestHeaders: RequestHeaders
 ): Promise<NavigationFlightResponse> {
-  const [staticByteCount, staticBody] = await Promise.all([
-    staticByteCountPromise,
-    staticBodyPromise,
+  const [byteLength, staticBody] = await Promise.all([
+    staticStageByteLengthPromise,
+    staticStageBodyPromise,
   ])
   if (staticBody === null) {
     throw new InvariantError('Expected static stage body to be available')
   }
-  const truncatedStream = truncateStream(staticBody, staticByteCount)
+  const truncatedStream = truncateStream(staticBody, byteLength)
   return createFromNextReadableStream<NavigationFlightResponse>(
     truncatedStream,
     requestHeaders,
@@ -533,10 +533,10 @@ async function decodeStaticStageResponse(
 
 function truncateStream(
   stream: ReadableStream<Uint8Array>,
-  maxBytes: number
+  byteLength: number
 ): ReadableStream<Uint8Array> {
   const reader = stream.getReader()
-  let remaining = maxBytes
+  let remaining = byteLength
 
   return new ReadableStream({
     async pull(controller) {
