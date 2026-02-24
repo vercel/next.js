@@ -24,11 +24,11 @@ export default function DepAcceptArrayPage() {
   useEffect(() => {
     if (import.meta.turbopackHot) {
       import.meta.turbopackHot.accept(['./dep-a', './dep-b'], () => {
-        const updatedA = require('./dep-a')
-        const updatedB = require('./dep-b')
+        // ESM bindings are automatically re-imported before this callback runs,
+        // so `valueA` and `valueB` already reflect the updated modules.
         if (mountedRef.current) {
-          setDepAValue(updatedA.valueA)
-          setDepBValue(updatedB.valueB)
+          setDepAValue(valueA)
+          setDepBValue(valueB)
           setAcceptCallCount((c) => c + 1)
         }
       })

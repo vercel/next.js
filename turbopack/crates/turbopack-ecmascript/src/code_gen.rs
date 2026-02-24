@@ -233,7 +233,9 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::ModuleHotReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ModuleHotReferenceCodeGen(v) => {
+                v.code_generation(ctx, scope_hoisting_context).await
+            }
         }
     }
 }

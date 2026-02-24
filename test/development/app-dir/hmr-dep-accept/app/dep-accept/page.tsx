@@ -25,10 +25,10 @@ export default function DepAcceptPage() {
     // import.meta.turbopackHot is the ESM equivalent of module.hot
     if (import.meta.turbopackHot) {
       import.meta.turbopackHot.accept('./dep', () => {
-        // Re-import the updated module to get new value
-        const updated = require('./dep')
+        // ESM bindings are automatically re-imported before this callback runs,
+        // so `value` already reflects the updated module.
         if (mountedRef.current) {
-          setDepValue(updated.value)
+          setDepValue(value)
           setAcceptCallCount((c) => c + 1)
         }
       })

@@ -108,7 +108,7 @@ use crate::{
         graph::{
             ConditionalKind, DeclUsage, Effect, EffectArg, EvalContext, VarGraph, create_graph,
         },
-        imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
+        imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol, Reexport},
         linker::link,
         parse_require_context, side_effects,
         top_level_await::has_top_level_await,
@@ -137,9 +137,7 @@ use crate::{
             base::EsmAssetReferences, export::EsmExport, module_id::EsmModuleIdAssetReference,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
-        hot_module::{
-            ModuleHotDependencyRequest, ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen,
-        },
+        hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
         member::MemberReplacement,
         node::PackageJsonReference,
@@ -488,6 +486,10 @@ struct AnalysisState<'a> {
     tracing_only: bool,
     // Whether the module is an ESM module (affects resolution for hot module dependencies).
     is_esm: bool,
+    // ESM import references (indexed to match eval_context.imports.references()).
+    import_references: &'a [ResolvedVc<EsmAssetReference>],
+    // The import map from the eval context, used to match dep strings to import references.
+    imports: &'a ImportMap,
 }
 
 impl AnalysisState<'_> {
@@ -1100,6 +1102,8 @@ async fn analyze_ecmascript_module_internal(
             collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
             tracing_only: !options.analyze_mode.is_code_gen(),
             is_esm,
+            import_references: &import_references,
+            imports: &eval_context.imports,
         };
 
         enum Action {
@@ -2921,11 +2925,14 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::ModuleHotAccept | WellKnownFunctionKind::ModuleHotDecline => {
+        kind @ (WellKnownFunctionKind::ModuleHotAccept
+        | WellKnownFunctionKind::ModuleHotDecline) => {
+            let is_accept = matches!(kind, WellKnownFunctionKind::ModuleHotAccept);
             let args = linked_args().await?;
             if let Some(first_arg) = args.first() {
                 if let Some(dep_strings) = extract_hot_dep_strings(first_arg) {
-                    let mut requests = Vec::new();
+                    let mut references = Vec::new();
+                    let mut esm_references = Vec::new();
                     for dep_str in &dep_strings {
                         let request = Request::parse_string(dep_str.clone().into())
                             .to_resolved()
@@ -2940,30 +2947,41 @@ where
                         .to_resolved()
                         .await?;
                         analysis.add_reference(reference);
-                        requests.push(ModuleHotDependencyRequest {
-                            request,
-                            request_str: dep_str.clone(),
-                        });
+                        references.push(reference);
+
+                        // For accept, find a matching ESM import so we can
+                        // re-assign the namespace binding after the update.
+                        let esm_ref = if is_accept {
+                            state
+                                .imports
+                                .references()
+                                .enumerate()
+                                .find(|(_, r)| r.module_path.to_string_lossy() == dep_str.as_str())
+                                .and_then(|(idx, _)| state.import_references.get(idx).copied())
+                        } else {
+                            None
+                        };
+                        esm_references.push(esm_ref);
                     }
                     analysis.add_code_gen(ModuleHotReferenceCodeGen::new(
-                        requests,
-                        origin,
+                        references,
+                        esm_references,
                         ast_path.to_vec().into(),
-                        issue_source(source, span),
-                        error_mode,
-                        state.is_esm,
                     ));
                 } else if first_arg.is_unknown() {
                     let (args_str, hints) = explain_args(&args);
+                    let method = if is_accept { "accept" } else { "decline" };
+                    let error_code = if is_accept {
+                        errors::failed_to_analyze::ecmascript::MODULE_HOT_ACCEPT
+                    } else {
+                        errors::failed_to_analyze::ecmascript::MODULE_HOT_DECLINE
+                    };
                     handler.span_warn_with_code(
                         span,
                         &format!(
-                            "module.hot.accept/decline({args_str}) is not statically \
-                             analyzable{hints}",
+                            "module.hot.{method}({args_str}) is not statically analyzable{hints}",
                         ),
-                        DiagnosticId::Error(
-                            errors::failed_to_analyze::ecmascript::MODULE_HOT_ACCEPT.to_string(),
-                        ),
+                        DiagnosticId::Error(error_code.to_string()),
                     )
                 }
             }

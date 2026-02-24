@@ -2,14 +2,21 @@ use std::mem::take;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use swc_core::ecma::ast::Expr;
+use swc_core::{
+    common::{DUMMY_SP, SyntaxContext},
+    ecma::ast::{
+        ArrowExpr, BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
+        Ident, Stmt,
+    },
+    quote,
+};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType},
@@ -18,23 +25,23 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
 use crate::{
+    ScopeHoistingContext,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::{
         AstPath,
+        esm::{EsmAssetReference, base::ReferencedAsset},
         pattern_mapping::{PatternMapping, ResolveType},
     },
+    runtime_functions::TURBOPACK_IMPORT,
+    utils::module_id_to_lit,
 };
-
-// =====================================================================
-// ModuleHotReferenceAssetReference (merged accept + decline)
-// =====================================================================
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct ModuleHotReferenceAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    request: ResolvedVc<Request>,
+    pub request: ResolvedVc<Request>,
     issue_source: IssueSource,
     error_mode: ResolveErrorMode,
     is_esm: bool,
@@ -60,21 +67,9 @@ impl ModuleHotReferenceAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let request_str = self.request.to_string().await?;
-        Ok(Vc::cell(
-            format!("module.hot.accept/decline {}", request_str).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+impl ModuleHotReferenceAssetReference {
+    /// Shared resolve logic used by both `resolve_reference` and code generation.
+    pub async fn resolve(&self) -> Result<Vc<ModuleResolveResult>> {
         if self.is_esm {
             esm_resolve(
                 *self.origin,
@@ -94,11 +89,28 @@ impl ModuleReference for ModuleHotReferenceAssetReference {
             ))
         }
     }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ModuleHotReferenceAssetReference {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        let request_str = self.request.to_string().await?;
+        Ok(Vc::cell(
+            format!("module.hot.accept/decline {}", request_str).into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for ModuleHotReferenceAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        self.resolve().await
+    }
 
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        // module.hot.accept/decline deps are typically already loaded via require/import.
-        // We use Parallel to ensure the dep is included in the chunk graph.
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
@@ -106,83 +118,45 @@ impl ModuleReference for ModuleHotReferenceAssetReference {
     }
 }
 
-// =====================================================================
-// Shared types
-// =====================================================================
-
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Clone, Encode, Decode,
-)]
-pub struct ModuleHotDependencyRequest {
-    pub request: ResolvedVc<Request>,
-    pub request_str: RcStr,
-}
-
-// =====================================================================
-// ModuleHotReferenceCodeGen (merged accept + decline)
-// =====================================================================
-
 #[derive(
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct ModuleHotReferenceCodeGen {
-    requests: Vec<ModuleHotDependencyRequest>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    references: Vec<ResolvedVc<ModuleHotReferenceAssetReference>>,
+    /// For ESM modules, the matching ESM import reference for each dep (if any).
+    /// This is used to generate code that re-assigns the ESM namespace variable
+    /// after an HMR update so that imported bindings reflect the updated module.
+    esm_references: Vec<Option<ResolvedVc<EsmAssetReference>>>,
     path: AstPath,
-    issue_source: IssueSource,
-    error_mode: ResolveErrorMode,
-    is_esm: bool,
 }
 
 impl ModuleHotReferenceCodeGen {
     pub fn new(
-        requests: Vec<ModuleHotDependencyRequest>,
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        references: Vec<ResolvedVc<ModuleHotReferenceAssetReference>>,
+        esm_references: Vec<Option<ResolvedVc<EsmAssetReference>>>,
         path: AstPath,
-        issue_source: IssueSource,
-        error_mode: ResolveErrorMode,
-        is_esm: bool,
     ) -> Self {
         ModuleHotReferenceCodeGen {
-            requests,
-            origin,
+            references,
+            esm_references,
             path,
-            issue_source,
-            error_mode,
-            is_esm,
         }
     }
 
     pub async fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
-        // Resolve all dep requests to pattern mappings
         let resolved_ids: Vec<ReadRef<PatternMapping>> = self
-            .requests
+            .references
             .iter()
-            .map(|dep| async move {
-                let resolve_result = if self.is_esm {
-                    esm_resolve(
-                        *self.origin,
-                        *dep.request,
-                        EcmaScriptModulesReferenceSubType::Undefined,
-                        self.error_mode,
-                        Some(self.issue_source),
-                    )
-                    .await?
-                } else {
-                    cjs_resolve(
-                        *self.origin,
-                        *dep.request,
-                        CommonJsReferenceSubType::Undefined,
-                        Some(self.issue_source),
-                        self.error_mode,
-                    )
-                };
+            .map(|reference| async move {
+                let r = reference.await?;
+                let resolve_result = r.resolve().await?;
                 PatternMapping::resolve_request(
-                    *dep.request,
-                    *self.origin,
+                    *r.request,
+                    *r.origin,
                     chunking_context,
                     resolve_result,
                     ResolveType::ChunkItem,
@@ -192,7 +166,60 @@ impl ModuleHotReferenceCodeGen {
             .try_join()
             .await?;
 
-        let is_single = self.requests.len() == 1;
+        // Resolve ESM binding re-import information for each dep.
+        // Each entry is (namespace_ident, module_id_expr) if the dep has a matching ESM import.
+        let esm_reimports: Vec<Option<(String, SyntaxContext, Expr)>> = self
+            .esm_references
+            .iter()
+            .map(|esm_ref| async move {
+                let Some(esm_ref) = esm_ref else {
+                    return Ok(None);
+                };
+                let referenced_asset = esm_ref.get_referenced_asset().await?;
+                match &*referenced_asset {
+                    ReferencedAsset::Some(asset) => {
+                        let imported_module = &*referenced_asset;
+                        let ident = imported_module
+                            .get_ident(chunking_context, None, scope_hoisting_context)
+                            .await?;
+                        if let Some(ident) = ident {
+                            if let Some((namespace_ident, ctxt)) =
+                                ident.into_module_namespace_ident()
+                            {
+                                let id = asset.chunk_item_id(chunking_context).await?;
+                                let module_id_expr = module_id_to_lit(&id);
+                                return Ok(Some((
+                                    namespace_ident,
+                                    ctxt.unwrap_or_default(),
+                                    module_id_expr,
+                                )));
+                            }
+                        }
+                        Ok(None)
+                    }
+                    _ => Ok(None),
+                }
+            })
+            .try_join()
+            .await?;
+
+        let is_single = self.references.len() == 1;
+
+        // Build the list of re-import assignment statements for the callback wrapper.
+        let mut reimport_stmts: Vec<Stmt> = Vec::new();
+        for reimport in &esm_reimports {
+            if let Some((namespace_ident, ctxt, module_id_expr)) = reimport {
+                let name = Ident::new(namespace_ident.as_str().into(), DUMMY_SP, *ctxt);
+                let turbopack_import: Expr = TURBOPACK_IMPORT.into();
+                reimport_stmts.push(quote!(
+                    "$name = $turbopack_import($id);" as Stmt,
+                    name = name,
+                    turbopack_import: Expr = turbopack_import,
+                    id: Expr = module_id_expr.clone(),
+                ));
+            }
+        }
+        let has_reimports = !reimport_stmts.is_empty();
 
         let mut visitors = Vec::new();
         visitors.push(create_visitor!(
@@ -203,12 +230,11 @@ impl ModuleHotReferenceCodeGen {
                     if call_expr.args.is_empty() {
                         return;
                     }
+                    // Replace dep path strings with resolved module IDs
                     if is_single {
-                        // Single dep: replace string arg with resolved ID
                         let key_expr = take(&mut *call_expr.args[0].expr);
                         call_expr.args[0].expr = Box::new(resolved_ids[0].create_id(key_expr));
                     } else {
-                        // Array of deps: replace each element with resolved ID
                         if let Expr::Array(array_lit) = &mut *call_expr.args[0].expr {
                             for (i, elem) in array_lit.elems.iter_mut().enumerate() {
                                 if let Some(elem) = elem {
@@ -218,6 +244,50 @@ impl ModuleHotReferenceCodeGen {
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // Wrap or inject callback to re-import ESM bindings
+                    if has_reimports {
+                        let mut wrapper_stmts = reimport_stmts.clone();
+
+                        if call_expr.args.len() >= 2 {
+                            // There's a user callback — call it after re-importing
+                            let user_cb = take(&mut *call_expr.args[1].expr);
+                            wrapper_stmts.push(Stmt::Expr(ExprStmt {
+                                span: DUMMY_SP,
+                                expr: Box::new(Expr::Call(CallExpr {
+                                    span: DUMMY_SP,
+                                    callee: Callee::Expr(Box::new(user_cb)),
+                                    args: vec![],
+                                    ..Default::default()
+                                })),
+                            }));
+                            call_expr.args[1].expr = Box::new(Expr::Arrow(ArrowExpr {
+                                span: DUMMY_SP,
+                                params: vec![],
+                                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                    span: DUMMY_SP,
+                                    stmts: wrapper_stmts,
+                                    ..Default::default()
+                                })),
+                                ..Default::default()
+                            }));
+                        } else {
+                            // No user callback — add one that just re-imports
+                            call_expr.args.push(ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Arrow(ArrowExpr {
+                                    span: DUMMY_SP,
+                                    params: vec![],
+                                    body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                        span: DUMMY_SP,
+                                        stmts: wrapper_stmts,
+                                        ..Default::default()
+                                    })),
+                                    ..Default::default()
+                                })),
+                            });
                         }
                     }
                 }

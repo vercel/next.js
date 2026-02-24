@@ -162,7 +162,7 @@ describe('hmr-dep-accept', () => {
         )
 
         // Patch the dependency
-        await next.patchFile('app/dep-accept-cjs/dep.ts', (content) =>
+        await next.patchFile('app/dep-accept-cjs/dep.cjs', (content) =>
           content.replace("'initial'", "'updated'")
         )
 
@@ -218,6 +218,51 @@ describe('hmr-dep-accept', () => {
         await retry(async () => {
           const text = await browser.elementByCss('#dep-value').text()
           expect(text).toBe('updated')
+        })
+
+        // The parent module SHOULD have been re-evaluated (full reload)
+        await retry(async () => {
+          const newParentEvalTime = await browser
+            .elementByCss('#parent-eval-time')
+            .text()
+          expect(newParentEvalTime).not.toBe(parentEvalTime)
+        })
+      }
+    )
+  })
+
+  describe('dependency decline with array', () => {
+    itTurbopackDev(
+      'declining multiple dependencies via array triggers full reload',
+      async () => {
+        const browser = await next.browser('/dep-decline-array')
+
+        // Wait for initial render
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-a-value').text()
+          expect(text).toBe('initial-a')
+        })
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-b-value').text()
+          expect(text).toBe('initial-b')
+        })
+        await retry(async () => {
+          const text = await browser.elementByCss('#parent-eval-time').text()
+          expect(text).toMatch(/Parent Evaluated At: \d+/)
+        })
+
+        const parentEvalTime = await browser
+          .elementByCss('#parent-eval-time')
+          .text()
+
+        // Patch dep-a (declined) — should trigger full reload
+        await next.patchFile('app/dep-decline-array/dep-a.ts', (content) =>
+          content.replace("'initial-a'", "'updated-a'")
+        )
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#dep-a-value').text()
+          expect(text).toBe('updated-a')
         })
 
         // The parent module SHOULD have been re-evaluated (full reload)
