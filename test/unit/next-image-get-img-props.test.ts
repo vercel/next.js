@@ -741,6 +741,64 @@ describe('getImageProps()', () => {
       deploymentId = undefined
     }
   })
+  it('should add query string for imported local image with unicode when deployment id is defined', async () => {
+    try {
+      deploymentId = 'dpl_123'
+      const src = '/_next/static/media/äöüščří.3f1a293b.png'
+      const srcEncoded = encodeURIComponent(src)
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: src,
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          `/_next/image?url=${srcEncoded}&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=${srcEncoded}&w=256&q=75&dpl=dpl_123 2x`,
+        ],
+        ['src', `/_next/image?url=${srcEncoded}&w=256&q=75&dpl=dpl_123`],
+      ])
+    } finally {
+      deploymentId = undefined
+    }
+  })
+  it('should respect query string for imported local image with unicode when deployment id is defined', async () => {
+    try {
+      deploymentId = 'dpl_123'
+      const src = '/_next/static/media/äöüščří.3f1a293b.png'
+      const srcEncoded = encodeURIComponent(src)
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: `${src}?dpl=dpl_existing`,
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          `/_next/image?url=${srcEncoded}&w=128&q=75&dpl=dpl_existing 1x, /_next/image?url=${srcEncoded}&w=256&q=75&dpl=dpl_existing 2x`,
+        ],
+        ['src', `/_next/image?url=${srcEncoded}&w=256&q=75&dpl=dpl_existing`],
+      ])
+    } finally {
+      deploymentId = undefined
+    }
+  })
   it('should add query string for relative local image when deployment id defined', async () => {
     try {
       deploymentId = 'dpl_123'
@@ -821,6 +879,29 @@ describe('getImageProps()', () => {
       deploymentId = undefined
     }
   })
+  it('should add query string with question mark for unoptimized relative svg with unicode when deployment id is defined', async () => {
+    try {
+      deploymentId = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/äöüščří.svg',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '/äöüščří.svg?dpl=dpl_123'],
+      ])
+    } finally {
+      deploymentId = undefined
+    }
+  })
   it('should add query string with ampersand for unoptimized relative svg when deployment id is defined', async () => {
     try {
       deploymentId = 'dpl_123'
@@ -891,7 +972,6 @@ describe('getImageProps()', () => {
       deploymentId = undefined
     }
   })
-
   it('should respect existing query string for unoptimized relative image when deployment id is defined', async () => {
     try {
       deploymentId = 'dpl_123'
@@ -911,6 +991,30 @@ describe('getImageProps()', () => {
         ['decoding', 'async'],
         ['style', { color: 'transparent' }],
         ['src', '/_next/static/media/test.abc123.png?dpl=dpl_existing'],
+      ])
+    } finally {
+      deploymentId = undefined
+    }
+  })
+  it('should respect existing query string for unoptimized relative image with unicode when deployment id is defined', async () => {
+    try {
+      deploymentId = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: `/_next/static/media/äöüščří.3f1a293b.png?dpl=dpl_existing`,
+        unoptimized: true,
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '/_next/static/media/äöüščří.3f1a293b.png?dpl=dpl_existing'],
       ])
     } finally {
       deploymentId = undefined
