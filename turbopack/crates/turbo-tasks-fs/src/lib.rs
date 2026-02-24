@@ -64,8 +64,9 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
-    ResolvedVc, TaskInput, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
+    ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
+    debug::ValueDebugFormat, effect, mark_session_dependent, parallel, trace::TraceRawVcs,
+    turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -1378,7 +1379,7 @@ impl FileSystemPath {
     }
 }
 
-impl turbo_tasks::display::ValueToStringRef for FileSystemPath {
+impl ValueToStringRef for FileSystemPath {
     async fn to_string_ref(&self) -> Result<RcStr> {
         turbofmt!("[{}]/{}", self.fs, self.path).await
     }
