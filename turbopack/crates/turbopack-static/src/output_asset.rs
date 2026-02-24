@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -39,9 +40,13 @@ impl OutputAsset for StaticOutputAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let content = self.source.content();
-        let content_hash = content.content_hash().await?.context(
-            "Missing content when trying to generate the content hash for StaticOutputAsset",
-        )?;
+        let content_hash = content
+            .content_hash(HashAlgorithm::default())
+            .owned()
+            .await?
+            .context(
+                "Missing content when trying to generate the content hash for StaticOutputAsset",
+            )?;
         Ok(self.chunking_context.asset_path(
             Vc::cell(content_hash),
             self.source.ident(),
