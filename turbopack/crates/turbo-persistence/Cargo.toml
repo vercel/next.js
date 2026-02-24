@@ -36,9 +36,19 @@ twox-hash = { workspace = true }
 zstd = { version = "0.13.2", features = ["zdict_builder"] }
 
 [dev-dependencies]
+criterion = { workspace = true }
 rand = { workspace = true, features = ["small_rng"] }
 rayon = { workspace = true }
 tempfile = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
+
+[[bin]]
+name = "sst_inspect"
+path = "src/bin/sst_inspect.rs"
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "mod"
+harness = false

@@ -35,7 +35,12 @@ import {
 import os from 'os'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
-import { flushAllTraces, trace } from '../trace'
+import {
+  flushAllTraces,
+  trace,
+  initializeTraceState,
+  exportTraceState,
+} from '../trace'
 import { traceId } from '../trace/shared'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
 
@@ -55,6 +60,7 @@ export type NextDevOptions = {
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
+  experimentalServerFastRefresh?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -247,12 +253,29 @@ const nextDev = async (
     traceUploadUrl = options.experimentalUploadTrace
   }
 
+  const enabledFeatures = Object.fromEntries(
+    Object.entries({
+      experimentalServerFastRefresh: options.experimentalServerFastRefresh,
+      experimentalCpuProf: options.experimentalCpuProf,
+    }).filter(([_, value]) => value)
+  )
+
+  for (const [key, value] of Object.entries(enabledFeatures)) {
+    sessionSpan.setAttribute(`feature.${key}`, value)
+  }
+
+  initializeTraceState({
+    ...exportTraceState(),
+    defaultParentSpanId: sessionSpan.getId(),
+  })
+
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
     hostname: host,
+    experimentalServerFastRefresh: options.experimentalServerFastRefresh,
   }
 
   const startServerPath = require.resolve('../server/lib/start-server')
@@ -305,9 +328,11 @@ const nextDev = async (
         env: {
           ...defaultEnv,
           ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
+          __NEXT_DEV_SERVER: '1',
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
+          NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,

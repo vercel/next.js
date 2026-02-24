@@ -10,8 +10,8 @@ use serde_json::{Map as JsonMap, Value as JsonValue, json};
 use serde_with::serde_as;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc, trace::TraceRawVcs,
+    Completion, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -30,7 +30,7 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
@@ -82,29 +82,7 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-pub struct WebpackLoaderItem {
-    pub loader: RcStr,
-    #[serde(default)]
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    pub options: serde_json::Map<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone)]
-#[turbo_tasks::value(shared, transparent)]
-pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
+pub use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
 
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
@@ -257,9 +235,14 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false)
-            .to_resolved()
-            .await?;
+        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        ))
+        .connect()
+        .to_resolved()
+        .await?;
 
         let resource_fs_path = self.source.ident().path().await?;
         let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {

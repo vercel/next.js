@@ -3,9 +3,9 @@ name: build-and-deploy
 
 on:
   push:
-    # Don't run when tags are pushed
-    branches:
-      - '**'
+    # Don't run when tags or graphite base branches are pushed
+    branches-ignore:
+      - 'graphite-base/**'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
@@ -19,7 +19,7 @@ concurrency:
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.5.5
+  TURBO_VERSION: 2.8.9
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -318,7 +318,7 @@ jobs:
       # it can fail to restore in different OS'
       - uses: actions/checkout@v4
         with:
-          # crates/napi/build.rs uses git-describe to find the most recent git tag. It's okay if
+          # crates/next-napi-bindings/build.rs uses git-describe to find the most recent git tag. It's okay if
           # this fails, but fetch with enough depth that we're likely to find a recent tag.
           fetch-depth: 100
 

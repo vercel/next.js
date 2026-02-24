@@ -70,6 +70,11 @@ const METRIC_GROUPS = {
         description: 'Time until TCP port accepts connections',
       },
       {
+        label: 'Cold (Ready in log)',
+        key: 'nextDevColdReadyInDurationTurbo',
+        description: 'Time until "Ready in X" log message is printed',
+      },
+      {
         label: 'Cold (First Request)',
         key: 'nextDevColdReadyDurationTurbo',
         description: 'Time until first HTTP request succeeds',
@@ -78,6 +83,11 @@ const METRIC_GROUPS = {
         label: 'Warm (Listen)',
         key: 'nextDevWarmListenDurationTurbo',
         description: 'Time until TCP port accepts connections (cached)',
+      },
+      {
+        label: 'Warm (Ready in log)',
+        key: 'nextDevWarmReadyInDurationTurbo',
+        description: 'Time until "Ready in X" log message is printed (cached)',
       },
       {
         label: 'Warm (First Request)',
@@ -99,6 +109,11 @@ const METRIC_GROUPS = {
         description: 'Time until TCP port accepts connections',
       },
       {
+        label: 'Cold (Ready in log)',
+        key: 'nextDevColdReadyInDurationWebpack',
+        description: 'Time until "Ready in X" log message is printed',
+      },
+      {
         label: 'Cold (First Request)',
         key: 'nextDevColdReadyDurationWebpack',
         description: 'Time until first HTTP request succeeds',
@@ -107,6 +122,11 @@ const METRIC_GROUPS = {
         label: 'Warm (Listen)',
         key: 'nextDevWarmListenDurationWebpack',
         description: 'Time until TCP port accepts connections (cached)',
+      },
+      {
+        label: 'Warm (Ready in log)',
+        key: 'nextDevWarmReadyInDurationWebpack',
+        description: 'Time until "Ready in X" log message is printed (cached)',
       },
       {
         label: 'Warm (First Request)',
@@ -953,6 +973,24 @@ function generateDiffsSection(result) {
   return content
 }
 
+function generatePrTarballSection(actionInfo) {
+  if (actionInfo.isRelease || !actionInfo.issueId) return ''
+
+  const prNumber = String(actionInfo.issueId).trim()
+  if (!/^\d+$/.test(prNumber)) return ''
+
+  return `<details>
+<summary><strong>📎 Tarball URL</strong></summary>
+
+\`\`\`
+next@https://vercel-packages.vercel.app/next/prs/${prNumber}/next
+\`\`\`
+
+</details>
+
+`
+}
+
 // ============================================================================
 // Main Export
 // ============================================================================
@@ -1013,6 +1051,8 @@ module.exports = async function addComment(
       comment += '<hr/>\n\n'
     }
   }
+
+  comment += generatePrTarballSection(actionInfo)
 
   // Save canary stats to history (only for releases, not PR comparisons)
   // This ensures we only track official canary metrics, not PR-specific data

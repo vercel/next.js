@@ -1,4 +1,7 @@
-import { abortAndThrowOnSynchronousRequestDataAccess } from '../../app-render/dynamic-rendering'
+import {
+  abortAndThrowOnSynchronousRequestDataAccess,
+  postponeWithTracking,
+} from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
@@ -12,6 +15,7 @@ import {
   ActionDidRevalidateDynamicOnly,
   ActionDidRevalidateStaticAndDynamic as ActionDidRevalidate,
 } from '../../../shared/lib/action-revalidation-kind'
+import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 
 type CacheLifeConfig = {
   expire?: number
@@ -93,7 +97,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     return
   }
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath || '/'}`
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${removeTrailingSlash(originalPath)}`
 
   if (type) {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
@@ -156,8 +160,15 @@ function revalidate(
           workUnitStore
         )
       case 'prerender-client':
+      case 'validation-client':
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
+        )
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
         )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0

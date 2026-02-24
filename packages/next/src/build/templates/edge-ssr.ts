@@ -110,11 +110,11 @@ async function requestHandler(
     params,
     buildId,
     nextConfig,
+    deploymentId,
     isNextDataRequest,
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
   } = prepareResult
@@ -128,7 +128,7 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
-      deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+      deploymentId,
       customServer: undefined,
     },
 
@@ -168,7 +168,6 @@ async function requestHandler(
       buildManifest,
       subresourceIntegrityManifest,
       reactLoadableManifest,
-      clientReferenceManifest,
       dynamicCssManifest,
     },
   }

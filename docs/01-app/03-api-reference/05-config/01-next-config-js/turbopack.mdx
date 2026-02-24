@@ -197,6 +197,9 @@ module.exports = {
             {
               any: [
                 { path: '*.svg' },
+                // 'query' matches anywhere in the full query string,
+                // which can be empty, or start with `?`.
+                { query: /[?&]svgr(?=&|$)/ },
                 // 'content' is always a RegExp, and can match
                 // anywhere in the file.
                 { content: /\<svg\W/ },
@@ -213,7 +216,11 @@ module.exports = {
 ```
 
 - Supported boolean operators are `{all: [...]}`, `{any: [...]}` and `{not: ...}`.
-- Supported customizable operators are `{path: string | RegExp}` and `{content: RegExp}`. If `path` and `content` are specified in the same object, it acts as an implicit `and`.
+- Supported customizable operators are `{path: string | RegExp}`, `{content: RegExp}`, `{query: string | RegExp}`, and `{contentType: string | RegExp}`. If multiple operators are specified in the same object, it acts as an implicit `and`.
+  - `path` matches against the project-relative file path. A string is treated as a glob pattern, while a RegExp can be used to match the path partially.
+  - `content` matches anywhere in the file content.
+  - `query` matches the import's query string (e.g., `?foo` in `import './file?foo'`). A string must match exactly, while a RegExp can be used to match the query string partially.
+  - `contentType` matches the MIME content type of the resource (e.g., from data URLs like `data:text/plain,...`). A string is treated as a glob pattern (e.g., `text/*`, `image/*`), while a RegExp can be used to match the content type partially.
 
 In addition, a number of built-in conditions are supported:
 
@@ -248,6 +255,79 @@ module.exports = {
 ```
 
 > **Good to know**: All matching rules are executed in order.
+
+### Module types
+
+You can set the module type directly without using a loader. This is useful for changing how files are processed, similar to webpack's [`type`](https://webpack.js.org/configuration/module/#ruletype) option.
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*.svg': {
+        type: 'asset',
+      },
+    },
+  },
+}
+```
+
+When using `type: 'asset'`, importing the file returns its URL:
+
+```tsx filename="app/page.tsx"
+import svgUrl from './icon.svg'
+
+export default function Page() {
+  return <img src={svgUrl} alt="Icon" />
+}
+```
+
+The `type` option can be combined with `loaders` - loaders run first, then the result is processed according to the specified type.
+
+Available module types:
+
+| Type         | Description                                              |
+| ------------ | -------------------------------------------------------- |
+| `asset`      | Emit file and return URL (like webpack `asset/resource`) |
+| `ecmascript` | Process as JavaScript                                    |
+| `typescript` | Process as TypeScript                                    |
+| `css`        | Process as CSS                                           |
+| `css-module` | Process as CSS module                                    |
+| `wasm`       | Process as WebAssembly                                   |
+| `raw`        | Return raw contents as string                            |
+| `bytes`      | Inline contents as bytes                                 |
+
+### Inline loader configuration with import attributes
+
+You can apply a Turbopack loader to an individual import using the `with` clause (import attributes). This is specified per-import rather than globally via `turbopack.rules`.
+
+This is useful when you want to apply a loader to a specific import without affecting all files of that type.
+
+```tsx filename="app/page.tsx"
+// Apply a raw loader to import a .txt file as a JavaScript module
+import rawText from '../data.txt' with { turbopackLoader: 'raw-loader', turbopackAs: '*.js' }
+
+export default function Page() {
+  return <p>{rawText}</p>
+}
+```
+
+The following import attributes are supported:
+
+| Attribute                | Description                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `turbopackLoader`        | The loader to apply (e.g. `'raw-loader'`).                                                                                    |
+| `turbopackLoaderOptions` | JSON string of loader options (e.g. `'{"search":"X","replace":"Y"}'`).                                                        |
+| `turbopackAs`            | Rename pattern for the output (same as `turbopack.rules[].as`). For example, `'*.js'` treats the loader output as JavaScript. |
+| `turbopackModuleType`    | Set the module type for the output (same as `turbopack.rules[].type`).                                                        |
+
+Loaders with options pass a JSON-encoded string via `turbopackLoaderOptions`:
+
+```tsx filename="app/page.tsx"
+import value from '../data.js' with { turbopackLoader: 'string-replace-loader', turbopackLoaderOptions: '{"search":"PLACEHOLDER","replace":"replaced value"}' }
+```
+
+> **Good to know**: Import attributes with `turbopackLoader` are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.
 
 ### Resolving aliases
 
@@ -306,9 +386,13 @@ The option automatically adds a polyfill for debug IDs to the JavaScript bundle 
 
 ## Version History
 
-| Version  | Changes                                         |
-| -------- | ----------------------------------------------- |
-| `16.0.0` | `turbopack.debugIds` was added.                 |
-| `16.0.0` | `turbopack.rules.*.condition` was added.        |
-| `15.3.0` | `experimental.turbo` is changed to `turbopack`. |
-| `13.0.0` | `experimental.turbo` introduced.                |
+| Version  | Changes                                              |
+| -------- | ---------------------------------------------------- |
+| `16.2.0` | `turbopackLoader` import attributes were added.      |
+| `16.2.0` | `turbopack.rules.*.type` was added.                  |
+| `16.2.0` | `turbopack.rules.*.condition.contentType` was added. |
+| `16.2.0` | `turbopack.rules.*.condition.query` was added.       |
+| `16.0.0` | `turbopack.debugIds` was added.                      |
+| `16.0.0` | `turbopack.rules.*.condition` was added.             |
+| `15.3.0` | `experimental.turbo` is changed to `turbopack`.      |
+| `13.0.0` | `experimental.turbo` introduced.                     |

@@ -13,7 +13,7 @@ use tracing::trace_span;
 use crate::{
     Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
     get_serialization_invalidator, manager::with_turbo_tasks, mark_session_dependent,
-    trace::TraceRawVcs,
+    mark_stateful, trace::TraceRawVcs,
 };
 
 #[derive(Encode, Decode)]
@@ -333,6 +333,7 @@ impl<T> Eq for TransientState<T> {}
 
 impl<T> TransientState<T> {
     pub fn new() -> Self {
+        mark_stateful();
         Self {
             inner: Mutex::new(StateInner::new(None)),
         }
@@ -370,13 +371,6 @@ impl<T> TransientState<T> {
     pub fn set_unconditionally(&self, value: T) {
         let mut inner = self.inner.lock();
         inner.set_unconditionally(Some(value));
-    }
-
-    /// Unset the current value without comparing it with the old value. This
-    /// should only be used if one is sure that the value has changed.
-    pub fn unset_unconditionally(&self) {
-        let mut inner = self.inner.lock();
-        inner.set_unconditionally(None);
     }
 
     /// Updates the current state with the `update` function. The `update`

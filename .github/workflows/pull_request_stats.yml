@@ -8,12 +8,13 @@ on:
 name: Generate Stats
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep cancel-on-update behavior for PRs, but allow canary pushes to run independently.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.5.5
+  TURBO_VERSION: 2.8.9
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 6
 
@@ -95,9 +96,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 25
+
+      - name: Check non-docs only change
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
+        id: docs-change
 
       - name: Download all stats artifacts
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         uses: actions/download-artifact@v4
         with:
           pattern: pr-stats-*
@@ -105,15 +111,18 @@ jobs:
           merge-multiple: true
 
       - name: Setup Node.js
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
 
       - name: Install dependencies
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         working-directory: .github/actions/next-stats-action
         run: npm install
 
       - name: Aggregate and post results
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         working-directory: .github/actions/next-stats-action
         run: node src/aggregate-results.js ${{ github.workspace }}/stats-results
         env:

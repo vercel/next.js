@@ -195,6 +195,16 @@ function checkDeprecations(
       )
     }
   }
+
+  // browserDebugInfoInTerminal has moved to logging.browserToTerminal
+  if (userConfig.experimental?.browserDebugInfoInTerminal !== undefined) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.browserDebugInfoInTerminal',
+      `\`experimental.browserDebugInfoInTerminal\` has been moved to \`logging.browserToTerminal\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
+  }
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -372,6 +382,29 @@ function assignDefaultsAndValidate(
   // ensure correct default is set for api-resolver revalidate handling
   if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
+  }
+
+  // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
+  if (
+    result.logging !== false &&
+    result.experimental?.browserDebugInfoInTerminal !== undefined
+  ) {
+    const loggingConfig = result.logging || {}
+    if (!('browserToTerminal' in loggingConfig)) {
+      const expConfig = result.experimental.browserDebugInfoInTerminal
+      // Convert object config to simple format (level or true)
+      const level =
+        typeof expConfig === 'object' && expConfig !== null
+          ? (expConfig.level ?? true)
+          : expConfig
+      // Map 'verbose' to true since browserToTerminal doesn't support 'verbose'
+      const normalizedValue = level === 'verbose' ? true : level
+
+      result.logging = {
+        ...loggingConfig,
+        browserToTerminal: normalizedValue,
+      }
+    }
   }
 
   if (
@@ -1350,6 +1383,9 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheComponents) {
+    // TODO: remove once we've finished migrating internally to cacheComponents.
+    result.experimental.ppr = true
+
     // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
     if (result.enablePrerenderSourceMaps === undefined) {
       result.enablePrerenderSourceMaps = true
@@ -1363,12 +1399,9 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
-  // Store the distDirRoot in the config before it is modified by the isolatedDevBuild flag
+  // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  if (
-    phase === PHASE_DEVELOPMENT_SERVER &&
-    result.experimental.isolatedDevBuild
-  ) {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }
 
@@ -1601,8 +1634,7 @@ export default async function loadConfig(
       } else if (configFileName === 'next.config.ts') {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
-          configFileName,
-          cwd: dir,
+          dir,
         })
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
@@ -1862,6 +1894,13 @@ function enforceExperimentalFeatures(
       false,
       configuredExperimentalFeatures
     )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'allowDevelopmentBuild',
+      true,
+      configuredExperimentalFeatures
+    )
   }
 
   // TODO: Remove this once we've made Cache Components the default.
@@ -1872,6 +1911,25 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.cacheComponents))
   ) {
     config.cacheComponents = true
+  }
+
+  // TODO: Remove this once appNewScrollHandler is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.appNewScrollHandler === undefined ||
+      (isDefaultConfig && !config.experimental.appNewScrollHandler))
+  ) {
+    config.experimental.appNewScrollHandler = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'appNewScrollHandler',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
+      )
+    }
   }
 
   // TODO: Remove this once using the debug channel is the default.

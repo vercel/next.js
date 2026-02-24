@@ -114,6 +114,7 @@ export function getFlightStream<T>(
 
     switch (workUnitStore.type) {
       case 'prerender-client':
+      case 'validation-client':
         const responseOnNextTick = new Promise<T>((resolve) => {
           process.nextTick(() => {
             resolve(newResponse)
@@ -123,6 +124,7 @@ export function getFlightStream<T>(
         return responseOnNextTick
       case 'prerender':
       case 'prerender-runtime':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':

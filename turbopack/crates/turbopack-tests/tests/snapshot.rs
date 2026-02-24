@@ -33,22 +33,24 @@ use turbopack_core::{
         EvaluatableAssets, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
-    compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
+    },
     condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::CollectibleIssuesExt,
+    issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
-        ModuleGraph,
+        ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::{EntryReferenceSubType, ReferenceType, UrlReferenceSubType},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -95,6 +97,8 @@ struct SnapshotOptions {
     enable_debug_ids: bool,
     #[serde(default)]
     source_map_source_type: SourceMapSourceType,
+    #[serde(default = "default_chunk_loading_global")]
+    chunk_loading_global: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -127,6 +131,7 @@ impl Default for SnapshotOptions {
             production_chunking: false,
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
+            chunk_loading_global: default_chunk_loading_global(),
         }
     }
 }
@@ -151,6 +156,10 @@ fn default_runtime_type() -> RuntimeType {
 
 fn default_minify_type() -> MinifyType {
     MinifyType::NoMinify
+}
+
+fn default_chunk_loading_global() -> String {
+    "TURBOPACK".to_owned()
 }
 
 fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEntry>>) -> bool {
@@ -229,7 +238,10 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
 
-    let plain_issues = out_op.peek_issues().get_plain_issues().await?;
+    let plain_issues = out_op
+        .peek_issues()
+        .get_plain_issues(IssueFilter::everything())
+        .await?;
 
     snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
         .await
@@ -318,15 +330,32 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let compile_time_info = CompileTimeInfo::builder(env)
         .defines(defines.clone().resolved_cell())
-        .free_var_references(free_var_references!(..defines.into_iter()).resolved_cell())
+        .free_var_references(
+            free_var_references!(
+                ..defines.into_iter(),
+                WARNED_VALUE = FreeVarReference::ReportUsage {
+                    severity: IssueSeverity::Warning,
+                    message: rcstr!("WARNED_VALUE is deprecated, use REPLACEMENT_VALUE instead"),
+                    inner: Some(Box::new(FreeVarReference::Value(
+                        CompileTimeDefineValue::String(rcstr!("replacement"))
+                    ))),
+                },
+            )
+            .resolved_cell(),
+        )
         .cell()
         .await?;
 
-    let conditions = RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".js".into()),
-        RuleCondition::ResourcePathEndsWith(".jsx".into()),
-        RuleCondition::ResourcePathEndsWith(".ts".into()),
-        RuleCondition::ResourcePathEndsWith(".tsx".into()),
+    let conditions = RuleCondition::All(vec![
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
+            UrlReferenceSubType::Undefined,
+        ))),
+        RuleCondition::any(vec![
+            RuleCondition::ResourcePathEndsWith(".js".into()),
+            RuleCondition::ResourcePathEndsWith(".jsx".into()),
+            RuleCondition::ResourcePathEndsWith(".ts".into()),
+            RuleCondition::ResourcePathEndsWith(".tsx".into()),
+        ]),
     ]);
 
     let module_rules = ModuleRule::new(
@@ -353,17 +382,19 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                enable_import_as_bytes: true,
                 enable_jsx: Some(JsxTransformOptions::resolved_cell(JsxTransformOptions {
                     development: true,
                     ..Default::default()
                 })),
                 ignore_dynamic_requests: true,
+                infer_module_side_effects: true,
                 enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
@@ -384,7 +415,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             enable_node_modules: Some(project_root.clone()),
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root.clone()),
                     custom_conditions: vec![rcstr!("development")],
@@ -410,11 +441,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .module();
 
     let (evaluatable_assets, entry_modules) = if let Some(ecmascript) =
-        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module.to_resolved().await?)
     {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(ecmascript);
+            .with_entry(*ecmascript);
         (
             evaluatable_assets,
             evaluatable_assets
@@ -429,27 +460,28 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let mut module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
+    let single_graph = SingleModuleGraph::new_with_entries(
+        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
         true,
     );
+    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
-        Some(
-            compute_binding_usage_info(
-                module_graph.to_resolved().await?,
-                options.remove_unused_imports,
-            )
-            .resolve_strongly_consistent()
-            .await?,
-        )
+        Some(compute_binding_usage_info(
+            module_graph,
+            options.remove_unused_imports,
+        ))
     } else {
         None
     };
-    if options.remove_unused_imports {
-        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+    if options.remove_unused_imports
+        && let Some(binding_usage) = binding_usage
+    {
+        module_graph =
+            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
     }
+    let module_graph = module_graph.connect();
 
     let chunk_root_path = project_path.join("output")?;
     let static_root_path = project_path.join("static")?;
@@ -473,18 +505,25 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(
-                options
-                    .remove_unused_exports
-                    .then(|| binding_usage.unwrap()),
-            )
-            .unused_references(
-                options
-                    .remove_unused_imports
-                    .then(|| binding_usage.unwrap()),
-            )
+            .export_usage(if options.remove_unused_exports {
+                Some(binding_usage.unwrap().connect().to_resolved().await?)
+            } else {
+                None
+            })
             .debug_ids(options.enable_debug_ids)
-            .source_map_source_type(options.source_map_source_type);
+            .source_map_source_type(options.source_map_source_type)
+            .chunk_loading_global(options.chunk_loading_global.into());
+
+            if options.remove_unused_imports {
+                builder = builder.unused_references(
+                    binding_usage
+                        .unwrap()
+                        .connect()
+                        .unused_references()
+                        .to_resolved()
+                        .await?,
+                );
+            }
 
             if options.production_chunking {
                 builder = builder
@@ -514,18 +553,24 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(
-                options
-                    .remove_unused_exports
-                    .then(|| binding_usage.unwrap()),
-            )
-            .unused_references(
-                options
-                    .remove_unused_imports
-                    .then(|| binding_usage.unwrap()),
-            )
+            .export_usage(if options.remove_unused_exports {
+                Some(binding_usage.unwrap().connect().to_resolved().await?)
+            } else {
+                None
+            })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
+
+            if options.remove_unused_imports {
+                builder = builder.unused_references(
+                    binding_usage
+                        .unwrap()
+                        .connect()
+                        .unused_references()
+                        .to_resolved()
+                        .await?,
+                );
+            }
 
             if options.production_chunking {
                 builder = builder
@@ -555,9 +600,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Runtime::NodeJs => {
             OutputAssetsWithReferenced {
                 assets: ResolvedVc::cell(vec![
-                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
-                        .await?
-                        .unwrap()
+                    chunking_context
                         .entry_chunk_group(
                             // `expected` expects a completely flat output directory.
                             chunk_root_path

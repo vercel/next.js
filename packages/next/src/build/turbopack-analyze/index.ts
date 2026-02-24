@@ -35,6 +35,15 @@ export async function turbopackAnalyze(
 
   const startTime = process.hrtime()
   const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+
+  if (bindings.isWasm) {
+    throw new Error(
+      `Turbopack analyze is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
+        `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
+        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+    )
+  }
+
   const dev = false
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
@@ -79,9 +88,9 @@ export async function turbopackAnalyze(
       noMangling,
       writeRoutesHashesManifest: false,
       currentNodeJsVersion,
+      isPersistentCachingEnabled: persistentCaching,
     },
     {
-      persistentCaching,
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
       isCi: isCI,

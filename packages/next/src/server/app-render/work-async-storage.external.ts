@@ -32,14 +32,6 @@ export interface WorkStore {
   readonly isOnDemandRevalidate?: boolean
   readonly isBuildTimePrerendering?: boolean
 
-  /**
-   * This is true when:
-   * - source maps are generated
-   * - source maps are applied
-   * - minification is disabled
-   */
-  readonly hasReadableErrorStacks?: boolean
-
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
 
@@ -94,6 +86,9 @@ export interface WorkStore {
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
 
+  /**
+   * Prefer `sharedContext.buildId` instead. This only exists because it's needed in use-cache-wrapper
+   */
   buildId: string
 
   readonly reactLoadableManifest?: DeepReadonly<
@@ -103,7 +98,6 @@ export interface WorkStore {
   readonly nonce?: string
 
   cacheComponentsEnabled: boolean
-  dev: boolean
 
   /**
    * Run the given function inside a clean AsyncLocalStorage snapshot. This is

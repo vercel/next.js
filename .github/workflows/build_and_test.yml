@@ -6,6 +6,12 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+concurrency:
+  # Limit concurrent runs to 1 per PR,
+  # but allow concurrent runs on push if they potentially use different source code
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}
+  cancel-in-progress: true
+
 # NOTE: anything in `afterBuild` inherits environment variables defined in
 # `build_reusable.yml` (not these!) because that job executes within the context
 # of that workflow. Environment variables are not automatically passed to
@@ -250,6 +256,7 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export RUST_BACKTRACE=1
 
         node run-tests.js \
           --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
@@ -259,14 +266,27 @@ jobs:
     secrets: inherit
 
   test-turbopack-integration:
-    name: test turbopack development integration
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    name: test turbopack integration
+    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
       matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        group:
+          - 1/13
+          - 2/13
+          - 3/13
+          - 4/13
+          - 5/13
+          - 6/13
+          - 7/13
+          - 8/13
+          - 9/13
+          - 10/13
+          - 11/13
+          - 12/13
+          - 13/13
         # Empty value uses default
         # TODO: Run with React 18.
         # Integration tests use the installed React version in next/package.json.
@@ -278,9 +298,9 @@ jobs:
       nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
-        export TURBOPACK_DEV=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export RUST_BACKTRACE=1
 
         node run-tests.js \
           --timings \
@@ -312,40 +332,10 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export RUST_BACKTRACE=1
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
-
-  test-turbopack-production-integration:
-    name: test turbopack production integration
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
-        # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimension until we can figure out a way to test multiple React versions.
-        react: ['']
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 20.9.0
-      afterBuild: |
-        export IS_TURBOPACK_TEST=1
-        export TURBOPACK_BUILD=1
-        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type integration
-      stepName: 'test-turbopack-production-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-rspack-dev:
@@ -517,7 +507,7 @@ jobs:
     secrets: inherit
 
   #[NOTE] currently this only checks building wasi target
-  test-next-swc-napi-wasi:
+  test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
     # TODO: Re-enable this when https://github.com/napi-rs/napi-rs/issues/2009 is addressed.
@@ -533,7 +523,7 @@ jobs:
       afterBuild: |
         rustup target add wasm32-wasip1-threads
         pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi
-      stepName: 'test-next-swc-napi-wasi'
+      stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
   test-unit:
@@ -619,7 +609,7 @@ jobs:
     secrets: inherit
 
   test-new-tests-dev:
-    name: Test new tests for flakes (dev)
+    name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -644,7 +634,7 @@ jobs:
     secrets: inherit
 
   test-new-tests-start:
-    name: Test new tests for flakes (prod)
+    name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -668,7 +658,7 @@ jobs:
     secrets: inherit
 
   test-new-tests-deploy:
-    name: Test new tests when deployed
+    name: Test new and changed tests when deployed
     needs:
       ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
     # test-new-tests-if
@@ -694,7 +684,7 @@ jobs:
     secrets: inherit
 
   test-new-tests-deploy-cache-components:
-    name: Test new tests when deployed (cache components)
+    name: Test new and changed tests when deployed (cache components)
     needs:
       [
         'optimize-ci',
@@ -713,10 +703,12 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \
@@ -955,6 +947,7 @@ jobs:
       nodeVersion: 20.9.0
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export IS_WEBPACK_TEST=1
@@ -978,6 +971,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
@@ -1003,6 +997,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
@@ -1044,7 +1039,6 @@ jobs:
         'test-new-tests-deploy',
         'test-new-tests-deploy-cache-components',
         'test-turbopack-production',
-        'test-turbopack-production-integration',
         'test-unit-windows',
         'test-dev-windows',
         'test-integration-windows',

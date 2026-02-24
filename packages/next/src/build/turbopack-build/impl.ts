@@ -21,7 +21,11 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
-import type { RawEntrypoints, TurbopackResult } from '../swc/types'
+import type {
+  ProjectOptions,
+  RawEntrypoints,
+  TurbopackResult,
+} from '../swc/types'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -46,52 +50,91 @@ export async function turbopackBuild(): Promise<{
 
   const startTime = process.hrtime()
   const bindings = getBindingsSync() // our caller should have already loaded these
+
+  if (bindings.isWasm) {
+    throw new Error(
+      `Turbopack is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
+        `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
+        `To build on this platform, use Webpack instead:\n` +
+        `  next build --webpack\n\n` +
+        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+    )
+  }
+
   const dev = false
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
+  const hasDeferredEntries =
+    (config.experimental.deferredEntries?.length ?? 0) > 0
+
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
+
+  // Shared options for createProject calls
+  const sharedProjectOptions: Omit<ProjectOptions, 'debugBuildPaths'> = {
+    rootPath,
+    projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
+    distDir,
+    nextConfig: config,
+    watch: {
+      enable: false,
+    },
+    dev,
+    env: process.env as Record<string, string>,
+    defineEnv: createDefineEnv({
+      isTurbopack: true,
+      clientRouterFilters: NextBuildContext.clientRouterFilters!,
+      config,
+      dev,
+      distDir,
+      projectPath: dir,
+      fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+      hasRewrites,
+      // Implemented separately in Turbopack, doesn't have to be passed here.
+      middlewareMatchers: undefined,
+      rewrites,
+    }),
+    buildId,
+    encryptionKey,
+    previewProps,
+    browserslistQuery: supportedBrowsers.join(', '),
+    noMangling,
+    writeRoutesHashesManifest:
+      !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
+    currentNodeJsVersion,
+    isPersistentCachingEnabled: persistentCaching,
+    deferredEntries: config.experimental.deferredEntries,
+  }
+
+  const sharedTurboOptions = {
+    memoryLimit: config.experimental?.turbopackMemoryLimit,
+    dependencyTracking: persistentCaching || hasDeferredEntries,
+    isCi: isCI,
+    isShortSession: true,
+  }
+
+  const sriEnabled = Boolean(config.experimental.sri?.algorithm)
+
   const project = await bindings.turbo.createProject(
     {
-      rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
-      projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
-      distDir,
-      nextConfig: config,
-      watch: {
-        enable: false,
-      },
-      dev,
-      env: process.env as Record<string, string>,
-      defineEnv: createDefineEnv({
-        isTurbopack: true,
-        clientRouterFilters: NextBuildContext.clientRouterFilters!,
-        config,
-        dev,
-        distDir,
-        projectPath: dir,
-        fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        hasRewrites,
-        // Implemented separately in Turbopack, doesn't have to be passed here.
-        middlewareMatchers: undefined,
-        rewrites,
-      }),
-      buildId,
-      encryptionKey,
-      previewProps,
-      browserslistQuery: supportedBrowsers.join(', '),
-      noMangling,
-      writeRoutesHashesManifest:
-        !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
-      currentNodeJsVersion,
+      ...sharedProjectOptions,
+      debugBuildPaths: NextBuildContext.debugBuildPaths,
     },
-    {
-      persistentCaching,
-      memoryLimit: config.experimental?.turbopackMemoryLimit,
-      dependencyTracking: persistentCaching,
-      isCi: isCI,
-      isShortSession: true,
-    }
+    sharedTurboOptions,
+    hasDeferredEntries && config.experimental.onBeforeDeferredEntries
+      ? {
+          onBeforeDeferredEntries: async () => {
+            const workerConfig = await loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+              debugPrerender: NextBuildContext.debugPrerender,
+              reactProductionProfiling:
+                NextBuildContext.reactProductionProfiling,
+            })
+
+            await workerConfig.experimental.onBeforeDeferredEntries?.()
+          },
+        }
+      : undefined
   )
   try {
     backgroundLogCompilationEvents(project)
@@ -100,19 +143,22 @@ export async function turbopackBuild(): Promise<{
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
     await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-    await fs.mkdir(path.join(distDir, 'static', buildId), {
-      recursive: true,
-    })
+    if (!config.deploymentId) {
+      await fs.mkdir(path.join(distDir, 'static', buildId), {
+        recursive: true,
+      })
+    }
     await fs.writeFile(
       path.join(distDir, 'package.json'),
       '{"type": "commonjs"}'
     )
 
     let appDirOnly = NextBuildContext.appDirOnly!
+
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
     printBuildErrors(entrypoints, dev)
 
-    let routes = entrypoints.routes
+    const routes = entrypoints.routes
     if (!routes) {
       // This should never ever happen, there should be an error issue, or the bindings call should
       // have thrown.
@@ -134,6 +180,9 @@ export async function turbopackBuild(): Promise<{
       buildId,
       distDir,
       encryptionKey,
+      dev: false,
+      deploymentId: config.deploymentId,
+      sriEnabled,
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(
@@ -226,14 +275,15 @@ export async function workerMain(workerData: {
   Object.assign(NextBuildContext, workerData.buildContext)
 
   /// load the config because it's not serializable
-  const config = (NextBuildContext.config = await loadConfig(
+  const config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
     }
-  ))
+  )
+  NextBuildContext.config = config
   // Matches handling in build/index.ts
   // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
   // Ensures the `config.distDir` option is matched.

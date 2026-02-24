@@ -19,7 +19,13 @@ import {
   type PrefetchTaskFetchStrategy,
 } from './segment-cache/types'
 import { prefetch as prefetchWithSegmentCache } from './segment-cache/prefetch'
-import { dispatchAppRouterAction } from './use-action-queue'
+import { navigate } from './segment-cache/navigation'
+import {
+  dispatchAppRouterAction,
+  dispatchGestureState,
+} from './use-action-queue'
+import { resetKnownRoutes } from './segment-cache/optimistic-routes'
+import { FreshnessPolicy } from './router-reducer/ppr-navigations'
 import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'
 import type {
@@ -314,6 +320,59 @@ export function dispatchTraverseAction(
 }
 
 /**
+ * (Experimental) Perform a gesture navigation. This dispatches through React's
+ * useOptimistic instead of the main action queue, allowing the state to be
+ * shown during a gesture transition and discarded when the canonical navigation
+ * completes.
+ *
+ * Only available when experimental.gestureTransition is enabled.
+ */
+function gesturePush(href: string, options?: NavigateOptions): void {
+  if (process.env.__NEXT_GESTURE_TRANSITION) {
+    // TODO: Trigger a prefetch so the cache starts populating if there isn't
+    // already a prefetch for this route.
+    if (isJavaScriptURLString(href)) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
+
+    const state = getCurrentAppRouterState()
+    if (state === null) {
+      return
+    }
+    const url = new URL(addBasePath(href), location.href)
+    if (isExternalURL(url)) {
+      return
+    }
+
+    // Fork the router state for the duration of the gesture transition.
+    const currentUrl = new URL(state.canonicalUrl, location.href)
+    const shouldScroll = options?.scroll ?? true
+    // This is a special freshness policy that prevents dynamic requests from
+    // being spawned. During the gesture, we should only show the cached
+    // prefetched UI, not dynamic data.
+    // TODO: In the case of navigations to an unknown route, this will still
+    // end up performing a dynamic request. The plan is to do prefetch instead.
+    // There's a separate TODO for this.
+    const freshnessPolicy = FreshnessPolicy.Gesture
+    const forkedGestureState = navigate(
+      state,
+      url,
+      currentUrl,
+      state.renderedSearch,
+      state.cache,
+      state.tree,
+      state.nextUrl,
+      freshnessPolicy,
+      shouldScroll,
+      'push'
+    )
+    dispatchGestureState(forkedGestureState)
+  }
+}
+
+/**
  * The app router that is exposed through `useRouter`. These are public API
  * methods. Internal Next.js code should call the lower level methods directly
  * (although there's lots of existing code that doesn't do that).
@@ -398,6 +457,9 @@ export const publicAppRouterInstance: AppRouterInstance = {
         'hmrRefresh can only be used in development mode. Please use refresh instead.'
       )
     } else {
+      // Reset the known routes table so that route predictions are cleared
+      // when routes change during development.
+      resetKnownRoutes()
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
@@ -405,6 +467,11 @@ export const publicAppRouterInstance: AppRouterInstance = {
       })
     }
   },
+}
+
+// Conditionally add experimental_gesturePush when gestureTransition is enabled
+if (process.env.__NEXT_GESTURE_TRANSITION) {
+  ;(publicAppRouterInstance as any).experimental_gesturePush = gesturePush
 }
 
 // Exists for debugging purposes. Don't use in application code.

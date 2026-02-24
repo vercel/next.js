@@ -1,12 +1,12 @@
 pub mod availability_info;
 pub mod available_modules;
 pub mod chunk_group;
+pub mod chunk_id_strategy;
 pub(crate) mod chunk_item_batch;
 pub mod chunking;
 pub(crate) mod chunking_context;
 pub(crate) mod data;
 pub(crate) mod evaluate;
-pub mod module_id_strategies;
 
 use std::fmt::Display;
 
@@ -27,9 +27,9 @@ pub use crate::chunk::{
         ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
     },
     chunking_context::{
-        ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType,
+        AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -44,13 +44,11 @@ use crate::{
         module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
     },
     output::{OutputAssets, OutputAssetsReference},
-    reference::ModuleReference,
-    resolve::BindingUsage,
 };
 
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared, operation)]
-#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize)]
+#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize, ValueToString)]
 #[serde(untagged)]
 pub enum ModuleId {
     Number(u64),
@@ -66,14 +64,6 @@ impl Display for ModuleId {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleId {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.to_string().into())
-    }
-}
-
 impl ModuleId {
     pub fn parse(id: &str) -> Result<ModuleId> {
         Ok(match id.parse::<u64>() {
@@ -85,11 +75,11 @@ impl ModuleId {
 
 /// A list of module ids.
 #[turbo_tasks::value(transparent, shared)]
-pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
+pub struct ModuleIds(Vec<ModuleId>);
 
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
-pub trait ChunkableModule: Module + Asset {
+pub trait ChunkableModule: Module {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
@@ -114,7 +104,7 @@ impl ChunkableModules {
 // with other module types (as a MergeableModule cannot prevent itself from being merged with other
 // module types)
 #[turbo_tasks::value_trait]
-pub trait MergeableModule: Module + Asset {
+pub trait MergeableModule: Module {
     /// Even though MergeableModule is implemented, this allows a dynamic condition to determine
     /// mergeability
     #[turbo_tasks::function]
@@ -390,28 +380,6 @@ impl ChunkingType {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingTypeOption(Option<ChunkingType>);
 
-/// A [ModuleReference] implementing this trait and returning Some(_) for
-/// [ChunkableModuleReference::chunking_type] are considered as potentially
-/// chunkable references. When all [Module]s of such a reference implement
-/// [ChunkableModule] they are placed in [Chunk]s during chunking.
-/// They are even potentially placed in the same [Chunk] when a chunk type
-/// specific interface is implemented.
-#[turbo_tasks::value_trait]
-pub trait ChunkableModuleReference: ModuleReference + ValueToString {
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }))
-    }
-
-    #[turbo_tasks::function]
-    fn binding_usage(self: Vc<Self>) -> Vc<BindingUsage> {
-        BindingUsage::all()
-    }
-}
-
 pub struct ChunkGroupContent {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
@@ -512,17 +480,22 @@ pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt {
     /// Returns the module id of this chunk item.
-    fn id(self: Vc<Self>) -> Vc<ModuleId>;
+    fn id(self: Vc<Self>) -> impl Future<Output = Result<ModuleId>> + Send;
 }
 
 impl<T> ChunkItemExt for T
 where
-    T: Upcast<Box<dyn ChunkItem>>,
+    T: Upcast<Box<dyn ChunkItem>> + Send,
 {
     /// Returns the module id of this chunk item.
-    fn id(self: Vc<Self>) -> Vc<ModuleId> {
+    async fn id(self: Vc<Self>) -> Result<ModuleId> {
         let chunk_item = Vc::upcast_non_strict(self);
-        chunk_item.chunking_context().chunk_item_id(chunk_item)
+        chunk_item
+            .chunking_context()
+            .chunk_item_id_strategy()
+            .await?
+            .get_id(chunk_item)
+            .await
     }
 }
 
@@ -531,17 +504,21 @@ pub trait ModuleChunkItemIdExt {
     fn chunk_item_id(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<ModuleId>;
+    ) -> impl Future<Output = Result<ModuleId>> + Send;
 }
 impl<T> ModuleChunkItemIdExt for T
 where
-    T: Upcast<Box<dyn Module>>,
+    T: Upcast<Box<dyn Module>> + Send,
 {
-    fn chunk_item_id(
+    async fn chunk_item_id(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<ModuleId> {
-        chunking_context.chunk_item_id_from_module(Vc::upcast_non_strict(self))
+    ) -> Result<ModuleId> {
+        chunking_context
+            .chunk_item_id_strategy()
+            .await?
+            .get_id_from_module(Vc::upcast_non_strict(self))
+            .await
     }
 }
 

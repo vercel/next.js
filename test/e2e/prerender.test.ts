@@ -15,6 +15,7 @@ import {
   renderViaHTTP,
   retry,
   waitFor,
+  getCacheHeader,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
@@ -676,25 +677,21 @@ describe('Prerender', () => {
     if (!isDev) {
       it('should use correct caching headers for a revalidate page', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/')
-        expect(initialRes.headers.get('cache-control')).toBe('s-maxage=2')
-        if (!isDeploy) {
-          expect(initialRes.headers.get('cdn-cache-control')).toBe(
-            'max-age=2, stale-while-revalidate=31535998'
-          )
-        }
+        expect(initialRes.headers.get('cache-control')).toBe(
+          isDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31535998'
+        )
       })
 
       it('should use correct caching headers for a fallback-true page (prerendered)', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/fallback-true/first')
         expect(initialRes.status).toBe(200)
         expect(initialRes.headers.get('cache-control')).toBe(
-          isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=2'
+          isDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31535998'
         )
-        if (!isDeploy) {
-          expect(initialRes.headers.get('cdn-cache-control')).toBe(
-            'max-age=2, stale-while-revalidate=31535998'
-          )
-        }
         expect(await initialRes.text()).not.toContain('hi fallback')
 
         const dataRes = await fetchViaHTTP(
@@ -703,23 +700,19 @@ describe('Prerender', () => {
         )
         expect(dataRes.status).toBe(200)
         expect(dataRes.headers.get('cache-control')).toBe(
-          isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=2'
+          isDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31535998'
         )
-        if (!isDeploy) {
-          expect(dataRes.headers.get('cdn-cache-control')).toBe(
-            'max-age=2, stale-while-revalidate=31535998'
-          )
-        }
 
         await retry(async () => {
           const finalRes = await fetchViaHTTP(next.url, `/fallback-true/first`)
           expect(finalRes.status).toBe(200)
-          expect(finalRes.headers.get('cache-control')).toBe('s-maxage=2')
-          if (!isDeploy) {
-            expect(finalRes.headers.get('cdn-cache-control')).toBe(
-              'max-age=2, stale-while-revalidate=31535998'
-            )
-          }
+          expect(finalRes.headers.get('cache-control')).toBe(
+            isDeploy
+              ? 'public, max-age=0, must-revalidate'
+              : 's-maxage=2, stale-while-revalidate=31535998'
+          )
           expect(await finalRes.text()).not.toContain('hi fallback')
         })
       })
@@ -739,22 +732,20 @@ describe('Prerender', () => {
           `/_next/data/${next.buildId}/fallback-true/second.json`
         )
         expect(dataRes.status).toBe(200)
-        expect(dataRes.headers.get('cache-control')).toBe('s-maxage=2')
-        if (!isDeploy) {
-          expect(dataRes.headers.get('cdn-cache-control')).toBe(
-            'max-age=2, stale-while-revalidate=31535998'
-          )
-        }
+        expect(dataRes.headers.get('cache-control')).toBe(
+          isDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31535998'
+        )
 
         await retry(async () => {
           const finalRes = await fetchViaHTTP(next.url, `/fallback-true/second`)
           expect(finalRes.status).toBe(200)
-          expect(finalRes.headers.get('cache-control')).toBe('s-maxage=2')
-          if (!isDeploy) {
-            expect(finalRes.headers.get('cdn-cache-control')).toBe(
-              'max-age=2, stale-while-revalidate=31535998'
-            )
-          }
+          expect(finalRes.headers.get('cache-control')).toBe(
+            isDeploy
+              ? 'public, max-age=0, must-revalidate'
+              : 's-maxage=2, stale-while-revalidate=31535998'
+          )
           expect(await finalRes.text()).not.toContain('hi fallback')
         })
       })
@@ -1390,11 +1381,6 @@ describe('Prerender', () => {
         expect(initialRes.headers.get('cache-control')).toBe(
           isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=31536000'
         )
-        if (!isDeploy) {
-          expect(initialRes.headers.get('cdn-cache-control')).toBe(
-            'max-age=31536000'
-          )
-        }
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)
       })
@@ -2314,9 +2300,8 @@ describe('Prerender', () => {
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-        const cacheHeader = isDeploy ? 'x-vercel-cache' : 'x-nextjs-cache'
 
-        expect(res.headers.get(cacheHeader)).toMatch(/MISS/)
+        expect(getCacheHeader(res)).toMatch(/MISS/)
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
         // we use retry here as the cache might still be
@@ -2329,7 +2314,7 @@ describe('Prerender', () => {
           const html2 = await res2.text()
           const $2 = cheerio.load(html2)
 
-          expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(getCacheHeader(res2)).toMatch(/(HIT|STALE)/)
           expect(initialTime).toBe($2('#time').text())
         })
 
@@ -2355,7 +2340,7 @@ describe('Prerender', () => {
           const $4 = cheerio.load(html4)
 
           expect($4('#time').text()).not.toBe(initialTime)
-          expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(getCacheHeader(res4)).toMatch(/(HIT|STALE)/)
         })
       })
     }

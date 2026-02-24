@@ -2,10 +2,10 @@ import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 import type { NextRequest } from '../../web/spec-extension/request'
-import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import {
   RouteModule,
@@ -60,6 +60,7 @@ import { StaticGenBailoutError } from '../../../client/components/static-generat
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
+  postponeWithTracking,
   createDynamicTrackingState,
   getFirstDynamicReason,
 } from '../../app-render/dynamic-rendering'
@@ -113,7 +114,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: WorkStoreContext['renderOpts'] &
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
-  prerenderManifest: DeepReadonly<PrerenderManifest>
+  previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
 }
 
@@ -322,10 +323,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const handlerContext: AppRouteHandlerFnContext = {
       params: context.params
-        ? createServerParamsForRoute(
-            parsedUrlQueryToParams(context.params),
-            workStore
-          )
+        ? createServerParamsForRoute(parsedUrlQueryToParams(context.params))
         : undefined,
     }
 
@@ -419,6 +417,7 @@ export class AppRouteRouteModule extends RouteModule<
               prerenderResumeDataCache,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
+              varyParamsAccumulator: null,
             })
 
           let prospectiveResult
@@ -515,6 +514,7 @@ export class AppRouteRouteModule extends RouteModule<
             prerenderResumeDataCache,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
+            varyParamsAccumulator: null,
           })
 
           let responseHandled = false
@@ -646,8 +646,19 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Validate that the response is a valid response object.
     if (!(res instanceof Response)) {
+      const invalidType =
+        res === null
+          ? 'null'
+          : res === undefined
+            ? 'undefined'
+            : typeof res === 'object'
+              ? res.constructor?.name || 'object'
+              : typeof res
+
       throw new Error(
-        `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
+        `No response is returned from route handler '${this.resolvedPagePath}'. ` +
+          `Expected a Response object but received '${invalidType}' (method: ${request.method}, url: ${requestStore.url.pathname}). ` +
+          `Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
       )
     }
 
@@ -702,7 +713,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const implicitTags = await getImplicitTags(
       this.definition.page,
-      req.nextUrl,
+      req.nextUrl.pathname,
       // App Routes don't support unknown route params.
       null
     )
@@ -712,7 +723,7 @@ export class AppRouteRouteModule extends RouteModule<
       req.nextUrl,
       implicitTags,
       undefined,
-      context.prerenderManifest.preview
+      context.previewProps
     )
 
     const workStore = createWorkStore(staticGenerationContext)
@@ -1201,12 +1212,19 @@ function trackDynamic(
           workUnitStore
         )
       case 'prerender-client':
+      case 'validation-client':
         throw new InvariantError(
           'A client prerender store should not be used for a route handler.'
         )
       case 'prerender-runtime':
         throw new InvariantError(
           'A runtime prerender store should not be used for a route handler.'
+        )
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
         )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0

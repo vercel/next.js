@@ -72,6 +72,7 @@ export function getCssModuleLoader(
           // character?
           getLocalIdent: getCssModuleLocalIdent,
         },
+        deploymentId: ctx.deploymentId,
       },
     })
 

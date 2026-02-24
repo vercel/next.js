@@ -14,10 +14,7 @@ use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{
-        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
-        availability_info::AvailabilityInfo,
-    },
+    chunk::{ChunkingContextExt, EntryChunkGroupResult, availability_info::AvailabilityInfo},
     context::AssetContext,
     module::Module,
     module_graph::{
@@ -33,7 +30,7 @@ use turbopack_core::{
 use crate::{
     nft_json::NftJsonAsset,
     paths::{
-        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
+        all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -138,7 +135,7 @@ impl MiddlewareEndpoint {
         };
 
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
-            .entry_chunk_group(
+            .root_entry_chunk_group(
                 this.project
                     .node_root()
                     .await?
@@ -147,7 +144,6 @@ impl MiddlewareEndpoint {
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)
@@ -341,7 +337,9 @@ impl Endpoint for MiddlewareEndpoint {
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root().owned().await?;
-                let server_paths = all_server_paths(output_assets, node_root).owned().await?;
+                let server_paths = all_asset_paths(output_assets, node_root, None)
+                    .owned()
+                    .await?;
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
                 let client_relative_root = this.project.client_relative_path().owned().await?;
@@ -396,5 +394,10 @@ impl Endpoint for MiddlewareEndpoint {
             .to_resolved()
             .await?;
         Ok(Vc::cell(vec![module_graph]))
+    }
+
+    #[turbo_tasks::function]
+    fn project(&self) -> Vc<Project> {
+        *self.project
     }
 }

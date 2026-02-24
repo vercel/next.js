@@ -28,15 +28,11 @@ on:
         default: false
         type: boolean
 
-    secrets:
-      RELEASE_BOT_GITHUB_TOKEN:
-        required: true
-
 name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.5.5
+  TURBO_VERSION: 2.8.9
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -62,6 +58,9 @@ jobs:
 
       - name: Check token
         run: gh auth status
+        # This sometimes fails for unknown reasons.
+        # Ignoring failures for now to check if a failure truly implies a failed publish.
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 

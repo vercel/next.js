@@ -11,10 +11,7 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
-/**
- * @deprecated This type is only kept for backwards compatibility with the deprecated `experimental.ppr` config option.
- */
-export type ExperimentalPPRConfig = boolean | 'incremental'
+import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
@@ -28,8 +25,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
   experimental: ExperimentalConfig
-  // The root directory of the distDir. Generally the same as `distDir` but when `isolatedDevBuild`
-  // is true it is the parent directory of `distDir`.  This is used to ensure that the bundler doesn't
+  // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
+  // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
 }
@@ -121,12 +118,50 @@ export type TurbopackRuleCondition =
   | {
       path?: string | RegExp
       content?: RegExp
+      query?: string | RegExp
+      contentType?: string | RegExp
     }
 
+/**
+ * The module type to use for matched files. This determines how files are
+ * processed without requiring a custom loader.
+ *
+ * - `'asset'` - Emit the file and return its URL (like webpack's `asset/resource`)
+ * - `'ecmascript'` - Process as JavaScript module
+ * - `'typescript'` - Process as TypeScript module
+ * - `'css'` - Process as CSS file
+ * - `'css-module'` - Process as CSS module
+ * - `'wasm'` - Process as WebAssembly module
+ * - `'raw'` - Return raw file contents as a string
+ * - `'node'` - Process as native Node.js addon
+ * - `'bytes'` - Inline file contents as bytes in JavaScript
+ *
+ * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
+ */
+export type TurbopackModuleType =
+  | 'asset'
+  | 'ecmascript'
+  | 'typescript'
+  | 'css'
+  | 'css-module'
+  | 'wasm'
+  | 'raw'
+  | 'node'
+  | 'bytes'
+  | 'text'
+
 export type TurbopackRuleConfigItem = {
-  loaders: TurbopackLoaderItem[]
+  /** Loaders to apply to matched files. */
+  loaders?: TurbopackLoaderItem[]
+  /** Rename the file extension for loader output (e.g., `'*.js'`). */
   as?: string
+  /** Additional conditions for when this rule applies. */
   condition?: TurbopackRuleCondition
+  /**
+   * Set the module type directly without using a loader.
+   * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
+   */
+  type?: TurbopackModuleType
 }
 
 /**
@@ -180,6 +215,19 @@ export interface TurbopackOptions {
    * @see https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md TC39 Debug ID Proposal
    */
   debugIds?: boolean
+
+  /**
+   * An array of issue filter rules to ignore specific Turbopack issues.
+   * Each rule must have a `path` field (mandatory) and optionally `title`
+   * and `description`. String paths are treated as glob patterns. String
+   * titles/descriptions are exact matches. RegExp values match anywhere
+   * within the string (use `^` and `$` anchors for full-string matching).
+   */
+  ignoreIssue?: Array<{
+    path: string | RegExp
+    title?: string | RegExp
+    description?: string | RegExp
+  }>
 }
 
 export interface WebpackConfigContext {
@@ -270,10 +318,26 @@ export interface LoggingConfig {
    * You can specify a pattern to match incoming requests that should not be logged.
    */
   incomingRequests?: boolean | IncomingRequestLoggingConfig
+
+  /**
+   * If false, Server Function invocation logging is disabled.
+   * @default true
+   */
+  serverFunctions?: boolean
+
+  /**
+   * Forward browser console logs to terminal.
+   * - `false`: Disable browser log forwarding
+   * - `true`: Forward all browser console output to terminal
+   * - `'warn'`: Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   */
+  browserToTerminal?: boolean | 'error' | 'warn'
 }
 
 export interface ExperimentalConfig {
   adapterPath?: string
+  appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']
@@ -283,18 +347,14 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   /**
-   * Custom header name to use for CDN cache control instead of the default
-   * 'CDN-Cache-Control'. This can be used to target specific CDN providers
-   * that do not support `CDN-Cache-Control` and have their own custom header.
-   */
-  cdnCacheControlHeader?: string
-  /**
    * The origins that are allowed to write the rewritten headers when
    * performing a non-relative rewrite. When undefined, no non-relative
    * rewrites will get the rewrite headers.
    */
   clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
+  optimisticRouting?: boolean
+  varyParams?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -322,6 +382,24 @@ export interface ExperimentalConfig {
    */
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
+  /**
+   * Exposes the Instant Navigation Testing API in production builds. This
+   * API is always available in development mode.
+   *
+   * The testing API allows e2e tests to control navigation timing, enabling
+   * deterministic assertions on prefetched/cached UI before dynamic data
+   * streams in.
+   *
+   * WARNING: This flag is intended for profiling and testing purposes only.
+   * Do not enable in user-facing production deployments.
+   */
+  exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Show the Instant Navigation Mode toggle in the dev tools indicator.
+   * When enabled, a menu item lets you lock navigations to only show
+   * the cached/prefetched state.
+   */
+  instantNavigationDevToolsToggle?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -409,6 +487,12 @@ export interface ExperimentalConfig {
   transitionIndicator?: boolean
 
   /**
+   * Enables experimental gesture transition APIs for optimistic client
+   * navigations. Requires experimental React.
+   */
+  gestureTransition?: boolean
+
+  /**
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
@@ -419,9 +503,14 @@ export interface ExperimentalConfig {
   turbopackMinify?: boolean
 
   /**
-   * Enable support for `with {type: "module"}` for ESM imports.
+   * Enable support for `with {type: "bytes"}` for ESM imports.
    */
   turbopackImportTypeBytes?: boolean
+
+  /**
+   * Enable support for `with {type: "text"}` for ESM imports.
+   */
+  turbopackImportTypeText?: boolean
 
   /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
@@ -484,34 +573,9 @@ export interface ExperimentalConfig {
    * analyze module code to determine if it has side effects. This can improve tree shaking
    * and bundle size at the cost of some additional analysis.
    *
-   * Defaults to `true` in canary builds only
+   * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
-
-  /**
-   * Use the system-provided CA roots instead of bundled CA roots for external HTTPS requests
-   * made by Turbopack. Currently this is only used for fetching data from Google Fonts.
-   *
-   * This may be useful in cases where you or an employer are MITMing traffic.
-   *
-   * This option is experimental because:
-   * - This may cause small performance problems, as it uses [`rustls-native-certs`](
-   *   https://github.com/rustls/rustls-native-certs).
-   * - In the future, this may become the default, and this option may be eliminated, once
-   *   <https://github.com/seanmonstar/reqwest/issues/2159> is resolved.
-   *
-   * Users who need to configure this behavior system-wide can override the project
-   * configuration using the `NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1` environment
-   * variable.
-   *
-   * This option is ignored on Windows on ARM, where the native TLS implementation is always
-   * used.
-   *
-   * If you need to set a proxy, Turbopack [respects the common `HTTP_PROXY` and `HTTPS_PROXY`
-   * environment variable convention](https://docs.rs/reqwest/latest/reqwest/#proxies). HTTP
-   * proxies are supported, SOCKS proxies are not currently supported.
-   */
-  turbopackUseSystemTlsCerts?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -791,11 +855,29 @@ export interface ExperimentalConfig {
   globalNotFound?: boolean
 
   /**
-   * Enable debug information to be forwarded from browser to dev server stdout/stderr
+   * Enable debug information to be forwarded from browser to dev server stdout/stderr.
+   *
+   * - `'warn'` (default): Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   * - `'verbose'`: Forward all browser console output to terminal
+   * - `true`: Same as 'verbose' - forward all browser console output to terminal
+   * - `false`: Disable browser log forwarding to terminal
+   * - Object: Enable with custom configuration
+   *
+   * @deprecated Use `logging.browserToTerminal` instead.
    */
   browserDebugInfoInTerminal?:
     | boolean
+    | 'error'
+    | 'warn'
+    | 'verbose'
     | {
+        /**
+         * Minimum log level to show in terminal.
+         * @default 'verbose' (for object config, to preserve backward compatibility)
+         */
+        level?: 'error' | 'warn' | 'verbose'
+
         /**
          * Option to limit stringification at a specific nesting depth when logging circular objects.
          * @default 5
@@ -817,13 +899,6 @@ export interface ExperimentalConfig {
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
-
-  /**
-   * Use an isolated directory for development builds to prevent conflicts
-   * with production builds. Development builds will use `{distDir}/dev`
-   * instead of `{distDir}`.
-   */
-  isolatedDevBuild?: boolean
 
   /**
    * Body size limit for request bodies with middleware configured.
@@ -888,6 +963,25 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
+
+  /**
+   * An array of paths in app or pages directories that should wait to be processed
+   * until all other entries have been processed. This is useful for deferring
+   * compilation of certain routes during development and build.
+   */
+  deferredEntries?: string[]
+
+  /**
+   * An async function that is called and awaited before processing deferred entries.
+   * This callback runs after all non-deferred entries have been compiled.
+   */
+  onBeforeDeferredEntries?: () => Promise<void>
+
+  /**
+   * Whether to report inlined system environment variables as warnings or errors.
+   * Only supported for Turbopack.
+   */
+  reportSystemEnvInlining?: 'error' | 'warn'
 }
 
 export type ExportPathMap = {
@@ -1471,7 +1565,9 @@ export const defaultConfig = Object.freeze({
   httpAgentOptions: {
     keepAlive: true,
   },
-  logging: {},
+  logging: {
+    serverFunctions: true,
+  } satisfies LoggingConfig,
   compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
@@ -1528,6 +1624,7 @@ export const defaultConfig = Object.freeze({
   },
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+    appNewScrollHandler: false,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
@@ -1536,9 +1633,9 @@ export const defaultConfig = Object.freeze({
     serverMinification: true,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    cdnCacheControlHeader: undefined,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
+    varyParams: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1601,19 +1698,19 @@ export const defaultConfig = Object.freeze({
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
+    gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    browserDebugInfoInTerminal: false,
+    browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
-    isolatedDevBuild: true,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: false,
-    turbopackInferModuleSideEffects: !isStableBuild(),
+    turbopackInferModuleSideEffects: true,
     devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,
@@ -1672,6 +1769,7 @@ export interface NextConfigRuntime {
   skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
+  logging?: NextConfigComplete['logging']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1680,13 +1778,13 @@ export interface NextConfigRuntime {
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
+    | 'optimisticRouting'
     | 'inlineCss'
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
     | 'adapterPath'
     | 'allowedRevalidateHeaderKeys'
-    | 'cdnCacheControlHeader'
     | 'fetchCacheKeyPrefix'
     | 'isrFlushToDisk'
     | 'optimizeCss'
@@ -1712,6 +1810,7 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
+    | 'exposeTestingApiInProductionBuild'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1724,6 +1823,11 @@ export interface NextConfigRuntime {
 export function getNextConfigRuntime(
   config: NextConfigComplete | NextConfigRuntime
 ): NextConfigRuntime {
+  // This config filter is a breaking change, so only do it if experimental.runtimeServerDeploymentId is enabled
+  if (!config.experimental.runtimeServerDeploymentId) {
+    return config
+  }
+
   let ex = config.experimental
 
   type Requiredish<T> = {
@@ -1737,13 +1841,13 @@ export function getNextConfigRuntime(
         serverActions: ex.serverActions,
         staleTimes: ex.staleTimes,
         dynamicOnHover: ex.dynamicOnHover,
+        optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
         adapterPath: ex.adapterPath,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
-        cdnCacheControlHeader: ex.cdnCacheControlHeader,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
         optimizeCss: ex.optimizeCss,
@@ -1770,6 +1874,7 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
+        exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
@@ -1807,6 +1912,7 @@ export function getNextConfigRuntime(
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
+    logging: config.logging,
 
     experimental,
   }

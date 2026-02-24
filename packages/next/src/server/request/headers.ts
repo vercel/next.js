@@ -11,14 +11,16 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
+  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  delayUntilRuntimeStage,
+  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
+  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
@@ -75,8 +77,10 @@ export function headers(): Promise<ReadonlyHeaders> {
           )
         case 'prerender':
         case 'prerender-client':
+        case 'validation-client':
         case 'private-cache':
         case 'prerender-runtime':
+        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
           break
@@ -96,9 +100,20 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'prerender':
           return makeHangingHeaders(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`headers`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
+          )
+        case 'prerender-ppr':
+          // PPR Prerender (no cacheComponents)
+          // We are prerendering with PPR. We need track dynamic access here eagerly
+          // to keep continuity with how headers has worked in PPR without cacheComponents.
+          // TODO consider switching the semantic to throw on property access instead
+          return postponeWithTracking(
+            workStore.route,
+            callingExpression,
+            workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
           // Legacy Prerender
@@ -187,7 +202,9 @@ function makeUntrackedHeadersWithDevWarnings(
   requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
   if (requestStore.asyncApiPromises) {
-    const promise = requestStore.asyncApiPromises.headers
+    const promise = isInEarlyRenderStage(requestStore)
+      ? requestStore.asyncApiPromises.earlyHeaders
+      : requestStore.asyncApiPromises.headers
     return instrumentHeadersPromiseWithDevWarnings(promise, route)
   }
 

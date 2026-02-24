@@ -8,7 +8,7 @@ import type {
   WithStringifiedURLs,
 } from './types/metadata-interface'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
-import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
 import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
@@ -21,7 +21,8 @@ import type {
 } from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
-import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 import type { Params } from '../../server/request/params'
 import type { SearchParams } from '../../server/request/search-params'
 
@@ -387,6 +388,18 @@ async function mergeMetadata(
           newResolvedMetadata.other,
           metadata.other
         )
+        if (metadata.other) {
+          if ('apple-touch-fullscreen' in metadata.other) {
+            buildState.warnings.add(
+              `Use appleWebApp instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
+            )
+          }
+          if ('apple-touch-icon-precomposed' in metadata.other) {
+            buildState.warnings.add(
+              `Use icons.apple instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
+            )
+          }
+        }
         break
       case 'metadataBase':
         newResolvedMetadata.metadataBase = metadataBase
@@ -559,7 +572,7 @@ async function collectStaticImagesFiles(
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
     async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
-      interopDefault(await imageModule(props))
+      await interopDefault(imageModule)(props)
   )
 
   return iconPromises?.length > 0
@@ -696,8 +709,8 @@ const resolveMetadataItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ) {
   const parentParams = {}
   const metadataItems: MetadataItems = []
@@ -711,8 +724,8 @@ const resolveMetadataItems = cache(async function (
     searchParams,
     errorConvention,
     errorMetadataItem,
-    getDynamicParamFromSegment,
-    workStore
+    interpolatedParams,
+    isRuntimePrefetchable
   )
 })
 
@@ -725,8 +738,8 @@ async function resolveMetadataItemsImpl(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorMetadataItem: MetadataItems[number],
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -734,19 +747,22 @@ async function resolveMetadataItemsImpl(
   const isPage = typeof page !== 'undefined'
 
   // Handle dynamic segment params.
-  const segmentParam = getDynamicParamFromSegment(segment)
-  /**
-   * Create object holding the parent params and current params
-   */
   let currentParams = parentParams
-  if (segmentParam && segmentParam.value !== null) {
-    currentParams = {
-      ...parentParams,
-      [segmentParam.param]: segmentParam.value,
+  const segmentParam = getSegmentParam(segment)
+  if (segmentParam) {
+    const value = interpolatedParams[segmentParam.paramName]
+    if (value !== null && value !== undefined) {
+      currentParams = {
+        ...parentParams,
+        [segmentParam.paramName]: value,
+      }
     }
   }
 
-  const params = createServerParamsForMetadata(currentParams, workStore)
+  const params = createServerParamsForMetadata(
+    currentParams,
+    isRuntimePrefetchable
+  )
   const props: SegmentProps = isPage ? { params, searchParams } : { params }
 
   await collectMetadata({
@@ -771,8 +787,8 @@ async function resolveMetadataItemsImpl(
       searchParams,
       errorConvention,
       errorMetadataItem,
-      getDynamicParamFromSegment,
-      workStore
+      interpolatedParams,
+      isRuntimePrefetchable
     )
   }
 
@@ -790,8 +806,8 @@ const resolveViewportItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ) {
   const parentParams = {}
   const viewportItems: ViewportItems = []
@@ -807,8 +823,8 @@ const resolveViewportItems = cache(async function (
     searchParams,
     errorConvention,
     errorViewportItemRef,
-    getDynamicParamFromSegment,
-    workStore
+    interpolatedParams,
+    isRuntimePrefetchable
   )
 })
 
@@ -821,8 +837,8 @@ async function resolveViewportItemsImpl(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorViewportItemRef: ErrorViewportItemRef,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ): Promise<ViewportItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -830,19 +846,22 @@ async function resolveViewportItemsImpl(
   const isPage = typeof page !== 'undefined'
 
   // Handle dynamic segment params.
-  const segmentParam = getDynamicParamFromSegment(segment)
-  /**
-   * Create object holding the parent params and current params
-   */
   let currentParams = parentParams
-  if (segmentParam && segmentParam.value !== null) {
-    currentParams = {
-      ...parentParams,
-      [segmentParam.param]: segmentParam.value,
+  const segmentParam = getSegmentParam(segment)
+  if (segmentParam) {
+    const value = interpolatedParams[segmentParam.paramName]
+    if (value !== null && value !== undefined) {
+      currentParams = {
+        ...parentParams,
+        [segmentParam.paramName]: value,
+      }
     }
   }
 
-  const params = createServerParamsForMetadata(currentParams, workStore)
+  const params = createServerParamsForMetadata(
+    currentParams,
+    isRuntimePrefetchable
+  )
 
   let layerProps: LayoutProps | PageProps
   if (isPage) {
@@ -878,8 +897,8 @@ async function resolveViewportItemsImpl(
       searchParams,
       errorConvention,
       errorViewportItemRef,
-      getDynamicParamFromSegment,
-      workStore
+      interpolatedParams,
+      isRuntimePrefetchable
     )
   }
 
@@ -1247,17 +1266,21 @@ export async function resolveMetadata(
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore,
-  metadataContext: MetadataContext
+  interpolatedParams: Params,
+  metadataContext: MetadataContext,
+  isRuntimePrefetchable: boolean
 ): Promise<ResolvedMetadata> {
   const metadataItems = await resolveMetadataItems(
     tree,
     searchParams,
     errorConvention,
-    getDynamicParamFromSegment,
-    workStore
+    interpolatedParams,
+    isRuntimePrefetchable
   )
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   return accumulateMetadata(
     workStore.route,
     metadataItems,
@@ -1271,15 +1294,15 @@ export async function resolveViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  workStore: WorkStore
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ): Promise<ResolvedViewport> {
   const viewportItems = await resolveViewportItems(
     tree,
     searchParams,
     errorConvention,
-    getDynamicParamFromSegment,
-    workStore
+    interpolatedParams,
+    isRuntimePrefetchable
   )
   return accumulateViewport(viewportItems)
 }

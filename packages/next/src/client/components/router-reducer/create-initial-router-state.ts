@@ -6,12 +6,17 @@ import { extractPathFromFlightRouterState } from './compute-changed-path'
 import type { AppRouterState } from './router-reducer-types'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 import { createInitialCacheNodeForHydration } from './ppr-navigations'
+import { convertRootFlightRouterStateToRouteTree } from '../segment-cache/cache'
+import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
+import type { NormalizedSearch } from '../segment-cache/cache-key'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
   initialCanonicalUrlParts: string[]
   initialRenderedSearch: string
   initialFlightData: FlightDataPath[]
+  initialCouldBeIntercepted: boolean
+  initialPrerendered: boolean
   location: Location | null
 }
 
@@ -20,6 +25,8 @@ export function createInitialRouterState({
   initialFlightData,
   initialCanonicalUrlParts,
   initialRenderedSearch,
+  initialCouldBeIntercepted,
+  initialPrerendered,
   location,
 }: InitialRouterStateParameters): AppRouterState {
   // When initialized on the server, the canonical URL is provided as an array of parts.
@@ -44,14 +51,60 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
+  // Conver the initial FlightRouterState into the RouteTree type.
+  // NOTE: The metadataVaryPath isn't used for anything currently because the
+  // head is embedded into the CacheNode tree, but eventually we'll lift it out
+  // and store it on the top-level state object.
+  const acc = { metadataVaryPath: null }
+  const initialRouteTree = convertRootFlightRouterStateToRouteTree(
+    initialTree,
+    initialRenderedSearch as NormalizedSearch,
+    acc
+  )
+  const metadataVaryPath = acc.metadataVaryPath
+  const initialTask = createInitialCacheNodeForHydration(
+    navigatedAt,
+    initialRouteTree,
+    initialSeedData,
+    initialHead
+  )
+
+  // Learn the route pattern so we can predict it for future navigations.
+  // Only do this in the browser (location !== null) since route learning
+  // state doesn't persist from SSR to client.
+  if (location !== null && metadataVaryPath !== null) {
+    discoverKnownRoute(
+      Date.now(),
+      location.pathname,
+      null, // nextUrl — initial render is never an interception
+      null, // No pending entry
+      initialRouteTree,
+      metadataVaryPath,
+      initialCouldBeIntercepted,
+      canonicalUrl,
+      initialPrerendered,
+      false // hasDynamicRewrite
+    )
+  }
+
+  // NOTE: We intentionally don't check if any data needs to be fetched from the
+  // server. We assume the initial hydration payload is sufficient to render
+  // the page.
+  //
+  // The completeness of the initial data is an important property that we rely
+  // on as a last-ditch mechanism for recovering the app; we must always be able
+  // to reload a fresh HTML document to get to a consistent state.
+  //
+  // In the future, there may be cases where the server intentionally sends
+  // partial data and expects the client to fill in the rest, in which case this
+  // logic may change. (There already is a similar case where the server sends
+  // _no_ hydration data in the HTML document at all, and the client fetches it
+  // separately, but that's different because we still end up hydrating with a
+  // complete tree.)
+
   const initialState = {
-    tree: initialTree,
-    cache: createInitialCacheNodeForHydration(
-      navigatedAt,
-      initialTree,
-      initialSeedData,
-      initialHead
-    ),
+    tree: initialTask.route,
+    cache: initialTask.node,
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
@@ -67,8 +120,8 @@ export function createInitialRouterState({
     },
     canonicalUrl,
     renderedSearch: initialRenderedSearch,
+    // the || operator is intentional, the pathname can be an empty string
     nextUrl:
-      // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
     previousNextUrl: null,

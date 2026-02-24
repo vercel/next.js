@@ -1,6 +1,6 @@
 use crate::{
     ArcSlice,
-    constants::MAX_SMALL_VALUE_SIZE,
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     static_sorted_file_builder::{Entry, EntryValue},
 };
 
@@ -9,6 +9,8 @@ pub enum LookupValue {
     /// The value was deleted.
     Deleted,
     /// The value is stored in the SST file.
+    ///
+    /// The ArcSlice will be pointing either at a keyblock or a value block in the SST
     Slice { value: ArcSlice<u8> },
     /// The value is stored in a blob file.
     Blob { sequence_number: u32 },
@@ -35,6 +37,31 @@ impl LazyLookupValue<'_> {
             LazyLookupValue::Medium {
                 uncompressed_size, ..
             } => *uncompressed_size as usize,
+        }
+    }
+
+    /// Returns true if this value gets its own dedicated value block.
+    pub fn is_medium_value(&self) -> bool {
+        match self {
+            LazyLookupValue::Eager(LookupValue::Slice { value })
+                if value.len() > MAX_SMALL_VALUE_SIZE =>
+            {
+                true
+            }
+            LazyLookupValue::Medium { .. } => true,
+            _ => false,
+        }
+    }
+
+    /// Returns the value size if it will be packed into a small value block, or 0 otherwise.
+    pub fn small_value_size(&self) -> usize {
+        match self {
+            LazyLookupValue::Eager(LookupValue::Slice { value })
+                if value.len() > MAX_INLINE_VALUE_SIZE && value.len() <= MAX_SMALL_VALUE_SIZE =>
+            {
+                value.len()
+            }
+            _ => 0,
         }
     }
 }
@@ -66,7 +93,9 @@ impl Entry for LookupEntry<'_> {
         match &self.value {
             LazyLookupValue::Eager(LookupValue::Deleted) => EntryValue::Deleted,
             LazyLookupValue::Eager(LookupValue::Slice { value }) => {
-                if value.len() > MAX_SMALL_VALUE_SIZE {
+                if value.len() <= MAX_INLINE_VALUE_SIZE {
+                    EntryValue::Inline { value }
+                } else if value.len() > MAX_SMALL_VALUE_SIZE {
                     EntryValue::Medium { value }
                 } else {
                     EntryValue::Small { value }

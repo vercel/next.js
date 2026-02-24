@@ -2,17 +2,18 @@ use std::{fmt::Debug, sync::Arc};
 
 use anyhow::Context;
 use js_sys::JsString;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use rustc_hash::FxHashMap;
 use swc_core::{
     base::{
+        Compiler,
         config::{JsMinifyOptions, ParseOptions},
-        try_with_handler, Compiler,
+        try_with_handler,
     },
     common::{
+        FileName, FilePathMapping, GLOBALS, Mark, SourceMap,
         comments::{Comments, SingleThreadedComments},
         errors::ColorConfig,
-        FileName, FilePathMapping, Mark, SourceMap, GLOBALS,
     },
     ecma::ast::noop_pass,
 };
