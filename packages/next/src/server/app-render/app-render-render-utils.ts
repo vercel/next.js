@@ -31,6 +31,7 @@ export function runInSequentialTasks<R>(
       let result: R
       ids.push(
         scheduleTimeout(() => {
+          console.log(`-----------------------------------------------------`)
           try {
             DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
             result = first()
@@ -57,6 +58,7 @@ export function runInSequentialTasks<R>(
 
         ids.push(
           scheduleTimeout(() => {
+            console.log(`-----------------------------------------------------`)
             try {
               DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
               fn()

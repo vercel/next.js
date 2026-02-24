@@ -72,6 +72,7 @@ export function createMetadataComponents({
     // runtime-prefetchable, defer until the Static stage so that
     // prefetchable segments get a head start.
     if (!isRuntimePrefetchable) {
+      console.log('metadata :: delaying viewport until static stage')
       const workUnitStore = workUnitAsyncStorage.getStore()
       if (workUnitStore) {
         const stagedRendering = getStagedRenderingController(workUnitStore)

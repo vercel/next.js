@@ -5,6 +5,7 @@ import { bindSnapshot } from '../app-render/async-local-storage'
 type Execution = {
   state: ExecutionState
   queuedImmediates: QueueItem[]
+  queuedTicksAfterImmediates: AfterImmediatesQueueItem[]
 }
 
 enum ExecutionState {
@@ -286,7 +287,30 @@ function performWork(execution: Execution) {
   }
   execution.state = ExecutionState.Working
 
-  const queueItem = takeNextActiveQueueItem(execution)
+  let queueItem = takeNextActiveQueueItem(execution)
+
+  if (queueItem === null && execution.queuedTicksAfterImmediates.length > 0) {
+    debug?.(`scheduler :: finished immediates, running ticks`)
+    // TODO: gross hack
+    const ticks = execution.queuedTicksAfterImmediates
+    execution.queuedTicksAfterImmediates = []
+    queueItem = {
+      isCleared: false,
+      callback: () => {
+        for (const tick of ticks) {
+          const { callback } = tick
+          try {
+            callback()
+          } catch (err) {
+            // TODO: handle errors?
+            console.error('Unhandled error in tick:', err)
+          }
+        }
+      },
+      args: null,
+      immediateObject: null!,
+    }
+  }
 
   if (queueItem === null) {
     debug?.(`scheduler :: no immediates queued, exiting`)
@@ -298,7 +322,10 @@ function performWork(execution: Execution) {
 
   const { immediateObject, callback, args } = queueItem
 
-  immediateObject[INTERNALS].queueItem = null
+  // TODO: should be impossible, we're cheating
+  if (immediateObject) {
+    immediateObject[INTERNALS].queueItem = null
+  }
   clearQueueItem(queueItem)
 
   // Execute the immediate.
@@ -413,6 +440,7 @@ function startCapturingImmediates(): Execution {
   const execution: Execution = {
     state: ExecutionState.Waiting,
     queuedImmediates: [],
+    queuedTicksAfterImmediates: [],
   }
   currentExecution = execution
 
@@ -510,6 +538,10 @@ function clearQueueItem(originalQueueItem: QueueItem) {
   queueItem.callback = null
   queueItem.args = null
   queueItem.immediateObject = null
+}
+
+type AfterImmediatesQueueItem = {
+  callback: () => any
 }
 
 //========================================================
@@ -785,6 +817,22 @@ class NextImmediate implements NativeImmediate {
       internals.nativeImmediate[Symbol.dispose]()
     }
   }
+}
+
+// ==========================================
+
+export function scheduleTickAfterImmediates(callback: () => void) {
+  if (currentExecution === null) {
+    // TODO: check status?
+    throw new InvariantError(
+      "Cannot schedule tick after immediates if immediates aren't being captured"
+    )
+  }
+  const callbackWithAsyncContext = bindSnapshot(callback)
+  const queueItem: AfterImmediatesQueueItem = {
+    callback: callbackWithAsyncContext,
+  }
+  currentExecution.queuedTicksAfterImmediates.push(queueItem)
 }
 
 // ==========================================

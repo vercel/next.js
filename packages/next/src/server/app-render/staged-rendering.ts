@@ -217,6 +217,7 @@ export class StagedRenderingController {
     if (stage <= this.currentStage) {
       return
     }
+    console.log(`---------------- ${RenderStage[stage]} ----------------`)
 
     let currentStage = this.currentStage
     this.currentStage = stage

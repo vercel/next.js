@@ -242,6 +242,7 @@ import { createNodeStreamWithLateRelease } from './instant-validation/stream-uti
 // NOTE: Only use this for types, access implementations via ComponentMod
 import type * as InstantValidation from './instant-validation/instant-validation'
 import { createValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import { scheduleTickAfterImmediates } from '../node-environment-extensions/fast-set-immediate.external'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -3268,6 +3269,17 @@ async function renderWithRestartOnCacheMissInDev(
         stream.cancel()
       })
 
+      scheduleTickAfterImmediates(() => {
+        // Late static
+        if (initialAbandonController.signal.aborted === true) {
+          return
+        } else if (cacheSignal.hasPendingReads()) {
+          initialAbandonController.abort()
+        } else {
+          initialStageController.advanceStage(RenderStage.Static)
+        }
+      })
+
       return {
         stream,
         accumulatedChunksPromise,
@@ -3279,25 +3291,17 @@ async function renderWithRestartOnCacheMissInDev(
       } else if (cacheSignal.hasPendingReads()) {
         initialAbandonController.abort()
       } else {
-        initialStageController.advanceStage(RenderStage.Static)
-      }
-    },
-    () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
         initialStageController.advanceStage(RenderStage.EarlyRuntime)
-      }
-    },
-    () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.Runtime)
+
+        scheduleTickAfterImmediates(() => {
+          if (initialAbandonController.signal.aborted === true) {
+            return
+          } else if (cacheSignal.hasPendingReads()) {
+            initialAbandonController.abort()
+          } else {
+            initialStageController.advanceStage(RenderStage.Runtime)
+          }
+        })
       }
     },
     () => {
@@ -3397,6 +3401,11 @@ async function renderWithRestartOnCacheMissInDev(
         )
         .tee()
 
+      scheduleTickAfterImmediates(() => {
+        // Static stage
+        finalStageController.advanceStage(RenderStage.Static)
+      })
+
       return {
         stream: streamPair[0],
         accumulatedChunksPromise: accumulateStreamChunks(
@@ -3407,16 +3416,13 @@ async function renderWithRestartOnCacheMissInDev(
       }
     },
     () => {
-      // Static stage
-      finalStageController.advanceStage(RenderStage.Static)
-    },
-    () => {
       // EarlyRuntime stage
       finalStageController.advanceStage(RenderStage.EarlyRuntime)
-    },
-    () => {
-      // Runtime stage
-      finalStageController.advanceStage(RenderStage.Runtime)
+
+      scheduleTickAfterImmediates(() => {
+        // Runtime stage
+        finalStageController.advanceStage(RenderStage.Runtime)
+      })
     },
     () => {
       // Dynamic stage
@@ -4204,6 +4210,36 @@ async function validateInstantConfigs(
     hasRuntimePrefetch,
     clientReferenceManifest
   )
+
+  const chunksToString = (chunks: Uint8Array[]) =>
+    Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString('utf-8')
+
+  for (const [segmentPath, segmentChunks] of [
+    ['_head', cache.head!] as const,
+    // ...cache.segments,
+  ]) {
+    console.log('------------------------------------------')
+    console.log(segmentPath)
+    console.log('========= Static ==========')
+    console.log(chunksToString(segmentChunks.chunks[RenderStage.Static]))
+    console.log('========= Runtime ==========')
+    console.log(
+      chunksToString(
+        segmentChunks.chunks[RenderStage.Runtime].slice(
+          segmentChunks.chunks[RenderStage.Static].length
+        )
+      )
+    )
+    console.log('========= Dynamic ==========')
+    console.log(
+      chunksToString(
+        segmentChunks.chunks[RenderStage.Dynamic].slice(
+          segmentChunks.chunks[RenderStage.Runtime].length
+        )
+      )
+    )
+    console.log('\n')
+  }
 
   const getFilepathForSegment = (segmentPath: InstantValidation.SegmentPath) =>
     treeNodes.get(segmentPath)?.module?.conventionPath

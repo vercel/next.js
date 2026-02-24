@@ -4,7 +4,9 @@ import { connection } from 'next/server'
 export const unstable_instant = false
 
 export async function generateViewport(): Promise<Viewport> {
+  console.log('page :: generateViewport start')
   await connection()
+  console.log('page :: generateViewport finished')
   return {
     themeColor: 'aliceblue',
   }
