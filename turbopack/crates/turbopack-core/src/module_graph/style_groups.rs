@@ -12,8 +12,9 @@ use turbo_tasks::{
 
 use crate::{
     chunk::{
-        ChunkedItem, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, chunk_item_batch::attach_async_info_to_chunkable_module,
+        ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
+        ChunkableModule, ChunkingContext,
+        chunk_item_batch::attach_async_info_to_chunkable_module,
     },
     module::{Module, StyleModule, StyleType},
     module_graph::{

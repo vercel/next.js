@@ -13,7 +13,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
-    chunk::{Chunk, ChunkedItem, ChunkItems, ChunkingContext, ModuleIds},
+    chunk::{Chunk, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
     introspect::{
         Introspectable, IntrospectableChildren, module::IntrospectableModule,

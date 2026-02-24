@@ -8,7 +8,7 @@ use turbo_tasks::{
 };
 use turbopack_browser::ecmascript::EcmascriptBrowserChunk;
 use turbopack_core::{
-    chunk::{Chunk, ChunkedItem, ChunkItemExt, ModuleId},
+    chunk::{Chunk, ChunkItem, ModuleId},
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssetsReference},
@@ -25,8 +25,7 @@ where
 {
     let mut assets = vec![];
     let mut chunks = vec![];
-    let mut chunk_items: FxIndexMap<Vc<Box<dyn ChunkedItem>>, FxIndexSet<RcStr>> =
-        FxIndexMap::default();
+    let mut chunk_items: FxIndexMap<Vc<ChunkItem>, FxIndexSet<RcStr>> = FxIndexMap::default();
 
     let entry_assets = entry_assets.into_iter().collect::<Vec<_>>();
 

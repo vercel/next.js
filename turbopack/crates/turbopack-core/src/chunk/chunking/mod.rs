@@ -13,7 +13,7 @@ use turbo_tasks::{
 
 use crate::{
     chunk::{
-        Chunk, ChunkedItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext, Chunks,
+        Chunk, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext, Chunks,
         batch_info,
         chunk_item_batch::{
             ChunkItemBatchGroup, ChunkItemBatchGroups, ChunkItemBatchWithAsyncModuleInfo,

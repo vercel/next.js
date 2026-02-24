@@ -8,8 +8,8 @@ use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        AsyncModuleInfo, ChunkGroupType, ChunkedItem, ChunkType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunkingTypeOption,
+        AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule, ChunkedItem,
+        ChunkingContext, ChunkingContextExt, ChunkingType, ChunkingTypeOption,
     },
     code_builder::CodeBuilder,
     context::AssetContext,
@@ -256,23 +256,21 @@ impl ChunkableModule for EcmascriptClientReferenceModule {
         self: ResolvedVc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkedItem>>> {
-        let item = chunking_context.chunk_item(
-            Vc::upcast(self.proxy_module()),
-            module_graph,
-        );
-        let ecmascript_item =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(item.to_resolved().await?)
-                .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
+    ) -> Result<Vc<ChunkItem>> {
+        let item = chunking_context.chunk_item(Vc::upcast(self.proxy_module()), module_graph);
+        let inner: ResolvedVc<Box<dyn ChunkedItem>> = *item.await?;
+        let ecmascript_item = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(inner)
+            .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
-        Ok(Vc::upcast(
+        let chunked: Vc<Box<dyn ChunkedItem>> = Vc::upcast(
             EcmascriptClientReferenceProxyChunkItem {
                 inner_module: self,
                 inner_chunk_item: ecmascript_item,
                 chunking_context,
             }
             .cell(),
-        ))
+        );
+        Ok(ChunkItem::from_trait(chunked))
     }
 }
 

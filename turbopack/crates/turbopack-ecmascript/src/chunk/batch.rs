@@ -25,7 +25,7 @@ impl EcmascriptChunkItemOrBatchWithAsyncInfo {
         Ok(match item {
             ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item) => {
                 EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(
-                    EcmascriptChunkItemWithAsyncInfo::from_chunk_item(chunk_item)?,
+                    EcmascriptChunkItemWithAsyncInfo::from_chunk_item(chunk_item).await?,
                 )
             }
             &ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
@@ -63,7 +63,8 @@ impl EcmascriptChunkBatchWithAsyncInfo {
                 .chunk_items
                 .iter()
                 .map(EcmascriptChunkItemWithAsyncInfo::from_chunk_item)
-                .collect::<Result<Vec<_>>>()?,
+                .try_join()
+                .await?,
         }
         .cell())
     }

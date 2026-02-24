@@ -11,7 +11,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkedItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+        AsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkedItem, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder},
@@ -206,7 +206,7 @@ pub struct EcmascriptChunkItemWithAsyncInfo {
 }
 
 impl EcmascriptChunkItemWithAsyncInfo {
-    pub fn from_chunk_item(
+    pub async fn from_chunk_item(
         chunk_item: &ChunkItemWithAsyncModuleInfo,
     ) -> Result<EcmascriptChunkItemWithAsyncInfo> {
         let ChunkItemWithAsyncModuleInfo {
@@ -214,8 +214,8 @@ impl EcmascriptChunkItemWithAsyncInfo {
             module: _,
             async_info,
         } = chunk_item;
-        let Some(chunk_item) =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
+        let inner: ResolvedVc<Box<dyn ChunkedItem>> = *chunk_item.await?;
+        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(inner)
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
@@ -316,15 +316,13 @@ pub fn ecmascript_chunk_item(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-) -> Vc<Box<dyn ChunkedItem>> {
-    Vc::upcast(
-        EcmascriptModuleChunkItem {
-            module,
-            chunking_context,
-            module_graph,
-        }
-        .cell(),
-    )
+) -> Vc<EcmascriptModuleChunkItem> {
+    EcmascriptModuleChunkItem {
+        module,
+        chunking_context,
+        module_graph,
+    }
+    .cell()
 }
 
 #[turbo_tasks::value_impl]

@@ -13,9 +13,9 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AsyncModuleInfo, Chunk, ChunkedItem, ChunkItemBatchGroup, ChunkItemExt,
+        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemExt,
         ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ChunkingContextExt, MinifyType, OutputChunk,
+        ChunkableModule, ChunkedItem, ChunkingContext, ChunkingContextExt, MinifyType, OutputChunk,
         OutputChunkRuntimeInfo, SourceMapSourceType, round_chunk_item_size,
     },
     code_builder::{Code, CodeBuilder},
@@ -558,8 +558,8 @@ impl ChunkType for CssChunkType {
             chunk_items: chunk_items
                 .iter()
                 .map(async |ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
-                    let Some(chunk_item) =
-                        ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item)
+                    let inner: ResolvedVc<Box<dyn ChunkedItem>> = *chunk_item.await?;
+                    let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(inner)
                     else {
                         bail!("Chunk item is not an css chunk item but reporting chunk type css");
                     };
@@ -577,10 +577,11 @@ impl ChunkType for CssChunkType {
     async fn chunk_item_size(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: ResolvedVc<Box<dyn ChunkedItem>>,
+        chunk_item: Vc<ChunkItem>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
-        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(chunk_item) else {
+        let inner: ResolvedVc<Box<dyn ChunkedItem>> = *chunk_item.await?;
+        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(inner) else {
             bail!("Chunk item is not an css chunk item but reporting chunk type css");
         };
         Ok(Vc::cell(chunk_item.content().await.map_or(0, |content| {

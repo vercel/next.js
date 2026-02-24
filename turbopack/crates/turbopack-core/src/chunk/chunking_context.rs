@@ -12,7 +12,7 @@ use turbo_tasks_hash::DeterministicHash;
 use crate::{
     asset::Asset,
     chunk::{
-        ChunkedItem, ChunkType, ChunkableModule, EvaluatableAssets,
+        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets,
         availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
     environment::Environment,
@@ -430,7 +430,7 @@ pub trait ChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
-    ) -> Vc<Box<dyn ChunkedItem>>;
+    ) -> Vc<ChunkItem>;
     #[turbo_tasks::function]
     fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn ChunkableModule>>)
     -> Vc<AssetIdent>;
@@ -586,7 +586,7 @@ pub trait ChunkingContextExt {
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
         module_graph: Vc<ModuleGraph>,
-    ) -> Vc<Box<dyn ChunkedItem>>
+    ) -> Vc<ChunkItem>
     where
         Self: Send;
 }
@@ -712,7 +712,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
         module_graph: Vc<ModuleGraph>,
-    ) -> Vc<Box<dyn ChunkedItem>> {
+    ) -> Vc<ChunkItem> {
         chunk_item(Vc::upcast_non_strict(self), module, module_graph)
     }
 }
@@ -722,7 +722,7 @@ async fn chunk_item(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     module: Vc<Box<dyn Module>>,
     module_graph: Vc<ModuleGraph>,
-) -> Result<Vc<Box<dyn ChunkedItem>>> {
+) -> Result<Vc<ChunkItem>> {
     let module = module.to_resolved().await?;
     let Some(chunkable) = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module) else {
         bail!(

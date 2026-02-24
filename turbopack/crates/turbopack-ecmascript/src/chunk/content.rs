@@ -3,7 +3,7 @@ use std::future::IntoFuture;
 use anyhow::Result;
 use either::Either;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbopack_core::chunk::{ChunkedItem, ChunkItems, batch_info};
+use turbopack_core::chunk::{ChunkItem, ChunkItems, ChunkedItem, batch_info};
 
 use crate::chunk::{
     CodeAndIds,
@@ -42,6 +42,7 @@ impl EcmascriptChunkContent {
                     }
                 })
                 .map(ResolvedVc::upcast::<Box<dyn ChunkedItem>>)
+                .map(|item| ChunkItem(item).resolved_cell())
                 .collect(),
         )
         .cell())
