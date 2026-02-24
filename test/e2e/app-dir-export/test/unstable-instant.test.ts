@@ -22,8 +22,8 @@ describe('app dir - with output export - unstable_instant', () => {
     )
 
     const expectedErrMsg = process.env.IS_TURBOPACK_TEST
-      ? `Next.js can't recognize the exported \`unstable_instant\` field in route. App pages cannot use both "use client" and export const "unstable_instant".`
-      : `Page "/client/page" cannot use both "use client" and export const "unstable_instant".`
+      ? `Next.js can't recognize the exported \`unstable_instant\` field in route. App pages cannot export "unstable_instant" from a Client Component module. To use this API, convert this module to a Server Component by removing the "use client" directive.`
+      : `Page "/client/page" cannot export "unstable_instant" from a Client Component module. To use this API, convert this module to a Server Component by removing the "use client" directive.`
 
     if (isNextDev) {
       await next.start().catch(() => {})

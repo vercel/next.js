@@ -687,7 +687,7 @@ export async function getAppPageStaticInfo({
   // Prevent use client and unstable_instant in the same file.
   if (directives?.has('client') && 'unstable_instant' in config) {
     throw new Error(
-      `Page "${page}" cannot use both "use client" and export const "unstable_instant".`
+      `Page "${page}" cannot export "unstable_instant" from a Client Component module. To use this API, convert this module to a Server Component by removing the "use client" directive.`
     )
   }
 
