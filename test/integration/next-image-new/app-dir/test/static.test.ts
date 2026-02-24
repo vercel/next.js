@@ -66,7 +66,6 @@ const runTests = (isDev) => {
         `document.getElementById("static-unoptimized").src`
       )
       const res = await fetch(url)
-      console.log(url)
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toStartWith('image/')
       expect(res.headers.get('cache-control')).toBe(
