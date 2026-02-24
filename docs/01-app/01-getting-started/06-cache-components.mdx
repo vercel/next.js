@@ -246,6 +246,32 @@ Every incoming request would see different random numbers, date, etc.
 
 > **Good to know**: You can cache non-deterministic operations with `use cache`. See the [with non-deterministic operations](#with-non-deterministic-operations) section for examples.
 
+### Opting out of the static shell
+
+If your route is intentionally fully dynamic and you don't need granular `<Suspense>` boundaries, you can wrap the document body in a `<Suspense>` boundary in your Root Layout. This signals to Next.js that the entire page should defer to request time.
+
+```tsx filename="app/layout.tsx" highlight={1,11}
+import { Suspense } from 'react'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html>
+      <body>
+        <Suspense fallback={null}>{children}</Suspense>
+      </body>
+    </html>
+  )
+}
+```
+
+Be aware that this disables prerendering for the route — there is no static shell to send immediately, so every request blocks until the page is fully rendered. To limit the impact, use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout) to isolate fully dynamic routes from the rest of your application.
+
+> **Good to know**: This same pattern applies when `generateViewport` or `generateMetadata` access uncached dynamic data. See [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for a detailed example.
+
 ## Using `use cache`
 
 The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches the return value of async functions and components. You can apply it at the function, component, or file level.
