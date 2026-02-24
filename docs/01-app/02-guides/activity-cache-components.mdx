@@ -12,7 +12,7 @@ related:
 
 When [Cache Components](/docs/app/getting-started/cache-components) is enabled, routes don't unmount when you navigate away from them. Instead, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to hide them - setting them to `mode="hidden"` rather than removing them from the tree.
 
-This preserves component state and DOM state, which is great for back/forward navigation. But it also means you need to decide which state should persist and which should reset - patterns that relied on unmounting to clear state now need explicit choices.
+This preserves component state and DOM state, which is great for back/forward navigation. But patterns that relied on unmounting to clear state will no longer reset automatically. You decide what to keep and what to reset.
 
 Next.js uses a **3-entry limit** - it preserves up to 3 routes. When you navigate beyond that, the oldest route's DOM and React state are dropped. This means if a user navigates through many pages and then goes back, very old states may have been evicted and will re-render fresh.
 
