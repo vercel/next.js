@@ -55,7 +55,7 @@ export default function Page() {
 
   return (
     <form onSubmit={onSubmit}>
-      <input type="text" name="name" required />
+      <input type="text" name="name" />
       <button type="submit">Submit</button>
     </form>
   )
@@ -80,7 +80,7 @@ export default function Page() {
 
   return (
     <form onSubmit={onSubmit}>
-      <input type="text" name="name" required />
+      <input type="text" name="name"  />
       <button type="submit">Submit</button>
     </form>
   )
@@ -264,7 +264,7 @@ export default function Page() {
 
   return (
     <form onSubmit={onSubmit}>
-      <input type="text" name="name" required />
+      <input type="text" name="name" />
       <button type="submit" disabled={isLoading}>
         {isLoading ? 'Loading...' : 'Submit'}
       </button>
@@ -303,7 +303,7 @@ export default function Page() {
 
   return (
     <form onSubmit={onSubmit}>
-      <input type="text" name="name" required />
+      <input type="text" name="name" />
       <button type="submit" disabled={isLoading}>
         {isLoading ? 'Loading...' : 'Submit'}
       </button>
