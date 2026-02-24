@@ -2244,6 +2244,7 @@ export function writeDynamicRenderResponseIntoCache(
   now: number,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
+    | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   responseHeaders: Headers,
@@ -2345,6 +2346,7 @@ function writeSeedDataIntoCache(
   now: number,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
+    | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   tree: RouteTree,
@@ -2404,6 +2406,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   now: number,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
+    | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   rsc: React.ReactNode,
@@ -2707,10 +2710,9 @@ export async function writeStaticStageResponseIntoCache(
     // within their subtrees.
     const isResponsePartial = true
 
-    // The static stage contains only cached/static content — no runtime or
-    // dynamic data. This is the least specific fetch strategy, so a subsequent
-    // runtime prefetch or full navigation can replace it.
-    const fetchStrategy = FetchStrategy.LoadingBoundary
+    // The static stage corresponds to the default prefetching strategy for
+    // Cache Components (FetchStrategy.PPR).
+    const fetchStrategy = FetchStrategy.PPR
 
     writeDynamicRenderResponseIntoCache(
       now,
