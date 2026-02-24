@@ -580,6 +580,11 @@ export interface ExperimentalConfig {
   turbopackImportTypeBytes?: boolean
 
   /**
+   * Enable support for `with {type: "text"}` for ESM imports.
+   */
+  turbopackImportTypeText?: boolean
+
+  /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
@@ -667,19 +672,6 @@ export interface ExperimentalConfig {
    * for production.
    */
   turbopackModuleIds?: 'named' | 'deterministic'
-
-  /**
-   * Filter out specific Turbopack errors and warnings so they do not appear
-   * in the CLI output or the error overlay. String values for `path` are
-   * glob patterns; string values for `title`/`description` are exact matches.
-   * RegExp values match anywhere within the string (use `^` and `$` anchors
-   * for full-string matching).
-   */
-  turbopackIgnoreIssue?: Array<{
-    path: string | RegExp
-    title?: string | RegExp
-    description?: string | RegExp
-  }>
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
