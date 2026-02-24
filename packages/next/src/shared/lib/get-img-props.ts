@@ -231,10 +231,20 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
-    const deploymentId = getDeploymentId()
-    if (src.startsWith('/') && !src.startsWith('//') && deploymentId) {
-      const sep = src.includes('?') ? '&' : '?'
-      src = `${src}${sep}dpl=${deploymentId}`
+    if (src.startsWith('/') && !src.startsWith('//')) {
+      let deploymentId = getDeploymentId()
+      const srcUrl = new URL(src, 'http://n')
+      const srcDpl = srcUrl.searchParams.get('dpl')
+      if (srcDpl) {
+        deploymentId = srcDpl
+        // Remove the dpl parameter from the src URL to avoid duplication
+        srcUrl.searchParams.delete('dpl')
+        src = srcUrl.href.slice('http://n'.length)
+      }
+
+      if (deploymentId) {
+        src += `${src.includes('?') ? '&' : '?'}dpl=${deploymentId}`
+      }
     }
     return { src, srcSet: undefined, sizes: undefined }
   }
