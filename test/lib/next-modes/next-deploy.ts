@@ -118,6 +118,25 @@ export class NextDeployInstance extends NextInstance {
     return logsRes.stdout + logsRes.stderr
   }
 
+  private parseIdsFromCliOuput(): void {
+    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
+    if (!buildId) {
+      throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
+    }
+    this._buildId = buildId
+    const deploymentId = this._cliOutput
+      .match(/DEPLOYMENT_ID: (.+)/)?.[1]
+      ?.trim()
+    if (!deploymentId) {
+      throw new Error(`Failed to get deploymentId from logs ${this._cliOutput}`)
+    }
+    this._deploymentId = deploymentId
+
+    require('console').log(
+      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}`
+    )
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
@@ -166,24 +185,7 @@ export class NextDeployInstance extends NextInstance {
         this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
-      const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-      if (!buildId) {
-        throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
-      }
-      this._buildId = buildId
-      const deploymentId = this._cliOutput
-        .match(/DEPLOYMENT_ID: (.+)/)?.[1]
-        ?.trim()
-      if (!deploymentId) {
-        throw new Error(
-          `Failed to get deploymentId from logs ${this._cliOutput}`
-        )
-      }
-      this._deploymentId = deploymentId
-
-      require('console').log(
-        `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}`
-      )
+      this.parseIdsFromCliOuput()
       return
     }
 
@@ -207,17 +209,7 @@ export class NextDeployInstance extends NextInstance {
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-
-      const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-
-      if (!buildId) {
-        throw new Error(
-          `Failed to get buildId from custom deploy logs ${this._cliOutput}`
-        )
-      }
-      this._buildId = buildId
-
-      require('console').log(`Got buildId: ${this._buildId}`)
+      this.parseIdsFromCliOuput()
       return
     }
 
@@ -399,14 +391,7 @@ export class NextDeployInstance extends NextInstance {
     // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
     this._cliOutput = buildLogs.stdout + buildLogs.stderr
 
-    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-
-    if (!buildId) {
-      throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
-    }
-    this._buildId = buildId
-
-    require('console').log(`Got buildId: ${this._buildId}`)
+    this.parseIdsFromCliOuput()
     // Use the stdout from the logs command as the CLI output. The CLI will
     // output other unrelated logs to stderr.
   }
