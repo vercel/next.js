@@ -832,4 +832,31 @@ describe('getImageProps()', () => {
       deploymentId = undefined
     }
   })
+
+  it('should respect existing query string for unoptimized relative image when deployment id is defined', async () => {
+    try {
+      deploymentId = 'dpl_123'
+      immutableAssetToken = 'imm_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/_next/static/media/test.abc123.png?dpl=imm_existing',
+        unoptimized: true,
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '/_next/static/media/test.abc123.png?dpl=imm_existing'],
+      ])
+    } finally {
+      deploymentId = undefined
+      immutableAssetToken = undefined
+    }
+  })
 })
