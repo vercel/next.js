@@ -3,6 +3,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { value } from './dep'
 
+// TypeScript declaration for module.hot (not available in ESM by default)
+declare const module: { hot?: { accept(dep: string, cb: () => void): void } }
+
 // Track when this module was evaluated (should NOT change on dep update)
 const evaluatedAt = Date.now()
 
@@ -22,10 +25,17 @@ export default function DepAcceptPage() {
   }, [])
 
   useEffect(() => {
-    if (module.hot) {
+    // Use typeof guard to avoid ReferenceError in ESM modules
+    console.log('[DEBUG] typeof module:', typeof module)
+    console.log('[DEBUG] module:', module)
+    console.log('[DEBUG] module?.hot:', module?.hot)
+    if (typeof module !== 'undefined' && module.hot) {
+      console.log('[DEBUG] Registering module.hot.accept for ./dep')
       module.hot.accept('./dep', () => {
+        console.log('[DEBUG] Accept callback fired!')
         // Re-import the updated module to get new value
         const updated = require('./dep')
+        console.log('[DEBUG] updated.value:', updated.value)
         if (mountedRef.current) {
           setDepValue(updated.value)
           setAcceptCallCount((c) => c + 1)

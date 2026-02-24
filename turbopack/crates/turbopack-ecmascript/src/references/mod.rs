@@ -153,7 +153,8 @@ use crate::{
     },
     runtime_functions::{
         TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS, TURBOPACK_GLOBAL,
-        TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
+        TURBOPACK_MODULE, TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
+        TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split_module},
@@ -1621,10 +1622,18 @@ async fn compile_time_info_for_module_options(
     let mut free_var_references = free_var_references.owned().await?;
     let mut defines = defines.owned().await?;
 
+    // For ESM modules:
+    // - typeof exports = "undefined" (ESM doesn't have CommonJS exports)
+    // - typeof module = "object" (we provide module via __turbopack_context__.m for HMR)
+    // - typeof this = "undefined" (ESM has undefined this at module level)
+    // - require = TURBOPACK_REQUIRE_STUB (throws helpful error)
+    //
+    // For CJS modules:
+    // - All are "object" and module/exports are function parameters
     let (typeof_exports, typeof_module, typeof_this, require) = if is_esm {
         (
             rcstr!("undefined"),
-            rcstr!("undefined"),
+            rcstr!("object"), // module is available for HMR via __turbopack_context__.m
             rcstr!("undefined"),
             TURBOPACK_REQUIRE_STUB,
         )
@@ -1699,6 +1708,15 @@ async fn compile_time_info_for_module_options(
             // not be shadowed by user symbols.
             TURBOPACK_EXPORTS.into()
         });
+
+    // For ESM modules, provide `module` via __turbopack_context__.m so that
+    // module.hot.accept/decline works for HMR. CJS modules already have
+    // `module` as a function parameter.
+    if is_esm {
+        free_var_references
+            .entry(vec![DefinableNameSegment::Name(rcstr!("module"))])
+            .or_insert(TURBOPACK_MODULE.into());
+    }
 
     if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
         let value = match enable_typeof_window_inlining {
