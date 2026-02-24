@@ -10,6 +10,7 @@ import {
   ErrorSnapshot,
   RedboxSnapshot,
 } from '../../../lib/add-redbox-matchers'
+import { Playwright } from '../../../lib/next-webdriver'
 
 describe('instant validation', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -90,7 +91,7 @@ describe('instant validation', () => {
   }
 
   async function expectNoValidationErrors(
-    browser: Awaited<ReturnType<typeof next.browser>>,
+    browser: Playwright,
     url: string
   ): Promise<void> {
     await waitForValidation(url)
@@ -1312,6 +1313,183 @@ describe('instant validation', () => {
            }
           `)
         }
+      })
+    })
+
+    describe('head', () => {
+      it('valid - runtime prefetch - dynamic generateMetadata does not block navigation', async () => {
+        // Metadata streams and does not block navigation, so it can access
+        // dynamic data without failing validation.
+        const browser = await navigateTo(
+          '/suspense-in-root/head/valid-dynamic-metadata-in-runtime'
+        )
+        await expectNoValidationErrors(browser, await browser.url())
+      })
+
+      it('valid - static prefetch - runtime generateMetadata does not block navigation', async () => {
+        // Metadata streams and does not block navigation, so it can access
+        // runtime data without failing validation.
+        const browser = await navigateTo(
+          '/suspense-in-root/head/valid-runtime-metadata-in-static'
+        )
+        await expectNoValidationErrors(browser, await browser.url())
+      })
+
+      it('invalid - static prefetch - runtime generateViewport blocks navigation', async () => {
+        // if generateViewport uses runtime data and we use a static prefetch,
+        // we won't have it available when navigating, so we'll block and should fail validation.
+        const browser = await navigateTo(
+          '/suspense-in-root/head/invalid-runtime-viewport-in-static'
+        )
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:33) @ unstable_instant
+         >  8 | export const unstable_instant = { prefetch: 'static' }
+              |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "description": "Runtime data was accessed inside generateViewport()
+
+         Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+
+         To fix this:
+
+         Remove the Runtime data requirement from generateViewport. This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
+
+         or
+
+         Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
+
+         params are usually considered Runtime data but if all params are provided a value using generateStaticParams they can be statically prerendered.
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16) @ Module.generateViewport
+         > 11 |   await cookies()
+              |                ^",
+           "stack": [
+             "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16)",
+           ],
+         }
+        `)
+      })
+
+      it('invalid - runtime prefetch - dynamic viewport blocks navigation', async () => {
+        // if generateViewport uses dynamic data and we use a runtime prefetch,
+        // we won't have it available when navigating, so we'll block and should fail validation.
+        const browser = await navigateTo(
+          '/suspense-in-root/head/invalid-dynamic-viewport-in-runtime'
+        )
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:33) @ unstable_instant
+         > 6 | export const unstable_instant = {
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "description": "Data that blocks navigation was accessed inside generateViewport()
+
+         Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+         To fix this:
+
+         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
+
+         or
+
+         Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (13:19) @ Module.generateViewport
+         > 13 |   await connection()
+              |                   ^",
+           "stack": [
+             "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (13:19)",
+           ],
+         }
+        `)
+      })
+
+      it('valid - runtime prefetch - runtime generateViewport does not block navigation', async () => {
+        // if generateViewport uses runtime data and we use a runtime prefetch,
+        // we'll have it available when navigating, so we won't block and validation should succeed.
+        const browser = await navigateTo(
+          '/suspense-in-root/head/valid-runtime-viewport-in-runtime'
+        )
+        await expectNoValidationErrors(browser, await browser.url())
+      })
+
+      it('valid - blocking page - dynamic viewport is allowed to block', async () => {
+        // if generateViewport uses dynamic data, it'll always block regardless of prefetching.
+        // however, this is valid if the page opts into blocking via `instant = false`.
+        const browser = await navigateTo(
+          '/suspense-in-root/head/valid-dynamic-viewport-in-blocking'
+        )
+        await expectNoValidationErrors(browser, await browser.url())
+      })
+
+      it('invalid - blocking page inside static - dynamic viewport is not allowed to block', async () => {
+        // if generateViewport uses dynamic data, it'll always block regardless of prefetching.
+        // this can be allowed if a page opts into blocking. but if it violates a static
+        // assertion on a parent layout, it should still fail.
+        const browser = await navigateTo(
+          '/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static'
+        )
+        // TODO(instant-validation): why aren't we pointing to `await connection()` here?
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:33) @ unstable_instant
+         > 3 | export const unstable_instant = { prefetch: 'static' }
+             |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "description": "Data that blocks navigation was accessed inside generateViewport()
+
+         Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+         To fix this:
+
+         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
+
+         or
+
+         Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23) @ Module.generateViewport
+         > 6 | export async function generateViewport(): Promise<Viewport> {
+             |                       ^",
+           "stack": [
+             "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23)",
+           ],
+         }
+        `)
       })
     })
 

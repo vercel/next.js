@@ -1069,5 +1069,6 @@
   "1068": "Expected workStore to be initialized",
   "1069": "Invariant: cache entry \"%s\" not found in dir \"%s\"",
   "1070": "image of size %s could not be tracked by lru cache",
-  "1071": "toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase"
+  "1071": "toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase",
+  "1072": "Missing segment data: <head>"
 }

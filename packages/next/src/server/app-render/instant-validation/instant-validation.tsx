@@ -278,7 +278,6 @@ function traverseRootSeedDataSegments(
     seedData: CacheNodeSeedData
   ) => void
 ) {
-  // TODO: handle head as well
   const { flightRouterState, seedData } =
     getRootDataFromPayload(initialRSCPayload)
 
@@ -437,6 +436,8 @@ export async function collectStagedSegmentData(
   // We have to preserve the stage information for each of them,
   // so that we can later render each segment in any stage we need.
 
+  const { head } = getRootDataFromPayload(payload)
+
   const segments = new Map<SegmentPath, SegmentData>()
   traverseRootSeedDataSegments(payload, (segmentPath, seedData) => {
     segments.set(segmentPath, createSegmentData(seedData))
@@ -451,75 +452,73 @@ export async function collectStagedSegmentData(
     [RenderStage.Runtime]: -1,
   }
 
+  const renderIntoCacheItem = async (
+    data: HeadData | SegmentData,
+    cacheEntry: SegmentCacheItem
+  ): Promise<void> => {
+    const segmentDebugChannel = cacheEntry.debugChunks
+      ? createDebugChannel()
+      : undefined
+
+    const itemStream = renderToReadableStream(
+      data,
+      clientReferenceManifest.clientModules,
+      {
+        filterStackFrame,
+        debugChannel: segmentDebugChannel?.serverSide,
+        environmentName,
+        startTime,
+        onError(error: unknown) {
+          const digest = getDigestForWellKnownError(error)
+          if (digest) {
+            return digest
+          }
+          // We don't need to log the errors because we would have already done that
+          // when generating the original Flight stream for the whole page.
+          if (
+            process.env.NEXT_DEBUG_BUILD ||
+            process.env.__NEXT_VERBOSE_LOGGING
+          ) {
+            const workStore = workAsyncStorage.getStore()
+            printDebugThrownValueForProspectiveRender(
+              error,
+              workStore?.route ?? 'unknown route',
+              Phase.InstantValidation
+            )
+          }
+        },
+      }
+    )
+
+    await Promise.all([
+      // accumulate Flight chunks
+      (async () => {
+        for await (const chunk of itemStream.values()) {
+          writeChunk(cacheEntry.chunks, controller.currentStage, chunk)
+        }
+      })(),
+      // accumulate Debug chunks
+      segmentDebugChannel &&
+        (async () => {
+          for await (const chunk of segmentDebugChannel.clientSide.readable.values()) {
+            cacheEntry.debugChunks!.push(chunk)
+          }
+        })(),
+    ])
+  }
+
   await runInSequentialTasks(
     () => {
+      {
+        const headCacheItem = createSegmentCacheItem(!!fullPageDebugChunks)
+        cache.head = headCacheItem
+        pendingTasks.push(renderIntoCacheItem(head, headCacheItem))
+      }
+
       for (const [segmentPath, segmentData] of segments) {
-        const segmentCacheItem: SegmentCacheItem = {
-          chunks: {
-            [RenderStage.Static]: [],
-            [RenderStage.Runtime]: [],
-            [RenderStage.Dynamic]: [],
-          },
-          debugChunks: fullPageDebugChunks ? [] : null,
-        }
-        cache.set(segmentPath, segmentCacheItem)
-
-        const segmentTask = async () => {
-          const segmentDebugChannel = fullPageDebugChunks
-            ? createDebugChannel()
-            : undefined
-
-          const segmentStream = renderToReadableStream(
-            segmentData,
-            clientReferenceManifest.clientModules,
-            {
-              filterStackFrame,
-              debugChannel: segmentDebugChannel?.serverSide,
-              environmentName,
-              startTime,
-              onError(error: unknown) {
-                const digest = getDigestForWellKnownError(error)
-                if (digest) {
-                  return digest
-                }
-                // We don't need to log the errors because we would have already done that
-                // when generating the original Flight stream for the whole page.
-                if (
-                  process.env.NEXT_DEBUG_BUILD ||
-                  process.env.__NEXT_VERBOSE_LOGGING
-                ) {
-                  const workStore = workAsyncStorage.getStore()
-                  printDebugThrownValueForProspectiveRender(
-                    error,
-                    workStore?.route ?? 'unknown route',
-                    Phase.InstantValidation
-                  )
-                }
-              },
-            }
-          )
-
-          await Promise.all([
-            // accumulate Flight chunks
-            (async () => {
-              for await (const chunk of segmentStream.values()) {
-                writeChunk(
-                  segmentCacheItem.chunks,
-                  controller.currentStage,
-                  chunk
-                )
-              }
-            })(),
-            // accumulate Debug chunks
-            segmentDebugChannel &&
-              (async () => {
-                for await (const chunk of segmentDebugChannel.clientSide.readable.values()) {
-                  segmentCacheItem.debugChunks!.push(chunk)
-                }
-              })(),
-          ])
-        }
-        pendingTasks.push(segmentTask())
+        const segmentCacheItem = createSegmentCacheItem(!!fullPageDebugChunks)
+        cache.segments.set(segmentPath, segmentCacheItem)
+        pendingTasks.push(renderIntoCacheItem(segmentData, segmentCacheItem))
       }
     },
     () => {
@@ -803,7 +802,7 @@ export async function createCombinedPayload(
   /** mutable out-param - Which stages are actually used in the resulting payload */
   usedSegmentKinds: Set<SegmentStage>
 ): Promise<InitialRSCPayload> {
-  const { head, flightRouterState } = getRootDataFromPayload(initialRSCPayload)
+  const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
   const combinedSeedData = await createValidationSeedData(
     cache,
     validationRouteTree,
@@ -815,6 +814,23 @@ export async function createCombinedPayload(
     useRuntimeStageForPartialSegments,
     usedSegmentKinds
   )
+
+  // If we did a runtime prefetch for this navigation, then we'd get a runtime-stage head.
+  // Otherwise, we'd only have the `/_head` segment prefetch which is static.
+  // TODO(instant-validation): not sure about this as a way of detecting runtime prefetches
+  // (in the presence of `useRuntimeStageForPartialSegments`), but maybe it's actually correct?
+  const headStage = usedSegmentKinds.has(RenderStage.Runtime)
+    ? RenderStage.Runtime
+    : RenderStage.Static
+  debug?.(`    <head> - ${RenderStage[headStage]}`)
+  const head = await createValidationHead(
+    cache,
+    releaseSignal,
+    clientReferenceManifest,
+    stageEndTimes,
+    headStage
+  )
+
   const combinedRSCPayload: InitialRSCPayload = {
     ...initialRSCPayload,
     f: [
@@ -822,7 +838,7 @@ export async function createCombinedPayload(
       [
         flightRouterState satisfies FlightRouterState,
         combinedSeedData satisfies CacheNodeSeedData,
-        head satisfies HeadData, // TODO: handle head better
+        head satisfies HeadData,
       ],
     ],
   }
@@ -926,7 +942,7 @@ function createValidationSeedData(
     }
 
     debug?.(`    ${path || '/'} - ${RenderStage[stage]}`)
-    const segmentCacheItem = cache.get(path)
+    const segmentCacheItem = cache.segments.get(path)
     if (!segmentCacheItem) {
       throw new InvariantError(`Missing segment data: ${path}`)
     }
@@ -994,6 +1010,27 @@ function createValidationSeedData(
     // Root layouts are always shared. Navigating to a new root layout is an MPA navigation.
     { kind: 'shared-tree' },
     null
+  )
+}
+
+async function createValidationHead(
+  cache: SegmentCache,
+  releaseSignal: AbortSignal,
+  clientReferenceManifest: ClientReferenceManifest,
+  stageEndTimes: StageEndTimes,
+  stage: RenderStage.Static | RenderStage.Runtime
+): Promise<HeadData> {
+  const segmentCacheItem = cache.head
+  if (!segmentCacheItem) {
+    throw new InvariantError(`Missing segment data: <head>`)
+  }
+  return await deserializeFromChunks<HeadData>(
+    segmentCacheItem.chunks[stage],
+    segmentCacheItem.chunks[RenderStage.Dynamic],
+    segmentCacheItem.debugChunks,
+    releaseSignal,
+    clientReferenceManifest,
+    { startTime: undefined, endTime: stageEndTimes[stage] }
   )
 }
 
@@ -1086,10 +1123,24 @@ function getCacheNodeSeedDataFromSegment(
 }
 
 function createSegmentCache(): SegmentCache {
-  return new Map()
+  return { head: null, segments: new Map() }
 }
 
-export type SegmentCache = Map<SegmentPath, SegmentCacheItem>
+function createSegmentCacheItem(withDebugChunks: boolean): SegmentCacheItem {
+  return {
+    chunks: {
+      [RenderStage.Static]: [],
+      [RenderStage.Runtime]: [],
+      [RenderStage.Dynamic]: [],
+    },
+    debugChunks: withDebugChunks ? [] : null,
+  }
+}
+
+export type SegmentCache = {
+  head: SegmentCacheItem | null
+  segments: Map<SegmentPath, SegmentCacheItem>
+}
 
 type SegmentCacheItem = {
   chunks: StageChunks

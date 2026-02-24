@@ -128,6 +128,31 @@ export default async function Page() {
         </li>
       </ul>
 
+      <h2>Head</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-dynamic-metadata-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-runtime-metadata-in-static" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-runtime-viewport-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-dynamic-viewport-in-blocking" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-dynamic-viewport-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-runtime-viewport-in-static" />
+        </li>
+      </ul>
+
       <h2>Disable Validation</h2>
       <ul>
         <li>

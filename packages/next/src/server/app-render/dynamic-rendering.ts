@@ -976,6 +976,9 @@ export function trackDynamicHoleInRuntimeShell(
     dynamicValidation.dynamicMetadata = error
     return
   } else if (hasViewportRegex.test(componentStack)) {
+    // TODO(instant-validation): If the page only has holes caused by runtime data,
+    // we won't find out if there's a suspense-above-body and error for dynamic viewport
+    // even if there is in fact a suspense-above-body
     const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
     const error = createErrorWithComponentOrOwnerStack(
       message,
