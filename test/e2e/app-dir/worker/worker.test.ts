@@ -17,7 +17,7 @@ describe('app dir - workers', () => {
         const url = request.url()
         if (url.includes('/_next/')) {
           let parsed = new URL(url, next.url)
-          expect(parsed.searchParams.get('dpl')).toBe(next.assetToken)
+          expect(parsed.searchParams.get('dpl')).toBe(next.deploymentId)
         }
       })
     }
