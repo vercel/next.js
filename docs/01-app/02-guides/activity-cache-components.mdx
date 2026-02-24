@@ -39,7 +39,7 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 **When to keep it:** A sidebar with expanded sections, a FAQ accordion, or a filters panel - the user set up their view intentionally, and restoring it avoids re-doing that work.
 
-**When to reset it:** A dropdown menu or popover triggered by a button click - these are transient interactions, not persistent view state. Returning to a page with a dropdown already open feels wrong.
+**When to reset it:** A dropdown menu or popover triggered by a button click - these are transient interactions, not persistent view state. Returning to a page with a dropdown already open is not user friendly.
 
 To reset transient open/closed state, close it in a `useLayoutEffect` cleanup function:
 
@@ -111,7 +111,7 @@ function ProductTab() {
 
 If the user navigated away while the dialog was open, returning and opening the dialog won't trigger the focus Effect because `isDialogOpen` was already `true`.
 
-To fix this, derive the dialog state from something outside the preserved component state - like a search param:
+To fix this, derive the dialog state from something outside the preserved component state like a search param:
 
 ```tsx highlight={3,7-9,20,25}
 'use client'
@@ -177,7 +177,7 @@ This resets the form whenever the user navigates away. See [Resetting state](/do
 
 Activity preserves [`useActionState`](https://react.dev/reference/react/useActionState) results - success messages, error messages, and any other state returned by the action.
 
-**When to keep it:** A ticket redemption form showing "Ticket redeemed successfully", or a settings form showing "Changes saved". Seeing the result of a previous action when returning to the page is useful confirmation - the user can see what happened.
+**When to keep it:** A ticket redemption form showing "Ticket redeemed successfully", or a settings form showing "Changes saved". Seeing the result of a previous action when returning to the page is useful confirmation so the user can see what happened.
 
 **When to reset it:** A "new transaction" flow where each visit should start fresh, or a form where stale success/error messages would be confusing in a new context.
 
@@ -238,11 +238,11 @@ Here's what happens step by step:
 1. The user submits the form. The reducer receives a `SUBMIT` action with the `FormData`, calls `saveComment`, and returns `{ success: true }`. It also sets `shouldReset.current = true` to mark that a reset is needed.
 2. The user navigates away. Activity hides the component and runs the `useLayoutEffect` cleanup. Because `shouldReset.current` is `true`, it dispatches a `RESET` action.
 3. The reducer receives `RESET` and returns the initial state (`{ success: false, error: null }`). The stale success message is cleared.
-4. If the user navigates back, the form is ready for a new submission. If they never submitted (step 1 didn't happen), `shouldReset.current` is still `false`, so no `RESET` is dispatched - the form stays as-is.
+4. If the user navigates back, the form is ready for a new submission. If they never submitted (step 1 didn't happen), `shouldReset.current` is still `false`, so no `RESET` is dispatched. The form stays as-is.
 
 ## State and authentication
 
-Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior - props changing (such as receiving a new user) triggers a re-render but does not reset existing state. A draft composed by one user shouldn't be visible to another.
+Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior: props changing (such as receiving a new user) triggers a re-render but does not reset existing state. A draft composed by one user shouldn't be visible to another.
 
 For logout flows, using `window.location.href` instead of `router.push` triggers a full page reload, clearing all client-side state.
 
@@ -272,7 +272,7 @@ Alternatively, key components by user ID to let React handle the reset: `<Form k
 
 ## Global styles
 
-Page-level styles (CSS variables, z-index, global classes) can affect visible pages when the originating component is hidden by Activity. You likely want to disable them when hidden - a hidden page's accent color or z-index overrides shouldn't leak into the visible page.
+Page-level styles (CSS variables, z-index, global classes) can affect visible pages when the originating component is hidden by Activity. You likely want to disable them when hidden: a hidden page's accent color or z-index overrides shouldn't leak into the visible page.
 
 Use a callback ref to toggle the stylesheet's `media` attribute:
 
