@@ -565,11 +565,7 @@ pub fn project_new(
             let root_path = options.root_path.clone();
             let container = turbo_tasks
                 .run(async move {
-                    #[turbo_tasks::function(operation)]
-                    fn new_operation(is_dev: bool) -> Vc<ProjectContainer> {
-                        ProjectContainer::new(rcstr!("next.js"), is_dev)
-                    }
-                    let container_op = new_operation(is_dev);
+                    let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
                     container_op.resolve_strongly_consistent().await
                 })

@@ -308,7 +308,11 @@ impl<F: Future> Future for SuppressTopLevelTaskCheckFuture<F> {
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         // SAFETY: we are only projecting the pin to the inner field, not moving it
         let inner = unsafe { self.map_unchecked_mut(|this| &mut this.inner) };
-        SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, || inner.poll(cx))
+        if cfg!(debug_assertions) {
+            SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, || inner.poll(cx))
+        } else {
+            inner.poll(cx)
+        }
     }
 }
 
@@ -449,7 +453,7 @@ impl Future for ReadRawVcFuture {
         };
 
         fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() -> R) -> R {
-            if strongly_consistent {
+            if cfg!(debug_assertions) && strongly_consistent {
                 // Temporarily suppress the top-level task check
                 SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, f)
             } else {

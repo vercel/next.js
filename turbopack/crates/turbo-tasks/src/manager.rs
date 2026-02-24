@@ -1967,9 +1967,11 @@ pub fn mark_stateful() {
 /// eventually consistent reads will panic. It is almost always a mistake to perform an eventually
 /// consistent read at the top-level of the application.
 pub fn mark_top_level_task() {
-    CURRENT_TASK_STATE.with(|cell| {
-        cell.write().unwrap().in_top_level_task = true;
-    })
+    if cfg!(debug_assertions) {
+        CURRENT_TASK_STATE.with(|cell| {
+            cell.write().unwrap().in_top_level_task = true;
+        })
+    }
 }
 
 /// Unmarks the current task context as being in a top-level task. The opposite of
@@ -1983,9 +1985,11 @@ pub fn mark_top_level_task() {
 /// caught when the function was re-run. A strongly-consistent read re-runs parts of a task until
 /// all of the dependencies have settled.
 pub fn unmark_top_level_task_may_leak_eventually_consistent_state() {
-    CURRENT_TASK_STATE.with(|cell| {
-        cell.write().unwrap().in_top_level_task = false;
-    })
+    if cfg!(debug_assertions) {
+        CURRENT_TASK_STATE.with(|cell| {
+            cell.write().unwrap().in_top_level_task = false;
+        })
+    }
 }
 
 pub fn prevent_gc() {

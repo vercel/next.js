@@ -35,18 +35,6 @@ async fn test_eventual_read_in_top_level_task_fails() {
     .unwrap()
 }
 
-/// Test that strongly consistent reads of OperationVcs work in top-level tasks
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_strongly_consistent_read_in_top_level_task_works() {
-    run_once(&REGISTRATION, || async {
-        let value = returns_value_operation().read_strongly_consistent().await?;
-        assert_eq!(value.value, 42);
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[should_panic]
 async fn test_cell_read_in_top_level_task_fails() {

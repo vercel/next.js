@@ -3305,150 +3305,57 @@ mod tests {
             (scratch, root, denied_path)
         }
 
-        #[turbo_tasks::function(operation)]
-        async fn assert_denied_path_read_operation(
-            root: RcStr,
-            denied_path: RcStr,
-        ) -> anyhow::Result<()> {
-            let fs = DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
-            let root_path = fs.root().await?;
-
-            // Test 1: Reading allowed file should work
-            let allowed_file = root_path.join("allowed_file.txt")?;
-            let content = allowed_file.read().await?;
-            assert!(
-                matches!(&*content, FileContent::Content(_)),
-                "allowed file should be readable"
-            );
-
-            // Test 2: Direct read of denied file should return NotFound
-            let denied_file = root_path.join("denied_dir/secret.txt")?;
-            let content = denied_file.read().await?;
-            assert!(
-                matches!(&*content, FileContent::NotFound),
-                "denied file should return NotFound, got {:?}",
-                content
-            );
-
-            // Test 3: Reading nested denied file should return NotFound
-            let nested_denied = root_path.join("denied_dir/nested/deep.txt")?;
-            let content = nested_denied.read().await?;
-            assert!(
-                matches!(&*content, FileContent::NotFound),
-                "nested denied file should return NotFound"
-            );
-
-            // Test 4: Reading the denied directory itself should return NotFound
-            let denied_dir = root_path.join("denied_dir")?;
-            let content = denied_dir.read().await?;
-            assert!(
-                matches!(&*content, FileContent::NotFound),
-                "denied directory should return NotFound"
-            );
-
-            Ok(())
-        }
-
-        #[turbo_tasks::function(operation)]
-        async fn assert_denied_path_read_dir_operation(
-            root: RcStr,
-            denied_path: RcStr,
-        ) -> anyhow::Result<()> {
-            let fs = DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
-            let root_path = fs.root().await?;
-
-            // Test: read_dir on root should not include denied_dir
-            let dir_content = root_path.read_dir().await?;
-            match &*dir_content {
-                DirectoryContent::Entries(entries) => {
-                    assert!(
-                        entries.contains_key(&rcstr!("allowed_dir")),
-                        "allowed_dir should be visible"
-                    );
-                    assert!(
-                        entries.contains_key(&rcstr!("other_file.txt")),
-                        "other_file.txt should be visible"
-                    );
-                    assert!(
-                        entries.contains_key(&rcstr!("allowed_file.txt")),
-                        "allowed_file.txt should be visible"
-                    );
-                    assert!(
-                        !entries.contains_key(&rcstr!("denied_dir")),
-                        "denied_dir should NOT be visible in read_dir"
-                    );
-                }
-                DirectoryContent::NotFound => panic!("root directory should exist"),
-            }
-
-            // Test: read_dir on denied_dir should return NotFound
-            let denied_dir = root_path.join("denied_dir")?;
-            let dir_content = denied_dir.read_dir().await?;
-            assert!(
-                matches!(&*dir_content, DirectoryContent::NotFound),
-                "denied_dir read_dir should return NotFound"
-            );
-
-            Ok(())
-        }
-
-        #[turbo_tasks::function(operation)]
-        async fn assert_denied_path_read_glob_operation(
-            root: RcStr,
-            denied_path: RcStr,
-        ) -> anyhow::Result<()> {
-            let fs = DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
-            let root_path = fs.root().await?;
-
-            // Test: read_glob with ** should not reveal denied files
-            let glob_result = root_path
-                .read_glob(Glob::new(rcstr!("**/*.txt"), GlobOptions::default()))
-                .await?;
-
-            // Check top level results
-            assert!(
-                glob_result.results.contains_key("allowed_file.txt"),
-                "allowed_file.txt should be found"
-            );
-            assert!(
-                glob_result.results.contains_key("other_file.txt"),
-                "other_file.txt should be found"
-            );
-            assert!(
-                !glob_result.results.contains_key("denied_dir"),
-                "denied_dir should NOT appear in glob results"
-            );
-
-            // Check that denied_dir doesn't appear in inner results
-            assert!(
-                !glob_result.inner.contains_key("denied_dir"),
-                "denied_dir should NOT appear in glob inner results"
-            );
-
-            // Verify allowed_dir is present (to ensure we're not filtering everything)
-            assert!(
-                glob_result.inner.contains_key("allowed_dir"),
-                "allowed_dir directory should be present"
-            );
-            let sub_inner = glob_result.inner.get("allowed_dir").unwrap().await?;
-            assert!(
-                sub_inner.results.contains_key("file.txt"),
-                "allowed_dir/file.txt should be found"
-            );
-
-            Ok(())
-        }
-
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read() {
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
+                let fs =
+                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let root_path = fs.root().await?;
+
+                // Test 1: Reading allowed file should work
+                let allowed_file = root_path.join("allowed_file.txt")?;
+                let content = allowed_file.read().await?;
+                assert!(
+                    matches!(&*content, FileContent::Content(_)),
+                    "allowed file should be readable"
+                );
+
+                // Test 2: Direct read of denied file should return NotFound
+                let denied_file = root_path.join("denied_dir/secret.txt")?;
+                let content = denied_file.read().await?;
+                assert!(
+                    matches!(&*content, FileContent::NotFound),
+                    "denied file should return NotFound, got {:?}",
+                    content
+                );
+
+                // Test 3: Reading nested denied file should return NotFound
+                let nested_denied = root_path.join("denied_dir/nested/deep.txt")?;
+                let content = nested_denied.read().await?;
+                assert!(
+                    matches!(&*content, FileContent::NotFound),
+                    "nested denied file should return NotFound"
+                );
+
+                // Test 4: Reading the denied directory itself should return NotFound
+                let denied_dir = root_path.join("denied_dir")?;
+                let content = denied_dir.read().await?;
+                assert!(
+                    matches!(&*content, FileContent::NotFound),
+                    "denied directory should return NotFound"
+                );
+
+                Ok(())
+            }
+
             let (_scratch, root, denied_path) = setup_test_fs();
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
                 BackendOptions::default(),
                 noop_backing_storage(),
             ));
-
             tt.run_once(async {
-                assert_denied_path_read_operation(root, denied_path)
+                test_operation(root, denied_path)
                     .read_strongly_consistent()
                     .await?;
 
@@ -3460,14 +3367,54 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_dir() {
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
+                let fs =
+                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let root_path = fs.root().await?;
+
+                // Test: read_dir on root should not include denied_dir
+                let dir_content = root_path.read_dir().await?;
+                match &*dir_content {
+                    DirectoryContent::Entries(entries) => {
+                        assert!(
+                            entries.contains_key(&rcstr!("allowed_dir")),
+                            "allowed_dir should be visible"
+                        );
+                        assert!(
+                            entries.contains_key(&rcstr!("other_file.txt")),
+                            "other_file.txt should be visible"
+                        );
+                        assert!(
+                            entries.contains_key(&rcstr!("allowed_file.txt")),
+                            "allowed_file.txt should be visible"
+                        );
+                        assert!(
+                            !entries.contains_key(&rcstr!("denied_dir")),
+                            "denied_dir should NOT be visible in read_dir"
+                        );
+                    }
+                    DirectoryContent::NotFound => panic!("root directory should exist"),
+                }
+
+                // Test: read_dir on denied_dir should return NotFound
+                let denied_dir = root_path.join("denied_dir")?;
+                let dir_content = denied_dir.read_dir().await?;
+                assert!(
+                    matches!(&*dir_content, DirectoryContent::NotFound),
+                    "denied_dir read_dir should return NotFound"
+                );
+
+                Ok(())
+            }
+
             let (_scratch, root, denied_path) = setup_test_fs();
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
                 BackendOptions::default(),
                 noop_backing_storage(),
             ));
-
             tt.run_once(async {
-                assert_denied_path_read_dir_operation(root, denied_path)
+                test_operation(root, denied_path)
                     .read_strongly_consistent()
                     .await?;
 
@@ -3479,14 +3426,58 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_glob() {
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
+                let fs =
+                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let root_path = fs.root().await?;
+
+                // Test: read_glob with ** should not reveal denied files
+                let glob_result = root_path
+                    .read_glob(Glob::new(rcstr!("**/*.txt"), GlobOptions::default()))
+                    .await?;
+
+                // Check top level results
+                assert!(
+                    glob_result.results.contains_key("allowed_file.txt"),
+                    "allowed_file.txt should be found"
+                );
+                assert!(
+                    glob_result.results.contains_key("other_file.txt"),
+                    "other_file.txt should be found"
+                );
+                assert!(
+                    !glob_result.results.contains_key("denied_dir"),
+                    "denied_dir should NOT appear in glob results"
+                );
+
+                // Check that denied_dir doesn't appear in inner results
+                assert!(
+                    !glob_result.inner.contains_key("denied_dir"),
+                    "denied_dir should NOT appear in glob inner results"
+                );
+
+                // Verify allowed_dir is present (to ensure we're not filtering everything)
+                assert!(
+                    glob_result.inner.contains_key("allowed_dir"),
+                    "allowed_dir directory should be present"
+                );
+                let sub_inner = glob_result.inner.get("allowed_dir").unwrap().await?;
+                assert!(
+                    sub_inner.results.contains_key("file.txt"),
+                    "allowed_dir/file.txt should be found"
+                );
+
+                Ok(())
+            }
+
             let (_scratch, root, denied_path) = setup_test_fs();
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
                 BackendOptions::default(),
                 noop_backing_storage(),
             ));
-
             tt.run_once(async {
-                assert_denied_path_read_glob_operation(root, denied_path)
+                test_operation(root, denied_path)
                     .read_strongly_consistent()
                     .await?;
 
@@ -3508,14 +3499,53 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_write() {
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
+                let fs =
+                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let root_path = fs.root().await?;
+
+                // Test 1: Writing to allowed directory should work
+                let allowed_file = root_path.join("allowed_dir/new_file.txt")?;
+                let write_result = write_file(allowed_file.clone(), rcstr!("test content"));
+                write_result.read_strongly_consistent().await?;
+                apply_effects(write_result).await?;
+
+                // Verify it was written
+                let read_content = allowed_file.read().await?;
+                assert!(
+                    matches!(&*read_content, FileContent::Content(_)),
+                    "allowed file write should succeed"
+                );
+
+                // Test 2: Writing to denied directory should fail
+                let denied_file = root_path.join("denied_dir/forbidden.txt")?;
+                let write_result = write_file(denied_file, rcstr!("forbidden"));
+                let result = write_result.read_strongly_consistent().await;
+                assert!(
+                    result.is_err(),
+                    "writing to denied path should return an error"
+                );
+
+                // Test 3: Writing to nested denied path should fail
+                let nested_denied = root_path.join("denied_dir/nested/file.txt")?;
+                let write_result = write_file(nested_denied, rcstr!("nested"));
+                let result = write_result.read_strongly_consistent().await;
+                assert!(
+                    result.is_err(),
+                    "writing to nested denied path should return an error"
+                );
+
+                Ok(())
+            }
+
             let (_scratch, root, denied_path) = setup_test_fs();
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
                 BackendOptions::default(),
                 noop_backing_storage(),
             ));
-
             tt.run_once(async {
-                assert_denied_path_write_operation(root, denied_path)
+                test_operation(root, denied_path)
                     .read_strongly_consistent()
                     .await?;
 
@@ -3523,48 +3553,6 @@ mod tests {
             })
             .await
             .unwrap();
-        }
-
-        #[turbo_tasks::function(operation)]
-        async fn assert_denied_path_write_operation(
-            root: RcStr,
-            denied_path: RcStr,
-        ) -> anyhow::Result<()> {
-            let fs = DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
-            let root_path = fs.root().await?;
-
-            // Test 1: Writing to allowed directory should work
-            let allowed_file = root_path.join("allowed_dir/new_file.txt")?;
-            let write_result = write_file(allowed_file.clone(), rcstr!("test content"));
-            write_result.read_strongly_consistent().await?;
-            apply_effects(write_result).await?;
-
-            // Verify it was written
-            let read_content = allowed_file.read().await?;
-            assert!(
-                matches!(&*read_content, FileContent::Content(_)),
-                "allowed file write should succeed"
-            );
-
-            // Test 2: Writing to denied directory should fail
-            let denied_file = root_path.join("denied_dir/forbidden.txt")?;
-            let write_result = write_file(denied_file, rcstr!("forbidden"));
-            let result = write_result.read_strongly_consistent().await;
-            assert!(
-                result.is_err(),
-                "writing to denied path should return an error"
-            );
-
-            // Test 3: Writing to nested denied path should fail
-            let nested_denied = root_path.join("denied_dir/nested/file.txt")?;
-            let write_result = write_file(nested_denied, rcstr!("nested"));
-            let result = write_result.read_strongly_consistent().await;
-            assert!(
-                result.is_err(),
-                "writing to nested denied path should return an error"
-            );
-
-            Ok(())
         }
     }
 }
