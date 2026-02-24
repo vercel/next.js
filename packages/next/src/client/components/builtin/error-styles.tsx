@@ -30,8 +30,11 @@ export const errorStyles = {
     fontSize: '14px',
     fontWeight: 400,
     lineHeight: '20px',
-    margin: '0 0 6px 0',
+    margin: '0 0 20px 0',
     color: 'var(--next-error-message)',
+  },
+  form: {
+    margin: 0,
   },
   messageHint: {
     fontSize: '13px',

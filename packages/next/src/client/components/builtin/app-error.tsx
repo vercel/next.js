@@ -15,11 +15,11 @@ function AppError() {
           <div style={errorStyles.card}>
             <WarningIcon />
             <h1 style={errorStyles.title}>This page couldn&apos;t load</h1>
-            <p style={{ ...errorStyles.message, margin: '0 0 20px 0' }}>
+            <p style={errorStyles.message}>
               There was a server error. Try reloading.
             </p>
             <div style={errorStyles.buttonGroup}>
-              <form style={{ margin: 0 }}>
+              <form style={errorStyles.form}>
                 <button type="submit" style={errorStyles.button}>
                   Reload
                 </button>
