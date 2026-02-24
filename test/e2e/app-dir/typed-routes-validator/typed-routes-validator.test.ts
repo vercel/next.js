@@ -53,7 +53,7 @@ describe('typed-routes-validator', () => {
           const routesDts = await next.readFile(
             `${getDistDir()}/types/routes.d.ts`
           )
-          expect(routesDts).toContain("AppRoutes = '/'")
+          expect(routesDts).toContain('AppRoutes = "/"')
         })
       }
 
