@@ -128,7 +128,7 @@ pub(crate) fn generate_resolve_stmts(exprs: &[Expr]) -> Vec<TokenStream2> {
         .map(|(i, expr)| {
             let var = format_ident!("__arg{}", i);
             quote! {
-                let #var = turbo_tasks::__turbo_stringify!(&(#expr));
+                turbo_tasks::__turbo_stringify!(#var, &(#expr));
             }
         })
         .collect()
@@ -148,7 +148,7 @@ fn generate_captured_resolve_stmts(captured_vars: &[String]) -> Vec<TokenStream2
         .map(|name| {
             let ident = format_ident!("{}", name);
             quote! {
-                let #ident = turbo_tasks::__turbo_stringify!(&#ident);
+                turbo_tasks::__turbo_stringify!(#ident, &#ident);
             }
         })
         .collect()

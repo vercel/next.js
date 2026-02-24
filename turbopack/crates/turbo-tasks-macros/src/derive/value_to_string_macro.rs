@@ -233,7 +233,7 @@ fn parse_format_fields(fmt: &str) -> (String, Vec<Field>) {
 }
 
 fn generate_resolve(var_name: &syn::Ident, access: &TokenStream2) -> TokenStream2 {
-    quote! { let #var_name = turbo_tasks::__turbo_stringify!(#access); }
+    quote! { turbo_tasks::__turbo_stringify!(#var_name, #access); }
 }
 
 fn generate_struct_impl(
@@ -251,7 +251,7 @@ fn generate_struct_impl(
         Some(AttrForm::DirectExpr(expr)) => (
             true,
             quote! {
-                let __val = turbo_tasks::__turbo_stringify!(&(#expr));
+                turbo_tasks::__turbo_stringify!(__val, &(#expr));
                 Ok(turbo_tasks::Vc::cell(turbo_rcstr::RcStr::from(__val)))
             },
         ),
@@ -472,7 +472,7 @@ fn generate_enum_format_exprs(
         .map(|(i, expr)| {
             let var = format_ident!("__arg{}", i);
             quote! {
-                let #var = turbo_tasks::__turbo_stringify!(#expr);
+                turbo_tasks::__turbo_stringify!(#var, #expr);
             }
         })
         .collect();
@@ -492,7 +492,10 @@ fn generate_enum_direct_expr(
 ) -> TokenStream2 {
     let pattern = enum_destructure_all(ident, variant_ident, fields);
     quote! {
-        #pattern => turbo_rcstr::RcStr::from(turbo_tasks::__turbo_stringify!(#expr)),
+        #pattern => {
+            turbo_tasks::__turbo_stringify!(__val, #expr);
+            turbo_rcstr::RcStr::from(__val)
+        }
     }
 }
 

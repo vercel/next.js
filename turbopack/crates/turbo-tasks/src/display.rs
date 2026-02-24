@@ -46,12 +46,15 @@ impl ValueToStringRef for RcStr {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __turbo_stringify {
-    ($i:expr) => {{
-        use $crate::display::ValueToStringify as _;
-        (&&&$crate::display::ValueToStringifyWrap($i))
-            .to_stringify()
-            .await?
-    }};
+    ($name:ident, $i:expr) => {
+        let __tmp = $crate::display::ValueToStringifyWrap($i);
+        // Ugh: https://sabrinajewson.org/blog/truly-hygienic-let
+        // This "let mut" makes errors more obvious in this case
+        let mut $name: $crate::display::StringifyType = {
+            use $crate::display::ValueToStringify as _;
+            (&&&__tmp).to_stringify().await?
+        };
+    };
 }
 
 /// Part of the auto-deref specialization system.

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use futures::try_join;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
@@ -122,7 +122,7 @@ async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry>
         // match.
         let source_path = entry.path().unwrap();
         if source_path.is_inside_or_equal(&resolved_entry.clone().path().unwrap()) {
-            turbobail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
+            bail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
         }
     }
     Ok(resolved_entry)
