@@ -48,7 +48,12 @@ export class CssMinimizerPlugin {
       .process(input, postcssOptions)
       .then((res) => {
         if (res.map) {
-          return new sources.SourceMapSource(res.css, file, res.map.toJSON())
+          const sourceMap = res.map.toJSON()
+          return new sources.SourceMapSource(res.css, file, {
+            ...sourceMap,
+            version: Number(sourceMap.version),
+            file: sourceMap.file || file,
+          })
         } else {
           return new sources.RawSource(res.css)
         }

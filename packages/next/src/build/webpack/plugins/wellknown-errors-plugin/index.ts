@@ -1,4 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { WebpackError } from 'webpack'
 
 import { getModuleBuildError } from './webpackModuleError'
 
@@ -10,9 +11,10 @@ export class WellKnownErrorsPlugin {
         if (compilation.warnings?.length) {
           await Promise.all(
             compilation.warnings.map(async (warn, i) => {
+              const webpackWarn = warn as WebpackError
               if (
-                warn.name === 'ModuleDependencyWarning' &&
-                warn.module?.context?.includes('node_modules')
+                webpackWarn.name === 'ModuleDependencyWarning' &&
+                webpackWarn.module?.context?.includes('node_modules')
               ) {
                 compilation.warnings.splice(i, 1)
               }

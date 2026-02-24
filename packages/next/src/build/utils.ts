@@ -1620,7 +1620,7 @@ export function isWebpackClientOnlyLayer(
 }
 
 export function isWebpackDefaultLayer(
-  layer: WebpackLayerName | null | undefined
+  layer: WebpackLayerName | string | null | undefined
 ): boolean {
   return (
     layer === null ||

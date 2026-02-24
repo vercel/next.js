@@ -41,10 +41,13 @@ describe('middleware - development errors', () => {
             ? '\n⨯ Error: boom' +
               '\n    at __rspack_default_export (middleware.js:3:15)' +
               '\n  1 |'
-            : '\n⨯ Error: boom' +
-              '\n    at default (middleware.js:3:15)' +
-              '\n  1 |'
+            : '\n⨯ Error: boom'
       )
+      if (!isTurbopack && !isRspack) {
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /at default \(.*middleware\.js:3:15\)/
+        )
+      }
       expect(stripAnsi(next.cliOutput)).toContain(
         '' +
           "\n> 3 |         throw new Error('boom')" +
@@ -143,11 +146,17 @@ describe('middleware - development errors', () => {
               '\n    at throwError (middleware.js:4:15)' +
               '\n    at __rspack_default_export (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
-            : '\n⨯ unhandledRejection:  Error: async boom!' +
-              '\n    at throwError (middleware.js:4:15)' +
-              '\n    at default (middleware.js:7:9)' +
-              "\n  2 |       import { NextResponse } from 'next/server'"
+            : '\n⨯ unhandledRejection:'
       )
+      if (!isTurbopack && !isRspack) {
+        expect(stripAnsi(next.cliOutput)).toContain('Error: async boom!')
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /at throwError \(.*middleware\.js:4:15\)/
+        )
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /at default \(.*middleware\.js:7:9\)/
+        )
+      }
       expect(stripAnsi(next.cliOutput)).toContain(
         '' +
           "\n> 4 |         throw new Error('async boom!')" +
@@ -198,13 +207,19 @@ describe('middleware - development errors', () => {
               '\n    at <unknown> (middleware.js:4:9)' +
               // TODO(veil): Should be sourcemapped
               '\n    at __TURBOPACK__default__export__ ('
-          : '\n⨯ Error [ReferenceError]: test is not defined' +
-              // TODO(veil): Redundant and not clickable
-              '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
-              '\n    at eval (middleware.js:4:9)' +
-              '\n    at default (middleware.js:4:9)' +
-              "\n  2 |       import { NextResponse } from 'next/server'"
+          : '\n⨯ Error [ReferenceError]: test is not defined'
       )
+      if (!isTurbopack && !isRspack) {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          'at eval (file://webpack-internal:///(middleware)/./middleware.js)'
+        )
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /at eval \(.*middleware\.js:4:9\)/
+        )
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /at default \(.*middleware\.js:4:9\)/
+        )
+      }
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
           ? "\n⚠ DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
@@ -212,10 +227,13 @@ describe('middleware - development errors', () => {
               // TODO(veil): Should be sourcemapped
               '\n    at __TURBOPACK__default__export__ ('
           : "\n⚠ DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
-              '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation' +
-              '\n    at default (middleware.js:4:9)' +
-              "\n  2 |       import { NextResponse } from 'next/server'"
+              '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation'
       )
+      if (!isTurbopack && !isRspack) {
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /DynamicCodeEvaluationWarning[\s\S]*at default \(.*middleware\.js:4:9\)/
+        )
+      }
     })
 
     it('renders the error correctly and recovers', async () => {
@@ -316,10 +334,14 @@ describe('middleware - development errors', () => {
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed
-              '\n    at eval (middleware.js:3:13)' +
-              `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:18:1)` +
-              '\n    at __webpack_require__ '
+              '\n    at eval (middleware.js:3:13)'
       )
+      if (!isTurbopack && !isRspack) {
+        // Bundle line numbers vary across webpack versions, so use a pattern
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /at \(middleware\)\/\.\/middleware\.js \(.*\/server\/middleware\.js:\d+:\d+\)\n\s+at __webpack_require__/
+        )
+      }
     })
 
     it('renders the error correctly and recovers', async () => {

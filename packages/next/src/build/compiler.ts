@@ -52,7 +52,7 @@ export function runCompiler(
   ]
 > {
   return new Promise((resolve, reject) => {
-    const compiler = getWebpackBundler()(config)
+    const compiler = getWebpackBundler()(config)!
 
     // Ensure we use the previous inputFileSystem
     if (inputFileSystem) {

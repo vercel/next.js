@@ -1151,7 +1151,7 @@ export default async function getBaseWebpackConfig(
             layer: string | null | undefined
             type: string
             libIdent?: Function
-            updateHash: (hash: crypto.Hash) => void
+            updateHash: (hash: crypto.Hash, context?: any) => void
           }): string {
             const hash = crypto.createHash('sha1')
             if (isModuleCSS(module)) {
@@ -2373,6 +2373,7 @@ export default async function getBaseWebpackConfig(
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
     serverReferenceHashSalt: encryptionKey,
+    i18n: config.i18n,
   })
 
   const cache: webpack.Configuration['cache'] = {
