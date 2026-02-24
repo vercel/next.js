@@ -2275,10 +2275,13 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const now = Date.now()
     const staleAt = await getStaleAt(now, serverData.s, response)
 
-    // When cacheData is null (Cache Components disabled), default to false
-    // (non-partial). Full and LoadingBoundary prefetches cannot have holes —
-    // only PPRRuntime prefetches can be partial.
-    const isResponsePartial = cacheData?.isResponsePartial ?? false
+    // Only PPRRuntime prefetches can be partial — Full and LoadingBoundary
+    // prefetches are by definition complete. Use the marker-derived value from
+    // cacheData only for PPRRuntime; default to false otherwise.
+    const isResponsePartial =
+      fetchStrategy === FetchStrategy.PPRRuntime
+        ? (cacheData?.isResponsePartial ?? false)
+        : false
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
