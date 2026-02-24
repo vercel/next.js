@@ -43,11 +43,17 @@ describe('typed-routes-validator', () => {
     }
     try {
       if (isNextDev) {
-        // In dev mode, next-env.d.ts is generated asynchronously after the
-        // server starts. Wait for it before running tsc.
+        // In dev mode, next-env.d.ts and the route type definitions it
+        // references (.next/types/routes.d.ts) are generated asynchronously
+        // after the server starts. Wait for both files to be ready with
+        // actual route data before running tsc.
         await retry(async () => {
-          const content = await next.readFile('next-env.d.ts')
-          expect(content).toContain('reference types="next"')
+          const envDts = await next.readFile('next-env.d.ts')
+          expect(envDts).toContain('reference types="next"')
+          const routesDts = await next.readFile(
+            `${getDistDir()}/types/routes.d.ts`
+          )
+          expect(routesDts).toContain("AppRoutes = '/'")
         })
       }
 
