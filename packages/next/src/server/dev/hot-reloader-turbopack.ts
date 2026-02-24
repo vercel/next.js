@@ -595,10 +595,7 @@ export async function createHotReloaderTurbopack(
     // Server HMR only applies to App Router.
     // Pages Router uses Node's require(), root entries (middleware/instrumentation)
     // use the edge runtime.
-    const usesServerHmr =
-      experimentalServerFastRefresh &&
-      entryType === 'app' &&
-      writtenEndpoint.type !== 'edge'
+    const usesServerHmr = entryType === 'app' && writtenEndpoint.type !== 'edge'
 
     for (const file of serverPaths) {
       clearModuleContext(file)
