@@ -8,7 +8,6 @@
 
 var $interceptModuleExecution$ = undefined;
 var $moduleCache$ = undefined;
-// eslint-disable-next-line no-unused-vars
 var $hmrModuleData$ = undefined;
 /** @type {() => Promise}  */
 var $hmrDownloadManifest$ = undefined;
@@ -355,38 +354,50 @@ module.exports = function () {
 		};
 
 		var outdatedModules = [];
-		results.forEach(function (result) {
-			if (result.apply) {
-				var modules = result.apply(reportError);
-				if (modules) {
-					for (var i = 0; i < modules.length; i++) {
-						outdatedModules.push(modules[i]);
-					}
-				}
-			}
-		});
 
-		return Promise.all([disposePromise, applyPromise]).then(function () {
-			// handle errors in accept handlers and self accepted module load
-			if (error) {
-				return setStatus("fail").then(function () {
-					throw error;
-				});
-			}
-
-			if (queuedInvalidatedModules) {
-				return internalApply(options).then(function (list) {
-					outdatedModules.forEach(function (moduleId) {
-						if (list.indexOf(moduleId) < 0) list.push(moduleId);
+		var onAccepted = function () {
+			return Promise.all([disposePromise, applyPromise]).then(function () {
+				// handle errors in accept handlers and self accepted module load
+				if (error) {
+					return setStatus("fail").then(function () {
+						throw error;
 					});
-					return list;
-				});
-			}
+				}
 
-			return setStatus("idle").then(function () {
-				return outdatedModules;
+				if (queuedInvalidatedModules) {
+					return internalApply(options).then(function (list) {
+						outdatedModules.forEach(function (moduleId) {
+							if (list.indexOf(moduleId) < 0) list.push(moduleId);
+						});
+						return list;
+					});
+				}
+
+				return setStatus("idle").then(function () {
+					return outdatedModules;
+				});
 			});
-		});
+		};
+
+		return Promise.all(
+			results
+				.filter(function (result) {
+					return result.apply;
+				})
+				.map(function (result) {
+					return result.apply(reportError);
+				})
+		)
+			.then(function (applyResults) {
+				applyResults.forEach(function (modules) {
+					if (modules) {
+						for (var i = 0; i < modules.length; i++) {
+							outdatedModules.push(modules[i]);
+						}
+					}
+				});
+			})
+			.then(onAccepted);
 	}
 
 	function applyInvalidatedModules() {

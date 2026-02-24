@@ -117,7 +117,6 @@ module.exports = function () {
 		for (var moduleId in currentUpdate) {
 			if ($hasOwnProperty$(currentUpdate, moduleId)) {
 				var newModuleFactory = currentUpdate[moduleId];
-				/** @type {TODO} */
 				var result = newModuleFactory
 					? getAffectedModuleEffects(moduleId)
 					: {
@@ -282,6 +281,7 @@ module.exports = function () {
 				}
 			},
 			apply: function (reportError) {
+				var acceptPromises = [];
 				// insert new code
 				for (var updateModuleId in appliedUpdate) {
 					if ($hasOwnProperty$(appliedUpdate, updateModuleId)) {
@@ -318,8 +318,9 @@ module.exports = function () {
 								}
 							}
 							for (var k = 0; k < callbacks.length; k++) {
+								var result;
 								try {
-									callbacks[k].call(null, moduleOutdatedDependencies);
+									result = callbacks[k].call(null, moduleOutdatedDependencies);
 								} catch (err) {
 									if (typeof errorHandlers[k] === "function") {
 										try {
@@ -356,54 +357,63 @@ module.exports = function () {
 										}
 									}
 								}
+								if (result && typeof result.then === "function") {
+									acceptPromises.push(result);
+								}
 							}
 						}
 					}
 				}
 
-				// Load self accepted modules
-				for (var o = 0; o < outdatedSelfAcceptedModules.length; o++) {
-					var item = outdatedSelfAcceptedModules[o];
-					var moduleId = item.module;
-					try {
-						item.require(moduleId);
-					} catch (err) {
-						if (typeof item.errorHandler === "function") {
-							try {
-								item.errorHandler(err, {
-									moduleId: moduleId,
-									module: $moduleCache$[moduleId]
-								});
-							} catch (err1) {
+				var onAccepted = function () {
+					// Load self accepted modules
+					for (var o = 0; o < outdatedSelfAcceptedModules.length; o++) {
+						var item = outdatedSelfAcceptedModules[o];
+						var moduleId = item.module;
+						try {
+							item.require(moduleId);
+						} catch (err) {
+							if (typeof item.errorHandler === "function") {
+								try {
+									item.errorHandler(err, {
+										moduleId: moduleId,
+										module: $moduleCache$[moduleId]
+									});
+								} catch (err1) {
+									if (options.onErrored) {
+										options.onErrored({
+											type: "self-accept-error-handler-errored",
+											moduleId: moduleId,
+											error: err1,
+											originalError: err
+										});
+									}
+									if (!options.ignoreErrored) {
+										reportError(err1);
+										reportError(err);
+									}
+								}
+							} else {
 								if (options.onErrored) {
 									options.onErrored({
-										type: "self-accept-error-handler-errored",
+										type: "self-accept-errored",
 										moduleId: moduleId,
-										error: err1,
-										originalError: err
+										error: err
 									});
 								}
 								if (!options.ignoreErrored) {
-									reportError(err1);
 									reportError(err);
 								}
 							}
-						} else {
-							if (options.onErrored) {
-								options.onErrored({
-									type: "self-accept-errored",
-									moduleId: moduleId,
-									error: err
-								});
-							}
-							if (!options.ignoreErrored) {
-								reportError(err);
-							}
 						}
 					}
-				}
+				};
 
-				return outdatedModules;
+				return Promise.all(acceptPromises)
+					.then(onAccepted)
+					.then(function () {
+						return outdatedModules;
+					});
 			}
 		};
 	}

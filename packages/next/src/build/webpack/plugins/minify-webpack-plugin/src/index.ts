@@ -125,7 +125,7 @@ export class MinifyPlugin {
         return {
           minify: async (options: {
             input: string
-            inputSourceMap: Object
+            inputSourceMap: object | null
           }) => {
             const result = await (
               require('../../../../swc') as typeof import('../../../../swc')
@@ -196,16 +196,17 @@ export class MinifyPlugin {
                   return
                 }
 
-                const source = minifiedOutput.map
-                  ? new SourceMapSource(
-                      minifiedOutput.code,
-                      name,
-                      minifiedOutput.map,
-                      input,
-                      inputSourceMap,
-                      true
-                    )
-                  : new RawSource(minifiedOutput.code)
+                const source =
+                  minifiedOutput.map && inputSourceMap
+                    ? new SourceMapSource(
+                        minifiedOutput.code,
+                        name,
+                        minifiedOutput.map,
+                        input,
+                        inputSourceMap,
+                        true
+                      )
+                    : new RawSource(minifiedOutput.code)
 
                 await cache.storePromise(name, eTag, { source })
 
