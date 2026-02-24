@@ -26,6 +26,13 @@ pub trait ValueToStringRef {
     fn to_string_ref(&self) -> impl Future<Output = Result<RcStr>> + Send;
 }
 
+/// Ref-following: `&T` delegates to `T`'s `ValueToStringRef`.
+impl<T: ValueToStringRef + Sync> ValueToStringRef for &T {
+    fn to_string_ref(&self) -> impl Future<Output = Result<RcStr>> + Send {
+        (**self).to_string_ref()
+    }
+}
+
 /// Identity implementation: `RcStr` just returns itself.
 #[turbo_tasks::value_impl]
 impl ValueToString for RcStr {
