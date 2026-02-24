@@ -330,6 +330,8 @@ export const installTemplate = async ({
     const pnpmMajorVersion = getPnpmMajorVersion();
     if (pnpmMajorVersion === null || pnpmMajorVersion >= 10) {
       const pnpmWorkspaceYaml = [
+        "packages:",
+        "  - .",
         "ignoredBuiltDependencies:",
         // Sharp has prebuilt binaries for the platforms next-swc has binaries.
         // If it needs to build binaries from source, next-swc wouldn't work either.
