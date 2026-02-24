@@ -546,9 +546,9 @@ pub async fn parse_segment_config_from_source(
                 "unstable_instant",
                 span,
                 rcstr!(
-                    "App pages cannot export \"unstable_instant\" from a Client \
-                     Component module. To use this API, convert this module to a \
-                     Server Component by removing the \"use client\" directive."
+                    "App pages cannot export \"unstable_instant\" from a Client Component module. \
+                     To use this API, convert this module to a Server Component by removing the \
+                     \"use client\" directive."
                 ),
                 None,
                 IssueSeverity::Error,
