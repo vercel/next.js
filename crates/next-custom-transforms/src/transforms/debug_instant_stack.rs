@@ -2,7 +2,7 @@ use swc_core::{
     common::{Span, Spanned},
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold},
+        visit::{Fold, fold_pass},
     },
     quote,
 };
@@ -52,12 +52,11 @@ fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
             _ => continue,
         };
         for d in &decl.decls {
-            if let Pat::Ident(ident) = &d.name {
-                if ident.id.sym == local_name {
-                    if let Some(init) = &d.init {
-                        return Some(init.span());
-                    }
-                }
+            if let Pat::Ident(ident) = &d.name
+                && ident.id.sym == local_name
+                && let Some(init) = &d.init
+            {
+                return Some(init.span());
             }
         }
     }
@@ -72,12 +71,11 @@ impl Fold for DebugInstantStack {
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
                     if let Decl::Var(var_decl) = &export_decl.decl {
                         for decl in &var_decl.decls {
-                            if let Pat::Ident(ident) = &decl.name {
-                                if ident.id.sym == "unstable_instant" {
-                                    if let Some(init) = &decl.init {
-                                        self.instant_export_span = Some(init.span());
-                                    }
-                                }
+                            if let Pat::Ident(ident) = &decl.name
+                                && ident.id.sym == "unstable_instant"
+                                && let Some(init) = &decl.init
+                            {
+                                self.instant_export_span = Some(init.span());
                             }
                         }
                     }
