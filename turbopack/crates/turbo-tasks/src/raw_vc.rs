@@ -397,9 +397,14 @@ impl Future for ReadRawVcFuture {
                         let read_result = tt.try_read_task_output(task, this.read_output_options);
                         match read_result {
                             Ok(Ok(vc)) => {
-                                // We no longer need to read strongly consistent, as any Vc returned
-                                // from the first task will be inside of the scope of the first
-                                // task. So it's already strongly consistent.
+                                // turbo-tasks-backend doesn't currently have any sort of
+                                // "transaction" or global lock mechanism to group together chains
+                                // of `TaskOutput`/`TaskCell` reads.
+                                //
+                                // If we ignore the theoretical TOCTOU issues, we no longer need to
+                                // read strongly consistent, as any Vc returned from the first task
+                                // will be inside of the scope of the first task. So it's already
+                                // strongly consistent.
                                 this.read_output_options.consistency = ReadConsistency::Eventual;
                                 this.current = vc;
                                 continue 'outer;
