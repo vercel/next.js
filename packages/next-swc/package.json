@@ -6,7 +6,7 @@
     "native/"
   ],
   "scripts": {
-    "build": "node maybe-build-native.mjs",
+    "build-native-auto": "node maybe-build-native.mjs",
     "clean": "node ../../scripts/rm.mjs native",
     "build-native": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --features plugin,image-extended --js false native",
     "build-native-release": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --release --features plugin,image-extended,tracing/release_max_level_trace --js false native",

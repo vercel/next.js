@@ -2,7 +2,10 @@
   "$schema": "https://turborepo.org/schema.json",
   "extends": ["//"],
   "tasks": {
-    "build": {
+    // "auto" is used by the workspace `pnpm build-all` script. It checks to see
+    // if there's already an up-to-date precompiled version of turbopack
+    // available before performing the build.
+    "build-native-auto": {
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
@@ -11,14 +14,14 @@
         "../../Cargo.toml",
         "../../Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
       "outputs": [
         "native/*.node",
         "native/index.d.ts",
-        "../../packages/next/src/build/swc/generated-native.d.ts"
-      ]
+        "../../packages/next/src/build/swc/generated-native.d.ts",
+      ],
     },
     "build-native": {
       "inputs": [
@@ -29,10 +32,10 @@
         "../../Cargo.toml",
         "../../Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node", "native/index.d.ts"]
+      "outputs": ["native/*.node", "native/index.d.ts"],
     },
     "build-native-release": {
       "inputs": [
@@ -43,10 +46,10 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node", "native/index.d.ts"]
+      "outputs": ["native/*.node", "native/index.d.ts"],
     },
     "build-native-release-with-assertions": {
       "inputs": [
@@ -57,10 +60,10 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node", "native/index.d.ts"]
+      "outputs": ["native/*.node", "native/index.d.ts"],
     },
     "build-native-no-plugin": {
       "inputs": [
@@ -71,10 +74,10 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node", "native/index.d.ts"]
+      "outputs": ["native/*.node", "native/index.d.ts"],
     },
     "build-native-no-plugin-release": {
       "inputs": [
@@ -85,10 +88,10 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node", "native/index.d.ts"]
+      "outputs": ["native/*.node", "native/index.d.ts"],
     },
     "build-wasm": {
       "inputs": [
@@ -99,10 +102,10 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
-      "outputs": ["../../crates/wasm/pkg/*"]
+      "outputs": ["../../crates/wasm/pkg/*"],
     },
     "build-native-wasi": {
       "inputs": [
@@ -113,10 +116,10 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
-      "outputs": ["native/*"]
+      "outputs": ["native/*"],
     },
     "cache-build-native": {
       "inputs": [
@@ -127,13 +130,13 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
       "env": ["CI"],
-      "outputs": ["native/*.node", "native/index.d.ts"]
+      "outputs": ["native/*.node", "native/index.d.ts"],
     },
     "rust-check": {
-      "dependsOn": ["rust-check-fmt", "rust-check-clippy", "rust-check-napi"]
+      "dependsOn": ["rust-check-fmt", "rust-check-clippy", "rust-check-napi"],
     },
     "rust-check-fmt": {
       "inputs": [
@@ -143,9 +146,9 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
+        "../../rust-toolchain.toml",
       ],
-      "cache": false
+      "cache": false,
     },
     "rust-check-clippy": {
       "inputs": [
@@ -155,8 +158,8 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
-      ]
+        "../../rust-toolchain.toml",
+      ],
     },
     "rust-check-napi": {
       "inputs": [
@@ -166,8 +169,8 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
-      ]
+        "../../rust-toolchain.toml",
+      ],
     },
     "test-cargo-unit": {
       "inputs": [
@@ -177,8 +180,8 @@
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml"
-      ]
-    }
-  }
+        "../../rust-toolchain.toml",
+      ],
+    },
+  },
 }
