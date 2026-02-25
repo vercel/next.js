@@ -41,7 +41,6 @@ function verifyAndRunTypeScript(
       })
     | undefined
   if (shouldRunTypeCheck) {
-    console.log('starting worker')
     typeCheckWorker = new Worker(
       require.resolve('../lib/verify-typescript-setup'),
       {
@@ -105,7 +104,6 @@ export async function startTypeChecking({
   appDir?: string
   debugBuildPaths: { app: string[]; pages: string[] } | undefined
 }) {
-  console.time('startTypeChecking')
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
 
   if (ignoreTypeScriptErrors) {
@@ -178,5 +176,4 @@ export async function startTypeChecking({
     }
     throw err
   }
-  console.timeEnd('startTypeChecking')
 }
