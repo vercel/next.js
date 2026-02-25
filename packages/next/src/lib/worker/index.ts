@@ -52,6 +52,13 @@ export class Worker {
   private _onActivity: (() => void) | undefined
   private _onActivityAbort: (() => void) | undefined
 
+  /**
+   * Bound exit handler registered on `process`. Stored so it can be removed
+   * when the worker is ended/closed, preventing listener leaks when many
+   * Worker instances are created and destroyed during a build.
+   */
+  private _exitHandler: (() => void) | undefined
+
   constructor(workerPath: string, options: WorkerOptions) {
     const {
       enableSourceMaps,
@@ -75,10 +82,12 @@ export class Worker {
 
     let activeTasks = 0
 
-    // ensure we end workers if they weren't before exit
-    process.on('exit', () => {
+    // Register an exit handler to ensure workers are cleaned up.
+    // We keep a reference so it can be removed when end()/close() is called.
+    this._exitHandler = () => {
       this.close()
-    })
+    }
+    process.on('exit', this._exitHandler)
 
     // Build NODE_OPTIONS for worker processes
     const nodeOptions = getParsedNodeOptions()
@@ -146,7 +155,7 @@ export class Worker {
         maxWorkers: numWorkers ?? 1,
         concurrencyPerWorker: concurrencyPerWorker ?? 1,
         enableWorkerThreads: enableWorkerThreads ?? false,
-        maxRetries: maxRetries ?? 0,
+        maxRespawns: maxRetries ?? 0,
         forkOptions: {
           env: workerEnv,
           execArgv: [
@@ -265,12 +274,21 @@ export class Worker {
     this._onActivityAbort = onActivityAbort
   }
 
+  /** Remove the `process.on('exit')` handler to prevent listener leaks */
+  private _removeExitHandler(): void {
+    if (this._exitHandler) {
+      process.removeListener('exit', this._exitHandler)
+      this._exitHandler = undefined
+    }
+  }
+
   end(): Promise<{ forceExited: boolean }> {
     const pool = this._pool
     if (!pool) {
       throw new Error('Farm is ended, no more calls can be done to it')
     }
     this._pool = undefined
+    this._removeExitHandler()
     return pool.end()
   }
 
@@ -282,5 +300,6 @@ export class Worker {
       this._pool.close()
       this._pool = undefined
     }
+    this._removeExitHandler()
   }
 }

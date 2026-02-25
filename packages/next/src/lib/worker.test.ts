@@ -298,7 +298,7 @@ describe('lib/worker lazy spawning', () => {
     expect(latestPoolOptions?.enableWorkerThreads).toBe(false)
   })
 
-  it('passes maxRetries option to WorkerPool', () => {
+  it('passes maxRetries as maxRespawns to WorkerPool', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, {
@@ -307,16 +307,16 @@ describe('lib/worker lazy spawning', () => {
     })
     worker.close()
 
-    expect(latestPoolOptions?.maxRetries).toBe(3)
+    expect(latestPoolOptions?.maxRespawns).toBe(3)
   })
 
-  it('defaults maxRetries to 0', () => {
+  it('defaults maxRespawns to 0', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
     worker.close()
 
-    expect(latestPoolOptions?.maxRetries).toBe(0)
+    expect(latestPoolOptions?.maxRespawns).toBe(0)
   })
 })
 
@@ -723,5 +723,73 @@ describe('lib/worker onWorkerExit', () => {
 
     expect(latestPoolOptions?.onWorkerExit).toBeDefined()
     expect(typeof latestPoolOptions?.onWorkerExit).toBe('function')
+  })
+})
+
+describe('lib/worker exit handler cleanup', () => {
+  afterEach(() => {
+    jest.resetModules()
+    latestPoolOptions = undefined
+    latestPoolInstance = undefined
+  })
+
+  it('removes process exit listener on end()', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    // Capture the listener list before/after to verify our handler is added/removed
+    const listenersBefore = process.listeners('exit').slice()
+
+    const worker = new Worker(__filename, noopOptions)
+
+    const listenersAfter = process.listeners('exit').slice()
+    const added = listenersAfter.filter((l) => !listenersBefore.includes(l))
+    expect(added).toHaveLength(1)
+
+    await worker.end()
+
+    const listenersEnd = process.listeners('exit').slice()
+    const remaining = listenersEnd.filter((l) => !listenersBefore.includes(l))
+    expect(remaining).toHaveLength(0)
+  })
+
+  it('removes process exit listener on close()', () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const listenersBefore = process.listeners('exit').slice()
+
+    const worker = new Worker(__filename, noopOptions)
+
+    const listenersAfter = process.listeners('exit').slice()
+    const added = listenersAfter.filter((l) => !listenersBefore.includes(l))
+    expect(added).toHaveLength(1)
+
+    worker.close()
+
+    const listenersEnd = process.listeners('exit').slice()
+    const remaining = listenersEnd.filter((l) => !listenersBefore.includes(l))
+    expect(remaining).toHaveLength(0)
+  })
+
+  it('does not leak listeners when creating many workers', () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const listenersBefore = process.listeners('exit').slice()
+
+    const workers: InstanceType<typeof Worker>[] = []
+    for (let i = 0; i < 20; i++) {
+      workers.push(new Worker(__filename, noopOptions))
+    }
+
+    const listenersAfter = process.listeners('exit').slice()
+    const added = listenersAfter.filter((l) => !listenersBefore.includes(l))
+    expect(added).toHaveLength(20)
+
+    for (const w of workers) {
+      w.close()
+    }
+
+    const listenersEnd = process.listeners('exit').slice()
+    const remaining = listenersEnd.filter((l) => !listenersBefore.includes(l))
+    expect(remaining).toHaveLength(0)
   })
 })

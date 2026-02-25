@@ -31,8 +31,13 @@ export interface WorkerPoolOptions {
   }
   /** Arguments passed to the optional setup() function in the worker module */
   setupArgs?: unknown[]
-  /** Maximum retries when a worker crashes (default: 0) */
-  maxRetries?: number
+  /**
+   * Maximum times a worker process is respawned after a non-zero exit.
+   * Note: in-flight requests on the crashed worker are always rejected;
+   * this only controls whether a replacement process is pre-spawned so the
+   * next dispatch doesn't pay the startup cost. (default: 0)
+   */
+  maxRespawns?: number
   /** Called when a worker process exits unexpectedly */
   onWorkerExit?: (code: number | null, signal: string | null) => void
   /** Called when a worker sends a custom message */
@@ -58,13 +63,97 @@ interface PoolWorker {
   activeRequests: Map<number, PendingRequest>
   /** Worker index (for JEST_WORKER_ID) */
   workerId: number
-  /** Number of times this worker has been restarted after crashes */
-  restartCount: number
-  /** Whether this worker is being terminated */
+  /** Number of times this worker slot has been respawned after crashes */
+  respawnCount: number
+  /** Whether this worker is being terminated (graceful or forced) */
   ending: boolean
 }
 
 const FORCE_EXIT_DELAY = 500
+
+/**
+ * A worker abstraction that wraps `ChildProcess` and `NodeWorker`,
+ * exposing a uniform interface for message passing, exit handling, and
+ * lifecycle management. This avoids repeated `instanceof` checks
+ * throughout the pool logic.
+ */
+class WorkerHandle {
+  private _isThread: boolean
+  private _proc: ChildProcess | NodeWorker
+
+  constructor(proc: ChildProcess | NodeWorker) {
+    this._isThread = proc instanceof NodeWorker
+    this._proc = proc
+  }
+
+  /** Send a message to the worker */
+  send(message: unknown[]): void {
+    if (this._isThread) {
+      ;(this._proc as NodeWorker).postMessage(message)
+    } else {
+      ;(this._proc as ChildProcess).send(message, () => {})
+    }
+  }
+
+  /** Listen for messages from the worker */
+  onMessage(callback: (message: ParentMessage) => void): void {
+    this._proc.on('message', callback as (...args: unknown[]) => void)
+  }
+
+  /** Listen for exit events. worker_threads only emits a code; signal is null. */
+  onExit(callback: (code: number | null, signal: string | null) => void): void {
+    if (this._isThread) {
+      ;(this._proc as NodeWorker).on('exit', (code) => callback(code, null))
+    } else {
+      ;(this._proc as ChildProcess).on('exit', callback)
+    }
+  }
+
+  /** Wait for the worker to exit */
+  waitForExit(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (this._isThread) {
+        ;(this._proc as NodeWorker).once('exit', () => resolve())
+      } else {
+        ;(this._proc as ChildProcess).once('exit', () => resolve())
+      }
+    })
+  }
+
+  /**
+   * Listen for spawn/communication errors. Without this, errors like
+   * "failed to fork" would surface as unhandled 'error' events.
+   */
+  onError(callback: (error: Error) => void): void {
+    this._proc.on('error', callback)
+  }
+
+  /** Get a readable stream (stdout or stderr) from the worker */
+  getOutputStream(type: 'stdout' | 'stderr'): NodeJS.ReadableStream | null {
+    if (this._isThread) {
+      return (this._proc as NodeWorker)[type]
+    }
+    return (this._proc as ChildProcess)[type] ?? null
+  }
+
+  /** Gracefully kill (SIGINT for processes, terminate for threads) */
+  kill(): void {
+    if (this._isThread) {
+      ;(this._proc as NodeWorker).terminate()
+    } else {
+      ;(this._proc as ChildProcess).kill('SIGINT')
+    }
+  }
+
+  /** Force-kill (SIGKILL for processes, terminate for threads) */
+  forceKill(): void {
+    if (this._isThread) {
+      ;(this._proc as NodeWorker).terminate()
+    } else {
+      ;(this._proc as ChildProcess).kill('SIGKILL')
+    }
+  }
+}
 
 export class WorkerPool {
   private _options: Required<
@@ -74,12 +163,14 @@ export class WorkerPool {
       | 'maxWorkers'
       | 'concurrencyPerWorker'
       | 'enableWorkerThreads'
-      | 'maxRetries'
+      | 'maxRespawns'
     >
   > &
     WorkerPoolOptions
 
   private _workers: PoolWorker[] = []
+  /** Handles keyed by PoolWorker identity for uniform process operations */
+  private _handles = new WeakMap<PoolWorker, WorkerHandle>()
   private _taskQueue: QueuedTask[] = []
   private _nextRequestId = 1
   private _nextWorkerId = 0
@@ -91,7 +182,7 @@ export class WorkerPool {
     this._options = {
       concurrencyPerWorker: 1,
       enableWorkerThreads: false,
-      maxRetries: 0,
+      maxRespawns: options.maxRespawns ?? 0,
       ...options,
     }
 
@@ -103,8 +194,17 @@ export class WorkerPool {
     this._stderr = new PassThrough()
   }
 
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
+
   /**
-   * Dispatch a method call to a worker. Workers are spawned lazily.
+   * Dispatch a method call to a worker.
+   *
+   * Workers are spawned lazily: the first dispatch creates the first worker,
+   * subsequent dispatches reuse existing workers or spawn new ones up to
+   * `maxWorkers`. When every worker is at its `concurrencyPerWorker` limit
+   * the task is placed in a FIFO queue and drained as workers complete calls.
    */
   dispatch(method: string, args: unknown[]): Promise<unknown> {
     if (this._ending) {
@@ -133,30 +233,6 @@ export class WorkerPool {
     })
   }
 
-  /**
-   * Restart a specific worker (kill and respawn).
-   * In-flight requests on this worker will be rejected.
-   */
-  async restartWorker(worker: PoolWorker): Promise<PoolWorker> {
-    // Reject all in-flight requests
-    for (const [, pending] of worker.activeRequests) {
-      pending.reject(new Error('Worker restarted due to timeout'))
-    }
-    worker.activeRequests.clear()
-
-    // Kill the old process
-    this._killWorkerProcess(worker)
-
-    // Spawn a replacement
-    const idx = this._workers.indexOf(worker)
-    const newWorker = this._spawnWorkerProcess(worker.workerId)
-    if (idx !== -1) {
-      this._workers[idx] = newWorker
-    }
-
-    return newWorker
-  }
-
   getStdout(): PassThrough {
     return this._stdout
   }
@@ -171,11 +247,15 @@ export class WorkerPool {
 
   /**
    * Gracefully shut down all workers.
+   *
+   * Sends CHILD_MESSAGE_END to each worker, waits for exit (with a
+   * FORCE_EXIT_DELAY safety timeout), and rejects any queued or in-flight
+   * requests that haven't completed.
    */
   async end(): Promise<{ forceExited: boolean }> {
     this._ending = true
 
-    // Reject queued tasks
+    // Reject queued tasks that will never be dispatched
     for (const task of this._taskQueue) {
       task.reject(new Error('Worker pool ended before task could be processed'))
     }
@@ -191,19 +271,30 @@ export class WorkerPool {
       this._workers.map(async (worker) => {
         worker.ending = true
 
-        // Send END message
-        this._sendMessage(worker, [CHILD_MESSAGE_END])
+        const handle = this._handles.get(worker)!
 
-        // Wait for exit with timeout
+        // Send END message to trigger teardown in the child
+        handle.send([CHILD_MESSAGE_END])
+
+        // Wait for exit with timeout — if the child doesn't exit within
+        // FORCE_EXIT_DELAY we SIGKILL it
         let forceExited = false
-        const exitPromise = this._waitForExit(worker)
+        const exitPromise = handle.waitForExit()
         const timeout = setTimeout(() => {
-          this._forceKill(worker)
+          handle.forceKill()
           forceExited = true
         }, FORCE_EXIT_DELAY)
 
         await exitPromise
         clearTimeout(timeout)
+
+        // Reject any requests that were still in-flight when the worker
+        // exited. This prevents Promises from hanging forever (issue #11).
+        this._rejectActiveRequests(
+          worker,
+          new Error('Worker pool ended while requests were in-flight')
+        )
+
         return forceExited
       })
     )
@@ -217,6 +308,7 @@ export class WorkerPool {
 
   /**
    * Force-kill all workers immediately.
+   * All in-flight requests and queued tasks are rejected.
    */
   close(): void {
     this._ending = true
@@ -227,15 +319,15 @@ export class WorkerPool {
 
     for (const worker of this._workers) {
       worker.ending = true
-      // Reject in-flight requests
-      for (const [, pending] of worker.activeRequests) {
-        pending.reject(new Error('Worker pool closed'))
-      }
-      worker.activeRequests.clear()
-      this._forceKill(worker)
+      this._rejectActiveRequests(worker, new Error('Worker pool closed'))
+      this._handles.get(worker)?.forceKill()
     }
     this._workers = []
   }
+
+  // ---------------------------------------------------------------------------
+  // Internal: worker lifecycle
+  // ---------------------------------------------------------------------------
 
   private _findAvailableWorker(): PoolWorker | null {
     for (const worker of this._workers) {
@@ -254,7 +346,17 @@ export class WorkerPool {
     return this._spawnWorkerProcess(workerId)
   }
 
-  private _spawnWorkerProcess(workerId: number): PoolWorker {
+  /**
+   * Spawn a new worker process/thread and register it with the pool.
+   *
+   * If `existingRespawnCount` is provided (from a crashed worker being
+   * replaced), the new PoolWorker inherits that count so the
+   * maxRespawns limit is correctly enforced across respawns.
+   */
+  private _spawnWorkerProcess(
+    workerId: number,
+    existingRespawnCount: number = 0
+  ): PoolWorker {
     const { workerPath, enableWorkerThreads, forkOptions, setupArgs } =
       this._options
 
@@ -287,17 +389,20 @@ export class WorkerPool {
       })
     }
 
+    const handle = new WorkerHandle(proc)
+
     const worker: PoolWorker = {
       process: proc,
       activeRequests: new Map(),
       workerId,
-      restartCount: 0,
+      respawnCount: existingRespawnCount,
       ending: false,
     }
+    this._handles.set(worker, handle)
 
-    // Pipe stdout/stderr
-    const stdout = this._getOutputStream(proc, 'stdout')
-    const stderr = this._getOutputStream(proc, 'stderr')
+    // Pipe stdout/stderr from the child into the pool-level streams
+    const stdout = handle.getOutputStream('stdout')
+    const stderr = handle.getOutputStream('stderr')
     if (stdout) {
       stdout.pipe(this._stdout, { end: false })
     }
@@ -305,17 +410,23 @@ export class WorkerPool {
       stderr.pipe(this._stderr, { end: false })
     }
 
-    // Handle messages from child
-    this._onMessage(proc, (message: ParentMessage) => {
+    // Handle IPC messages from child
+    handle.onMessage((message: ParentMessage) => {
       this._handleMessage(worker, message)
     })
 
-    // Handle exit
-    this._onExit(proc, (code: number | null, signal: string | null) => {
+    // Handle unexpected exits (crashes, signals)
+    handle.onExit((code: number | null, signal: string | null) => {
       this._handleExit(worker, code, signal)
     })
 
-    // Send INITIALIZE message
+    // Handle spawn/communication errors so they don't become unhandled
+    // 'error' events. Common causes: ENOMEM, EMFILE, invalid execPath.
+    handle.onError((error: Error) => {
+      this._handleSpawnError(worker, error)
+    })
+
+    // Send INITIALIZE message so the child knows which module to load
     const initMessage: ChildMessageInitialize = [
       CHILD_MESSAGE_INITIALIZE,
       false,
@@ -325,11 +436,15 @@ export class WorkerPool {
     if (enableWorkerThreads) {
       initMessage.push(String(workerId + 1))
     }
-    this._sendMessage(worker, initMessage)
+    handle.send(initMessage)
 
     this._workers.push(worker)
     return worker
   }
+
+  // ---------------------------------------------------------------------------
+  // Internal: request dispatch
+  // ---------------------------------------------------------------------------
 
   private _sendCall(
     worker: PoolWorker,
@@ -340,8 +455,14 @@ export class WorkerPool {
   ): void {
     const requestId = this._nextRequestId++
     worker.activeRequests.set(requestId, { resolve, reject })
-    this._sendMessage(worker, [CHILD_MESSAGE_CALL, requestId, method, args])
+    this._handles
+      .get(worker)!
+      .send([CHILD_MESSAGE_CALL, requestId, method, args])
   }
+
+  // ---------------------------------------------------------------------------
+  // Internal: message handling
+  // ---------------------------------------------------------------------------
 
   private _handleMessage(worker: PoolWorker, message: ParentMessage): void {
     switch (message[0]) {
@@ -358,26 +479,7 @@ export class WorkerPool {
       }
       case PARENT_MESSAGE_CLIENT_ERROR: {
         const requestId = message[1]
-        const errorProperties = message[5]
-        let error: Error
-        if (errorProperties != null && typeof errorProperties === 'object') {
-          const ErrorConstructor =
-            typeof (globalThis as any)[message[2]] === 'function'
-              ? (globalThis as any)[message[2]]
-              : Error
-          error = new ErrorConstructor(message[3])
-          ;(error as any).type = message[2]
-          error.stack = message[4]
-          for (const key in errorProperties as Record<string, unknown>) {
-            ;(error as any)[key] = (errorProperties as Record<string, unknown>)[
-              key
-            ]
-          }
-        } else {
-          error = new Error(message[3])
-          ;(error as any).type = message[2]
-          error.stack = message[4]
-        }
+        const error = this._deserializeError(message)
         const pending = worker.activeRequests.get(requestId)
         if (pending) {
           worker.activeRequests.delete(requestId)
@@ -391,10 +493,7 @@ export class WorkerPool {
         ;(error as any).type = message[1]
         error.stack = message[3]
         // Setup errors affect all in-flight requests on this worker
-        for (const [, pending] of worker.activeRequests) {
-          pending.reject(error)
-        }
-        worker.activeRequests.clear()
+        this._rejectActiveRequests(worker, error)
         break
       }
       case PARENT_MESSAGE_CUSTOM: {
@@ -406,40 +505,80 @@ export class WorkerPool {
     }
   }
 
+  /**
+   * Reconstruct an Error from a CLIENT_ERROR message.
+   * If the child sent errorProperties (extra fields like `code`), they are
+   * copied onto the error instance.
+   */
+  private _deserializeError(
+    message: Extract<
+      ParentMessage,
+      [typeof PARENT_MESSAGE_CLIENT_ERROR, ...any]
+    >
+  ): Error {
+    const errorProperties = message[5]
+    let error: Error
+    if (errorProperties != null && typeof errorProperties === 'object') {
+      const ErrorConstructor =
+        typeof (globalThis as any)[message[2]] === 'function'
+          ? (globalThis as any)[message[2]]
+          : Error
+      error = new ErrorConstructor(message[3])
+      ;(error as any).type = message[2]
+      error.stack = message[4]
+      for (const key in errorProperties as Record<string, unknown>) {
+        ;(error as any)[key] = (errorProperties as Record<string, unknown>)[key]
+      }
+    } else {
+      error = new Error(message[3])
+      ;(error as any).type = message[2]
+      error.stack = message[4]
+    }
+    return error
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal: exit and error handling
+  // ---------------------------------------------------------------------------
+
   private _handleExit(
     worker: PoolWorker,
     code: number | null,
     signal: string | null
   ): void {
+    // During graceful shutdown, exit is expected — reject any lingering
+    // in-flight requests that the child didn't respond to before exiting.
     if (worker.ending) {
+      this._rejectActiveRequests(
+        worker,
+        new Error('Worker exited during shutdown')
+      )
       return
     }
 
     const hasInFlightRequests = worker.activeRequests.size > 0
 
-    // Notify about unexpected exit
+    // Notify the caller about the unexpected exit
     this._options.onWorkerExit?.(code, signal)
 
     if (
       code !== 0 &&
       code !== null &&
-      worker.restartCount < this._options.maxRetries
+      worker.respawnCount < this._options.maxRespawns
     ) {
-      // Respawn the worker
-      worker.restartCount++
+      // Respawn a replacement worker in this slot. We reject in-flight
+      // requests because we don't have the original method/args to retry.
       const pendingRequests = new Map(worker.activeRequests)
       worker.activeRequests.clear()
 
       const idx = this._workers.indexOf(worker)
-      this._spawnWorkerProcess(worker.workerId)
-      // Remove the old entry (spawnWorkerProcess pushed a new one)
+      this._spawnWorkerProcess(worker.workerId, worker.respawnCount + 1)
+      // Remove the old entry (spawnWorkerProcess pushed the new one)
       if (idx !== -1) {
         this._workers.splice(idx, 1)
       }
 
-      // Re-dispatch pending requests to new worker
       for (const [, pending] of pendingRequests) {
-        // We don't know the original method/args, so reject and let caller retry
         pending.reject(
           new Error(
             `Worker exited unexpectedly with code ${code}, signal ${signal}`
@@ -447,17 +586,14 @@ export class WorkerPool {
         )
       }
     } else {
-      // Reject all in-flight requests
-      for (const [, pending] of worker.activeRequests) {
-        pending.reject(
-          new Error(
-            `Worker exited with code ${code}${signal ? `, signal ${signal}` : ''}`
-          )
+      // No respawn — reject all in-flight requests and remove from pool
+      this._rejectActiveRequests(
+        worker,
+        new Error(
+          `Worker exited with code ${code}${signal ? `, signal ${signal}` : ''}`
         )
-      }
-      worker.activeRequests.clear()
+      )
 
-      // Remove from pool
       const idx = this._workers.indexOf(worker)
       if (idx !== -1) {
         this._workers.splice(idx, 1)
@@ -471,11 +607,24 @@ export class WorkerPool {
     }
 
     if (hasInFlightRequests && !this._ending) {
-      // Drain queue to any available workers
+      // Drain queue to any workers that now have capacity
       this._drainQueueToAvailable()
     }
   }
 
+  /**
+   * Handle errors on the child process itself (e.g. ENOMEM, EMFILE, failed
+   * to spawn). These are distinct from errors thrown by worker code.
+   */
+  private _handleSpawnError(worker: PoolWorker, error: Error): void {
+    this._rejectActiveRequests(worker, error)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal: task queue
+  // ---------------------------------------------------------------------------
+
+  /** Dequeue one task into a worker that has capacity */
   private _dequeueTask(worker: PoolWorker): void {
     if (
       worker.ending ||
@@ -490,6 +639,7 @@ export class WorkerPool {
     }
   }
 
+  /** Drain as many queued tasks as a single worker can accept */
   private _drainQueue(worker: PoolWorker): void {
     while (
       this._taskQueue.length > 0 &&
@@ -501,6 +651,7 @@ export class WorkerPool {
     }
   }
 
+  /** Drain queued tasks across all workers that have capacity */
   private _drainQueueToAvailable(): void {
     while (this._taskQueue.length > 0) {
       const worker = this._findAvailableWorker()
@@ -510,70 +661,15 @@ export class WorkerPool {
     }
   }
 
-  private _sendMessage(worker: PoolWorker, message: unknown[]): void {
-    if (worker.process instanceof NodeWorker) {
-      worker.process.postMessage(message)
-    } else {
-      ;(worker.process as ChildProcess).send(message, () => {})
-    }
-  }
+  // ---------------------------------------------------------------------------
+  // Internal: helpers
+  // ---------------------------------------------------------------------------
 
-  private _onMessage(
-    proc: ChildProcess | NodeWorker,
-    callback: (message: ParentMessage) => void
-  ): void {
-    if (proc instanceof NodeWorker) {
-      proc.on('message', callback)
-    } else {
-      proc.on('message', callback)
+  /** Reject all in-flight requests on a worker and clear the map */
+  private _rejectActiveRequests(worker: PoolWorker, error: Error): void {
+    for (const [, pending] of worker.activeRequests) {
+      pending.reject(error)
     }
-  }
-
-  private _onExit(
-    proc: ChildProcess | NodeWorker,
-    callback: (code: number | null, signal: string | null) => void
-  ): void {
-    if (proc instanceof NodeWorker) {
-      proc.on('exit', (code) => callback(code, null))
-    } else {
-      proc.on('exit', callback)
-    }
-  }
-
-  private _waitForExit(worker: PoolWorker): Promise<void> {
-    return new Promise<void>((resolve) => {
-      if (worker.process instanceof NodeWorker) {
-        worker.process.once('exit', () => resolve())
-      } else {
-        ;(worker.process as ChildProcess).once('exit', () => resolve())
-      }
-    })
-  }
-
-  private _killWorkerProcess(worker: PoolWorker): void {
-    if (worker.process instanceof NodeWorker) {
-      worker.process.terminate()
-    } else {
-      ;(worker.process as ChildProcess).kill('SIGINT')
-    }
-  }
-
-  private _forceKill(worker: PoolWorker): void {
-    if (worker.process instanceof NodeWorker) {
-      worker.process.terminate()
-    } else {
-      ;(worker.process as ChildProcess).kill('SIGKILL')
-    }
-  }
-
-  private _getOutputStream(
-    proc: ChildProcess | NodeWorker,
-    type: 'stdout' | 'stderr'
-  ): NodeJS.ReadableStream | null {
-    if (proc instanceof NodeWorker) {
-      return proc[type]
-    } else {
-      return (proc as ChildProcess)[type]
-    }
+    worker.activeRequests.clear()
   }
 }

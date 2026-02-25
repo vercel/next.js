@@ -16,12 +16,14 @@ Worker (high-level wrapper, index.ts)
   ├── Handles: timeout/restart, activity tracking, NODE_OPTIONS, color propagation
   ├── Exposes: named methods from worker modules (e.g. isPageStatic, exportPages)
   └── WorkerPool (low-level pool, worker-pool.ts)
+        ├── WorkerHandle — uniform abstraction over ChildProcess / NodeWorker
         ├── Handles: process lifecycle, lazy spawning, task queue, message routing
         ├── ChildProcess mode: fork(worker-process-child.js)
         └── WorkerThread mode: new Worker(worker-thread-child.js)
 
-worker-process-child.ts  — child_process side: receives messages, calls worker module methods
-worker-thread-child.ts   — worker_threads side: same protocol, uses parentPort
+worker-child-common.ts   — shared protocol logic (ChildTransport + createMessageHandler)
+worker-process-child.ts  — child_process entry: thin wrapper using process.send/on('message')
+worker-thread-child.ts   — worker_threads entry: thin wrapper using parentPort
 types.ts                 — shared message type constants and TypeScript types
 ```
 
@@ -112,7 +114,7 @@ export async function teardown(): Promise<void> { ... }
 | `enableWorkerThreads` | boolean | false | Use worker_threads instead of child_process |
 | `forkOptions` | object | {} | env, execArgv for child processes |
 | `setupArgs` | unknown[] | [] | Arguments for worker setup() function |
-| `maxRetries` | number | 0 | Auto-restart attempts on worker crash |
+| `maxRespawns` | number | 0 | Max times a worker slot is respawned after a crash (in-flight requests are always rejected; this only pre-spawns a replacement) |
 
 ### Worker Options (high-level)
 
@@ -124,7 +126,7 @@ Inherits all WorkerPool options plus:
 | `debuggerPortOffset` | number | required | Debugger port offset (-1 = not inspectable) |
 | `isolatedMemory` | boolean | required | Don't forward --max-old-space-size |
 | `enableSourceMaps` | boolean | false | Add --enable-source-maps to NODE_OPTIONS |
-| `timeout` | number | undefined | Restart pool after inactivity (ms) |
+| `timeout` | number | undefined | Kill and replace pool if no activity within this duration (ms) |
 | `exposedMethods` | string[] | required | Methods to wire up from worker module |
 | `onActivity` | () => void | undefined | Called on task start/complete |
 | `onActivityAbort` | () => void | undefined | Called when worker produces output |

@@ -793,4 +793,242 @@ describe('WorkerPool', () => {
       pool.close()
     })
   })
+
+  // -----------------------------------------------------------------------
+  // end() rejecting in-flight requests
+  // -----------------------------------------------------------------------
+  describe('end() with in-flight requests', () => {
+    it('rejects in-flight requests after worker exits during end()', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        concurrencyPerWorker: 2,
+      })
+      const p1 = pool.dispatch('a', [])
+      const p2 = pool.dispatch('b', [])
+      const proc = latestProcess()
+
+      // Don't reply to p1 or p2 — they stay in-flight
+
+      const endPromise = pool.end()
+      // Worker exits without completing the requests — _handleExit fires
+      // first (worker.ending = true), rejecting with "Worker exited during
+      // shutdown". Then end() also tries to reject, but the map is already
+      // cleared so the second rejection is a no-op.
+      proc.emit('exit', 0, null)
+      await endPromise
+
+      await expect(p1).rejects.toThrow('Worker exited during shutdown')
+      await expect(p2).rejects.toThrow('Worker exited during shutdown')
+    })
+
+    it('resolves completed requests and rejects lingering ones on end()', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        concurrencyPerWorker: 2,
+      })
+      const p1 = pool.dispatch('a', [])
+      const p2 = pool.dispatch('b', [])
+      const proc = latestProcess()
+
+      // Reply to p1 before end()
+      const calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      replyOk(proc, calls[0][1] as number, 'result-a')
+      await expect(p1).resolves.toBe('result-a')
+
+      const endPromise = pool.end()
+      proc.emit('exit', 0, null)
+      await endPromise
+
+      // p2 was still in-flight when the worker exited during shutdown
+      await expect(p2).rejects.toThrow('Worker exited during shutdown')
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Spawn error handling
+  // -----------------------------------------------------------------------
+  describe('spawn errors', () => {
+    it('rejects in-flight requests when worker emits an error event', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+      })
+      const promise = pool.dispatch('test', [])
+      const proc = latestProcess()
+
+      // Simulate a spawn error (e.g. ENOMEM)
+      proc.emit('error', new Error('spawn ENOMEM'))
+
+      await expect(promise).rejects.toThrow('spawn ENOMEM')
+      pool.close()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Worker respawning (maxRespawns)
+  // -----------------------------------------------------------------------
+  describe('worker respawning', () => {
+    it('respawns a worker on crash when maxRespawns > 0', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        maxRespawns: 2,
+      })
+      pool.dispatch('test', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      const firstProc = latestProcess()
+      // Simulate crash
+      firstProc.emit('exit', 1, null)
+
+      // A replacement worker should have been spawned
+      expect(spawnedProcesses).toHaveLength(2)
+      expect(pool.getWorkerCount()).toBe(1)
+      pool.close()
+    })
+
+    it('rejects in-flight requests on the crashed worker', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        maxRespawns: 1,
+      })
+      const promise = pool.dispatch('test', [])
+      const proc = latestProcess()
+
+      // Crash the worker
+      proc.emit('exit', 1, null)
+
+      await expect(promise).rejects.toThrow(
+        'Worker exited unexpectedly with code 1'
+      )
+      pool.close()
+    })
+
+    it('preserves respawn count across respawns', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        maxRespawns: 3,
+      })
+
+      // Dispatch to spawn first worker
+      pool.dispatch('a', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      // First crash → respawn (count: 1)
+      spawnedProcesses[0].emit('exit', 1, null)
+      expect(spawnedProcesses).toHaveLength(2)
+
+      // Need to dispatch again to the new worker (it's already spawned)
+      pool.dispatch('b', [])
+
+      // Second crash → respawn (count: 2)
+      spawnedProcesses[1].emit('exit', 1, null)
+      expect(spawnedProcesses).toHaveLength(3)
+
+      pool.dispatch('c', [])
+
+      // Third crash → respawn (count: 3)
+      spawnedProcesses[2].emit('exit', 1, null)
+      expect(spawnedProcesses).toHaveLength(4)
+
+      pool.dispatch('d', [])
+
+      // Fourth crash → no more respawns (count would be 4 > maxRespawns=3)
+      spawnedProcesses[3].emit('exit', 1, null)
+      // Should NOT have spawned a 5th process
+      expect(spawnedProcesses).toHaveLength(4)
+      // Pool should have 0 workers now
+      expect(pool.getWorkerCount()).toBe(0)
+      pool.close()
+    })
+
+    it('does not respawn when maxRespawns is 0', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        maxRespawns: 0,
+      })
+      pool.dispatch('test', [])
+      const proc = latestProcess()
+
+      proc.emit('exit', 1, null)
+
+      // No replacement should be spawned
+      expect(spawnedProcesses).toHaveLength(1)
+      expect(pool.getWorkerCount()).toBe(0)
+      pool.close()
+    })
+
+    it('does not respawn on exit code 0', () => {
+      const onWorkerExit = jest.fn()
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        maxRespawns: 5,
+        onWorkerExit,
+      })
+      pool.dispatch('test', [])
+      const proc = latestProcess()
+
+      proc.emit('exit', 0, null)
+
+      // Exit code 0 is not a crash — no respawn
+      expect(spawnedProcesses).toHaveLength(1)
+      pool.close()
+    })
+
+    it('spawns replacement worker for queued tasks after unrecoverable exit', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        maxRespawns: 0,
+        concurrencyPerWorker: 1,
+      })
+      pool.dispatch('first', []) // occupies the worker
+      const p2 = pool.dispatch('second', []) // queued
+
+      const proc = latestProcess()
+      // Worker crashes — no more respawns for this slot, but there are queued tasks
+      proc.emit('exit', 1, null)
+
+      // A new worker should be spawned for the queued task
+      expect(spawnedProcesses).toHaveLength(2)
+
+      // Resolve the queued task on the new worker
+      const newProc = latestProcess()
+      const callMsg = newProc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)
+      if (callMsg) {
+        replyOk(newProc, callMsg[1] as number, 'ok')
+        await expect(p2).resolves.toBe('ok')
+      }
+      pool.close()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Graceful shutdown rejects lingering in-flight requests
+  // -----------------------------------------------------------------------
+  describe('graceful shutdown with in-flight requests', () => {
+    it('rejects active requests when worker exits during shutdown', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+      })
+      const promise = pool.dispatch('test', [])
+      const proc = latestProcess()
+
+      // Start graceful end — sends END message
+      const endPromise = pool.end()
+
+      // Worker exits without completing the request
+      proc.emit('exit', 0, null)
+      await endPromise
+
+      await expect(promise).rejects.toThrow('Worker exited during shutdown')
+    })
+  })
 })
