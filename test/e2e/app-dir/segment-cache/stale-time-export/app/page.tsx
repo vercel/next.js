@@ -10,8 +10,13 @@ export default function Page() {
       </p>
       <ul>
         <li>
-          <LinkAccordion href="/stale-5-minutes">
-            Page with unstable_staleTime = 300 (5 minutes)
+          <LinkAccordion href="/static-stale-5-minutes">
+            Static page with unstable_staleTime = 300
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/dynamic-stale-5-minutes">
+            Dynamic page with unstable_staleTime = 300
           </LinkAccordion>
         </li>
       </ul>
