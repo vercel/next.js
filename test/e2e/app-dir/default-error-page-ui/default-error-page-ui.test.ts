@@ -135,8 +135,8 @@ describe('app dir - default error page UI', () => {
     // Server errors show "There was a server error"
     expect(html).toContain('There was a server error')
 
-    // Server errors show "Error reference:" with digest
-    expect(html).toContain('Error reference:')
+    // Server errors show "ERROR" with digest
+    expect(html).toMatch(/ERROR \w+/)
   })
 
   it('should have left-aligned text in error page', async () => {

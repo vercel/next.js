@@ -228,9 +228,9 @@ describe('app-dir - errors', () => {
         expect(
           await browser.waitForElementByCss('body').elementByCss('h1').text()
         ).toBe("This page couldn't load")
-        // Check digest is displayed in error reference
+        // Check digest is displayed
         const bodyText = await browser.waitForElementByCss('body').text()
-        expect(bodyText).toMatch(/Error reference:\s*\w+/)
+        expect(bodyText).toMatch(/ERROR \w+/)
       }
 
       expect(pageErrors).toEqual([

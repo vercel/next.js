@@ -49,16 +49,9 @@ function DefaultGlobalError({ error }: { error: any }) {
                 </button>
               )}
             </div>
-            {digest && (
-              <div style={errorStyles.digestContainer}>
-                <p style={errorStyles.digest}>
-                  Error reference:{' '}
-                  <code style={errorStyles.digestCode}>{digest}</code>
-                </p>
-              </div>
-            )}
           </div>
         </div>
+        {digest && <p style={errorStyles.digestFooter}>ERROR {digest}</p>}
       </body>
     </html>
   )
