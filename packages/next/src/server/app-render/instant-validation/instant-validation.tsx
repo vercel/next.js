@@ -18,7 +18,7 @@ import {
 import { getDigestForWellKnownError } from '../create-error-handler'
 import {
   // NOTE: we're in the server layer, so this is a client reference
-  InstantValidationBoundary,
+  PlaceValidationBoundaryBelowThisLevel,
 } from './boundary'
 import type { ValidationBoundaryTracking } from './boundary-tracking'
 import {
@@ -200,24 +200,6 @@ export async function findNavigationsToValidate(
             if (instantConfig === false) {
               navigationParents = []
             } else {
-              // If the page itself has a prefetch config, then
-              // make sure we always validate a navigation from its parent
-              // to ensure `__PAGE__?p=foo -> __PAGE__?p=bar` works.
-              //
-              // This is relevant if the parent layout is implicit, as in
-              //   my-segment/
-              //     loading.tsx
-              //     page.tsx
-              // because the above code for layouts wouldn't add it.
-              // TODO: what if this is runtime-prefetched? how does that affect a search-param navigation?
-              // TODO: this can cause double validation if the parent segment is empty
-              //       but we have a parent layout that'd be validated
-              if (parentPath === null) {
-                throw new InvariantError('A page must have a root layout')
-              }
-              if (!navigationParents.includes(parentPath)) {
-                navigationParents.push(parentPath)
-              }
               const task: ValidationTask = {
                 target: segmentPath,
                 parents: navigationParents,
@@ -878,8 +860,7 @@ function createValidationSeedData(
 
   async function createSeedDataFromValidationTreeImpl(
     routeTree: RouteTree,
-    state: TraversalState,
-    parentState: TraversalState | null
+    state: TraversalState
   ) {
     const { path, slots } = routeTree
 
@@ -965,28 +946,28 @@ function createValidationSeedData(
     // We place the validation boundary right below the shared parent segment
     // This means that a dynamic hole is accepted as long as it has a Suspense boundary
     // in the new subtree (i.e. it wouldn't block the navigation).
-    const isValidationBoundary =
-      state.kind === 'new-tree' &&
-      parentState &&
-      parentState.kind === 'shared-tree'
+    const isInnermostSharedParent =
+      state.kind === 'shared-tree' && nextState.kind === 'new-tree'
 
-    if (isValidationBoundary) {
+    if (isInnermostSharedParent) {
       debug?.(
-        `    ['${path}' is in the new subtree, adding validation boundary around it]`
+        `    ['${path}' is the innermost shared parent, adding validation boundary below it]`
       )
       const boundaryId = path
       boundaryState.expectedIds.add(boundaryId)
       segmentData = {
         ...segmentData,
         node: (
-          // bundled in the server layer
-          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-          <InstantValidationBoundary
+          // When we wrap the node in a context provider,
+          // the first OuterLayoutRouter inside it will see it and place a validation boundary.
+
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- bundled in the server layer
+          <PlaceValidationBoundaryBelowThisLevel
             id={boundaryId}
             key="c" /* matching `cacheNodeKey` */
           >
             {segmentData.node}
-          </InstantValidationBoundary>
+          </PlaceValidationBoundaryBelowThisLevel>
         ),
       }
     }
@@ -997,8 +978,7 @@ function createValidationSeedData(
         slotsSeedData[parallelRouteKey] =
           await createSeedDataFromValidationTreeImpl(
             slots[parallelRouteKey],
-            nextState,
-            state
+            nextState
           )
       }
     }
@@ -1008,8 +988,7 @@ function createValidationSeedData(
   return createSeedDataFromValidationTreeImpl(
     rootRouteTree,
     // Root layouts are always shared. Navigating to a new root layout is an MPA navigation.
-    { kind: 'shared-tree' },
-    null
+    { kind: 'shared-tree' }
   )
 }
 

@@ -7,10 +7,9 @@ export default async function Page() {
   return (
     <main>
       <p>
-        This page doesn't wrap runtime/dynamic components in suspense, so
-        despite having a loading.tsx (which is equivalent to a suspense boundary
-        in a parent layout), it shouldn't pass validation, because a
-        self-navigation would block.
+        This page doesn't wrap runtime/dynamic components in suspense, but it
+        has a loading.tsx above it. a self-navigation with a different search
+        param value would block, but we accept that.
       </p>
       <div>
         <Runtime />
