@@ -1463,6 +1463,7 @@ async function getRSCPayload(
     ctx,
     loaderTree: tree,
     parentParams: {},
+    parentOptionalCatchAllParamName: null,
     parentRuntimePrefetchable: false,
     injectedCSS,
     injectedJS,
