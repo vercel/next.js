@@ -414,7 +414,7 @@ ${fulfilled.body}
               // If the response doesn't match any of the expectations, that's
               // fine. If it does match an expectation, but the only thing
               // it matches is an expectation that was already claimed, then
-              // that's an error — each occurence of an expectation must be
+              // that's an error — each occurrence of an expectation must be
               // given separately.
               let responseWasClaimed = false
               let firstAlreadyClaimedMatch: ExpectedResponseConfig | null = null
