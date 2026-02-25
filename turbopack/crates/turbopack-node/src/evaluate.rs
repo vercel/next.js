@@ -11,7 +11,7 @@ use turbo_tasks::{
     ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
     trace::TraceRawVcs,
 };
-use turbo_tasks_env::{ProcessEnv, TransientEnvMap};
+use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::AssetContent,
@@ -205,7 +205,7 @@ pub async fn get_evaluate_pool(
 }
 
 #[turbo_tasks::function]
-async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<TransientEnvMap>> {
+async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
     let mut filtered = FxIndexMap::default();
     let env = env.read_all().await?;
     for (key, value) in &*env {
