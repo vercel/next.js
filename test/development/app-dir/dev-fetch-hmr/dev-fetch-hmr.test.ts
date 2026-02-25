@@ -26,6 +26,12 @@ describe('dev-fetch-hmr', () => {
     await next.patchFile('app/page.tsx', (content) =>
       content.replace('touch to trigger HMR', 'touch to trigger HMR 2')
     )
+    await next.patchFile('app/layout.tsx', (content) =>
+      content.replace(
+        'const magicNumber = Math.random()',
+        '// hmr trigger\nconst magicNumber = Math.random()'
+      )
+    )
 
     await retry(async () => {
       const html3 = await next.render('/')
@@ -33,7 +39,7 @@ describe('dev-fetch-hmr', () => {
       expect(update2).toBe('touch to trigger HMR 2')
       const magicNumber3 = cheerio.load(html3)('#magic-number').text()
       expect(html3).toContain('monkey patching is fun')
-      // Module was re-evaluated
+      // layout.tsx was re-evaluated (new Math.random() from eviction + re-eval)
       expect(magicNumber3).not.toEqual(magicNumber)
     })
   })
