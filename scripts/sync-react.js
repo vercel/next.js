@@ -197,6 +197,22 @@ function extractInfoFromReactVersion(versionStr) {
       sha: commit,
     }
   }
+  if (versionStr.startsWith('https:')) {
+    const url = new URL(versionStr)
+    if (url.hostname === 'vercel-packages.vercel.app') {
+      // e.g https://vercel-packages.vercel.app/react/commits/bc50ab4bffa17f507386554a8ef3c3ed4f37fe1b/react@canary
+      const [, , , commit] = url.pathname.split('/')
+      return {
+        dateString: new Date().toISOString().split('T')[0],
+        releaseLabel: `vercel-packages`,
+        semverVersion: '0.0.0',
+        sha: commit,
+      }
+    }
+    throw new Error(
+      `Unsupported URL '${versionStr}'. Only vercel-packages.vercel.app URLs are supported.`
+    )
+  }
 
   const match = versionStr.match(
     /(?<semverVersion>.*)-(?<releaseLabel>.*)-(?<sha>.*)-(?<dateString>.*)$/
