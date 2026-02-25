@@ -861,10 +861,7 @@ impl EcmascriptModuleAsset {
     ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
         let should_split = *self.get_exports().split_locals_and_reexports().await?;
         Ok(if should_split {
-            Vc::upcast(EcmascriptModuleFacadeModule::new(
-                Vc::upcast(self),
-                ModulePart::Facade,
-            ))
+            Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(self)))
         } else {
             Vc::upcast(self)
         })
