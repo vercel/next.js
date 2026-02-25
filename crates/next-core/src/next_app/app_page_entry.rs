@@ -48,6 +48,8 @@ pub async fn get_app_page_entry(
     let server_component_transition =
         ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?);
 
+    let x = loader_tree;
+
     let base_path = next_config.base_path().owned().await?;
     let loader_tree = AppPageLoaderTreeModule::build(
         loader_tree,
@@ -112,6 +114,15 @@ pub async fn get_app_page_entry(
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
+
+    println!(
+        "get_app_page_entry: {:?} {:?} {:?} {:?} {:?}",
+        pathname,
+        original_name,
+        x.await?.page,
+        x.await?.modules.page,
+        rsc_entry.ident_string().await?,
+    );
 
     if is_edge {
         rsc_entry = wrap_edge_page(
