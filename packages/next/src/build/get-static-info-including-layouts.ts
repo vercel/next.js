@@ -3,7 +3,7 @@ import type { PageStaticInfo } from './analysis/get-page-static-info'
 import { join, dirname } from 'path'
 import fs from 'fs'
 import type { __ApiPreviewProps } from '../server/api-utils'
-import { reduceAppConfig, isAppBuiltinPage } from './utils'
+import { reduceAppConfig, isAppBuiltinPage, isMiddlewareFile } from './utils'
 import {
   getAppPageStaticInfo,
   getPageStaticInfo,
@@ -14,8 +14,115 @@ import { PAGE_TYPES } from '../lib/page-types'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 
 import { UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY } from '../shared/lib/entry-constants'
+import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
+import { Bundler } from '../lib/bundler'
 
 export async function getStaticInfoIncludingLayouts({
+  dir,
+  isInsideAppDir,
+  pageExtensions,
+  pageFilePath,
+  appDir,
+  config: nextConfig,
+  isDev,
+  page,
+  bundler,
+}: {
+  dir: string
+  isInsideAppDir: boolean
+  pageExtensions: PageExtensions
+  pageFilePath: string
+  appDir: string | undefined
+  config: NextConfigComplete
+  isDev: boolean
+  page: string
+  bundler: Bundler
+}): Promise<Omit<PageStaticInfo, 'config'>> {
+  let reference = await getStaticInfoIncludingLayoutsInner({
+    isInsideAppDir,
+    pageExtensions,
+    pageFilePath,
+    appDir,
+    config: nextConfig,
+    isDev,
+    page,
+  })
+
+  if (bundler === Bundler.Turbopack) {
+    let turbopack: PageStaticInfo
+    try {
+      turbopack = JSON.parse(
+        fs.readFileSync(
+          // TODO this seems brittle, what about `app/middleware/page.js`
+          isMiddlewareFile(page)
+            ? join(
+                dir,
+                nextConfig.distDir,
+                'server',
+                'middleware',
+                'static-info.json'
+              )
+            : join(
+                dir,
+                nextConfig.distDir,
+                'server',
+                isInsideAppDir ? 'app' : 'pages',
+                isInsideAppDir ? page : getAssetPathFromRoute(page),
+                'static-info.json'
+              ),
+          'utf8'
+        )
+      )
+    } catch (e) {
+      throw new Error('Failed to read Turbopack static info from disk - ' + e)
+    }
+
+    let baseline = { ...reference } as any
+    delete baseline.hadUnsupportedValue
+    if (!baseline.generateImageMetadata) delete baseline.generateImageMetadata
+    if (!baseline.generateSitemaps) delete baseline.generateSitemaps
+    if (!baseline.generateStaticParams) delete baseline.generateStaticParams
+    if (
+      baseline.middleware &&
+      Object.entries(baseline.middleware).length === 0
+    ) {
+      delete baseline.middleware
+    }
+    if (baseline.runtime === 'experimental-edge') {
+      baseline.runtime = 'edge'
+    }
+    delete baseline.config
+
+    // TODO we do need this?
+    delete baseline.rsc
+    delete turbopack.rsc
+
+    function sort(v: Record<string, any> | undefined): any {
+      return v
+        ? Object.keys(v)
+            .sort()
+            .reduce((acc, key) => {
+              acc[key] = v[key]
+              return acc
+            }, {} as any)
+        : v
+    }
+    baseline = sort(baseline)
+    turbopack = sort(turbopack)
+
+    if (JSON.stringify(baseline) !== JSON.stringify(turbopack)) {
+      throw new Error(
+        `Static info mismatch for ${pageFilePath}: ` +
+          JSON.stringify({ baseline, turbopack }, null, 2)
+      )
+    }
+
+    return turbopack
+  }
+
+  return reference
+}
+async function getStaticInfoIncludingLayoutsInner({
   isInsideAppDir,
   pageExtensions,
   pageFilePath,
