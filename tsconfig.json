@@ -18,7 +18,8 @@
       "e2e-utils/*": ["./test/lib/e2e-utils/*"],
       "test-data-service/*": ["./test/lib/test-data-service/*"],
       "test-log": ["./test/lib/test-log"],
-      "router-act": ["./test/lib/router-act"]
+      "router-act": ["./test/lib/router-act"],
+      "@next/playwright": ["./packages/next-playwright/src/index.ts"]
     }
   },
   "include": [
