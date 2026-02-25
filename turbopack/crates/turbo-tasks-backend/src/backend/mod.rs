@@ -1271,7 +1271,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 persisted_task_cache_log,
                 task_snapshots,
             ) {
-                println!("Persisting failed: {err:?}");
+                eprintln!("Persisting failed: {err:?}");
                 return None;
             }
             #[cfg(feature = "print_cache_item_size")]
