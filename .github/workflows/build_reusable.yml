@@ -269,6 +269,9 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
+      - run: pwd && ls -al && head pnpm-lock.yaml || true
+        name: debug lockfile
+
       - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
         if: ${{ inputs.skipNativeBuild != 'yes' }}
 
