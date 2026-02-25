@@ -926,9 +926,10 @@ export async function handler(
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
                 )
-              : // Otherwise, if we're debugging the fallback shell, then we
-                // have to manually generate the fallback route params.
-                isDebugFallbackShell
+              : // Otherwise, if we're debugging the fallback shell or the
+                // static shell, then we have to manually generate the
+                // fallback route params.
+                isDebugFallbackShell || isDebugStaticShell
                 ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
 
@@ -1090,9 +1091,10 @@ export async function handler(
         prerenderInfo?.fallbackRouteParams &&
         getRequestMeta(req, 'renderFallbackShell')
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : // Otherwise, if we're debugging the fallback shell, then we have to
-            // manually generate the fallback route params.
-            isDebugFallbackShell
+          : // Otherwise, if we're debugging the fallback shell or the static
+            // shell, then we have to manually generate the fallback route
+            // params.
+            isDebugFallbackShell || isDebugStaticShell
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
 
