@@ -26,7 +26,7 @@ import {
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
-import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { buildDataRoute } from './build-data-route'
@@ -149,11 +149,11 @@ export type ServerFields = {
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
-  const verifyResult = await verifyTypeScriptSetup({
+  const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
     strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
-    typeCheckPreflight: false,
+    shouldRunTypeCheck: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
     typedRoutes: Boolean(opts.nextConfig.typedRoutes),
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
