@@ -1463,7 +1463,8 @@ function loadNative(importPath?: string) {
     ? require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
     : null
   let bindings: RawBindings = customBindings
-  let attempts: any[] = []
+  // callers expect that if loadNative throws, it's an array of strings.
+  let attempts: string[] = []
 
   const NEXT_TEST_NATIVE_DIR = process.env.NEXT_TEST_NATIVE_DIR
   for (const triple of triples) {
@@ -1477,8 +1478,12 @@ function loadNative(importPath?: string) {
           'next-swc build: local built @next/swc from NEXT_TEST_NATIVE_DIR'
         )
         break
-      } catch (e) {}
-    } else {
+      } catch (e: any) {
+        attempts.push(
+          `Failed to load triple ${triple.platformArchABI}: ${e.message ?? e}`
+        )
+      }
+    } else if (process.env.NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL !== 'true') {
       try {
         bindings = require(
           `@next/swc/native/next-swc.${triple.platformArchABI}.node`
@@ -1490,6 +1495,10 @@ function loadNative(importPath?: string) {
   }
 
   if (!bindings) {
+    if (NEXT_TEST_NATIVE_DIR) {
+      throw attempts
+    }
+
     for (const triple of triples) {
       let pkg = importPath
         ? path.join(
