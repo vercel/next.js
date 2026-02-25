@@ -1,20 +1,31 @@
 import { PassThrough } from 'stream'
 
-let latestForkEnv: NodeJS.ProcessEnv | undefined
+let latestPoolOptions: any | undefined
 
-jest.mock('next/dist/compiled/jest-worker', () => {
-  const WorkerMock = jest.fn().mockImplementation((_path, options) => {
-    latestForkEnv = options?.forkOptions?.env
-    return {
-      _workerPool: { _workers: [] },
-      getStdout: () => new PassThrough(),
-      getStderr: () => new PassThrough(),
-      end: jest.fn().mockResolvedValue(undefined),
-      close: jest.fn(),
+jest.mock('./worker/worker-pool', () => {
+  class WorkerPoolMock {
+    constructor(options: any) {
+      latestPoolOptions = options
     }
-  })
+    dispatch() {
+      return Promise.resolve(undefined)
+    }
+    getStdout() {
+      return new PassThrough()
+    }
+    getStderr() {
+      return new PassThrough()
+    }
+    getWorkerCount() {
+      return 0
+    }
+    end() {
+      return Promise.resolve({ forceExited: false })
+    }
+    close() {}
+  }
 
-  return { Worker: WorkerMock }
+  return { WorkerPool: WorkerPoolMock }
 })
 
 const noopOptions = {
@@ -63,7 +74,7 @@ describe('lib/worker color propagation', () => {
       restore?.()
     }
     jest.resetModules()
-    latestForkEnv = undefined
+    latestPoolOptions = undefined
   })
 
   it('enables FORCE_COLOR when the parent supports colors', () => {
@@ -80,7 +91,7 @@ describe('lib/worker color propagation', () => {
     const worker = new Worker(__filename, noopOptions)
     worker.close()
 
-    expect(latestForkEnv?.FORCE_COLOR).toBe('1')
+    expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBe('1')
   })
 
   it('does not overwrite existing FORCE_COLOR', () => {
@@ -91,7 +102,7 @@ describe('lib/worker color propagation', () => {
     const worker = new Worker(__filename, noopOptions)
     worker.close()
 
-    expect(latestForkEnv?.FORCE_COLOR).toBe('0')
+    expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBe('0')
   })
 
   it('respects NO_COLOR', () => {
@@ -105,7 +116,7 @@ describe('lib/worker color propagation', () => {
     const worker = new Worker(__filename, noopOptions)
     worker.close()
 
-    expect(latestForkEnv?.FORCE_COLOR).toBeUndefined()
+    expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBeUndefined()
   })
 
   it('does not force color when not attached to a TTY', () => {
@@ -122,6 +133,46 @@ describe('lib/worker color propagation', () => {
     const worker = new Worker(__filename, noopOptions)
     worker.close()
 
-    expect(latestForkEnv?.FORCE_COLOR).toBeUndefined()
+    expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBeUndefined()
+  })
+})
+
+describe('lib/worker lazy spawning', () => {
+  it('passes numWorkers as maxWorkers to WorkerPool', () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      numWorkers: 4,
+    })
+    worker.close()
+
+    expect(latestPoolOptions?.maxWorkers).toBe(4)
+  })
+
+  it('defaults to 1 maxWorker when numWorkers is not set', () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, noopOptions)
+    worker.close()
+
+    expect(latestPoolOptions?.maxWorkers).toBe(1)
+  })
+
+  it('wires up exposed methods to call pool.dispatch', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      exposedMethods: ['testMethod'],
+    }) as any
+
+    expect(typeof worker.testMethod).toBe('function')
+
+    // Calling the method should dispatch to the pool
+    const result = await worker.testMethod('arg1', 'arg2')
+    expect(result).toBeUndefined() // mock resolves with undefined
+
+    worker.close()
   })
 })

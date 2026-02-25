@@ -24,7 +24,7 @@ import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-p
 
 import * as React from 'react'
 import fs from 'fs'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from '../../lib/worker'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -155,6 +155,9 @@ export default class DevServer extends Server {
       // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
       // This helps reusing the memory a lot.
       numWorkers: 1,
+      debuggerPortOffset: -1,
+      isolatedMemory: false,
+      exposedMethods: ['loadStaticPaths'],
       enableWorkerThreads: this.nextConfig.experimental.workerThreads,
       forkOptions: {
         env: {
@@ -169,9 +172,6 @@ export default class DevServer extends Server {
     }) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
     }
-
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
 
     return worker
   }

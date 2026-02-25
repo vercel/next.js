@@ -172,7 +172,7 @@ export async function startTypeChecking({
       )
     }
   } catch (err) {
-    // prevent showing jest-worker internal error as it
+    // prevent showing worker pool internal error as it
     // isn't helpful for users and clutters output
     if (isError(err) && err.message === 'Call retries were exceeded') {
       await telemetry.flush()

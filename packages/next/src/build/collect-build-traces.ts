@@ -222,7 +222,12 @@ export async function collectBuildTraces({
 
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
+        ...(isStandalone
+          ? []
+          : [
+              '**/next/dist/compiled/jest-worker/**/*',
+              '**/next/dist/lib/worker/worker-*-child*',
+            ]),
         '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
@@ -285,12 +290,12 @@ export async function collectBuildTraces({
       if (isStandalone) {
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/processChild'),
+          require.resolve('../lib/worker/worker-process-child'),
           serverTracedFiles
         )
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/threadChild'),
+          require.resolve('../lib/worker/worker-thread-child'),
           serverTracedFiles
         )
       }
