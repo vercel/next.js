@@ -41,7 +41,8 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import { stripIsPartialByte } from '../segment-cache/cache'
+import { stripCompletenessMarker } from '../segment-cache/cache'
+import { ResponseCompletenessMarker } from '../../../shared/lib/app-router-types'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -320,18 +321,18 @@ export type RSCResponse<T> = {
 }
 
 type FetchResponseCacheData = {
-  isFullyStatic: boolean
+  completenessMarker: ResponseCompletenessMarker | null
   responseBodyClone: ReadableStream<Uint8Array>
 }
 
 /**
- * Strips the leading isPartial marker byte from an RSC navigation response and
- * clones the body for segment cache extraction.
+ * Strips the leading completeness marker byte from an RSC navigation response
+ * and clones the body for segment cache extraction.
  *
- * When cache components is enabled, the server may prepend a marker byte to the
- * response: '~' (0x7e) for partial, '#' (0x23) for complete. This must be
- * stripped before Flight decoding because it's not valid RSC data. The body is
- * cloned before Flight can consume it so the clone is available for later use.
+ * When cache components is enabled, the server prepends a completeness marker
+ * byte (see {@link ResponseCompletenessMarker}). This must be stripped before
+ * Flight decoding because it's not valid RSC data. The body is cloned before
+ * Flight can consume it so the clone is available for later use.
  *
  * When cache components is disabled, returns the original response with
  * cacheData: null.
@@ -347,7 +348,9 @@ async function processFetch(response: Response): Promise<{
       )
     }
 
-    const { stream, isFullyStatic } = await stripIsPartialByte(response.body)
+    const { stream, completenessMarker } = await stripCompletenessMarker(
+      response.body
+    )
     const [stream1, stream2] = stream.tee()
 
     const strippedResponse = new Response(stream1, {
@@ -361,7 +364,7 @@ async function processFetch(response: Response): Promise<{
 
     return {
       response: strippedResponse,
-      cacheData: { isFullyStatic, responseBodyClone: stream2 },
+      cacheData: { completenessMarker, responseBodyClone: stream2 },
     }
   }
 
@@ -382,7 +385,8 @@ async function resolveStaticStageData(
   flightResponse: NavigationFlightResponse,
   headers: RequestHeaders
 ): Promise<StaticStageData | null> {
-  const { isFullyStatic, responseBodyClone } = cacheData
+  const { completenessMarker, responseBodyClone } = cacheData
+  const isFullyStatic = completenessMarker === ResponseCompletenessMarker.Static
 
   if (isFullyStatic) {
     // Fully static — cache the entire decoded response as-is.

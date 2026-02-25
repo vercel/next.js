@@ -94,6 +94,7 @@ import type {
   FlightRouterState,
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
+import { ResponseCompletenessMarker } from '../../../shared/lib/app-router-types'
 import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
@@ -225,10 +226,15 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   tree: RouteTree
   metadata: RouteTree
   supportsPerSegmentPrefetching: boolean
-  // When true, the server explicitly marked this route as fully static
-  // (marker byte '#'). The segment cache entries may be marked as partial,
-  // but at navigation read time we can skip the dynamic follow-up request
-  // because the prerendered response contains all the data.
+  // When true, the server marked this route as fully static (marker byte
+  // '#', ResponseCompletenessMarker.Static). Segment cache entries from
+  // writeStaticStageResponseIntoCache may be marked as partial, but at
+  // navigation read time we can skip the dynamic follow-up request because
+  // the prerendered response contains all the data.
+  //
+  // Runtime prefetches use a separate marker ('*',
+  // ResponseCompletenessMarker.Complete) for complete responses that are NOT
+  // fully static — those do not set this flag.
   isFullyStatic: boolean
   // When true, this entry should not be used as a template for route
   // prediction. Set when we discover that the URL was rewritten by middleware
@@ -2280,16 +2286,20 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 
     const now = Date.now()
     const staleAt = await getStaleAt(now, serverData.s, response)
+    const completenessMarker = cacheData?.completenessMarker ?? null
 
-    // Update the route entry with whether the response is fully static, based
-    // on the server's marker byte.
-    route.isFullyStatic = cacheData?.isFullyStatic ?? false
+    // Update the route entry based on the server's completeness marker.
+    // Only '#' (Static) means the route is fully static — '*' (Complete)
+    // means the included segments are complete but the route may have other
+    // segments not included in this response.
+    route.isFullyStatic =
+      completenessMarker === ResponseCompletenessMarker.Static
 
-    // PPRRuntime prefetches are partial (segments may have dynamic holes)
-    // unless the response is fully static. Full/LoadingBoundary prefetches are
-    // always complete.
+    // PPRRuntime prefetches are partial when the server marks the response
+    // as '~' (Partial). Full/LoadingBoundary prefetches are always complete.
     const isResponsePartial =
-      fetchStrategy === FetchStrategy.PPRRuntime && !route.isFullyStatic
+      fetchStrategy === FetchStrategy.PPRRuntime &&
+      completenessMarker === ResponseCompletenessMarker.Partial
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
@@ -3003,53 +3013,54 @@ export async function writeInitialSeedDataIntoCache(
 }
 
 /**
- * Checks for and strips the leading marker byte from an RSC response stream.
- * If the first byte is a recognized marker ('~' for partial, '#' for complete),
- * it is stripped. If the first byte is not a recognized marker, the stream is
- * returned intact.
+ * Strips the leading completeness marker byte from an RSC response stream.
  *
- * Returns `isFullyStatic`:
- * - `true` only when the marker is '#' (complete), meaning the server
- *   explicitly marked the response as fully static.
- * - `false` when the marker is '~' (partial), or when no marker is found.
- *   This is the conservative default — unknown means "assume dynamic
- *   follow-up is needed".
+ * The server prepends one of three marker bytes:
+ * - '#' (0x23) = fully static prerender — all segments present.
+ * - '*' (0x2a) = complete runtime prefetch — included segments are complete,
+ *   but the response may not include all segments for the route.
+ * - '~' (0x7e) = partial — contains dynamic holes that need a follow-up.
  *
- * This is safe because the marker bytes (0x7e '~', 0x23 '#') cannot appear as
- * the first byte of a valid RSC Flight response. Flight rows start with either
- * a row ID (a hex character) or ':' (0x3a) for hint and debug chunks. Neither
- * overlaps with the marker bytes.
+ * If the first byte is not a recognized marker, the stream is returned intact
+ * and the response is conservatively treated as partial.
+ *
+ * These marker bytes cannot appear as the first byte of a valid RSC Flight
+ * response. Flight rows start with either a row ID (a hex character) or
+ * ':' (0x3a) for hint and debug chunks. Neither overlaps with the markers.
  */
-export async function stripIsPartialByte(
+export async function stripCompletenessMarker(
   stream: ReadableStream<Uint8Array>
 ): Promise<{
   stream: ReadableStream<Uint8Array>
-  isFullyStatic: boolean
+  completenessMarker: ResponseCompletenessMarker | null
 }> {
   const reader = stream.getReader()
   const { done, value } = await reader.read()
   if (done || !value || value.byteLength === 0) {
     return {
       stream: new ReadableStream({ start: (c) => c.close() }),
-      isFullyStatic: false,
+      completenessMarker: null,
     }
   }
 
   const firstByte = value[0]
-  // '~' (0x7e) = partial, '#' (0x23) = complete
-  const hasMarker = firstByte === 0x7e || firstByte === 0x23
-  // Only '#' (complete) means fully static. Everything else — including
-  // no marker — defaults to not fully static as the conservative choice.
-  const isFullyStatic = firstByte === 0x23
 
-  const remainder = hasMarker
-    ? value.byteLength > 1
-      ? value.subarray(1)
+  const completenessMarker: ResponseCompletenessMarker | null =
+    firstByte === ResponseCompletenessMarker.Static ||
+    firstByte === ResponseCompletenessMarker.Complete ||
+    firstByte === ResponseCompletenessMarker.Partial
+      ? firstByte
       : null
-    : value
+
+  const remainder =
+    completenessMarker !== null
+      ? value.byteLength > 1
+        ? value.subarray(1)
+        : null
+      : value
 
   return {
-    isFullyStatic,
+    completenessMarker,
     stream: new ReadableStream<Uint8Array>({
       start(controller) {
         if (remainder) {
