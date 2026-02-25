@@ -59,7 +59,7 @@ export async function verifyAndRunTypeScript({
   cacheDir,
   strictRouteTypes,
   tsconfigPath,
-  typeCheckPreflight,
+  shouldRunTypeCheck,
   typedRoutes,
   disableStaticImages,
   hasAppDir,
@@ -73,7 +73,7 @@ export async function verifyAndRunTypeScript({
   cacheDir?: string
   strictRouteTypes: boolean
   tsconfigPath: string | undefined
-  typeCheckPreflight: boolean
+  shouldRunTypeCheck: boolean
   typedRoutes: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
@@ -217,7 +217,7 @@ export async function verifyAndRunTypeScript({
     })
 
     let result
-    if (typeCheckPreflight) {
+    if (shouldRunTypeCheck) {
       const { runTypeCheck } =
         require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
 
