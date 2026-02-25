@@ -54,8 +54,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation,
-    to_sys_path as fs_path_to_sys_path, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
 };
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
@@ -1195,26 +1194,21 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     let Some(app_dir) = app_dir else {
         return Ok(());
     };
-
-    let paths_to_invalidate =
-        if let Some(app_dir_sys_path) = fs_path_to_sys_path(app_dir.clone()).await? {
-            deferred_invalidation_dirs
-                .into_iter()
-                .map(|dir| {
-                    let normalized_dir = normalize_deferred_route(dir.as_str());
-                    let relative_dir = normalized_dir.trim_start_matches('/');
-                    if relative_dir.is_empty() {
-                        app_dir_sys_path.clone()
-                    } else {
-                        app_dir_sys_path.join(unix_to_sys(relative_dir).as_ref())
-                    }
-                })
-                .collect::<FxIndexSet<_>>()
-                .into_iter()
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
+    let app_dir_sys_path = project_fs.to_sys_path(app_dir);
+    let paths_to_invalidate = deferred_invalidation_dirs
+        .into_iter()
+        .map(|dir| {
+            let normalized_dir = normalize_deferred_route(dir.as_str());
+            let relative_dir = normalized_dir.trim_start_matches('/');
+            if relative_dir.is_empty() {
+                app_dir_sys_path.clone()
+            } else {
+                app_dir_sys_path.join(unix_to_sys(relative_dir).as_ref())
+            }
+        })
+        .collect::<FxIndexSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
 
     if paths_to_invalidate.is_empty() {
         // Fallback to full invalidation when app dir paths are unavailable.
