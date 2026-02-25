@@ -7,11 +7,7 @@ use turbo_tasks::{
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;
-use crate::{
-    chunk::ChunkItem,
-    ident::AssetIdent,
-    module::Module,
-};
+use crate::{chunk::ChunkItem, ident::AssetIdent, module::Module};
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ModuleIds(FxHashMap<ResolvedVc<AssetIdent>, ModuleId>);

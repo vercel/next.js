@@ -13,7 +13,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports},
-    references::esm::{EsmExport, EsmExports},
+    references::esm::EsmExports,
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };

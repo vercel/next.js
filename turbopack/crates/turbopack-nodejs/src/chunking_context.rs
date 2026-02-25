@@ -6,7 +6,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ChunkingContextExt,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ChunkingContextExt,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType,
         UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,

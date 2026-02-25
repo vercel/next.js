@@ -11,7 +11,8 @@ use turbo_tasks_hash::{DeterministicHash, HashAlgorithm};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ChunkingContextExt,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ChunkingContextExt,
         EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,

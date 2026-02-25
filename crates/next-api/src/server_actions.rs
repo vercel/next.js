@@ -26,10 +26,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{
-        ChunkItem, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, ModuleId,
-    },
+    chunk::{ChunkItem, ChunkingContext, ChunkingContextExt, EvaluatableAsset, ModuleId},
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
