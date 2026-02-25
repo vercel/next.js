@@ -5,10 +5,7 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunksData,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{AsyncModuleInfo, ChunkData, ChunkingContext, ChunksData, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -68,7 +65,7 @@ impl ManifestLoaderModule {
     }
 
     #[turbo_tasks::function]
-    pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
+    pub fn asset_ident_for(module: Vc<Box<dyn Module>>) -> Vc<AssetIdent> {
         module.ident().with_modifier(modifier())
     }
 }
@@ -95,8 +92,6 @@ impl Module for ManifestLoaderModule {
         ModuleSideEffects::SideEffectFree.cell()
     }
 }
-
-turbopack_core::chunk_item!(ManifestLoaderModule, crate::chunk::ecmascript_chunk_item);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ManifestLoaderModule {
@@ -184,7 +179,7 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
     }
 
     #[turbo_tasks::function]
-    fn chunk_item_output_assets(
+    async fn chunk_item_output_assets(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,

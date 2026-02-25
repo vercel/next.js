@@ -104,8 +104,6 @@ impl Module for RawEcmascriptModule {
     }
 }
 
-turbopack_core::chunk_item!(RawEcmascriptModule, ecmascript);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for RawEcmascriptModule {
     #[turbo_tasks::function]

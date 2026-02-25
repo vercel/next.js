@@ -26,7 +26,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItem, ChunkingContext, ChunkingContextExt, EvaluatableAsset, ModuleId},
+    chunk::{ChunkItem, ChunkItemExt, ChunkingContext, EvaluatableAsset, ModuleId},
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
@@ -76,7 +76,7 @@ pub(crate) async fn create_server_actions_manifest(
         ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(loader.to_resolved().await?)
             .context("loader module must be evaluatable")?;
 
-    let chunk_item = chunking_context.chunk_item(Vc::upcast(loader), module_graph);
+    let chunk_item = ChunkItem::new(Vc::upcast(loader), module_graph, chunking_context);
     let manifest = build_manifest(
         node_root,
         page_name,

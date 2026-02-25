@@ -367,8 +367,6 @@ impl Module for CachedExternalModule {
     }
 }
 
-turbopack_core::chunk_item!(CachedExternalModule, crate::chunk::ecmascript_chunk_item);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for CachedExternalModule {
     #[turbo_tasks::function]

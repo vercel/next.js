@@ -15,8 +15,8 @@ use turbopack_core::{
     chunk::{
         AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemExt,
         ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkedItem, ChunkingContext, ChunkingContextExt, MinifyType, OutputChunk,
-        OutputChunkRuntimeInfo, SourceMapSourceType, round_chunk_item_size,
+        ChunkingContext, ChunkingContextExt, MinifyType, OutputChunk, OutputChunkRuntimeInfo,
+        SourceMapSourceType, round_chunk_item_size,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -26,7 +26,8 @@ use turbopack_core::{
         utils::{children_from_output_assets, content_to_details},
     },
     module::Module,
-    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    module_graph::ModuleGraph,
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
     source_map::{
@@ -79,7 +80,15 @@ impl CssChunk {
         let mut body = CodeBuilder::new(source_maps, false);
         let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
-            let content = &css_item.content().await?;
+            let css_item_data = css_item.await?;
+            let Some(placeable) =
+                ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(css_item_data.module)
+            else {
+                continue;
+            };
+            let content = &*placeable
+                .chunk_item_content(*css_item_data.chunking_context, *css_item_data.module_graph)
+                .await?;
             for import in &content.imports {
                 if let CssImport::External(external_import) = import {
                     external_imports.insert((*external_import.await?).to_string());
@@ -249,7 +258,7 @@ pub async fn write_import_context(
 
 #[turbo_tasks::value]
 pub struct CssChunkContent {
-    pub chunk_items: Vec<ResolvedVc<Box<dyn CssChunkItem>>>,
+    pub chunk_items: Vec<ResolvedVc<ChunkItem>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -267,7 +276,7 @@ impl OutputAssetsReference for CssChunk {
             .chunk_items
             .iter()
             .map(|item| async {
-                let refs = item.references().await?;
+                let refs = OutputAssetsReference::references(**item).await?;
                 let single_css_chunk = if should_generate_single_item_chunks {
                     Some(ResolvedVc::upcast(
                         SingleItemCssChunk::new(*this.chunking_context, **item)
@@ -357,15 +366,25 @@ impl OutputChunk for CssChunk {
         let entries_chunk_items = &content.chunk_items;
         let included_ids = entries_chunk_items
             .iter()
-            .map(|chunk_item| chunk_item.id())
+            .map(|chunk_item| (**chunk_item).id())
             .try_join()
             .await?;
         let imports_chunk_items: Vec<_> = entries_chunk_items
             .iter()
             .map(|&css_item| async move {
-                Ok(css_item
-                    .content()
-                    .await?
+                let css_item_data = css_item.await?;
+                let Some(placeable) =
+                    ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(css_item_data.module)
+                else {
+                    return Ok(Vec::new());
+                };
+                let content = placeable
+                    .chunk_item_content(
+                        *css_item_data.chunking_context,
+                        *css_item_data.module_graph,
+                    )
+                    .await?;
+                Ok(content
                     .imports
                     .iter()
                     .filter_map(|import| {
@@ -439,19 +458,34 @@ impl GenerateSourceMap for CssChunk {
     }
 }
 
-// TODO: remove
 #[turbo_tasks::value_trait]
-pub trait CssChunkPlaceable: ChunkableModule + Module {}
+pub trait CssChunkPlaceable: Module {
+    #[turbo_tasks::function]
+    fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Vc<CssChunkItemContent>;
+
+    /// Returns the output assets associated with this module's chunk item.
+    /// Most CSS modules have no output assets; override for modules that produce
+    /// additional output (e.g. url references).
+    #[turbo_tasks::function]
+    fn chunk_item_output_assets(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(*OutputAssets::empty_resolved())
+    }
+}
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub enum CssImport {
     External(ResolvedVc<RcStr>),
-    Internal(
-        ResolvedVc<ImportAssetReference>,
-        ResolvedVc<Box<dyn CssChunkItem>>,
-    ),
-    Composes(ResolvedVc<Box<dyn CssChunkItem>>),
+    Internal(ResolvedVc<ImportAssetReference>, ResolvedVc<ChunkItem>),
+    Composes(ResolvedVc<ChunkItem>),
 }
 
 #[derive(Debug)]
@@ -461,12 +495,6 @@ pub struct CssChunkItemContent {
     pub imports: Vec<CssImport>,
     pub inner_code: Rope,
     pub source_map: ResolvedVc<FileContent>,
-}
-
-#[turbo_tasks::value_trait]
-pub trait CssChunkItem: ChunkedItem + OutputAssetsReference {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<CssChunkItemContent>;
 }
 
 #[turbo_tasks::value_impl]
@@ -534,6 +562,10 @@ impl ChunkType for CssChunkType {
         Vc::cell(true)
     }
 
+    fn accepts_module(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
+        ResolvedVc::try_sidecast::<Box<dyn CssChunkPlaceable>>(module).is_some()
+    }
+
     #[turbo_tasks::function]
     async fn chunk(
         &self,
@@ -557,17 +589,8 @@ impl ChunkType for CssChunkType {
         let content = CssChunkContent {
             chunk_items: chunk_items
                 .iter()
-                .map(async |ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
-                    let inner: ResolvedVc<Box<dyn ChunkedItem>> = *chunk_item.await?;
-                    let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(inner)
-                    else {
-                        bail!("Chunk item is not an css chunk item but reporting chunk type css");
-                    };
-                    // CSS doesn't need to care about async_info, so we can discard it
-                    Ok(chunk_item)
-                })
-                .try_join()
-                .await?,
+                .map(|ChunkItemWithAsyncModuleInfo { chunk_item, .. }| *chunk_item)
+                .collect(),
         }
         .cell();
         Ok(Vc::upcast(CssChunk::new(*chunking_context, content)))
@@ -580,13 +603,32 @@ impl ChunkType for CssChunkType {
         chunk_item: Vc<ChunkItem>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
-        let inner: ResolvedVc<Box<dyn ChunkedItem>> = *chunk_item.await?;
-        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(inner) else {
-            bail!("Chunk item is not an css chunk item but reporting chunk type css");
+        let chunk_item = chunk_item.await?;
+        let Some(module) =
+            ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(chunk_item.module)
+        else {
+            bail!("Chunk item is not a css chunk item but reporting chunk type css");
         };
-        Ok(Vc::cell(chunk_item.content().await.map_or(0, |content| {
-            round_chunk_item_size(content.inner_code.len())
-        })))
+        Ok(Vc::cell(
+            module
+                .chunk_item_content(*chunk_item.chunking_context, *chunk_item.module_graph)
+                .await
+                .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_item_output_assets(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Vc<OutputAssetsWithReferenced> {
+        if let Some(placeable) = ResolvedVc::try_sidecast::<Box<dyn CssChunkPlaceable>>(module) {
+            placeable.chunk_item_output_assets(chunking_context, module_graph)
+        } else {
+            OutputAssetsWithReferenced::from_assets(*OutputAssets::empty_resolved())
+        }
     }
 }
 

@@ -1,9 +1,8 @@
 use std::future::IntoFuture;
 
 use anyhow::Result;
-use either::Either;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbopack_core::chunk::{ChunkItem, ChunkItems, ChunkedItem, batch_info};
+use turbo_tasks::{ReadRef, ResolvedVc, Vc};
+use turbopack_core::chunk::{ChunkItem, ChunkItems, batch_info};
 
 use crate::chunk::{
     CodeAndIds,
@@ -21,31 +20,21 @@ pub struct EcmascriptChunkContent {
 impl EcmascriptChunkContent {
     #[turbo_tasks::function]
     pub async fn included_chunk_items(&self) -> Result<Vc<ChunkItems>> {
-        Ok(ChunkItems(
-            self.chunk_items
-                .iter()
-                .map(async |item| match item {
-                    EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(item) => {
-                        Ok(Either::Left(item.chunk_item))
+        let mut result: Vec<ResolvedVc<ChunkItem>> = Vec::new();
+        for item in &self.chunk_items {
+            match item {
+                EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(item) => {
+                    result.push(item.chunk_item().await?);
+                }
+                EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
+                    let batch = batch.await?;
+                    for item in &batch.chunk_items {
+                        result.push(item.chunk_item().await?);
                     }
-                    EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
-                        Ok(Either::Right(batch.await?))
-                    }
-                })
-                .try_join()
-                .await?
-                .iter()
-                .flat_map(|item| match item {
-                    Either::Left(item) => Either::Left(std::iter::once(*item)),
-                    Either::Right(batch) => {
-                        Either::Right(batch.chunk_items.iter().map(|item| item.chunk_item))
-                    }
-                })
-                .map(ResolvedVc::upcast::<Box<dyn ChunkedItem>>)
-                .map(|item| ChunkItem(item).resolved_cell())
-                .collect(),
-        )
-        .cell())
+                }
+            }
+        }
+        Ok(ChunkItems(result).cell())
     }
 }
 

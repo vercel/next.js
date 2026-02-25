@@ -38,13 +38,13 @@ impl EcmascriptChunkItemOrBatchWithAsyncInfo {
         })
     }
 
-    pub fn references(&self) -> Vc<OutputAssetsWithReferenced> {
-        match self {
+    pub async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        Ok(match self {
             EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(item) => {
-                item.chunk_item.references()
+                item.chunk_item().await?.references()
             }
             EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => batch.references(),
-        }
+        })
     }
 }
 
@@ -76,7 +76,7 @@ impl EcmascriptChunkBatchWithAsyncInfo {
         let mut references = Vec::new();
         // We expect most references to be empty, and avoiding try_join to avoid allocating the Vec
         for item in &self.chunk_items {
-            let r = item.chunk_item.references().await?;
+            let r = item.chunk_item().await?.references().await?;
             output_assets.extend(r.assets.await?);
             referenced_output_assets.extend(r.referenced_assets.await?);
             references.extend(r.references.await?);

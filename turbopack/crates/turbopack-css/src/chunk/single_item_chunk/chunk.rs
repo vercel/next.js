@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkedItem, ChunkingContext, MinifyType},
+    chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
-use crate::chunk::{CssChunkItem, write_import_context};
+use crate::chunk::{CssChunkPlaceable, write_import_context};
 
 /// A CSS chunk that only contains a single item. This is used for selectively
 /// loading CSS modules that are part of a larger chunk in development mode, and
@@ -23,7 +23,7 @@ use crate::chunk::{CssChunkItem, write_import_context};
 #[turbo_tasks::value]
 pub struct SingleItemCssChunk {
     pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    item: ResolvedVc<Box<dyn CssChunkItem>>,
+    item: ResolvedVc<ChunkItem>,
 }
 
 #[turbo_tasks::value_impl]
@@ -32,7 +32,7 @@ impl SingleItemCssChunk {
     #[turbo_tasks::function]
     pub fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        item: ResolvedVc<Box<dyn CssChunkItem>>,
+        item: ResolvedVc<ChunkItem>,
     ) -> Vc<Self> {
         SingleItemCssChunk {
             chunking_context,
@@ -63,7 +63,15 @@ impl SingleItemCssChunk {
             let id = this.item.asset_ident().to_string().await?;
             writeln!(code, "/* {id} */")?;
         }
-        let content = this.item.content().await?;
+        let item_data = this.item.await?;
+        let Some(placeable) =
+            ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(item_data.module)
+        else {
+            return Ok(code.build().cell());
+        };
+        let content = placeable
+            .chunk_item_content(*item_data.chunking_context, *item_data.module_graph)
+            .await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
         code.push_source(

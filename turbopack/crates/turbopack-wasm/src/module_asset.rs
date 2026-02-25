@@ -147,8 +147,6 @@ impl Module for WebAssemblyModuleAsset {
     }
 }
 
-turbopack_core::chunk_item!(WebAssemblyModuleAsset, ecmascript);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
     #[turbo_tasks::function]

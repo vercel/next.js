@@ -83,7 +83,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, MergeableModule,
+        AsyncModuleInfo, ChunkingContext, EvaluatableAsset, MergeableModule,
         MergeableModuleExposure, MergeableModules, MergeableModulesExposed, MinifyType,
         ModuleChunkItemIdExt, ModuleId,
     },
@@ -95,7 +95,7 @@ use turbopack_core::{
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
-        FindContextFileResult, ModulePart, find_context_file, origin::ResolveOrigin, package_json,
+        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
         parse::Request,
     },
     source::Source,
@@ -118,7 +118,8 @@ use crate::{
         esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
     },
     side_effect_optimization::{
-        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+        facade::module::EcmascriptModuleFacadeModule,
+        locals::module::EcmascriptModuleLocalsModule,
         reference::EcmascriptModulePartReference,
     },
     swc_comments::{CowComments, ImmutableComments},
@@ -698,6 +699,42 @@ impl EcmascriptModuleAsset {
     pub fn options(&self) -> Vc<EcmascriptOptions> {
         *self.options
     }
+
+    /// Returns the locals module if the module should be split (has re-exports), otherwise self.
+    ///
+    /// The locals module only contains the local bindings of the original module,
+    /// excluding any re-exports.
+    #[turbo_tasks::function]
+    pub async fn get_locals_if_split(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+        let should_split = *self.get_exports().split_locals_and_reexports().await?;
+        Ok(if should_split {
+            Vc::upcast(EcmascriptModuleLocalsModule::new(self))
+        } else {
+            Vc::upcast(self)
+        })
+    }
+
+    /// Returns the facade module if the module should be split (has re-exports), otherwise self.
+    ///
+    /// The facade module re-exports all exports from the original module, including
+    /// both local bindings (via the locals module) and re-exports from other modules.
+    #[turbo_tasks::function]
+    pub async fn get_facade_if_split(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+        use turbopack_core::resolve::ModulePart;
+        let should_split = *self.get_exports().split_locals_and_reexports().await?;
+        Ok(if should_split {
+            Vc::upcast(EcmascriptModuleFacadeModule::new(
+                Vc::upcast(self),
+                ModulePart::Facade,
+            ))
+        } else {
+            Vc::upcast(self)
+        })
+    }
 }
 
 impl EcmascriptModuleAsset {
@@ -783,8 +820,6 @@ impl Module for EcmascriptModuleAsset {
     }
 }
 
-turbopack_core::chunk_item!(EcmascriptModuleAsset, crate::chunk::ecmascript_chunk_item);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
@@ -822,44 +857,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptModuleAsset {
-    /// Returns the locals module if the module should be split (has re-exports), otherwise self.
-    ///
-    /// The locals module contains only the local bindings and evaluation side effects,
-    /// while re-exports are handled separately by the facade module.
-    #[turbo_tasks::function]
-    pub async fn get_locals_if_split(
-        self: Vc<Self>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let should_split = *self.get_exports().split_locals_and_reexports().await?;
-        Ok(if should_split {
-            Vc::upcast(EcmascriptModuleLocalsModule::new(self))
-        } else {
-            Vc::upcast(self)
-        })
-    }
-
-    /// Returns the facade module if the module should be split (has re-exports), otherwise self.
-    ///
-    /// The facade module re-exports all exports from the original module, including
-    /// both local bindings (via the locals module) and re-exports from other modules.
-    #[turbo_tasks::function]
-    pub async fn get_facade_if_split(
-        self: Vc<Self>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let should_split = *self.get_exports().split_locals_and_reexports().await?;
-        Ok(if should_split {
-            Vc::upcast(EcmascriptModuleFacadeModule::new(
-                Vc::upcast(self),
-                ModulePart::Facade,
-            ))
-        } else {
-            Vc::upcast(self)
-        })
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl MergeableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn is_mergeable(self: ResolvedVc<Self>) -> Result<Vc<bool>> {
@@ -878,7 +875,7 @@ impl MergeableModule for EcmascriptModuleAsset {
         self: Vc<Self>,
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
-    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+    ) -> Result<Vc<Box<dyn Module>>> {
         Ok(Vc::upcast(
             *MergedEcmascriptModule::new(
                 modules,

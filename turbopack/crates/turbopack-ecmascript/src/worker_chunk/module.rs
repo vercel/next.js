@@ -4,9 +4,9 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunkingTypeOption, ChunksData, EvaluatableAsset,
-        EvaluatableAssets, availability_info::AvailabilityInfo,
+        AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkingContext, ChunkingContextExt,
+        ChunkingType, ChunkingTypeOption, ChunksData, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     ident::AssetIdent,
@@ -32,7 +32,7 @@ use crate::{
 /// constructor.
 #[turbo_tasks::value]
 pub struct WorkerLoaderModule {
-    pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub inner: ResolvedVc<Box<dyn Module>>,
     pub worker_type: WorkerType,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
@@ -41,7 +41,7 @@ pub struct WorkerLoaderModule {
 impl WorkerLoaderModule {
     #[turbo_tasks::function]
     pub fn new(
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        module: ResolvedVc<Box<dyn Module>>,
         worker_type: WorkerType,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Self> {
@@ -65,7 +65,7 @@ impl WorkerLoaderModule {
                     this.inner
                         .ident()
                         .with_modifier(this.worker_type.chunk_modifier_str()),
-                    ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
+                    ChunkGroup::Isolated(this.inner),
                     module_graph,
                     AvailabilityInfo::root(),
                 ),
@@ -161,7 +161,7 @@ impl Module for WorkerLoaderModule {
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let this = self.await?;
         Ok(Vc::cell(vec![ResolvedVc::upcast(
-            WorkerModuleReference::new(*ResolvedVc::upcast(this.inner), this.worker_type)
+            WorkerModuleReference::new(*this.inner, this.worker_type)
                 .to_resolved()
                 .await?,
         )]))
@@ -172,8 +172,6 @@ impl Module for WorkerLoaderModule {
         ModuleSideEffects::SideEffectFree.cell()
     }
 }
-
-turbopack_core::chunk_item!(WorkerLoaderModule, crate::chunk::ecmascript_chunk_item);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WorkerLoaderModule {

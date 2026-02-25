@@ -11,10 +11,10 @@ use turbo_tasks_hash::{DeterministicHash, HashAlgorithm};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkingConfig,
+        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
+        EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -29,9 +29,10 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets},
 };
+use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::EcmascriptChunk,
+    chunk::{EcmascriptChunk, EcmascriptChunkType},
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -692,8 +693,19 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn chunking_configs(&self) -> Result<Vc<ChunkingConfigs>> {
-        Ok(Vc::cell(self.chunking_configs.iter().cloned().collect()))
+    async fn chunking_configs(&self) -> Result<Vc<ChunkingConfigs>> {
+        let mut configs = self.chunking_configs.clone();
+        let ecma_type: ResolvedVc<Box<dyn ChunkType>> =
+            ResolvedVc::upcast(Vc::<EcmascriptChunkType>::default().to_resolved().await?);
+        if !configs.iter().any(|(ty, _)| *ty == ecma_type) {
+            configs.push((ecma_type, ChunkingConfig::default()));
+        }
+        let css_type: ResolvedVc<Box<dyn ChunkType>> =
+            ResolvedVc::upcast(Vc::<CssChunkType>::default().to_resolved().await?);
+        if !configs.iter().any(|(ty, _)| *ty == css_type) {
+            configs.push((css_type, ChunkingConfig::default()));
+        }
+        Ok(ChunkingConfigs::new(configs))
     }
 
     #[turbo_tasks::function]
@@ -904,7 +916,7 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn async_loader_chunk_item(
         self: ResolvedVc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        module: Vc<Box<dyn Module>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkItem>> {
@@ -917,17 +929,17 @@ impl ChunkingContext for BrowserChunkingContext {
                 availability_info,
             );
             let loader_module = ManifestLoaderModule::new(manifest_asset);
-            chunking_context.chunk_item(Vc::upcast(loader_module), module_graph)
+            ChunkItem::new(Vc::upcast(loader_module), module_graph, *chunking_context)
         } else {
             let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);
-            chunking_context.chunk_item(Vc::upcast(module), module_graph)
+            ChunkItem::new(Vc::upcast(module), module_graph, *chunking_context)
         })
     }
 
     #[turbo_tasks::function]
     async fn async_loader_chunk_item_ident(
         self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        module: Vc<Box<dyn Module>>,
     ) -> Result<Vc<AssetIdent>> {
         Ok(if self.await?.manifest_chunks {
             ManifestLoaderModule::asset_ident_for(module)

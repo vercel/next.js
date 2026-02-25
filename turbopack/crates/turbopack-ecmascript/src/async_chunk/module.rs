@@ -5,8 +5,8 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        ChunksData, ModuleChunkItemIdExt, availability_info::AvailabilityInfo,
+        AsyncModuleInfo, ChunkData, ChunkingContext, ChunkingContextExt, ChunksData,
+        ModuleChunkItemIdExt, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -30,7 +30,7 @@ use crate::{
 /// putting it into a separate chunk group.
 #[turbo_tasks::value]
 pub struct AsyncLoaderModule {
-    pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub inner: ResolvedVc<Box<dyn Module>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub availability_info: AvailabilityInfo,
 }
@@ -39,7 +39,7 @@ pub struct AsyncLoaderModule {
 impl AsyncLoaderModule {
     #[turbo_tasks::function]
     pub fn new(
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        module: ResolvedVc<Box<dyn Module>>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         availability_info: AvailabilityInfo,
     ) -> Vc<Self> {
@@ -51,7 +51,7 @@ impl AsyncLoaderModule {
     }
 
     #[turbo_tasks::function]
-    pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
+    pub fn asset_ident_for(module: Vc<Box<dyn Module>>) -> Vc<AssetIdent> {
         module.ident().with_modifier(rcstr!("async loader"))
     }
 
@@ -61,9 +61,9 @@ impl AsyncLoaderModule {
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         if let Some(chunk_items) = self.availability_info.available_modules() {
-            let inner_module = ResolvedVc::upcast(self.inner);
+            let inner_module = self.inner;
             let batches = module_graph
-                .module_batches(self.chunking_context.batching_config())
+                .module_batches(self.chunking_context.chunking_configs())
                 .await?;
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
@@ -80,7 +80,7 @@ impl AsyncLoaderModule {
         }
         Ok(self.chunking_context.chunk_group_assets(
             self.inner.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
+            ChunkGroup::Async(self.inner),
             module_graph,
             self.availability_info,
         ))
@@ -119,12 +119,9 @@ impl Module for AsyncLoaderModule {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleModuleReference::new(
-                *ResolvedVc::upcast(self.await?.inner),
-                rcstr!("async module"),
-            )
-            .to_resolved()
-            .await?,
+            SingleModuleReference::new(*self.await?.inner, rcstr!("async module"))
+                .to_resolved()
+                .await?,
         )]))
     }
 
@@ -133,8 +130,6 @@ impl Module for AsyncLoaderModule {
         ModuleSideEffects::SideEffectFree.cell()
     }
 }
-
-turbopack_core::chunk_item!(AsyncLoaderModule, crate::chunk::ecmascript_chunk_item);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for AsyncLoaderModule {

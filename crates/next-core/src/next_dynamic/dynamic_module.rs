@@ -70,8 +70,6 @@ impl Module for NextDynamicEntryModule {
     }
 }
 
-turbopack_core::chunk_item!(NextDynamicEntryModule, ecmascript);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
     #[turbo_tasks::function]

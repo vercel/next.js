@@ -2,20 +2,19 @@ use anyhow::Result;
 use either::Either;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItemExt, ModuleId},
+    chunk::{ChunkItemExt, ModuleId},
     code_builder::Code,
 };
 use turbopack_ecmascript::chunk::{
-    EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkItemExt,
-    EcmascriptChunkItemOrBatchWithAsyncInfo, EcmascriptChunkItemWithAsyncInfo,
+    EcmascriptChunkContent, EcmascriptChunkItemOrBatchWithAsyncInfo,
+    EcmascriptChunkItemWithAsyncInfo, ecmascript_chunk_item_code,
 };
 
 /// A chunk item's content entry.
 ///
-/// Instead of storing the [`Vc<Box<dyn EcmascriptChunkItem>>`] itself from
-/// which `code` and `hash` are derived, we store `Vc`s directly. This avoids
-/// creating tasks in a hot loop when iterating over thousands of entries when
-/// computing updates.
+/// Instead of storing the module itself from which `code` and `hash` are
+/// derived, we store `Vc`s directly. This avoids creating tasks in a hot
+/// loop when iterating over thousands of entries when computing updates.
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct EcmascriptDevChunkContentEntry {
@@ -24,11 +23,15 @@ pub struct EcmascriptDevChunkContentEntry {
 }
 
 impl EcmascriptDevChunkContentEntry {
-    pub async fn new(
-        chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Self> {
-        let code = chunk_item.code(async_module_info).to_resolved().await?;
+    pub async fn new(info: &EcmascriptChunkItemWithAsyncInfo) -> Result<Self> {
+        let code = ecmascript_chunk_item_code(
+            info.module,
+            info.chunking_context,
+            info.module_graph,
+            info.async_info.map(|info| *info),
+        )
+        .to_resolved()
+        .await?;
         Ok(EcmascriptDevChunkContentEntry {
             code,
             hash: code.source_code_hash().to_resolved().await?,
@@ -55,19 +58,12 @@ impl EcmascriptBrowserChunkContentEntries {
             .iter()
             .map(async |item| {
                 Ok(match item {
-                    &EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(
-                        EcmascriptChunkItemWithAsyncInfo {
-                            chunk_item,
-                            async_info,
-                        },
-                    ) => Either::Left(std::iter::once((
-                        chunk_item.id().await?,
-                        EcmascriptDevChunkContentEntry::new(
-                            chunk_item,
-                            async_info.map(|info| *info),
-                        )
-                        .await?,
-                    ))),
+                    EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(info) => {
+                        Either::Left(std::iter::once((
+                            info.chunk_item().await?.id().await?,
+                            EcmascriptDevChunkContentEntry::new(info).await?,
+                        )))
+                    }
                     EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
                         let batch = batch.await?;
                         Either::Right(
@@ -76,12 +72,8 @@ impl EcmascriptBrowserChunkContentEntries {
                                 .iter()
                                 .map(|item| async move {
                                     Ok((
-                                        item.chunk_item.id().await?,
-                                        EcmascriptDevChunkContentEntry::new(
-                                            item.chunk_item,
-                                            item.async_info.map(|info| *info),
-                                        )
-                                        .await?,
+                                        item.chunk_item().await?.id().await?,
+                                        EcmascriptDevChunkContentEntry::new(item).await?,
                                     ))
                                 })
                                 .try_join()

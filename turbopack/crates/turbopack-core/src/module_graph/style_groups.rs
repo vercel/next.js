@@ -13,7 +13,7 @@ use turbo_tasks::{
 use crate::{
     chunk::{
         ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, chunk_item_batch::attach_async_info_to_chunkable_module,
+        ChunkingContext, chunk_item_batch::attach_async_info_to_chunkable_module,
     },
     module::{Module, StyleModule, StyleType},
     module_graph::{
@@ -66,7 +66,7 @@ impl ModuleInfo {
 }
 
 struct ChunkGroupState {
-    styles: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    styles: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     requests: usize,
 }
 
@@ -77,10 +77,10 @@ pub async fn compute_style_groups(
 ) -> Result<Vc<StyleGroups>> {
     let chunk_group_info = module_graph.chunk_group_info().await?;
     let batches_graph = module_graph
-        .module_batches(chunking_context.batching_config())
+        .module_batches(chunking_context.chunking_configs())
         .await?;
     let async_info = module_graph.async_module_info().await?;
-    let mut module_info_map: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Option<ModuleInfo>> =
+    let mut module_info_map: FxIndexMap<ResolvedVc<Box<dyn Module>>, Option<ModuleInfo>> =
         FxIndexMap::default();
 
     // Compute the style modules in each chunk group
@@ -156,9 +156,7 @@ pub async fn compute_style_groups(
                     }
                 }
                 ModuleOrBatch::Module(module) => {
-                    if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                        handle_module(chunkable_module).await?;
-                    }
+                    handle_module(module).await?;
                 }
                 ModuleOrBatch::None(_) => {}
             }

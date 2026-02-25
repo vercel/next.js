@@ -11,7 +11,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption, EvaluatableAsset},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, EvaluatableAsset},
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -25,6 +25,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -179,9 +180,9 @@ impl ModuleReference for WorkerAssetReference {
                 ModuleResolveResultItem::Module(module) => {
                     let module_ident = module.ident().to_string().await?;
 
-                    let Some(chunkable) =
-                        ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
-                    else {
+                    if ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
+                        .is_none()
+                    {
                         CodeGenerationIssue {
                             severity: self.get_module_type_issue_severity().await?,
                             title: StyledString::Text(rcstr!("non-chunkable module"))
@@ -202,13 +203,12 @@ impl ModuleReference for WorkerAssetReference {
                         .resolved_cell()
                         .emit();
                         continue;
-                    };
+                    }
 
                     // For Node.js worker threads, the module must also be evaluatable since
                     // it becomes an entry point
                     if matches!(self.worker_type, WorkerType::NodeWorkerThread)
-                        && ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(chunkable)
-                            .is_none()
+                        && ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(*module).is_none()
                     {
                         CodeGenerationIssue {
                             severity: self.get_module_type_issue_severity().await?,
@@ -234,7 +234,7 @@ impl ModuleReference for WorkerAssetReference {
                     }
 
                     let loader =
-                        WorkerLoaderModule::new(*chunkable, self.worker_type, *asset_context)
+                        WorkerLoaderModule::new(**module, self.worker_type, *asset_context)
                             .to_resolved()
                             .await?;
 

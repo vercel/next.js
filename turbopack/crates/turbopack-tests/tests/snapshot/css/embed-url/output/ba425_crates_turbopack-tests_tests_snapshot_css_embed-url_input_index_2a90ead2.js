@@ -1,0 +1,5 @@
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
+    "output/ba425_crates_turbopack-tests_tests_snapshot_css_embed-url_input_index_2a90ead2.js",
+    {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_css_embed-url_input_style_module_15c8fa28.css","output/aaf3a_crates_turbopack-tests_tests_snapshot_css_embed-url_input_style_29d06e51.css","output/780ce_turbopack-tests_tests_snapshot_css_embed-url_input_style_module_css_2311252d._.js","output/aaf3a_crates_turbopack-tests_tests_snapshot_css_embed-url_input_index_ef28e85b.js","output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_eaa27ea2._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/index.js [test] (ecmascript)"]}
+]);
+// Dummy runtime

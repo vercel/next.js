@@ -1,10 +1,12 @@
+use std::ops::Deref;
+
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    IntoTraitRef, NonLocalValue, ResolvedVc, TaskInput, TraitRef, Upcast, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -12,8 +14,8 @@ use turbo_tasks_hash::DeterministicHash;
 use crate::{
     asset::Asset,
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets,
-        availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
+        ChunkItem, ChunkType, EvaluatableAssets, availability_info::AvailabilityInfo,
+        chunk_id_strategy::ModuleIdStrategy,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -278,8 +280,82 @@ pub struct ChunkingConfig {
     pub placeholder_for_future_extensions: (),
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
+#[derive(Default)]
+#[turbo_tasks::value(shared)]
+pub struct ChunkingConfigs(pub FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
+
+#[turbo_tasks::value_impl]
+impl ChunkingConfigs {
+    /// Create a new `ChunkingConfigs` from a list of chunk type/config pairs.
+    ///
+    /// This is a memoized turbo_tasks function, so identical inputs produce the same `Vc`,
+    /// which is critical for downstream memoization of `module_batches()`.
+    #[turbo_tasks::function]
+    pub fn new(configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>) -> Vc<Self> {
+        ChunkingConfigs(configs.into_iter().collect()).cell()
+    }
+}
+
+impl Deref for ChunkingConfigs {
+    type Target = FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Pre-resolved chunk type trait refs for efficient batch chunkability checks.
+/// Created via [`ChunkingConfigs::resolved_chunk_types`].
+pub type ResolvedChunkTypes = Vec<(ResolvedVc<Box<dyn ChunkType>>, TraitRef<Box<dyn ChunkType>>)>;
+
+impl ChunkingConfigs {
+    pub async fn is_chunkable(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
+        self.chunk_type(module).await.is_some()
+    }
+
+    /// Returns a [`ChunkType`], if one is supported by this module.
+    pub async fn chunk_type(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Option<ResolvedVc<Box<dyn ChunkType>>> {
+        for chunk_type in self.0.keys() {
+            if chunk_type
+                .into_trait_ref()
+                .await
+                .expect("Unexpectedly failed to cast trait")
+                .accepts_module(module)
+            {
+                return Some(*chunk_type);
+            }
+        }
+        None
+    }
+
+    /// Pre-resolves all chunk type trait refs. Use with [`is_chunkable_resolved`]
+    /// when checking many modules to avoid repeated async lookups.
+    pub async fn resolved_chunk_types(&self) -> Result<ResolvedChunkTypes> {
+        let mut result = Vec::with_capacity(self.0.len());
+        for chunk_type in self.0.keys() {
+            let trait_ref = chunk_type.into_trait_ref().await?;
+            result.push((*chunk_type, trait_ref));
+        }
+        Ok(result)
+    }
+
+    /// Check if a module is chunkable using pre-resolved trait refs.
+    /// More efficient than [`is_chunkable`] when checking many modules.
+    pub fn is_chunkable_resolved(
+        &self,
+        resolved: &ResolvedChunkTypes,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> bool {
+        for (_ty, trait_ref) in resolved {
+            if trait_ref.accepts_module(module) {
+                return true;
+            }
+        }
+        false
+    }
+}
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Copy, Hash, TaskInput, Default, Deserialize)]
@@ -373,10 +449,9 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
+    /// Returns the chunking configs for this context.
     #[turbo_tasks::function]
-    fn chunking_configs(self: Vc<Self>) -> Vc<ChunkingConfigs> {
-        Vc::cell(Default::default())
-    }
+    fn chunking_configs(self: Vc<Self>) -> Vc<ChunkingConfigs>;
 
     #[turbo_tasks::function]
     fn batching_config(self: Vc<Self>) -> Vc<BatchingConfig> {
@@ -427,13 +502,12 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn async_loader_chunk_item(
         &self,
-        module: Vc<Box<dyn ChunkableModule>>,
+        module: Vc<Box<dyn Module>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Vc<ChunkItem>;
     #[turbo_tasks::function]
-    fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn ChunkableModule>>)
-    -> Vc<AssetIdent>;
+    fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn Module>>) -> Vc<AssetIdent>;
 
     #[turbo_tasks::function]
     fn chunk_group(
@@ -580,15 +654,6 @@ pub trait ChunkingContextExt {
     fn relative_path_from_chunk_root_to_project_root(self: Vc<Self>) -> Vc<RcStr>
     where
         Self: Send;
-
-    /// Creates a chunk item from a module. The module must implement `ChunkableModule`.
-    fn chunk_item(
-        self: Vc<Self>,
-        module: Vc<Box<dyn Module>>,
-        module_graph: Vc<ModuleGraph>,
-    ) -> Vc<ChunkItem>
-    where
-        Self: Send;
 }
 
 impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingContextExt for T {
@@ -707,30 +772,6 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn relative_path_from_chunk_root_to_project_root(self: Vc<Self>) -> Vc<RcStr> {
         relative_path_from_chunk_root_to_project_root(Vc::upcast_non_strict(self))
     }
-
-    fn chunk_item(
-        self: Vc<Self>,
-        module: Vc<Box<dyn Module>>,
-        module_graph: Vc<ModuleGraph>,
-    ) -> Vc<ChunkItem> {
-        chunk_item(Vc::upcast_non_strict(self), module, module_graph)
-    }
-}
-
-#[turbo_tasks::function]
-async fn chunk_item(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    module: Vc<Box<dyn Module>>,
-    module_graph: Vc<ModuleGraph>,
-) -> Result<Vc<ChunkItem>> {
-    let module = module.to_resolved().await?;
-    let Some(chunkable) = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module) else {
-        bail!(
-            "Module {} is not chunkable",
-            module.ident().to_string().await?
-        );
-    };
-    Ok(chunkable.as_chunk_item(module_graph, chunking_context))
 }
 
 #[turbo_tasks::function]

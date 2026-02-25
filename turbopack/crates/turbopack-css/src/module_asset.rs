@@ -241,8 +241,6 @@ impl ModuleCssAsset {
     }
 }
 
-turbopack_core::chunk_item!(ModuleCssAsset, ecmascript);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ModuleCssAsset {
     #[turbo_tasks::function]

@@ -1,0 +1,14 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css) */
+.style {
+  cursor: url("../static/image.7bbaf41b.png");
+  background-image: url("../static/image.7bbaf41b.png");
+  list-style-image: url("../static/image.7bbaf41b.png");
+}
+
+.style-unresolveable {
+  cursor: url("./missing1.png");
+  background-image: url("missing3.png");
+  list-style-image: url("missing2.png");
+}
+
+/*# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_css_embed-url_input_style_29d06e51.css.map*/

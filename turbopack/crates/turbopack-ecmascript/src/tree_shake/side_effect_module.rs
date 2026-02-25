@@ -202,7 +202,5 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
     }
 }
 
-turbopack_core::chunk_item!(SideEffectsModule, crate::chunk::ecmascript_chunk_item);
-
 #[turbo_tasks::value_impl]
 impl EvaluatableAsset for SideEffectsModule {}

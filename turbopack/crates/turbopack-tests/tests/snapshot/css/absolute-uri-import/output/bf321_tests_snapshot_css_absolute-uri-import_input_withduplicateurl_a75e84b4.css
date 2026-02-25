@@ -1,0 +1,7 @@
+@import "https://example.com/stylesheet1.css";
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css [test] (css) */
+.bar {
+  background-color: green;
+}
+
+/*# sourceMappingURL=bf321_tests_snapshot_css_absolute-uri-import_input_withduplicateurl_a75e84b4.css.map*/

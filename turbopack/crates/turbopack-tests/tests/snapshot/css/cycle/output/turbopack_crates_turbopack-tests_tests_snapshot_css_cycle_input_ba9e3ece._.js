@@ -3,7 +3,12 @@
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a32d05d1._.css"
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_86ced273.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_60d51aab.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_47494986.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_d14f5fab.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_12f4a6ac.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_1_a0613c53.css"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
 }),
@@ -11,7 +16,12 @@ __turbopack_context__.v((parentImport) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_84e37e0a._.css"
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_d14f5fab.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_12f4a6ac.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_86ced273.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_60d51aab.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_47494986.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_2_e1bc41bf.css"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
 }),
@@ -19,7 +29,8 @@ __turbopack_context__.v((parentImport) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_393792a5._.css"
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_ae99215a.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_d7e1153e.css"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
 }),
@@ -27,7 +38,8 @@ __turbopack_context__.v((parentImport) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_7779f184._.css"
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_d7e1153e.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_ae99215a.css"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
 }),
@@ -35,7 +47,9 @@ __turbopack_context__.v((parentImport) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_3838314b._.css"
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_k_6c0a7c9b.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_j_f66f2edc.css",
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_i_ca0e16a0.css"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
 }),

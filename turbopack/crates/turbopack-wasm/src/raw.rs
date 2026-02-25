@@ -68,8 +68,6 @@ impl Module for RawWebAssemblyModuleAsset {
     }
 }
 
-turbopack_core::chunk_item!(RawWebAssemblyModuleAsset, ecmascript);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]

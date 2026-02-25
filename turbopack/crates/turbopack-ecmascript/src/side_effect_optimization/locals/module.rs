@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, MergeableModule, MergeableModules,
+        AsyncModuleInfo, ChunkingContext, MergeableModule, MergeableModules,
         MergeableModulesExposed,
     },
     ident::AssetIdent,
@@ -190,11 +190,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     }
 }
 
-turbopack_core::chunk_item!(
-    EcmascriptModuleLocalsModule,
-    crate::chunk::ecmascript_chunk_item
-);
-
 #[turbo_tasks::value_impl]
 impl MergeableModule for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
@@ -202,7 +197,7 @@ impl MergeableModule for EcmascriptModuleLocalsModule {
         &self,
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
-    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+    ) -> Result<Vc<Box<dyn Module>>> {
         Ok(Vc::upcast(
             *MergedEcmascriptModule::new(modules, entry_points, self.module.await?.options).await?,
         ))

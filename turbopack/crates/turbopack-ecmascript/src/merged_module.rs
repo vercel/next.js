@@ -88,8 +88,6 @@ impl Module for MergedEcmascriptModule {
     }
 }
 
-turbopack_core::chunk_item!(MergedEcmascriptModule, crate::chunk::ecmascript_chunk_item);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for MergedEcmascriptModule {
     #[turbo_tasks::function]

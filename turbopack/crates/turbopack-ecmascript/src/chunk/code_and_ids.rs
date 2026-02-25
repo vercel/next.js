@@ -8,8 +8,8 @@ use turbopack_core::{
 };
 
 use crate::chunk::{
-    EcmascriptChunkItemBatchGroup, EcmascriptChunkItemExt, EcmascriptChunkItemOrBatchWithAsyncInfo,
-    EcmascriptChunkItemWithAsyncInfo,
+    EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo,
+    ecmascript_chunk_item_code,
 };
 
 #[turbo_tasks::value(transparent, serialization = "none")]
@@ -42,13 +42,14 @@ pub async fn item_code_and_ids(
     item: EcmascriptChunkItemOrBatchWithAsyncInfo,
 ) -> Result<Vc<CodeAndIds>> {
     Ok(Vc::cell(match item {
-        EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(EcmascriptChunkItemWithAsyncInfo {
-            chunk_item,
-            async_info,
-            ..
-        }) => {
-            let id = chunk_item.id().await?;
-            let code = chunk_item.code(async_info.map(|info| *info));
+        EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(ref info) => {
+            let id = info.chunk_item().await?.id().await?;
+            let code = ecmascript_chunk_item_code(
+                info.module,
+                info.chunking_context,
+                info.module_graph,
+                info.async_info.map(|info| *info),
+            );
             smallvec![(id, code.await?)]
         }
         EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => batch
@@ -57,10 +58,14 @@ pub async fn item_code_and_ids(
             .iter()
             .map(|item| async {
                 Ok((
-                    item.chunk_item.id().await?,
-                    item.chunk_item
-                        .code(item.async_info.map(|info| *info))
-                        .await?,
+                    item.chunk_item().await?.id().await?,
+                    ecmascript_chunk_item_code(
+                        item.module,
+                        item.chunking_context,
+                        item.module_graph,
+                        item.async_info.map(|info| *info),
+                    )
+                    .await?,
                 ))
             })
             .try_join()

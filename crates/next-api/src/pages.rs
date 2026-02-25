@@ -658,18 +658,28 @@ impl PageEndpoint {
             Vc::upcast(this.pages_project.client_module_context()),
             self.source(),
             this.pathname.clone(),
-        );
+        )
+        .to_resolved()
+        .await?;
+        let is_chunkable = this
+            .pages_project
+            .project()
+            .client_chunking_context()
+            .chunking_configs()
+            .await?
+            .is_chunkable(page_loader)
+            .await;
         if matches!(
             *this.pages_project.project().next_mode().await?,
             NextMode::Development
-        ) && let Some(chunkable) = ResolvedVc::try_downcast(page_loader.to_resolved().await?)
+        ) && is_chunkable
         {
             return Ok(Vc::upcast(HmrEntryModule::new(
                 AssetIdent::from_path(this.page.await?.base_path.clone()),
-                *chunkable,
+                *page_loader,
             )));
         }
-        Ok(page_loader)
+        Ok(*page_loader)
     }
 
     #[turbo_tasks::function]

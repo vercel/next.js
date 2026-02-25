@@ -26,7 +26,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingConfigs, ChunkingContext, ChunkingType},
     issue::{ImportTracer, ImportTraces, Issue},
     module::Module,
     module_graph::{
@@ -782,9 +782,9 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub async fn module_batches(
         self: Vc<Self>,
-        config: Vc<BatchingConfig>,
+        chunking_configs: ResolvedVc<ChunkingConfigs>,
     ) -> Result<Vc<ModuleBatchesGraph>> {
-        compute_module_batches(self, &*config.await?).await
+        compute_module_batches(self, chunking_configs).await
     }
 
     #[turbo_tasks::function]

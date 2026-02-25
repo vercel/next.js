@@ -1,0 +1,9 @@
+@import "https://example.com/stylesheet1.css";
+@import "https://example.com/withquote\".css";
+@import "https://example.com/stylesheet2.css";
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/index.css [test] (css) */
+body {
+  background-color: #00f;
+}
+
+/*# sourceMappingURL=780ce_turbopack-tests_tests_snapshot_css_absolute-uri-import_input_index_c5822330.css.map*/

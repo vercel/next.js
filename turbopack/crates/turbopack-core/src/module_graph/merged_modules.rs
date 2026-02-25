@@ -7,7 +7,7 @@ use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoi
 
 use crate::{
     chunk::{
-        ChunkableModule, ChunkingType, MergeableModule, MergeableModuleExposure, MergeableModules,
+        ChunkingType, MergeableModule, MergeableModuleExposure, MergeableModules,
         MergeableModulesExposed,
     },
     module::Module,
@@ -20,7 +20,7 @@ use crate::{
 #[turbo_tasks::value(transparent, cell = "keyed")]
 #[allow(clippy::type_complexity)]
 pub struct MergedModulesReplacements(
-    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
 );
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -49,7 +49,7 @@ impl MergedModuleInfo {
     pub async fn should_replace_module(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Option<ResolvedVc<Box<dyn ChunkableModule>>>> {
+    ) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         Ok(self.replacements.get(&module).await?.as_deref().copied())
     }
 
@@ -763,7 +763,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         #[allow(clippy::type_complexity)]
         let mut replacements: FxHashMap<
             ResolvedVc<Box<dyn Module>>,
-            ResolvedVc<Box<dyn ChunkableModule>>,
+            ResolvedVc<Box<dyn Module>>,
         > = Default::default();
         #[allow(clippy::type_complexity)]
         let mut replacements_to_original: FxHashMap<
@@ -774,7 +774,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         for (original, replacement, replacement_included) in result.into_iter().flatten() {
             replacements.insert(original, replacement);
-            replacements_to_original.insert(ResolvedVc::upcast(replacement), original);
+            replacements_to_original.insert(replacement, original);
             included.extend(replacement_included);
         }
 

@@ -9,9 +9,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 
-use crate::{
-    chunk::ChunkableModule, module::Module, module_graph::chunk_group_info::RoaringBitmapWrapper,
-};
+use crate::{module::Module, module_graph::chunk_group_info::RoaringBitmapWrapper};
 
 #[derive(
     Debug,
@@ -50,7 +48,7 @@ impl ModuleOrBatch {
     Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum ChunkableModuleOrBatch {
-    Module(ResolvedVc<Box<dyn ChunkableModule>>),
+    Module(ResolvedVc<Box<dyn Module>>),
     Batch(ResolvedVc<ModuleBatch>),
     None(usize),
 }
@@ -58,7 +56,7 @@ pub enum ChunkableModuleOrBatch {
 impl ChunkableModuleOrBatch {
     pub fn from_module_or_batch(module_or_batch: ModuleOrBatch) -> Option<Self> {
         match module_or_batch {
-            ModuleOrBatch::Module(module) => ResolvedVc::try_downcast(module).map(Self::Module),
+            ModuleOrBatch::Module(module) => Some(Self::Module(module)),
             ModuleOrBatch::Batch(batch) => Some(Self::Batch(batch)),
             ModuleOrBatch::None(i) => Some(Self::None(i)),
         }
@@ -80,7 +78,7 @@ impl ChunkableModuleOrBatch {
 impl From<ChunkableModuleOrBatch> for ModuleOrBatch {
     fn from(chunkable_module_or_batch: ChunkableModuleOrBatch) -> Self {
         match chunkable_module_or_batch {
-            ChunkableModuleOrBatch::Module(module) => Self::Module(ResolvedVc::upcast(module)),
+            ChunkableModuleOrBatch::Module(module) => Self::Module(module),
             ChunkableModuleOrBatch::Batch(batch) => Self::Batch(batch),
             ChunkableModuleOrBatch::None(i) => Self::None(i),
         }
@@ -105,7 +103,7 @@ impl Debug for IdentStrings {
 
 #[turbo_tasks::value]
 pub struct ModuleBatch {
-    pub modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
     pub chunk_groups: Option<RoaringBitmapWrapper>,
 }
 
@@ -113,7 +111,7 @@ pub struct ModuleBatch {
 impl ModuleBatch {
     #[turbo_tasks::function]
     pub fn new(
-        modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+        modules: Vec<ResolvedVc<Box<dyn Module>>>,
         chunk_groups: Option<RoaringBitmapWrapper>,
     ) -> Vc<Self> {
         Self {
@@ -168,9 +166,7 @@ impl ChunkableModuleBatchGroup {
             .items
             .iter()
             .filter_map(|batch| match *batch {
-                ModuleOrBatch::Module(module) => {
-                    ResolvedVc::try_downcast(module).map(ChunkableModuleOrBatch::Module)
-                }
+                ModuleOrBatch::Module(module) => Some(ChunkableModuleOrBatch::Module(module)),
                 ModuleOrBatch::Batch(batch) => Some(ChunkableModuleOrBatch::Batch(batch)),
                 ModuleOrBatch::None(_) => None,
             })

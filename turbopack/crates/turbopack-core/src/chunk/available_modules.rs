@@ -7,7 +7,6 @@ use turbo_tasks::{
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
-    chunk::ChunkableModule,
     module::Module,
     module_graph::module_batch::{ChunkableModuleOrBatch, IdentStrings, ModuleBatch},
 };
@@ -16,9 +15,9 @@ use crate::{
     Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum AvailableModuleItem {
-    Module(ResolvedVc<Box<dyn ChunkableModule>>),
+    Module(ResolvedVc<Box<dyn Module>>),
     Batch(ResolvedVc<ModuleBatch>),
-    AsyncLoader(ResolvedVc<Box<dyn ChunkableModule>>),
+    AsyncLoader(ResolvedVc<Box<dyn Module>>),
 }
 
 impl AvailableModuleItem {

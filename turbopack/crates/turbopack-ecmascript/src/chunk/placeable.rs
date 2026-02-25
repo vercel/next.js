@@ -9,7 +9,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::Asset,
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkingContext},
     file_source::FileSource,
     ident::AssetIdent,
     issue::{
@@ -31,7 +31,7 @@ use crate::{
 };
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
+pub trait EcmascriptChunkPlaceable: Module {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports>;
     #[turbo_tasks::function]
@@ -52,9 +52,9 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent>;
 
-    /// Returns the content identity for cache invalidation.
-    /// Override this for modules whose content depends on more than just the module source
-    /// (e.g., async loaders that depend on available modules).
+    /// A [AssetIdent] that uniquely identifies the content of this module's chunk item.
+    /// It is usually identical to the module's ident but can be different when the chunk item
+    /// content depends on available modules e.g. for chunk loaders.
     #[turbo_tasks::function]
     fn chunk_item_content_ident(
         self: Vc<Self>,
@@ -64,15 +64,16 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         self.ident()
     }
 
-    /// Returns output assets that this chunk item depends on.
-    /// Override this for modules that reference static assets, manifests, etc.
+    /// Returns the output assets associated with this module's chunk item.
+    /// Most modules have no output assets; override for modules that produce
+    /// additional output (e.g. chunk loaders, external modules, static assets).
     #[turbo_tasks::function]
     fn chunk_item_output_assets(
         self: Vc<Self>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced> {
-        OutputAssetsWithReferenced::from_assets(OutputAssets::empty())
+        OutputAssetsWithReferenced::from_assets(*OutputAssets::empty_resolved())
     }
 }
 

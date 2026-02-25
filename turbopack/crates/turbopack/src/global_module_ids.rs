@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use tracing::Instrument;
@@ -7,7 +7,7 @@ use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{
-        ChunkableModule, ChunkingType, ModuleId,
+        ChunkingType, ModuleId,
         chunk_id_strategy::{ModuleIdFallback, ModuleIdStrategy},
     },
     ident::AssetIdent,
@@ -42,9 +42,7 @@ pub async fn get_global_module_id_strategy(
                 },
             )) = parent
             {
-                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
-                    .context("expected chunkable module for async reference")?;
-                async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
+                async_idents.push(AsyncLoaderModule::asset_ident_for(*current));
             }
             Ok(())
         })?;

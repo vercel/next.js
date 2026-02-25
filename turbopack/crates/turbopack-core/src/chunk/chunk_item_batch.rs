@@ -11,10 +11,8 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{
-        ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext,
-        chunking_context::ChunkingContextExt,
-    },
+    chunk::{ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext},
+    module::Module,
     module_graph::{
         ModuleGraph,
         async_module_info::AsyncModulesInfo,
@@ -24,24 +22,22 @@ use crate::{
 };
 
 pub async fn attach_async_info_to_chunkable_module(
-    module: ResolvedVc<Box<dyn ChunkableModule>>,
+    module: ResolvedVc<Box<dyn Module>>,
     async_module_info: &ReadRef<AsyncModulesInfo>,
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<ChunkItemWithAsyncModuleInfo> {
-    let general_module = ResolvedVc::upcast(module);
-    let async_info = if async_module_info.contains(&general_module) {
+    let async_info = if async_module_info.contains(&module) {
         Some(
             module_graph
-                .referenced_async_modules(*general_module)
+                .referenced_async_modules(*module)
                 .to_resolved()
                 .await?,
         )
     } else {
         None
     };
-    let chunk_item = chunking_context
-        .chunk_item(Vc::upcast(*module), module_graph)
+    let chunk_item = ChunkItem::new(*module, module_graph, chunking_context)
         .to_resolved()
         .await?;
     Ok(ChunkItemWithAsyncModuleInfo {
@@ -75,15 +71,26 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Option<Self>> {
         Ok(match chunkable_module_or_batch {
-            ChunkableModuleOrBatch::Module(module) => Some(Self::ChunkItem(
-                attach_async_info_to_chunkable_module(
-                    module,
-                    async_module_info,
-                    module_graph,
-                    chunking_context,
-                )
-                .await?,
-            )),
+            ChunkableModuleOrBatch::Module(module) => {
+                // Skip modules that are not accepted by any chunk type
+                if !chunking_context
+                    .chunking_configs()
+                    .await?
+                    .is_chunkable(module)
+                    .await
+                {
+                    return Ok(None);
+                }
+                Some(Self::ChunkItem(
+                    attach_async_info_to_chunkable_module(
+                        module,
+                        async_module_info,
+                        module_graph,
+                        chunking_context,
+                    )
+                    .await?,
+                ))
+            }
             ChunkableModuleOrBatch::Batch(batch) => Some(Self::Batch(
                 ChunkItemBatchWithAsyncModuleInfo::from_module_batch(
                     *batch,

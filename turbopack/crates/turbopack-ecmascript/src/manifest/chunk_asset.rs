@@ -4,8 +4,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        ChunksData, availability_info::AvailabilityInfo,
+        AsyncModuleInfo, ChunkData, ChunkingContext, ChunkingContextExt, ChunksData,
+        availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -38,7 +38,7 @@ use crate::{
 /// import appears in.
 #[turbo_tasks::value(shared)]
 pub struct ManifestAsyncModule {
-    pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub inner: ResolvedVc<Box<dyn Module>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub availability_info: AvailabilityInfo,
@@ -48,7 +48,7 @@ pub struct ManifestAsyncModule {
 impl ManifestAsyncModule {
     #[turbo_tasks::function]
     pub fn new(
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        module: ResolvedVc<Box<dyn Module>>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         availability_info: AvailabilityInfo,
@@ -65,7 +65,7 @@ impl ManifestAsyncModule {
     pub(super) fn chunk_group(&self) -> Vc<OutputAssetsWithReferenced> {
         self.chunking_context.chunk_group_assets(
             self.inner.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
+            ChunkGroup::Async(self.inner),
             *self.module_graph,
             self.availability_info,
         )
@@ -77,10 +77,10 @@ impl ManifestAsyncModule {
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         if let Some(chunk_items) = this.availability_info.available_modules() {
-            let inner_module = ResolvedVc::upcast(this.inner);
+            let inner_module = this.inner;
             let batches = this
                 .module_graph
-                .module_batches(this.chunking_context.batching_config())
+                .module_batches(this.chunking_context.chunking_configs())
                 .await?;
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
@@ -173,8 +173,6 @@ impl Module for ManifestAsyncModule {
         ModuleSideEffects::SideEffectFree.cell()
     }
 }
-
-turbopack_core::chunk_item!(ManifestAsyncModule, crate::chunk::ecmascript_chunk_item);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ManifestAsyncModule {

@@ -10,11 +10,10 @@ use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        ChunkItem, ChunkingContextExt, EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::chunk_group_info::ChunkGroup,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     version::{Version, VersionedContent},
 };
@@ -23,9 +22,7 @@ use turbopack_core::{
     Clone, Debug, Eq, Hash, NonLocalValue, PartialEq, TaskInput, TraceRawVcs, Encode, Decode,
 )]
 pub struct DevHtmlEntry {
-    pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,
-    pub module_graph: ResolvedVc<ModuleGraph>,
-    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub chunk_item: ResolvedVc<ChunkItem>,
     pub runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 }
 
@@ -136,15 +133,18 @@ impl DevHtmlAsset {
             .iter()
             .map(|entry| async move {
                 let &DevHtmlEntry {
-                    chunkable_module,
-                    chunking_context,
-                    module_graph,
+                    chunk_item,
                     runtime_entries,
                 } = entry;
 
+                let chunk_item = chunk_item.await?;
+                let module = chunk_item.module;
+                let chunking_context = chunk_item.chunking_context;
+                let module_graph = chunk_item.module_graph;
+
                 let asset_with_referenced = if let Some(runtime_entries) = runtime_entries {
                     let runtime_entries =
-                        if let Some(evaluatable) = ResolvedVc::try_downcast(chunkable_module) {
+                        if let Some(evaluatable) = ResolvedVc::try_downcast(module) {
                             runtime_entries
                                 .with_entry(*evaluatable)
                                 .to_resolved()
@@ -154,7 +154,7 @@ impl DevHtmlAsset {
                         };
                     chunking_context
                         .evaluated_chunk_group_assets(
-                            chunkable_module.ident(),
+                            module.ident(),
                             ChunkGroup::Entry(
                                 runtime_entries
                                     .await?
@@ -169,8 +169,8 @@ impl DevHtmlAsset {
                 } else {
                     chunking_context
                         .root_chunk_group_assets(
-                            chunkable_module.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
+                            module.ident(),
+                            ChunkGroup::Entry(vec![module]),
                             *module_graph,
                         )
                         .await?

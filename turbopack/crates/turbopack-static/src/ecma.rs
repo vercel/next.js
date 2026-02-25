@@ -65,8 +65,6 @@ impl Module for StaticUrlJsModule {
     }
 }
 
-turbopack_core::chunk_item!(StaticUrlJsModule, ecmascript);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for StaticUrlJsModule {
     #[turbo_tasks::function]

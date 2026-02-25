@@ -12,11 +12,11 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
+    FxIndexMap, NonLocalValue, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
+    chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId},
     issue::{
         Issue, IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
         module::emit_unknown_module_type_error,
@@ -355,10 +355,16 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::Invalid);
         }
     };
-    if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) {
+    if chunking_context
+        .chunking_configs()
+        .await?
+        .chunk_type(module)
+        .await
+        .is_some()
+    {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
-                let ident = chunking_context.async_loader_chunk_item_ident(*chunkable);
+                let ident = chunking_context.async_loader_chunk_item_ident(*module);
                 let loader_id = chunking_context
                     .chunk_item_id_strategy()
                     .await?
@@ -367,16 +373,16 @@ async fn to_single_pattern_mapping(
                 return Ok(SinglePatternMapping::ModuleLoader(loader_id));
             }
             ResolveType::ChunkItem => {
-                let item_id = chunkable.chunk_item_id(chunking_context).await?;
+                let item_id = module.chunk_item_id(chunking_context).await?;
                 return Ok(SinglePatternMapping::Module(item_id));
             }
         }
     }
     CodeGenerationIssue {
         severity: IssueSeverity::Bug,
-        title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
+        title: StyledString::Text(rcstr!("non-chunkable asset")).resolved_cell(),
         message: StyledString::Text(rcstr!(
-            "asset is not placeable in ESM chunks, so it doesn't have a module id"
+            "asset is not chunkable, so it doesn't have a module id"
         ))
         .resolved_cell(),
         path: origin.origin_path().owned().await?,

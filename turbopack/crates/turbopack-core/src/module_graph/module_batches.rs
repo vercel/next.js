@@ -18,7 +18,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{ChunkableModule, ChunkingType},
+    chunk::{ChunkingConfigs, ChunkingType},
     module::Module,
     module_graph::{
         GraphTraversalAction, ModuleGraph,
@@ -334,7 +334,7 @@ impl PreBatches {
 
 pub async fn compute_module_batches(
     module_graph: Vc<ModuleGraph>,
-    _config: &BatchingConfig,
+    chunking_configs: ResolvedVc<ChunkingConfigs>,
 ) -> Result<Vc<ModuleBatchesGraph>> {
     let outer_span = tracing::info_span!(
         "compute module batches",
@@ -655,6 +655,21 @@ pub async fn compute_module_batches(
         // Now every module is only in one batch
 
         let mut edges_count = 0;
+        let chunking_config = chunking_configs.await?;
+        // Pre-resolve chunk type trait refs to avoid repeated async lookups per module
+        let resolved_chunk_types = chunking_config.resolved_chunk_types().await?;
+        let mut chunkable_modules = FxIndexSet::default();
+        for prebatch in &pre_batches.batches {
+            for item in &prebatch.items {
+                if let PreBatchItem::ParallelModule(module) = item {
+                    let is_chunkable =
+                        chunking_config.is_chunkable_resolved(&resolved_chunk_types, *module);
+                    if is_chunkable {
+                        chunkable_modules.insert(*module);
+                    }
+                }
+            }
+        }
 
         // Since batches can only have references followed by a list of parallel chunkable modules,
         // we need to split batches that have modules before references.
@@ -668,13 +683,13 @@ pub async fn compute_module_batches(
             }
             let mut mode = Mode::Other;
             for item in items {
-                let chunkable_module = if let PreBatchItem::ParallelModule(module) = &item {
-                    ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
+                let is_chunkable = if let PreBatchItem::ParallelModule(module) = &item {
+                    chunkable_modules.contains(module)
                 } else {
-                    None
+                    false
                 };
                 let item = if let PreBatchItem::ParallelModule(module) = item {
-                    if chunkable_module.is_some() {
+                    if is_chunkable {
                         PreBatchItem::ParallelModule(module)
                     } else {
                         pre_batches.single_module_entries.insert(module);
@@ -689,8 +704,8 @@ pub async fn compute_module_batches(
                 } else {
                     item
                 };
-                match (&mode, chunkable_module) {
-                    (_, Some(_)) => {
+                match (&mode, is_chunkable) {
+                    (_, true) => {
                         mode = Mode::ParallelChunkableModule;
                         new_items.insert(item);
                     }
@@ -707,7 +722,7 @@ pub async fn compute_module_batches(
                         pre_batches.batches.push(new_batch);
                         edges_count += 1;
                         new_items.insert(PreBatchItem::ParallelReference(idx));
-                        if chunkable_module.is_some() {
+                        if is_chunkable {
                             new_items.insert(item);
                         } else {
                             edges_count += 1;
@@ -738,7 +753,11 @@ pub async fn compute_module_batches(
             .map(async |(i, pre_batch)| {
                 let mut modules = pre_batch.items.iter().filter_map(|item| {
                     if let PreBatchItem::ParallelModule(module) = item {
-                        ResolvedVc::try_downcast(*module)
+                        if chunkable_modules.contains(module) {
+                            Some(*module)
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -757,7 +776,7 @@ pub async fn compute_module_batches(
                     );
                     Ok(ModuleOrBatch::Batch(batch.to_resolved().await?))
                 } else {
-                    Ok(ModuleOrBatch::Module(ResolvedVc::upcast(first)))
+                    Ok(ModuleOrBatch::Module(first))
                 }
             })
             .try_join()

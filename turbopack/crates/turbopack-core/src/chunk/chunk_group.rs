@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::atomic::AtomicBool};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     chunk::{
-        ChunkableModule, ChunkingType, Chunks,
+        ChunkingConfigs, ChunkingType, Chunks,
         available_modules::AvailableModuleItem,
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
@@ -24,7 +24,7 @@ use crate::{
             ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleBatch, ModuleBatchGroup,
             ModuleOrBatch,
         },
-        module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
+        module_batches::ModuleBatchesGraphEdge,
     },
     output::{
         OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
@@ -60,7 +60,7 @@ pub async fn make_chunk_group(
         .await?;
     let should_trace = *chunking_context.is_tracing_enabled().await?;
     let should_merge_modules = *chunking_context.is_module_merging_enabled().await?;
-    let batching_config = chunking_context.batching_config();
+    let chunking_configs = chunking_context.chunking_configs();
 
     let ChunkGroupContent {
         chunkable_items,
@@ -76,7 +76,7 @@ pub async fn make_chunk_group(
             can_split_async,
             should_trace,
             should_merge_modules,
-            batching_config,
+            chunking_configs,
         },
     )
     .await?;
@@ -202,8 +202,8 @@ pub struct ChunkGroupContentOptions {
     pub should_trace: bool,
     /// Whether module merging is enabled
     pub should_merge_modules: bool,
-    /// The batching config to use
-    pub batching_config: Vc<BatchingConfig>,
+    /// The chunking configs
+    pub chunking_configs: Vc<ChunkingConfigs>,
 }
 
 /// Computes the content of a chunk group.
@@ -217,17 +217,17 @@ pub async fn chunk_group_content(
         can_split_async,
         should_trace,
         should_merge_modules,
-        batching_config,
+        chunking_configs,
     }: ChunkGroupContentOptions,
 ) -> Result<ChunkGroupContent> {
-    let module_batches_graph = module_graph.module_batches(batching_config).await?;
+    let module_batches_graph = module_graph.module_batches(chunking_configs).await?;
 
     type ModuleToChunkableMap = FxHashMap<ModuleOrBatch, ChunkableModuleOrBatch>;
 
     struct TraverseState {
         unsorted_items: ModuleToChunkableMap,
         chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
-        async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+        async_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
         traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     }
 
@@ -313,15 +313,13 @@ pub async fn chunk_group_content(
                 }
                 ChunkingType::Async => {
                     if can_split_async {
-                        let chunkable_module = ResolvedVc::try_downcast(edge.module.unwrap())
-                            .context("Module in async chunking edge is not chunkable")?;
+                        let module = edge.module.unwrap();
                         let is_async_loader_available =
                             available_modules.as_ref().is_some_and(|available_modules| {
-                                available_modules
-                                    .get(AvailableModuleItem::AsyncLoader(chunkable_module))
+                                available_modules.get(AvailableModuleItem::AsyncLoader(module))
                             });
                         if !is_async_loader_available {
-                            state.async_modules.insert(chunkable_module);
+                            state.async_modules.insert(module);
                         }
                         GraphTraversalAction::Exclude
                     } else if is_available {
@@ -388,15 +386,14 @@ pub async fn chunk_group_content(
             .map(async |chunkable_module| match chunkable_module {
                 ChunkableModuleOrBatch::Module(module) => {
                     if !merged_modules_ref
-                        .should_create_chunk_item_for(ResolvedVc::upcast(module))
+                        .should_create_chunk_item_for(module)
                         .await?
                     {
                         return Ok(None);
                     }
 
-                    let module = if let Some(replacement) = merged_modules_ref
-                        .should_replace_module(ResolvedVc::upcast(module))
-                        .await?
+                    let module = if let Some(replacement) =
+                        merged_modules_ref.should_replace_module(module).await?
                     {
                         replacement
                     } else {
@@ -458,23 +455,18 @@ async fn map_module_batch(
         .iter()
         .copied()
         .map(async |module| {
-            if !merged_modules
-                .should_create_chunk_item_for(ResolvedVc::upcast(module))
-                .await?
-            {
+            if !merged_modules.should_create_chunk_item_for(module).await? {
                 modified.store(true, std::sync::atomic::Ordering::Relaxed);
                 return Ok(None);
             }
 
-            let module = if let Some(replacement) = merged_modules
-                .should_replace_module(ResolvedVc::upcast(module))
-                .await?
-            {
-                modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                replacement
-            } else {
-                module
-            };
+            let module =
+                if let Some(replacement) = merged_modules.should_replace_module(module).await? {
+                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                    replacement
+                } else {
+                    module
+                };
 
             Ok(Some(module))
         })
@@ -518,7 +510,7 @@ async fn map_module_batch_group(
                     merged_modules_ref.should_replace_module(module).await?
                 {
                     modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                    ResolvedVc::upcast(replacement)
+                    replacement
                 } else {
                     module
                 };

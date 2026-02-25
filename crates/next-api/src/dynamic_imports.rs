@@ -30,7 +30,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
+    chunk::{ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
     module_graph::{ModuleGraph, ModuleGraphLayer},
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
@@ -55,7 +55,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
     let dynamic_import_chunks = dynamic_import_entries
         .iter()
         .map(|(dynamic_entry, parent_client_reference)| async move {
-            let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
+            let module = ResolvedVc::upcast::<Box<dyn Module>>(*dynamic_entry);
 
             // This is the availability info for the parent chunk group, i.e. the client reference
             // containing the next/dynamic imports

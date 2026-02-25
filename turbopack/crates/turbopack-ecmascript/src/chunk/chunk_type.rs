@@ -1,12 +1,21 @@
 use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
-use turbopack_core::chunk::{
-    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
-    ChunkType, ChunkedItem, ChunkingContext, round_chunk_item_size,
+use turbopack_core::{
+    chunk::{
+        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
+        ChunkItemOrBatchWithAsyncModuleInfo, ChunkType, ChunkingContext, round_chunk_item_size,
+    },
+    ident::AssetIdent,
+    module::Module,
+    module_graph::ModuleGraph,
+    output::{OutputAssets, OutputAssetsWithReferenced},
 };
 
-use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
-use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
+use super::{EcmascriptChunk, EcmascriptChunkContent};
+use crate::chunk::{
+    batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
+    placeable::EcmascriptChunkPlaceable,
+};
 
 #[turbo_tasks::value]
 #[derive(Default, ValueToString)]
@@ -18,6 +27,10 @@ impl ChunkType for EcmascriptChunkType {
     #[turbo_tasks::function]
     fn is_style(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
+    }
+
+    fn accepts_module(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).is_some()
     }
 
     #[turbo_tasks::function]
@@ -53,17 +66,55 @@ impl ChunkType for EcmascriptChunkType {
         chunk_item: Vc<ChunkItem>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
-        let inner: ResolvedVc<Box<dyn ChunkedItem>> = *chunk_item.await?;
-        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(inner)
+        let chunk_item = chunk_item.await?;
+        let module = chunk_item.module;
+        let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
-        Ok(Vc::cell(
-            chunk_item
-                .content_with_async_module_info(async_module_info, true)
-                .await
-                .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
-        ))
+        let content = module
+            .chunk_item_content(
+                *chunk_item.chunking_context,
+                *chunk_item.module_graph,
+                async_module_info,
+                true,
+            )
+            .await;
+        Ok(Vc::cell(content.map_or(0, |content| {
+            round_chunk_item_size(content.inner_code.len())
+        })))
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_item_content_ident(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Vc<AssetIdent> {
+        if let Some(placeable) =
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+        {
+            placeable.chunk_item_content_ident(chunking_context, module_graph)
+        } else {
+            module.ident()
+        }
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_item_output_assets(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Vc<OutputAssetsWithReferenced> {
+        if let Some(placeable) =
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+        {
+            placeable.chunk_item_output_assets(chunking_context, module_graph)
+        } else {
+            OutputAssetsWithReferenced::from_assets(*OutputAssets::empty_resolved())
+        }
     }
 }
 

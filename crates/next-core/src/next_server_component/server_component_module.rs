@@ -87,8 +87,6 @@ impl Module for NextServerComponentModule {
     }
 }
 
-turbopack_core::chunk_item!(NextServerComponentModule, ecmascript);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]

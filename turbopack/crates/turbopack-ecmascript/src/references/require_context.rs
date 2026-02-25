@@ -435,8 +435,6 @@ impl Module for RequireContextAsset {
     }
 }
 
-turbopack_core::chunk_item!(RequireContextAsset, crate::chunk::ecmascript_chunk_item);
-
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for RequireContextAsset {
     #[turbo_tasks::function]

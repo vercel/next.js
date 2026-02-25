@@ -7,8 +7,8 @@ use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingContextExt, ChunkingType,
-        ChunkingTypeOption, EvaluatableAsset,
+        AsyncModuleInfo, ChunkItem, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        EvaluatableAsset,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -41,16 +41,13 @@ async fn hmr_entry_point_base_ident() -> Result<Vc<AssetIdent>> {
 #[turbo_tasks::value(shared)]
 pub struct HmrEntryModule {
     pub ident: ResolvedVc<AssetIdent>,
-    pub module: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl HmrEntryModule {
     #[turbo_tasks::function]
-    pub fn new(
-        ident: ResolvedVc<AssetIdent>,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Vc<Self> {
+    pub fn new(ident: ResolvedVc<AssetIdent>, module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         Self { ident, module }.cell()
     }
 }
@@ -70,7 +67,7 @@ impl Module for HmrEntryModule {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
-            HmrEntryModuleReference::new(Vc::upcast(*self.module))
+            HmrEntryModuleReference::new(*self.module)
                 .to_resolved()
                 .await?,
         )]))
@@ -80,8 +77,6 @@ impl Module for HmrEntryModule {
         ModuleSideEffects::SideEffectful.cell()
     }
 }
-
-turbopack_core::chunk_item!(HmrEntryModule, ecmascript);
 
 #[turbo_tasks::value_impl]
 impl Asset for HmrEntryModule {
@@ -108,7 +103,7 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let module = this.module;
-        let chunk_item = chunking_context.chunk_item(Vc::upcast(*module), module_graph);
+        let chunk_item = ChunkItem::new(*module, module_graph, chunking_context);
         let id = chunking_context
             .chunk_item_id_strategy()
             .await?
