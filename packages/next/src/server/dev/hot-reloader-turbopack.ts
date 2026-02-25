@@ -128,6 +128,7 @@ import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { ServerInstantValidationStatus } from '../../next-devtools/dev-overlay/shared'
 import type { Lockfile } from '../../build/lockfile'
 import {
   sendSerializedErrorsToClient,
@@ -657,6 +658,10 @@ export async function createHotReloaderTurbopack(
   const clientsWithoutHtmlRequestId = new Set<ws>()
   const clientsByHtmlRequestId = new Map<string, ws>()
   const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
+  const instantValidationStatusesByHtmlRequestId = new Map<
+    string,
+    ServerInstantValidationStatus
+  >()
   const clientStates = new WeakMap<ws, ClientState>()
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
@@ -1120,6 +1125,16 @@ export async function createHotReloaderTurbopack(
               })
               cacheStatusesByHtmlRequestId.delete(htmlRequestId)
             }
+
+            const instantValidationStatus =
+              instantValidationStatusesByHtmlRequestId.get(htmlRequestId)
+            if (instantValidationStatus !== undefined) {
+              sendToClient(client, {
+                type: HMR_MESSAGE_SENT_TO_BROWSER.INSTANT_VALIDATION_INDICATOR,
+                state: instantValidationStatus,
+              })
+              instantValidationStatusesByHtmlRequestId.delete(htmlRequestId)
+            }
           } else {
             onUpgrade(client, { isLegacyClient: true })
           }
@@ -1373,6 +1388,24 @@ export async function createHotReloaderTurbopack(
         // If the client is not connected, store the status so that we can send it
         // when the client connects.
         cacheStatusesByHtmlRequestId.set(htmlRequestId, status)
+      }
+    },
+
+    setInstantValidationStatus(
+      status: ServerInstantValidationStatus,
+      htmlRequestId: string
+    ): void {
+      // Legacy clients don't have Cache Components.
+      const client = clientsByHtmlRequestId.get(htmlRequestId)
+      if (client !== undefined) {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.INSTANT_VALIDATION_INDICATOR,
+          state: status,
+        })
+      } else {
+        // If the client is not connected, store the status so that we can send it
+        // when the client connects.
+        instantValidationStatusesByHtmlRequestId.set(htmlRequestId, status)
       }
     },
 

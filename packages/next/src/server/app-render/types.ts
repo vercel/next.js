@@ -19,6 +19,7 @@ import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { ServerInstantValidationStatus } from '../../next-devtools/dev-overlay/shared'
 
 const dynamicParamTypesSchema = s.enums([
   'c',
@@ -111,6 +112,10 @@ export interface RenderOptsPartial {
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
+  setInstantValidationStatus?: (
+    status: ServerInstantValidationStatus,
+    htmlRequestId: string
+  ) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
     debugChannel: { readable: ReadableStream<Uint8Array> },

@@ -114,6 +114,7 @@ import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { ServerInstantValidationStatus } from '../../next-devtools/dev-overlay/shared'
 import type { Lockfile } from '../../build/lockfile'
 import {
   sendSerializedErrorsToClient,
@@ -264,6 +265,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
+  private instantValidationStatusesByRequestId = new Map<
+    string,
+    ServerInstantValidationStatus
+  >()
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -667,6 +672,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               state: status,
             })
             this.cacheStatusesByRequestId.delete(htmlRequestId)
+          }
+
+          const instantValidationStatus =
+            this.instantValidationStatusesByRequestId.get(htmlRequestId)
+          if (instantValidationStatus !== undefined) {
+            this.sendToClient(client, {
+              type: HMR_MESSAGE_SENT_TO_BROWSER.INSTANT_VALIDATION_INDICATOR,
+              state: instantValidationStatus,
+            })
+            this.instantValidationStatusesByRequestId.delete(htmlRequestId)
           }
         }
       }
@@ -1782,6 +1797,23 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       // If the client is not connected, store the status so that we can send it
       // when the client connects.
       this.cacheStatusesByRequestId.set(htmlRequestId, status)
+    }
+  }
+
+  public setInstantValidationStatus(
+    status: ServerInstantValidationStatus,
+    htmlRequestId: string
+  ): void {
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
+    if (client !== undefined) {
+      this.sendToClient(client, {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.INSTANT_VALIDATION_INDICATOR,
+        state: status,
+      })
+    } else {
+      // If the client is not connected, store the status so that we can send it
+      // when the client connects.
+      this.instantValidationStatusesByRequestId.set(htmlRequestId, status)
     }
   }
 

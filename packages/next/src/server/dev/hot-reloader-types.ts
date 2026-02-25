@@ -13,6 +13,7 @@ import type {
   ServerCacheStatus,
 } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
+import type { ServerInstantValidationStatus } from '../../next-devtools/dev-overlay/shared'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
@@ -33,6 +34,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   TURBOPACK_CONNECTED = 'turbopack-connected',
   ISR_MANIFEST = 'isrManifest',
   CACHE_INDICATOR = 'cacheIndicator',
+  INSTANT_VALIDATION_INDICATOR = 'instantValidationIndicator',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
@@ -178,6 +180,11 @@ export interface CacheIndicatorMessage {
   state: CacheIndicatorState
 }
 
+export interface InstantValidationIndicatorMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.INSTANT_VALIDATION_INDICATOR
+  state: ServerInstantValidationStatus
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -200,6 +207,7 @@ export type HmrMessageSentToBrowser =
   | RequestCurrentErrorStateMessage
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
+  | InstantValidationIndicatorMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
@@ -237,6 +245,10 @@ export interface NextJsHotReloaderInterface {
    */
   sendToLegacyClients(action: HmrMessageSentToBrowser): void
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
+  setInstantValidationStatus(
+    status: ServerInstantValidationStatus,
+    htmlRequestId: string
+  ): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,

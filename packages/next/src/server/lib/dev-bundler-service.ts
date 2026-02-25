@@ -18,6 +18,7 @@ export class DevBundlerService {
   public appIsrManifestInner: InstanceType<typeof LRUCache<boolean>>
   public close: NextJsHotReloaderInterface['close']
   public setCacheStatus: NextJsHotReloaderInterface['setCacheStatus']
+  public setInstantValidationStatus: NextJsHotReloaderInterface['setInstantValidationStatus']
   public setReactDebugChannel: NextJsHotReloaderInterface['setReactDebugChannel']
   public sendErrorsToBrowser: NextJsHotReloaderInterface['sendErrorsToBrowser']
 
@@ -37,6 +38,8 @@ export class DevBundlerService {
 
     this.close = hotReloader.close.bind(hotReloader)
     this.setCacheStatus = hotReloader.setCacheStatus.bind(hotReloader)
+    this.setInstantValidationStatus =
+      hotReloader.setInstantValidationStatus.bind(hotReloader)
     this.setReactDebugChannel =
       hotReloader.setReactDebugChannel.bind(hotReloader)
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)

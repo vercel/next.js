@@ -47,7 +47,10 @@ export function NextLogo({
 
   // Determine if we should show any transient status (excluding cache bypass)
   const shouldShowTransientStatus =
-    state.buildingIndicator || state.renderingIndicator || isCacheFilling
+    state.buildingIndicator ||
+    state.renderingIndicator ||
+    state.instantValidationIndicator ||
+    isCacheFilling
 
   // Delay showing for 400ms to catch fast operations,
   // and keep visible for minimum time (longer for warnings)
@@ -71,6 +74,7 @@ export function NextLogo({
     state.buildingIndicator,
     state.renderingIndicator,
     state.cacheIndicator,
+    state.instantValidationIndicator,
     state.cacheOnly
   )
 

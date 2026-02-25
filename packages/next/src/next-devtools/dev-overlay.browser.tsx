@@ -17,6 +17,7 @@ import {
   ACTION_BUILDING_INDICATOR_SHOW,
   ACTION_RENDERING_INDICATOR_HIDE,
   ACTION_RENDERING_INDICATOR_SHOW,
+  ACTION_INSTANT_VALIDATION_INDICATOR,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
   ACTION_DEVTOOLS_CONFIG,
   type OverlayState,
@@ -36,6 +37,7 @@ import {
 } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { CacheIndicatorState } from './dev-overlay/cache-indicator'
+import type { ServerInstantValidationStatus } from './dev-overlay/shared'
 import { FontStyles } from './dev-overlay/font/font-styles'
 import type { HydrationErrorState } from './shared/hydration-error'
 import type { DebugInfo } from './shared/types'
@@ -59,6 +61,7 @@ export interface Dispatcher {
   onBeforeRefresh(): void
   onRefresh(): void
   onCacheIndicator(status: CacheIndicatorState): void
+  onInstantValidationIndicator(status: ServerInstantValidationStatus): void
   onStaticIndicator(status: 'pending' | 'static' | 'dynamic' | 'disabled'): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onDevToolsConfig(config: DevToolsConfig): void
@@ -155,6 +158,14 @@ export const dispatcher: Dispatcher = {
   onCacheIndicator: createQueuable(
     (dispatch: Dispatch, status: CacheIndicatorState) => {
       dispatch({ type: ACTION_CACHE_INDICATOR, cacheIndicator: status })
+    }
+  ),
+  onInstantValidationIndicator: createQueuable(
+    (dispatch: Dispatch, status: ServerInstantValidationStatus) => {
+      dispatch({
+        type: ACTION_INSTANT_VALIDATION_INDICATOR,
+        instantValidationIndicator: status,
+      })
     }
   ),
   onStaticIndicator: createQueuable(

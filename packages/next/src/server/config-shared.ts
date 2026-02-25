@@ -400,6 +400,11 @@ export interface ExperimentalConfig {
    * the cached/prefetched state.
    */
   instantNavigationDevToolsToggle?: boolean
+  /**
+   * Show a `Validating` status in the dev tools indicator while running
+   * dev validation for static shell and `unstable_instant`.
+   */
+  instantDevValidatingIndicator?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -1811,6 +1816,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'exposeTestingApiInProductionBuild'
+    | 'instantDevValidatingIndicator'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1875,6 +1881,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        instantDevValidatingIndicator: ex.instantDevValidatingIndicator,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

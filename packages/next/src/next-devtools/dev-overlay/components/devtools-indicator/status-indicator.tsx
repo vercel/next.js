@@ -6,6 +6,7 @@ export enum Status {
   Rendering = 'rendering',
   Compiling = 'compiling',
   Prerendering = 'prerendering',
+  Validating = 'validating',
   CacheBypassing = 'cache-bypassing',
   Instant = 'instant',
 }
@@ -14,11 +15,12 @@ export function getCurrentStatus(
   buildingIndicator: boolean,
   renderingIndicator: boolean,
   cacheIndicator: CacheIndicatorState,
+  instantValidationIndicator: boolean,
   instantMode?: boolean
 ): Status {
   const isCacheFilling = cacheIndicator === 'filling'
 
-  // Priority order: compiling > prerendering > rendering > instant
+  // Priority order: compiling > prerendering > rendering > validating > instant
   // Note: cache bypassing is now handled as a badge, not a status indicator
   if (buildingIndicator) {
     return Status.Compiling
@@ -28,6 +30,9 @@ export function getCurrentStatus(
   }
   if (renderingIndicator) {
     return Status.Rendering
+  }
+  if (instantValidationIndicator) {
+    return Status.Validating
   }
   if (instantMode) {
     return Status.Instant
@@ -52,6 +57,7 @@ export function StatusIndicator({
     [Status.Prerendering]: 'Prerendering',
     [Status.Compiling]: 'Compiling',
     [Status.Rendering]: 'Rendering',
+    [Status.Validating]: 'Validating',
     [Status.Instant]: 'Instant UI only',
   }
 
@@ -62,6 +68,7 @@ export function StatusIndicator({
     [Status.Prerendering]: '#f5a623',
     [Status.Compiling]: '#f5a623',
     [Status.Rendering]: '#50e3c2',
+    [Status.Validating]: '#50e3c2',
     [Status.Instant]: '#fff', // White dot on blue badge background
   }
 

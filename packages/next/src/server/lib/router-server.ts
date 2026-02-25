@@ -765,6 +765,13 @@ export async function initialize(opts: {
     setCacheStatus: config.cacheComponents
       ? development?.service?.setCacheStatus.bind(development?.service)
       : undefined,
+    setInstantValidationStatus:
+      config.cacheComponents &&
+      config.experimental.instantDevValidatingIndicator
+        ? development?.service?.setInstantValidationStatus.bind(
+            development?.service
+          )
+        : undefined,
     setIsrStatus: development?.service?.setIsrStatus.bind(development?.service),
     setReactDebugChannel: development?.config.experimental.reactDebugChannel
       ? development?.service?.setReactDebugChannel.bind(development?.service)

@@ -3609,26 +3609,33 @@ function logValidationSkipped(ctx: AppRenderContext) {
 async function spawnStaticShellValidationInDev(
   ...args: Parameters<typeof spawnStaticShellValidationInDevImpl>
 ) {
-  if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
-    const ctx: AppRenderContext = args[5]
-    const requestId = ctx.requestId
-    const url = ctx.url.href
-    console.log(
-      '<VALIDATION_MESSAGE>' +
-        JSON.stringify({ type: 'validation_start', requestId, url }) +
-        '</VALIDATION_MESSAGE>'
-    )
-    try {
-      return await spawnStaticShellValidationInDevImpl(...args)
-    } finally {
+  const ctx: AppRenderContext = args[5]
+  const setInstantValidationStatus = ctx.renderOpts.setInstantValidationStatus
+
+  setInstantValidationStatus?.('validating', ctx.htmlRequestId)
+  try {
+    if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
+      const requestId = ctx.requestId
+      const url = ctx.url.href
       console.log(
         '<VALIDATION_MESSAGE>' +
-          JSON.stringify({ type: 'validation_end', requestId, url }) +
+          JSON.stringify({ type: 'validation_start', requestId, url }) +
           '</VALIDATION_MESSAGE>'
       )
+      try {
+        return await spawnStaticShellValidationInDevImpl(...args)
+      } finally {
+        console.log(
+          '<VALIDATION_MESSAGE>' +
+            JSON.stringify({ type: 'validation_end', requestId, url }) +
+            '</VALIDATION_MESSAGE>'
+        )
+      }
+    } else {
+      return await spawnStaticShellValidationInDevImpl(...args)
     }
-  } else {
-    return await spawnStaticShellValidationInDevImpl(...args)
+  } finally {
+    setInstantValidationStatus?.('idle', ctx.htmlRequestId)
   }
 }
 

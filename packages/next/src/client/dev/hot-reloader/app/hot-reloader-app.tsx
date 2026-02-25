@@ -511,6 +511,10 @@ export function processMessage(
       dispatcher.onCacheIndicator(message.state)
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.INSTANT_VALIDATION_INDICATOR: {
+      dispatcher.onInstantValidationIndicator(message.state)
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
       createFromReadableStream<Error[]>(
         new ReadableStream({

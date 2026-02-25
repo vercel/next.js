@@ -8,6 +8,8 @@ import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
 
+export type ServerInstantValidationStatus = 'validating' | 'idle'
+
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
   disableDevIndicator?: boolean
@@ -50,6 +52,7 @@ export interface OverlayState {
   readonly notFound: boolean
   readonly buildingIndicator: boolean
   readonly renderingIndicator: boolean
+  readonly instantValidationIndicator: boolean
   readonly cacheIndicator: CacheIndicatorState
   readonly staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
   readonly showIndicator: boolean
@@ -96,6 +99,8 @@ export const ACTION_BUILDING_INDICATOR_SHOW = 'building-indicator-show'
 export const ACTION_BUILDING_INDICATOR_HIDE = 'building-indicator-hide'
 export const ACTION_RENDERING_INDICATOR_SHOW = 'rendering-indicator-show'
 export const ACTION_RENDERING_INDICATOR_HIDE = 'rendering-indicator-hide'
+export const ACTION_INSTANT_VALIDATION_INDICATOR =
+  'instant-validation-indicator'
 
 export const ACTION_DEVTOOLS_POSITION = 'devtools-position'
 export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
@@ -192,6 +197,11 @@ interface RenderingIndicatorHideAction {
   type: typeof ACTION_RENDERING_INDICATOR_HIDE
 }
 
+interface InstantValidationIndicatorAction {
+  type: typeof ACTION_INSTANT_VALIDATION_INDICATOR
+  instantValidationIndicator: ServerInstantValidationStatus
+}
+
 interface DevToolsIndicatorPositionAction {
   type: typeof ACTION_DEVTOOLS_POSITION
   devToolsPosition: Corners
@@ -241,6 +251,7 @@ export type DispatcherEvent =
   | BuildingIndicatorHideAction
   | RenderingIndicatorShowAction
   | RenderingIndicatorHideAction
+  | InstantValidationIndicatorAction
   | DevToolsIndicatorPositionAction
   | DevToolsPanelPositionAction
   | DevToolsScaleAction
@@ -284,6 +295,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   errors: [],
   notFound: false,
   renderingIndicator: false,
+  instantValidationIndicator: false,
   cacheIndicator: 'disabled',
   staticIndicator: 'disabled',
   /*
@@ -476,6 +488,13 @@ export function useErrorOverlayReducer(
         }
         case ACTION_RENDERING_INDICATOR_HIDE: {
           return { ...state, renderingIndicator: false }
+        }
+        case ACTION_INSTANT_VALIDATION_INDICATOR: {
+          return {
+            ...state,
+            instantValidationIndicator:
+              action.instantValidationIndicator === 'validating',
+          }
         }
 
         case ACTION_DEVTOOLS_POSITION: {

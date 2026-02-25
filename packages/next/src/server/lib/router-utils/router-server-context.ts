@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { NextConfigRuntime } from '../../config-shared'
 import type { UrlWithParsedQuery } from 'node:url'
 import type { ServerCacheStatus } from '../../../next-devtools/dev-overlay/cache-indicator'
+import type { ServerInstantValidationStatus } from '../../../next-devtools/dev-overlay/shared'
 
 export type RevalidateFn = (config: {
   urlPath: string
@@ -45,6 +46,10 @@ export type RouterServerContext = Record<
       requestId: string
     ) => void
     setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
+    setInstantValidationStatus?: (
+      status: ServerInstantValidationStatus,
+      htmlRequestId: string
+    ) => void
     sendErrorsToBrowser?: (
       errorsRscStream: ReadableStream<Uint8Array>,
       htmlRequestId: string

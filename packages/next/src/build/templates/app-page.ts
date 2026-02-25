@@ -669,6 +669,8 @@ export async function handler(
           reactLoadableManifest,
           subresourceIntegrityManifest,
           setCacheStatus: routerServerContext?.setCacheStatus,
+          setInstantValidationStatus:
+            routerServerContext?.setInstantValidationStatus,
           setIsrStatus: routerServerContext?.setIsrStatus,
           setReactDebugChannel: routerServerContext?.setReactDebugChannel,
           sendErrorsToBrowser: routerServerContext?.sendErrorsToBrowser,
