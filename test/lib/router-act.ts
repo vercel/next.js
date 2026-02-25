@@ -341,31 +341,7 @@ export function createRouterAct(
 
       let claimedExpectations = new Set<ExpectedResponseConfig>()
 
-      // Track when the queue was last empty to implement a settling period
-      let queueEmptyStartTime: number | null = null
-      const SETTLING_PERIOD_MS = 500 // Wait 500ms after queue empties
-
-      while (
-        batch.pendingRequests.size > 0 ||
-        queueEmptyStartTime === null ||
-        Date.now() - queueEmptyStartTime < SETTLING_PERIOD_MS
-      ) {
-        if (batch.pendingRequests.size > 0) {
-          // Queue has requests, reset settling timer
-          queueEmptyStartTime = null
-        } else if (queueEmptyStartTime === null) {
-          // Queue just became empty, start settling timer
-          queueEmptyStartTime = Date.now()
-        }
-
-        if (batch.pendingRequests.size === 0) {
-          // Queue is empty during settling period, wait a bit and check again
-          await new Promise((resolve) => setTimeout(resolve, 50))
-          await waitForIdleCallback()
-          await waitForPendingRequestChecks()
-          continue
-        }
-
+      while (batch.pendingRequests.size > 0) {
         const pending = batch.pendingRequests
         batch.pendingRequests = new Set()
         for (const item of pending) {

@@ -1,5 +1,5 @@
-import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
 import type * as Playwright from 'playwright'
+import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
@@ -52,9 +52,11 @@ describe('segment cache (revalidation)', () => {
 
   it('evict client cache when Server Action calls revalidatePath', async () => {
     let act: ReturnType<typeof createRouterAct>
+    let page: Playwright.Page
     const browser = await next.browser('/', {
-      beforePageLoad(page) {
-        act = createRouterAct(page)
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+        act = createRouterAct(p)
       },
     })
 
@@ -72,13 +74,21 @@ describe('segment cache (revalidation)', () => {
       }
     )
 
+    // Install fake timers — freezes the 300ms cooldown setTimeout
+    await page.clock.install()
+
     // Perform an action that calls revalidatePath. This should cause the
     // corresponding entry to be evicted from the client cache, and a new
     // prefetch to be requested.
+    await act(async () => {
+      const revalidateByPath = await browser.elementById('revalidate-by-path')
+      await revalidateByPath.click()
+    })
+
+    // Advance past cooldown inside act() to intercept the re-prefetch
     await act(
       async () => {
-        const revalidateByPath = await browser.elementById('revalidate-by-path')
-        await revalidateByPath.click()
+        await page.clock.fastForward(300)
       },
       {
         includes: 'random-greeting [1]',
@@ -103,9 +113,11 @@ describe('segment cache (revalidation)', () => {
     // bother to test every feature using both Link and Form; this test should
     // be sufficient.
     let act: ReturnType<typeof createRouterAct>
+    let page: Playwright.Page
     const browser = await next.browser('/', {
-      beforePageLoad(page) {
-        act = createRouterAct(page)
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+        act = createRouterAct(p)
       },
     })
 
@@ -123,13 +135,21 @@ describe('segment cache (revalidation)', () => {
       }
     )
 
+    // Install fake timers — freezes the 300ms cooldown setTimeout
+    await page.clock.install()
+
     // Perform an action that calls revalidatePath. This should cause the
     // corresponding entry to be evicted from the client cache, and a new
     // prefetch to be requested.
+    await act(async () => {
+      const revalidateByPath = await browser.elementById('revalidate-by-path')
+      await revalidateByPath.click()
+    })
+
+    // Advance past cooldown inside act() to intercept the re-prefetch
     await act(
       async () => {
-        const revalidateByPath = await browser.elementById('revalidate-by-path')
-        await revalidateByPath.click()
+        await page.clock.fastForward(300)
       },
       {
         includes: 'random-greeting [1]',
@@ -156,9 +176,11 @@ describe('segment cache (revalidation)', () => {
     // possible to simulate the revalidating behavior of Link using the manual
     // prefetch API.
     let act: ReturnType<typeof createRouterAct>
+    let page: Playwright.Page
     const browser = await next.browser('/', {
-      beforePageLoad(page) {
-        act = createRouterAct(page)
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+        act = createRouterAct(p)
       },
     })
 
@@ -176,13 +198,21 @@ describe('segment cache (revalidation)', () => {
       }
     )
 
+    // Install fake timers — freezes the 300ms cooldown setTimeout
+    await page.clock.install()
+
     // Perform an action that calls revalidatePath. This should cause the
     // corresponding entry to be evicted from the client cache, and a new
     // prefetch to be requested.
+    await act(async () => {
+      const revalidateByPath = await browser.elementById('revalidate-by-path')
+      await revalidateByPath.click()
+    })
+
+    // Advance past cooldown inside act() to intercept the re-prefetch
     await act(
       async () => {
-        const revalidateByPath = await browser.elementById('revalidate-by-path')
-        await revalidateByPath.click()
+        await page.clock.fastForward(300)
       },
       {
         includes: 'random-greeting [1]',
@@ -203,9 +233,11 @@ describe('segment cache (revalidation)', () => {
 
   it('evict client cache when Server Action calls revalidateTag', async () => {
     let act: ReturnType<typeof createRouterAct>
+    let page: Playwright.Page
     const browser = await next.browser('/', {
-      beforePageLoad(page) {
-        act = createRouterAct(page)
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+        act = createRouterAct(p)
       },
     })
 
@@ -223,13 +255,21 @@ describe('segment cache (revalidation)', () => {
       }
     )
 
+    // Install fake timers — freezes the 300ms cooldown setTimeout
+    await page.clock.install()
+
     // Perform an action that calls revalidateTag. This should cause the
     // corresponding entry to be evicted from the client cache, and a new
     // prefetch to be requested.
+    await act(async () => {
+      const revalidateByTag = await browser.elementById('revalidate-by-tag')
+      await revalidateByTag.click()
+    })
+
+    // Advance past cooldown inside act() to intercept the re-prefetch
     await act(
       async () => {
-        const revalidateByTag = await browser.elementById('revalidate-by-tag')
-        await revalidateByTag.click()
+        await page.clock.fastForward(300)
       },
       {
         includes: 'random-greeting [1]',
@@ -354,15 +394,10 @@ describe('segment cache (revalidation)', () => {
 
     // Perform an action that calls revalidatePath. This triggers a 300ms
     // cooldown before any new prefetch requests can be made.
-    // Don't use act() here — act()'s settling loop calls
-    // waitForIdleCallback({ timeout: 100 }) repeatedly, which advances
-    // the fake clock and would cause the cooldown to fire prematurely.
-    const revalidateByPath = await browser.elementById('revalidate-by-path')
-    const actionResponse = page.waitForResponse(
-      (response) => response.request().headers()['next-action'] !== undefined
-    )
-    await revalidateByPath.click()
-    await actionResponse
+    await act(async () => {
+      const revalidateByPath = await browser.elementById('revalidate-by-path')
+      await revalidateByPath.click()
+    })
 
     // The cooldown timer is frozen, so no prefetch should have occurred.
     TestLog.assert([])
