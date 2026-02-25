@@ -7,6 +7,7 @@ export const PARENT_MESSAGE_OK = 0
 export const PARENT_MESSAGE_CLIENT_ERROR = 1
 export const PARENT_MESSAGE_SETUP_ERROR = 2
 export const PARENT_MESSAGE_CUSTOM = 3
+export const PARENT_MESSAGE_READY = 4
 
 // Parent → Child message types
 export type ChildMessageInitialize = [
@@ -59,8 +60,11 @@ export type ParentMessageCustom = [
   payload: unknown,
 ]
 
+export type ParentMessageReady = [type: typeof PARENT_MESSAGE_READY]
+
 export type ParentMessage =
   | ParentMessageOk
   | ParentMessageClientError
   | ParentMessageSetupError
   | ParentMessageCustom
+  | ParentMessageReady

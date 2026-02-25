@@ -7,6 +7,7 @@ Custom worker pool implementation for Next.js, replacing `jest-worker`.
 - **Lazy spawning**: Workers are created on-demand when jobs are dispatched, not at construction time
 - **Dynamic scaling**: Worker count grows as concurrent jobs increase, up to `maxWorkers`
 - **Per-worker concurrency**: Configurable concurrent calls per worker via `concurrencyPerWorker`
+- **Boot throttling**: `maxBootingWorkers` limits how many workers start concurrently, preventing resource contention when many tasks arrive at once
 - **Individual worker restart**: Hung or crashed workers are restarted without affecting others
 
 ## Architecture
@@ -47,8 +48,9 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 | CLIENT_ERROR | `[1, requestId, errorName, message, stack, properties]` |
 | SETUP_ERROR | `[2, errorName, message, stack]` |
 | CUSTOM | `[3, payload]` |
+| READY | `[4]` |
 
-Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker.
+Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker. The READY message is sent once per worker after the module is loaded and optional `setup()` completes, signaling the worker is fully initialized.
 
 ## Usage
 
@@ -115,6 +117,7 @@ export async function teardown(): Promise<void> { ... }
 | `forkOptions` | object | {} | env, execArgv for child processes |
 | `setupArgs` | unknown[] | [] | Arguments for worker setup() function |
 | `maxRespawns` | number | 0 | Max times a worker slot is respawned after a crash (in-flight requests are always rejected; this only pre-spawns a replacement) |
+| `maxBootingWorkers` | number | ceil(maxWorkers/4) | Max workers that can be starting up concurrently. A worker is "booting" from spawn until it sends READY after loading its module and running setup(). Prevents resource contention when many tasks arrive simultaneously. |
 
 ### Worker Options (high-level)
 

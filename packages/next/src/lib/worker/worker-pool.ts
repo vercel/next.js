@@ -11,6 +11,7 @@ import {
   PARENT_MESSAGE_CLIENT_ERROR,
   PARENT_MESSAGE_SETUP_ERROR,
   PARENT_MESSAGE_CUSTOM,
+  PARENT_MESSAGE_READY,
   type ParentMessage,
   type ChildMessageInitialize,
 } from './types'
@@ -38,6 +39,14 @@ export interface WorkerPoolOptions {
    * next dispatch doesn't pay the startup cost. (default: 0)
    */
   maxRespawns?: number
+  /**
+   * Maximum number of workers that can be in the "booting" state at once.
+   * A worker is booting from the moment it is spawned until it sends a
+   * PARENT_MESSAGE_READY after loading its module and running setup().
+   * This prevents resource contention when many tasks arrive simultaneously.
+   * (default: Math.ceil(maxWorkers / 4))
+   */
+  maxBootingWorkers?: number
   /** Called when a worker process exits unexpectedly */
   onWorkerExit?: (code: number | null, signal: string | null) => void
   /** Called when a worker sends a custom message */
@@ -67,6 +76,8 @@ interface PoolWorker {
   respawnCount: number
   /** Whether this worker is being terminated (graceful or forced) */
   ending: boolean
+  /** True from spawn until the worker sends PARENT_MESSAGE_READY */
+  booting: boolean
 }
 
 const FORCE_EXIT_DELAY = 500
@@ -164,6 +175,7 @@ export class WorkerPool {
       | 'concurrencyPerWorker'
       | 'enableWorkerThreads'
       | 'maxRespawns'
+      | 'maxBootingWorkers'
     >
   > &
     WorkerPoolOptions
@@ -183,6 +195,8 @@ export class WorkerPool {
       concurrencyPerWorker: 1,
       enableWorkerThreads: false,
       maxRespawns: options.maxRespawns ?? 0,
+      maxBootingWorkers:
+        options.maxBootingWorkers ?? Math.ceil(options.maxWorkers / 4),
       ...options,
     }
 
@@ -221,14 +235,17 @@ export class WorkerPool {
         return
       }
 
-      // If we can spawn more workers, do so
-      if (this._workers.length < this._options.maxWorkers) {
+      // If we can spawn more workers and haven't hit the booting limit, do so
+      if (
+        this._workers.length < this._options.maxWorkers &&
+        this._bootingCount() < this._options.maxBootingWorkers
+      ) {
         const newWorker = this._spawnWorker()
         this._sendCall(newWorker, method, args, resolve, reject)
         return
       }
 
-      // All workers busy and at max capacity — queue the task
+      // All workers busy, at max capacity, or booting limit reached — queue
       this._taskQueue.push({ method, args, resolve, reject })
     })
   }
@@ -397,6 +414,7 @@ export class WorkerPool {
       workerId,
       respawnCount: existingRespawnCount,
       ending: false,
+      booting: true,
     }
     this._handles.set(worker, handle)
 
@@ -500,6 +518,11 @@ export class WorkerPool {
         this._options.onCustomMessage?.(message[1])
         break
       }
+      case PARENT_MESSAGE_READY: {
+        worker.booting = false
+        this._onWorkerReady()
+        break
+      }
       default:
         break
     }
@@ -599,16 +622,21 @@ export class WorkerPool {
         this._workers.splice(idx, 1)
       }
 
-      // If there are queued tasks, spawn a replacement worker
-      if (this._taskQueue.length > 0 && !this._ending) {
+      // If there are queued tasks, spawn a replacement worker (if booting allows)
+      if (
+        this._taskQueue.length > 0 &&
+        !this._ending &&
+        this._bootingCount() < this._options.maxBootingWorkers
+      ) {
         const newWorker = this._spawnWorker()
         this._drainQueue(newWorker)
       }
     }
 
     if (hasInFlightRequests && !this._ending) {
-      // Drain queue to any workers that now have capacity
+      // Drain queue to any workers that now have capacity, then spawn more
       this._drainQueueToAvailable()
+      this._spawnForQueuedTasks()
     }
   }
 
@@ -658,6 +686,46 @@ export class WorkerPool {
       if (!worker) break
       const task = this._taskQueue.shift()!
       this._sendCall(worker, task.method, task.args, task.resolve, task.reject)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal: booting management
+  // ---------------------------------------------------------------------------
+
+  /** Count workers that are still in the booting state */
+  private _bootingCount(): number {
+    let count = 0
+    for (const worker of this._workers) {
+      if (worker.booting) count++
+    }
+    return count
+  }
+
+  /**
+   * Called when a worker transitions from booting to ready.
+   * Drains queued tasks to workers with capacity, then spawns additional
+   * workers for remaining queued tasks (now that a booting slot freed up).
+   */
+  private _onWorkerReady(): void {
+    this._drainQueueToAvailable()
+    this._spawnForQueuedTasks()
+  }
+
+  /**
+   * Spawn new workers for queued tasks, respecting both maxWorkers and
+   * maxBootingWorkers limits. Each spawned worker drains as many queued
+   * tasks as its concurrency allows.
+   */
+  private _spawnForQueuedTasks(): void {
+    while (
+      this._taskQueue.length > 0 &&
+      this._workers.length < this._options.maxWorkers &&
+      this._bootingCount() < this._options.maxBootingWorkers &&
+      !this._ending
+    ) {
+      const newWorker = this._spawnWorker()
+      this._drainQueue(newWorker)
     }
   }
 

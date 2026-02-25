@@ -8,6 +8,7 @@ import {
   PARENT_MESSAGE_CLIENT_ERROR,
   PARENT_MESSAGE_SETUP_ERROR,
   PARENT_MESSAGE_CUSTOM,
+  PARENT_MESSAGE_READY,
 } from './types'
 
 // ---------------------------------------------------------------------------
@@ -104,6 +105,11 @@ function replySetupError(
   ])
 }
 
+/** Simulate a PARENT_MESSAGE_READY message (worker finished booting) */
+function replyReady(proc: FakeChildProcess): void {
+  proc.emit('message', [PARENT_MESSAGE_READY])
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -160,6 +166,7 @@ describe('WorkerPool', () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 3,
+        maxBootingWorkers: 3,
         concurrencyPerWorker: 1,
       })
       pool.dispatch('a', [])
@@ -174,6 +181,7 @@ describe('WorkerPool', () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 2,
+        maxBootingWorkers: 2,
         concurrencyPerWorker: 1,
       })
       pool.dispatch('a', [])
@@ -567,6 +575,7 @@ describe('WorkerPool', () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 2,
+        maxBootingWorkers: 2,
       })
       pool.dispatch('a', [])
       pool.dispatch('b', [])
@@ -686,6 +695,7 @@ describe('WorkerPool', () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 3,
+        maxBootingWorkers: 3,
         concurrencyPerWorker: 1,
       })
 
@@ -763,6 +773,7 @@ describe('WorkerPool', () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 2,
+        maxBootingWorkers: 2,
       })
       pool.dispatch('a', [])
       pool.dispatch('b', [])
@@ -1029,6 +1040,217 @@ describe('WorkerPool', () => {
       await endPromise
 
       await expect(promise).rejects.toThrow('Worker exited during shutdown')
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // maxBootingWorkers
+  // -----------------------------------------------------------------------
+  describe('maxBootingWorkers', () => {
+    it('defaults to ceil(maxWorkers/4) and throttles spawning', () => {
+      // maxWorkers=3, default maxBootingWorkers = ceil(3/4) = 1
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 3,
+        concurrencyPerWorker: 1,
+      })
+
+      // Dispatch 3 tasks — only 1 worker should spawn (booting limit = 1)
+      pool.dispatch('a', [])
+      pool.dispatch('b', [])
+      pool.dispatch('c', [])
+      expect(spawnedProcesses).toHaveLength(1)
+      expect(pool.getWorkerCount()).toBe(1)
+
+      // Worker 1 finishes booting → second worker spawns
+      replyReady(spawnedProcesses[0])
+      expect(spawnedProcesses).toHaveLength(2)
+      expect(pool.getWorkerCount()).toBe(2)
+
+      // Worker 2 finishes booting → third worker spawns
+      replyReady(spawnedProcesses[1])
+      expect(spawnedProcesses).toHaveLength(3)
+      expect(pool.getWorkerCount()).toBe(3)
+
+      pool.close()
+    })
+
+    it('allows maxBootingWorkers=2 to spawn 2 concurrently', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 4,
+        maxBootingWorkers: 2,
+        concurrencyPerWorker: 1,
+      })
+
+      // Dispatch 4 tasks — 2 workers should spawn (booting limit = 2)
+      pool.dispatch('a', [])
+      pool.dispatch('b', [])
+      pool.dispatch('c', [])
+      pool.dispatch('d', [])
+      expect(spawnedProcesses).toHaveLength(2)
+
+      // First worker becomes ready → third worker spawns
+      replyReady(spawnedProcesses[0])
+      expect(spawnedProcesses).toHaveLength(3)
+
+      // Second worker becomes ready → fourth worker spawns
+      replyReady(spawnedProcesses[1])
+      expect(spawnedProcesses).toHaveLength(4)
+
+      pool.close()
+    })
+
+    it('spawns all immediately when maxBootingWorkers equals maxWorkers', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 3,
+        maxBootingWorkers: 3,
+        concurrencyPerWorker: 1,
+      })
+
+      pool.dispatch('a', [])
+      pool.dispatch('b', [])
+      pool.dispatch('c', [])
+      expect(spawnedProcesses).toHaveLength(3)
+
+      pool.close()
+    })
+
+    it('queues tasks when booting limit is reached and dispatches on READY', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 2,
+        maxBootingWorkers: 1,
+        concurrencyPerWorker: 1,
+      })
+
+      const p1 = pool.dispatch('first', [])
+      pool.dispatch('second', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      const proc1 = spawnedProcesses[0]
+      // Complete the first task
+      const callMsg = proc1.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
+      replyOk(proc1, callMsg[1] as number, 'result1')
+      await expect(p1).resolves.toBe('result1')
+
+      // Worker 1 still booting — second task dequeued to worker 1 (it has capacity now)
+      // but no new worker spawns yet
+      const calls1 = proc1.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(calls1).toHaveLength(2)
+      expect(spawnedProcesses).toHaveLength(1)
+
+      // Worker 1 finishes booting → second worker spawns for any remaining queued tasks
+      replyReady(proc1)
+      // No more queued tasks (second task was dispatched to worker 1), so no new spawn
+      // unless we dispatch more
+      pool.dispatch('third', [])
+      // Worker 1 is at capacity (second task in-flight), so third queues
+      // but now booting count is 0 so a new worker should spawn
+      expect(spawnedProcesses).toHaveLength(2)
+
+      pool.close()
+    })
+
+    it('allows CALL messages to booting workers', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        maxBootingWorkers: 1,
+        concurrencyPerWorker: 2,
+      })
+
+      // Dispatch two tasks — both should go to the same booting worker
+      const p1 = pool.dispatch('a', [])
+      const p2 = pool.dispatch('b', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      const proc = spawnedProcesses[0]
+      const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(callMessages).toHaveLength(2)
+
+      // Resolve both
+      replyOk(proc, callMessages[0][1] as number, 'ra')
+      replyOk(proc, callMessages[1][1] as number, 'rb')
+      await expect(p1).resolves.toBe('ra')
+      await expect(p2).resolves.toBe('rb')
+
+      pool.close()
+    })
+
+    it('frees booting slot when a booting worker crashes, allowing new spawn', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 3,
+        maxBootingWorkers: 1,
+        concurrencyPerWorker: 1,
+        maxRespawns: 1,
+      })
+
+      pool.dispatch('a', [])
+      pool.dispatch('b', [])
+      pool.dispatch('c', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      // Crash the booting worker — frees the booting slot
+      spawnedProcesses[0].emit('exit', 1, null)
+
+      // A respawn should occur (maxRespawns=1), and queued tasks should
+      // also trigger more spawning since the booting slot is now free
+      // The crashed worker gets respawned (count 1), and queued tasks may
+      // cause additional workers to spawn
+      expect(spawnedProcesses.length).toBeGreaterThanOrEqual(2)
+
+      pool.close()
+    })
+
+    it('shuts down cleanly with booting workers on end()', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 2,
+        maxBootingWorkers: 1,
+        concurrencyPerWorker: 1,
+      })
+
+      pool.dispatch('a', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      // End the pool while the worker is still booting
+      const endPromise = pool.end()
+      spawnedProcesses[0].emit('exit', 0, null)
+      const result = await endPromise
+      expect(result).toEqual({ forceExited: false })
+    })
+
+    it('spawns workers for queued tasks after READY frees a booting slot', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 4,
+        maxBootingWorkers: 1,
+        concurrencyPerWorker: 1,
+      })
+
+      // Dispatch 4 tasks — only 1 worker spawns
+      pool.dispatch('a', [])
+      pool.dispatch('b', [])
+      pool.dispatch('c', [])
+      pool.dispatch('d', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      // Worker 1 becomes ready → tasks are queued, new worker spawns
+      replyReady(spawnedProcesses[0])
+      expect(spawnedProcesses).toHaveLength(2)
+
+      // Worker 2 becomes ready → another worker spawns
+      replyReady(spawnedProcesses[1])
+      expect(spawnedProcesses).toHaveLength(3)
+
+      // Worker 3 becomes ready → last worker spawns
+      replyReady(spawnedProcesses[2])
+      expect(spawnedProcesses).toHaveLength(4)
+
+      pool.close()
     })
   })
 })

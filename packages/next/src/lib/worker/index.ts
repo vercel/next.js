@@ -44,6 +44,7 @@ export interface WorkerOptions {
   exposedMethods: ReadonlyArray<string>
   enableWorkerThreads?: boolean
   maxRetries?: number
+  maxBootingWorkers?: number
 }
 
 export class Worker {
@@ -75,6 +76,7 @@ export class Worker {
       maxRetries,
       concurrencyPerWorker,
       forkOptions,
+      maxBootingWorkers,
     } = options
 
     this._onActivity = onActivity
@@ -156,6 +158,7 @@ export class Worker {
         concurrencyPerWorker: concurrencyPerWorker ?? 1,
         enableWorkerThreads: enableWorkerThreads ?? false,
         maxRespawns: maxRetries ?? 0,
+        maxBootingWorkers,
         forkOptions: {
           env: workerEnv,
           execArgv: [

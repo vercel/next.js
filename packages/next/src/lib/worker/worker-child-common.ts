@@ -13,6 +13,7 @@ import {
   PARENT_MESSAGE_OK,
   PARENT_MESSAGE_CLIENT_ERROR,
   PARENT_MESSAGE_SETUP_ERROR,
+  PARENT_MESSAGE_READY,
   type ChildMessage,
 } from './types'
 
@@ -39,6 +40,7 @@ export function createMessageHandler(
 ): (message: ChildMessage) => void {
   let workerModule: any = null
   let initialized = false
+  let readySent = false
   let setupArgs: unknown[] = []
 
   function isPromise(value: unknown): value is Promise<unknown> {
@@ -139,13 +141,28 @@ export function createMessageHandler(
       )
     }
 
-    if (initialized || !main.setup) {
+    /** Send READY (once) to tell the parent this worker has finished loading */
+    function sendReadyAndExec(): void {
+      if (!readySent) {
+        readySent = true
+        transport.send([PARENT_MESSAGE_READY])
+      }
       execHelper()
+    }
+
+    if (initialized || !main.setup) {
+      sendReadyAndExec()
       return
     }
 
     initialized = true
-    execFunction(main.setup, main, setupArgs, execHelper, reportInitializeError)
+    execFunction(
+      main.setup,
+      main,
+      setupArgs,
+      sendReadyAndExec,
+      reportInitializeError
+    )
   }
 
   function end(): void {
