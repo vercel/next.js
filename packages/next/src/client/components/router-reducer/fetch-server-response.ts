@@ -337,7 +337,7 @@ type FetchResponseCacheData = {
  * When cache components is disabled, returns the original response with
  * cacheData: null.
  */
-async function processFetch(response: Response): Promise<{
+export async function processFetch(response: Response): Promise<{
   response: Response
   cacheData: FetchResponseCacheData | null
 }> {
@@ -358,9 +358,14 @@ async function processFetch(response: Response): Promise<{
       status: response.status,
       statusText: response.statusText,
     })
-    // Setting the URL on the response is non-standard, but React DevTools rely
-    // on it to show the URL for Flight responses in the "suspended by" view.
+
+    // The Response constructor doesn't preserve `url` or `redirected` from
+    // the original. We need both: `url` for React DevTools and `redirected`
+    // for the redirect replay logic below.
     Object.defineProperty(strippedResponse, 'url', { value: response.url })
+    Object.defineProperty(strippedResponse, 'redirected', {
+      value: response.redirected,
+    })
 
     return {
       response: strippedResponse,
