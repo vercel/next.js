@@ -25,7 +25,6 @@ function AppError() {
             </form>
           </div>
         </div>
-        <p id="digest" style={errorStyles.digestFooter} />
       </body>
     </html>
   )
