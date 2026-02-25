@@ -6,7 +6,7 @@ import * as Log from './output/log'
 import { Worker } from '../lib/worker'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
-import isError from '../lib/is-error'
+
 import { hrtimeDurationToString } from './duration-to-string'
 
 /**
@@ -126,58 +126,48 @@ export async function startTypeChecking({
 
   const typeCheckAndLintStart = process.hrtime()
 
-  try {
-    const [verifyResult, typeCheckEnd] = await nextBuildSpan
-      .traceChild('run-typescript')
-      .traceAsyncFn(() =>
-        verifyAndRunTypeScript(
-          dir,
-          config.distDir,
-          Boolean(config.experimental.strictRouteTypes),
-          !ignoreTypeScriptErrors,
-          config.typescript.tsconfigPath,
-          Boolean(config.typedRoutes),
-          config.images.disableStaticImages,
-          cacheDir,
-          config.experimental.workerThreads,
-          !!appDir,
-          !!pagesDir,
-          appDir,
-          pagesDir,
-          debugBuildPaths,
-          !!config.experimental.rootParams || !!config.cacheComponents
-        ).then((resolved) => {
-          const checkEnd = process.hrtime(typeCheckAndLintStart)
-          return [resolved, checkEnd] as const
-        })
-      )
+  const [verifyResult, typeCheckEnd] = await nextBuildSpan
+    .traceChild('run-typescript')
+    .traceAsyncFn(() =>
+      verifyAndRunTypeScript(
+        dir,
+        config.distDir,
+        Boolean(config.experimental.strictRouteTypes),
+        !ignoreTypeScriptErrors,
+        config.typescript.tsconfigPath,
+        Boolean(config.typedRoutes),
+        config.images.disableStaticImages,
+        cacheDir,
+        config.experimental.workerThreads,
+        !!appDir,
+        !!pagesDir,
+        appDir,
+        pagesDir,
+        debugBuildPaths,
+        !!config.experimental.rootParams || !!config.cacheComponents
+      ).then((resolved) => {
+        const checkEnd = process.hrtime(typeCheckAndLintStart)
+        return [resolved, checkEnd] as const
+      })
+    )
 
-    if (typeCheckingSpinner) {
-      typeCheckingSpinner.stop()
-    }
+  if (typeCheckingSpinner) {
+    typeCheckingSpinner.stop()
+  }
 
-    createSpinner(
-      `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-    )?.stopAndPersist()
+  createSpinner(
+    `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+  )?.stopAndPersist()
 
-    if (!ignoreTypeScriptErrors && verifyResult) {
-      telemetry.record(
-        eventTypeCheckCompleted({
-          durationInSeconds: typeCheckEnd[0],
-          typescriptVersion: verifyResult.version,
-          inputFilesCount: verifyResult.result?.inputFilesCount,
-          totalFilesCount: verifyResult.result?.totalFilesCount,
-          incremental: verifyResult.result?.incremental,
-        })
-      )
-    }
-  } catch (err) {
-    // prevent showing worker pool internal error as it
-    // isn't helpful for users and clutters output
-    if (isError(err) && err.message === 'Call retries were exceeded') {
-      await telemetry.flush()
-      process.exit(1)
-    }
-    throw err
+  if (!ignoreTypeScriptErrors && verifyResult) {
+    telemetry.record(
+      eventTypeCheckCompleted({
+        durationInSeconds: typeCheckEnd[0],
+        typescriptVersion: verifyResult.version,
+        inputFilesCount: verifyResult.result?.inputFilesCount,
+        totalFilesCount: verifyResult.result?.totalFilesCount,
+        incremental: verifyResult.result?.incremental,
+      })
+    )
   }
 }

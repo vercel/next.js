@@ -1252,5 +1252,39 @@ describe('WorkerPool', () => {
 
       pool.close()
     })
+
+    it('throws when maxBootingWorkers is 0', () => {
+      expect(
+        () =>
+          new WorkerPool({
+            workerPath: '/fake/worker.js',
+            maxWorkers: 2,
+            maxBootingWorkers: 0,
+          })
+      ).toThrow('maxBootingWorkers must be at least 1')
+    })
+
+    it('frees booting slot when setup error occurs', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 3,
+        maxBootingWorkers: 1,
+        concurrencyPerWorker: 1,
+      })
+
+      // Dispatch 3 tasks — only 1 worker spawns (booting limit = 1)
+      pool.dispatch('a', [])
+      pool.dispatch('b', [])
+      pool.dispatch('c', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      // Worker 1 fails setup — booting slot should be freed
+      replySetupError(spawnedProcesses[0], 'Error', 'setup failed')
+
+      // A second worker should now spawn since the booting slot was freed
+      expect(spawnedProcesses).toHaveLength(2)
+
+      pool.close()
+    })
   })
 })

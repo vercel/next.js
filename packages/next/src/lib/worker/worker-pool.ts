@@ -192,12 +192,16 @@ export class WorkerPool {
 
   constructor(options: WorkerPoolOptions) {
     this._options = {
-      concurrencyPerWorker: 1,
-      enableWorkerThreads: false,
+      ...options,
+      concurrencyPerWorker: options.concurrencyPerWorker ?? 1,
+      enableWorkerThreads: options.enableWorkerThreads ?? false,
       maxRespawns: options.maxRespawns ?? 0,
       maxBootingWorkers:
         options.maxBootingWorkers ?? Math.ceil(options.maxWorkers / 4),
-      ...options,
+    }
+
+    if (this._options.maxBootingWorkers < 1) {
+      throw new Error('maxBootingWorkers must be at least 1')
     }
 
     if (!path.isAbsolute(this._options.workerPath)) {
@@ -510,7 +514,12 @@ export class WorkerPool {
         const error = new Error('Error when calling setup: ' + message[2])
         ;(error as any).type = message[1]
         error.stack = message[3]
-        // Setup errors affect all in-flight requests on this worker
+        // Setup errors affect all in-flight requests on this worker.
+        // Also clear booting so the slot is freed for other workers.
+        if (worker.booting) {
+          worker.booting = false
+          this._onWorkerReady()
+        }
         this._rejectActiveRequests(worker, error)
         break
       }
