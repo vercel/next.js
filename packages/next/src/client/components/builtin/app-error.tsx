@@ -18,29 +18,14 @@ function AppError() {
             <p style={errorStyles.message}>
               There was a server error. Try reloading.
             </p>
-            <div style={errorStyles.buttonGroup}>
-              <form style={errorStyles.form}>
-                <button type="submit" style={errorStyles.button}>
-                  Reload
-                </button>
-              </form>
-              <button
-                type="button"
-                id="back-btn"
-                style={errorStyles.buttonSecondary}
-              >
-                Back
+            <form style={errorStyles.form}>
+              <button type="submit" style={errorStyles.button}>
+                Reload
               </button>
-            </div>
+            </form>
           </div>
         </div>
         <p id="digest" style={errorStyles.digestFooter} />
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              'document.getElementById("back-btn").onclick=function(){history.length>1?history.back():location.href="/"}',
-          }}
-        />
       </body>
     </html>
   )
