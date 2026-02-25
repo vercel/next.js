@@ -2196,6 +2196,7 @@ export default async function build(
                 const isInsideAppDir = pageType === 'app'
                 const staticInfo = pagePath
                   ? await getStaticInfoIncludingLayouts({
+                      dir,
                       isInsideAppDir,
                       pageFilePath,
                       pageExtensions: config.pageExtensions,
@@ -2206,6 +2207,7 @@ export default async function build(
                       // route segment configs (e.g. `runtime`) from the layout by
                       // passing the `originalAppPath`, which should end with `/page`.
                       page: isInsideAppDir ? originalAppPath! : page,
+                      bundler,
                     })
                   : undefined
 
@@ -2560,6 +2562,7 @@ export default async function build(
         const page = middlewareFile.split('.')[0]
 
         const staticInfo = await getStaticInfoIncludingLayouts({
+          dir,
           isInsideAppDir: false,
           pageFilePath: path.join(dir, middlewareFile),
           config,
@@ -2567,6 +2570,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           isDev: false,
           page,
+          bundler,
         })
 
         if (staticInfo.hadUnsupportedValue) {

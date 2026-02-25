@@ -1073,5 +1073,7 @@
   "1072": "Missing segment data: <head>",
   "1073": "Expected static stage body to be available",
   "1074": "Page \"%s\" cannot use both \"use client\" and export const \"unstable_instant\".",
-  "1075": "Page \"%s\" cannot export \"unstable_instant\" from a Client Component module. To use this API, convert this module to a Server Component by removing the \"use client\" directive."
+  "1075": "Page \"%s\" cannot export \"unstable_instant\" from a Client Component module. To use this API, convert this module to a Server Component by removing the \"use client\" directive.",
+  "1076": "Static info mismatch for %s: %s",
+  "1077": "Failed to read Turbopack static info from disk - %s"
 }
