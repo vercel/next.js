@@ -61,6 +61,7 @@ export function createParamsFromClient(
         const varyParamsAccumulator = null
         return createStaticPrerenderParams(
           underlyingParams,
+          null,
           workStore,
           workUnitStore,
           varyParamsAccumulator
@@ -107,11 +108,13 @@ export function createParamsFromClient(
 export type CreateServerParamsForMetadata = typeof createServerParamsForMetadata
 export function createServerParamsForMetadata(
   underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
   isRuntimePrefetchable: boolean
 ): Promise<Params> {
   const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
   return createServerParamsForServerSegment(
     underlyingParams,
+    optionalCatchAllParamName,
     metadataVaryParamsAccumulator,
     isRuntimePrefetchable
   )
@@ -134,6 +137,7 @@ export function createServerParamsForRoute(
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
+          null,
           workStore,
           workUnitStore,
           varyParamsAccumulator
@@ -154,6 +158,7 @@ export function createServerParamsForRoute(
         const isRuntimePrefetchable = false
         return createRuntimePrerenderParams(
           underlyingParams,
+          null,
           workUnitStore,
           varyParamsAccumulator,
           isRuntimePrefetchable
@@ -186,6 +191,7 @@ export function createServerParamsForRoute(
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
   varyParamsAccumulator: VaryParamsAccumulator | null,
   isRuntimePrefetchable: boolean
 ): Promise<Params> {
@@ -202,6 +208,7 @@ export function createServerParamsForServerSegment(
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
+          optionalCatchAllParamName,
           workStore,
           workUnitStore,
           varyParamsAccumulator
@@ -218,6 +225,7 @@ export function createServerParamsForServerSegment(
       case 'prerender-runtime':
         return createRuntimePrerenderParams(
           underlyingParams,
+          optionalCatchAllParamName,
           workUnitStore,
           varyParamsAccumulator,
           isRuntimePrefetchable
@@ -303,13 +311,18 @@ export function createPrerenderParamsForClientSegment(
 
 function createStaticPrerenderParams(
   underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
   workStore: WorkStore,
   prerenderStore: StaticPrerenderStore,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
   const underlyingParamsWithVarying =
     varyParamsAccumulator !== null
-      ? createVaryingParams(varyParamsAccumulator, underlyingParams)
+      ? createVaryingParams(
+          varyParamsAccumulator,
+          underlyingParams,
+          optionalCatchAllParamName
+        )
       : underlyingParams
 
   switch (prerenderStore.type) {
@@ -360,13 +373,18 @@ function createStaticPrerenderParams(
 
 function createRuntimePrerenderParams(
   underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
   workUnitStore: PrerenderStoreModernRuntime,
   varyParamsAccumulator: VaryParamsAccumulator | null,
   isRuntimePrefetchable: boolean
 ): Promise<Params> {
   const underlyingParamsWithVarying =
     varyParamsAccumulator !== null
-      ? createVaryingParams(varyParamsAccumulator, underlyingParams)
+      ? createVaryingParams(
+          varyParamsAccumulator,
+          underlyingParams,
+          optionalCatchAllParamName
+        )
       : underlyingParams
 
   const result = makeUntrackedParams(underlyingParamsWithVarying)

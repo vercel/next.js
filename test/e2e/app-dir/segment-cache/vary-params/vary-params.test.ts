@@ -337,6 +337,132 @@ describe('segment cache - vary params', () => {
     expect(await page.text()).toContain('Page category: electronics')
   })
 
+  it('does not reuse cached segment for optional catch-all when page accesses slug', async () => {
+    // Setup: Page accesses params.slug directly. Prefetch the empty-slug
+    // page first, then verify that prefetching a different slug value
+    // triggers a new request (not a cache hit).
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/optional-catchall-index', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the empty-slug page first
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: none' }
+    )
+
+    // Prefetch a different slug — should trigger a new request because the
+    // page varies on slug
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: aaa' }
+    )
+
+    // Navigate and verify correct content
+    const link = await browser.elementByCss('a[href="/optional-catchall/aaa"]')
+    await link.click()
+
+    const page = await browser.elementById('optional-catchall-page')
+    expect(await page.text()).toContain('Slug: aaa')
+  })
+
+  it('does not reuse cached segment for optional catch-all when page enumerates params', async () => {
+    // Setup: Page accesses params via spread ({...params}). Enumeration
+    // should cause the segment to vary on the optional catch-all param,
+    // even when the param has no value.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/optional-catchall-enumeration-index', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the empty-slug page first
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall-enumeration"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: none' }
+    )
+
+    // Prefetch a different slug — not cached
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall-enumeration/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: aaa' }
+    )
+
+    const link = await browser.elementByCss(
+      'a[href="/optional-catchall-enumeration/aaa"]'
+    )
+    await link.click()
+
+    const page = await browser.elementById('optional-catchall-enumeration-page')
+    expect(await page.text()).toContain('Slug: aaa')
+  })
+
+  it('does not reuse cached segment for optional catch-all when page checks slug with in operator', async () => {
+    // Setup: Page checks for slug using `'slug' in params`. The `in`
+    // operator should cause the segment to vary on the optional catch-all
+    // param, even when the param has no value.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/optional-catchall-has-index', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the empty-slug page first
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall-has"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: none' }
+    )
+
+    // Prefetch a different slug — not cached
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall-has/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: aaa' }
+    )
+
+    const link = await browser.elementByCss(
+      'a[href="/optional-catchall-has/aaa"]'
+    )
+    await link.click()
+
+    const page = await browser.elementById('optional-catchall-has-page')
+    expect(await page.text()).toContain('Slug: aaa')
+  })
+
   it('tracks root param access via rootParams API', async () => {
     // Root params accessed via rootParams() are tracked in varyParams.
     // Different param values require separate prefetches.
