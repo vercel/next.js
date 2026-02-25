@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 
 export const unstable_instant = {
   prefetch: 'static',
+  samples: [{ cookies: [] }],
 }
 
 export async function generateMetadata(): Promise<Metadata> {

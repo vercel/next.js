@@ -50,6 +50,7 @@ import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { INSTANT_VALIDATION_BOUNDARY_NAME } from './instant-validation/boundary-constants'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -618,6 +619,11 @@ export function useDynamicRouteParams(expression: string) {
         }
         break
       }
+      case 'validation-client': {
+        // Don't check fallbackRouteParams here. We handle params that weren't
+        // provided in the samples using a proxy that throws when accessed.
+        break
+      }
       case 'prerender-runtime':
         throw new InvariantError(
           `\`${expression}\` was called during a runtime prerender. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
@@ -627,9 +633,6 @@ export function useDynamicRouteParams(expression: string) {
         throw new InvariantError(
           `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
         )
-      case 'validation-client':
-        // TODO(instant-validation): in build, this depends on samples
-        break
       case 'prerender-legacy':
       case 'request':
       case 'unstable-cache':
@@ -655,7 +658,8 @@ export function useDynamicSearchParams(expression: string) {
 
   switch (workUnitStore.type) {
     case 'validation-client':
-      // TODO(instant-validation): in build, this depends on samples
+      // During instant validation we try to behave as close to client as possible,
+      // so this shouldn't hang during SSR.
       return
     case 'prerender-client': {
       React.use(
@@ -1221,8 +1225,17 @@ export function getNavigationDisallowedDynamicReasons(
   workStore: WorkStore,
   prelude: PreludeState,
   dynamicValidation: InstantValidationState,
+  validationSampleTracking: InstantValidationSampleTracking | null,
   boundaryState: ValidationBoundaryTracking
 ): Array<Error> {
+  // If we have errors related to missing samples, those should take precedence over everything else.
+  if (validationSampleTracking) {
+    const { missingSampleErrors } = validationSampleTracking
+    if (missingSampleErrors.length > 0) {
+      return missingSampleErrors
+    }
+  }
+
   const { validationPreventingErrors } = dynamicValidation
   if (validationPreventingErrors.length > 0) {
     return validationPreventingErrors

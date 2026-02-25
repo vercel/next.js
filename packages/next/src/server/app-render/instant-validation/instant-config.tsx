@@ -1,7 +1,10 @@
 import { getLayoutOrPageModule } from '../../lib/app-dir-module'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import { parseLoaderTree } from '../../../shared/lib/router/utils/parse-loader-tree'
-import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
+import type {
+  AppSegmentConfig,
+  InstantSample,
+} from '../../../build/segment-config/app/app-segment-config'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -128,6 +131,43 @@ export const findSegmentsWithInstantConfig = cacheScopedToWorkStore(
     return results
   }
 )
+
+export const resolveInstantConfigSamplesForPage = async (
+  tree: LoaderTree
+): Promise<InstantSample[] | null> => {
+  const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
+
+  const instantConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+    : undefined
+
+  let samples: InstantSample[] | null = null
+  if (
+    instantConfig !== undefined &&
+    typeof instantConfig === 'object' &&
+    instantConfig.samples
+  ) {
+    samples = instantConfig.samples
+  }
+
+  // The samples from inner segments override samples from outer segments,
+  // i.e. a page overrides the samples from a layout.
+  // We do not perform any merging logic.
+  const { parallelRoutes } = parseLoaderTree(tree)
+  for (const parallelRouteKey in parallelRoutes) {
+    if (parallelRouteKey !== 'children') {
+      // TODO(instant-validation-build): do something with with samples from non-children slots?
+      continue
+    }
+    const childTree = parallelRoutes[parallelRouteKey]
+    const childSamples = await resolveInstantConfigSamplesForPage(childTree)
+    if (childSamples !== null) {
+      samples = childSamples
+    }
+  }
+
+  return samples
+}
 
 /**
  * A simple cache wrapper for 1-argument functions.

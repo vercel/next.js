@@ -4,19 +4,17 @@ import { formatZodError } from '../../../shared/lib/zod'
 const CookieSchema = z
   .object({
     name: z.string(),
-    value: z.string(),
-    httpOnly: z.boolean().optional(),
-    path: z.string().optional(),
+    value: z.string().or(z.null()),
   })
   .strict()
 
 const RuntimeSampleSchema = z
   .object({
     cookies: z.array(CookieSchema).optional(),
-    headers: z.array(z.tuple([z.string(), z.string()])).optional(),
+    headers: z.array(z.tuple([z.string(), z.string().or(z.null())])).optional(),
     params: z.record(z.union([z.string(), z.array(z.string())])).optional(),
     searchParams: z
-      .record(z.union([z.string(), z.array(z.string()), z.undefined()]))
+      .record(z.union([z.string(), z.array(z.string()), z.null()]))
       .optional(),
   })
   .strict()
@@ -24,6 +22,7 @@ const RuntimeSampleSchema = z
 const InstantConfigStaticSchema = z
   .object({
     prefetch: z.literal('static'),
+    samples: z.array(RuntimeSampleSchema).min(1).optional(),
     from: z.array(z.string()).optional(),
     unstable_disableValidation: z.boolean().optional(),
   })
@@ -56,41 +55,40 @@ export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // delete the __GenericPrefetch member.
 interface __GenericInstantConfig {
   prefetch: string
-  samples?: Array<WideRuntimeSample>
+  samples?: Array<WideInstantSample>
   from?: string[]
   unstable_disableValidation?: boolean
 }
 
 interface InstantConfigStatic {
   prefetch: 'static'
+  samples?: Array<InstantSample>
   from?: string[]
   unstable_disableValidation?: boolean
 }
 
 interface InstantConfigRuntime {
   prefetch: 'runtime'
-  samples: Array<RuntimeSample>
+  samples: Array<InstantSample>
   from?: string[]
   unstable_disableValidation?: boolean
 }
 
-type WideRuntimeSample = {
-  cookies?: RuntimeSample['cookies']
+type WideInstantSample = {
+  cookies?: InstantSample['cookies']
   headers?: Array<string[]>
-  params?: RuntimeSample['params']
-  searchParams?: RuntimeSample['searchParams']
+  params?: InstantSample['params']
+  searchParams?: InstantSample['searchParams']
 }
 
-type RuntimeSample = {
+export type InstantSample = {
   cookies?: Array<{
     name: string
-    value: string
-    httpOnly?: boolean
-    path?: string
+    value: string | null
   }>
-  headers?: Array<[string, string]>
+  headers?: Array<[string, string | null]>
   params?: { [key: string]: string | string[] }
-  searchParams?: { [key: string]: string | string[] | undefined }
+  searchParams?: { [key: string]: string | string[] | null }
 }
 
 /**
