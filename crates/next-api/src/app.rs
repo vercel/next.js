@@ -89,6 +89,7 @@ use crate::{
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     sri_manifest::get_sri_manifest_asset,
+    static_info_manifest::StaticInfoManifestAsset,
     webpack_stats::generate_webpack_stats,
 };
 
@@ -2022,7 +2023,17 @@ impl Endpoint for AppEndpoint {
             let node_root = project.node_root().owned().await?;
             let client_relative_root = project.client_relative_path().owned().await?;
 
-            let output_assets = output.output_assets();
+            let output_assets =
+                output
+                    .output_assets()
+                    .concat_asset(Vc::upcast(StaticInfoManifestAsset::new_app(
+                        node_root.join(&format!(
+                            "server/app{}/static-info.json",
+                            &self.app_endpoint_entry().await?.original_name
+                        ))?,
+                        *self.app_endpoint_entry().await?.config,
+                    )));
+
             let output_assets = if let Some(sri) =
                 &*project.next_config().experimental_sri().await?
                 && let Some(algorithm) = sri.algorithm.clone()

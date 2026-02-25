@@ -1,4 +1,4 @@
-use std::{borrow::Cow, future::Future};
+use std::{borrow::Cow, fmt::Display, future::Future};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
@@ -64,6 +64,17 @@ pub enum NextSegmentDynamic {
     ForceStatic,
 }
 
+impl Display for NextSegmentDynamic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NextSegmentDynamic::Auto => write!(f, "auto"),
+            NextSegmentDynamic::ForceDynamic => write!(f, "force-dynamic"),
+            NextSegmentDynamic::Error => write!(f, "error"),
+            NextSegmentDynamic::ForceStatic => write!(f, "force-static"),
+        }
+    }
+}
+
 #[derive(
     Default,
     PartialEq,
@@ -99,6 +110,16 @@ pub enum NextRevalidate {
     Frequency {
         seconds: u32,
     },
+}
+
+impl Display for NextRevalidate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NextRevalidate::Never => write!(f, "never"),
+            NextRevalidate::ForceCache => write!(f, "force-cache"),
+            NextRevalidate::Frequency { seconds } => write!(f, "{}", seconds),
+        }
+    }
 }
 
 #[turbo_tasks::value(shared)]

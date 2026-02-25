@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::{Result, anyhow, bail};
 use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
@@ -337,6 +337,7 @@ pub fn pages_function_name(page: impl Display) -> String {
     Copy,
     Debug,
     TraceRawVcs,
+    Serialize,
     Deserialize,
     Hash,
     PartialOrd,
