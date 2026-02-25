@@ -155,12 +155,43 @@ type ServerHmrSubscriptions = Map<
   AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 >
 
+type HmrModuleEntry = NodeJsPartialHmrUpdate['instruction']['entries'][string]
+
+/**
+ * Annotates an HMR module entry's code with //# sourceURL and
+ * //# sourceMappingURL so Node.js can resolve stack frames from eval'd
+ * server HMR modules back to their original source files.
+ *
+ * This is a temporary workaround until the Turbopack binary is rebuilt
+ * with the updated hmr-client.ts which does this annotation inside
+ * evalModuleEntry using RUNTIME_ROOT. Once the binary is updated,
+ * this pre-annotation can be removed (duplicate annotations are harmless
+ * since V8 uses the last //# sourceURL comment).
+ */
+function annotateHmrEntry(
+  entry: HmrModuleEntry,
+  distDir: string
+): HmrModuleEntry {
+  const [chunkPath, moduleId] = entry.url.split('?', 2)
+  const fileHref = pathToFileURL(join(distDir, chunkPath)).href
+  const sourceURL = moduleId ? `${fileHref}?${moduleId}` : fileHref
+  let code = entry.code + '\n\n//# sourceURL=' + sourceURL
+  if (entry.map) {
+    code +=
+      '\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,' +
+      Buffer.from(entry.map).toString('base64')
+  }
+  return { ...entry, code }
+}
+
 function setupServerHmr(
   project: Project,
   {
     onUpdateFailed,
+    distDir,
   }: {
     onUpdateFailed: () => void | Promise<void>
+    distDir: string
   }
 ) {
   const serverHmrSubscriptions: ServerHmrSubscriptions = new Map()
@@ -194,7 +225,18 @@ function setupServerHmr(
         }
 
         if (typeof __turbopack_server_hmr_apply__ === 'function') {
-          const applied = __turbopack_server_hmr_apply__(update)
+          const annotatedEntries: NodeJsPartialHmrUpdate['instruction']['entries'] =
+            {}
+          for (const [key, entry] of Object.entries(
+            update.instruction.entries
+          )) {
+            annotatedEntries[key] = annotateHmrEntry(entry, distDir)
+          }
+          const annotatedUpdate: NodeJsPartialHmrUpdate = {
+            ...update,
+            instruction: { ...update.instruction, entries: annotatedEntries },
+          }
+          const applied = __turbopack_server_hmr_apply__(annotatedUpdate)
           if (!applied) {
             await onUpdateFailed()
           }
@@ -1806,6 +1848,7 @@ export async function createHotReloaderTurbopack(
   })
 
   serverHmrSubscriptions = setupServerHmr(project, {
+    distDir,
     onUpdateFailed: async () => {
       if (typeof __next__clear_chunk_cache__ === 'function') {
         __next__clear_chunk_cache__()

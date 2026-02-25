@@ -413,7 +413,7 @@ describe('Error recovery app', () => {
       'index.js',
       outdent`
           import Child from './child'
-  
+
           export default function Index() {
             return (
               <main>
@@ -492,7 +492,7 @@ describe('Error recovery app', () => {
       'index.js',
       outdent`
           import Child from './child'
-  
+
           export default function Index() {
             return (
               <main>
