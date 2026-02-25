@@ -2,7 +2,8 @@
  * Node.js stream operations for the rendering pipeline.
  * Loaded by stream-ops.ts when process.env.__NEXT_USE_NODE_STREAMS is true.
  *
- * AnyStream = Readable in this module.
+ * AnyStream = StreamLike so the exported type surface matches stream-ops.web.ts,
+ * allowing the switcher to assign either module without casts.
  * Rendering uses pipeable APIs; continue functions wrap the existing web
  * transforms via Readable.fromWeb() on their output.
  */
@@ -49,10 +50,10 @@ export type {
 } from './stream-ops.web'
 
 // ---------------------------------------------------------------------------
-// Override AnyStream and dependent types for Node path
+// AnyStream matches stream-ops.web.ts so both modules have the same type surface
 // ---------------------------------------------------------------------------
 
-export type AnyStream = Readable
+export type AnyStream = StreamLike
 
 export type FlightComponentMod = {
   renderToReadableStream: (
@@ -332,7 +333,7 @@ export function chainStreams(...streams: AnyStream[]): AnyStream {
       out.end()
       return
     }
-    const current = streams[i++]
+    const current = webToReadable(streams[i++])
     current.pipe(out, { end: false })
     current.on('end', pipeNext)
     current.on('error', (err) => out.destroy(err))
@@ -397,10 +398,11 @@ export function pipeRuntimePrefetchTransform(
 // ---------------------------------------------------------------------------
 
 export async function processPrelude(unprocessedPrelude: AnyStream) {
+  const readable = webToReadable(unprocessedPrelude)
   const pt1 = new PassThrough()
   const pt2 = new PassThrough()
-  ;(unprocessedPrelude as Readable).pipe(pt1)
-  ;(unprocessedPrelude as Readable).pipe(pt2)
+  readable.pipe(pt1)
+  readable.pipe(pt2)
 
   const firstChunk = await new Promise<Buffer | null>((resolve) => {
     pt2.once('data', (chunk: Buffer) => {
@@ -421,3 +423,18 @@ export function getServerPrerender(ComponentMod: {
 
 export const getClientPrerender: typeof import('react-dom/static').prerender =
   prerender
+
+export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
+  const readable = webToReadable(stream)
+  const pt1 = new PassThrough()
+  const pt2 = new PassThrough()
+  readable.pipe(pt1)
+  readable.pipe(pt2)
+  return [pt1, pt2]
+}
+
+export function toReadableStream(
+  stream: AnyStream
+): ReadableStream<Uint8Array> {
+  return readableToWeb(stream)
+}
