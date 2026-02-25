@@ -53,7 +53,7 @@ function hasNativeTypeScriptPreview(dir: string): boolean {
   }
 }
 
-export async function verifyTypeScriptSetup({
+export async function verifyAndRunTypeScript({
   dir,
   distDir,
   cacheDir,
@@ -248,7 +248,7 @@ export async function verifyTypeScriptSetup({
     }
 
     /**
-     * verifyTypeScriptSetup can be either invoked directly in the main thread (during next dev / next lint)
+     * verifyAndRunTypeScript can be either invoked directly in the main thread (during next dev / next lint)
      * or run in a worker (during next build). In the latter case, we need to print the error message, as the
      * parent process will only receive an `Jest worker encountered 1 child process exceptions, exceeding retry limit`.
      */

@@ -17,7 +17,7 @@ import { hrtimeDurationToString } from './duration-to-string'
  * instead of running "next/lib/typescript/runTypeCheck" in a worker,
  * we will run entire "next/lib/verify-typescript-setup" in a worker instead.
  */
-function verifyTypeScriptSetup(
+function verifyAndRunTypeScript(
   dir: string,
   distDir: string,
   strictRouteTypes: boolean,
@@ -36,7 +36,7 @@ function verifyTypeScriptSetup(
   const typeCheckWorker = new Worker(
     require.resolve('../lib/verify-typescript-setup'),
     {
-      exposedMethods: ['verifyTypeScriptSetup'],
+      exposedMethods: ['verifyAndRunTypeScript'],
       debuggerPortOffset: -1,
       isolatedMemory: false,
       numWorkers: 1,
@@ -44,11 +44,11 @@ function verifyTypeScriptSetup(
       maxRetries: 0,
     }
   ) as Worker & {
-    verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
+    verifyAndRunTypeScript: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   }
 
   return typeCheckWorker
-    .verifyTypeScriptSetup({
+    .verifyAndRunTypeScript({
       dir,
       distDir,
       strictRouteTypes,
@@ -116,7 +116,7 @@ export async function startTypeChecking({
     const [verifyResult, typeCheckEnd] = await nextBuildSpan
       .traceChild('run-typescript')
       .traceAsyncFn(() =>
-        verifyTypeScriptSetup(
+        verifyAndRunTypeScript(
           dir,
           config.distDir,
           Boolean(config.experimental.strictRouteTypes),
