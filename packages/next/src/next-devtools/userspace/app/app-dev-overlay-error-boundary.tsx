@@ -26,14 +26,14 @@ function ErroredHtml({
   globalError: [GlobalError, globalErrorStyles],
   error,
   reset,
-  retry,
+  unstable_retry,
   componentStack,
   ownerStack,
 }: {
   globalError: GlobalErrorState
   error: unknown
   reset: () => void
-  retry: () => void
+  unstable_retry: () => void
   componentStack: React.ErrorInfo['componentStack']
   ownerStack: ReturnType<typeof React.captureOwnerStack>
 }) {
@@ -51,7 +51,7 @@ function ErroredHtml({
       <GlobalError
         error={error}
         reset={reset}
-        retry={retry}
+        unstable_retry={unstable_retry}
         componentStack={componentStack}
         ownerStack={ownerStack}
       />
@@ -99,7 +99,7 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
     dispatcher.openErrorOverlay()
   }
 
-  retry = () => {
+  unstable_retry = () => {
     startTransition(() => {
       this.context?.refresh()
       this.reset()
@@ -123,7 +123,7 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
         globalError={globalError}
         error={reactError}
         reset={this.reset}
-        retry={this.retry}
+        unstable_retry={this.unstable_retry}
         componentStack={componentStack}
         ownerStack={ownerStack}
       />

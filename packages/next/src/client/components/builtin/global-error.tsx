@@ -7,7 +7,7 @@ import { errorStyles, errorThemeCss, ErrorIcon } from './error-styles'
 export type GlobalErrorComponent = React.ComponentType<{
   error: any
   reset: () => void
-  retry: () => void
+  unstable_retry: () => void
   componentStack: React.ErrorInfo['componentStack']
   /** DEV-only */
   ownerStack: ReturnType<typeof React.captureOwnerStack>

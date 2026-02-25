@@ -412,8 +412,8 @@ describe('app-dir - errors', () => {
       })
     }
 
-    describe('retry', () => {
-      it('should recover Server Component error after retry', async () => {
+    describe('unstable_retry', () => {
+      it('should recover Server Component error after unstable_retry', async () => {
         const browser = await next.browser('/server-component/recover')
 
         expect(
@@ -432,7 +432,7 @@ describe('app-dir - errors', () => {
         expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
       })
 
-      it('should recover Client Component error after retry', async () => {
+      it('should recover Client Component error after unstable_retry', async () => {
         const browser = await next.browser('/client-component')
 
         // Try triggering and retrying a few times in a row
