@@ -1,4 +1,5 @@
 import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
+import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
@@ -325,9 +326,11 @@ describe('segment cache (revalidation)', () => {
 
   it('delay re-prefetch after revalidation to allow CDN propagation', async () => {
     let act: ReturnType<typeof createRouterAct>
+    let page: Playwright.Page
     const browser = await next.browser('/', {
-      beforePageLoad(page) {
-        act = createRouterAct(page)
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+        act = createRouterAct(p)
       },
     })
 
@@ -345,21 +348,41 @@ describe('segment cache (revalidation)', () => {
       }
     )
 
+    // Install fake timers so the 300ms cooldown setTimeout in the
+    // browser is frozen until we explicitly advance the clock.
+    await page.clock.install()
+
     // Perform an action that calls revalidatePath. This triggers a 300ms
     // cooldown before any new prefetch requests can be made.
+    // Don't use act() here — act()'s settling loop calls
+    // waitForIdleCallback({ timeout: 100 }) repeatedly, which advances
+    // the fake clock and would cause the cooldown to fire prematurely.
     const revalidateByPath = await browser.elementById('revalidate-by-path')
+    const actionResponse = page.waitForResponse(
+      (response) => response.request().headers()['next-action'] !== undefined
+    )
     await revalidateByPath.click()
+    await actionResponse
 
-    // Immediately after revalidation, no prefetch should have occurred yet
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // The cooldown timer is frozen, so no prefetch should have occurred.
     TestLog.assert([])
 
-    // Halfway through cooldown (150ms), still no prefetch
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    // Advance partway through the cooldown — still no prefetch.
+    await page.clock.fastForward(150)
     TestLog.assert([])
 
-    // After cooldown expires (300ms + buffer), prefetch should have occurred
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    // Advance past the cooldown (300ms total). This fires the cooldown
+    // callback, which triggers a re-prefetch. Use act() to intercept
+    // the prefetch request and ensure the response is fully delivered
+    // to the browser.
+    await act(
+      async () => {
+        await page.clock.fastForward(150)
+      },
+      {
+        includes: 'random-greeting [1]',
+      }
+    )
     TestLog.assert(['REQUEST: random-greeting'])
 
     // Navigate to the target page.
