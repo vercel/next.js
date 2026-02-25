@@ -17,7 +17,7 @@ const isBotUserAgent =
 export type ErrorComponent = React.ComponentType<{
   error: Error
   reset: () => void
-  retry: () => void
+  unstable_retry: () => void
   componentStack: React.ErrorInfo['componentStack']
   /** DEV-only */
   ownerStack: ReturnType<typeof React.captureOwnerStack>
@@ -132,7 +132,7 @@ export class ErrorBoundaryHandler extends React.Component<
     })
   }
 
-  retry = () => {
+  unstable_retry = () => {
     startTransition(() => {
       this.context?.refresh()
       this.reset()
@@ -152,7 +152,7 @@ export class ErrorBoundaryHandler extends React.Component<
           <this.props.errorComponent
             error={this.state.error}
             reset={this.reset}
-            retry={this.retry}
+            unstable_retry={this.unstable_retry}
             componentStack={this.state.componentStack}
             ownerStack={this.state.ownerStack}
           />

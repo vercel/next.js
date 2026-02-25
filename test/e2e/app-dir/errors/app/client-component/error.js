@@ -5,7 +5,7 @@ import styles from './style.module.css'
 export default function ErrorBoundary({
   error,
   reset,
-  retry,
+  unstable_retry,
   componentStack,
   ownerStack,
 }) {
@@ -17,7 +17,11 @@ export default function ErrorBoundary({
       <button id="reset" onClick={() => reset()} className={styles.button}>
         Try again
       </button>
-      <button id="retry" onClick={() => retry()} className={styles.button}>
+      <button
+        id="retry"
+        onClick={() => unstable_retry()}
+        className={styles.button}
+      >
         Retry
       </button>
     </>
