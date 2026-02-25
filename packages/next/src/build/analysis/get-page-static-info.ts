@@ -649,7 +649,10 @@ export async function getAppPageStaticInfo({
   if (exports) {
     for (const property of exports) {
       try {
-        exportedConfig[property] = extractExportedConstValue(ast, property)
+        const result = extractExportedConstValue(ast, property)
+        if (result !== null) {
+          exportedConfig[property] = result.value
+        }
       } catch (e) {
         if (e instanceof UnsupportedValueError) {
           warnAboutUnsupportedValue(pageFilePath, page, e)
@@ -659,12 +662,14 @@ export async function getAppPageStaticInfo({
   }
 
   try {
-    exportedConfig.config = extractExportedConstValue(ast, 'config')
+    const result = extractExportedConstValue(ast, 'config')
+    if (result !== null) {
+      exportedConfig.config = result.value
+    }
   } catch (e) {
     if (e instanceof UnsupportedValueError) {
       warnAboutUnsupportedValue(pageFilePath, page, e)
     }
-    // `export config` doesn't exist, or other unknown error thrown by swc, silence them
   }
 
   const route = normalizeAppPath(page)
@@ -750,7 +755,10 @@ export async function getPagesPageStaticInfo({
   if (exports) {
     for (const property of exports) {
       try {
-        exportedConfig[property] = extractExportedConstValue(ast, property)
+        const result = extractExportedConstValue(ast, property)
+        if (result !== null) {
+          exportedConfig[property] = result.value
+        }
       } catch (e) {
         if (e instanceof UnsupportedValueError) {
           warnAboutUnsupportedValue(pageFilePath, page, e)
@@ -760,12 +768,14 @@ export async function getPagesPageStaticInfo({
   }
 
   try {
-    exportedConfig.config = extractExportedConstValue(ast, 'config')
+    const result = extractExportedConstValue(ast, 'config')
+    if (result !== null) {
+      exportedConfig.config = result.value
+    }
   } catch (e) {
     if (e instanceof UnsupportedValueError) {
       warnAboutUnsupportedValue(pageFilePath, page, e)
     }
-    // `export config` doesn't exist, or other unknown error thrown by swc, silence them
   }
 
   // Validate the config.

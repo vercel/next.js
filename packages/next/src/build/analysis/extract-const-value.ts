@@ -16,8 +16,6 @@ import type {
   VariableDeclaration,
 } from '@swc/core'
 
-export class NoSuchDeclarationError extends Error {}
-
 function isExportDeclaration(node: Node): node is ExportDeclaration {
   return node.type === 'ExportDeclaration'
 }
@@ -221,12 +219,12 @@ function extractValue(node: Node, path?: string[]): any {
  *   - array containing values listed in this list
  *   - object containing values listed in this list
  *
- * Throws NoSuchDeclarationError if the declaration is not found.
+ * Returns null if the declaration is not found.
  */
 export function extractExportedConstValue(
   module: Module,
   exportedName: string
-): any {
+): { value: any } | null {
   for (const moduleItem of module.body) {
     if (!isExportDeclaration(moduleItem)) {
       continue
@@ -247,10 +245,10 @@ export function extractExportedConstValue(
         decl.id.value === exportedName &&
         decl.init
       ) {
-        return extractValue(decl.init, [exportedName])
+        return { value: extractValue(decl.init, [exportedName]) }
       }
     }
   }
 
-  throw new NoSuchDeclarationError()
+  return null
 }
