@@ -438,8 +438,8 @@ describe('app dir - basic', () => {
       const html = await next.render('/dashboard/index')
       expect(html).toMatch(
         process.env.IS_TURBOPACK_TEST
-          ? /<script src="\/_next\/static\/chunks\/([\w-]*polyfill-nomodule|[0-9a-f]+)\.js" noModule="">/
-          : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
+          ? /<script src="\/_next\/static\/chunks\/([\w-]*polyfill-nomodule|[0-9a-f]+)\.js(\?[^"]+)?" noModule="">/
+          : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js(\?[^"]+)?" noModule="">/
       )
     })
   }

@@ -74,11 +74,15 @@ describe('Basic CSS Module Support', () => {
 
         const cssPreload = $('link[rel="preload"][as="style"]')
         expect(cssPreload.length).toBe(1)
-        expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
+        expect(cssPreload.attr('href')).toMatch(
+          /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
+        )
 
         const cssSheet = $('link[rel="stylesheet"]')
         expect(cssSheet.length).toBe(1)
-        expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
+        expect(cssSheet.attr('href')).toMatch(
+          /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
+        )
 
         if (process.env.IS_TURBOPACK_TEST) {
           expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
@@ -153,11 +157,15 @@ describe('3rd Party CSS Module Support', () => {
 
         const cssPreload = $('link[rel="preload"][as="style"]')
         expect(cssPreload.length).toBe(1)
-        expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
+        expect(cssPreload.attr('href')).toMatch(
+          /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
+        )
 
         const cssSheet = $('link[rel="stylesheet"]')
         expect(cssSheet.length).toBe(1)
-        expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
+        expect(cssSheet.attr('href')).toMatch(
+          /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
+        )
 
         if (process.env.IS_TURBOPACK_TEST) {
           expect($('#verify-div').attr('class')).toMatchInlineSnapshot(

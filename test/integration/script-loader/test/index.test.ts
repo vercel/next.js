@@ -225,7 +225,7 @@ const runTests = (isDev) => {
       // Script is inserted before CSS
       expect(
         $(`#inline-before ~ link[href^="/_next/static/"]`).filter(
-          (i, element) => $(element).attr('href')?.endsWith('.css')
+          (i, element) => $(element).attr('href')?.includes('.css')
         ).length
       ).toBeGreaterThan(0)
     }

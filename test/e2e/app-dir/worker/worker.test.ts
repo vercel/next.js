@@ -1,27 +1,26 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { Page } from 'playwright'
 
 describe('app dir - workers', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    env: {
+      NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
+    },
   })
 
-  if (skipped) {
-    return
-  }
-
   function beforePageLoad(page: Page) {
-    page.on('request', (request) => {
-      const url = request.url()
-      // TODO fix deployment id for webpack
-      if (isTurbopack) {
-        if (url.includes('/_next/') && !url.includes('wasm')) {
-          expect(url).toMatch(/^[^?]+\?(v=\d+&)?dpl=test-deployment-id$/)
+    // TODO fix deployment id for webpack
+    if (isTurbopack && (isNextDeploy || isNextStart)) {
+      page.on('request', (request) => {
+        const url = request.url()
+        if (url.includes('/_next/')) {
+          let parsed = new URL(url, next.url)
+          expect(parsed.searchParams.get('dpl')).toBe(next.deploymentId)
         }
-      }
-    })
+      })
+    }
   }
 
   it('should support web workers with dynamic imports', async () => {
@@ -69,33 +68,35 @@ describe('app dir - workers', () => {
     )
   })
 
-  it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
-    const browser = await next.browser('/deployment-id', {
-      beforePageLoad,
-    })
+  if (isNextDeploy || isNextStart) {
+    it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
+      const browser = await next.browser('/deployment-id', {
+        beforePageLoad,
+      })
 
-    // Verify main thread has deployment ID and it's not empty
-    const mainDeploymentId = await browser
-      .elementByCss('#main-deployment-id')
-      .text()
-    expect(mainDeploymentId).toBe('test-deployment-id')
-
-    // Initial worker state should be default
-    expect(await browser.elementByCss('#worker-deployment-id').text()).toBe(
-      'default'
-    )
-
-    // Trigger worker to get deployment ID
-    await browser.elementByCss('button').click()
-
-    // Wait for worker to respond and verify it matches main thread
-    await retry(async () => {
-      const workerDeploymentId = await browser
-        .elementByCss('#worker-deployment-id')
+      // Verify main thread has deployment ID and it's not empty
+      const mainDeploymentId = await browser
+        .elementByCss('#main-deployment-id')
         .text()
-      expect(workerDeploymentId).toBe('test-deployment-id')
+      expect(mainDeploymentId).toBe(next.deploymentId)
+
+      // Initial worker state should be default
+      expect(await browser.elementByCss('#worker-deployment-id').text()).toBe(
+        'default'
+      )
+
+      // Trigger worker to get deployment ID
+      await browser.elementByCss('button').click()
+
+      // Wait for worker to respond and verify it matches main thread
+      await retry(async () => {
+        const workerDeploymentId = await browser
+          .elementByCss('#worker-deployment-id')
+          .text()
+        expect(workerDeploymentId).toBe(next.deploymentId)
+      })
     })
-  })
+  }
 
   it('should support loading WASM files in workers', async () => {
     const browser = await next.browser('/wasm', {

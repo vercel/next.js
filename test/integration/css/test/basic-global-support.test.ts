@@ -718,12 +718,13 @@ async function getStylesheetContents($, appPort, items) {
     const res = await fetchViaHTTP(appPort, href)
     if (res.status !== 200)
       throw new Error(`Failed to load stylesheet: ${href}`)
+    const pathname = new URL(href, `http://localhost:${appPort}`).pathname
     const text = await res.text()
     results.push(
-      `${href.replace(
-        /[0-9a-f]{8,}/g,
-        'HASH'
-      )}:\n${text.replace(/\/\*.*?\*\/\n?/g, '').trim()}`
+      `${pathname.replace(/[0-9a-f]{8,}/g, 'HASH')}:\n${text
+        .replace(/\/\*.*?\*\/\n?/g, '')
+        .replace(/(\?dpl=[^)"']+)/g, '')
+        .trim()}`
     )
   }
   return results

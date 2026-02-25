@@ -1,8 +1,6 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {
-  deploymentId: 'test-deployment-id',
-}
+const nextConfig = {}
 
 module.exports = nextConfig
