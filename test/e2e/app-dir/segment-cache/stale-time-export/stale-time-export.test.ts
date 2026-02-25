@@ -68,7 +68,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     )
   })
 
-  it.only('overrides global staleTimes.dynamic config', async () => {
+  it('overrides global staleTimes.dynamic config', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -79,7 +79,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     await page.clock.install()
     const pageContent = 'Dynamic page with unstable_staleTime = 300'
 
-    // Prefetch dynamic page with unstable_staleTime=300 (5 minutes)
+    // Navigate to dynamic page with unstable_staleTime=300 (5 minutes)
     await act(
       async () => {
         await browser
@@ -94,7 +94,19 @@ describe('segment cache - export const unstable_staleTime', () => {
     await browser.back()
     await page.clock.fastForward(31 * 1000)
 
-    // Should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
+    // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/dynamic-stale-5-minutes"]')
+        .click()
+      await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
+    }, 'no-requests')
+
+    // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
+    await browser.back()
+    await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
+
+    // Should refetch - unstable_staleTime has elapsed
     await act(
       async () => {
         await browser
@@ -102,20 +114,8 @@ describe('segment cache - export const unstable_staleTime', () => {
           .click()
         await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
       },
-      { includes: pageContent, block: 'reject' }
+      { includes: pageContent }
     )
-
-    // // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
-    // await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
-
-    // // Should refetch - unstable_staleTime has elapsed
-    // await act(
-    //   async () => {
-    //     await toggleLink.click()
-    //     await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]')
-    //   },
-    //   { includes: pageContent }
-    // )
   })
 })
 

@@ -16,6 +16,7 @@ import {
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
+  getStaleTimeMs,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
@@ -146,6 +147,7 @@ export function navigateToKnownRoute(
   currentRenderedSearch: string,
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
+  dynamicStaleTimeMs: number | null,
   freshnessPolicy: FreshnessPolicy,
   nextUrl: string | null,
   shouldScroll: boolean,
@@ -197,6 +199,7 @@ export function navigateToKnownRoute(
     currentFlightRouterState,
     navigationSeed.routeTree,
     navigationSeed.metadataVaryPath,
+    dynamicStaleTimeMs,
     freshnessPolicy,
     navigationSeed.data,
     navigationSeed.head,
@@ -249,6 +252,7 @@ function navigateUsingPrefetchedRouteTree(
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
   const renderedSearch = route.renderedSearch
+  const dynamicStaleTimeMs = null
   const prefetchSeed: NavigationSeed = {
     renderedSearch,
     routeTree,
@@ -266,6 +270,7 @@ function navigateUsingPrefetchedRouteTree(
     currentRenderedSearch,
     currentCacheNode,
     currentFlightRouterState,
+    dynamicStaleTimeMs,
     freshnessPolicy,
     nextUrl,
     shouldScroll,
@@ -368,6 +373,7 @@ async function navigateToUnknownRoute(
     renderedSearch,
     couldBeIntercepted,
     prerendered,
+    staleTime,
     debugInfo,
   } = result
 
@@ -386,6 +392,10 @@ async function navigateToUnknownRoute(
   // discoverKnownRoute. The hasDynamicRewrite param is only set to true when
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
+  const dynamicStaleTimeMs =
+    !isNaN(staleTime) && staleTime >= 0
+      ? getStaleTimeMs(staleTime / 1000)
+      : null
   if (metadataVaryPath !== null) {
     discoverKnownRoute(
       now,
@@ -411,6 +421,7 @@ async function navigateToUnknownRoute(
     currentRenderedSearch,
     currentCacheNode,
     currentFlightRouterState,
+    dynamicStaleTimeMs,
     freshnessPolicy,
     nextUrl,
     shouldScroll,

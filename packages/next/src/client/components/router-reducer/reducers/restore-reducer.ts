@@ -61,6 +61,7 @@ export function restoreReducer(
     state.tree,
     restoreSeed.routeTree,
     restoreSeed.metadataVaryPath,
+    null,
     FreshnessPolicy.HistoryTraversal,
     null,
     null,

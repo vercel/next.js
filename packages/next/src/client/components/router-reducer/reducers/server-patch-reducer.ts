@@ -54,6 +54,7 @@ export function serverPatchReducer(
     currentRenderedSearch,
     state.cache,
     state.tree,
+    null,
     FreshnessPolicy.RefreshAll,
     retryNextUrl,
     shouldScroll,

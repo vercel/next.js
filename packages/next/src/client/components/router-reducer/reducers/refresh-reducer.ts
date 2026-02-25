@@ -80,6 +80,7 @@ export function refreshDynamicData(
     currentRenderedSearch,
     state.cache,
     currentFlightRouterState,
+    null,
     freshnessPolicy,
     nextUrlForRefresh,
     shouldScroll,

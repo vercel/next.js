@@ -34,8 +34,9 @@ export function writeToBFCache(
   rsc: React.ReactNode,
   prefetchRsc: React.ReactNode,
   head: React.ReactNode,
-  prefetchHead: React.ReactNode
-): void {
+  prefetchHead: React.ReactNode,
+  staleAt: number = now + DYNAMIC_STALETIME_MS
+): BFCacheEntry {
   const entry: BFCacheEntry = {
     rsc,
     prefetchRsc,
@@ -55,21 +56,23 @@ export function writeToBFCache(
 
     // A back/forward navigation will disregard the stale time. This field is
     // only relevant when staleTimes.dynamic is enabled.
-    staleAt: now + DYNAMIC_STALETIME_MS,
+    staleAt,
     version: currentBfCacheVersion,
   }
   const isRevalidation = false
   setInCacheMap(bfcacheMap, varyPath, entry, isRevalidation)
+  return entry
 }
 
 export function writeHeadToBFCache(
   now: number,
   varyPath: SegmentVaryPath,
   head: React.ReactNode,
-  prefetchHead: React.ReactNode
-): void {
+  prefetchHead: React.ReactNode,
+  staleAt?: number
+): BFCacheEntry {
   // Read the special "segment" that represents the head data.
-  writeToBFCache(now, varyPath, head, prefetchHead, null, null)
+  return writeToBFCache(now, varyPath, head, prefetchHead, null, null, staleAt)
 }
 
 export function readFromBFCache(

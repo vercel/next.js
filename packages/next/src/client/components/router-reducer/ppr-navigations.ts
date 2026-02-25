@@ -133,6 +133,7 @@ export function createInitialCacheNodeForHydration(
     navigatedAt,
     initialTree,
     null,
+    null,
     FreshnessPolicy.Hydration,
     seedData,
     seedHead,
@@ -181,6 +182,7 @@ export function startPPRNavigation(
   oldRouterState: FlightRouterState,
   newRouteTree: RouteTree,
   newMetadataVaryPath: PageVaryPath | null,
+  dynamicStaleTimeMs: number | null,
   freshness: FreshnessPolicy,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
@@ -201,6 +203,7 @@ export function startPPRNavigation(
     oldRouterState,
     newRouteTree,
     newMetadataVaryPath,
+    dynamicStaleTimeMs,
     freshness,
     didFindRootLayout,
     seedData,
@@ -222,6 +225,7 @@ function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouteTree: RouteTree,
   newMetadataVaryPath: PageVaryPath | null,
+  dynamicStaleTimeMs: number | null,
   freshness: FreshnessPolicy,
   didFindRootLayout: boolean,
   seedData: CacheNodeSeedData | null,
@@ -288,6 +292,7 @@ function updateCacheNodeOnNavigation(
       navigatedAt,
       newRouteTree,
       newMetadataVaryPath,
+      dynamicStaleTimeMs,
       freshness,
       seedData,
       seedHead,
@@ -372,6 +377,7 @@ function updateCacheNodeOnNavigation(
       seedRsc,
       newMetadataVaryPath,
       seedHead,
+      dynamicStaleTimeMs,
       freshness
     )
     newCacheNode = result.cacheNode
@@ -489,6 +495,7 @@ function updateCacheNodeOnNavigation(
         oldRouterStateChild,
         newRouteTreeChild,
         newMetadataVaryPath,
+        dynamicStaleTimeMs,
         freshness,
         childDidFindRootLayout,
         seedDataChild ?? null,
@@ -562,6 +569,7 @@ function createCacheNodeOnNavigation(
   navigatedAt: number,
   newRouteTree: RouteTree,
   newMetadataVaryPath: PageVaryPath | null,
+  dynamicStaleTimeMs: number | null,
   freshness: FreshnessPolicy,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
@@ -615,6 +623,7 @@ function createCacheNodeOnNavigation(
     seedRsc,
     newMetadataVaryPath,
     seedHead,
+    dynamicStaleTimeMs,
     freshness
   )
   const newCacheNode = result.cacheNode
@@ -643,6 +652,7 @@ function createCacheNodeOnNavigation(
         navigatedAt,
         newRouteTreeChild,
         newMetadataVaryPath,
+        dynamicStaleTimeMs,
         freshness,
         seedDataChild ?? null,
         seedHead,
@@ -866,6 +876,7 @@ function createCacheNodeForSegment(
   seedRsc: React.ReactNode | null,
   metadataVaryPath: PageVaryPath | null,
   seedHead: HeadData | null,
+  dynamicStaleTimeMs: number | null,
   freshness: FreshnessPolicy
 ): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
   // Construct a new CacheNode using data from the BFCache, the client's
@@ -986,6 +997,8 @@ function createCacheNodeForSegment(
 
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
+  let bfcacheStaleAt: number | undefined
+  let pendingBFCacheStaleAt: Promise<number | undefined> | null = null
 
   const segmentEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (segmentEntry !== null) {
@@ -994,6 +1007,9 @@ function createCacheNodeForSegment(
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
         isCachedRscPartial = segmentEntry.isPartial
+        if (segmentEntry.hasExplicitStaleTime) {
+          bfcacheStaleAt = segmentEntry.staleAt
+        }
         break
       }
       case EntryStatus.Pending: {
@@ -1003,6 +1019,11 @@ function createCacheNodeForSegment(
         const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
         cachedRsc = promiseForFulfilledEntry.then((entry) =>
           entry !== null ? entry.rsc : null
+        )
+        pendingBFCacheStaleAt = promiseForFulfilledEntry.then((entry) =>
+          entry !== null && entry.hasExplicitStaleTime
+            ? entry.staleAt
+            : undefined
         )
         // Because the request is still pending, we typically don't know yet
         // whether the response will be partial. We shouldn't skip this segment
@@ -1164,9 +1185,39 @@ function createCacheNodeForSegment(
   // Skip BFCache writes for optimistic navigations since they are transient
   // and will be replaced by the canonical navigation.
   if (freshness !== FreshnessPolicy.Gesture) {
-    writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+    const initialBFCacheStaleAt =
+      dynamicStaleTimeMs !== null ? now + dynamicStaleTimeMs : bfcacheStaleAt
+    const bfcacheEntry = writeToBFCache(
+      now,
+      tree.varyPath,
+      rsc,
+      prefetchRsc,
+      head,
+      prefetchHead,
+      initialBFCacheStaleAt
+    )
+    if (pendingBFCacheStaleAt !== null) {
+      void pendingBFCacheStaleAt.then((staleAt) => {
+        if (staleAt !== undefined) {
+          bfcacheEntry.staleAt = staleAt
+        }
+      })
+    }
     if (isPage && metadataVaryPath !== null) {
-      writeHeadToBFCache(now, metadataVaryPath, head, prefetchHead)
+      const headBFCacheEntry = writeHeadToBFCache(
+        now,
+        metadataVaryPath,
+        head,
+        prefetchHead,
+        initialBFCacheStaleAt
+      )
+      if (pendingBFCacheStaleAt !== null) {
+        void pendingBFCacheStaleAt.then((staleAt) => {
+          if (staleAt !== undefined) {
+            headBFCacheEntry.staleAt = staleAt
+          }
+        })
+      }
     }
   }
 

@@ -440,6 +440,7 @@ export function serverActionReducer(
           currentRenderedSearch,
           state.cache,
           currentFlightRouterState,
+          null,
           freshnessPolicy,
           nextUrl,
           shouldScroll,

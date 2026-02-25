@@ -242,6 +242,8 @@ type SegmentCacheEntryShared = {
   size: number
   staleAt: number
   version: number
+  // True when staleAt came from an explicit stale-time value sent by server.
+  hasExplicitStaleTime: boolean
 }
 
 export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
@@ -901,6 +903,7 @@ export function createDetachedSegmentCacheEntry(
     size: 0,
     staleAt,
     version: 0,
+    hasExplicitStaleTime: false,
   }
   return emptyEntry
 }
@@ -1092,12 +1095,14 @@ function fulfillSegmentCacheEntry(
   segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
   staleAt: number,
-  isPartial: boolean
+  isPartial: boolean,
+  hasExplicitStaleTime: boolean = false
 ): FulfilledSegmentCacheEntry {
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
   fulfilledEntry.staleAt = staleAt
+  fulfilledEntry.hasExplicitStaleTime = hasExplicitStaleTime
   fulfilledEntry.isPartial = isPartial
   // Resolve any listeners that were waiting for this data.
   if (segmentCacheEntry.promise !== null) {
@@ -2064,7 +2069,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         : null
 
     const now = Date.now()
-    const staleAt = await getStaleAt(now, serverData, response)
+    const staleAtInfo = await getStaleAt(now, serverData, response)
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
@@ -2077,7 +2082,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       serverData,
       isResponsePartial,
       headVaryParams,
-      staleAt,
+      staleAtInfo.staleAt,
+      staleAtInfo.hasExplicitStaleTime,
       route,
       spawnedEntries
     )
@@ -2165,6 +2171,8 @@ function writeDynamicTreeResponseIntoCache(
     false // hasDynamicRewrite
   )
 
+  const staleAtInfo = getStaleAtFromHeader(now, response)
+
   // If the server sent segment data as part of the response, we should write
   // it into the cache to prevent a second, redundant prefetch request.
   //
@@ -2182,7 +2190,8 @@ function writeDynamicTreeResponseIntoCache(
     serverData,
     isResponsePartial,
     headVaryParams,
-    getStaleAtFromHeader(now, response),
+    staleAtInfo.staleAt,
+    staleAtInfo.hasExplicitStaleTime,
     fulfilledEntry,
     null
   )
@@ -2215,6 +2224,7 @@ function writeDynamicRenderResponseIntoCache(
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
   staleAt: number,
+  hasExplicitStaleTime: boolean,
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
@@ -2267,6 +2277,7 @@ function writeDynamicRenderResponseIntoCache(
         fetchStrategy,
         tree,
         staleAt,
+        hasExplicitStaleTime,
         seedData,
         isResponsePartial,
         spawnedEntries
@@ -2282,6 +2293,7 @@ function writeDynamicRenderResponseIntoCache(
         head,
         flightData.isHeadPartial,
         staleAt,
+        hasExplicitStaleTime,
         headVaryParams,
         route.metadata,
         spawnedEntries
@@ -2315,6 +2327,7 @@ function writeSeedDataIntoCache(
     | FetchStrategy.Full,
   tree: RouteTree,
   staleAt: number,
+  hasExplicitStaleTime: boolean,
   seedData: CacheNodeSeedData,
   isResponsePartial: boolean,
   entriesOwnedByCurrentTask: Map<
@@ -2338,6 +2351,7 @@ function writeSeedDataIntoCache(
     rsc,
     isPartial,
     staleAt,
+    hasExplicitStaleTime,
     varyParams,
     tree,
     entriesOwnedByCurrentTask
@@ -2358,6 +2372,7 @@ function writeSeedDataIntoCache(
           fetchStrategy,
           childTree,
           staleAt,
+          hasExplicitStaleTime,
           childSeedData,
           isResponsePartial,
           entriesOwnedByCurrentTask
@@ -2376,6 +2391,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   rsc: React.ReactNode,
   isPartial: boolean,
   staleAt: number,
+  hasExplicitStaleTime: boolean,
   segmentVaryParams: Set<string> | null,
   tree: RouteTree,
   entriesOwnedByCurrentTask: Map<
@@ -2395,7 +2411,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       ownedEntry,
       rsc,
       staleAt,
-      isPartial
+      isPartial,
+      hasExplicitStaleTime
     )
     // Re-key the entry based on which params the segment actually depends on.
     if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
@@ -2425,7 +2442,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         upgradeToPendingSegment(newEntry, fetchStrategy),
         rsc,
         staleAt,
-        isPartial
+        isPartial,
+        hasExplicitStaleTime
       )
       // Re-key the entry based on which params the segment actually depends on.
       if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
@@ -2451,7 +2469,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         ),
         rsc,
         staleAt,
-        isPartial
+        isPartial,
+        hasExplicitStaleTime
       )
       // Use the fulfilled vary path if available, otherwise fall back to
       // the request vary path.
@@ -2598,27 +2617,37 @@ function addInstantPrefetchHeaderIfLocked(
   }
 }
 
+type StaleAtInfo = {
+  staleAt: number
+  hasExplicitStaleTime: boolean
+}
+
 function getStaleAtFromHeader(
   now: number,
   response: RSCResponse<unknown>
-): number {
-  const staleTimeSeconds = parseInt(
-    response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '',
-    10
-  )
+): StaleAtInfo {
+  const staleTimeHeader = response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+  const staleTimeSeconds = parseInt(staleTimeHeader ?? '', 10)
+  const hasExplicitStaleTime =
+    staleTimeHeader !== null && !isNaN(staleTimeSeconds)
 
-  const staleTimeMs = !isNaN(staleTimeSeconds)
+  const staleTimeMs = hasExplicitStaleTime
     ? getStaleTimeMs(staleTimeSeconds)
     : STATIC_STALETIME_MS
 
-  return now + staleTimeMs
+  return {
+    staleAt: now + staleTimeMs,
+    hasExplicitStaleTime,
+  }
 }
 
 async function getStaleAt(
   now: number,
   serverData: NavigationFlightResponse,
   response: RSCResponse<unknown>
-): Promise<number> {
+): Promise<StaleAtInfo> {
+  const staleAtFromHeader = getStaleAtFromHeader(now, response)
+
   if (serverData.s !== undefined) {
     // Iterate the async iterable and take the last yielded value. The server
     // yields updated staleTime values during the render; the last one is the
@@ -2636,15 +2665,22 @@ async function getStaleAt(
     }
 
     if (staleTimeSeconds !== undefined) {
+      if (staleAtFromHeader.hasExplicitStaleTime) {
+        return staleAtFromHeader
+      }
+
       const staleTimeMs = isNaN(staleTimeSeconds)
         ? STATIC_STALETIME_MS
         : getStaleTimeMs(staleTimeSeconds)
 
-      return now + staleTimeMs
+      return {
+        staleAt: now + staleTimeMs,
+        hasExplicitStaleTime: false,
+      }
     }
   }
 
-  return getStaleAtFromHeader(now, response)
+  return staleAtFromHeader
 }
 
 /**
