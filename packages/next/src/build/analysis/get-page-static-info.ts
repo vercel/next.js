@@ -4,10 +4,7 @@ import type { RouteHas } from '../../lib/load-custom-routes'
 import { promises as fs } from 'fs'
 import { relative } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
-import {
-  extractExportedConstValue,
-  UnsupportedValueError,
-} from './extract-const-value'
+import { extractExportedConstValue } from './extract-const-value'
 import { parseModule } from './parse-module'
 import * as Log from '../output/log'
 import {
@@ -568,7 +565,7 @@ const warnedUnsupportedValueMap = new LRUCache<boolean>(250, () => 1)
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
-  error: UnsupportedValueError
+  result: { unsupported: string; path?: string }
 ) {
   hadUnsupportedValue = true
   const isProductionBuild = process.env.NODE_ENV === 'production'
@@ -587,8 +584,8 @@ function warnAboutUnsupportedValue(
     `Next.js can't recognize the exported \`config\` field in ` +
     (page ? `route "${page}"` : `"${pageFilePath}"`) +
     ':\n' +
-    error.message +
-    (error.path ? ` at "${error.path}"` : '') +
+    result.unsupported +
+    (result.path ? ` at "${result.path}"` : '') +
     '.\n' +
     'Read More - https://nextjs.org/docs/messages/invalid-page-config'
 
@@ -648,28 +645,20 @@ export async function getAppPageStaticInfo({
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
     for (const property of exports) {
-      try {
-        const result = extractExportedConstValue(ast, property)
-        if (result !== null) {
-          exportedConfig[property] = result.value
-        }
-      } catch (e) {
-        if (e instanceof UnsupportedValueError) {
-          warnAboutUnsupportedValue(pageFilePath, page, e)
-        }
+      const result = extractExportedConstValue(ast, property)
+      if (result !== null && 'unsupported' in result) {
+        warnAboutUnsupportedValue(pageFilePath, page, result)
+      } else if (result !== null) {
+        exportedConfig[property] = result.value
       }
     }
   }
 
-  try {
-    const result = extractExportedConstValue(ast, 'config')
-    if (result !== null) {
-      exportedConfig.config = result.value
-    }
-  } catch (e) {
-    if (e instanceof UnsupportedValueError) {
-      warnAboutUnsupportedValue(pageFilePath, page, e)
-    }
+  const configResult = extractExportedConstValue(ast, 'config')
+  if (configResult !== null && 'unsupported' in configResult) {
+    warnAboutUnsupportedValue(pageFilePath, page, configResult)
+  } else if (configResult !== null) {
+    exportedConfig.config = configResult.value
   }
 
   const route = normalizeAppPath(page)
@@ -754,28 +743,20 @@ export async function getPagesPageStaticInfo({
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
     for (const property of exports) {
-      try {
-        const result = extractExportedConstValue(ast, property)
-        if (result !== null) {
-          exportedConfig[property] = result.value
-        }
-      } catch (e) {
-        if (e instanceof UnsupportedValueError) {
-          warnAboutUnsupportedValue(pageFilePath, page, e)
-        }
+      const result = extractExportedConstValue(ast, property)
+      if (result !== null && 'unsupported' in result) {
+        warnAboutUnsupportedValue(pageFilePath, page, result)
+      } else if (result !== null) {
+        exportedConfig[property] = result.value
       }
     }
   }
 
-  try {
-    const result = extractExportedConstValue(ast, 'config')
-    if (result !== null) {
-      exportedConfig.config = result.value
-    }
-  } catch (e) {
-    if (e instanceof UnsupportedValueError) {
-      warnAboutUnsupportedValue(pageFilePath, page, e)
-    }
+  const configResult = extractExportedConstValue(ast, 'config')
+  if (configResult !== null && 'unsupported' in configResult) {
+    warnAboutUnsupportedValue(pageFilePath, page, configResult)
+  } else if (configResult !== null) {
+    exportedConfig.config = configResult.value
   }
 
   // Validate the config.
