@@ -36,7 +36,7 @@ describe('revalidateTag-rsc', () => {
         await retry(async () => {
           expect(
             await browser.eval('document.documentElement.innerHTML')
-          ).toContain('This page failed to load')
+          ).toContain("This page couldn't load")
         })
       }
 

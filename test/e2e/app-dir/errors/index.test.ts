@@ -190,7 +190,7 @@ describe('app-dir - errors', () => {
       } else {
         expect(
           await browser.waitForElementByCss('body').elementByCss('h1').text()
-        ).toBe('This page crashed')
+        ).toBe("This page couldn't load")
       }
 
       expect(pageErrors).toEqual([
@@ -227,7 +227,7 @@ describe('app-dir - errors', () => {
       } else {
         expect(
           await browser.waitForElementByCss('body').elementByCss('h1').text()
-        ).toBe('This page failed to load')
+        ).toBe("This page couldn't load")
         // Check digest is displayed in error reference
         const bodyText = await browser.waitForElementByCss('body').text()
         expect(bodyText).toMatch(/Error reference:\s*\w+/)
