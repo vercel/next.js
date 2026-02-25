@@ -717,8 +717,8 @@ async function generateDynamicFlightRenderResult(
     const extractedStaleTime = await extractStaleTimeFromLoaderTree(
       ctx.componentMod.routeModule.userland.loaderTree
     )
-    if (typeof extractedStaleTime === 'number') {
-      requestStore.stale = extractedStaleTime
+    if (typeof extractedStaleTime?.dynamic === 'number') {
+      requestStore.stale = extractedStaleTime.dynamic
     }
   }
 
@@ -5218,8 +5218,8 @@ async function prerenderToStream(
       // render. Extract unstable_staleTime from the loader tree as a fallback.
       if (finalServerPrerenderStore.stale === INFINITE_CACHE) {
         const extractedStaleTime = await extractStaleTimeFromLoaderTree(tree)
-        if (typeof extractedStaleTime === 'number') {
-          finalServerPrerenderStore.stale = extractedStaleTime
+        if (typeof extractedStaleTime?.static === 'number') {
+          finalServerPrerenderStore.stale = extractedStaleTime.static
         }
       }
 

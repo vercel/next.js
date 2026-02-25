@@ -79,7 +79,7 @@ checkFields<Diff<{
   preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
   runtime?: 'nodejs' | 'experimental-edge' | 'edge'
   maxDuration?: number
-  unstable_staleTime?: number
+  unstable_staleTime?: { dynamic?: number; static?: number }
   ${
     options.type === 'route'
       ? ''

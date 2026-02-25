@@ -155,7 +155,12 @@ const AppSegmentConfigSchema = z.object({
    * The client-side stale time for the router cache in seconds.
    * Can only be set on page segments.
    */
-  unstable_staleTime: z.number().int().nonnegative().optional(),
+  unstable_staleTime: z
+    .object({
+      dynamic: z.number().int().nonnegative().optional(),
+      static: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
 })
 
 /**
@@ -187,7 +192,7 @@ export function parseAppSegmentConfig(
           }
           case 'unstable_staleTime': {
             return {
-              message: `Invalid unstable_staleTime value ${JSON.stringify(ctx.data)} on "${route}", must be a non-negative integer (seconds)`,
+              message: `Invalid unstable_staleTime value ${JSON.stringify(ctx.data)} on "${route}", must be an object with optional \`dynamic\` and \`static\` properties (non-negative integers in seconds)`,
             }
           }
           default:
@@ -263,7 +268,7 @@ export type AppSegmentConfig = {
    * The client-side stale time for the router cache in seconds.
    * Can only be set on page segments.
    */
-  unstable_staleTime?: number
+  unstable_staleTime?: { dynamic?: number; static?: number }
 }
 
 /**

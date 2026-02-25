@@ -14,7 +14,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     return
   }
 
-  it('overrides global staleTimes config', async () => {
+  it('static staleTime overrides global staleTimes config', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -23,9 +23,9 @@ describe('segment cache - export const unstable_staleTime', () => {
     })
     const act = createRouterAct(page)
     await page.clock.install()
-    const pageContent = 'Page with unstable_staleTime = 300'
+    const pageContent = 'Page with unstable_staleTime static=300'
 
-    // Prefetch page with unstable_staleTime=300 (5 minutes)
+    // Prefetch page with unstable_staleTime { static: 300 } (5 minutes)
     const toggleLink = await browser.elementByCss(
       'input[data-link-accordion="/stale-5-minutes"]'
     )
@@ -40,15 +40,15 @@ describe('segment cache - export const unstable_staleTime', () => {
     // Hide link
     await toggleLink.click()
 
-    // Advance 31 seconds - past global staleTimes (30s), within page unstable_staleTime (300s)
+    // Advance 31 seconds - past global staleTimes (30s), within page static staleTime (300s)
     await page.clock.fastForward(31 * 1000)
 
     /*
-        Should NOT refetch the content - page's unstable_staleTime=300 hasn't elapsed.
+      Should NOT refetch the content - page's static staleTime=300 hasn't elapsed.
 
-        Note there may be another tree prefetch, since that's controlled separately. So
-        we just assert that the actual content of the page is not refetched.
-      */
+      Note there may be another tree prefetch, since that's controlled separately. So
+      we just assert that the actual content of the page is not refetched.
+    */
     await act(
       async () => {
         await toggleLink.click()
@@ -60,10 +60,10 @@ describe('segment cache - export const unstable_staleTime', () => {
     // Hide link
     await toggleLink.click()
 
-    // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
+    // Advance to 5 minutes + 1ms total - past static staleTime=300
     await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
 
-    // Should refetch - unstable_staleTime has elapsed
+    // Should refetch - static staleTime has elapsed
     await act(
       async () => {
         await toggleLink.click()
@@ -99,7 +99,7 @@ describe('unstable_staleTime - layout build error', () => {
     await next.patchFile(
       'app/layout.tsx',
       outdent`
-        export const unstable_staleTime = 60
+        export const unstable_staleTime = { static: 60 }
 
         export default function RootLayout({
           children,

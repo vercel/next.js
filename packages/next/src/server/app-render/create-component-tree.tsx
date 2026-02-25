@@ -354,8 +354,8 @@ async function createComponentTreeInternal(
   }
 
   // unstable_staleTime can only be set by pages, not layouts
-  if (isPage && typeof layoutOrPageMod?.unstable_staleTime === 'number') {
-    const staleTime = layoutOrPageMod.unstable_staleTime
+  if (isPage && layoutOrPageMod?.unstable_staleTime != null) {
+    const staleTimeConfig = layoutOrPageMod.unstable_staleTime
     const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
@@ -365,10 +365,16 @@ async function createComponentTreeInternal(
         case 'prerender-legacy':
         case 'prerender-ppr':
         case 'validation-client':
+          // Static prerender: use the static staleTime
+          if (typeof staleTimeConfig.static === 'number') {
+            workUnitStore.stale = staleTimeConfig.static
+          }
+          break
         case 'request':
-          // Set stale time for static prerendering and dynamic requests
-          // Used to set the x-nextjs-stale-time header
-          workUnitStore.stale = staleTime
+          // Dynamic navigation: use the dynamic staleTime
+          if (typeof staleTimeConfig.dynamic === 'number') {
+            workUnitStore.stale = staleTimeConfig.dynamic
+          }
           break
         // createComponentTree is not called for these stores:
         case 'cache':
