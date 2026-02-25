@@ -1,8 +1,20 @@
-export const revalidate = 0
+import { Suspense } from 'react'
+import { connection } from 'next/server'
+
+export default function Page() {
+  return (
+    <Suspense>
+      <PageImpl />
+    </Suspense>
+  )
+}
 
 let hasThrown = false
 
-export default function Page() {
+async function PageImpl() {
+  // Throw only during the runtime
+  await connection()
+
   if (!hasThrown) {
     hasThrown = true
     throw new Error('this is a test')
