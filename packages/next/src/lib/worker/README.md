@@ -8,6 +8,7 @@ Custom worker pool implementation for Next.js, replacing `jest-worker`.
 - **Dynamic scaling**: Worker count grows as concurrent jobs increase, up to `maxWorkers`
 - **Per-worker concurrency**: Configurable concurrent calls per worker via `concurrencyPerWorker`
 - **Boot throttling**: `maxBootingWorkers` limits how many workers start concurrently, preventing resource contention when many tasks arrive at once
+- **Crash recovery**: `maxRespawns` controls automatic worker replacement after crashes; in-flight requests on the crashed worker are rejected and queued tasks continue on healthy workers
 - **Individual worker restart**: Hung or crashed workers are restarted without affecting others
 
 ## Architecture
@@ -40,6 +41,8 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 | CALL | `[1, requestId, methodName, args]` |
 | END | `[2]` |
 
+The `workerId` field in INITIALIZE is only set for `worker_threads` mode (the child uses it as `JEST_WORKER_ID`). In `child_process` mode, `JEST_WORKER_ID` is passed via the environment instead.
+
 ### Child → Parent
 
 | Message | Format |
@@ -50,7 +53,7 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 | CUSTOM | `[3, payload]` |
 | READY | `[4]` |
 
-Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker. The READY message is sent once per worker after the module is loaded and optional `setup()` completes, signaling the worker is fully initialized.
+Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker. The READY message is sent once per worker after the module is loaded and optional `setup()` completes, signaling the worker is fully initialized. If `setup()` fails, READY is not sent; the SETUP_ERROR handler frees the booting slot instead.
 
 ## Usage
 
@@ -97,12 +100,14 @@ Worker modules export functions that can be called from the parent:
 // Required: methods to expose
 export async function doWork(args: any): Promise<any> { ... }
 
-// Optional: called once before first method invocation
-export async function setup(...setupArgs: unknown[]): Promise<void> { ... }
+// Optional: called once before first method invocation (sync or async)
+export function setup(...setupArgs: unknown[]): void | Promise<void> { ... }
 
-// Optional: called on END message
-export async function teardown(): Promise<void> { ... }
+// Optional: called on END message (sync or async)
+export function teardown(): void | Promise<void> { ... }
 ```
+
+The `setupArgs` are provided via `WorkerPoolOptions.setupArgs`. READY is sent after `setup()` completes (or after module load if there is no `setup`).
 
 ## Options
 
@@ -114,22 +119,53 @@ export async function teardown(): Promise<void> { ... }
 | `maxWorkers` | number | required | Maximum worker processes/threads |
 | `concurrencyPerWorker` | number | 1 | Max concurrent calls per worker |
 | `enableWorkerThreads` | boolean | false | Use worker_threads instead of child_process |
-| `forkOptions` | object | {} | env, execArgv for child processes |
-| `setupArgs` | unknown[] | [] | Arguments for worker setup() function |
+| `forkOptions.env` | object | {} | Environment variables for child processes |
+| `forkOptions.execArgv` | string[] | [] | Node.js CLI flags for child processes |
+| `setupArgs` | unknown[] | [] | Arguments for worker `setup()` function |
 | `maxRespawns` | number | 0 | Max times a worker slot is respawned after a crash (in-flight requests are always rejected; this only pre-spawns a replacement) |
-| `maxBootingWorkers` | number | ceil(maxWorkers/4) | Max workers that can be starting up concurrently. A worker is "booting" from spawn until it sends READY after loading its module and running setup(). Prevents resource contention when many tasks arrive simultaneously. |
+| `maxBootingWorkers` | number | ceil(maxWorkers/4) | Max workers starting up concurrently (must be >= 1). A worker is "booting" from spawn until it sends READY after module load + setup(). |
+| `onWorkerExit` | function | undefined | `(code, signal) => void` — called when a worker exits unexpectedly (not during graceful shutdown) |
+| `onCustomMessage` | function | undefined | `(message) => void` — called when a worker sends a CUSTOM message |
+
+### WorkerPool Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `dispatch(method, args)` | `Promise<unknown>` | Call a method on a worker; spawns/queues as needed |
+| `end()` | `Promise<{ forceExited: boolean }>` | Graceful shutdown: sends END to workers, waits for exit (500ms force-kill timeout) |
+| `close()` | `void` | Immediate shutdown: force-kills all workers, rejects in-flight and queued tasks |
+| `getStdout()` | `PassThrough` | Merged stdout stream from all workers |
+| `getStderr()` | `PassThrough` | Merged stderr stream from all workers |
+| `getWorkerCount()` | `number` | Number of currently alive workers |
 
 ### Worker Options (high-level)
 
-Inherits all WorkerPool options plus:
+The `Worker` class wraps `WorkerPool` and adds timeout/restart logic, NODE_OPTIONS management, and exposed method wiring.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `numWorkers` | number | 1 | Maps to maxWorkers |
-| `debuggerPortOffset` | number | required | Debugger port offset (-1 = not inspectable) |
-| `isolatedMemory` | boolean | required | Don't forward --max-old-space-size |
-| `enableSourceMaps` | boolean | false | Add --enable-source-maps to NODE_OPTIONS |
-| `timeout` | number | undefined | Kill and replace pool if no activity within this duration (ms) |
-| `exposedMethods` | string[] | required | Methods to wire up from worker module |
-| `onActivity` | () => void | undefined | Called on task start/complete |
-| `onActivityAbort` | () => void | undefined | Called when worker produces output |
+| `exposedMethods` | string[] | required | Methods to wire up from worker module (underscore-prefixed names are skipped) |
+| `debuggerPortOffset` | number | required | Debugger port offset (`-1` = not inspectable) |
+| `isolatedMemory` | boolean | required | If true, strips `--max-old-space-size` from NODE_OPTIONS |
+| `numWorkers` | number | 1 | Maps to `maxWorkers` |
+| `maxRetries` | number | 0 | Maps to `maxRespawns` |
+| `maxBootingWorkers` | number | ceil(numWorkers/4) | Passed through to WorkerPool |
+| `concurrencyPerWorker` | number | 1 | Passed through to WorkerPool |
+| `enableWorkerThreads` | boolean | false | Passed through to WorkerPool |
+| `enableSourceMaps` | boolean | false | Adds `--enable-source-maps` to NODE_OPTIONS |
+| `timeout` | number | undefined | Kill and recreate the pool if no activity within this duration (ms) |
+| `forkOptions.env` | object | {} | Merged into worker environment |
+| `onActivity` | function | undefined | Called when a task starts/completes (used for activity spinners) |
+| `onActivityAbort` | function | undefined | Called when a worker produces stdout/stderr output |
+| `logger` | object | console | Logger with `error`, `info`, `warn` methods |
+
+### Worker Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `end()` | `Promise<{ forceExited: boolean }>` | Graceful shutdown; removes process exit handler; throws if called twice |
+| `close()` | `void` | Immediate shutdown; idempotent |
+| `setOnActivity(cb)` | `void` | Replace the activity callback |
+| `setOnActivityAbort(cb)` | `void` | Replace the activity-abort callback |
+
+The Worker class registers a `process.on('exit')` handler that calls `close()` to clean up workers when the parent exits. This handler is removed on `end()`/`close()` to prevent listener leaks.
