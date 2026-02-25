@@ -5,6 +5,7 @@ on:
     branches: ['canary']
   pull_request:
     types: [opened, synchronize]
+  workflow_dispatch:
 
 concurrency:
   # Limit concurrent runs to 1 per PR,
