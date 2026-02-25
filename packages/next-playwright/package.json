@@ -1,0 +1,24 @@
+{
+  "name": "@next/playwright",
+  "version": "16.2.0-canary.61",
+  "private": true,
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/next-playwright"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "node ../../scripts/rm.mjs dist && tsc -d -p tsconfig.json",
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "dev": "tsc -d -w -p tsconfig.json",
+    "typescript": "tsec --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

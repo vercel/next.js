@@ -23,6 +23,7 @@
  */
 
 import { nextTestSetup } from 'e2e-utils'
+import { instant } from '@next/playwright'
 import type * as Playwright from 'playwright'
 
 describe('instant-navigation-testing-api', () => {
@@ -49,40 +50,6 @@ describe('instant-navigation-testing-api', () => {
       },
     })
     return page!
-  }
-
-  const INSTANT_COOKIE = 'next-instant-navigation-testing'
-
-  /**
-   * Runs a function with instant navigation enabled. Within this scope,
-   * navigations render the prefetched UI immediately and wait for the
-   * callback to complete before streaming in dynamic data.
-   *
-   * Uses the cookie-based protocol: setting the cookie acquires the
-   * navigation lock (via CookieStore change event), and clearing it
-   * releases the lock.
-   */
-  async function instant<T>(
-    page: Playwright.Page,
-    fn: () => Promise<T>
-  ): Promise<T> {
-    // Acquire the lock by setting the cookie from within the page context.
-    // This triggers the CookieStore change event in navigation-testing-lock.ts,
-    // which acquires the in-memory navigation lock.
-    await page.evaluate((name) => {
-      document.cookie = name + '=1; path=/'
-    }, INSTANT_COOKIE)
-    try {
-      return await fn()
-    } finally {
-      // Release the lock by clearing the cookie. For SPA navigations, this
-      // triggers the CookieStore change event which resolves the in-memory
-      // lock. For MPA navigations (reload, plain anchor), the listener in
-      // app-bootstrap.ts triggers a page reload to fetch dynamic data.
-      await page.evaluate((name) => {
-        document.cookie = name + '=; path=/; max-age=0'
-      }, INSTANT_COOKIE)
-    }
   }
 
   it('renders prefetched loading shell instantly during navigation', async () => {
@@ -178,12 +145,10 @@ describe('instant-navigation-testing-api', () => {
     })
 
     await instant(page, async () => {
-      // Attempt to acquire the lock again by changing the cookie value.
-      // The CookieStore change event fires, and the handler detects that
-      // the lock is already held, logging an error.
-      await page.evaluate((name) => {
-        document.cookie = name + '=nested; path=/'
-      }, INSTANT_COOKIE)
+      // Attempt to acquire the lock again by nesting instant() calls.
+      // The inner call sets the cookie again, and the handler detects
+      // that the lock is already held, logging an error.
+      await instant(page, async () => {})
       const msg = await consolePromise
       expect(msg.text()).toContain('already acquired')
     })
@@ -314,6 +279,223 @@ describe('instant-navigation-testing-api', () => {
     expect(await dynamicContent.textContent()).toContain(
       'Dynamic content loaded'
     )
+  })
+
+  // Verifies that runtime params (cookies, dynamic route params, search
+  // params) are excluded from the instant navigation shell. The shell should
+  // only contain static content — runtime param values should be blocked
+  // behind a Suspense boundary until the instant lock is released.
+  //
+  // Each test route reads a different runtime param inside a <Suspense>
+  // boundary without opting into `unstable_instant: { prefetch: 'runtime' }`.
+  // During the instant scope, the static page title should be visible and the
+  // Suspense fallback should be shown, but the resolved param value should
+  // NOT be present.
+  describe('runtime params are excluded from instant shell', () => {
+    it('does not include cookie values in instant shell during client navigation', async () => {
+      const page = await openPage('/')
+
+      // Set a test cookie
+      await page.evaluate(() => {
+        document.cookie = 'testCookie=hello; path=/'
+      })
+
+      await instant(page, async () => {
+        await page.click('#link-to-cookies-page')
+
+        // Static page title is visible
+        const title = page.locator('[data-testid="cookies-page-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // Suspense fallback is visible
+        const fallback = page.locator('[data-testid="cookies-fallback"]')
+        await fallback.waitFor({ state: 'visible' })
+
+        // Cookie value is NOT in the shell
+        const cookieValue = page.locator('[data-testid="cookie-value"]')
+        expect(await cookieValue.count()).toBe(0)
+      })
+
+      // After exiting instant scope, cookie value streams in
+      const cookieValue = page.locator('[data-testid="cookie-value"]')
+      await cookieValue.waitFor({ state: 'visible' })
+      expect(await cookieValue.textContent()).toContain('testCookie: hello')
+    })
+
+    it('does not include dynamic param values in instant shell during client navigation', async () => {
+      const page = await openPage('/')
+
+      await instant(page, async () => {
+        await page.click('#link-to-dynamic-params')
+
+        // Static page title is visible
+        const title = page.locator('[data-testid="dynamic-params-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // Suspense fallback is visible
+        const fallback = page.locator('[data-testid="params-fallback"]')
+        await fallback.waitFor({ state: 'visible' })
+
+        // Param value is NOT in the shell
+        const paramValue = page.locator('[data-testid="param-value"]')
+        expect(await paramValue.count()).toBe(0)
+      })
+
+      // After exiting instant scope, param value streams in
+      const paramValue = page.locator('[data-testid="param-value"]')
+      await paramValue.waitFor({ state: 'visible' })
+      expect(await paramValue.textContent()).toContain('slug: hello')
+    })
+
+    it('does not include search param values in instant shell during client navigation', async () => {
+      const page = await openPage('/')
+
+      await instant(page, async () => {
+        await page.click('#link-to-search-params')
+
+        // Static page title is visible
+        const title = page.locator('[data-testid="search-params-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // Suspense fallback is visible
+        const fallback = page.locator('[data-testid="search-params-fallback"]')
+        await fallback.waitFor({ state: 'visible' })
+
+        // Search param content is NOT in the shell
+        const searchParamContent = page.locator(
+          '[data-testid="search-param-content"]'
+        )
+        expect(await searchParamContent.count()).toBe(0)
+      })
+
+      // After exiting instant scope, search param content streams in
+      const searchParamContent = page.locator(
+        '[data-testid="search-param-content"]'
+      )
+      await searchParamContent.waitFor({ state: 'visible' })
+      expect(await searchParamContent.textContent()).toContain('foo: bar')
+    })
+
+    it('does not include cookie values in instant shell during page load', async () => {
+      const page = await openPage('/')
+
+      // Set a test cookie
+      await page.evaluate(() => {
+        document.cookie = 'testCookie=hello; path=/'
+      })
+
+      await instant(page, async () => {
+        await page.click('#plain-link-to-cookies-page')
+
+        // Static page title is visible
+        const title = page.locator('[data-testid="cookies-page-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // Suspense fallback is visible
+        const fallback = page.locator('[data-testid="cookies-fallback"]')
+        await fallback.waitFor({ state: 'visible' })
+
+        // Cookie value is NOT in the shell
+        const cookieValue = page.locator('[data-testid="cookie-value"]')
+        expect(await cookieValue.count()).toBe(0)
+      })
+
+      // After exiting instant scope, cookie value streams in
+      const cookieValue = page.locator('[data-testid="cookie-value"]')
+      await cookieValue.waitFor({ state: 'visible', timeout: 10000 })
+      expect(await cookieValue.textContent()).toContain('testCookie: hello')
+    })
+
+    it('does not include dynamic param values in instant shell during page load', async () => {
+      const page = await openPage('/')
+
+      await instant(page, async () => {
+        await page.click('#plain-link-to-dynamic-params')
+
+        // Static page title is visible
+        const title = page.locator('[data-testid="dynamic-params-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // Suspense fallback is visible
+        const fallback = page.locator('[data-testid="params-fallback"]')
+        await fallback.waitFor({ state: 'visible' })
+
+        // Param value is NOT in the shell
+        const paramValue = page.locator('[data-testid="param-value"]')
+        expect(await paramValue.count()).toBe(0)
+      })
+
+      // After exiting instant scope, param value streams in
+      const paramValue = page.locator('[data-testid="param-value"]')
+      await paramValue.waitFor({ state: 'visible', timeout: 10000 })
+      expect(await paramValue.textContent()).toContain('slug: hello')
+    })
+
+    it('does not include search param values in instant shell during page load', async () => {
+      const page = await openPage('/')
+
+      await instant(page, async () => {
+        await page.click('#plain-link-to-search-params')
+
+        // Static page title is visible
+        const title = page.locator('[data-testid="search-params-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // Suspense fallback is visible
+        const fallback = page.locator('[data-testid="search-params-fallback"]')
+        await fallback.waitFor({ state: 'visible' })
+
+        // Search param content is NOT in the shell
+        const searchParamContent = page.locator(
+          '[data-testid="search-param-content"]'
+        )
+        expect(await searchParamContent.count()).toBe(0)
+      })
+
+      // After exiting instant scope, search param content streams in
+      const searchParamContent = page.locator(
+        '[data-testid="search-param-content"]'
+      )
+      await searchParamContent.waitFor({ state: 'visible', timeout: 10000 })
+      expect(await searchParamContent.textContent()).toContain('foo: bar')
+    })
+  })
+
+  // In dev mode, hover/intent-based prefetches should not send requests
+  // that produce stale segment data. If a hover prefetch caches the route
+  // with resolved runtime data before the instant lock is acquired, params
+  // will leak into the shell when instant mode is later enabled.
+  it('does not leak runtime data from hover prefetch into instant shell', async () => {
+    const page = await openPage('/')
+
+    // Hover over the dynamic params link to trigger an intent prefetch
+    await page.hover('#link-to-dynamic-params')
+
+    // Wait for the prefetch to complete
+    await page.waitForTimeout(3000)
+
+    // Now enable instant mode and navigate
+    await instant(page, async () => {
+      await page.click('#link-to-dynamic-params')
+
+      // Static page title is visible
+      const title = page.locator('[data-testid="dynamic-params-title"]')
+      await title.waitFor({ state: 'visible' })
+
+      // Suspense fallback is visible
+      const fallback = page.locator('[data-testid="params-fallback"]')
+      await fallback.waitFor({ state: 'visible' })
+
+      // Param value is NOT in the shell — even though a hover prefetch
+      // ran before the instant lock was acquired
+      const paramValue = page.locator('[data-testid="param-value"]')
+      expect(await paramValue.count()).toBe(0)
+    })
+
+    // After exiting instant scope, param value streams in
+    const paramValue = page.locator('[data-testid="param-value"]')
+    await paramValue.waitFor({ state: 'visible' })
+    expect(await paramValue.textContent()).toContain('slug: hello')
   })
 
   it('subsequent navigations after instant scope are not locked', async () => {
