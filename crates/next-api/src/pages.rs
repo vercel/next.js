@@ -85,6 +85,7 @@ use crate::{
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
+    static_info_manifest::StaticInfoManifestAsset,
 };
 
 #[turbo_tasks::value]
@@ -1690,7 +1691,16 @@ impl Endpoint for PageEndpoint {
             let node_root = project.node_root().owned().await?;
             let client_relative_root = project.client_relative_path().owned().await?;
 
-            let output_assets = output.output_assets();
+            let output_assets = output.output_assets().concat_asset(Vc::upcast(
+                StaticInfoManifestAsset::new_pages(
+                    node_root.join(&format!(
+                        "server/pages{}/static-info.json",
+                        get_asset_prefix_from_pathname(&this.pathname),
+                    ))?,
+                    parse_segment_config_from_source(self.source(), ParseSegmentMode::Base),
+                ),
+            ));
+
             let output_assets = if let Some(sri) =
                 &*project.next_config().experimental_sri().await?
                 && let Some(algorithm) = sri.algorithm.clone()
