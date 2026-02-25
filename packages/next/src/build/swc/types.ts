@@ -413,8 +413,10 @@ export type WrittenEndpoint =
       config: EndpointConfig
     }
 
-export interface ProjectOptions
-  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
+export interface ProjectOptions extends Omit<
+  NapiProjectOptions,
+  'nextConfig' | 'env'
+> {
   /**
    * The next.config.js contents.
    */
@@ -426,8 +428,10 @@ export interface ProjectOptions
   env: Record<string, string>
 }
 
-export interface PartialProjectOptions
-  extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
+export interface PartialProjectOptions extends Omit<
+  NapiPartialProjectOptions,
+  'nextConfig' | 'env'
+> {
   rootPath: NapiProjectOptions['rootPath']
   projectPath: NapiProjectOptions['projectPath']
   /**

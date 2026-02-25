@@ -524,15 +524,13 @@ async function startWatcher(
 
         const isAppPath = Boolean(
           appDir &&
-            normalizePathSep(fileName).startsWith(
-              normalizePathSep(appDir) + '/'
-            )
+          normalizePathSep(fileName).startsWith(normalizePathSep(appDir) + '/')
         )
         const isPagePath = Boolean(
           pagesDir &&
-            normalizePathSep(fileName).startsWith(
-              normalizePathSep(pagesDir) + '/'
-            )
+          normalizePathSep(fileName).startsWith(
+            normalizePathSep(pagesDir) + '/'
+          )
         )
 
         const rootFile = absolutePathToPage(fileName, {
