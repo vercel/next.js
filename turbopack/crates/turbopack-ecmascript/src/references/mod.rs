@@ -2934,9 +2934,7 @@ where
                     let mut references = Vec::new();
                     let mut esm_references = Vec::new();
                     for dep_str in &dep_strings {
-                        let request = Request::parse_string(dep_str.clone().into())
-                            .to_resolved()
-                            .await?;
+                        let request = Request::parse_string(dep_str.clone()).to_resolved().await?;
                         let reference = ModuleHotReferenceAssetReference::new(
                             *origin,
                             *request,
@@ -2969,7 +2967,7 @@ where
                         ast_path.to_vec().into(),
                     ));
                 } else if first_arg.is_unknown() {
-                    let (args_str, hints) = explain_args(&args);
+                    let (args_str, hints) = explain_args(args);
                     let method = if is_accept { "accept" } else { "decline" };
                     let error_code = if is_accept {
                         errors::failed_to_analyze::ecmascript::MODULE_HOT_ACCEPT

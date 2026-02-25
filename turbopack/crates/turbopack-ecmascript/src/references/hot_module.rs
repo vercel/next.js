@@ -182,18 +182,16 @@ impl ModuleHotReferenceCodeGen {
                         let ident = imported_module
                             .get_ident(chunking_context, None, scope_hoisting_context)
                             .await?;
-                        if let Some(ident) = ident {
-                            if let Some((namespace_ident, ctxt)) =
-                                ident.into_module_namespace_ident()
-                            {
-                                let id = asset.chunk_item_id(chunking_context).await?;
-                                let module_id_expr = module_id_to_lit(&id);
-                                return Ok(Some((
-                                    namespace_ident,
-                                    ctxt.unwrap_or_default(),
-                                    module_id_expr,
-                                )));
-                            }
+                        if let Some((namespace_ident, ctxt)) =
+                            ident.and_then(|i| i.into_module_namespace_ident())
+                        {
+                            let id = asset.chunk_item_id(chunking_context).await?;
+                            let module_id_expr = module_id_to_lit(&id);
+                            return Ok(Some((
+                                namespace_ident,
+                                ctxt.unwrap_or_default(),
+                                module_id_expr,
+                            )));
                         }
                         Ok(None)
                     }
@@ -207,17 +205,15 @@ impl ModuleHotReferenceCodeGen {
 
         // Build the list of re-import assignment statements for the callback wrapper.
         let mut reimport_stmts: Vec<Stmt> = Vec::new();
-        for reimport in &esm_reimports {
-            if let Some((namespace_ident, ctxt, module_id_expr)) = reimport {
-                let name = Ident::new(namespace_ident.as_str().into(), DUMMY_SP, *ctxt);
-                let turbopack_import: Expr = TURBOPACK_IMPORT.into();
-                reimport_stmts.push(quote!(
-                    "$name = $turbopack_import($id);" as Stmt,
-                    name = name,
-                    turbopack_import: Expr = turbopack_import,
-                    id: Expr = module_id_expr.clone(),
-                ));
-            }
+        for (namespace_ident, ctxt, module_id_expr) in esm_reimports.iter().flatten() {
+            let name = Ident::new(namespace_ident.as_str().into(), DUMMY_SP, *ctxt);
+            let turbopack_import: Expr = TURBOPACK_IMPORT.into();
+            reimport_stmts.push(quote!(
+                "$name = $turbopack_import($id);" as Stmt,
+                name = name,
+                turbopack_import: Expr = turbopack_import,
+                id: Expr = module_id_expr.clone(),
+            ));
         }
         let has_reimports = !reimport_stmts.is_empty();
 
@@ -233,16 +229,14 @@ impl ModuleHotReferenceCodeGen {
                     // Replace dep path strings with resolved module IDs
                     if is_single {
                         let key_expr = take(&mut *call_expr.args[0].expr);
-                        call_expr.args[0].expr = Box::new(resolved_ids[0].create_id(key_expr));
-                    } else {
-                        if let Expr::Array(array_lit) = &mut *call_expr.args[0].expr {
-                            for (i, elem) in array_lit.elems.iter_mut().enumerate() {
-                                if let Some(elem) = elem {
-                                    if i < resolved_ids.len() {
-                                        let key_expr = take(&mut *elem.expr);
-                                        elem.expr = Box::new(resolved_ids[i].create_id(key_expr));
-                                    }
-                                }
+                        *call_expr.args[0].expr = resolved_ids[0].create_id(key_expr);
+                    } else if let Expr::Array(array_lit) = &mut *call_expr.args[0].expr {
+                        for (i, elem) in array_lit.elems.iter_mut().enumerate() {
+                            if let Some(elem) = elem
+                                && i < resolved_ids.len()
+                            {
+                                let key_expr = take(&mut *elem.expr);
+                                *elem.expr = resolved_ids[i].create_id(key_expr);
                             }
                         }
                     }
@@ -263,7 +257,7 @@ impl ModuleHotReferenceCodeGen {
                                     ..Default::default()
                                 })),
                             }));
-                            call_expr.args[1].expr = Box::new(Expr::Arrow(ArrowExpr {
+                            *call_expr.args[1].expr = Expr::Arrow(ArrowExpr {
                                 span: DUMMY_SP,
                                 params: vec![],
                                 body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
@@ -272,7 +266,7 @@ impl ModuleHotReferenceCodeGen {
                                     ..Default::default()
                                 })),
                                 ..Default::default()
-                            }));
+                            });
                         } else {
                             // No user callback — add one that just re-imports
                             call_expr.args.push(ExprOrSpread {
