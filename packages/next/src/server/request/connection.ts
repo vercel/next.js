@@ -123,6 +123,8 @@ export function connection(): Promise<void> {
               workUnitStore,
               RenderStage.Dynamic
             )
+          } else if (workUnitStore.asyncApiPromises) {
+            return workUnitStore.asyncApiPromises.connection
           } else {
             return Promise.resolve(undefined)
           }

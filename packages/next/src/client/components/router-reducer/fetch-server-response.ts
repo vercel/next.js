@@ -7,6 +7,7 @@ import {
   createFromFetch as createFromFetchBrowser,
 } from 'react-server-dom-webpack/client'
 
+import { InvariantError } from '../../../shared/lib/invariant-error'
 import type {
   FlightRouterState,
   NavigationFlightResponse,
@@ -70,6 +71,8 @@ type SpaFetchServerResponseResult = {
   prerendered: boolean
   postponed: boolean
   staleTime: number
+  staticStageResponse: Promise<NavigationFlightResponse> | null
+  responseHeaders: Headers
   debugInfo: Array<any> | null
 }
 
@@ -222,7 +225,7 @@ export async function fetchServerResponse(
       ).waitForWebpackRuntimeHotUpdate()
     }
 
-    let flightResponsePromise = res.flightResponse
+    let flightResponsePromise = res.flightResponsePromise
     if (flightResponsePromise === null) {
       // Typically, `createFetch` would have already started decoding the
       // Flight response. If it hasn't, though, we need to decode it now.
@@ -252,6 +255,20 @@ export async function fetchServerResponse(
       return doMpaNavigation(normalizedFlightData)
     }
 
+    // If the server included a static stage byte count, decode the static
+    // stage from the cloned response body to seed the segment cache.
+    let staticStageResponse: Promise<NavigationFlightResponse> | null = null
+    if (flightResponse.l !== undefined && res.staticStageBodyPromise !== null) {
+      staticStageResponse = decodeStaticStageResponse(
+        flightResponse.l,
+        res.staticStageBodyPromise,
+        headers
+      )
+    } else if (res.staticStageBodyPromise !== null) {
+      // No static stage byte count — cancel the unused clone.
+      res.staticStageBodyPromise.then((body) => body?.cancel())
+    }
+
     return {
       flightData: normalizedFlightData,
       canonicalUrl: canonicalUrl,
@@ -267,6 +284,8 @@ export async function fetchServerResponse(
       prerendered: flightResponse.S,
       postponed,
       staleTime,
+      staticStageResponse,
+      responseHeaders: res.headers,
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
@@ -296,7 +315,8 @@ export type RSCResponse<T> = {
   body: ReadableStream<Uint8Array> | null
   status: number
   url: string
-  flightResponse: (Promise<T> & { _debugInfo?: Array<any> }) | null
+  flightResponsePromise: (Promise<T> & { _debugInfo?: Array<any> }) | null
+  staticStageBodyPromise: Promise<ReadableStream<Uint8Array> | null> | null
 }
 
 export async function createFetch<T>(
@@ -345,6 +365,15 @@ export async function createFetch<T>(
   let fetchUrl = new URL(url)
   setCacheBustingSearchParam(fetchUrl, headers)
   let fetchPromise = fetch(fetchUrl, fetchOptions)
+
+  // When cache components is enabled, clone the response before Flight
+  // consumes the body, so we can later truncate the clone to extract the
+  // static stage for caching.
+  let staticStageBodyPromise: Promise<ReadableStream<Uint8Array> | null> | null =
+    process.env.__NEXT_CACHE_COMPONENTS
+      ? fetchPromise.then((response) => response.clone().body)
+      : null
+
   // Immediately pass the fetch promise to the Flight client so that the debug
   // info includes the latency from the client to the server. The internal timer
   // in React starts as soon as `createFromFetch` is called.
@@ -413,6 +442,9 @@ export async function createFetch<T>(
       fetchUrl = new URL(responseUrl)
       setCacheBustingSearchParam(fetchUrl, headers)
       fetchPromise = fetch(fetchUrl, fetchOptions)
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        staticStageBodyPromise = fetchPromise.then((r) => r.clone().body)
+      }
       flightResponsePromise = shouldImmediatelyDecode
         ? createFromNextFetch<T>(fetchPromise, headers)
         : null
@@ -447,7 +479,9 @@ export async function createFetch<T>(
     // This is the exact promise returned by `createFromFetch`. It contains
     // debug information that we need to transfer to any derived promises that
     // are later rendered by React.
-    flightResponse: flightResponsePromise,
+    flightResponsePromise: flightResponsePromise,
+
+    staticStageBodyPromise: staticStageBodyPromise,
   }
 
   return rscResponse
@@ -474,5 +508,63 @@ function createFromNextFetch<T>(
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
+  })
+}
+
+async function decodeStaticStageResponse(
+  staticStageByteLengthPromise: Promise<number>,
+  staticStageBodyPromise: Promise<ReadableStream<Uint8Array> | null>,
+  requestHeaders: RequestHeaders
+): Promise<NavigationFlightResponse> {
+  const [byteLength, staticBody] = await Promise.all([
+    staticStageByteLengthPromise,
+    staticStageBodyPromise,
+  ])
+  if (staticBody === null) {
+    throw new InvariantError('Expected static stage body to be available')
+  }
+  const truncatedStream = truncateStream(staticBody, byteLength)
+  return createFromNextReadableStream<NavigationFlightResponse>(
+    truncatedStream,
+    requestHeaders,
+    { allowPartialStream: true }
+  )
+}
+
+function truncateStream(
+  stream: ReadableStream<Uint8Array>,
+  byteLength: number
+): ReadableStream<Uint8Array> {
+  const reader = stream.getReader()
+  let remaining = byteLength
+
+  return new ReadableStream({
+    async pull(controller) {
+      if (remaining <= 0) {
+        reader.cancel()
+        controller.close()
+        return
+      }
+
+      const { done, value } = await reader.read()
+
+      if (done) {
+        controller.close()
+        return
+      }
+
+      if (value.byteLength <= remaining) {
+        controller.enqueue(value)
+        remaining -= value.byteLength
+      } else {
+        controller.enqueue(value.subarray(0, remaining))
+        remaining = 0
+        reader.cancel()
+        controller.close()
+      }
+    },
+    cancel() {
+      reader.cancel()
+    },
   })
 }
