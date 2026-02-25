@@ -211,7 +211,8 @@ export function navigateToKnownRoute(
         nextUrl,
         freshnessPolicy,
         accumulation,
-        routeCacheEntry
+        routeCacheEntry,
+        navigateType
       )
     }
     return completeSoftNavigation(
