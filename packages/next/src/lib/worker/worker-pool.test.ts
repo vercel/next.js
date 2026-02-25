@@ -1264,25 +1264,35 @@ describe('WorkerPool', () => {
       ).toThrow('maxBootingWorkers must be at least 1')
     })
 
-    it('frees booting slot when setup error occurs', () => {
+    it('frees booting slot when setup error occurs and queued tasks proceed', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
-        maxWorkers: 3,
+        maxWorkers: 2,
         maxBootingWorkers: 1,
         concurrencyPerWorker: 1,
       })
 
-      // Dispatch 3 tasks — only 1 worker spawns (booting limit = 1)
-      pool.dispatch('a', [])
-      pool.dispatch('b', [])
-      pool.dispatch('c', [])
+      // Dispatch 2 tasks — only 1 worker spawns (booting limit = 1)
+      const p1 = pool.dispatch('a', [])
+      const p2 = pool.dispatch('b', [])
       expect(spawnedProcesses).toHaveLength(1)
 
-      // Worker 1 fails setup — booting slot should be freed
+      // Worker 1 fails setup — in-flight request rejected, booting slot freed
       replySetupError(spawnedProcesses[0], 'Error', 'setup failed')
+      await expect(p1).rejects.toThrow('Error when calling setup: setup failed')
 
-      // A second worker should now spawn since the booting slot was freed
+      // A second worker should spawn since the booting slot was freed
       expect(spawnedProcesses).toHaveLength(2)
+
+      // The queued task should have been dispatched to the new worker
+      const newProc = spawnedProcesses[1]
+      const callMsg = newProc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
+      expect(callMsg).toBeDefined()
+      expect(callMsg[2]).toBe('b')
+
+      // New worker completes the task
+      replyOk(newProc, callMsg[1] as number, 'result-b')
+      await expect(p2).resolves.toBe('result-b')
 
       pool.close()
     })
