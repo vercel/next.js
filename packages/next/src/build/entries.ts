@@ -4,11 +4,7 @@ import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-route-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type {
-  ProxyConfig,
-  ProxyMatcher,
-  PageStaticInfo,
-} from './analysis/get-page-static-info'
+import type { ProxyConfig, ProxyMatcher } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
@@ -461,7 +457,7 @@ export async function createEntrypoints(
         (absolutePagePath.startsWith(APP_DIR_ALIAS) ||
           absolutePagePath.startsWith(appDir))
 
-      const staticInfo: PageStaticInfo = await getStaticInfoIncludingLayouts({
+      const staticInfo = await getStaticInfoIncludingLayouts({
         isInsideAppDir,
         pageExtensions,
         pageFilePath,
