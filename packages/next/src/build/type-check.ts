@@ -8,7 +8,6 @@ import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
 import isError from '../lib/is-error'
 import { hrtimeDurationToString } from './duration-to-string'
-import { verifyAndRunTypeScript as verifyAndRunTypeScriptImpl } from '../lib/verify-typescript-setup'
 
 /**
  * typescript will be loaded in "next/lib/verify-typescript-setup" and
@@ -34,10 +33,10 @@ function verifyAndRunTypeScript(
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ) {
-  let impl: typeof verifyAndRunTypeScriptImpl
+  let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   let typeCheckWorker:
     | (Worker & {
-        verifyAndRunTypeScript: typeof verifyAndRunTypeScriptImpl
+        verifyAndRunTypeScript: typeof impl
       })
     | undefined
   if (shouldRunTypeCheck) {
@@ -56,7 +55,9 @@ function verifyAndRunTypeScript(
   } else {
     // When not running typecheck, just run the implementation in-process without spawning a worker,
     // to avoid the overhead of the worker.
-    impl = verifyAndRunTypeScriptImpl
+    impl = (
+      require('../lib/verify-typescript-setup') as typeof import('../lib/verify-typescript-setup')
+    ).verifyAndRunTypeScript
   }
 
   return impl({
