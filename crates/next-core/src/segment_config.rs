@@ -235,6 +235,64 @@ impl NextSegmentConfig {
         )?;
         Ok(())
     }
+
+    pub fn get_proxy_matchers(
+        &self,
+        has_i18n: bool,
+        has_i18n_locales: bool,
+        base_path: Option<&str>,
+    ) -> Option<Vec<ProxyMatcher>> {
+        self.middleware_matcher.as_ref().map(|matchers| {
+            matchers
+                .iter()
+                .map(|matcher| {
+                    let mut matcher = match matcher {
+                        MiddlewareMatcherKind::Str(matcher) => ProxyMatcher {
+                            original_source: matcher.as_str().into(),
+                            ..Default::default()
+                        },
+                        MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
+                    };
+
+                    // Mirrors implementation in get-page-static-info.ts getMiddlewareMatchers
+                    let mut source = matcher.original_source.to_string();
+                    let is_root = source == "/";
+                    let has_locale = matcher.locale;
+
+                    if has_i18n_locales && has_locale {
+                        if is_root {
+                            source.clear();
+                        }
+                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
+                    }
+
+                    if is_root {
+                        source.push('(');
+                        if has_i18n {
+                            source.push_str("|\\\\.json|");
+                        }
+                        source.push_str("/?index|/?index\\\\.json)?")
+                    } else {
+                        source.push_str("{(\\\\.json)}?")
+                    };
+
+                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
+
+                    if let Some(base_path) = base_path.as_ref() {
+                        source.insert_str(0, base_path);
+                    }
+
+                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here
+                    // using path-to-regexp. Currently there is no
+                    // equivalent of that so it post-processes
+                    // this value to the relevant regex in manifest-loader.ts
+                    matcher.regexp = Some(RcStr::from(source));
+
+                    matcher
+                })
+                .collect()
+        })
+    }
 }
 
 /// An issue that occurred while parsing the app segment config.

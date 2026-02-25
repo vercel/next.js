@@ -1,5 +1,7 @@
 use anyhow::Result;
-use next_core::{segment_config::NextSegmentConfig, util::NextRuntime};
+use next_core::{
+    next_manifests::ProxyMatcher, segment_config::NextSegmentConfig, util::NextRuntime,
+};
 use serde::Serialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
@@ -75,9 +77,23 @@ impl Asset for StaticInfoManifestAsset {
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
+        struct ManifestMiddleware {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub matchers: Option<Vec<ProxyMatcher>>,
+        }
+        impl ManifestMiddleware {
+            fn is_empty(&self) -> bool {
+                self.matchers.is_none()
+            }
+        }
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
         struct Manifest<'a> {
             #[serde(rename = "type")]
             ty: &'a str,
+            #[serde(skip_serializing_if = "ManifestMiddleware::is_empty")]
+            middleware: ManifestMiddleware,
             #[serde(skip_serializing_if = "std::ops::Not::not")]
             generate_static_params: bool,
             #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -99,6 +115,10 @@ impl Asset for StaticInfoManifestAsset {
         });
         let json = serde_json::to_string(&Manifest {
             ty: self.ty.as_str(),
+            middleware: ManifestMiddleware {
+                // TODO
+                matchers: config.get_proxy_matchers(false, false, None),
+            },
             runtime: config.runtime,
             generate_image_metadata: config.generate_image_metadata,
             generate_static_params: config.generate_static_params.is_some(),

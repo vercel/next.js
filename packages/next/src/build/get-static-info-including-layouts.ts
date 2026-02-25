@@ -9,6 +9,7 @@ import {
   getPageStaticInfo,
 } from './analysis/get-page-static-info'
 import type { PageExtensions } from './page-extensions-type'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 
 import { PAGE_TYPES } from '../lib/page-types'
 import { isAppPageRoute } from '../lib/is-app-page-route'
@@ -73,6 +74,13 @@ export async function getStaticInfoIncludingLayouts({
           'utf8'
         )
       )
+
+      if (turbopack.middleware?.matchers) {
+        for (const matcher of turbopack.middleware.matchers) {
+          // Turbopack emits the path, not a regex
+          matcher.regexp = pathToRegexp(matcher.regexp).source
+        }
+      }
     } catch (e) {
       throw new Error('Failed to read Turbopack static info from disk - ' + e)
     }

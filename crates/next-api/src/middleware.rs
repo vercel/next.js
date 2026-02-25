@@ -6,7 +6,7 @@ use next_core::{
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
     segment_config::NextSegmentConfig,
-    util::{MiddlewareMatcherKind, NextRuntime},
+    util::NextRuntime,
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -164,62 +164,15 @@ impl MiddlewareEndpoint {
             .unwrap_or(false);
         let base_path = next_config.base_path().await?;
 
-        let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
-            matchers
-                .iter()
-                .map(|matcher| {
-                    let mut matcher = match matcher {
-                        MiddlewareMatcherKind::Str(matcher) => ProxyMatcher {
-                            original_source: matcher.as_str().into(),
-                            ..Default::default()
-                        },
-                        MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
-                    };
-
-                    // Mirrors implementation in get-page-static-info.ts getMiddlewareMatchers
-                    let mut source = matcher.original_source.to_string();
-                    let is_root = source == "/";
-                    let has_locale = matcher.locale;
-
-                    if has_i18n_locales && has_locale {
-                        if is_root {
-                            source.clear();
-                        }
-                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
-                    }
-
-                    if is_root {
-                        source.push('(');
-                        if has_i18n {
-                            source.push_str("|\\\\.json|");
-                        }
-                        source.push_str("/?index|/?index\\\\.json)?")
-                    } else {
-                        source.push_str("{(\\\\.json)}?")
-                    };
-
-                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
-
-                    if let Some(base_path) = base_path.as_ref() {
-                        source.insert_str(0, base_path);
-                    }
-
-                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here
-                    // using path-to-regexp. Currently there is no
-                    // equivalent of that so it post-processes
-                    // this value to the relevant regex in manifest-loader.ts
-                    matcher.regexp = Some(RcStr::from(source));
-
-                    matcher
-                })
-                .collect()
-        } else {
-            vec![ProxyMatcher {
-                regexp: Some(rcstr!("^/.*$")),
-                original_source: rcstr!("/:path*"),
-                ..Default::default()
-            }]
-        };
+        let matchers = config
+            .get_proxy_matchers(has_i18n, has_i18n_locales, base_path.as_deref())
+            .unwrap_or_else(|| {
+                vec![ProxyMatcher {
+                    regexp: Some(rcstr!("^/.*$")),
+                    original_source: rcstr!("/:path*"),
+                    ..Default::default()
+                }]
+            });
 
         let static_info_manifest = StaticInfoManifestAsset::new_middleware(
             this.project
