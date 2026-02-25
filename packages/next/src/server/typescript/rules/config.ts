@@ -158,14 +158,15 @@ const API_DOCS: Record<
   },
   unstable_staleTime: {
     description:
-      'The `unstable_staleTime` option sets the client-side stale time for the router cache in seconds. Can only be set on page segments. Accepts an object with optional `dynamic` and `static` properties.',
-    type: 'object',
+      'The `unstable_staleTime` option sets the client-side stale time for the router cache in seconds. Can only be set on page segments.',
+    type: 'number',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#unstable_staletime',
     isValid: (value: string) => {
-      return value.includes('{')
+      const num = Number(value.replace(/_/g, ''))
+      return !isNaN(num) && num >= 0 && Number.isInteger(num)
     },
     getHint: (value: any) => {
-      return `Set the client-side stale time to \`${JSON.stringify(value)}\`.`
+      return `Set the client-side stale time to \`${value}\` seconds.`
     },
   },
 }

@@ -510,7 +510,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-  unstable_staleTime?: { dynamic?: number; static?: number }
+  unstable_staleTime?: number
 }
 
 `
@@ -551,7 +551,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-  unstable_staleTime?: { dynamic?: number; static?: number }
+  unstable_staleTime?: number
 }
 
 `
@@ -747,7 +747,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-  unstable_staleTime?: { dynamic?: number; static?: number }
+  unstable_staleTime?: number
 }
 
 `
@@ -788,7 +788,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-  unstable_staleTime?: { dynamic?: number; static?: number }
+  unstable_staleTime?: number
 }
 
 `

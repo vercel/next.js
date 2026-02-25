@@ -1,8 +1,6 @@
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 
-type StaleTimeConfig = { dynamic?: number; static?: number }
-
 /**
  * Extracts the unstable_staleTime export from a loader tree.
  * Walks the tree to find the page segment and extracts unstable_staleTime.
@@ -10,15 +8,15 @@ type StaleTimeConfig = { dynamic?: number; static?: number }
  */
 export async function extractStaleTimeFromLoaderTree(
   tree: LoaderTree
-): Promise<StaleTimeConfig | undefined> {
+): Promise<number | undefined> {
   const [, parallelRoutes] = tree
 
   // Get the layout or page module for this segment
   const { mod, modType } = await getLayoutOrPageModule(tree)
 
   // Get unstable_staleTime only from page modules (not layouts)
-  let staleTime: StaleTimeConfig | undefined =
-    modType === 'page' && mod?.unstable_staleTime != null
+  let staleTime: number | undefined =
+    modType === 'page' && typeof mod?.unstable_staleTime === 'number'
       ? mod.unstable_staleTime
       : undefined
 
@@ -28,7 +26,7 @@ export async function extractStaleTimeFromLoaderTree(
     const childTree = parallelRoutes[key]
     const childStaleTime = await extractStaleTimeFromLoaderTree(childTree)
 
-    if (childStaleTime != null) {
+    if (typeof childStaleTime === 'number') {
       staleTime = childStaleTime
     }
   }

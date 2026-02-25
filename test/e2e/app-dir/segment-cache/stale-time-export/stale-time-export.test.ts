@@ -14,7 +14,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     return
   }
 
-  it('overrides the global staleTimes.static config', async () => {
+  it('overrides global staleTimes config', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -23,16 +23,16 @@ describe('segment cache - export const unstable_staleTime', () => {
     })
     const act = createRouterAct(page)
     await page.clock.install()
-    const pageContent = 'Page with unstable_staleTime static=300'
+    const pageContent = 'Page with unstable_staleTime = 300'
 
-    // Prefetch page with unstable_staleTime { static: 300 } (5 minutes)
+    // Prefetch page with unstable_staleTime=300 (5 minutes)
     const toggleLink = await browser.elementByCss(
-      'input[data-link-accordion="/static-5-minutes"]'
+      'input[data-link-accordion="/stale-5-minutes"]'
     )
     await act(
       async () => {
         await toggleLink.click()
-        await browser.elementByCss('a[href="/static-5-minutes"]')
+        await browser.elementByCss('a[href="/stale-5-minutes"]')
       },
       { includes: pageContent }
     )
@@ -40,19 +40,19 @@ describe('segment cache - export const unstable_staleTime', () => {
     // Hide link
     await toggleLink.click()
 
-    // Advance 31 seconds - past global staleTimes (30s), within page static staleTime (300s)
+    // Advance 31 seconds - past global staleTimes (30s), within page unstable_staleTime (300s)
     await page.clock.fastForward(31 * 1000)
 
     /*
-      Should NOT refetch the content - page's static staleTime=300 hasn't elapsed.
+        Should NOT refetch the content - page's unstable_staleTime=300 hasn't elapsed.
 
-      Note there may be another tree prefetch, since that's controlled separately. So
-      we just assert that the actual content of the page is not refetched.
-    */
+        Note there may be another tree prefetch, since that's controlled separately. So
+        we just assert that the actual content of the page is not refetched.
+      */
     await act(
       async () => {
         await toggleLink.click()
-        await browser.elementByCss('a[href="/static-5-minutes"]')
+        await browser.elementByCss('a[href="/stale-5-minutes"]')
       },
       { includes: pageContent, block: 'reject' }
     )
@@ -60,73 +60,28 @@ describe('segment cache - export const unstable_staleTime', () => {
     // Hide link
     await toggleLink.click()
 
-    // Advance to 5 minutes + 1ms total - past static staleTime=300
+    // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
     await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
 
-    // Should refetch - static staleTime has elapsed
+    // Should refetch - unstable_staleTime has elapsed
     await act(
       async () => {
         await toggleLink.click()
-        await browser.elementByCss('a[href="/static-5-minutes"]')
+        await browser.elementByCss('a[href="/stale-5-minutes"]')
       },
       { includes: pageContent }
     )
   })
 
-  it.only('overrides the global staleTimes.dynamic config', async () => {
-    let page: Playwright.Page
-    const browser = await next.browser('/', {
-      beforePageLoad(p: Playwright.Page) {
-        page = p
-      },
-    })
-    const act = createRouterAct(page)
-    await page.clock.install()
-    const pageContent = 'Page with unstable_staleTime dynamic=300'
-
-    // Navigate to the dynamic page. Dynamic content is not included in the
-    // prefetch, so it's fetched during the navigation.
-    await act(
-      async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/dynamic-5-minutes"]')
-          .click()
-        await browser.elementByCss('a[href="/dynamic-5-minutes"]').click()
-      },
-      { includes: pageContent }
-    )
-
-    await browser.back()
-
-    // Advance 31 seconds - past the global staleTimes.dynamic (30s), but
-    // within the page's dynamic staleTime (300s). Navigating again should
-    // reuse the cached data without a new request.
-    await page.clock.fastForward(31 * 1000)
-
-    await act(
-      async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/dynamic-5-minutes"]')
-          .click()
-        await browser.elementByCss('a[href="/dynamic-5-minutes"]').click()
-      },
-      { includes: pageContent, block: 'reject' }
-    )
-
-    // await browser.back()
-
-    // // Advance to 5 minutes + 1ms total - past the page's dynamic staleTime
-    // // of 300s. This time the data is stale, so we should issue a new request.
-    // await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
-
-    // await act(
-    //   async () => {
-    //     const link = await browser.elementByCss('a[href="/dynamic-5-minutes"]')
-    //     await link.click()
-    //   },
-    //   { includes: pageContent }
-    // )
-  })
+  // TODO: Test for caching unstable_staleTime on navigation without prefetch
+  //
+  // Currently, navigation responses (without prefetch) cache the route tree
+  // but not the segment data. The route tree cache entry is found on subsequent
+  // navigations, but since segment data isn't cached, a server request is still
+  // made. Fully implementing this feature requires writing segment data to the
+  // segment cache during navigation, which is a more significant change.
+  //
+  // The unstable_staleTime segment config works correctly for prefetched routes.
 })
 
 describe('unstable_staleTime - layout build error', () => {
@@ -144,7 +99,7 @@ describe('unstable_staleTime - layout build error', () => {
     await next.patchFile(
       'app/layout.tsx',
       outdent`
-        export const unstable_staleTime = { static: 60 }
+        export const unstable_staleTime = 60
 
         export default function RootLayout({
           children,
