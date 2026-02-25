@@ -107,6 +107,7 @@ pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
     pub revalidate: Option<NextRevalidate>,
+    pub max_duration: Option<u32>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
@@ -139,14 +140,20 @@ impl NextSegmentConfig {
             dynamic,
             dynamic_params,
             revalidate,
+            max_duration,
             fetch_cache,
             runtime,
             preferred_region,
-            ..
+            // Don't need merging
+            middleware_matcher: _,
+            generate_image_metadata: _,
+            generate_sitemaps: _,
+            generate_static_params: _,
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
         *dynamic_params = dynamic_params.or(parent.dynamic_params);
         *revalidate = revalidate.or(parent.revalidate);
+        *max_duration = max_duration.or(parent.max_duration);
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
@@ -180,10 +187,15 @@ impl NextSegmentConfig {
             dynamic,
             dynamic_params,
             revalidate,
+            max_duration,
             fetch_cache,
             runtime,
             preferred_region,
-            ..
+            // Don't need merging
+            middleware_matcher: _,
+            generate_image_metadata: _,
+            generate_sitemaps: _,
+            generate_static_params: _,
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
@@ -192,6 +204,7 @@ impl NextSegmentConfig {
             "dynamicParams",
         )?;
         merge_parallel(revalidate, &parallel_config.revalidate, "revalidate")?;
+        merge_parallel(max_duration, &parallel_config.max_duration, "maxDuration")?;
         merge_parallel(fetch_cache, &parallel_config.fetch_cache, "fetchCache")?;
         merge_parallel(runtime, &parallel_config.runtime, "runtime")?;
         merge_parallel(
@@ -850,6 +863,32 @@ async fn parse_config_value(
                     //https://github.com/vercel/next.js/blob/cd46c221d2b7f796f963d2b81eea1e405023db23/packages/next/src/server/lib/patch-fetch.ts#L20
                 }
             }
+        }
+        "maxDuration" => {
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "maxDuration",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+
+            let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value else {
+                return invalid_config(
+                    source,
+                    "maxDuration",
+                    span,
+                    rcstr!("It needs to be a static number."),
+                    Some(&value),
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            config.max_duration = Some(val as u32);
         }
         "fetchCache" => {
             let Some(value) = get_value() else {
