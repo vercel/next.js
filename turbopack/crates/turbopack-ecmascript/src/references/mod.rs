@@ -1730,6 +1730,7 @@ async fn compile_time_info_for_module_options(
         environment: compile_time_info.environment,
         defines: CompileTimeDefines(defines).resolved_cell(),
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
+        hot_module_replacement_enabled: compile_time_info.hot_module_replacement_enabled,
     }
     .cell())
 }

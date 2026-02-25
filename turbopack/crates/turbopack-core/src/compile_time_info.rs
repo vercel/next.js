@@ -407,6 +407,7 @@ pub struct CompileTimeInfo {
     pub environment: ResolvedVc<Environment>,
     pub defines: ResolvedVc<CompileTimeDefines>,
     pub free_var_references: ResolvedVc<FreeVarReferences>,
+    pub hot_module_replacement_enabled: bool,
 }
 
 impl CompileTimeInfo {
@@ -415,6 +416,7 @@ impl CompileTimeInfo {
             environment,
             defines: None,
             free_var_references: None,
+            hot_module_replacement_enabled: false,
         }
     }
 }
@@ -427,6 +429,7 @@ impl CompileTimeInfo {
             environment,
             defines: CompileTimeDefines::empty().to_resolved().await?,
             free_var_references: FreeVarReferences::empty().to_resolved().await?,
+            hot_module_replacement_enabled: false,
         }
         .cell())
     }
@@ -441,6 +444,7 @@ pub struct CompileTimeInfoBuilder {
     environment: ResolvedVc<Environment>,
     defines: Option<ResolvedVc<CompileTimeDefines>>,
     free_var_references: Option<ResolvedVc<FreeVarReferences>>,
+    hot_module_replacement_enabled: bool,
 }
 
 impl CompileTimeInfoBuilder {
@@ -457,6 +461,11 @@ impl CompileTimeInfoBuilder {
         self
     }
 
+    pub fn hot_module_replacement_enabled(mut self, enabled: bool) -> Self {
+        self.hot_module_replacement_enabled = enabled;
+        self
+    }
+
     pub async fn build(self) -> Result<CompileTimeInfo> {
         Ok(CompileTimeInfo {
             environment: self.environment,
@@ -468,6 +477,7 @@ impl CompileTimeInfoBuilder {
                 Some(free_var_references) => free_var_references,
                 None => FreeVarReferences::empty().to_resolved().await?,
             },
+            hot_module_replacement_enabled: self.hot_module_replacement_enabled,
         })
     }
 

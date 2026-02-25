@@ -60,9 +60,11 @@ pub async fn replace_well_known(
             ),
             _ => (value, false),
         },
-        // module.hot → WellKnownObject(ModuleHot)
+        // module.hot → WellKnownObject(ModuleHot) (only when HMR is enabled)
         JsValue::Member(_, box JsValue::FreeVar(ref name), box ref prop)
-            if &**name == "module" && prop.as_str() == Some("hot") =>
+            if &**name == "module"
+                && prop.as_str() == Some("hot")
+                && compile_time_info.await?.hot_module_replacement_enabled =>
         {
             (
                 JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
@@ -635,7 +637,9 @@ async fn well_known_object_member(
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
         WellKnownObjectKind::ImportMeta => match prop.as_str() {
             // import.meta.turbopackHot is the ESM equivalent of module.hot for HMR
-            Some("turbopackHot") => JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
+            Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
+                JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
+            }
             _ => {
                 return Ok((
                     JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),

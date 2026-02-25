@@ -224,7 +224,8 @@ async fn build_internal(
         NodeEnv::Production => RuntimeType::Production,
     };
 
-    let compile_time_info = get_client_compile_time_info(browserslist_query.clone(), node_env);
+    let compile_time_info =
+        get_client_compile_time_info(browserslist_query.clone(), node_env, false);
     let node_backend = child_process_backend();
     let execution_context = ExecutionContext::new(
         root_path.clone(),
