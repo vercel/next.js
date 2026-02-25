@@ -3,34 +3,38 @@ use std::{mem::MaybeUninit, sync::Arc};
 use anyhow::{Context, Result};
 use lzzzz::lz4::{ACC_LEVEL_DEFAULT, decompress, decompress_with_dict};
 
+/// Decompresses a block into an Arc allocation.
+///
+/// The caller must ensure `uncompressed_length > 0` (i.e., the block is actually compressed).
+/// Uncompressed blocks should be handled via zero-copy mmap slices before calling this.
 pub fn decompress_into_arc(
     uncompressed_length: u32,
     block: &[u8],
     compression_dictionary: Option<&[u8]>,
     _long_term: bool,
 ) -> Result<Arc<[u8]>> {
-    // We directly allocate the buffer in an Arc to avoid copying it into an Arc and avoiding
-    // double indirection. This is a dynamically sized arc.
-    let buffer: Arc<[MaybeUninit<u8>]> = Arc::new_zeroed_slice(uncompressed_length as usize);
-    // Assume that the buffer is initialized.
-    let buffer = Arc::into_raw(buffer);
-    // Safety: Assuming that the buffer is initialized is safe because we just created it as
-    // zeroed slice and u8 doesn't require initialization.
-    let mut buffer = unsafe { Arc::from_raw(buffer as *mut [u8]) };
-    // Safety: We know that the buffer is not shared yet.
-    let decompressed = unsafe { Arc::get_mut_unchecked(&mut buffer) };
-    let bytes_writes = if let Some(dict) = compression_dictionary {
-        // Safety: decompress_with_dict will only write to `decompressed` and not read from it.
+    debug_assert!(
+        uncompressed_length > 0,
+        "decompress_into_arc called with uncompressed_length=0; uncompressed blocks should use \
+         zero-copy mmap path"
+    );
+
+    // Allocate directly into an Arc to avoid a copy. The buffer is uninitialized;
+    // decompression will overwrite it completely (verified by the assert below).
+    let buffer: Arc<[MaybeUninit<u8>]> = Arc::new_uninit_slice(uncompressed_length as usize);
+    // Safety: decompression will fully initialize the buffer we verify with an assert
+    let mut buffer = unsafe { buffer.assume_init() };
+    // We just created this Arc so refcount is 1; get_mut always succeeds.
+    let decompressed = Arc::get_mut(&mut buffer).expect("Arc refcount should be 1");
+    let bytes_written = if let Some(dict) = compression_dictionary {
         decompress_with_dict(block, decompressed, dict)?
     } else {
-        // Safety: decompress will only write to `decompressed` and not read from it.
         decompress(block, decompressed)?
     };
     assert_eq!(
-        bytes_writes, uncompressed_length as usize,
+        bytes_written, uncompressed_length as usize,
         "Decompressed length does not match expected length"
     );
-    // Safety: The buffer is now fully initialized and can be used.
     Ok(buffer)
 }
 

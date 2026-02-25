@@ -8,12 +8,12 @@ use serde::Deserialize;
 use swc_core::{
     atoms::Atom,
     common::{
+        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         comments::{Comments, NoopComments},
         pass::Optional,
-        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{fn_pass, noop_pass, EsVersion, Pass},
+        ast::{EsVersion, Pass, fn_pass, noop_pass},
         parser::parse_file_as_module,
         visit::visit_mut_pass,
     },
@@ -23,7 +23,7 @@ use crate::{
     linter::linter,
     transforms::{
         cjs_finder::contains_cjs,
-        dynamic::{next_dynamic, NextDynamicMode},
+        dynamic::{NextDynamicMode, next_dynamic},
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,

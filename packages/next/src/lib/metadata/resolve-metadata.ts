@@ -709,7 +709,8 @@ const resolveMetadataItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  interpolatedParams: Params
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ) {
   const parentParams = {}
   const metadataItems: MetadataItems = []
@@ -720,10 +721,12 @@ const resolveMetadataItems = cache(async function (
     tree,
     treePrefix,
     parentParams,
+    null,
     searchParams,
     errorConvention,
     errorMetadataItem,
-    interpolatedParams
+    interpolatedParams,
+    isRuntimePrefetchable
   )
 })
 
@@ -733,10 +736,12 @@ async function resolveMetadataItemsImpl(
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
   treePrefix: undefined | string[],
   parentParams: Params,
+  parentOptionalCatchAllParamName: string | null,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorMetadataItem: MetadataItems[number],
-  interpolatedParams: Params
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -756,7 +761,20 @@ async function resolveMetadataItemsImpl(
     }
   }
 
-  const params = createServerParamsForMetadata(currentParams)
+  // Track optional catch-all params with no value (see comment in
+  // create-component-tree.tsx for full explanation).
+  const optionalCatchAllParamName: string | null =
+    segmentParam?.paramType === 'optional-catchall' &&
+    (interpolatedParams[segmentParam.paramName] === null ||
+      interpolatedParams[segmentParam.paramName] === undefined)
+      ? segmentParam.paramName
+      : parentOptionalCatchAllParamName
+
+  const params = createServerParamsForMetadata(
+    currentParams,
+    optionalCatchAllParamName,
+    isRuntimePrefetchable
+  )
   const props: SegmentProps = isPage ? { params, searchParams } : { params }
 
   await collectMetadata({
@@ -778,10 +796,12 @@ async function resolveMetadataItemsImpl(
       childTree,
       currentTreePrefix,
       currentParams,
+      optionalCatchAllParamName,
       searchParams,
       errorConvention,
       errorMetadataItem,
-      interpolatedParams
+      interpolatedParams,
+      isRuntimePrefetchable
     )
   }
 
@@ -799,7 +819,8 @@ const resolveViewportItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  interpolatedParams: Params
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ) {
   const parentParams = {}
   const viewportItems: ViewportItems = []
@@ -812,10 +833,12 @@ const resolveViewportItems = cache(async function (
     tree,
     treePrefix,
     parentParams,
+    null,
     searchParams,
     errorConvention,
     errorViewportItemRef,
-    interpolatedParams
+    interpolatedParams,
+    isRuntimePrefetchable
   )
 })
 
@@ -825,10 +848,12 @@ async function resolveViewportItemsImpl(
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
   treePrefix: undefined | string[],
   parentParams: Params,
+  parentOptionalCatchAllParamName: string | null,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorViewportItemRef: ErrorViewportItemRef,
-  interpolatedParams: Params
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ): Promise<ViewportItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -848,7 +873,20 @@ async function resolveViewportItemsImpl(
     }
   }
 
-  const params = createServerParamsForMetadata(currentParams)
+  // Track optional catch-all params with no value (see comment in
+  // create-component-tree.tsx for full explanation).
+  const optionalCatchAllParamName: string | null =
+    segmentParam?.paramType === 'optional-catchall' &&
+    (interpolatedParams[segmentParam.paramName] === null ||
+      interpolatedParams[segmentParam.paramName] === undefined)
+      ? segmentParam.paramName
+      : parentOptionalCatchAllParamName
+
+  const params = createServerParamsForMetadata(
+    currentParams,
+    optionalCatchAllParamName,
+    isRuntimePrefetchable
+  )
 
   let layerProps: LayoutProps | PageProps
   if (isPage) {
@@ -881,10 +919,12 @@ async function resolveViewportItemsImpl(
       childTree,
       currentTreePrefix,
       currentParams,
+      optionalCatchAllParamName,
       searchParams,
       errorConvention,
       errorViewportItemRef,
-      interpolatedParams
+      interpolatedParams,
+      isRuntimePrefetchable
     )
   }
 
@@ -1253,13 +1293,15 @@ export async function resolveMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   interpolatedParams: Params,
-  metadataContext: MetadataContext
+  metadataContext: MetadataContext,
+  isRuntimePrefetchable: boolean
 ): Promise<ResolvedMetadata> {
   const metadataItems = await resolveMetadataItems(
     tree,
     searchParams,
     errorConvention,
-    interpolatedParams
+    interpolatedParams,
+    isRuntimePrefetchable
   )
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -1278,13 +1320,15 @@ export async function resolveViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  interpolatedParams: Params
+  interpolatedParams: Params,
+  isRuntimePrefetchable: boolean
 ): Promise<ResolvedViewport> {
   const viewportItems = await resolveViewportItems(
     tree,
     searchParams,
     errorConvention,
-    interpolatedParams
+    interpolatedParams,
+    isRuntimePrefetchable
   )
   return accumulateViewport(viewportItems)
 }

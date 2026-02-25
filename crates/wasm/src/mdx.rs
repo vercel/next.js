@@ -1,5 +1,5 @@
 use js_sys::JsString;
-use mdxjs::{compile, Options};
+use mdxjs::{Options, compile};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 

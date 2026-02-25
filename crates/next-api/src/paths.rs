@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use next_core::next_manifests::AssetBinding;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::{HashAlgorithm, encode_hex};
 use turbopack_core::{
     asset::Asset,
     output::{OutputAsset, OutputAssets},
@@ -17,7 +18,7 @@ use turbopack_wasm::wasm_edge_var_name;
 pub struct AssetPath {
     /// Relative to the root_path
     pub path: RcStr,
-    pub content_hash: u64,
+    pub content_hash: RcStr,
 }
 
 /// A list of asset paths
@@ -31,13 +32,23 @@ pub struct OptionAssetPath(Option<AssetPath>);
 async fn asset_path(
     asset: Vc<Box<dyn OutputAsset>>,
     node_root: FileSystemPath,
+    should_content_hash: Option<HashAlgorithm>,
 ) -> Result<Vc<OptionAssetPath>> {
     Ok(Vc::cell(
         if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
-            let content_hash = *asset.content().hash().await?;
+            let hash = if let Some(algorithm) = should_content_hash {
+                asset
+                    .content()
+                    .content_hash(algorithm)
+                    .owned()
+                    .await?
+                    .context("asset content not found")?
+            } else {
+                encode_hex(*asset.content().hash().await?).into()
+            };
             Some(AssetPath {
                 path: RcStr::from(path),
-                content_hash,
+                content_hash: hash,
             })
         } else {
             None
@@ -51,6 +62,7 @@ async fn asset_path(
 pub async fn all_asset_paths(
     assets: Vc<OutputAssets>,
     node_root: FileSystemPath,
+    should_content_hash: Option<HashAlgorithm>,
 ) -> Result<Vc<AssetPaths>> {
     let span = tracing::info_span!(
         "collect all asset paths",
@@ -63,7 +75,7 @@ pub async fn all_asset_paths(
         span.record("assets_count", all_assets.len());
         let asset_paths = all_assets
             .iter()
-            .map(|&asset| asset_path(*asset, node_root.clone()).owned())
+            .map(|&asset| asset_path(*asset, node_root.clone(), should_content_hash).owned())
             .try_flat_join()
             .await?;
         span.record("asset_paths_count", asset_paths.len());

@@ -375,11 +375,7 @@ function Router({
      */
     const onPopState = (event: PopStateEvent) => {
       if (!event.state) {
-        // This case happens when pushState/replaceState was called outside
-        // of Next.js with a null state, or the initial history entry has no
-        // state. The router tree would be completely out of sync so we need
-        // to do a hard navigation to get back to a consistent state.
-        window.location.reload()
+        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
         return
       }
 

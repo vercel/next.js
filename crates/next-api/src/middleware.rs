@@ -337,7 +337,9 @@ impl Endpoint for MiddlewareEndpoint {
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root().owned().await?;
-                let server_paths = all_asset_paths(output_assets, node_root).owned().await?;
+                let server_paths = all_asset_paths(output_assets, node_root, None)
+                    .owned()
+                    .await?;
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
                 let client_relative_root = this.project.client_relative_path().owned().await?;
