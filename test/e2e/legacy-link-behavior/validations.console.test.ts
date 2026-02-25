@@ -105,7 +105,7 @@ describe('Validations for <Link legacyBehavior>', () => {
 
           expect(output).toMatchInlineSnapshot(`
            "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
-            ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."
+           ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."
           `)
         }
       })
@@ -175,7 +175,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           })
           expect(output).toMatchInlineSnapshot(`
            "Using a Lazy Component as a direct child of \`<Link legacyBehavior>\` from a Server Component is not supported. If you need legacyBehavior, wrap your Lazy Component in a Client Component that renders the Link's \`<a>\` tag.
-            ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."
+           ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."
           `)
         }
       })
@@ -221,7 +221,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           })
 
           expect(output).toMatchInlineSnapshot(
-            `" ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."`
+            `"⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."`
           )
         }
       })
@@ -279,7 +279,7 @@ describe('Validations for <Link legacyBehavior>', () => {
         })
 
         expect(output).toMatchInlineSnapshot(
-          `" ⨯ Error: React.Children.only expected to receive a single React element child."`
+          `"⨯ Error: React.Children.only expected to receive a single React element child."`
         )
       }
     })
@@ -311,7 +311,7 @@ describe('Validations for <Link legacyBehavior>', () => {
         })
 
         expect(output).toMatchInlineSnapshot(
-          `" ⨯ Error: React.Children.only expected to receive a single React element child."`
+          `"⨯ Error: React.Children.only expected to receive a single React element child."`
         )
       }
     })
@@ -350,7 +350,7 @@ describe('Validations for <Link legacyBehavior>', () => {
         })
 
         expect(output).toMatchInlineSnapshot(
-          `" ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."`
+          `"⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."`
         )
       }
     })

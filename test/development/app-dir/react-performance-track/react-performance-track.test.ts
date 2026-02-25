@@ -40,11 +40,10 @@ describe('react-performance-track', () => {
         {
           // React might decide to display the shorthand in round brackets differently.
           // Double check with React changes if a shorthand change is intended.
-          // TODO: Should include short name "(…/random)" and URL
-          name: '\u200bfetch',
+          name: '\u200bfetch (…/random)',
           properties: expect.arrayContaining([
             ['status', '200'],
-            ['url', '""'],
+            ['url', '"https://next-data-api-endpoint.vercel.app/api/random"'],
           ]),
         },
       ])
@@ -100,18 +99,6 @@ describe('react-performance-track', () => {
           name: '\u200bcookies [Prefetchable]',
           properties: [],
         },
-        // TODO: The error message makes this seem like it shouldn't pop up here.
-        {
-          name: '\u200bcookies',
-          properties: [
-            [
-              'rejected with',
-              'During prerendering, `cookies()` rejects when the prerender is complete. ' +
-                'Typically these errors are handled by React but if you move `cookies()` to a different context by using `setTimeout`, `after`, or similar functions you may observe this error and you should handle it in that context. ' +
-                'This occurred at route "/cookies".',
-            ],
-          ],
-        },
       ])
     )
   })
@@ -123,13 +110,26 @@ describe('react-performance-track', () => {
     })
 
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
-    // TODO: Should include "draftMode [Prefetchable]".
-    expect(track).toEqual([
-      {
-        name: '\u200b',
-        properties: [],
-      },
-    ])
+    // TODO the addition of a promise to delay some Segments from rendering until the later Static
+    // stage has caused the draftMode snapshot to include an empty-named entry. This is probably
+    // a bug in React and should be fixed there but
+    // expect(track).toEqual([])
+    expect(track).toEqual(
+      expect.arrayContaining([
+        {
+          name: '\u200b [Prerender]',
+          properties: [],
+        },
+      ])
+    )
+    let didThrow = false
+    try {
+      // including this anti-assertion here so we can restore the test when the bug in React is fixed
+      expect(track).toEqual([])
+    } catch (e) {
+      didThrow = true
+    }
+    expect(didThrow).toBe(true)
   })
 
   it('should show headers', async () => {
@@ -144,18 +144,6 @@ describe('react-performance-track', () => {
         {
           name: '\u200bheaders [Prefetchable]',
           properties: [],
-        },
-        // TODO: The error message makes this seem like it shouldn't pop up here.
-        {
-          name: '\u200bheaders',
-          properties: [
-            [
-              'rejected with',
-              'During prerendering, `headers()` rejects when the prerender is complete. ' +
-                'Typically these errors are handled by React but if you move `headers()` to a different context by using `setTimeout`, `after`, or similar functions you may observe this error and you should handle it in that context. ' +
-                'This occurred at route "/headers".',
-            ],
-          ],
         },
       ])
     )

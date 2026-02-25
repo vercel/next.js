@@ -71,13 +71,13 @@ class TestExporter implements SpanExporter {
           code: ExportResultCode.FAILED,
           error: new Error(`http status ${response.status}`),
         })
+        return
       }
+      resultCallback({ code: ExportResultCode.SUCCESS })
     } catch (e) {
-      console.warn('WARN: TestExporterP: error:', e)
+      console.warn('WARN: TestExporter: error:', e)
       resultCallback({ code: ExportResultCode.FAILED, error: e })
     }
-
-    resultCallback({ code: ExportResultCode.SUCCESS })
   }
   shutdown(): Promise<void> {
     return Promise.resolve()

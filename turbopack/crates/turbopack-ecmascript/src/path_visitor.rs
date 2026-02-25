@@ -113,7 +113,7 @@ impl<'a> ApplyVisitors<'a, '_> {
                     }
                     return;
                 } else {
-                    // `current_visitors` has the invariant that is must not be empty.
+                    // `current_visitors` has the invariant that it must not be empty.
                     // When it becomes empty, we must early exit
                     current_visitors = &visitors[nested_visitors_start..];
                     if current_visitors.is_empty() {
@@ -199,7 +199,7 @@ mod tests {
 
     impl AstModifier for StrReplacer<'_> {
         fn visit_mut_str(&self, s: &mut Str) {
-            s.value = s.value.replace(self.from, self.to).into();
+            s.value = s.value.to_string_lossy().replace(self.from, self.to).into();
             s.raw = None;
         }
     }

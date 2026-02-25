@@ -68,6 +68,7 @@ export enum AdapterOutputType {
 }
 
 export const PHASE_EXPORT = 'phase-export'
+export const PHASE_ANALYZE = 'phase-analyze'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
@@ -78,6 +79,7 @@ export type PHASE_TYPE =
   | typeof PHASE_INFO
   | typeof PHASE_TEST
   | typeof PHASE_EXPORT
+  | typeof PHASE_ANALYZE
   | typeof PHASE_PRODUCTION_BUILD
   | typeof PHASE_PRODUCTION_SERVER
   | typeof PHASE_DEVELOPMENT_SERVER
@@ -95,11 +97,11 @@ export const EXPORT_DETAIL = 'export-detail.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'
 export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const IMAGES_MANIFEST = 'images-manifest.json'
-export const SERVER_FILES_MANIFEST = 'required-server-files.json'
+export const SERVER_FILES_MANIFEST = 'required-server-files'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
 export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
-  '_clientMiddlewareManifest.json'
+  '_clientMiddlewareManifest.js'
 export const TURBOPACK_CLIENT_BUILD_MANIFEST = 'client-build-manifest.json'
 export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'

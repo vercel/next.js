@@ -4,11 +4,12 @@ import type {
   PrerenderManifest,
   RoutesManifest,
 } from '../../../build'
-import type { NextConfigComplete } from '../../config-shared'
+import type { NextConfigRuntime } from '../../config-shared'
 import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -43,7 +44,6 @@ import {
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
-import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 
@@ -110,11 +110,14 @@ export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
   minimalMode?: boolean
-  config: NextConfigComplete
+  config: NextConfigRuntime
 }) {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
-        if (!value) return 0
+        if (!value) {
+          // Null entries (negative cache) still need a non-zero size for LRU eviction
+          return 1
+        }
         return (
           (value.fsPath || '').length +
           value.itemPath.length +
@@ -157,10 +160,11 @@ export async function setupFsCheck(opts: {
       afterFiles: [],
       fallback: [],
     },
+    onMatchHeaders: [],
     headers: [],
   }
   let buildId = 'development'
-  let prerenderManifest: PrerenderManifest
+  let previewProps: __ApiPreviewProps
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
@@ -231,9 +235,11 @@ export async function setupFsCheck(opts: {
       await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
 
-    prerenderManifest = JSON.parse(
-      await fs.readFile(prerenderManifestPath, 'utf8')
-    ) as PrerenderManifest
+    previewProps = (
+      JSON.parse(
+        await fs.readFile(prerenderManifestPath, 'utf8')
+      ) as PrerenderManifest
+    ).preview
 
     const middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
@@ -335,31 +341,34 @@ export async function setupFsCheck(opts: {
             fallback: [],
           },
       headers: routesManifest.headers,
+      onMatchHeaders: routesManifest.onMatchHeaders,
     }
   } else {
     // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
 
-    prerenderManifest = {
-      version: 4,
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: {
-        previewModeId: (require('crypto') as typeof import('crypto'))
-          .randomBytes(16)
-          .toString('hex'),
-        previewModeSigningKey: (require('crypto') as typeof import('crypto'))
-          .randomBytes(32)
-          .toString('hex'),
-        previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
-          .randomBytes(32)
-          .toString('hex'),
-      },
+    previewProps = {
+      previewModeId: (require('crypto') as typeof import('crypto'))
+        .randomBytes(16)
+        .toString('hex'),
+      previewModeSigningKey: (require('crypto') as typeof import('crypto'))
+        .randomBytes(32)
+        .toString('hex'),
+      previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
+        .randomBytes(32)
+        .toString('hex'),
     }
   }
 
   const headers = customRoutes.headers.map((item) =>
+    buildCustomRoute(
+      'header',
+      item,
+      opts.config.basePath,
+      opts.config.experimental.caseSensitiveRoutes
+    )
+  )
+  const onMatchHeaders = customRoutes.onMatchHeaders.map((item) =>
     buildCustomRoute(
       'header',
       item,
@@ -425,13 +434,11 @@ export async function setupFsCheck(opts: {
     // Because we can't know if the app directory is enabled or not at this
     // stage, we assume that it is.
     rsc: new RSCPathnameNormalizer(),
-    prefetchRSC: opts.config.experimental.ppr
-      ? new PrefetchRSCPathnameNormalizer()
-      : undefined,
   }
 
   return {
     headers,
+    onMatchHeaders,
     rewrites,
     redirects,
 
@@ -450,7 +457,7 @@ export async function setupFsCheck(opts: {
 
     devVirtualFsItems: new Set<string>(),
 
-    prerenderManifest,
+    previewProps,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
     ensureCallback(fn: typeof ensureFn) {
@@ -483,9 +490,7 @@ export async function setupFsCheck(opts: {
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
       if (opts.minimalMode) {
-        if (normalizers.prefetchRSC?.match(itemPath)) {
-          itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
-        } else if (normalizers.rsc.match(itemPath)) {
+        if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
         }
       }

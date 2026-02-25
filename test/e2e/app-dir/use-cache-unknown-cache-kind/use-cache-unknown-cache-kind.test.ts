@@ -9,10 +9,8 @@ import {
 import stripAnsi from 'strip-ansi'
 import { createSandbox } from 'development-sandbox'
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('use-cache-unknown-cache-kind', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextStart, isTurbopack, isRspack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     skipDeployment: true,
@@ -52,7 +50,6 @@ describe('use-cache-unknown-cache-kind', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          ./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
                  │
                  │    ,-[1:1]
@@ -120,7 +117,7 @@ describe('use-cache-unknown-cache-kind', () => {
         )
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"  × Module build failed:"`
+          `"  ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config."`
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
@@ -143,9 +140,8 @@ describe('use-cache-unknown-cache-kind', () => {
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
-                 │   |
+                 │
                  │    ,-[1:1]
                  │  1 | 'use cache: custom'
                  │    : ^^^^^^^^^^^^^^^^^^^

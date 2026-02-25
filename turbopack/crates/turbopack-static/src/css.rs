@@ -1,10 +1,9 @@
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     output::OutputAsset,
     source::Source,
 };
@@ -45,13 +44,15 @@ impl Module for StaticUrlCssModule {
         }
         ident
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for StaticUrlCssModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 

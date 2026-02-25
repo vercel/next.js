@@ -5,6 +5,7 @@ import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import {
   type ModernSourceMapPayload,
+  devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
@@ -160,10 +161,14 @@ function getSourcemappedFrameIfPossible(
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
     let sourceURL = frame.file
-    // e.g. "/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
+    // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
+    // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"
     // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
     // This is likely caused by `callsite.toString()` in `Error.prepareStackTrace converting file URLs to paths.
-    if (sourceURL.startsWith('/')) {
+    //
+    // But frame.file might also be "webpack-internal:///(rsc)/./app/bad-sourcemap/page.js" or
+    // "<anonymous>" or "node:internal/process/task_queues" here
+    if (path.isAbsolute(frame.file)) {
       sourceURL = url.pathToFileURL(frame.file).toString()
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
@@ -196,9 +201,20 @@ function getSourcemappedFrameIfPossible(
     }
     sourceMapPayload = maybeSourceMapPayload
     try {
+      // Pass the source map URL as the second parameter so that the consumer
+      // can resolve relative paths in the source map's `sources` array. This is
+      // a guess! Turbopack places .map files as siblings to the chunks so this
+      // is sufficient to compute relative paths but is actually wrong (the
+      // chunk and sourcemap have different content hashes). We are using the
+      // node API to read the sourcemap and it doesn't give us access to the
+      // URI. Devirtualize `about://React/Server/file:///path/to/chunk.js?4` to
+      // `file:///path/to/chunk.js` so that relative `sources` in the source map
+      // resolve against the real chunk URL, not the virtual one.
+      const sourceMapURL = devirtualizeReactServerURL(sourceURL) + '.map'
       sourceMapConsumer = new SyncSourceMapConsumer(
-        // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
-        sourceMapPayload
+        sourceMapPayload,
+        // @ts-expect-error: our typings don't include this parameter but it is here.
+        sourceMapURL
       )
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
@@ -320,8 +336,7 @@ function parseAndSourceMap(
   error: Error,
   inspectOptions: util.InspectOptions
 ): string {
-  // TODO(veil): Expose as CLI arg or config option. Useful for local debugging.
-  const showIgnoreListed = false
+  const showIgnoreListed = process.env.__NEXT_SHOW_IGNORE_LISTED === 'true'
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
   let unparsedStack = String(error.stack)
   // We could just read it from `error.stack`.
@@ -441,13 +456,16 @@ function sourceMapError(
   error: Error,
   inspectOptions: util.InspectOptions
 ): Error {
+  // Setting an undefined `cause` would print `[cause]: undefined`
+  const options = error.cause !== undefined ? { cause: error.cause } : undefined
+
   // Create a new Error object with the source mapping applied and then use native
   // Node.js formatting on the result.
   const newError =
-    error.cause !== undefined
-      ? // Setting an undefined `cause` would print `[cause]: undefined`
-        new Error(error.message, { cause: error.cause })
-      : new Error(error.message)
+    error instanceof AggregateError
+      ? // Preserve AggregateError's `errors` instance property
+        new AggregateError(error.errors, error.message, options)
+      : new Error(error.message, options)
 
   // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
   newError.stack = parseAndSourceMap(error, inspectOptions)
@@ -491,10 +509,7 @@ export function patchErrorInspectNodeJS(
       try {
         return inspect(newError, {
           ...inspectOptions,
-          depth:
-            (inspectOptions.depth ??
-              // Default in Node.js
-              2) - depth,
+          depth,
         })
       } finally {
         ;(newError as any)[inspectSymbol] = originalCustomInspect

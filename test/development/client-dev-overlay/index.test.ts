@@ -140,8 +140,8 @@ describe('client-dev-overlay', () => {
        1
        Route
        Static
+       Bundler
        Turbopack
-       Enabled
        Preferences"
       `)
     } else {
@@ -150,7 +150,8 @@ describe('client-dev-overlay', () => {
        1
        Route
        Static
-       Try Turbopack
+       Bundler
+       Webpack
        Preferences"
       `)
     }
@@ -197,8 +198,8 @@ describe('client-dev-overlay with Cache Components', () => {
        1
        Route
        Static
+       Bundler
        Turbopack
-       Enabled
        Cache Components
        Enabled
        Preferences"
@@ -209,7 +210,8 @@ describe('client-dev-overlay with Cache Components', () => {
        1
        Route
        Static
-       Try Turbopack
+       Bundler
+       Webpack
        Cache Components
        Enabled
        Preferences"

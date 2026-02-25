@@ -2,17 +2,17 @@ import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import {
   FetchStrategy,
-  isPrefetchTaskDirty,
   type PrefetchTaskFetchStrategy,
-} from './segment-cache'
-import { createCacheKey } from './segment-cache'
+  PrefetchPriority,
+} from './segment-cache/types'
+import { createCacheKey } from './segment-cache/cache-key'
 import {
   type PrefetchTask,
-  PrefetchPriority,
   schedulePrefetchTask as scheduleSegmentPrefetchTask,
   cancelPrefetchTask,
   reschedulePrefetchTask,
-} from './segment-cache'
+  isPrefetchTaskDirty,
+} from './segment-cache/scheduler'
 import { startTransition } from 'react'
 
 type LinkElement = HTMLAnchorElement | SVGAElement
@@ -81,6 +81,17 @@ export function unmountLinkForCurrentNavigation(link: LinkInstance) {
   if (linkForMostRecentNavigation === link) {
     linkForMostRecentNavigation = null
   }
+}
+
+/**
+ * Returns the link instance that initiated the most recent navigation.
+ * Returns null if the navigation was not initiated by a link click.
+ *
+ * Used by the Instant Navigation Testing API in dev mode to match the
+ * fetch strategy of the link during cache-miss navigations.
+ */
+export function getLinkForCurrentNavigation(): LinkInstance | null {
+  return linkForMostRecentNavigation
 }
 
 // Use a WeakMap to associate a Link instance with its DOM element. This is

@@ -10,13 +10,14 @@ import {
 import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
+  type PrerenderStoreModernServer,
   type PrerenderStorePPR,
-  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
 import { describeStringPropertyAccess } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
+import { accumulateRootVaryParam } from '../app-render/vary-params'
 
 /**
  * Used for the compiler-generated `next/root-params` module.
@@ -64,7 +65,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       )
     }
     case 'prerender':
-    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy': {
       return createPrerenderRootParamPromise(
@@ -72,6 +72,12 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         workStore,
         workUnitStore,
         apiName
+      )
+    }
+    case 'validation-client':
+    case 'prerender-client': {
+      throw new InvariantError(
+        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
       )
     }
     case 'private-cache':
@@ -83,21 +89,21 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       workUnitStore satisfies never
     }
   }
+
+  accumulateRootVaryParam(paramName)
   return Promise.resolve(workUnitStore.rootParams[paramName])
 }
 
 function createPrerenderRootParamPromise(
   paramName: string,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore,
+  prerenderStore:
+    | PrerenderStorePPR
+    | PrerenderStoreLegacy
+    | PrerenderStoreModernServer,
   apiName: string
 ): Promise<ParamValue> {
   switch (prerenderStore.type) {
-    case 'prerender-client': {
-      throw new InvariantError(
-        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
-      )
-    }
     case 'prerender':
     case 'prerender-legacy':
     case 'prerender-ppr':
@@ -148,6 +154,7 @@ function createPrerenderRootParamPromise(
   }
 
   // If the param is not a fallback param, we just return the statically available value.
+  accumulateRootVaryParam(paramName)
   return Promise.resolve(underlyingParams[paramName])
 }
 

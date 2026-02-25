@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use criterion::{BenchmarkId, Criterion, black_box};
 use futures::{FutureExt, StreamExt, stream::FuturesUnordered};
 use tokio::spawn;
-use turbo_tasks::{TurboTasks, TurboTasksApi};
+use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
 #[global_allocator]
@@ -77,15 +77,6 @@ pub fn overhead(c: &mut Criterion) {
             &duration,
             |b, &d| {
                 run_turbo::<Uncached>(&rt, b, d, false);
-            },
-        );
-        // Same as turbo-uncached but reports the time as measured by turbotasks itself
-        // This allows us to understand the cost of the indirection within turbotasks
-        group.bench_with_input(
-            BenchmarkId::new("turbo-uncached-stats", micros),
-            &duration,
-            |b, &d| {
-                run_turbo_stats(&rt, b, d);
             },
         );
 
@@ -218,32 +209,6 @@ fn run_turbo<Mode: TurboMode>(
                     }
                     Ok(start.elapsed())
                 }
-            })
-            .await
-            .unwrap()
-        }
-    });
-}
-
-fn run_turbo_stats(rt: &tokio::runtime::Runtime, b: &mut criterion::Bencher<'_>, d: Duration) {
-    b.to_async(rt).iter_custom(|iters| {
-        // It is important to create the tt instance here to ensure the cache is not shared across
-        // iterations.
-        let tt = TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions {
-                storage_mode: None,
-                ..Default::default()
-            },
-            noop_backing_storage(),
-        ));
-        let stats = tt.task_statistics().enable().clone();
-
-        async move {
-            tt.run_once(async move {
-                for i in 0..iters {
-                    black_box(busy_turbo(i, black_box(d)).await?);
-                }
-                Ok(stats.get(&BUSY_TURBO_FUNCTION).duration)
             })
             .await
             .unwrap()

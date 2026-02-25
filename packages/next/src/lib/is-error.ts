@@ -1,5 +1,4 @@
 import { isPlainObject } from '../shared/lib/is-plain-object'
-import safeStringify from 'next/dist/compiled/safe-stable-stringify'
 
 // We allow some additional attached properties for Next.js errors
 export interface NextError extends Error {
@@ -8,6 +7,28 @@ export interface NextError extends Error {
   code?: string | number
   cancelled?: boolean
   digest?: number
+}
+
+/**
+ * This is a safe stringify function that handles circular references.
+ * We're using a simpler version here to avoid introducing
+ * the dependency `safe-stable-stringify` into production bundle.
+ *
+ * This helper is used both in development and production.
+ */
+function safeStringifyLite(obj: any) {
+  const seen = new WeakSet()
+
+  return JSON.stringify(obj, (_key, value) => {
+    // If value is an object and already seen, replace with "[Circular]"
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular]'
+      }
+      seen.add(value)
+    }
+    return value
+  })
 }
 
 /**
@@ -43,5 +64,5 @@ export function getProperError(err: unknown): Error {
     }
   }
 
-  return new Error(isPlainObject(err) ? safeStringify(err) : err + '')
+  return new Error(isPlainObject(err) ? safeStringifyLite(err) : err + '')
 }

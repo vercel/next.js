@@ -2,7 +2,6 @@
 
 use std::{
     borrow::Cow,
-    cmp::Ordering,
     fmt::{Display, Formatter, Write},
     hash::{BuildHasherDefault, Hash, Hasher},
     mem::take,
@@ -10,12 +9,13 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use graph::VarGraph;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 use swc_core::{
+    atoms::Wtf8Atom,
     common::Mark,
     ecma::{
         ast::{Id, Ident, Lit},
@@ -26,13 +26,14 @@ use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
-    CompileTimeDefineValue, DefinableNameSegment, FreeVarReference,
+    CompileTimeDefineValue, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
 };
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
 use crate::{
-    analyzer::graph::EvalContext, references::require_context::RequireContextMap,
+    analyzer::graph::{EvalContext, VarGraph},
+    references::require_context::RequireContextMap,
     utils::StringifyJs,
 };
 
@@ -40,6 +41,7 @@ pub mod builtin;
 pub mod graph;
 pub mod imports;
 pub mod linker;
+pub mod side_effects;
 pub mod top_level_await;
 pub mod well_known;
 
@@ -251,7 +253,9 @@ impl From<&'_ str> for ConstantValue {
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
+            Lit::Str(v) => {
+                ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned()))
+            }
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -285,7 +289,7 @@ impl Display for ConstantValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub module: Atom,
+    pub module: Wtf8Atom,
     pub annotations: ImportAnnotations,
 }
 
@@ -567,7 +571,7 @@ impl From<String> for JsValue {
 
 impl From<swc_core::ecma::ast::Str> for JsValue {
     fn from(v: swc_core::ecma::ast::Str) -> Self {
-        ConstantValue::Str(v.value.into()).into()
+        ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned())).into()
     }
 }
 
@@ -637,10 +641,16 @@ impl TryFrom<&FreeVarReference> for JsValue {
                 false,
                 "compile time injected free var module",
             )),
-            FreeVarReference::Error(_) => Ok(JsValue::unknown_empty(
-                false,
-                "compile time injected free var error",
-            )),
+            FreeVarReference::ReportUsage { inner, .. } => {
+                if let Some(inner) = &inner {
+                    inner.as_ref().try_into()
+                } else {
+                    Ok(JsValue::unknown_empty(
+                        false,
+                        "compile time injected free var error",
+                    ))
+                }
+            }
             FreeVarReference::InputRelative(kind) => {
                 use turbopack_core::compile_time_info::InputRelativeConstant;
                 Ok(JsValue::unknown_empty(
@@ -787,7 +797,7 @@ impl Display for JsValue {
                 module: name,
                 annotations,
             }) => {
-                write!(f, "Module({name}, {annotations})")
+                write!(f, "Module({}, {annotations})", name.to_string_lossy())
             }
             JsValue::Unknown { .. } => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
@@ -1267,113 +1277,6 @@ impl JsValue {
 
     #[cfg(not(debug_assertions))]
     pub fn debug_assert_total_nodes_up_to_date(&mut self) {}
-
-    pub fn ensure_node_limit(&mut self, limit: u32) {
-        fn cmp_nodes(a: &JsValue, b: &JsValue) -> Ordering {
-            a.total_nodes().cmp(&b.total_nodes())
-        }
-        fn make_max_unknown<'a>(mut iter: impl Iterator<Item = &'a mut JsValue>) {
-            let mut max = iter.next().unwrap();
-            let mut side_effects = max.has_side_effects();
-            for item in iter {
-                side_effects |= item.has_side_effects();
-                if cmp_nodes(item, max) == Ordering::Greater {
-                    max = item;
-                }
-            }
-            max.make_unknown_without_content(side_effects, "node limit reached");
-        }
-        if self.total_nodes() > limit {
-            match self {
-                JsValue::Constant(_)
-                | JsValue::Url(_, _)
-                | JsValue::FreeVar(_)
-                | JsValue::Variable(_)
-                | JsValue::Module(..)
-                | JsValue::WellKnownObject(_)
-                | JsValue::WellKnownFunction(_)
-                | JsValue::Argument(..) => {
-                    self.make_unknown_without_content(false, "node limit reached")
-                }
-                &mut JsValue::Unknown {
-                    original_value: _,
-                    reason: _,
-                    has_side_effects,
-                } => self.make_unknown_without_content(has_side_effects, "node limit reached"),
-
-                JsValue::Array { items: list, .. }
-                | JsValue::Alternatives {
-                    total_nodes: _,
-                    values: list,
-                    logical_property: _,
-                }
-                | JsValue::Concat(_, list)
-                | JsValue::Logical(_, _, list)
-                | JsValue::Add(_, list) => {
-                    make_max_unknown(list.iter_mut());
-                    self.update_total_nodes();
-                }
-                JsValue::Not(_, r) => {
-                    r.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Binary(_, a, _, b) => {
-                    if a.total_nodes() > b.total_nodes() {
-                        a.make_unknown_without_content(b.has_side_effects(), "node limit reached");
-                    } else {
-                        b.make_unknown_without_content(a.has_side_effects(), "node limit reached");
-                    }
-                    self.update_total_nodes();
-                }
-                JsValue::Object { parts, .. } => {
-                    make_max_unknown(parts.iter_mut().flat_map(|v| match v {
-                        // TODO this probably can avoid heap allocation somehow
-                        ObjectPart::KeyValue(k, v) => vec![k, v].into_iter(),
-                        ObjectPart::Spread(s) => vec![s].into_iter(),
-                    }));
-                    self.update_total_nodes();
-                }
-                JsValue::New(_, f, args) => {
-                    make_max_unknown([&mut **f].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
-                }
-                JsValue::Call(_, f, args) => {
-                    make_max_unknown([&mut **f].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
-                }
-                JsValue::SuperCall(_, args) => {
-                    make_max_unknown(args.iter_mut());
-                    self.update_total_nodes();
-                }
-                JsValue::MemberCall(_, o, p, args) => {
-                    make_max_unknown([&mut **o, &mut **p].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
-                }
-                JsValue::Tenary(_, test, cons, alt) => {
-                    make_max_unknown([&mut **test, &mut **cons, &mut **alt].into_iter());
-                    self.update_total_nodes();
-                }
-                JsValue::Iterated(_, iterable) => {
-                    iterable.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::TypeOf(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Awaited(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Promise(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Member(_, o, p) => {
-                    make_max_unknown([&mut **o, &mut **p].into_iter());
-                    self.update_total_nodes();
-                }
-                JsValue::Function(_, _, r) => {
-                    r.make_unknown_without_content(false, "node limit reached");
-                }
-            }
-        }
-    }
 }
 
 // Methods for explaining a value
@@ -1713,7 +1616,7 @@ impl JsValue {
                 module: name,
                 annotations,
             }) => {
-                format!("module<{name}, {annotations}>")
+                format!("module<{}, {annotations}>", name.to_string_lossy())
             }
             JsValue::Unknown {
                 original_value: inner,
@@ -1788,7 +1691,11 @@ impl JsValue {
                         "module",
                         "The Node.js `module` module: https://nodejs.org/api/module.html",
                     ),
-                    WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => (
+                    WellKnownObjectKind::WorkerThreadsModule | WellKnownObjectKind::WorkerThreadsModuleDefault => (
+                        "worker_threads",
+                        "The Node.js `worker_threads` module: https://nodejs.org/api/worker_threads.html",
+                    ),
+                    WellKnownObjectKind::ChildProcessModule | WellKnownObjectKind::ChildProcessModuleDefault => (
                         "child_process",
                         "The Node.js child_process module: https://nodejs.org/api/child_process.html",
                     ),
@@ -1796,7 +1703,7 @@ impl JsValue {
                         "os",
                         "The Node.js os module: https://nodejs.org/api/os.html",
                     ),
-                    WellKnownObjectKind::NodeProcess => (
+                    WellKnownObjectKind::NodeProcessModule => (
                         "process",
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
@@ -1954,9 +1861,17 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
+                    WellKnownFunctionKind::NodeWorkerConstructor => (
+                      "Worker".to_string(),
+                      "The Node.js worker_threads Worker constructor: https://nodejs.org/api/worker_threads.html#worker_threads_class_worker"
+                    ),
                     WellKnownFunctionKind::WorkerConstructor => (
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
+                    ),
+                    WellKnownFunctionKind::SharedWorkerConstructor => (
+                      "SharedWorker".to_string(),
+                      "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker"
                     ),
                     WellKnownFunctionKind::URLConstructor => (
                       "URL".to_string(),
@@ -2041,161 +1956,87 @@ impl JsValue {
 
 // Definable name management
 impl JsValue {
-    /// When the value has a user-definable name, return the length of it (in segments). Otherwise
+    /// When the value has a user-definable name, return it in segments. Otherwise
     /// returns None.
+    /// It also returns a boolean whether the variable was potentially reassigned.
     /// - any free var has itself as user-definable name: ["foo"]
     /// - any member access adds the identifier as segment after the object: ["foo", "prop"]
     /// - some well-known objects/functions have a user-definable names: ["import"]
-    /// - member calls without arguments also have a user-definable name which is the property with
-    ///   `()` appended: ["foo", "prop()"]
+    /// - member calls without arguments also have a user-definable name: ["foo", Call("func")]
     /// - typeof expressions add `typeof` after the argument's segments: ["foo", "typeof"]
-    pub fn get_definable_name_len(&self) -> Option<usize> {
-        match self {
-            JsValue::FreeVar(_) => Some(1),
-            JsValue::Member(_, obj, prop) if prop.as_str().is_some() => {
-                Some(obj.get_definable_name_len()? + 1)
-            }
-            JsValue::WellKnownObject(obj) => obj.as_define_name().map(|d| d.len()),
-            JsValue::WellKnownFunction(func) => func.as_define_name().map(|d| d.len()),
-            JsValue::MemberCall(_, callee, prop, args)
-                if args.is_empty() && prop.as_str().is_some() =>
-            {
-                Some(callee.get_definable_name_len()? + 1)
-            }
-            JsValue::TypeOf(_, arg) => Some(arg.get_definable_name_len()? + 1),
-
-            _ => None,
-        }
-    }
-
-    /// Returns a reverse iterator over the segments of the user-definable
-    /// name. e. g. `foo.bar().baz` would yield `baz`, `bar()`, `foo`.
-    /// `(1+2).foo.baz` would also yield `baz`, `foo` even while the value is
-    /// not a complete user-definable name. Before calling this method you must
-    /// use [JsValue::get_definable_name_len] to determine if the value has a
-    /// user-definable name at all.
-    pub fn iter_definable_name_rev(&self) -> DefinableNameIter<'_> {
-        DefinableNameIter {
-            next: Some(self),
-            index: 0,
-        }
-    }
-
-    /// Returns any matching defined replacement that matches this value (the replacement that
-    /// matches `$self.$prop`).
-    ///
-    /// Uses the `VarGraph` to verify that the first segment is not a local
-    /// variable/was not reassigned.
-    pub fn match_free_var_reference<'a, T>(
+    pub fn get_definable_name(
         &self,
-        var_graph: &VarGraph,
-        free_var_references: &'a FxIndexMap<
-            DefinableNameSegment,
-            FxIndexMap<Vec<DefinableNameSegment>, T>,
-        >,
-        prop: &DefinableNameSegment,
-    ) -> Option<&'a T> {
-        if let Some(def_name_len) = self.get_definable_name_len()
-            && let Some(references) = free_var_references.get(prop)
-        {
-            for (name, value) in references {
-                if name.len() != def_name_len {
-                    continue;
-                }
-
-                let name_rev_it = name.iter().map(Cow::Borrowed).rev();
-                if name_rev_it.eq(self.iter_definable_name_rev()) {
-                    if let DefinableNameSegment::Name(first_str) = name.first().unwrap() {
-                        let first_str: &str = first_str;
-                        if var_graph
+        var_graph: Option<&VarGraph>,
+    ) -> Option<(DefinableNameSegmentRefs<'_>, bool)> {
+        let mut current = self;
+        let mut segments = SmallVec::new();
+        let mut potentially_reassigned = false;
+        loop {
+            match current {
+                JsValue::FreeVar(name) => {
+                    if var_graph.is_some_and(|var_graph| {
+                        var_graph
                             .free_var_ids
-                            .get(&first_str.into())
+                            .get(name)
                             .is_some_and(|id| var_graph.values.contains_key(id))
-                        {
-                            // `typeof foo...` but `foo` was reassigned
-                            return None;
-                        }
+                    }) {
+                        // `foo` was potentially reassigned
+                        potentially_reassigned = true;
                     }
-
-                    return Some(value);
+                    segments.push(DefinableNameSegmentRef::Name(name));
+                    break;
                 }
+                JsValue::Member(_, obj, prop) => {
+                    if let Some(prop) = prop.as_str() {
+                        segments.push(DefinableNameSegmentRef::Name(prop));
+                    } else {
+                        return None;
+                    }
+                    current = obj;
+                }
+                JsValue::WellKnownObject(obj) => {
+                    if let Some(name) = obj.as_define_name() {
+                        segments.extend(
+                            name.iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
+                        break;
+                    } else {
+                        return None;
+                    }
+                }
+                JsValue::WellKnownFunction(func) => {
+                    if let Some(name) = func.as_define_name() {
+                        segments.extend(
+                            name.iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
+                        break;
+                    } else {
+                        return None;
+                    }
+                }
+                JsValue::MemberCall(_, callee, prop, args) if args.is_empty() => {
+                    if let Some(prop) = prop.as_str() {
+                        segments.push(DefinableNameSegmentRef::Call(prop));
+                    } else {
+                        return None;
+                    }
+                    current = callee;
+                }
+                JsValue::TypeOf(_, arg) => {
+                    segments.push(DefinableNameSegmentRef::TypeOf);
+                    current = arg;
+                }
+                _ => return None,
             }
         }
-
-        None
-    }
-
-    /// Returns any matching defined replacement that matches this value.
-    pub fn match_define<'a, T>(
-        &self,
-        defines: &'a FxIndexMap<Vec<DefinableNameSegment>, T>,
-    ) -> Option<&'a T> {
-        if let Some(def_name_len) = self.get_definable_name_len() {
-            for (name, value) in defines.iter() {
-                if name.len() != def_name_len {
-                    continue;
-                }
-
-                if name
-                    .iter()
-                    .map(Cow::Borrowed)
-                    .rev()
-                    .eq(self.iter_definable_name_rev())
-                {
-                    return Some(value);
-                }
-            }
-        }
-
-        None
-    }
-}
-
-pub struct DefinableNameIter<'a> {
-    next: Option<&'a JsValue>,
-    index: usize,
-}
-
-impl<'a> Iterator for DefinableNameIter<'a> {
-    type Item = Cow<'a, DefinableNameSegment>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let value = self.next.take()?;
-        Some(Cow::Owned(match value {
-            JsValue::FreeVar(kind) => (&**kind).into(),
-            JsValue::Member(_, obj, prop) => {
-                self.next = Some(obj);
-                prop.as_str()?.into()
-            }
-            JsValue::WellKnownObject(obj) => {
-                let name = obj.as_define_name()?;
-                let i = self.index;
-                self.index += 1;
-                if self.index < name.len() {
-                    self.next = Some(value);
-                }
-                name[name.len() - i - 1].into()
-            }
-            JsValue::WellKnownFunction(func) => {
-                let name = func.as_define_name()?;
-                let i = self.index;
-                self.index += 1;
-                if self.index < name.len() {
-                    self.next = Some(value);
-                }
-                name[name.len() - i - 1].into()
-            }
-            JsValue::MemberCall(_, callee, prop, args) if args.is_empty() => {
-                self.next = Some(callee);
-                format!("{}()", prop.as_str()?).into()
-            }
-            JsValue::TypeOf(_, arg) => {
-                self.next = Some(arg);
-                DefinableNameSegment::TypeOf
-            }
-
-            _ => return None,
-        }))
+        segments.reverse();
+        Some((DefinableNameSegmentRefs(segments), potentially_reassigned))
     }
 }
 
@@ -3468,11 +3309,13 @@ pub enum WellKnownObjectKind {
     ModuleModuleDefault,
     UrlModule,
     UrlModuleDefault,
-    ChildProcess,
-    ChildProcessDefault,
+    WorkerThreadsModule,
+    WorkerThreadsModuleDefault,
+    ChildProcessModule,
+    ChildProcessModuleDefault,
     OsModule,
     OsModuleDefault,
-    NodeProcess,
+    NodeProcessModule,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -3492,9 +3335,10 @@ impl WellKnownObjectKind {
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
-            Self::ChildProcess => Some(&["child_process"]),
+            Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
-            Self::NodeProcess => Some(&["process"]),
+            Self::WorkerThreadsModule => Some(&["worker_threads"]),
+            Self::NodeProcessModule => Some(&["process"]),
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -3623,6 +3467,9 @@ pub enum WellKnownFunctionKind {
     NodeResolveFrom,
     NodeProtobufLoad,
     WorkerConstructor,
+    SharedWorkerConstructor,
+    // The worker_threads Worker class
+    NodeWorkerConstructor,
     URLConstructor,
 }
 
@@ -3651,8 +3498,8 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 pub mod test_utils {
     use anyhow::Result;
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{FxIndexMap, Vc};
-    use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
+    use turbo_tasks::{FxIndexMap, PrettyPrintError, Vc};
+    use turbopack_core::compile_time_info::CompileTimeInfo;
 
     use super::{
         ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
@@ -3689,7 +3536,7 @@ pub mod test_utils {
             ) => match &args[0] {
                 JsValue::Constant(ConstantValue::Str(v)) => {
                     JsValue::promise(JsValue::Module(ModuleValue {
-                        module: v.as_atom().into_owned(),
+                        module: v.as_atom().into_owned().into(),
                         annotations: ImportAnnotations::default(),
                     }))
                 }
@@ -3797,7 +3644,7 @@ pub mod test_utils {
                 ),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
                 _ => v.into_unknown(true, "unknown global"),
@@ -4204,6 +4051,18 @@ mod tests {
                                     JsValue::member_call(Box::new(obj), Box::new(prop), new_args),
                                 ));
                                 obj_steps + prop_steps
+                            }
+                            Effect::DynamicImport { args, .. } => {
+                                let new_args =
+                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                                resolved.push((
+                                    format!("{parent} -> {i} dynamic import"),
+                                    JsValue::call(
+                                        Box::new(JsValue::FreeVar("import".into())),
+                                        new_args,
+                                    ),
+                                ));
+                                0
                             }
                             Effect::Unreachable { .. } => {
                                 resolved.push((

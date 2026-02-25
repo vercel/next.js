@@ -73,6 +73,7 @@ function getBaseSWCOptions({
   isCacheComponents,
   cacheHandlers,
   useCacheEnabled,
+  taintEnabled,
   trackDynamicImports,
 }: {
   filename: string
@@ -94,6 +95,7 @@ function getBaseSWCOptions({
   isCacheComponents?: boolean
   cacheHandlers?: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  taintEnabled?: boolean
   trackDynamicImports?: boolean
 }) {
   const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
@@ -157,7 +159,7 @@ function getBaseSWCOptions({
         optimizer: {
           simplify: false,
           globals: jest
-            ? null
+            ? undefined
             : {
                 typeofs: {
                   window: globalWindow ? 'object' : 'undefined',
@@ -217,6 +219,7 @@ function getBaseSWCOptions({
             isReactServerLayer,
             cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
+            taintEnabled,
           }
         : undefined,
     serverActions:
@@ -310,6 +313,7 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
+  imageConfig,
   serverReferenceHashSalt,
 }: {
   isServer: boolean
@@ -322,6 +326,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
+  imageConfig?: Partial<NextConfig['images']>
   serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
@@ -343,6 +348,19 @@ export function getJestSWCOptions({
     serverComponents: false,
     serverReferenceHashSalt,
   })
+
+  // In production, webpack DefinePlugin replaces process.env.__NEXT_IMAGE_OPTS
+  // with an object literal at compile time. Emulate that here by enabling
+  // SWC's optimizer globals.envs so the same compile-time replacement happens
+  // during Jest transforms.
+  if (imageConfig) {
+    baseOptions.jsc.transform.optimizer.globals = {
+      envs: {
+        ...baseOptions.jsc.transform.optimizer.globals?.envs,
+        __NEXT_IMAGE_OPTS: JSON.stringify(imageConfig),
+      },
+    } as any
+  }
 
   const useCjsModules = shouldOutputCommonJs(filename)
   return {
@@ -387,6 +405,7 @@ export function getLoaderSWCOptions({
   esm,
   cacheHandlers,
   useCacheEnabled,
+  taintEnabled,
   trackDynamicImports,
 }: {
   filename: string
@@ -414,6 +433,7 @@ export function getLoaderSWCOptions({
   bundleLayer?: WebpackLayerName
   cacheHandlers: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  taintEnabled?: boolean
   trackDynamicImports?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
@@ -435,6 +455,7 @@ export function getLoaderSWCOptions({
     isCacheComponents,
     cacheHandlers,
     useCacheEnabled,
+    taintEnabled,
     trackDynamicImports,
   })
   baseOptions.fontLoaders = {

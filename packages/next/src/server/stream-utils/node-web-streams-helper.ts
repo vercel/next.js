@@ -2,7 +2,11 @@ import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
+import {
+  scheduleImmediate,
+  atLeastOneTask,
+  waitAtLeastOneReactRenderTask,
+} from '../../lib/scheduler'
 import { ENCODED_TAGS } from './encoded-tags'
 import {
   indexOfUint8Array,
@@ -10,7 +14,6 @@ import {
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
-import { insertBuildIdComment } from '../../shared/lib/segment-cache/output-export-prefetch-encoding'
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -92,11 +95,11 @@ export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
   })
 }
 
-export async function streamToBuffer(
+async function streamToChunks(
   stream: ReadableStream<Uint8Array>
-): Promise<Buffer> {
+): Promise<Array<Uint8Array>> {
   const reader = stream.getReader()
-  const chunks: Uint8Array[] = []
+  const chunks: Array<Uint8Array> = []
 
   while (true) {
     const { done, value } = await reader.read()
@@ -107,7 +110,30 @@ export async function streamToBuffer(
     chunks.push(value)
   }
 
-  return Buffer.concat(chunks)
+  return chunks
+}
+
+function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+  const result = new Uint8Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.length
+  }
+  return result
+}
+
+export async function streamToUint8Array(
+  stream: ReadableStream<Uint8Array>
+): Promise<Uint8Array> {
+  return concatUint8Arrays(await streamToChunks(stream))
+}
+
+export async function streamToBuffer(
+  stream: ReadableStream<Uint8Array>
+): Promise<Buffer> {
+  return Buffer.concat(await streamToChunks(stream))
 }
 
 export async function streamToString(
@@ -208,32 +234,35 @@ export function createBufferedTransformStream(
   })
 }
 
-function createPrefetchCommentStream(
-  isBuildTimePrerendering: boolean,
-  buildId: string
-): TransformStream<Uint8Array, Uint8Array> {
-  // Insert an extra comment at the beginning of the HTML document. This must
-  // come after the DOCTYPE, which is inserted by React.
-  //
-  // The first chunk sent by React will contain the doctype. After that, we can
-  // pass through the rest of the chunks as-is.
-  let didTransformFirstChunk = false
-  return new TransformStream({
-    transform(chunk, controller) {
-      if (isBuildTimePrerendering && !didTransformFirstChunk) {
-        didTransformFirstChunk = true
-        const decoder = new TextDecoder('utf-8', { fatal: true })
-        const chunkStr = decoder.decode(chunk, {
-          stream: true,
-        })
-        const updatedChunkStr = insertBuildIdComment(chunkStr, buildId)
-        controller.enqueue(encoder.encode(updatedChunkStr))
-        return
-      }
-      controller.enqueue(chunk)
-    },
-  })
-}
+// TODO this is currently unused but once we add proper output:export support, it needs to be
+// revisited. See https://github.com/vercel/next.js/pull/89478 for more details
+//
+// function createPrefetchCommentStream(
+//   isBuildTimePrerendering: boolean,
+//   buildId: string
+// ): TransformStream<Uint8Array, Uint8Array> {
+//   // Insert an extra comment at the beginning of the HTML document. This must
+//   // come after the DOCTYPE, which is inserted by React.
+//   //
+//   // The first chunk sent by React will contain the doctype. After that, we can
+//   // pass through the rest of the chunks as-is.
+//   let didTransformFirstChunk = false
+//   return new TransformStream({
+//     transform(chunk, controller) {
+//       if (isBuildTimePrerendering && !didTransformFirstChunk) {
+//         didTransformFirstChunk = true
+//         const decoder = new TextDecoder('utf-8', { fatal: true })
+//         const chunkStr = decoder.decode(chunk, {
+//           stream: true,
+//         })
+//         const updatedChunkStr = insertBuildIdComment(chunkStr, buildId)
+//         controller.enqueue(encoder.encode(updatedChunkStr))
+//         return
+//       }
+//       controller.enqueue(chunk)
+//     },
+//   })
+// }
 
 export function renderToInitialFizzStream({
   ReactDOMServer,
@@ -698,6 +727,48 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
+function createHtmlDataDplIdTransformStream(
+  dplId: string
+): TransformStream<Uint8Array, Uint8Array> {
+  let didTransform = false
+
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (didTransform) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      const htmlTagIndex = indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML)
+      if (htmlTagIndex === -1) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      // Insert the data-dpl-id attribute right after "<html "
+      const insertionPoint = htmlTagIndex + ENCODED_TAGS.OPENING.HTML.length
+      const attribute = ` data-dpl-id="${dplId}"`
+      const encodedAttribute = encoder.encode(attribute)
+      const modifiedChunk = new Uint8Array(
+        chunk.length + encodedAttribute.length
+      )
+
+      // Copy everything before the insertion point
+      modifiedChunk.set(chunk.subarray(0, insertionPoint))
+      // Insert the attribute
+      modifiedChunk.set(encodedAttribute, insertionPoint)
+      // Copy everything after
+      modifiedChunk.set(
+        chunk.subarray(insertionPoint),
+        insertionPoint + encodedAttribute.length
+      )
+
+      controller.enqueue(modifiedChunk)
+      didTransform = true
+    },
+  })
+}
+
 /*
  * Checks if the root layout is missing the html or body tags
  * and if so, it will inject a script tag to throw an error in the browser, showing the user
@@ -770,8 +841,7 @@ function chainTransformers<T>(
 export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
   isStaticGeneration: boolean
-  isBuildTimePrerendering: boolean
-  buildId: string
+  deploymentId: string | undefined
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   validateRootLayout?: boolean
@@ -787,8 +857,7 @@ export async function continueFizzStream(
     suffix,
     inlinedDataStream,
     isStaticGeneration,
-    isBuildTimePrerendering,
-    buildId,
+    deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
     validateRootLayout,
@@ -797,17 +866,21 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  // If we're generating static HTML we need to wait for it to resolve before continuing.
   if (isStaticGeneration) {
+    // If we're generating static HTML we need to wait for it to resolve before continuing.
     await renderStream.allReady
+  } else {
+    // Otherwise, we want to make sure Fizz is done with all microtasky work
+    // before we start pulling the stream and cause a flush.
+    await waitAtLeastOneReactRenderTask()
   }
 
   return chainTransformers(renderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
-    // Add build id comment to start of the HTML document (in export mode)
-    createPrefetchCommentStream(isBuildTimePrerendering, buildId),
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
 
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
@@ -838,6 +911,7 @@ export async function continueFizzStream(
 type ContinueDynamicPrerenderOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
+  deploymentId: string | undefined
 }
 
 export async function continueDynamicPrerender(
@@ -845,26 +919,27 @@ export async function continueDynamicPrerender(
   {
     getServerInsertedHTML,
     getServerInsertedMetadata,
+    deploymentId,
   }: ContinueDynamicPrerenderOptions
 ) {
-  return (
-    prerenderStream
-      // Buffer everything to avoid flushing too frequently
-      .pipeThrough(createBufferedTransformStream())
-      .pipeThrough(createStripDocumentClosingTagsTransform())
-      // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Transform metadata
-      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
-  )
+  return chainTransformers(prerenderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+    createStripDocumentClosingTagsTransform(),
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Insert generated tags to head
+    createHeadInsertionTransformStream(getServerInsertedHTML),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
+  ])
 }
 
 type ContinueStaticPrerenderOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
-  isBuildTimePrerendering: boolean
-  buildId: string
+  deploymentId: string | undefined
 }
 
 export async function continueStaticPrerender(
@@ -873,29 +948,24 @@ export async function continueStaticPrerender(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
-    isBuildTimePrerendering,
-    buildId,
+    deploymentId,
   }: ContinueStaticPrerenderOptions
 ) {
-  return (
-    prerenderStream
-      // Buffer everything to avoid flushing too frequently
-      .pipeThrough(createBufferedTransformStream())
-      // Add build id comment to start of the HTML document (in export mode)
-      .pipeThrough(
-        createPrefetchCommentStream(isBuildTimePrerendering, buildId)
-      )
-      // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Transform metadata
-      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
-      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(
-        createFlightDataInjectionTransformStream(inlinedDataStream, true)
-      )
-      // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream())
-  )
+  return chainTransformers(prerenderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+    // Add build id comment to start of the HTML document (in export mode)
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Insert generated tags to head
+    createHeadInsertionTransformStream(getServerInsertedHTML),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    createFlightDataInjectionTransformStream(inlinedDataStream, true),
+    // Close tags should always be deferred to the end
+    createMoveSuffixStream(),
+  ])
 }
 
 export async function continueStaticFallbackPrerender(
@@ -904,34 +974,28 @@ export async function continueStaticFallbackPrerender(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
-    isBuildTimePrerendering,
-    buildId,
+    deploymentId,
   }: ContinueStaticPrerenderOptions
 ) {
   // Same as `continueStaticPrerender`, but also inserts an additional script
   // to instruct the client to start fetching the hydration data as early
   // as possible.
-  return (
-    prerenderStream
-      // Buffer everything to avoid flushing too frequently
-      .pipeThrough(createBufferedTransformStream())
-      // Add build id comment to start of the HTML document (in export mode)
-      .pipeThrough(
-        createPrefetchCommentStream(isBuildTimePrerendering, buildId)
-      )
-      // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert the client resume script into the head
-      .pipeThrough(createClientResumeScriptInsertionTransformStream())
-      // Transform metadata
-      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
-      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(
-        createFlightDataInjectionTransformStream(inlinedDataStream, true)
-      )
-      // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream())
-  )
+  return chainTransformers(prerenderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Insert generated tags to head
+    createHeadInsertionTransformStream(getServerInsertedHTML),
+    // Insert the client resume script into the head
+    createClientResumeScriptInsertionTransformStream(),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    createFlightDataInjectionTransformStream(inlinedDataStream, true),
+    // Close tags should always be deferred to the end
+    createMoveSuffixStream(),
+  ])
 }
 
 type ContinueResumeOptions = {
@@ -939,6 +1003,7 @@ type ContinueResumeOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   delayDataUntilFirstHtmlChunk: boolean
+  deploymentId: string | undefined
 }
 
 export async function continueDynamicHTMLResume(
@@ -948,28 +1013,144 @@ export async function continueDynamicHTMLResume(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
+    deploymentId,
   }: ContinueResumeOptions
 ) {
-  return (
-    renderStream
-      // Buffer everything to avoid flushing too frequently
-      .pipeThrough(createBufferedTransformStream())
-      // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Transform metadata
-      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
-      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(
-        createFlightDataInjectionTransformStream(
-          inlinedDataStream,
-          delayDataUntilFirstHtmlChunk
-        )
-      )
-      // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream())
-  )
+  return chainTransformers(renderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Insert generated tags to head
+    createHeadInsertionTransformStream(getServerInsertedHTML),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    createFlightDataInjectionTransformStream(
+      inlinedDataStream,
+      delayDataUntilFirstHtmlChunk
+    ),
+    // Close tags should always be deferred to the end
+    createMoveSuffixStream(),
+  ])
 }
 
 export function createDocumentClosingStream(): ReadableStream<Uint8Array> {
   return streamFromString(CLOSE_TAG)
+}
+
+// ---------------------------------------------------------------------------
+// Runtime prefetch transform (Web streams)
+// ---------------------------------------------------------------------------
+
+/**
+ * Web TransformStream that replaces the runtime prefetch sentinel in an RSC
+ * payload stream: `[<sentinel>]` -> `[<isPartial>,<staleTime>]`.
+ *
+ * This is the web equivalent of createRuntimePrefetchNodeTransform
+ * in node-stream-helpers.ts.
+ */
+export function createRuntimePrefetchTransformStream(
+  sentinel: number,
+  isPartial: boolean,
+  staleTime: number
+): TransformStream<Uint8Array, Uint8Array> {
+  const enc = new TextEncoder()
+
+  // Search for: [<sentinel>]
+  // Replace with: [<isPartial>,<staleTime>]
+  const search = enc.encode(`[${sentinel}]`)
+  const first = search[0]
+  const replace = enc.encode(`[${isPartial},${staleTime}]`)
+  const searchLen = search.length
+
+  let currentChunk: Uint8Array | null = null
+  let found = false
+
+  function processChunk(
+    controller: TransformStreamDefaultController<Uint8Array>,
+    nextChunk: null | Uint8Array
+  ) {
+    if (found) {
+      if (nextChunk) {
+        controller.enqueue(nextChunk)
+      }
+      return
+    }
+
+    if (currentChunk) {
+      // We can't search past the index that can contain a full match
+      let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
+      if (nextChunk) {
+        // If we have any overflow bytes we can search up to the chunk's final byte
+        exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
+      }
+      if (exclusiveUpperBound < 1) {
+        // we can't match the current chunk.
+        controller.enqueue(currentChunk)
+        currentChunk = nextChunk // advance so we don't process this chunk again
+        return
+      }
+
+      let currentIndex = currentChunk.indexOf(first)
+
+      // check the current candidate match if it is within the bounds of our search space for the currentChunk
+      candidateLoop: while (
+        -1 < currentIndex &&
+        currentIndex < exclusiveUpperBound
+      ) {
+        // We already know index 0 matches because we used indexOf to find the candidateIndex so we start at index 1
+        let matchIndex = 1
+        while (matchIndex < searchLen) {
+          const candidateIndex = currentIndex + matchIndex
+          const candidateValue =
+            candidateIndex < currentChunk.length
+              ? currentChunk[candidateIndex]
+              : // if we ever hit this condition it is because there is a nextChunk we can read from
+                nextChunk![candidateIndex - currentChunk.length]
+          if (candidateValue !== search[matchIndex]) {
+            // No match, reset and continue the search from the next position
+            currentIndex = currentChunk.indexOf(first, currentIndex + 1)
+            continue candidateLoop
+          }
+          matchIndex++
+        }
+        // We found a complete match. currentIndex is our starting point to replace the value.
+        found = true
+        // enqueue everything up to the match
+        controller.enqueue(currentChunk.subarray(0, currentIndex))
+        // enqueue the replacement value
+        controller.enqueue(replace)
+        // If there are bytes in the currentChunk after the match enqueue them
+        if (currentIndex + searchLen < currentChunk.length) {
+          controller.enqueue(currentChunk.slice(currentIndex + searchLen))
+        }
+        // If we have a next chunk we enqueue it now
+        if (nextChunk) {
+          // if replacement spills over to the next chunk we first exclude the replaced bytes
+          const overflowBytes = currentIndex + searchLen - currentChunk.length
+          const truncatedChunk =
+            overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
+          controller.enqueue(truncatedChunk)
+        }
+        // We are now in found mode and don't need to track currentChunk anymore
+        currentChunk = null
+        return
+      }
+      // No match found in this chunk, emit it and wait for the next one
+      controller.enqueue(currentChunk)
+    }
+
+    // Advance to the next chunk
+    currentChunk = nextChunk
+  }
+
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      processChunk(controller, chunk)
+    },
+    flush(controller) {
+      processChunk(controller, null)
+    },
+  })
 }

@@ -13,7 +13,11 @@ import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
-import { addRequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../server/request-meta'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -41,8 +45,12 @@ export async function handler(
   res: ServerResponse,
   ctx: {
     waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
-): Promise<void> {
+) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
@@ -72,6 +80,9 @@ export async function handler(
     const tracer = getTracer()
 
     const activeSpan = tracer.getActiveScopeSpan()
+    const isWrappedByNextServer = Boolean(
+      routerServerContext?.isWrappedByNextServer
+    )
     const onRequestError =
       routeModule.instrumentationOnRequestError.bind(routeModule)
 
@@ -143,22 +154,26 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await invokeRouteModule(activeSpan)
     } else {
-      await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          invokeRouteModule
-        )
+            invokeRouteModule
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {

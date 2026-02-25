@@ -1,26 +1,28 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::quote;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
 
-use super::{EsmAssetReference, base::ReferencedAsset};
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        esm::{EsmAssetReference, base::ReferencedAsset},
+    },
     utils::module_id_to_lit,
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module id of {inner}")]
 pub struct EsmModuleIdAssetReference {
     inner: ResolvedVc<EsmAssetReference>,
 }
@@ -37,20 +39,7 @@ impl ModuleReference for EsmModuleIdAssetReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         self.inner.resolve_reference()
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("module id of {}", self.inner.to_string().await?,).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         self.inner.chunking_type()
@@ -73,7 +62,9 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct EsmModuleIdAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<EsmModuleIdAssetReference>,

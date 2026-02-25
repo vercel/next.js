@@ -62,6 +62,9 @@
                     module: "foo",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -166,47 +169,6 @@
             ),
         ],
     },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    1,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    1,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-        ],
-    },
     ImportedBinding {
         esm_reference_index: 7,
         export: Some(
@@ -270,6 +232,9 @@
                     module: "foo",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -402,6 +367,9 @@
                     module: "foo",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -520,47 +488,6 @@
             ),
         ],
     },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    2,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-        ],
-    },
     ImportedBinding {
         esm_reference_index: 2,
         export: Some(
@@ -624,6 +551,9 @@
                     module: "foo",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -756,6 +686,9 @@
                     module: "foo",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -874,47 +807,6 @@
             ),
         ],
     },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    3,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-        ],
-    },
     ImportedBinding {
         esm_reference_index: 4,
         export: Some(
@@ -978,6 +870,9 @@
                     module: "foo",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),

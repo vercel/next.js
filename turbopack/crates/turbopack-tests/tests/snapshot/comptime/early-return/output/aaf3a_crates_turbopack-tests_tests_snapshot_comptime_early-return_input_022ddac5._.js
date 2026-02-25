@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_comptime_early-return_input_022ddac5._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_comptime_early-return_input_022ddac5._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/module.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -192,6 +192,25 @@ function p() {
     }
     p3();
     return;
+    //TURBOPACK unreachable
+    ;
+}
+function q() {
+    while(false){
+        q1();
+        return;
+        //TURBOPACK unreachable
+        ;
+    }
+    q3();
+}
+function r() {
+    {
+        r1();
+        return;
+        //TURBOPACK unreachable
+        ;
+    }
     //TURBOPACK unreachable
     ;
 }

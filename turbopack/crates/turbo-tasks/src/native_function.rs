@@ -1,14 +1,15 @@
 use std::{any::Any, fmt::Debug, hash::Hash, pin::Pin};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use futures::Future;
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use tracing::Span;
+use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
-    RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
-    magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
+    RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    magic_any::{MagicAny, any_as_encode},
     task::{
         IntoTaskFn, TaskFn,
         function::{IntoTaskFnWithThis, NativeTaskFuture},
@@ -24,8 +25,8 @@ type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>
 type FilterAndResolveFunctor = ResolveFunctor;
 
 pub struct ArgMeta {
-    serializer: MagicAnySerializeSeed,
-    deserializer: MagicAnyDeserializeSeed,
+    // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
+    pub bincode: (AnyEncodeFn, AnyDecodeFn<Box<dyn MagicAny>>),
     is_resolved: IsResolvedFunctor,
     resolve: ResolveFunctor,
     /// Used for trait methods, filters out unused arguments.
@@ -43,7 +44,7 @@ pub struct ArgMeta {
 impl ArgMeta {
     pub fn new<T>() -> Self
     where
-        T: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        T: TaskInput + Encode + Decode<()> + 'static,
     {
         fn noop_filter_args(args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
             args
@@ -56,24 +57,24 @@ impl ArgMeta {
         filter_and_resolve: FilterAndResolveFunctor,
     ) -> Self
     where
-        T: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        T: TaskInput + Encode + Decode<()> + 'static,
     {
         Self {
-            serializer: MagicAnySerializeSeed::new::<T>(),
-            deserializer: MagicAnyDeserializeSeed::new::<T>(),
+            bincode: (
+                |this, enc| {
+                    T::encode(any_as_encode::<T>(this), enc)?;
+                    Ok(())
+                },
+                |dec| {
+                    let val = T::decode(dec)?;
+                    Ok(Box::new(val))
+                },
+            ),
             is_resolved: |value| downcast_args_ref::<T>(value).is_resolved(),
             resolve: resolve_functor_impl::<T>,
             filter_owned,
             filter_and_resolve,
         }
-    }
-
-    pub fn deserialization_seed(&self) -> MagicAnyDeserializeSeed {
-        self.deserializer
-    }
-
-    pub fn as_serialize<'a>(&self, value: &'a dyn MagicAny) -> &'a dyn erased_serde::Serialize {
-        self.serializer.as_serialize(value)
     }
 
     pub fn is_resolved(&self, value: &dyn MagicAny) -> bool {
@@ -142,21 +143,11 @@ pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
         .unwrap()
 }
 
-#[derive(Debug)]
-pub struct FunctionMeta {
-    /// Does not run the function as a task, and instead runs it inside the parent task using
-    /// task-local state. The function call itself will not be cached, but cells will be created on
-    /// the parent task.
-    pub local: bool,
-}
-
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub(crate) name: &'static str,
-
-    pub(crate) function_meta: FunctionMeta,
 
     pub(crate) arg_meta: ArgMeta,
 
@@ -173,7 +164,6 @@ impl Debug for NativeFunction {
         f.debug_struct("NativeFunction")
             .field("name", &self.name)
             .field("global_name", &self.global_name)
-            .field("function_meta", &self.function_meta)
             .finish_non_exhaustive()
     }
 }
@@ -182,16 +172,14 @@ impl NativeFunction {
     pub fn new_function<Mode, Inputs>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
     where
-        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        Inputs: TaskInput + Encode + Decode<()> + 'static,
     {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
         }
@@ -200,18 +188,16 @@ impl NativeFunction {
     pub fn new_method_without_this<Mode, Inputs, I>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
     ) -> Self
     where
-        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        Inputs: TaskInput + Encode + Decode<()> + 'static,
         I: IntoTaskFn<Mode, Inputs>,
     {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
             } else {
@@ -224,19 +210,17 @@ impl NativeFunction {
     pub fn new_method<Mode, This, Inputs, I>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
     ) -> Self
     where
         This: Sync + Send + 'static,
-        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        Inputs: TaskInput + Encode + Decode<()> + 'static,
         I: IntoTaskFnWithThis<Mode, This, Inputs>,
     {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
             } else {
@@ -254,27 +238,27 @@ impl NativeFunction {
         }
     }
 
-    pub fn span(&'static self, persistence: TaskPersistence, reason: TaskExecutionReason) -> Span {
+    pub fn span(
+        &'static self,
+        persistence: TaskPersistence,
+        reason: TaskExecutionReason,
+        priority: TaskPriority,
+    ) -> Span {
         let flags = match persistence {
             TaskPersistence::Persistent => "",
             TaskPersistence::Transient => "transient",
-            TaskPersistence::Local => "local",
         };
         tracing::trace_span!(
             "turbo_tasks::function",
             name = self.name,
+            priority = %priority,
             flags = flags,
             reason = reason.as_str()
         )
     }
 
-    pub fn resolve_span(&'static self, persistence: TaskPersistence) -> Span {
-        let flags = match persistence {
-            TaskPersistence::Persistent => "",
-            TaskPersistence::Transient => "transient",
-            TaskPersistence::Local => "local",
-        };
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
+    pub fn resolve_span(&'static self, priority: TaskPriority) -> Span {
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, priority = %priority)
     }
 }
 impl PartialEq for NativeFunction {

@@ -46,17 +46,6 @@ impl TaskStatistics {
         self.with_task_type_statistics(native_fn, |stats| stats.cache_miss += 1)
     }
 
-    pub fn increment_execution_duration(
-        &self,
-        native_fn: &'static NativeFunction,
-        duration: std::time::Duration,
-    ) {
-        self.with_task_type_statistics(native_fn, |stats| {
-            stats.executions += 1;
-            stats.duration += duration
-        })
-    }
-
     fn with_task_type_statistics(
         &self,
         native_fn: &'static NativeFunction,
@@ -75,10 +64,6 @@ impl TaskStatistics {
 pub struct TaskFunctionStatistics {
     pub cache_hit: u32,
     pub cache_miss: u32,
-    // Generally executions == cache_miss, however they can diverge when there are invalidations.
-    // The caller gets one cache miss but we might execute multiple times.
-    pub executions: u32,
-    pub duration: std::time::Duration,
 }
 
 impl Serialize for TaskStatistics {

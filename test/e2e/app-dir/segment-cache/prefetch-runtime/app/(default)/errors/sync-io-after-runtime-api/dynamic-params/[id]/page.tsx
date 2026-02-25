@@ -1,8 +1,12 @@
 import { Suspense } from 'react'
 import { DebugRenderKind } from '../../../../../shared'
-import { workUnitAsyncStorage } from 'next/dist/server/app-render/work-unit-async-storage.external'
 
 type Params = { id: string }
+
+export const unstable_instant = {
+  prefetch: 'runtime',
+  samples: [{ cookies: [] }],
+}
 
 export default async function Page({ params }: { params: Promise<Params> }) {
   return (
@@ -20,11 +24,6 @@ export default async function Page({ params }: { params: Promise<Params> }) {
 }
 
 async function RuntimePrefetchable({ params }: { params: Promise<Params> }) {
-  const res = await params
-  console.log(
-    'RuntimePrefetchable :: awaited params',
-    res,
-    workUnitAsyncStorage.getStore()
-  )
+  await params
   return <div id="timestamp">Timestamp: {Date.now()}</div>
 }

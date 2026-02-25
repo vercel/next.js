@@ -28,8 +28,9 @@ describe('next-link', () => {
        }
       `)
     }
-    expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
-      `"Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)."`
+    // Client errors show "This page crashed"
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This page crashed'
     )
   })
 
@@ -51,8 +52,9 @@ describe('next-link', () => {
          ],
        }
       `)
-      expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
-        `"Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)."`
+      // Client errors show "This page crashed"
+      expect(await browser.elementByCss('body').text()).toContain(
+        'This page crashed'
       )
     } else {
       expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(

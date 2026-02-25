@@ -22,10 +22,10 @@ description: API Reference for the revalidatePath function.
 revalidatePath(path: string, type?: 'page' | 'layout'): void;
 ```
 
-- `path`: Either a route pattern corresponding to the data you want to revalidate, for example `/product/[slug]`, or a specific URL, `/product/123`. Do not append `/page` or `/layout`, use the `type` parameter instead. Must not exceed 1024 characters. This value is case-sensitive.
-- `type`: (optional) `'page'` or `'layout'` string to change the type of path to revalidate. If `path` contains a dynamic segment, for example `/product/[slug]`, this parameter is required. If `path` is a specific URL, `/product/1`, omit `type`.
+- `path`: Either a string that represents your route file structure. This can be a literal path like `/product/123`, or a route pattern with dynamic segments like `/product/[slug]`. Do not append `/page` or `/layout`, use the `type` parameter instead. Must not exceed 1024 characters. This value is case-sensitive. You do not need to include a trailing slash, regardless of your [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) config.
+- `type`: (optional) `'page'` or `'layout'` string to change the type of path to revalidate. If `path` contains a dynamic segment, for example `/product/[slug]`, this parameter is required. If `path` is a literal path like `/product/1`, omit `type`.
 
-Use a specific URL when you want to refresh a [single page](#revalidating-a-specific-url). Use a route pattern plus `type` to refresh [multiple URLs](#revalidating-a-page-path).
+Use a literal path when you want to refresh a [single page](#revalidating-a-specific-path). Use a route pattern plus `type` to refresh [all matching pages](#revalidating-a-page-path).
 
 ## Returns
 
@@ -48,6 +48,37 @@ export async function GET() {
   return Response.json(await data.json())
 }
 ```
+
+## Using `revalidatePath` with rewrites
+
+When using [rewrites](/docs/app/api-reference/config/next-config-js/rewrites), you must pass the **destination** path (the actual route file location), not the source path that appears in the browser's address bar.
+
+For example, if you have a rewrite from `/blog` to `/news`:
+
+```js filename="next.config.js"
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/blog',
+        destination: '/news',
+      },
+    ]
+  },
+}
+```
+
+To revalidate this page, use the destination path:
+
+```ts
+// Correct: use the destination path
+revalidatePath('/news')
+
+// Incorrect: the source path won't match the cache entry
+revalidatePath('/blog')
+```
+
+This is because `revalidatePath` operates on the route file structure, not the URL visible to users. Cache entries are tagged based on which route file renders them.
 
 ## Relationship with `revalidateTag` and `updateTag`
 
@@ -99,14 +130,14 @@ This pattern ensures that both the specific page and any other pages using the s
 
 ## Examples
 
-### Revalidating a specific URL
+### Revalidating a specific path
 
 ```ts
 import { revalidatePath } from 'next/cache'
 revalidatePath('/blog/post-1')
 ```
 
-This will invalidate one specific URL for revalidation on the next page visit.
+This will invalidate one specific path for revalidation on the next page visit.
 
 ### Revalidating a Page path
 
@@ -117,7 +148,7 @@ revalidatePath('/blog/[slug]', 'page')
 revalidatePath('/(main)/blog/[slug]', 'page')
 ```
 
-This will invalidate any URL that matches the provided `page` file for revalidation on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
+This will invalidate any path that matches the provided `page` file for revalidation on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
 
 ### Revalidating a Layout path
 
@@ -128,7 +159,7 @@ revalidatePath('/blog/[slug]', 'layout')
 revalidatePath('/(main)/post/[slug]', 'layout')
 ```
 
-This will invalidate any URL that matches the provided `layout` file for revalidation on the next page visit. This will cause pages beneath with the same layout to be invalidated and revalidated on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also be invalidated and revalidated on the next visit.
+This will invalidate any path that matches the provided `layout` file for revalidation on the next page visit. This will cause pages beneath with the same layout to be invalidated and revalidated on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also be invalidated and revalidated on the next visit.
 
 ### Revalidating all data
 

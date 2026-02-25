@@ -3,18 +3,18 @@ use std::{
     mem::{replace, take},
 };
 
-use anyhow::{Result, bail};
+use anyhow::Result;
+use bincode::{Decode, Encode};
 use either::Either;
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, primitives::Regex, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
     asset::Asset, reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),
@@ -30,7 +30,6 @@ pub enum RuleCondition {
     ResourcePathInExactDirectory(FileSystemPath),
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
-    ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
     ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
     ResourceContentEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
@@ -46,6 +45,10 @@ pub enum RuleCondition {
     },
     ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
     ResourceQueryContains(String),
+    ResourceQueryEquals(String),
+    ResourceQueryEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ContentTypeGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
+    ContentTypeEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
 }
 
 impl RuleCondition {
@@ -268,9 +271,6 @@ impl RuleCondition {
                             .map_or(path.path.as_str(), |(_, b)| b);
                         return Ok(glob.matches(basename));
                     }
-                    RuleCondition::ResourcePathRegex(_) => {
-                        bail!("ResourcePathRegex not implemented yet");
-                    }
                     RuleCondition::ResourcePathEsRegex(regex) => {
                         return Ok(regex.is_match(&path.path));
                     }
@@ -286,6 +286,28 @@ impl RuleCondition {
                     RuleCondition::ResourceQueryContains(query) => {
                         let ident = source.ident().await?;
                         return Ok(ident.query.contains(query));
+                    }
+                    RuleCondition::ResourceQueryEquals(query) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident.query == *query);
+                    }
+                    RuleCondition::ResourceQueryEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(regex.is_match(&ident.query));
+                    }
+                    RuleCondition::ContentTypeGlob(glob) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident
+                            .content_type
+                            .as_ref()
+                            .is_some_and(|ct| glob.matches(ct)));
+                    }
+                    RuleCondition::ContentTypeEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident
+                            .content_type
+                            .as_ref()
+                            .is_some_and(|ct| regex.is_match(ct)));
                     }
                 }
             }

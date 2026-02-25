@@ -3,7 +3,7 @@ import path from 'path'
 import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
-import { FileRef, isNextDeploy } from '../e2e-utils'
+import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
@@ -30,7 +30,10 @@ export type PackageJson = {
   [key: string]: unknown
 }
 
-type ResolvedFileConfig = FileRef | { [filename: string]: string | FileRef }
+type ResolvedFileConfig =
+  | FileRef
+  | PatchedFileRef
+  | { [filename: string]: string | FileRef | PatchedFileRef }
 type FilesConfig = ResolvedFileConfig | string
 export interface NextInstanceOpts {
   files: FilesConfig
@@ -65,7 +68,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.0";
+const nextjsReactPeerVersion = "19.2.4";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -93,12 +96,17 @@ export class NextInstance {
   public forcedPort?: string
   public subDir: string = ''
   public startServerTimeout: number = 10_000 // 10 seconds
-  public serverReadyPattern: RegExp = / ✓ Ready in /
+  public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
+    const nextTestWasm =
+      process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
+    if (nextTestWasm) {
+      this.env.NEXT_TEST_WASM = nextTestWasm
+    }
 
     if (!isNextDeploy) {
       this.env = {
@@ -155,7 +163,7 @@ export class NextInstance {
         if (typeof item === 'string') {
           await fs.mkdir(path.dirname(outputFilename), { recursive: true })
           await fs.writeFile(outputFilename, item)
-        } else {
+        } else if (item instanceof FileRef) {
           try {
             const existingStat = await fs.lstat(outputFilename)
             if (existingStat.isFile() || existingStat.isSymbolicLink()) {
@@ -166,6 +174,20 @@ export class NextInstance {
           }
 
           await fs.cp(item.fsPath, outputFilename, { recursive: true })
+        } else if (item instanceof PatchedFileRef) {
+          try {
+            const existingStat = await fs.lstat(outputFilename)
+            if (existingStat.isFile() || existingStat.isSymbolicLink()) {
+              await fs.unlink(outputFilename)
+            }
+          } catch {
+            // file might not exist or can't be unliked. carry on
+          }
+
+          await fs.writeFile(
+            outputFilename,
+            item.cb(await fs.readFile(item.fsPath, 'utf8'))
+          )
         }
       }
     }
@@ -258,12 +280,19 @@ export class NextInstance {
                 },
                 ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
-                  // since we can't get the build id as a build artifact, make it
-                  // available under the static files
-                  'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
+                  ...(isNextDeploy
+                    ? // since we can't get the build id as a build artifact,
+                      // add it in build logs
+                      {
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT_ID: " + process.env.NEXT_DEPLOYMENT_ID)'`,
+                      }
+                    : {}),
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
+                    (this.buildArgs?.length
+                      ? ` ${this.buildArgs.join(' ')}`
+                      : '') +
                     ' && pnpm post-build',
                 },
               },
@@ -414,6 +443,12 @@ export class NextInstance {
           // alias experimental feature flags for deployment compatibility
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
             process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
+            process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER = process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL) {
+            process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL = process.env.NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL
           }
         `
           )
@@ -604,6 +639,14 @@ export class NextInstance {
     return ''
   }
 
+  public get deploymentId(): string | undefined {
+    return undefined
+  }
+
+  public get deploymentIdQuery(): string {
+    return this.deploymentId ? `?dpl=${this.deploymentId}` : ''
+  }
+
   public get cliOutput(): string {
     return ''
   }
@@ -784,7 +827,7 @@ export class NextInstance {
     const responsePromise = new Promise<Response>((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(`Timed out waiting for the response of ${url}`)
-      }, 10_000)
+      }, 30_000)
 
       resolveResponse = (response: Response) => {
         clearTimeout(timer)
@@ -886,5 +929,10 @@ export class NextInstance {
     return () => {
       return this.cliOutput.slice(length)
     }
+  }
+
+  public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {
+    // For tests we usually have a low revalidate time.
+    // We assume the prerender is old enough by default for those small revalidation times.
   }
 }

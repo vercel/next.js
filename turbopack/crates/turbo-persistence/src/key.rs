@@ -60,6 +60,22 @@ impl KeyBase for Vec<u8> {
     }
 }
 
+impl KeyBase for Box<[u8]> {
+    fn len(&self) -> usize {
+        (**self).len()
+    }
+
+    fn is_empty(&self) -> bool {
+        (**self).is_empty()
+    }
+
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for item in self {
+            state.write_u8(*item);
+        }
+    }
+}
+
 impl KeyBase for u8 {
     fn len(&self) -> usize {
         1
@@ -130,6 +146,12 @@ impl QueryKey for Vec<u8> {
     }
 }
 
+impl QueryKey for Box<[u8]> {
+    fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
+        Ord::cmp(&**self, key)
+    }
+}
+
 impl QueryKey for u8 {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
         Ord::cmp(&[*self][..], key)
@@ -170,6 +192,12 @@ impl<const N: usize> StoreKey for [u8; N] {
 }
 
 impl StoreKey for Vec<u8> {
+    fn write_to(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(self);
+    }
+}
+
+impl StoreKey for Box<[u8]> {
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self);
     }

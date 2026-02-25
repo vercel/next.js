@@ -1,27 +1,29 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, File, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
+};
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
     file_source::FileSource,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
     traced_asset::TracedAsset,
 };
-use turbopack_ecmascript::resolve::cjs_resolve;
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     nft_json::{all_assets_from_entries_filtered, relativize_glob},
@@ -29,7 +31,7 @@ use crate::{
 };
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Deserialize, Serialize, Debug, Clone, Hash, TaskInput,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
 )]
 enum ServerNftType {
     Minimal,
@@ -75,6 +77,9 @@ impl ServerNftJsonAsset {
         ServerNftJsonAsset { project, ty }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ServerNftJsonAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for ServerNftJsonAsset {
@@ -158,7 +163,9 @@ impl Asset for ServerNftJsonAsset {
           "files": server_output_assets
         });
 
-        Ok(AssetContent::file(File::from(json.to_string()).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(json.to_string())).cell(),
+        ))
     }
 }
 
@@ -238,7 +245,7 @@ impl ServerNftJsonAsset {
                                 Request::parse_string(path.into()),
                                 CommonJsReferenceSubType::Undefined,
                                 None,
-                                false,
+                                ResolveErrorMode::Error,
                             )
                             .primary_modules()
                             .await?

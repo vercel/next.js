@@ -136,6 +136,14 @@ describe('app-dir with proxy', () => {
     )
   })
 
+  it('should support unstable_cache in proxy', async () => {
+    const res = await next.fetch('/unstable-cache')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      value: expect.any(String),
+    })
+  })
+
   it('should be possible to modify cookies & read them in an RSC in a single request', async () => {
     const browser = await next.browser('/rsc-cookies')
 

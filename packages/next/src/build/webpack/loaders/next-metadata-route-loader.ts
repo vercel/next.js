@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { getLoaderModuleNamedExports } from './utils'
+import { installBindings } from '../../swc/install-bindings'
 
 function errorOnBadHandler(resourcePath: string) {
   return `
@@ -373,6 +374,10 @@ async function getSitemapRouteCode(
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
+    // Install bindings early so they are definitely available to the loader.
+    // When run by webpack in next this is already done with correct configuration so this is a no-op.
+    // In turbopack loaders are run in a subprocess so it may or may not be done.
+    await installBindings()
     const { isDynamicRouteExtension, filePath } = this.getOptions()
     const { name: fileBaseName } = getFilenameAndExtension(filePath)
     this.addDependency(filePath)

@@ -42,6 +42,7 @@ async function main() {
             await app.render(req, res, '/page-error')
           } else {
             parsedUrl.pathname = pathname
+            // TODO: Accept WHATWG URLs in Next.js request handlers
             await handle(req, res, parsedUrl)
           }
         } catch (err) {

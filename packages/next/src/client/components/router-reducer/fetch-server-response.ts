@@ -12,9 +12,10 @@ import type {
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 
-import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
-  NEXT_ROUTER_PREFETCH_HEADER,
+  type NEXT_ROUTER_PREFETCH_HEADER,
+  type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  type NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -28,19 +29,17 @@ import {
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
-import { PrefetchKind } from './router-reducer-types'
 import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
-import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
-import {
-  getRenderedSearch,
-  urlToUrlWithoutFlightMarker,
-} from '../../route-params'
-import type { NormalizedSearch } from '../segment-cache'
+import { urlToUrlWithoutFlightMarker } from '../../route-params'
+import type { NormalizedSearch } from '../segment-cache/cache-key'
+import { getDeploymentId } from '../../../shared/lib/deployment-id'
+import { getNavigationBuildId } from '../../navigation-build-id'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -51,10 +50,7 @@ let createDebugChannel:
   | typeof import('../../dev/debug-channel').createDebugChannel
   | undefined
 
-if (
-  process.env.NODE_ENV !== 'production' &&
-  process.env.__NEXT_REACT_DEBUG_CHANNEL
-) {
+if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REACT_DEBUG_CHANNEL) {
   createDebugChannel = (
     require('../../dev/debug-channel') as typeof import('../../dev/debug-channel')
   ).createDebugChannel
@@ -63,7 +59,6 @@ if (
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
-  readonly prefetchKind?: PrefetchKind
   readonly isHmrRefresh?: boolean
 }
 
@@ -96,27 +91,27 @@ export type RequestHeaders = {
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
   [NEXT_REQUEST_ID_HEADER]?: string // dev-only
+  [NEXT_INSTANT_PREFETCH_HEADER]?: '1' // testing API only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
   return urlToUrlWithoutFlightMarker(new URL(url, location.origin)).toString()
 }
 
-let abortController = new AbortController()
+let isPageUnloading = false
 
 if (typeof window !== 'undefined') {
-  // Abort any in-flight requests when the page is unloaded, e.g. due to
-  // reloading the page or performing hard navigations. This allows us to ignore
-  // what would otherwise be a thrown TypeError when the browser cancels the
-  // requests.
+  // Track when the page is unloading, e.g. due to reloading the page or
+  // performing hard navigations. This allows us to suppress error logging when
+  // the browser cancels in-flight requests during page unload.
   window.addEventListener('pagehide', () => {
-    abortController.abort()
+    isPageUnloading = true
   })
 
-  // Use a fresh AbortController instance on pageshow, e.g. when navigating back
-  // and the JavaScript execution context is restored by the browser.
+  // Reset the flag on pageshow, e.g. when navigating back and the JavaScript
+  // execution context is restored by the browser.
   window.addEventListener('pageshow', () => {
-    abortController = new AbortController()
+    isPageUnloading = false
   })
 }
 
@@ -128,7 +123,7 @@ export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { flightRouterState, nextUrl, prefetchKind } = options
+  const { flightRouterState, nextUrl } = options
 
   const headers: RequestHeaders = {
     // Enable flight response
@@ -138,16 +133,6 @@ export async function fetchServerResponse(
       flightRouterState,
       options.isHmrRefresh
     ),
-  }
-
-  /**
-   * Three cases:
-   * - `prefetchKind` is `undefined`, it means it's a normal navigation, so we want to prefetch the page data fully
-   * - `prefetchKind` is `full` - we want to prefetch the whole page so same as above
-   * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
-   */
-  if (prefetchKind === PrefetchKind.AUTO) {
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
   if (process.env.NODE_ENV === 'development' && options.isHmrRefresh) {
@@ -163,16 +148,6 @@ export async function fetchServerResponse(
   const originalUrl = url
 
   try {
-    // When creating a "temporary" prefetch (the "on-demand" prefetch that gets created on navigation, if one doesn't exist)
-    // we send the request with a "high" priority as it's in response to a user interaction that could be blocking a transition.
-    // Otherwise, all other prefetches are sent with a "low" priority.
-    // We use "auto" for in all other cases to match the existing default, as this function is shared outside of prefetching.
-    const fetchPriority = prefetchKind
-      ? prefetchKind === PrefetchKind.TEMPORARY
-        ? 'high'
-        : 'low'
-      : 'auto'
-
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
         // In "output: export" mode, we can't rely on headers to distinguish
@@ -196,9 +171,8 @@ export async function fetchServerResponse(
     const res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
-      fetchPriority,
-      shouldImmediatelyDecode,
-      abortController.signal
+      'auto',
+      shouldImmediatelyDecode
     )
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
@@ -255,19 +229,21 @@ export async function fetchServerResponse(
       // TODO: This should only be reachable if legacy PPR is enabled (i.e. PPR
       // without Cache Components). Remove this branch once legacy PPR
       // is deleted.
-      const flightStream = postponed
-        ? createUnclosingPrefetchStream(res.body)
-        : res.body
       flightResponsePromise =
         createFromNextReadableStream<NavigationFlightResponse>(
-          flightStream,
-          headers
+          res.body,
+          headers,
+          { allowPartialStream: postponed }
         )
     }
 
     const flightResponse = await flightResponsePromise
 
-    if (getAppBuildId() !== flightResponse.b) {
+    if (
+      (res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b) !==
+      getNavigationBuildId()
+    ) {
+      // The server build does not match the client build.
       return doMpaNavigation(res.url)
     }
 
@@ -279,7 +255,14 @@ export async function fetchServerResponse(
     return {
       flightData: normalizedFlightData,
       canonicalUrl: canonicalUrl,
-      renderedSearch: getRenderedSearch(res),
+      // TODO: We should be able to read this from the rewrite header, not the
+      // Flight response. Theoretically they should always agree, but there are
+      // currently some cases where it's incorrect for interception routes. We
+      // can always trust the value in the response body. However, per-segment
+      // prefetch responses don't embed the value in the body; they rely on the
+      // header alone. So we need to investigate why the header is sometimes
+      // wrong for interception routes.
+      renderedSearch: flightResponse.q as NormalizedSearch,
       couldBeIntercepted: interception,
       prerendered: flightResponse.S,
       postponed,
@@ -287,7 +270,7 @@ export async function fetchServerResponse(
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
-    if (!abortController.signal.aborted) {
+    if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
         err
@@ -331,11 +314,12 @@ export async function createFetch<T>(
     headers['Next-Test-Fetch-Priority'] = fetchPriority
   }
 
-  if (process.env.NEXT_DEPLOYMENT_ID) {
-    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  const deploymentId = getDeploymentId()
+  if (deploymentId) {
+    headers['x-deployment-id'] = deploymentId
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     if (self.__next_r) {
       headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
     }
@@ -365,12 +349,10 @@ export async function createFetch<T>(
   // info includes the latency from the client to the server. The internal timer
   // in React starts as soon as `createFromFetch` is called.
   //
-  // The only case where we don't do this is during a prefetch, because we have
-  // to do some extra processing of the response stream (see
-  // `createUnclosingPrefetchStream`). But this is fine, because a top-level
-  // prefetch response never blocks a navigation; if it hasn't already been
-  // written into the cache by the time the navigation happens, the router will
-  // go straight to a dynamic request.
+  // The only case where we don't do this is during a prefetch, because a
+  // top-level prefetch response never blocks a navigation; if it hasn't already
+  // been written into the cache by the time the navigation happens, the router
+  // will go straight to a dynamic request.
   let flightResponsePromise = shouldImmediatelyDecode
     ? createFromNextFetch<T>(fetchPromise, headers)
     : null
@@ -473,12 +455,14 @@ export async function createFetch<T>(
 
 export function createFromNextReadableStream<T>(
   flightStream: ReadableStream<Uint8Array>,
-  requestHeaders: RequestHeaders
+  requestHeaders: RequestHeaders,
+  options?: { allowPartialStream?: boolean }
 ): Promise<T> {
   return createFromReadableStream(flightStream, {
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
+    unstable_allowPartialStream: options?.allowPartialStream,
   })
 }
 
@@ -490,38 +474,5 @@ function createFromNextFetch<T>(
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-  })
-}
-
-function createUnclosingPrefetchStream(
-  originalFlightStream: ReadableStream<Uint8Array>
-): ReadableStream<Uint8Array> {
-  // When PPR is enabled, prefetch streams may contain references that never
-  // resolve, because that's how we encode dynamic data access. In the decoded
-  // object returned by the Flight client, these are reified into hanging
-  // promises that suspend during render, which is effectively what we want.
-  // The UI resolves when it switches to the dynamic data stream
-  // (via useDeferredValue(dynamic, static)).
-  //
-  // However, the Flight implementation currently errors if the server closes
-  // the response before all the references are resolved. As a cheat to work
-  // around this, we wrap the original stream in a new stream that never closes,
-  // and therefore doesn't error.
-  const reader = originalFlightStream.getReader()
-  return new ReadableStream({
-    async pull(controller) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (!done) {
-          // Pass to the target stream and keep consuming the Flight response
-          // from the server.
-          controller.enqueue(value)
-          continue
-        }
-        // The server stream has closed. Exit, but intentionally do not close
-        // the target stream.
-        return
-      }
-    },
   })
 }

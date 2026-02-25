@@ -6,7 +6,6 @@ import {
   RouteInfoBody,
 } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { PageSegmentTree } from '../components/overview/segment-explorer'
-import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
@@ -22,6 +21,7 @@ import {
   ACTION_DEVTOOLS_SCALE,
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
+  ACTION_CACHE_ONLY_TOGGLE,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
 import { LoadingIcon } from '../icons/loading-icon'
@@ -82,21 +82,54 @@ const MenuPanel = () => {
         !!process.env.TURBOPACK
           ? {
               title: 'Turbopack is enabled.',
-              label: 'Turbopack',
-              value: 'Enabled',
+              label: 'Bundler',
+              value: 'Turbopack',
             }
           : {
               title:
                 'Learn about Turbopack and how to enable it in your application.',
-              label: 'Try Turbopack',
-              value: <ChevronRight />,
-              onClick: () => setPanel('turbo-info'),
+              label: 'Bundler',
+              value: (
+                <a
+                  href="https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="turbopack-upgrade-link"
+                >
+                  {process.env.__NEXT_BUNDLER || 'Turbopack'}
+                </a>
+              ),
             },
         !!process.env.__NEXT_CACHE_COMPONENTS && {
           title: 'Cache Components is enabled.',
           label: 'Cache Components',
           value: 'Enabled',
         },
+        isAppRouter &&
+          !!process.env.__NEXT_INSTANT_NAV_TOGGLE && {
+            title:
+              'When enabled, navigations show only the cached/prefetched state.',
+            label: 'Instant Navigation Mode',
+            value: state.cacheOnly ? 'On' : 'Off',
+            onClick: () => {
+              if (state.cacheOnly) {
+                // Turn off: delete cookie and reload to get dynamic data
+                document.cookie =
+                  'next-instant-navigation-testing=; path=/; max-age=0'
+                dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
+                window.location.reload()
+              } else {
+                // Turn on: set cookie to lock dynamic requests
+                document.cookie = 'next-instant-navigation-testing=1; path=/'
+                dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
+                setPanel(null)
+                setSelectedIndex(-1)
+              }
+            },
+            attributes: {
+              'data-cache-only': true,
+            },
+          },
         isAppRouter && {
           label: 'Route Info',
           value: <ChevronRight />,
@@ -236,24 +269,6 @@ export const PanelRouter = () => {
           </DynamicPanel>
         </PanelRoute>
       )}
-
-      <PanelRoute name="turbo-info">
-        <DynamicPanel
-          sharePanelSizeGlobally={false}
-          sizeConfig={{
-            kind: 'fixed',
-            height: 470 / state.scale,
-            width: 400 / state.scale,
-          }}
-          closeOnClickOutside
-          header={<DevToolsHeader title="Try Turbopack" />}
-        >
-          <div className="panel-content">
-            <TurbopackInfoBody />
-            <InfoFooter href="https://nextjs.org/docs/app/api-reference/turbopack" />
-          </div>
-        </DynamicPanel>
-      </PanelRoute>
     </>
   )
 }
