@@ -485,22 +485,16 @@ export async function handleBuildComplete({
     } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
-      let clientHashes: Record<string, string> | undefined = undefined
-      if (bundler === Bundler.Turbopack) {
-        clientHashes = {}
-        for (const manifestFile of await recursiveReadDir(
-          path.join(distDir, 'server'),
-          {
-            pathnameFilter: (file) => file.endsWith('client-hashes.json'),
-            relativePathnames: false,
-          }
-        )) {
-          const manifestContent = JSON.parse(
-            await fs.readFile(manifestFile, 'utf8')
-          ) as Record<string, string>
-          Object.assign(clientHashes, manifestContent)
-        }
-      }
+      const clientHashes: Record<string, string> | undefined =
+        bundler === Bundler.Turbopack
+          ? JSON.parse(
+              await fs.readFile(
+                path.join(distDir, 'immutable-static-hashes.json'),
+                'utf8'
+              )
+            )
+          : undefined
+
       for (const file of staticFiles) {
         const pathname = path.posix.join('/_next/static', file)
         const filePath = path.join(distDir, 'static', file)

@@ -28,6 +28,7 @@ use next_api::{
         DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
         ProjectContainer, ProjectOptions, WatchOptions,
     },
+    project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
 };
@@ -1680,6 +1681,8 @@ async fn output_assets_operation(
     let whole_app_module_graphs = project.whole_app_module_graphs();
     let nft = next_server_nft_assets(project).await?;
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
+    let immutable_hashes_manifest_asset =
+        immutable_hashes_manifest_asset_if_enabled(project).await?;
 
     whole_app_module_graphs.as_side_effect().await?;
 
@@ -1688,6 +1691,7 @@ async fn output_assets_operation(
             .into_iter()
             .chain(nft.iter().copied())
             .chain(routes_hashes_manifest.iter().copied())
+            .chain(immutable_hashes_manifest_asset.iter().copied())
             .collect(),
     ))
 }
