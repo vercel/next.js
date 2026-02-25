@@ -844,9 +844,13 @@ async function tryNavigateUsingTestingAPIPrefetch(
       )
     }
 
-    // Prefetch failed - fall through to normal unknown route path. This is fine
-    // because the lock will still be held, and waitForNavigationLockIfActive()
-    // in the dynamic data path will block until the lock is released.
+    // Prefetch failed. Wait for the lock to be released before falling
+    // through to the normal navigation path. This prevents runtime data
+    // from leaking into the shell while the lock is held — the navigation
+    // blocks until the instant scope ends, then proceeds normally.
+    const { waitForNavigationLockIfActive } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    await waitForNavigationLockIfActive()
     return null
   }
   return null
