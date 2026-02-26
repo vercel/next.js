@@ -40,9 +40,9 @@ describe('segment cache - export const unstable_staleTime', () => {
     // Hide link
     await toggleLink.click()
 
-    // Advance 5 minutes + 1ms - past default staleTimes.static (300s),
+    // Advance 5 minutes and 1 second - past default staleTimes.static (300s),
     // within page unstable_staleTime (360s)
-    await page.clock.fastForward(5 * 60 * 1000 + 1)
+    await page.clock.fastForward('05:01')
 
     // Should NOT refetch page content - page's unstable_staleTime=360
     // hasn't elapsed.
@@ -57,8 +57,8 @@ describe('segment cache - export const unstable_staleTime', () => {
     // Hide link
     await toggleLink.click()
 
-    // Advance to 6 minutes + 1ms total - past unstable_staleTime=360
-    await page.clock.fastForward(6 * 60 * 1000 - (5 * 60 * 1000 + 1) + 1)
+    // Advance another minute - past unstable_staleTime=360
+    await page.clock.fastForward('01:00')
 
     // Should refetch - unstable_staleTime has elapsed
     await act(
@@ -99,7 +99,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     )
 
     // Advance 31 seconds - past default staleTimes.dynamic (0s), within page unstable_staleTime (300s)
-    await page.clock.fastForward(31 * 1000)
+    await page.clock.fastForward('00:31')
 
     // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
     await act(async () => {
@@ -115,8 +115,8 @@ describe('segment cache - export const unstable_staleTime', () => {
       'input[data-link-accordion="/dynamic-stale-5-minutes"]'
     )
 
-    // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
-    await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
+    // Advance another 5 minutes - past unstable_staleTime=300
+    await page.clock.fastForward('05:00')
 
     // Should refetch - unstable_staleTime has elapsed
     await act(
@@ -154,7 +154,7 @@ describe('segment cache - export const unstable_staleTime', () => {
 
     // Advance 31 seconds - past default staleTimes.dynamic (0s), within page unstable_staleTime (300s)
     await browser.back()
-    await page.clock.fastForward(31 * 1000)
+    await page.clock.fastForward('00:31')
 
     // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
     await act(async () => {
@@ -166,7 +166,7 @@ describe('segment cache - export const unstable_staleTime', () => {
 
     // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
     await browser.back()
-    await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
+    await page.clock.fastForward('05:00')
 
     // Should refetch - unstable_staleTime has elapsed
     await act(
