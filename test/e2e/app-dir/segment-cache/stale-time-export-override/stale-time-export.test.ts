@@ -14,7 +14,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     return
   }
 
-  it('overrides default staleTimes.static config', async () => {
+  it('overrides global staleTimes.static config', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -23,16 +23,16 @@ describe('segment cache - export const unstable_staleTime', () => {
     })
     const act = createRouterAct(page)
     await page.clock.install()
-    const pageContent = 'Static page with unstable_staleTime = 360'
+    const pageContent = 'Static page with unstable_staleTime = 300'
 
-    // Prefetch static page with unstable_staleTime=360 (6 minutes)
+    // Prefetch static page with unstable_staleTime=300 (5 minutes)
     const toggleLink = await browser.elementByCss(
-      'input[data-link-accordion="/static-stale-6-minutes"]'
+      'input[data-link-accordion="/static-stale-5-minutes"]'
     )
     await act(
       async () => {
         await toggleLink.click()
-        await browser.elementByCss('a[href="/static-stale-6-minutes"]')
+        await browser.elementByCss('a[href="/static-stale-5-minutes"]')
       },
       { includes: pageContent }
     )
@@ -40,16 +40,15 @@ describe('segment cache - export const unstable_staleTime', () => {
     // Hide link
     await toggleLink.click()
 
-    // Advance 5 minutes + 1ms - past default staleTimes.static (300s),
-    // within page unstable_staleTime (360s)
-    await page.clock.fastForward(5 * 60 * 1000 + 1)
+    // Advance 31 seconds - past global staleTimes.static (30s), within page unstable_staleTime (300s)
+    await page.clock.fastForward(31 * 1000)
 
-    // Should NOT refetch page content - page's unstable_staleTime=360
+    // Should NOT refetch page content - page's unstable_staleTime=300
     // hasn't elapsed.
     await act(
       async () => {
         await toggleLink.click()
-        await browser.elementByCss('a[href="/static-stale-6-minutes"]')
+        await browser.elementByCss('a[href="/static-stale-5-minutes"]')
       },
       { includes: pageContent, block: 'reject' }
     )
@@ -57,20 +56,20 @@ describe('segment cache - export const unstable_staleTime', () => {
     // Hide link
     await toggleLink.click()
 
-    // Advance to 6 minutes + 1ms total - past unstable_staleTime=360
-    await page.clock.fastForward(6 * 60 * 1000 - (5 * 60 * 1000 + 1) + 1)
+    // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
+    await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
 
     // Should refetch - unstable_staleTime has elapsed
     await act(
       async () => {
         await toggleLink.click()
-        await browser.elementByCss('a[href="/static-stale-6-minutes"]')
+        await browser.elementByCss('a[href="/static-stale-5-minutes"]')
       },
       { includes: pageContent }
     )
   })
 
-  it('overrides default staleTimes.dynamic config', async () => {
+  it('overrides global staleTimes.dynamic config', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -92,11 +91,12 @@ describe('segment cache - export const unstable_staleTime', () => {
       { includes: pageContent }
     )
 
-    // Advance 31 seconds - past default staleTimes.dynamic (0s), within page unstable_staleTime (300s)
+    // Advance 31 seconds - past global staleTimes.dynamic (30s), within page unstable_staleTime (300s)
     await browser.back()
     await page.clock.fastForward(31 * 1000)
 
-    // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
+    // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't
+    // elapsed.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/dynamic-stale-5-minutes"]')

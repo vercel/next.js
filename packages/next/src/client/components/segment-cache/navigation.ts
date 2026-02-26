@@ -397,7 +397,7 @@ async function navigateToUnknownRoute(
       ? getStaleTimeMs(staleTime / 1000)
       : null
   if (metadataVaryPath !== null) {
-    discoverKnownRoute(
+    const discoveredRoute = discoverKnownRoute(
       now,
       url.pathname,
       nextUrl,
@@ -409,6 +409,9 @@ async function navigateToUnknownRoute(
       prerendered,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
+    if (dynamicStaleTimeMs !== null) {
+      discoveredRoute.staleAt = now + dynamicStaleTimeMs
+    }
   }
 
   return navigateToKnownRoute(

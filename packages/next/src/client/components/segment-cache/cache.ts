@@ -2172,6 +2172,12 @@ function writeDynamicTreeResponseIntoCache(
   )
 
   const staleAtInfo = getStaleAtFromHeader(now, response)
+  if (staleAtInfo.hasExplicitStaleTime) {
+    // Keep route-tree freshness aligned with explicit page stale times so
+    // known-route navigations can reuse cached data until the explicit
+    // threshold elapses.
+    fulfilledEntry.staleAt = staleAtInfo.staleAt
+  }
 
   // If the server sent segment data as part of the response, we should write
   // it into the cache to prevent a second, redundant prefetch request.

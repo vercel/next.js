@@ -48,7 +48,6 @@ import {
   writeToBFCache,
   writeHeadToBFCache,
 } from '../segment-cache/bfcache'
-import { DYNAMIC_STALETIME_MS } from './reducers/navigate-reducer'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -905,24 +904,22 @@ function createCacheNodeForSegment(
       // with Cache Components, but it's supported for backwards compatibility.
       // Use cacheLife instead.)
 
-      // This outer check isn't semantically necessary; even if the configured
-      // stale time is 0, the bfcache will return null, because any entry would
-      // have immediately expired. Just an optimization.
-      if (DYNAMIC_STALETIME_MS > 0) {
-        const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-          now,
-          tree.varyPath
-        )
-        if (bfcacheEntry !== null) {
-          return {
-            cacheNode: createCacheNode(
-              bfcacheEntry.rsc,
-              bfcacheEntry.prefetchRsc,
-              bfcacheEntry.head,
-              bfcacheEntry.prefetchHead
-            ),
-            needsDynamicRequest: false,
-          }
+      // We intentionally always consult the BFCache. Even when the global
+      // dynamic stale time is 0, entries can still have an explicit stale
+      // time from page-level unstable_staleTime.
+      const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
+        now,
+        tree.varyPath
+      )
+      if (bfcacheEntry !== null) {
+        return {
+          cacheNode: createCacheNode(
+            bfcacheEntry.rsc,
+            bfcacheEntry.prefetchRsc,
+            bfcacheEntry.head,
+            bfcacheEntry.prefetchHead
+          ),
+          needsDynamicRequest: false,
         }
       }
       break
