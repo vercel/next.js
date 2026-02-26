@@ -87,7 +87,8 @@ pnpm --filter=next dev
 ```bash
 # NEXT_SKIP_ISOLATE=1 - skip packing Next.js for each test (~100s faster)
 # testheadless - runs headless with --runInBand (no worker isolation overhead)
-NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=dev pnpm testheadless test/path/to/test.ts
+# NEXT_TEST_MODE=<mode> - run dev or start based on the context provided
+NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=<dev|start> pnpm testheadless test/path/to/test.ts
 ```
 
 **3. When done, kill the background watch process (if you started it).**
