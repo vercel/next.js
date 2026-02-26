@@ -44,6 +44,7 @@ function verifyAndRunTypeScript(
     typeCheckWorker = new Worker(
       require.resolve('../lib/verify-typescript-setup'),
       {
+        workerName: 'Next.js type check worker',
         exposedMethods: ['verifyAndRunTypeScript'],
         maxWorkers: 1,
         enableWorkerThreads,

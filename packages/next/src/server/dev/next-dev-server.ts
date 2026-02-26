@@ -151,6 +151,7 @@ export default class DevServer extends Server {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   } {
     const worker = new Worker(require.resolve('./static-paths-worker'), {
+      workerName: 'Next.js static paths worker',
       maxRetries: 1,
       // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
       // This helps reusing the memory a lot.

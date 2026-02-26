@@ -10,7 +10,7 @@ async function turbopackBuildWithWorker(): ReturnType<
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
-      workerName: 'Next.js build worker',
+      workerName: 'Next.js turbopack build worker',
       exposedMethods: ['workerMain', 'waitForShutdown'],
       enableWorkerThreads: true,
       maxWorkers: 1,

@@ -46,6 +46,7 @@ async function webpackBuildWithWorker(
 
   for (const compilerName of compilerNames) {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
+      workerName: `Next.js webpack worker (${compilerName})`,
       exposedMethods: ['workerMain'],
       maxWorkers: 1,
       maxRetries: 0,
