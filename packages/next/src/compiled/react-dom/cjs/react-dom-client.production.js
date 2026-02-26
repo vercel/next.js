@@ -1071,7 +1071,7 @@ function setValueForAttribute(node, name, value) {
             return;
           }
       }
-      node.setAttribute(name, "" + value);
+      node.setAttribute(name, value);
     }
 }
 function setValueForKnownAttribute(node, name, value) {
@@ -1085,7 +1085,7 @@ function setValueForKnownAttribute(node, name, value) {
         node.removeAttribute(name);
         return;
     }
-    node.setAttribute(name, "" + value);
+    node.setAttribute(name, value);
   }
 }
 function setValueForNamespacedAttribute(node, namespace, name, value) {
@@ -1099,7 +1099,7 @@ function setValueForNamespacedAttribute(node, namespace, name, value) {
         node.removeAttribute(name);
         return;
     }
-    node.setAttributeNS(namespace, name, "" + value);
+    node.setAttributeNS(namespace, name, value);
   }
 }
 function getToStringValue(value) {
@@ -13421,7 +13421,7 @@ function coerceFormActionProp(actionProp) {
     ? null
     : "function" === typeof actionProp
       ? actionProp
-      : sanitizeURL("" + actionProp);
+      : sanitizeURL(actionProp);
 }
 function extractEvents$1(
   dispatchQueue,
@@ -14272,7 +14272,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         domElement.removeAttribute(key);
         break;
       }
-      value = sanitizeURL("" + value);
+      value = sanitizeURL(value);
       domElement.setAttribute(key, value);
       break;
     case "action":
@@ -14323,7 +14323,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         domElement.removeAttribute(key);
         break;
       }
-      value = sanitizeURL("" + value);
+      value = sanitizeURL(value);
       domElement.setAttribute(key, value);
       break;
     case "onClick":
@@ -14373,7 +14373,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         domElement.removeAttribute("xlink:href");
         break;
       }
-      key = sanitizeURL("" + value);
+      key = sanitizeURL(value);
       domElement.setAttributeNS(
         "http://www.w3.org/1999/xlink",
         "xlink:href",
@@ -14389,7 +14389,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
     case "focusable":
     case "preserveAlpha":
       null != value && "function" !== typeof value && "symbol" !== typeof value
-        ? domElement.setAttribute(key, "" + value)
+        ? domElement.setAttribute(key, value)
         : domElement.removeAttribute(key);
       break;
     case "inert":
@@ -18105,14 +18105,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2037 = React.version;
 if (
-  "19.3.0-canary-c0060cf2-20260224" !==
+  "19.3.0-canary-98ce535f-20260226" !==
   isomorphicReactPackageVersion$jscomp$inline_2037
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2037,
-      "19.3.0-canary-c0060cf2-20260224"
+      "19.3.0-canary-98ce535f-20260226"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18134,10 +18134,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2605 = {
   bundleType: 0,
-  version: "19.3.0-canary-c0060cf2-20260224",
+  version: "19.3.0-canary-98ce535f-20260226",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-c0060cf2-20260224"
+  reconcilerVersion: "19.3.0-canary-98ce535f-20260226"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2606 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -18235,4 +18235,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-c0060cf2-20260224";
+exports.version = "19.3.0-canary-98ce535f-20260226";
