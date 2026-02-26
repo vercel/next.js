@@ -16,6 +16,7 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/use-cache')
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E1012",
          "description": "Route /[lang]/[locale]/use-cache used \`import('next/root-params').lang()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
@@ -33,6 +34,7 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E1012",
          "description": "Route /[lang]/[locale]/unstable_cache used \`import('next/root-params').lang()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
          "environmentLabel": "Server",
          "label": "Runtime Error",

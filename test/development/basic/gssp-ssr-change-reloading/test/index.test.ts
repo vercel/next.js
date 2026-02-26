@@ -278,6 +278,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
 
        	return { props: { title: 'My Title', content: '...' } }
@@ -319,6 +320,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "custom oops",
          "environmentLabel": null,
          "label": "Runtime Error",

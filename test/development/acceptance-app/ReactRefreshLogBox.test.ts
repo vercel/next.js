@@ -1558,6 +1558,7 @@ describe('ReactRefreshLogBox app', () => {
       if (isRspack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -1577,6 +1578,7 @@ describe('ReactRefreshLogBox app', () => {
       } else if (!isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",
