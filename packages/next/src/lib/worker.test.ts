@@ -459,7 +459,7 @@ describe('lib/worker end and close', () => {
     worker.close()
 
     expect(() => worker.end()).toThrow(
-      'Farm is ended, no more calls can be done to it'
+      'Worker is ended, no more calls can be done to it'
     )
   })
 
@@ -470,7 +470,7 @@ describe('lib/worker end and close', () => {
     await worker.end()
 
     expect(() => worker.end()).toThrow(
-      'Farm is ended, no more calls can be done to it'
+      'Worker is ended, no more calls can be done to it'
     )
   })
 

@@ -100,44 +100,50 @@ const FORCE_EXIT_DELAY = 500
  * throughout the pool logic.
  */
 class WorkerHandle {
-  private _isThread: boolean
-  private _proc: ChildProcess | NodeWorker
+  private _thread: NodeWorker | null
+  private _process: ChildProcess | null
 
   constructor(proc: ChildProcess | NodeWorker) {
-    this._isThread = proc instanceof NodeWorker
-    this._proc = proc
+    if (proc instanceof NodeWorker) {
+      this._thread = proc
+      this._process = null
+    } else {
+      this._thread = null
+      this._process = proc
+    }
   }
 
   /** Send a message to the worker */
   send(message: unknown[]): void {
-    if (this._isThread) {
-      ;(this._proc as NodeWorker).postMessage(message)
+    if (this._thread) {
+      this._thread.postMessage(message)
     } else {
-      ;(this._proc as ChildProcess).send(message, () => {})
+      this._process!.send(message, () => {})
     }
   }
 
   /** Listen for messages from the worker */
   onMessage(callback: (message: ParentMessage) => void): void {
-    this._proc.on('message', callback as (...args: unknown[]) => void)
+    const target = (this._thread ?? this._process)!
+    target.on('message', callback as (...args: unknown[]) => void)
   }
 
   /** Listen for exit events. worker_threads only emits a code; signal is null. */
   onExit(callback: (code: number | null, signal: string | null) => void): void {
-    if (this._isThread) {
-      ;(this._proc as NodeWorker).on('exit', (code) => callback(code, null))
+    if (this._thread) {
+      this._thread.on('exit', (code) => callback(code, null))
     } else {
-      ;(this._proc as ChildProcess).on('exit', callback)
+      this._process!.on('exit', callback)
     }
   }
 
   /** Wait for the worker to exit */
   waitForExit(): Promise<void> {
     return new Promise<void>((resolve) => {
-      if (this._isThread) {
-        ;(this._proc as NodeWorker).once('exit', () => resolve())
+      if (this._thread) {
+        this._thread.once('exit', () => resolve())
       } else {
-        ;(this._proc as ChildProcess).once('exit', () => resolve())
+        this._process!.once('exit', () => resolve())
       }
     })
   }
@@ -147,32 +153,33 @@ class WorkerHandle {
    * "failed to fork" would surface as unhandled 'error' events.
    */
   onError(callback: (error: Error) => void): void {
-    this._proc.on('error', callback)
+    const target = (this._thread ?? this._process)!
+    target.on('error', callback)
   }
 
   /** Get a readable stream (stdout or stderr) from the worker */
   getOutputStream(type: 'stdout' | 'stderr'): NodeJS.ReadableStream | null {
-    if (this._isThread) {
-      return (this._proc as NodeWorker)[type]
+    if (this._thread) {
+      return this._thread[type]
     }
-    return (this._proc as ChildProcess)[type] ?? null
+    return this._process![type] ?? null
   }
 
   /** Gracefully kill (SIGINT for processes, terminate for threads) */
   kill(): void {
-    if (this._isThread) {
-      ;(this._proc as NodeWorker).terminate()
+    if (this._thread) {
+      this._thread.terminate()
     } else {
-      ;(this._proc as ChildProcess).kill('SIGINT')
+      this._process!.kill('SIGINT')
     }
   }
 
   /** Force-kill (SIGKILL for processes, terminate for threads) */
   forceKill(): void {
-    if (this._isThread) {
-      ;(this._proc as NodeWorker).terminate()
+    if (this._thread) {
+      this._thread.terminate()
     } else {
-      ;(this._proc as ChildProcess).kill('SIGKILL')
+      this._process!.kill('SIGKILL')
     }
   }
 }
@@ -263,10 +270,7 @@ export class WorkerPool {
       }
 
       // If we can spawn more workers and haven't hit the booting limit, do so
-      if (
-        this._workers.length < this._options.maxWorkers &&
-        this._bootingCount() < this._options.maxBootingWorkers
-      ) {
+      if (this._canSpawnWorker()) {
         const newWorker = this._spawnWorker()
         this._sendCall(newWorker, method, args, resolve, reject)
         return
@@ -556,24 +560,25 @@ export class WorkerPool {
       [typeof PARENT_MESSAGE_CLIENT_ERROR, ...any]
     >
   ): Error {
-    const errorProperties = message[5]
-    let error: Error
+    const [, , errorName, errorMessage, errorStack, errorProperties] = message
+
+    // Use the named global constructor (e.g. TypeError, RangeError) when available
+    const ErrorConstructor =
+      errorProperties != null &&
+      typeof errorProperties === 'object' &&
+      typeof (globalThis as any)[errorName] === 'function'
+        ? (globalThis as any)[errorName]
+        : Error
+
+    const error = new ErrorConstructor(errorMessage)
+    ;(error as any).type = errorName
+    error.stack = errorStack
+
+    // Copy extra properties (e.g. `code`, `digest`) onto the error
     if (errorProperties != null && typeof errorProperties === 'object') {
-      const ErrorConstructor =
-        typeof (globalThis as any)[message[2]] === 'function'
-          ? (globalThis as any)[message[2]]
-          : Error
-      error = new ErrorConstructor(message[3])
-      ;(error as any).type = message[2]
-      error.stack = message[4]
-      for (const key in errorProperties as Record<string, unknown>) {
-        ;(error as any)[key] = (errorProperties as Record<string, unknown>)[key]
-      }
-    } else {
-      error = new Error(message[3])
-      ;(error as any).type = message[2]
-      error.stack = message[4]
+      Object.assign(error, errorProperties)
     }
+
     return error
   }
 
@@ -614,12 +619,8 @@ export class WorkerPool {
       this._workers.splice(idx, 1)
     }
 
-    // If there are queued tasks, spawn a replacement worker (if booting allows)
-    if (
-      this._taskQueue.length > 0 &&
-      !this._ending &&
-      this._bootingCount() < this._options.maxBootingWorkers
-    ) {
+    // If there are queued tasks, spawn a replacement worker (if limits allow)
+    if (this._taskQueue.length > 0 && !this._ending && this._canSpawnWorker()) {
       const newWorker = this._spawnWorker()
       this._drainQueue(newWorker)
     }
@@ -684,6 +685,14 @@ export class WorkerPool {
   // Internal: booting management
   // ---------------------------------------------------------------------------
 
+  /** Whether the pool has capacity to spawn another worker (under both maxWorkers and maxBootingWorkers limits) */
+  private _canSpawnWorker(): boolean {
+    return (
+      this._workers.length < this._options.maxWorkers &&
+      this._bootingCount() < this._options.maxBootingWorkers
+    )
+  }
+
   /** Count workers that are still in the booting state */
   private _bootingCount(): number {
     let count = 0
@@ -711,9 +720,8 @@ export class WorkerPool {
   private _spawnForQueuedTasks(): void {
     while (
       this._taskQueue.length > 0 &&
-      this._workers.length < this._options.maxWorkers &&
-      this._bootingCount() < this._options.maxBootingWorkers &&
-      !this._ending
+      !this._ending &&
+      this._canSpawnWorker()
     ) {
       const newWorker = this._spawnWorker()
       this._drainQueue(newWorker)

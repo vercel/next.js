@@ -22,7 +22,7 @@ describe('worker-restart', () => {
       'Failed to build /bad-page/page: /bad-page after 3 attempts'
     )
     expect(output).not.toContain(
-      'Error: Farm is ended, no more calls can be done to it'
+      'Error: Worker is ended, no more calls can be done to it'
     )
   })
 

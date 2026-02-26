@@ -54,40 +54,39 @@ export function createMessageHandler(
     transport.send([PARENT_MESSAGE_OK, requestId, result])
   }
 
+  /** Normalize an unknown thrown value into a structured error descriptor */
+  function normalizeError(error: unknown): {
+    name: string
+    message: string
+    stack: string | undefined
+  } {
+    if (error == null) {
+      error = new Error('"null" or "undefined" thrown')
+    }
+    const err = error as Error
+    return {
+      name: err.constructor?.name ?? 'Error',
+      message: err.message,
+      stack: err.stack,
+    }
+  }
+
   function reportClientError(requestId: number, error: unknown): void {
-    reportErrorMessage(requestId, error, PARENT_MESSAGE_CLIENT_ERROR)
+    const e = normalizeError(error)
+    transport.send([
+      PARENT_MESSAGE_CLIENT_ERROR,
+      requestId,
+      e.name,
+      e.message,
+      e.stack,
+      // Spread extra properties from the original error (e.g. `code`, `digest`)
+      typeof error === 'object' ? { ...error } : error,
+    ])
   }
 
   function reportInitializeError(error: unknown): void {
-    if (error == null) {
-      error = new Error('"null" or "undefined" thrown')
-    }
-    const err = error as Error
-    transport.send([
-      PARENT_MESSAGE_SETUP_ERROR,
-      err.constructor?.name ?? 'Error',
-      err.message,
-      err.stack,
-    ])
-  }
-
-  function reportErrorMessage(
-    requestId: number,
-    error: unknown,
-    type: typeof PARENT_MESSAGE_CLIENT_ERROR
-  ): void {
-    if (error == null) {
-      error = new Error('"null" or "undefined" thrown')
-    }
-    const err = error as Error
-    transport.send([
-      type,
-      requestId,
-      err.constructor?.name ?? 'Error',
-      err.message,
-      err.stack,
-      typeof error === 'object' ? { ...error } : error,
-    ])
+    const e = normalizeError(error)
+    transport.send([PARENT_MESSAGE_SETUP_ERROR, e.name, e.message, e.stack])
   }
 
   /**
@@ -120,6 +119,9 @@ export function createMessageHandler(
     method: string,
     args: unknown[]
   ): void {
+    // eval('require') prevents the bundler from statically tracing this
+    // require(). The module path is provided at runtime via the INITIALIZE
+    // message, so static analysis would fail or produce incorrect bundles.
     // eslint-disable-next-line no-eval
     const main = eval('require')(workerModule)
 
@@ -165,6 +167,9 @@ export function createMessageHandler(
   }
 
   function end(): void {
+    // eval('require') prevents the bundler from statically tracing this
+    // require(). The module path is provided at runtime via the INITIALIZE
+    // message, so static analysis would fail or produce incorrect bundles.
     // eslint-disable-next-line no-eval
     const main = eval('require')(workerModule)
     if (!main.teardown) {

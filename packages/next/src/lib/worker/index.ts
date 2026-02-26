@@ -47,6 +47,92 @@ export interface WorkerOptions {
   maxBootingWorkers?: number
 }
 
+interface BuildWorkerEnvOptions {
+  debuggerPortOffset: number
+  enableSourceMaps?: boolean
+  isolatedMemory: boolean
+  forkOptions?: { env?: Partial<NodeJS.ProcessEnv> }
+}
+
+/**
+ * Build the environment variables for worker processes. This handles:
+ * - Forwarding NODE_OPTIONS (stripping debugger flags and --max-old-space-size)
+ * - Re-attaching the debugger on a different port when inspectable
+ * - Enabling source maps
+ * - Propagating color support (mirroring picocolors' heuristic)
+ */
+function buildWorkerEnv(options: BuildWorkerEnvOptions): {
+  env: Record<string, string | undefined>
+  execArgv: string[]
+} {
+  const { debuggerPortOffset, enableSourceMaps, isolatedMemory, forkOptions } =
+    options
+
+  const nodeOptions = getParsedNodeOptions()
+  const originalOptions = { ...nodeOptions }
+  delete nodeOptions.inspect
+  delete nodeOptions['inspect-brk']
+  delete nodeOptions['inspect_brk']
+
+  if (debuggerPortOffset !== -1) {
+    const nodeDebugType = getNodeDebugType(originalOptions)
+    if (nodeDebugType) {
+      const debuggerAddress = getParsedDebugAddress(
+        originalOptions[nodeDebugType]
+      )
+      const address: DebugAddress = {
+        host: debuggerAddress.host,
+        port:
+          debuggerAddress.port === 0
+            ? 0
+            : // +1 reserves the base debug port for the parent process;
+              // debuggerPortOffset separates different worker roles
+              // (e.g. export-page = 0, so the first worker gets base + 1 + 0).
+              debuggerAddress.port + 1 + debuggerPortOffset,
+      }
+      nodeOptions[nodeDebugType] = formatDebugAddress(address)
+    }
+  }
+
+  if (enableSourceMaps) {
+    nodeOptions['enable-source-maps'] = true
+  }
+
+  if (isolatedMemory) {
+    delete nodeOptions['max-old-space-size']
+    delete nodeOptions['max_old_space_size']
+  }
+
+  const { nodeOptions: formattedNodeOptions, execArgv } =
+    formatNodeOptions(nodeOptions)
+
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    ...((forkOptions?.env || {}) as Record<string, string | undefined>),
+    IS_NEXT_WORKER: 'true',
+    NODE_OPTIONS: formattedNodeOptions,
+  }
+
+  // Propagate color support to workers.
+  // Picocolors snapshots process.env/stdout.isTTY at module load time.
+  // Since worker stdio is piped, the worker's own check would disable colors.
+  // We re-evaluate the parent's conditions here to opt the worker into color
+  // output, while still respecting explicit opt-outs like NO_COLOR.
+  if (env.FORCE_COLOR === undefined) {
+    const supportsColors =
+      !env.NO_COLOR &&
+      !env.CI &&
+      env.TERM !== 'dumb' &&
+      (process.stdout.isTTY || process.stderr?.isTTY)
+
+    if (supportsColors) {
+      env.FORCE_COLOR = '1'
+    }
+  }
+
+  return { env, execArgv }
+}
+
 export class Worker {
   private _pool: WorkerPool | undefined
 
@@ -91,65 +177,12 @@ export class Worker {
     }
     process.on('exit', this._exitHandler)
 
-    // Build NODE_OPTIONS for worker processes
-    const nodeOptions = getParsedNodeOptions()
-    const originalOptions = { ...nodeOptions }
-    delete nodeOptions.inspect
-    delete nodeOptions['inspect-brk']
-    delete nodeOptions['inspect_brk']
-    if (debuggerPortOffset !== -1) {
-      const nodeDebugType = getNodeDebugType(originalOptions)
-      if (nodeDebugType) {
-        const debuggerAddress = getParsedDebugAddress(
-          originalOptions[nodeDebugType]
-        )
-        const address: DebugAddress = {
-          host: debuggerAddress.host,
-          port:
-            debuggerAddress.port === 0
-              ? 0
-              : debuggerAddress.port + 1 + debuggerPortOffset,
-        }
-        nodeOptions[nodeDebugType] = formatDebugAddress(address)
-      }
-    }
-
-    if (enableSourceMaps) {
-      nodeOptions['enable-source-maps'] = true
-    }
-
-    if (isolatedMemory) {
-      delete nodeOptions['max-old-space-size']
-      delete nodeOptions['max_old_space_size']
-    }
-
-    const { nodeOptions: formattedNodeOptions, execArgv } =
-      formatNodeOptions(nodeOptions)
-
-    const workerEnv: Record<string, string | undefined> = {
-      ...process.env,
-      ...((forkOptions?.env || {}) as Record<string, string | undefined>),
-      IS_NEXT_WORKER: 'true',
-      NODE_OPTIONS: formattedNodeOptions,
-    }
-
-    if (workerEnv.FORCE_COLOR === undefined) {
-      // Mirror the enablement heuristic from picocolors.
-      // Picocolors snapshots `process.env`/`stdout.isTTY` at module load time,
-      // so when the worker process bootstraps with piped stdio its own check
-      // would disable colors. Re-evaluating the same conditions here lets us
-      // opt the worker into color output only when the parent would have seen
-      // colors, while still respecting explicit opt-outs like NO_COLOR.
-      const supportsColors =
-        !workerEnv.NO_COLOR &&
-        !workerEnv.CI &&
-        workerEnv.TERM !== 'dumb' &&
-        (process.stdout.isTTY || process.stderr?.isTTY)
-
-      if (supportsColors) {
-        workerEnv.FORCE_COLOR = '1'
-      }
-    }
+    const { env: workerEnv, execArgv } = buildWorkerEnv({
+      debuggerPortOffset,
+      enableSourceMaps,
+      isolatedMemory,
+      forkOptions,
+    })
 
     const createPool = () => {
       const pool = new WorkerPool({
@@ -296,7 +329,7 @@ export class Worker {
   end(): Promise<{ forceExited: boolean }> {
     const pool = this._pool
     if (!pool) {
-      throw new Error('Farm is ended, no more calls can be done to it')
+      throw new Error('Worker is ended, no more calls can be done to it')
     }
     this._pool = undefined
     this._removeExitHandler()
