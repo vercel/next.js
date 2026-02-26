@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    collections::VecDeque,
     fs::File,
     io::{BufWriter, Seek, Write},
     path::Path,
@@ -7,7 +8,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use byteorder::{BE, ByteOrder, WriteBytesExt};
-use turbo_bincode::{TurboBincodeBuffer, turbo_bincode_encode};
+use turbo_bincode::turbo_bincode_encode;
 
 use crate::{
     compression::compress_into_buffer,
@@ -97,388 +98,655 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub entries: u64,
 }
 
+/// Writes an SST file from a pre-sorted slice of entries.
+///
+/// This is a convenience wrapper around [`StreamingSstWriter`] for callers that already have all
+/// entries in memory.
 pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     file: &Path,
     flags: MetaEntryFlags,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
-
-    let mut file = BufWriter::new(File::create(file)?);
-
-    // We use a shared buffer for all operations to avoid excessive allocations
-    let mut buffer = Vec::new();
-
-    let mut block_writer = BlockWriter::new(&mut file, &mut buffer);
-
-    // Another shared buffer for the uncompressed blocks
-    // The existing shared buffer will be used for compressed blocks
-    // So we need both
-    let mut buffer = Vec::new();
-
-    let min_hash = entries.first().map_or(u64::MAX, |e| e.key_hash());
-    let value_locations = write_value_blocks(entries, &mut block_writer, &mut buffer)
-        .context("Failed to write value blocks")?;
-    let amqf = write_key_blocks_and_compute_amqf(
-        entries,
-        &value_locations,
-        &mut block_writer,
-        &mut buffer,
-    )
-    .context("Failed to write key blocks")?;
-    let max_hash = entries.last().map_or(0, |e| e.key_hash());
-
-    let block_count = block_writer.block_count();
-    for offset in &block_writer.block_offsets {
-        file.write_u32::<BE>(*offset)
-            .context("Failed to write block offset")?;
+    let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64)?;
+    for entry in entries {
+        writer.add(entry)?;
     }
-
-    let meta = StaticSortedFileBuilderMeta {
-        min_hash,
-        max_hash,
-        amqf: Cow::Owned(amqf.into_vec()),
-        block_count,
-        size: file.stream_position()?,
-        flags,
-        entries: entries.len() as u64,
-    };
-    Ok((meta, file.into_inner()?))
+    writer.finish()
 }
 
-enum CompressionConfig {
-    /// Attempt compression; use the result only if it's smaller than the original.
-    TryCompress,
-    /// Write the block uncompressed.
-    Uncompressed,
-}
+// ---------------------------------------------------------------------------
+// Block I/O helpers (free functions for borrow-checker friendliness)
+// ---------------------------------------------------------------------------
 
-struct BlockWriter<'l> {
-    buffer: &'l mut Vec<u8>,
-    block_offsets: Vec<u32>,
-    writer: &'l mut BufWriter<File>,
-}
+/// Writes a block to the file, optionally compressing it. Returns the block index assigned.
+fn write_block_to_file(
+    file: &mut BufWriter<File>,
+    compress_buffer: &mut Vec<u8>,
+    block_offsets: &mut Vec<u32>,
+    block: &[u8],
+    try_compress: bool,
+) -> Result<u16> {
+    let block_index: u16 = block_offsets
+        .len()
+        .try_into()
+        .expect("Block index overflow");
 
-impl<'l> BlockWriter<'l> {
-    fn new(writer: &'l mut BufWriter<File>, buffer: &'l mut Vec<u8>) -> Self {
-        Self {
-            buffer,
-            block_offsets: Vec::new(),
-            writer,
+    let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
+        compress_into_buffer(block, compress_buffer)?;
+        // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
+        if compress_buffer.len() < block.len() - (block.len() / 8) {
+            (block.len().try_into().unwrap(), compress_buffer.as_slice())
+        } else {
+            (0, block)
         }
-    }
+    } else {
+        (0, block)
+    };
 
-    fn next_block_index(&mut self) -> u16 {
-        self.block_offsets
-            .len()
-            .try_into()
-            .expect("Block index overflow")
-    }
+    let len: u32 = (data_to_write.len() + 4).try_into().unwrap();
+    let offset = block_offsets
+        .last()
+        .copied()
+        .unwrap_or_default()
+        .checked_add(len)
+        .expect("Block offset overflow");
+    block_offsets.push(offset);
 
-    fn block_count(&self) -> u16 {
-        self.block_offsets
-            .len()
-            .try_into()
-            .expect("Block count overflow")
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn write_key_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(block, CompressionConfig::TryCompress)
-            .context("Failed to write key block")
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn write_index_block(&mut self, block: &[u8]) -> Result<()> {
-        // Index blocks are minimally compressible so don't try
-        self.write_block(block, CompressionConfig::Uncompressed)
-            .context("Failed to write index block")
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn write_small_value_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(block, CompressionConfig::TryCompress)
-            .context("Failed to write small value block")
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn write_value_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(block, CompressionConfig::TryCompress)
-            .context("Failed to write value block")
-    }
-
-    fn write_block(&mut self, block: &[u8], compression: CompressionConfig) -> Result<()> {
-        let (uncompressed_size, data_to_write): (u32, &[u8]) = match compression {
-            CompressionConfig::TryCompress => {
-                self.compress_block_into_buffer(block)?;
-                // Same threshold as LevelDB/RocksDB: require at least 12.5% savings to store
-                // compressed.
-                // See https://github.com/google/leveldb/blob/ac691084fdc5546421a55b25e7653d450e5a25fb/table/table_builder.cc#L164
-                // Uncompressed blocks take more time to read but we can directly leverage the mmap
-                // on the read side, compressed blocks need to be decompressed and managed in a
-                // cache. So we should only do it if we expect to save time.
-                if self.buffer.len() < block.len() - (block.len() / 8) {
-                    // Compression helped - use compressed data
-                    (block.len().try_into().unwrap(), self.buffer.as_slice())
-                } else {
-                    // Compression didn't help - use uncompressed with sentinel size value
-                    (0, block)
-                }
-            }
-            CompressionConfig::Uncompressed => (0, block),
-        };
-
-        let len: u32 = (data_to_write.len() + 4).try_into().unwrap();
-        let offset = self
-            .block_offsets
-            .last()
-            .copied()
-            .unwrap_or_default()
-            .checked_add(len)
-            .expect("Block offset overflow");
-        self.block_offsets.push(offset);
-
-        self.writer
-            .write_u32::<BE>(uncompressed_size)
-            .context("Failed to write uncompressed_size")?;
-        self.writer
-            .write_all(data_to_write)
-            .context("Failed to write block data")?;
-        self.buffer.clear();
-        Ok(())
-    }
-
-    fn write_compressed_block(&mut self, uncompressed_size: u32, block: &[u8]) -> Result<()> {
-        let len = (block.len() + 4).try_into().unwrap();
-        let offset = self
-            .block_offsets
-            .last()
-            .copied()
-            .unwrap_or_default()
-            .checked_add(len)
-            .expect("Block offset overflow");
-        self.block_offsets.push(offset);
-
-        self.writer
-            .write_u32::<BE>(uncompressed_size)
-            .context("Failed to write uncompressed size")?;
-        self.writer
-            .write_all(block)
-            .context("Failed to write compressed block")?;
-        Ok(())
-    }
-
-    /// Compresses a block using LZ4.
-    fn compress_block_into_buffer(&mut self, block: &[u8]) -> Result<()> {
-        compress_into_buffer(block, self.buffer)
-    }
+    file.write_u32::<BE>(uncompressed_size)
+        .context("Failed to write uncompressed_size")?;
+    file.write_all(data_to_write)
+        .context("Failed to write block data")?;
+    compress_buffer.clear();
+    Ok(block_index)
 }
 
-/// Splits the values of the entries into blocks and writes them to the writer.
-#[tracing::instrument(level = "trace", skip_all)]
-fn write_value_blocks(
-    entries: &[impl Entry],
-    writer: &mut BlockWriter<'_>,
-    buffer: &mut Vec<u8>,
-) -> Result<Vec<(u16, u32)>> {
-    let mut value_locations: Vec<(u16, u32)> = Vec::with_capacity(entries.len());
+/// Writes a pre-compressed block to the file. Returns the block index assigned.
+fn write_compressed_block_to_file(
+    file: &mut BufWriter<File>,
+    block_offsets: &mut Vec<u32>,
+    uncompressed_size: u32,
+    block: &[u8],
+) -> Result<u16> {
+    let block_index: u16 = block_offsets
+        .len()
+        .try_into()
+        .expect("Block index overflow");
 
-    let mut current_block_start = 0;
-    let mut current_block_count = 0;
-    let mut current_block_size = 0;
-    for (i, entry) in entries.iter().enumerate() {
-        match entry.value() {
-            EntryValue::Small { value } => {
-                value_locations.push((0, current_block_size.try_into().unwrap()));
-                current_block_size += value.len();
-                current_block_count += 1;
-                if current_block_size >= MIN_SMALL_VALUE_BLOCK_SIZE
-                    || current_block_count >= MAX_SMALL_VALUE_BLOCK_ENTRIES
-                {
-                    let block_index = writer.next_block_index();
-                    buffer.reserve(current_block_size);
-                    for j in current_block_start..=i {
-                        if let EntryValue::Small { value } = &entries[j].value() {
-                            buffer.extend_from_slice(value);
-                            value_locations[j].0 = block_index;
-                        }
-                    }
-                    writer.write_small_value_block(buffer)?;
-                    buffer.clear();
-                    current_block_start = i + 1;
-                    current_block_size = 0;
-                    current_block_count = 0;
-                }
-            }
+    let len: u32 = (block.len() + 4).try_into().unwrap();
+    let offset = block_offsets
+        .last()
+        .copied()
+        .unwrap_or_default()
+        .checked_add(len)
+        .expect("Block offset overflow");
+    block_offsets.push(offset);
+
+    file.write_u32::<BE>(uncompressed_size)
+        .context("Failed to write uncompressed size")?;
+    file.write_all(block)
+        .context("Failed to write compressed block")?;
+    Ok(block_index)
+}
+
+// ---------------------------------------------------------------------------
+// StreamingSstWriter
+// ---------------------------------------------------------------------------
+
+/// Where a key entry's value lives (or will live once the small block flushes).
+enum ValueRef {
+    /// Value in a known small value block (already flushed).
+    Small {
+        block_index: u16,
+        offset: u32,
+        size: u16,
+    },
+    /// Value is in a small value block that hasn't been written yet.
+    /// `small_block_id` indexes into `small_block_indices` to find the block_index once flushed.
+    PendingSmall {
+        small_block_id: u32,
+        offset: u32,
+        size: u16,
+    },
+    /// Medium value already written to its own block.
+    Medium { block_index: u16 },
+    /// Inline value (stored directly in the key block).
+    Inline {
+        data: [u8; MAX_INLINE_VALUE_SIZE],
+        len: u8,
+    },
+    /// Large blob stored externally.
+    Blob { blob_id: u32 },
+    /// Tombstone.
+    Deleted,
+}
+
+struct PendingKeyEntry {
+    key_hash: u64,
+    key: Vec<u8>,
+    value_ref: ValueRef,
+}
+
+/// A streaming SST file writer that writes blocks to disk incrementally.
+///
+/// Instead of materializing all entries in memory and then writing all value blocks followed by all
+/// key blocks, this writer interleaves block writes as entries arrive. Medium values are written
+/// immediately, small values are accumulated into blocks, and key blocks are flushed as soon as
+/// their value references are all resolved.
+///
+/// The SST reader is block-index-addressed (not file-position-addressed), so interleaving block
+/// types is fully compatible.
+pub struct StreamingSstWriter {
+    // File I/O
+    file: BufWriter<File>,
+    compress_buffer: Vec<u8>,
+    block_offsets: Vec<u32>,
+
+    // Pending key entries (VecDeque for efficient front drain)
+    pending_keys: VecDeque<PendingKeyEntry>,
+
+    // Key block size tracking (tracks the accumulated size from the front of pending_keys)
+    current_key_block_size: usize,
+    current_key_block_entry_count: usize,
+    current_key_block_max_key_len: usize,
+
+    // Small value block indirection
+    /// Maps small_block_id -> actual block_index. `None` means not yet flushed.
+    small_block_indices: Vec<Option<u16>>,
+    /// The current small_block_id being accumulated into.
+    current_small_block_id: u32,
+    /// The smallest small_block_id that hasn't been resolved yet.
+    /// All IDs below this are resolved.
+    first_unresolved_small_block_id: u32,
+
+    // Pending small value block buffer
+    pending_small_values: Vec<u8>,
+    pending_small_value_count: usize,
+
+    // Reusable buffer for building key blocks
+    key_buffer: Vec<u8>,
+
+    // AMQF filter (built incrementally)
+    filter: qfilter::Filter,
+
+    // Index block data: (first_hash, block_index) for each key block written
+    key_block_boundaries: Vec<(u64, u16)>,
+
+    // Metadata
+    min_hash: u64,
+    max_hash: u64,
+    entry_count: u64,
+    flags: MetaEntryFlags,
+}
+
+impl StreamingSstWriter {
+    /// Creates a new streaming SST writer.
+    ///
+    /// `entry_count_hint` is used to size the AMQF filter. It may be an upper bound; a slightly
+    /// oversized filter only improves the false-positive rate.
+    pub fn new(file: &Path, flags: MetaEntryFlags, entry_count_hint: u64) -> Result<Self> {
+        let file = BufWriter::new(File::create(file)?);
+        let filter = qfilter::Filter::new(entry_count_hint.max(1), AMQF_FALSE_POSITIVE_RATE)
+            .expect("Filter can't be constructed");
+
+        Ok(Self {
+            file,
+            compress_buffer: Vec::new(),
+            block_offsets: Vec::new(),
+            pending_keys: VecDeque::new(),
+            current_key_block_size: 0,
+            current_key_block_entry_count: 0,
+            current_key_block_max_key_len: 0,
+            small_block_indices: Vec::new(),
+            current_small_block_id: 0,
+            first_unresolved_small_block_id: 0,
+            pending_small_values: Vec::new(),
+            pending_small_value_count: 0,
+            key_buffer: Vec::new(),
+            filter,
+            key_block_boundaries: Vec::new(),
+            min_hash: u64::MAX,
+            max_hash: 0,
+            entry_count: 0,
+            flags,
+        })
+    }
+
+    /// Adds an entry to the SST file. Entries must be added in key-hash order.
+    pub fn add<E: Entry>(&mut self, entry: &E) -> Result<()> {
+        let key_hash = entry.key_hash();
+
+        // Update metadata
+        if self.entry_count == 0 {
+            self.min_hash = key_hash;
+        }
+        self.max_hash = key_hash;
+        self.entry_count += 1;
+
+        // Insert into AMQF
+        self.filter
+            .insert_fingerprint(false, key_hash)
+            .expect("AMQF insert failed");
+
+        // Copy key bytes
+        let mut key = Vec::with_capacity(entry.key_len());
+        entry.write_key_to(&mut key);
+
+        // Route value
+        let value_ref = match entry.value() {
             EntryValue::Medium { value } => {
-                let block_index = writer.next_block_index();
-                value_locations.push((block_index, 0));
-                writer.write_value_block(value)?;
+                let block_index = write_block_to_file(
+                    &mut self.file,
+                    &mut self.compress_buffer,
+                    &mut self.block_offsets,
+                    value,
+                    true,
+                )
+                .context("Failed to write value block")?;
+                ValueRef::Medium { block_index }
             }
             EntryValue::MediumRaw {
                 uncompressed_size,
                 block,
             } => {
-                let block_index = writer.next_block_index();
-                value_locations.push((block_index, 0));
-                writer.write_compressed_block(uncompressed_size, block)?;
-            }
-            EntryValue::Inline { .. } | EntryValue::Deleted | EntryValue::Large { .. } => {
-                // Inline values are stored in the key block, not in value blocks
-                value_locations.push((0, 0));
-            }
-        }
-    }
-    if current_block_count > 0 {
-        let block_index = writer.next_block_index();
-        buffer.reserve(current_block_size);
-        for j in current_block_start..entries.len() {
-            if let EntryValue::Small { value } = &entries[j].value() {
-                buffer.extend_from_slice(value);
-                value_locations[j].0 = block_index;
-            }
-        }
-        writer.write_small_value_block(buffer)?;
-        buffer.clear();
-    }
-
-    Ok(value_locations)
-}
-
-/// Splits the keys of the entries into blocks and writes them to the writer. Also writes an index
-/// block.
-#[tracing::instrument(level = "trace", skip_all)]
-fn write_key_blocks_and_compute_amqf(
-    entries: &[impl Entry],
-    value_locations: &[(u16, u32)],
-    writer: &mut BlockWriter<'_>,
-    buffer: &mut Vec<u8>,
-) -> Result<TurboBincodeBuffer> {
-    let mut filter = qfilter::Filter::new(entries.len() as u64, AMQF_FALSE_POSITIVE_RATE)
-        // This won't fail as we limit the number of entries per SST file
-        .expect("Filter can't be constructed");
-
-    let mut key_block_boundaries = Vec::new();
-
-    // Split the keys into blocks
-    fn add_entry_to_block<E: Entry>(
-        entry: &E,
-        value_location: &(u16, u32),
-        block: &mut KeyBlockBuilder,
-    ) {
-        match entry.value() {
-            EntryValue::Inline { value } => {
-                block.put_inline(entry, value);
+                let block_index = write_compressed_block_to_file(
+                    &mut self.file,
+                    &mut self.block_offsets,
+                    uncompressed_size,
+                    block,
+                )
+                .context("Failed to write compressed value block")?;
+                ValueRef::Medium { block_index }
             }
             EntryValue::Small { value } => {
-                block.put_small(
-                    entry,
-                    value_location.0,
-                    value_location.1,
-                    value.len().try_into().unwrap(),
-                );
+                let offset = self.pending_small_values.len() as u32;
+                let size: u16 = value.len().try_into().unwrap();
+                self.pending_small_values.extend_from_slice(value);
+                self.pending_small_value_count += 1;
+                let small_block_id = self.current_small_block_id;
+                ValueRef::PendingSmall {
+                    small_block_id,
+                    offset,
+                    size,
+                }
             }
-            EntryValue::Medium { .. } | EntryValue::MediumRaw { .. } => {
-                block.put_medium(entry, value_location.0);
+            EntryValue::Inline { value } => {
+                debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
+                let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
+                data[..value.len()].copy_from_slice(value);
+                ValueRef::Inline {
+                    data,
+                    len: value.len() as u8,
+                }
             }
-            EntryValue::Large { blob } => {
-                block.put_blob(entry, blob);
-            }
-            EntryValue::Deleted => {
-                block.delete(entry);
-            }
-        }
-    }
-    let mut current_block_start = 0;
-    let mut current_block_size = 0;
-    let mut current_block_max_key_len = 0;
-    let mut last_hash = 0;
-    for (i, entry) in entries.iter().enumerate() {
-        let key_hash = entry.key_hash();
-        let key_len = entry.key_len();
+            EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
+            EntryValue::Deleted => ValueRef::Deleted,
+        };
 
-        // Add to AMQF
-        filter
-            .insert_fingerprint(false, key_hash)
-            // This can't fail as we allocated enough capacity
-            .expect("AMQF insert failed");
+        // Push pending key entry
+        let key_len = key.len();
+        self.pending_keys.push_back(PendingKeyEntry {
+            key_hash,
+            key,
+            value_ref,
+        });
 
-        // Accumulate until the block is full
-        if current_block_size > 0
-                && (current_block_size + key_len + KEY_BLOCK_ENTRY_META_OVERHEAD
-                    > MAX_KEY_BLOCK_SIZE
-                    || i - current_block_start >= MAX_KEY_BLOCK_ENTRIES) &&
-                    // avoid breaking the block in the middle of a hash conflict
-                    last_hash != key_hash
+        // Update key block size tracking
+        self.current_key_block_size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
+        self.current_key_block_entry_count += 1;
+        self.current_key_block_max_key_len = self.current_key_block_max_key_len.max(key_len);
+
+        // Flush small value block if full
+        if self.pending_small_values.len() >= MIN_SMALL_VALUE_BLOCK_SIZE
+            || self.pending_small_value_count >= MAX_SMALL_VALUE_BLOCK_ENTRIES
         {
-            let entry_count = i - current_block_start;
-            let has_hash = use_hash(current_block_max_key_len);
-            let mut block = KeyBlockBuilder::new(buffer, entry_count as u32, has_hash);
-            for j in current_block_start..i {
-                let entry = &entries[j];
-                let value_location = &value_locations[j];
-                add_entry_to_block(entry, value_location, &mut block);
+            self.flush_small_value_block()?;
+        }
+
+        // Try to flush completed key blocks
+        self.try_flush_key_blocks()?;
+
+        Ok(())
+    }
+
+    /// Flushes the current pending small value block to disk.
+    fn flush_small_value_block(&mut self) -> Result<()> {
+        if self.pending_small_values.is_empty() {
+            return Ok(());
+        }
+
+        let block_index = write_block_to_file(
+            &mut self.file,
+            &mut self.compress_buffer,
+            &mut self.block_offsets,
+            &self.pending_small_values,
+            true,
+        )
+        .context("Failed to write small value block")?;
+
+        // Record the mapping from small_block_id -> block_index
+        let id = self.current_small_block_id as usize;
+        debug_assert_eq!(id, self.small_block_indices.len());
+        self.small_block_indices.push(Some(block_index));
+
+        // Advance to next small block id
+        self.current_small_block_id += 1;
+        self.pending_small_values.clear();
+        self.pending_small_value_count = 0;
+
+        // Advance first_unresolved_small_block_id
+        while (self.first_unresolved_small_block_id as usize) < self.small_block_indices.len()
+            && self.small_block_indices[self.first_unresolved_small_block_id as usize].is_some()
+        {
+            self.first_unresolved_small_block_id += 1;
+        }
+
+        Ok(())
+    }
+
+    /// Checks if a value reference is resolved (i.e., its block index is known).
+    fn is_resolved(&self, value_ref: &ValueRef) -> bool {
+        match value_ref {
+            ValueRef::PendingSmall { small_block_id, .. } => {
+                *small_block_id < self.first_unresolved_small_block_id
             }
-            key_block_boundaries.push((
-                entries[current_block_start].key_hash(),
-                writer.next_block_index(),
-            ));
-            block.finish();
-            writer.write_key_block(buffer)?;
-            buffer.clear();
-            current_block_size = 0;
-            current_block_max_key_len = 0;
-            current_block_start = i;
+            _ => true,
         }
-        current_block_size += entry.key_len() + KEY_BLOCK_ENTRY_META_OVERHEAD;
-        current_block_max_key_len = current_block_max_key_len.max(key_len);
-        last_hash = key_hash;
     }
 
-    // Finish the last block
-    if current_block_size > 0 {
-        let entry_count = entries.len() - current_block_start;
-        let has_hash = use_hash(current_block_max_key_len);
-        let mut block = KeyBlockBuilder::new(buffer, entry_count as u32, has_hash);
-        for j in current_block_start..entries.len() {
-            let entry = &entries[j];
-            let value_location = &value_locations[j];
-            add_entry_to_block(entry, value_location, &mut block);
+    /// Resolves a `PendingSmall` to a `Small` value reference. Panics if not yet resolved.
+    fn resolve_value_ref(value_ref: &ValueRef, small_block_indices: &[Option<u16>]) -> ValueRef {
+        match *value_ref {
+            ValueRef::PendingSmall {
+                small_block_id,
+                offset,
+                size,
+            } => {
+                let block_index = small_block_indices[small_block_id as usize]
+                    .expect("small block not yet resolved");
+                ValueRef::Small {
+                    block_index,
+                    offset,
+                    size,
+                }
+            }
+            // Already resolved variants are returned as-is
+            ValueRef::Small {
+                block_index,
+                offset,
+                size,
+            } => ValueRef::Small {
+                block_index,
+                offset,
+                size,
+            },
+            ValueRef::Medium { block_index } => ValueRef::Medium { block_index },
+            ValueRef::Inline { data, len } => ValueRef::Inline { data, len },
+            ValueRef::Blob { blob_id } => ValueRef::Blob { blob_id },
+            ValueRef::Deleted => ValueRef::Deleted,
         }
-        key_block_boundaries.push((
-            entries[current_block_start].key_hash(),
-            writer.next_block_index(),
-        ));
-        block.finish();
-        writer.write_key_block(buffer)?;
-        buffer.clear();
     }
 
-    // Compute the index
-    let mut index_block = IndexBlockBuilder::new(
-        buffer,
-        key_block_boundaries
+    /// Tries to flush complete key blocks from the front of `pending_keys`.
+    fn try_flush_key_blocks(&mut self) -> Result<()> {
+        // Find the resolved prefix length
+        let mut resolved_count = 0;
+        for entry in &self.pending_keys {
+            if !self.is_resolved(&entry.value_ref) {
+                break;
+            }
+            resolved_count += 1;
+        }
+
+        if resolved_count == 0 {
+            return Ok(());
+        }
+
+        // Within the resolved prefix, find and flush complete key blocks.
+        // We need to re-scan the resolved entries to find block boundaries,
+        // tracking size from the front.
+        let mut block_start = 0;
+        let mut block_size = 0;
+        let mut block_max_key_len = 0;
+        let mut last_hash = 0u64;
+
+        for i in 0..resolved_count {
+            let entry = &self.pending_keys[i];
+            let key_len = entry.key.len();
+            let key_hash = entry.key_hash;
+
+            // Check if we should start a new block (same logic as old code)
+            if block_size > 0
+                && (block_size + key_len + KEY_BLOCK_ENTRY_META_OVERHEAD > MAX_KEY_BLOCK_SIZE
+                    || i - block_start >= MAX_KEY_BLOCK_ENTRIES)
+                && last_hash != key_hash
+            {
+                // Flush this key block
+                self.flush_key_block(block_start, i, block_max_key_len)?;
+                block_start = i;
+                block_size = 0;
+                block_max_key_len = 0;
+            }
+
+            block_size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
+            block_max_key_len = block_max_key_len.max(key_len);
+            last_hash = key_hash;
+        }
+
+        // Don't flush the trailing incomplete block here -- it may grow more.
+        // But if we flushed any blocks, drain those entries and recompute tracking.
+        if block_start > 0 {
+            // Drain the consumed entries
+            self.pending_keys.drain(..block_start);
+
+            // Recompute key block tracking from the remaining entries
+            self.current_key_block_size = 0;
+            self.current_key_block_entry_count = self.pending_keys.len();
+            self.current_key_block_max_key_len = 0;
+            for entry in &self.pending_keys {
+                self.current_key_block_size += entry.key.len() + KEY_BLOCK_ENTRY_META_OVERHEAD;
+                self.current_key_block_max_key_len =
+                    self.current_key_block_max_key_len.max(entry.key.len());
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Flushes a single key block from `pending_keys[start..end]`.
+    fn flush_key_block(&mut self, start: usize, end: usize, max_key_len: usize) -> Result<()> {
+        let entry_count = end - start;
+        let has_hash = use_hash(max_key_len);
+
+        self.key_buffer.clear();
+        let mut builder = KeyBlockBuilder::new(&mut self.key_buffer, entry_count as u32, has_hash);
+
+        for i in start..end {
+            let entry = &self.pending_keys[i];
+            let resolved = Self::resolve_value_ref(&entry.value_ref, &self.small_block_indices);
+
+            match resolved {
+                ValueRef::Small {
+                    block_index,
+                    offset,
+                    size,
+                } => {
+                    builder.put_small(
+                        entry.key_hash,
+                        &entry.key,
+                        block_index,
+                        offset,
+                        size,
+                        has_hash,
+                    );
+                }
+                ValueRef::Medium { block_index } => {
+                    builder.put_medium(entry.key_hash, &entry.key, block_index, has_hash);
+                }
+                ValueRef::Inline { data, len } => {
+                    builder.put_inline(entry.key_hash, &entry.key, &data[..len as usize], has_hash);
+                }
+                ValueRef::Blob { blob_id } => {
+                    builder.put_blob(entry.key_hash, &entry.key, blob_id, has_hash);
+                }
+                ValueRef::Deleted => {
+                    builder.delete(entry.key_hash, &entry.key, has_hash);
+                }
+                ValueRef::PendingSmall { .. } => {
+                    unreachable!("PendingSmall should have been resolved");
+                }
+            }
+        }
+
+        // Drop builder to release borrow on key_buffer before writing
+        builder.finish();
+
+        // Record boundary
+        let first_hash = self.pending_keys[start].key_hash;
+        let block_index = write_block_to_file(
+            &mut self.file,
+            &mut self.compress_buffer,
+            &mut self.block_offsets,
+            &self.key_buffer,
+            true,
+        )
+        .context("Failed to write key block")?;
+        self.key_block_boundaries.push((first_hash, block_index));
+
+        Ok(())
+    }
+
+    /// Finishes writing the SST file. Flushes remaining blocks, writes the index, and returns
+    /// metadata.
+    pub fn finish(mut self) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+        // Flush remaining small value block
+        self.flush_small_value_block()?;
+
+        // Now all PendingSmall entries are resolved. Flush all remaining key blocks.
+        self.flush_remaining_key_blocks()?;
+
+        // Handle empty file edge case
+        if self.key_block_boundaries.is_empty() {
+            // No entries were added. Write a minimal index block.
+            self.key_buffer.clear();
+            let index_block = IndexBlockBuilder::new(&mut self.key_buffer, 0, 0);
+            index_block.finish();
+            write_block_to_file(
+                &mut self.file,
+                &mut self.compress_buffer,
+                &mut self.block_offsets,
+                &self.key_buffer,
+                false,
+            )
+            .context("Failed to write index block")?;
+        } else {
+            // Write index block
+            self.key_buffer.clear();
+            let entry_count: u16 = (self.key_block_boundaries.len() - 1)
+                .try_into()
+                .expect("Index entries count overflow");
+            let first_block = self.key_block_boundaries[0].1;
+            let mut index_block =
+                IndexBlockBuilder::new(&mut self.key_buffer, entry_count, first_block);
+            for &(hash, block) in &self.key_block_boundaries[1..] {
+                index_block.put(hash, block);
+            }
+            index_block.finish();
+            write_block_to_file(
+                &mut self.file,
+                &mut self.compress_buffer,
+                &mut self.block_offsets,
+                &self.key_buffer,
+                false,
+            )
+            .context("Failed to write index block")?;
+        }
+
+        // Write block offset table
+        for offset in &self.block_offsets {
+            self.file
+                .write_u32::<BE>(*offset)
+                .context("Failed to write block offset")?;
+        }
+
+        let block_count: u16 = self
+            .block_offsets
             .len()
             .try_into()
-            .expect("Index entries count overflow"),
-        key_block_boundaries[0].1,
-    );
-    for (hash, block) in &key_block_boundaries[1..] {
-        index_block.put(*hash, *block);
-    }
-    let _ = writer.next_block_index();
-    index_block.finish();
-    writer.write_index_block(buffer)?;
-    buffer.clear();
+            .expect("Block count overflow");
 
-    Ok(turbo_bincode_encode(&AmqfBincodeWrapper(filter)).expect("AMQF serialization failed"))
+        // Serialize AMQF
+        let amqf = turbo_bincode_encode(&AmqfBincodeWrapper(self.filter))
+            .expect("AMQF serialization failed");
+
+        let meta = StaticSortedFileBuilderMeta {
+            min_hash: self.min_hash,
+            max_hash: self.max_hash,
+            amqf: Cow::Owned(amqf.into_vec()),
+            block_count,
+            size: self.file.stream_position()?,
+            flags: self.flags,
+            entries: self.entry_count,
+        };
+
+        Ok((meta, self.file.into_inner()?))
+    }
+
+    /// Flushes all remaining entries as key blocks. Called from `finish()` after all small value
+    /// blocks have been flushed, so all PendingSmall entries are resolved.
+    fn flush_remaining_key_blocks(&mut self) -> Result<()> {
+        if self.pending_keys.is_empty() {
+            return Ok(());
+        }
+
+        let total = self.pending_keys.len();
+        let mut block_start = 0;
+        let mut block_size = 0;
+        let mut block_max_key_len = 0;
+        let mut last_hash = 0u64;
+
+        for i in 0..total {
+            let entry = &self.pending_keys[i];
+            let key_len = entry.key.len();
+            let key_hash = entry.key_hash;
+
+            if block_size > 0
+                && (block_size + key_len + KEY_BLOCK_ENTRY_META_OVERHEAD > MAX_KEY_BLOCK_SIZE
+                    || i - block_start >= MAX_KEY_BLOCK_ENTRIES)
+                && last_hash != key_hash
+            {
+                self.flush_key_block(block_start, i, block_max_key_len)?;
+                block_start = i;
+                block_size = 0;
+                block_max_key_len = 0;
+            }
+
+            block_size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
+            block_max_key_len = block_max_key_len.max(key_len);
+            last_hash = key_hash;
+        }
+
+        // Flush the final block
+        if block_start < total {
+            self.flush_key_block(block_start, total, block_max_key_len)?;
+        }
+
+        self.pending_keys.clear();
+        Ok(())
+    }
 }
 
-/// Builder for a single key block
-pub struct KeyBlockBuilder<'l> {
+// ---------------------------------------------------------------------------
+// KeyBlockBuilder
+// ---------------------------------------------------------------------------
+
+/// Builder for a single key block.
+///
+/// Entries are added via `put_*` methods which write key data and value references into the buffer.
+/// The block format uses a fixed-size header table followed by variable-length entry data.
+struct KeyBlockBuilder<'l> {
     current_entry: usize,
     header_size: usize,
-    has_hash: bool,
     buffer: &'l mut Vec<u8>,
 }
 
@@ -487,7 +755,7 @@ const KEY_BLOCK_HEADER_SIZE: usize = 4;
 
 impl<'l> KeyBlockBuilder<'l> {
     /// Creates a new key block builder for the number of entries.
-    pub fn new(buffer: &'l mut Vec<u8>, entry_count: u32, has_hash: bool) -> Self {
+    fn new(buffer: &'l mut Vec<u8>, entry_count: u32, has_hash: bool) -> Self {
         debug_assert!(entry_count < (1 << 24));
 
         const ESTIMATED_KEY_SIZE: usize = 16;
@@ -505,103 +773,90 @@ impl<'l> KeyBlockBuilder<'l> {
         Self {
             current_entry: 0,
             header_size: buffer.len(),
-            has_hash,
             buffer,
         }
     }
 
-    /// Writes the 8-byte hash if `has_hash` is true.
-    fn write_hash<E: Entry>(&mut self, entry: &E) {
-        if self.has_hash {
-            let hash_bytes = entry.key_hash().to_be_bytes();
-            self.buffer.extend_from_slice(&hash_bytes);
+    /// Writes the 8-byte hash from a raw u64 if `has_hash` is true.
+    fn write_hash(&mut self, hash: u64, has_hash: bool) {
+        if has_hash {
+            self.buffer.extend_from_slice(&hash.to_be_bytes());
         }
     }
 
-    /// Writes a small-sized value to the buffer.
-    pub fn put_small<E: Entry>(
+    /// Writes the entry header (position + type) for the current entry.
+    fn write_entry_header(&mut self, entry_type: u8) {
+        let pos = self.buffer.len() - self.header_size;
+        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let header = (pos as u32) | ((entry_type as u32) << 24);
+        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+    }
+
+    /// Writes a small-sized value entry.
+    fn put_small(
         &mut self,
-        entry: &E,
+        hash: u64,
+        key: &[u8],
         value_block: u16,
         value_offset: u32,
         value_size: u16,
+        has_hash: bool,
     ) {
-        let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
-        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_SMALL as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
-
-        self.write_hash(entry);
-        entry.write_key_to(self.buffer);
+        self.write_entry_header(KEY_BLOCK_ENTRY_TYPE_SMALL);
+        self.write_hash(hash, has_hash);
+        self.buffer.extend_from_slice(key);
         self.buffer.write_u16::<BE>(value_block).unwrap();
         self.buffer.write_u16::<BE>(value_size).unwrap();
         self.buffer.write_u32::<BE>(value_offset).unwrap();
-
         self.current_entry += 1;
     }
 
-    /// Writes a medium-sized value to the buffer.
-    pub fn put_medium<E: Entry>(&mut self, entry: &E, value_block: u16) {
-        let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
-        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_MEDIUM as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
-
-        self.write_hash(entry);
-        entry.write_key_to(self.buffer);
+    /// Writes a medium-sized value entry.
+    fn put_medium(&mut self, hash: u64, key: &[u8], value_block: u16, has_hash: bool) {
+        self.write_entry_header(KEY_BLOCK_ENTRY_TYPE_MEDIUM);
+        self.write_hash(hash, has_hash);
+        self.buffer.extend_from_slice(key);
         self.buffer.write_u16::<BE>(value_block).unwrap();
-
         self.current_entry += 1;
     }
 
-    /// Writes a tombstone to the buffer.
-    pub fn delete<E: Entry>(&mut self, entry: &E) {
-        let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
-        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_DELETED as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
-
-        self.write_hash(entry);
-        entry.write_key_to(self.buffer);
-
+    /// Writes a tombstone entry.
+    fn delete(&mut self, hash: u64, key: &[u8], has_hash: bool) {
+        self.write_entry_header(KEY_BLOCK_ENTRY_TYPE_DELETED);
+        self.write_hash(hash, has_hash);
+        self.buffer.extend_from_slice(key);
         self.current_entry += 1;
     }
 
-    /// Writes a blob value to the buffer.
-    pub fn put_blob<E: Entry>(&mut self, entry: &E, blob: u32) {
-        let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
-        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_BLOB as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
-
-        self.write_hash(entry);
-        entry.write_key_to(self.buffer);
-        self.buffer.write_u32::<BE>(blob).unwrap();
-
+    /// Writes a blob value entry.
+    fn put_blob(&mut self, hash: u64, key: &[u8], blob_id: u32, has_hash: bool) {
+        self.write_entry_header(KEY_BLOCK_ENTRY_TYPE_BLOB);
+        self.write_hash(hash, has_hash);
+        self.buffer.extend_from_slice(key);
+        self.buffer.write_u32::<BE>(blob_id).unwrap();
         self.current_entry += 1;
     }
 
-    /// Writes an inline value directly to the key block.
-    pub fn put_inline<E: Entry>(&mut self, entry: &E, value: &[u8]) {
+    /// Writes an inline value entry.
+    fn put_inline(&mut self, hash: u64, key: &[u8], value: &[u8], has_hash: bool) {
         debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
-        let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
         let entry_type = KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + value.len() as u8;
-        let header = (pos as u32) | ((entry_type as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
-
-        self.write_hash(entry);
-        entry.write_key_to(self.buffer);
+        self.write_entry_header(entry_type);
+        self.write_hash(hash, has_hash);
+        self.buffer.extend_from_slice(key);
         self.buffer.extend_from_slice(value);
-
         self.current_entry += 1;
     }
 
-    /// Returns the key block buffer
-    pub fn finish(self) -> &'l mut Vec<u8> {
+    /// Returns the key block buffer.
+    fn finish(self) -> &'l mut Vec<u8> {
         self.buffer
     }
 }
+
+// ---------------------------------------------------------------------------
+// IndexBlockBuilder
+// ---------------------------------------------------------------------------
 
 /// Builder for a single index block.
 pub struct IndexBlockBuilder<'l> {
