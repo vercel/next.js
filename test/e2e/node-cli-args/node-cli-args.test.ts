@@ -9,6 +9,11 @@ describe('node-cli-args', () => {
   })
 
   it('should start server with --experimental-network-inspection', async () => {
-    await next.start()
+    if (process.version.startsWith('v20')) {
+      // --experimental-network-inspection is not supported in Node 20.
+      await expect(next.start()).rejects.toThrow()
+    } else {
+      await next.start()
+    }
   })
 })
