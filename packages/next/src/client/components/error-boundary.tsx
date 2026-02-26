@@ -18,9 +18,6 @@ export type ErrorComponent = React.ComponentType<{
   error: Error
   reset: () => void
   unstable_retry: () => void
-  componentStack: React.ErrorInfo['componentStack']
-  /** Only available in dev builds; `null` otherwise. */
-  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }>
 
 export interface ErrorBoundaryProps {
@@ -38,8 +35,6 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
 interface ErrorBoundaryHandlerState {
   error: Error | null
   previousPathname: string | null
-  componentStack: React.ErrorInfo['componentStack']
-  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }
 
 export class ErrorBoundaryHandler extends React.Component<
@@ -54,8 +49,6 @@ export class ErrorBoundaryHandler extends React.Component<
     this.state = {
       error: null,
       previousPathname: this.props.pathname,
-      componentStack: undefined,
-      ownerStack: null,
     }
   }
 
@@ -66,18 +59,7 @@ export class ErrorBoundaryHandler extends React.Component<
       throw error
     }
 
-    let ownerStack: string | null = null
-    if ('captureOwnerStack' in React) {
-      ownerStack = React.captureOwnerStack()
-    }
-
-    return { error, ownerStack }
-  }
-
-  componentDidCatch(_error: Error, errorInfo: React.ErrorInfo): void {
-    this.setState({
-      componentStack: errorInfo.componentStack,
-    })
+    return { error }
   }
 
   static getDerivedStateFromProps(
@@ -96,8 +78,6 @@ export class ErrorBoundaryHandler extends React.Component<
         return {
           error: null,
           previousPathname: props.pathname,
-          componentStack: undefined,
-          ownerStack: null,
         }
       }
     }
@@ -112,24 +92,16 @@ export class ErrorBoundaryHandler extends React.Component<
       return {
         error: null,
         previousPathname: props.pathname,
-        componentStack: undefined,
-        ownerStack: null,
       }
     }
     return {
       error: state.error,
       previousPathname: props.pathname,
-      componentStack: state.componentStack,
-      ownerStack: state.ownerStack,
     }
   }
 
   reset = () => {
-    this.setState({
-      error: null,
-      componentStack: undefined,
-      ownerStack: null,
-    })
+    this.setState({ error: null })
   }
 
   unstable_retry = () => {
@@ -153,8 +125,6 @@ export class ErrorBoundaryHandler extends React.Component<
             error={this.state.error}
             reset={this.reset}
             unstable_retry={this.unstable_retry}
-            componentStack={this.state.componentStack}
-            ownerStack={this.state.ownerStack}
           />
         </>
       )

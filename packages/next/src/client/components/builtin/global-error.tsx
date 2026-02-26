@@ -8,9 +8,6 @@ export type GlobalErrorComponent = React.ComponentType<{
   error: any
   reset: () => void
   unstable_retry: () => void
-  componentStack: React.ErrorInfo['componentStack']
-  /** Only available in dev builds; `null` otherwise. */
-  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }>
 
 function DefaultGlobalError({ error }: { error: any }) {

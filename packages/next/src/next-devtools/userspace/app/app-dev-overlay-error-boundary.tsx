@@ -17,9 +17,6 @@ type AppDevOverlayErrorBoundaryProps = {
 
 type AppDevOverlayErrorBoundaryState = {
   reactError: unknown
-  componentStack: React.ErrorInfo['componentStack']
-  /** Only available in dev builds; `null` otherwise. */
-  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }
 
 function ErroredHtml({
@@ -27,15 +24,11 @@ function ErroredHtml({
   error,
   reset,
   unstable_retry,
-  componentStack,
-  ownerStack,
 }: {
   globalError: GlobalErrorState
   error: unknown
   reset: () => void
   unstable_retry: () => void
-  componentStack: React.ErrorInfo['componentStack']
-  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }) {
   if (!error) {
     return (
@@ -52,8 +45,6 @@ function ErroredHtml({
         error={error}
         reset={reset}
         unstable_retry={unstable_retry}
-        componentStack={componentStack}
-        ownerStack={ownerStack}
       />
     </ErrorBoundary>
   )
@@ -68,34 +59,23 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
 
   state: AppDevOverlayErrorBoundaryState = {
     reactError: null,
-    componentStack: undefined,
-    ownerStack: null,
   }
 
   static getDerivedStateFromError(error: Error) {
     RuntimeErrorHandler.hadRuntimeError = true
 
-    let ownerStack: string | null = null
-    if ('captureOwnerStack' in React) {
-      ownerStack = React.captureOwnerStack()
-    }
-
     return {
       reactError: error,
-      ownerStack,
     }
   }
 
-  componentDidCatch(err: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(err: Error) {
     if (
       process.env.NODE_ENV === 'development' &&
       err.message === SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE
     ) {
       return
     }
-    this.setState({
-      componentStack: errorInfo.componentStack,
-    })
     dispatcher.openErrorOverlay()
   }
 
@@ -107,16 +87,12 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
   }
 
   reset = () => {
-    this.setState({
-      reactError: null,
-      componentStack: undefined,
-      ownerStack: null,
-    })
+    this.setState({ reactError: null })
   }
 
   render() {
     const { children, globalError } = this.props
-    const { reactError, componentStack, ownerStack } = this.state
+    const { reactError } = this.state
 
     const fallback = (
       <ErroredHtml
@@ -124,8 +100,6 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
         error={reactError}
         reset={this.reset}
         unstable_retry={this.unstable_retry}
-        componentStack={componentStack}
-        ownerStack={ownerStack}
       />
     )
 
