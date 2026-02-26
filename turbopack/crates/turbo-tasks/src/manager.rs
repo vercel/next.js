@@ -177,7 +177,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
-    fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32);
     fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
@@ -1564,11 +1563,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
-    fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32) {
-        self.backend
-            .set_own_task_aggregation_number(task, aggregation_number, self);
-    }
-
     fn mark_own_task_as_session_dependent(&self, task: TaskId) {
         self.backend.mark_own_task_as_session_dependent(task, self);
     }
@@ -1844,14 +1838,6 @@ pub fn current_task_for_testing() -> Option<TaskId> {
 pub fn mark_session_dependent() {
     with_turbo_tasks(|tt| {
         tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
-    });
-}
-
-/// Marks the current task as a root in the aggregation graph.  This means it starts with the
-/// correct aggregation number instead of needing to recompute it after the fact.
-pub fn mark_root() {
-    with_turbo_tasks(|tt| {
-        tt.set_own_task_aggregation_number(current_task("turbo_tasks::mark_root()"), u32::MAX)
     });
 }
 

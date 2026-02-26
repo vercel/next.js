@@ -725,6 +725,9 @@ pub struct FunctionArguments {
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     pub operation: Option<Span>,
+    /// Should the task be marked as a root in the aggregation graph on initial creation?
+    /// Root tasks start with aggregation number `u32::MAX`.
+    pub root: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -749,10 +752,14 @@ impl Parse for FunctionArguments {
                 ("operation", Meta::Path(_)) => {
                     parsed_args.operation = Some(meta.span());
                 }
+                ("root", Meta::Path(_)) => {
+                    parsed_args.root = Some(meta.span());
+                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
-                        "unexpected token, expected one of: \"fs\", \"network\", or \"operation\"",
+                        "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
+                         or \"root\"",
                     ));
                 }
             }
@@ -1078,6 +1085,7 @@ pub struct NativeFn {
     /// Used only if `is_method` is true.
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
+    pub is_root: bool,
 }
 
 impl NativeFn {
@@ -1093,6 +1101,7 @@ impl NativeFn {
             is_method,
             is_self_used,
             filter_trait_call_args,
+            is_root,
         } = self;
 
         if *is_method {
@@ -1120,6 +1129,7 @@ impl NativeFn {
                             #function_global_name,
                             #arg_filter,
                             #function_path,
+                            #is_root,
                         )
                     }
                 }
@@ -1132,6 +1142,7 @@ impl NativeFn {
                             #function_global_name,
                             #arg_filter,
                             #function_path,
+                            #is_root,
                         )
                     }
                 }
@@ -1144,6 +1155,7 @@ impl NativeFn {
                         #function_path_string,
                         #function_global_name,
                         #function_path,
+                        #is_root,
                     )
                 }
             }

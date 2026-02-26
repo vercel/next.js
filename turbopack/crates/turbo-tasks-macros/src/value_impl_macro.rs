@@ -123,6 +123,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: None, // not a trait method
+                is_root: false,
             };
 
             let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -244,6 +245,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_method: turbo_fn.is_method(),
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
+                    is_root: false,
                 };
 
                 let native_function_ident =

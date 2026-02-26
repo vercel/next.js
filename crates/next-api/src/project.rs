@@ -33,7 +33,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
     ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Vc,
-    debug::ValueDebugFormat, fxindexmap, mark_root, trace::TraceRawVcs,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -2381,12 +2381,10 @@ impl Project {
 
 // This is a performance optimization. This function is a root aggregation function that
 // aggregates over the whole subgraph.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
-    mark_root();
-
     let next_mode = project.next_mode();
     let next_mode_ref = next_mode.await?;
     let should_trace = next_mode_ref.is_production();

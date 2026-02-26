@@ -1485,6 +1485,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
+        let is_root = task_type.native_fn.is_root;
+
         // First check if the task exists in the cache which only uses a read lock
         if let Some(task_id) = self.task_cache.get(&task_type) {
             let task_id = *task_id;
@@ -1503,6 +1505,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let tx = check_backing_storage
             .then(|| self.backing_storage.start_read_transaction())
             .flatten();
+        let mut is_new = false;
         let (task_id, task_type) = {
             // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
             if let Some(task_id) = unsafe {
@@ -1541,6 +1544,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         let task_id = self.persisted_task_id_factory.get();
                         e.insert(task_type.clone(), task_id);
                         self.track_cache_miss(&task_type);
+                        is_new = true;
                         (task_id, ArcOrOwned::Arc(task_type))
                     }
                 };
@@ -1552,6 +1556,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 (task_id, task_type)
             }
         };
+
+        if is_new && is_root {
+            let mut ctx = self.execute_context(turbo_tasks);
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: u32::MAX,
+                    distance: None,
+                },
+                &mut ctx,
+            );
+        }
 
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
         unsafe {
@@ -1573,6 +1589,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
+        let is_root = task_type.native_fn.is_root;
+
         if let Some(parent_task) = parent_task
             && !parent_task.is_transient()
         {
@@ -1613,6 +1631,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let task_id = self.transient_task_id_factory.get();
                 e.insert(task_type.clone(), task_id);
                 self.track_cache_miss(&task_type);
+
+                if is_root {
+                    let mut ctx = self.execute_context(turbo_tasks);
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id,
+                            base_aggregation_number: u32::MAX,
+                            distance: None,
+                        },
+                        &mut ctx,
+                    );
+                }
+
                 self.connect_child(
                     parent_task,
                     task_id,
@@ -3038,23 +3069,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
-    fn set_own_task_aggregation_number(
-        &self,
-        task: TaskId,
-        aggregation_number: u32,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) {
-        let mut ctx = self.execute_context(turbo_tasks);
-        AggregationUpdateQueue::run(
-            AggregationUpdateJob::UpdateAggregationNumber {
-                task_id: task,
-                base_aggregation_number: aggregation_number,
-                distance: None,
-            },
-            &mut ctx,
-        );
-    }
-
     fn connect_task(
         &self,
         task: TaskId,
@@ -3567,16 +3581,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.mark_own_task_as_finished(task_id, turbo_tasks);
-    }
-
-    fn set_own_task_aggregation_number(
-        &self,
-        task: TaskId,
-        aggregation_number: u32,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        self.0
-            .set_own_task_aggregation_number(task, aggregation_number, turbo_tasks);
     }
 
     fn mark_own_task_as_session_dependent(
