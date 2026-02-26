@@ -208,7 +208,7 @@ The scheduler prioritizes likely navigations while minimizing unused downloads.
 When PPR is enabled, a page is divided into a static shell and a streamed dynamic section:
 
 - The shell, which can be prefetched, streams immediately
-- Dynamic data streams when ready
+- Uncached data streams when ready
 - Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches
 
 ## Troubleshooting
