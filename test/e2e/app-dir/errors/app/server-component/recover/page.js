@@ -9,14 +9,10 @@ export default function Page() {
   )
 }
 
-let hasThrown = false
-
 async function PageImpl() {
-  // Throw only during the runtime
   await connection()
 
-  if (!hasThrown) {
-    hasThrown = true
+  if (!globalThis.__nextTestRecover) {
     throw new Error('this is a test')
   }
 
