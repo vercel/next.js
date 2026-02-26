@@ -192,8 +192,8 @@ module.exports = {
   async rewrites() {
     return [
       {
-        source: '/docs/:slug',
-        destination: '/docs/md/:slug',
+        source: '/docs/:slug*',
+        destination: '/docs/md/:slug*',
         has: [
           {
             type: 'header',
