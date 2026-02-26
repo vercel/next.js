@@ -1491,14 +1491,6 @@ export class NestedMiddlewareError extends Error {
 
 export { getSupportedBrowsers } from './get-supported-browsers'
 
-export function shouldUseReactServerCondition(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return Boolean(
-    layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
-  )
-}
-
 export function isWebpackClientOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
@@ -1523,12 +1515,6 @@ export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
-}
-
-export function isWebpackAppPagesLayer(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 
 export function collectMeta({
