@@ -7,7 +7,7 @@ const nextConfig = {
     cpus: 1,
     serverSourceMaps: true,
   },
-  serverExternalPackages: ['@next-test-server-source-maps/external-pkg'],
+  serverExternalPackages: ['external-pkg'],
 }
 
 module.exports = nextConfig

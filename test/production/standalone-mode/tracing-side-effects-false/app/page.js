@@ -1,4 +1,4 @@
-import getValue from '@next-test-tracing-side-effects-false/foo'
+import getValue from 'foo'
 
 export default function Page() {
   return <p>{getValue()}</p>

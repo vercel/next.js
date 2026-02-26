@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@next-test-server-source-maps/internal-pkg": "link:./internal-pkg",
-    "@next-test-server-source-maps/external-pkg": "file:./external-pkg"
+    "internal-pkg": "link:./internal-pkg",
+    "external-pkg": "file:./external-pkg"
   }
 }

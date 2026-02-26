@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@next-test-self-importing-package-monorepo/internal-pkg": "link:./internal-pkg"
+    "internal-pkg": "link:./internal-pkg"
   },
   "exports": {
     ".": {

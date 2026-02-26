@@ -1,5 +1,5 @@
 {
-  "name": "@next-test-supports-module-resolution-nodenext/pkg",
+  "name": "pkg",
   "version": "1.0.0",
   "type": "module",
   "exports": {

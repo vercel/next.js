@@ -1,4 +1,4 @@
-import value from '@next-test-self-importing-package-monorepo/internal-pkg'
+import value from 'internal-pkg'
 import localValue from 'next-app'
 
 export default function Home() {

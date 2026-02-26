@@ -1,5 +1,5 @@
 {
-  "name": "@next-test-ssr-in-rsc/internal-pkg",
+  "name": "internal-pkg",
   "private": true,
   "type": "module",
   "exports": {

@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "@next-test-ssr-in-rsc/internal-pkg": "link:./internal-pkg"
+    "internal-pkg": "link:./internal-pkg"
   }
 }
