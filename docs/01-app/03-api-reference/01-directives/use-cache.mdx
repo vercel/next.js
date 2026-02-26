@@ -191,7 +191,7 @@ async function CachedForm({ action }: { action: () => Promise<void> }) {
 
 Cached functions execute in an isolated environment. The following constraints ensure cache behavior remains predictable and secure.
 
-### Runtime APIs
+### Request-time APIs
 
 Cached functions and components **cannot** directly access runtime APIs like `cookies()`, `headers()`, or `searchParams`. Instead, read these values outside the cached scope and pass them as arguments.
 

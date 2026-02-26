@@ -37,7 +37,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> **Good to know:** `after` is not a [Runtime API](/docs/app/glossary#runtime-apis) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
+> **Good to know:** `after` is not a [Request-time API](/docs/app/glossary#request-time-apis) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
 
 ## Reference
 
@@ -117,7 +117,7 @@ export async function POST(request) {
 
 #### In Server Components (pages and layouts)
 
-[Server Components](/docs/app/getting-started/server-and-client-components) (including pages, layouts, and `generateMetadata`) **cannot** use `cookies`, `headers`, or other Runtime APIs inside `after`. This is because Next.js needs to know which part of the component tree accesses request data to support [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) and [Cache Components](/docs/app/getting-started/caching), but `after` runs after React's rendering lifecycle.
+[Server Components](/docs/app/getting-started/server-and-client-components) (including pages, layouts, and `generateMetadata`) **cannot** use `cookies`, `headers`, or other Request-time APIs inside `after`. This is because Next.js needs to know which part of the component tree accesses request data to support [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) and [Cache Components](/docs/app/getting-started/caching), but `after` runs after React's rendering lifecycle.
 
 If you need request data inside an `after` callback in a Server Component, read it beforehand and pass the values in:
 

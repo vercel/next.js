@@ -49,8 +49,8 @@ Configure how the request should interact with Next.js [caching](/docs/app/getti
 fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 ```
 
-- **`auto no cache`** (default): Next.js fetches the resource from the remote server on every request in development, but will fetch once during `next build` because the route will be statically prerendered. If [Runtime APIs](/docs/app/glossary#runtime-apis) are detected on the route, Next.js will fetch the resource on every request.
-- **`no-store`**: Next.js fetches the resource from the remote server on every request, even if Runtime APIs are not detected on the route.
+- **`auto no cache`** (default): Next.js fetches the resource from the remote server on every request in development, but will fetch once during `next build` because the route will be statically prerendered. If [Request-time APIs](/docs/app/glossary#request-time-apis) are detected on the route, Next.js will fetch the resource on every request.
+- **`no-store`**: Next.js fetches the resource from the remote server on every request, even if Request-time APIs are not detected on the route.
 - **`force-cache`**: Next.js looks for a matching request in its server-side cache.
   - If there is a match and it is fresh, it will be returned from the cache.
   - If there is no match or a stale match, Next.js will fetch the resource from the remote server and update the cache with the downloaded resource.
