@@ -288,6 +288,10 @@ impl TurbopackFormat {
                     }
                 }
             }
+            TraceRow::MemorySample { .. } => {
+                // Memory samples are recorded for offline analysis; not yet processed by the
+                // trace server.
+            }
             TraceRow::AllocationCounters {
                 ts: _,
                 thread_id,
