@@ -89,7 +89,7 @@ export async function turbopackAnalyze(
       writeRoutesHashesManifest: false,
       currentNodeJsVersion,
       isPersistentCachingEnabled: persistentCaching,
-      nextVersion: require('next/package.json').version,
+      nextVersion: process.env.__NEXT_VERSION as string,
     },
     {
       memoryLimit: config.experimental?.turbopackMemoryLimit,
