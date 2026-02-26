@@ -43,7 +43,7 @@ describe(`Handle new URL asset references`, () => {
     if (isNextDev || !isTurbopack) {
       expectedToken = undefined
     } else {
-      expectedToken = next.deploymentId
+      expectedToken = next.assetToken
       if (!expectedToken) {
         throw new Error('Missing deployment id')
       }
