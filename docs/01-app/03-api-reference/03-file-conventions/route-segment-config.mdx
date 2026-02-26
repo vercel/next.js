@@ -9,7 +9,7 @@ description: Learn about how to configure options for Next.js route segments.
 > - Route Segment options only take effect in Server Component Pages, Layouts, or Route Handlers.
 > - `generateStaticParams` cannot be used inside a `'use client'` file.
 
-The Route Segment options allows you to configure the behavior of a [Page](/docs/app/api-reference/file-conventions/layout), [Layout](/docs/app/api-reference/file-conventions/layout), or [Route Handler](/docs/app/api-reference/file-conventions/route) by directly exporting the following variables:
+The Route Segment options allow you to configure the behavior of a [Page](/docs/app/api-reference/file-conventions/page), [Layout](/docs/app/api-reference/file-conventions/layout), or [Route Handler](/docs/app/api-reference/file-conventions/route) by directly exporting the following variables:
 
 | Option                                | Type                                                 | Default                    |
 | ------------------------------------- | ---------------------------------------------------- | -------------------------- |
@@ -38,12 +38,12 @@ export const dynamicParams = true // true | false
 > **Good to know**:
 >
 > - This option replaces the `fallback: true | false | blocking` option of `getStaticPaths` in the `pages` directory.
-> - To statically render all paths the first time they're visited, you'll need to return an empty array in `generateStaticParams` or utilize `export const dynamic = 'force-static'`.
+> - To statically render all paths the first time they're visited, you'll need to return an empty array in `generateStaticParams` or use `export const dynamic = 'force-static'`.
 > - When `dynamicParams = true`, the segment uses [Streaming Server Rendering](/docs/app/getting-started/linking-and-navigating#streaming).
 
 ### `runtime`
 
-We recommend using the Node.js runtime for rendering your application. This option cannot be used in [Proxy](/docs/app/api-reference/file-conventions/proxy).
+Use the Node.js runtime for rendering your application. This option cannot be used in [Proxy](/docs/app/api-reference/file-conventions/proxy).
 
 > **Good to know**: Using `runtime: 'edge'` is **not supported** for Cache Components.
 

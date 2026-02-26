@@ -14,7 +14,7 @@ You can mutate data in Next.js using [React Server Functions](https://react.dev/
 
 ## What are Server Functions?
 
-A **Server Function** is an asynchronous function that runs on the server. They can be called from the client through a network request, which is why they must be asynchronous.
+A **Server Function** is an asynchronous function that runs on the server. You can call them from the client through a network request, which is why they must be asynchronous.
 
 In an `action` or mutation context, they are also called **Server Actions**.
 
@@ -23,7 +23,7 @@ By convention, a Server Action is an async function used with [`startTransition`
 - Passed to a `<form>` using the `action` prop.
 - Passed to a `<button>` using the `formAction` prop.
 
-In Next.js, Server Actions integrate with the framework's [caching and revalidation](/docs/app/getting-started/revalidating) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
+When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
 
 Behind the scenes, actions use the `POST` method, and only this HTTP method can invoke them.
 
@@ -90,7 +90,7 @@ export default function Page() {
 ```jsx filename="app/page.js" switcher
 export default function Page() {
   // Server Action
-  async function createPost(formData: FormData) {
+  async function createPost(formData) {
     'use server'
     // ...
   }
@@ -330,7 +330,7 @@ export function Button() {
 }
 ```
 
-### Refreshing
+### Refresh data
 
 After a mutation, you may want to refresh the current page to show the latest data. You can do this by calling [`refresh`](/docs/app/api-reference/functions/refresh) from `next/cache` in a Server Action:
 
@@ -362,7 +362,7 @@ export async function updatePost(formData) {
 
 This refreshes the client router, ensuring the UI reflects the latest state. The `refresh()` function does not revalidate tagged data. To revalidate tagged data, use [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) instead.
 
-### Revalidating
+### Revalidate data
 
 After performing a mutation, you can revalidate the Next.js cache and show the updated data by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
 
@@ -389,7 +389,7 @@ export async function createPost(formData) {
 }
 ```
 
-### Redirecting
+### Redirect after a mutation
 
 You may want to redirect the user to a different page after a mutation. You can do this by calling [`redirect`](/docs/app/api-reference/functions/redirect) within the Server Function.
 
