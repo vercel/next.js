@@ -2040,3 +2040,36 @@ export function getClientReferenceManifest(
 export const getCacheHeader = (curRes: Response) =>
   // favor generic header
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
+
+export function getDeploymentId(appDir: string, isDev: boolean) {
+  let requiredServerFiles
+  if (!isDev) {
+    // File isn't written in dev, but it might still exist because it was created by a prior
+    // production build.
+    try {
+      requiredServerFiles = JSON.parse(
+        readFileSync(
+          path.join(appDir, getDistDir(), 'required-server-files.json'),
+          'utf8'
+        )
+      )
+    } catch {}
+  }
+
+  const deploymentId: string | undefined =
+    requiredServerFiles?.config?.deploymentId
+  const immutableAssetToken: string | undefined =
+    requiredServerFiles?.config?.experimental?.immutableAssetToken
+  const assetToken: string | undefined = immutableAssetToken || deploymentId
+
+  return {
+    deploymentId,
+    getDeploymentIdQuery(ampersand = false) {
+      return deploymentId ? `${ampersand ? '&' : '?'}dpl=${deploymentId}` : ''
+    },
+    assetToken,
+    getAssetQuery(ampersand = false) {
+      return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
+    },
+  }
+}
