@@ -277,7 +277,6 @@ describe('segment cache (basic tests)', () => {
     expect(await dynamicDiv.innerHTML()).toBe('Dynamic page')
   })
 
-  // TODO: Fix same-page navigation refresh behavior in deploy mode
   it('refreshes page segments when navigating to the exact same URL as the current location', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/same-page-nav', {
