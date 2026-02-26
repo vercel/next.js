@@ -1645,7 +1645,7 @@ async function getRSCPayload(
     ],
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
-    S: workStore.isStaticGeneration,
+    S: workStore.isStaticGeneration || !!ctx.renderOpts.cacheComponents,
     h: getMetadataVaryParamsThenable(),
   })
 }
@@ -1771,7 +1771,7 @@ async function getErrorRSCPayload(
       ] as FlightDataPath,
     ],
     G: [GlobalError, globalErrorStyles],
-    S: workStore.isStaticGeneration,
+    S: workStore.isStaticGeneration || !!ctx.renderOpts.cacheComponents,
     h: getMetadataVaryParamsThenable(),
   } satisfies InitialRSCPayload)
 }
@@ -1815,7 +1815,7 @@ function App<T>({
     initialCanonicalUrlParts: response.c,
     initialRenderedSearch: response.q,
     initialCouldBeIntercepted: response.i,
-    initialPrerendered: response.S,
+    initialSupportsPerSegmentPrefetching: response.S,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -1880,7 +1880,7 @@ function ErrorApp<T>({
     initialCanonicalUrlParts: response.c,
     initialRenderedSearch: response.q,
     initialCouldBeIntercepted: response.i,
-    initialPrerendered: response.S,
+    initialSupportsPerSegmentPrefetching: response.S,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
