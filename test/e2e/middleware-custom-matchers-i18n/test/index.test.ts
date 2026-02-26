@@ -48,7 +48,7 @@ describe('Middleware custom matchers i18n', () => {
 })
 
 describe('Middleware custom matchers with root', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, '../app', 'pages')),
       'next.config.js': new FileRef(
@@ -76,9 +76,7 @@ describe('Middleware custom matchers with root', () => {
 
   it('should not match', async () => {
     const res = await next.fetch(
-      isNextDeploy
-        ? '/_next/static/_buildManifest.js'
-        : `/_next/static/${next.buildId}/_buildManifest.js`
+      `/_next/static/${next.buildId}/_buildManifest.js`
     )
     expect(res.status).toBe(200)
     expect(res.headers.get('x-from-middleware')).toBeFalsy()
