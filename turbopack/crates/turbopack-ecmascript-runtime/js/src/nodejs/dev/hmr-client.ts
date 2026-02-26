@@ -18,7 +18,7 @@ type NodeJsHmrPayload = {
  * that Node.js can resolve stack frames from `eval`ed server HMR modules back to
  * their original source files. Mirrors the browser's _eval in dev-backend-dom.ts.
  */
-function maybeInlineSourcemaps(entry: EcmascriptModuleEntry): string {
+function inlineSourcemaps(entry: EcmascriptModuleEntry): string {
   const [chunkPath, moduleId] = entry.url.split('?', 2)
   const absolutePath = path.resolve(RUNTIME_ROOT, chunkPath)
   const fileHref = url.pathToFileURL(absolutePath).href
@@ -96,7 +96,7 @@ function handleNodejsUpdate(
 
     const evalModuleEntry = (entry: EcmascriptModuleEntry) => {
       // eslint-disable-next-line no-eval
-      return (0, eval)(maybeInlineSourcemaps(entry))
+      return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code)
     }
 
     const { added, modified } = computeChangedModules(

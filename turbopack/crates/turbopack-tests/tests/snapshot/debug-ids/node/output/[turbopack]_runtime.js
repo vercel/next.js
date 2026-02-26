@@ -1470,7 +1470,7 @@ module.exports = (sourcePath)=>({
  * Appends the module code with //# sourceURL and //# sourceMappingURL so
  * that Node.js can resolve stack frames from `eval`ed server HMR modules back to
  * their original source files. Mirrors the browser's _eval in dev-backend-dom.ts.
- */ function maybeInlineSourcemaps(entry) {
+ */ function inlineSourcemaps(entry) {
     const [chunkPath, moduleId] = entry.url.split('?', 2);
     const absolutePath = path.resolve(RUNTIME_ROOT, chunkPath);
     const fileHref = url.pathToFileURL(absolutePath).href;
@@ -1525,7 +1525,7 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
         const { entries = {}, chunks = {} } = instruction;
         const evalModuleEntry = (entry)=>{
             // eslint-disable-next-line no-eval
-            return (0, eval)(maybeInlineSourcemaps(entry));
+            return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code);
         };
         const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
         );
