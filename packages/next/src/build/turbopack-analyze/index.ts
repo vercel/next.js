@@ -7,7 +7,7 @@ import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/uti
 import { createDefineEnv, loadBindings } from '../swc'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../utils'
+import { getSupportedBrowsers } from '../get-supported-browsers'
 import { normalizePath } from '../../lib/normalize-path'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 

@@ -44,9 +44,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import browserslist from 'next/dist/compiled/browserslist'
 import {
-  MODERN_BROWSERSLIST_TARGET,
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
@@ -1578,30 +1576,7 @@ export class NestedMiddlewareError extends Error {
   }
 }
 
-export function getSupportedBrowsers(
-  dir: string,
-  isDevelopment: boolean
-): string[] {
-  let browsers: any
-  try {
-    const browsersListConfig = browserslist.loadConfig({
-      path: dir,
-      env: isDevelopment ? 'development' : 'production',
-    })
-    // Running `browserslist` resolves `extends` and other config features into a list of browsers
-    if (browsersListConfig && browsersListConfig.length > 0) {
-      browsers = browserslist(browsersListConfig)
-    }
-  } catch {}
-
-  // When user has browserslist use that target
-  if (browsers && browsers.length > 0) {
-    return browsers
-  }
-
-  // Uses modern browsers as the default.
-  return MODERN_BROWSERSLIST_TARGET
-}
+export { getSupportedBrowsers } from './get-supported-browsers'
 
 export function shouldUseReactServerCondition(
   layer: WebpackLayerName | null | undefined
