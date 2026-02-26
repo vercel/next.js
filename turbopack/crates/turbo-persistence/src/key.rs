@@ -230,7 +230,7 @@ impl<T: StoreKey> StoreKey for &'_ T {
 
 /// Hashes a key with a fast, deterministic hash function.
 pub fn hash_key(key: &impl KeyBase) -> u64 {
-    let mut hasher = twox_hash::XxHash64::with_seed(0);
+    let mut hasher = twox_hash::XxHash3_64::with_seed(0);
     key.hash(&mut hasher);
     hasher.finish()
 }

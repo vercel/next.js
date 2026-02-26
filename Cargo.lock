@@ -9387,7 +9387,7 @@ dependencies = [
  "tracing",
  "turbo-bincode",
  "turbo-tasks-malloc",
- "twox-hash 2.1.0",
+ "twox-hash 2.1.2",
  "zstd",
 ]
 
@@ -9650,7 +9650,7 @@ dependencies = [
  "data-encoding",
  "sha2",
  "turbo-tasks-macros",
- "twox-hash 2.1.0",
+ "twox-hash 2.1.2",
 ]
 
 [[package]]
@@ -9912,7 +9912,6 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbo-unix-path",
- "twox-hash 2.1.0",
  "url",
  "urlencoding",
  "uuid",
@@ -10418,11 +10417,11 @@ dependencies = [
 
 [[package]]
 name = "twox-hash"
-version = "2.1.0"
+version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7b17f197b3050ba473acf9181f7b1d3b66d1cf7356c6cc57886662276e65908"
+checksum = "9ea3136b675547379c4bd395ca6b938e5ad3c3d20fad76e7fe85f9e0d011419c"
 dependencies = [
- "rand 0.8.5",
+ "rand 0.9.0",
 ]
 
 [[package]]
