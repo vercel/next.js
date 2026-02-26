@@ -328,6 +328,11 @@ describe('app-dir - errors', () => {
     }
 
     describe('unstable_retry', () => {
+      afterEach(async () => {
+        // Always restore __nextTestRecover so it doesn't leak between tests
+        await next.fetch('/server-component/recover/set-recover?enabled=false')
+      })
+
       it('should recover Server Component error after unstable_retry', async () => {
         const browser = await next.browser('/server-component/recover')
 
@@ -339,7 +344,7 @@ describe('app-dir - errors', () => {
             : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
         )
 
-        // Signal the server to stop throwing before retrying
+        // Enable recovery via globalThis.__nextTestRecover
         await next.fetch('/server-component/recover/set-recover')
 
         await browser
@@ -348,9 +353,6 @@ describe('app-dir - errors', () => {
           .waitForElementByCss('#recover')
 
         expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
-
-        // Restore error state for subsequent runs
-        await next.fetch('/server-component/recover/set-recover?enabled=false')
       })
 
       it('should recover Client Component error after unstable_retry', async () => {
