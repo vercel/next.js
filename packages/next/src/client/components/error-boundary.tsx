@@ -19,7 +19,7 @@ export type ErrorComponent = React.ComponentType<{
   reset: () => void
   unstable_retry: () => void
   componentStack: React.ErrorInfo['componentStack']
-  /** DEV-only */
+  /** Only available in dev builds; `null` otherwise. */
   ownerStack: ReturnType<typeof React.captureOwnerStack>
 }>
 
