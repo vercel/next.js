@@ -19,8 +19,6 @@ Revalidation is the process of updating cached data. It lets you keep serving fa
 - **Time-based revalidation**: Automatically refresh cached data after a set duration using [`cacheLife`](#cachelife).
 - **On-demand revalidation**: Manually invalidate cached data after a mutation using [`revalidateTag`](#revalidatetag), [`updateTag`](#updatetag), or [`revalidatePath`](#revalidatepath).
 
-> This page covers revalidation with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents). If you're not using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
-
 ## `cacheLife`
 
 [`cacheLife`](/docs/app/api-reference/functions/cacheLife) controls how long cached data remains valid. Use it inside a [`use cache`](/docs/app/api-reference/directives/use-cache) scope to set the cache lifetime.

@@ -766,7 +766,7 @@ These examples include, working with [Cookies](/docs/app/api-reference/file-conv
 
 Fetch data in Server Components directly from its source, not via Route Handlers.
 
-For Server Components pre-rendered at build time, using Route Handlers will fail the build step. This is because, while building there is no server listening for these requests.
+For Server Components prerendered at build time, using Route Handlers will fail the build step. This is because, while building there is no server listening for these requests.
 
 For Server Components rendered on demand, fetching from Route Handlers is slower due to the extra HTTP round trip between the handler and the render process.
 
