@@ -948,6 +948,13 @@ export async function initialize(opts: {
           // Webpack compilation failures may bubble out of invokeRender. Log
           // the readable diagnostic without printing the wrapper stack again.
           Log.error(getErrorMessage(err))
+        } else if (err instanceof NoFallbackError) {
+          // NoFallbackError is internal control-flow used when dynamicParams=false
+          // rejects an unknown param. The 404 response is already handled by
+          // handleRequest; logging it here produces false-positive errors in APM
+          // tools (Datadog, Sentry) that hook into console.error.
+          invokePath = '/404'
+          invokeStatus = '404'
         } else {
           console.error(err)
         }
