@@ -217,10 +217,135 @@ module.exports = {
 
 - Supported boolean operators are `{all: [...]}`, `{any: [...]}` and `{not: ...}`.
 - Supported customizable operators are `{path: string | RegExp}`, `{content: RegExp}`, `{query: string | RegExp}`, and `{contentType: string | RegExp}`. If multiple operators are specified in the same object, it acts as an implicit `and`.
-  - `path` matches against the project-relative file path. A string is treated as a glob pattern, while a RegExp can be used to match the path partially.
-  - `content` matches anywhere in the file content.
-  - `query` matches the import's query string (e.g., `?foo` in `import './file?foo'`). A string must match exactly, while a RegExp can be used to match the query string partially.
-  - `contentType` matches the MIME content type of the resource (e.g., from data URLs like `data:text/plain,...`). A string is treated as a glob pattern (e.g., `text/*`, `image/*`), while a RegExp can be used to match the content type partially.
+
+#### `path`
+
+Matches against the project-relative file path. A string is treated as a glob pattern, while a RegExp can be used to match the path partially.
+
+For example, to only run a loader on SVG files inside a specific directory:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*': {
+        condition: { path: 'assets/icons/*.svg' },
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+}
+```
+
+Using a RegExp to match files in any `components` subdirectory:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*.svg': {
+        condition: { path: /\/components\/.*\.svg$/ },
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+}
+```
+
+#### `content`
+
+Matches anywhere in the file content. This is always a RegExp.
+
+For example, to apply a loader only to files that contain a specific annotation:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*.js': {
+        condition: { content: /@useSpecialTransform/ },
+        loaders: ['my-special-loader'],
+        as: '*.js',
+      },
+    },
+  },
+}
+```
+
+#### `query`
+
+Matches the import's query string (e.g., `?raw` in `import './file?raw'`). A string must match exactly (including the leading `?`), while a RegExp can be used to match the query string partially. This is similar to webpack's [`resourceQuery`](https://webpack.js.org/configuration/module/#ruleresourcequery).
+
+For example, to apply different loaders based on the query string:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*.txt': [
+        {
+          condition: { query: '?raw' },
+          loaders: ['raw-loader'],
+          as: '*.js',
+        },
+        {
+          condition: { query: /\?upper/ },
+          loaders: [require.resolve('./upper-loader.js')],
+          as: '*.js',
+        },
+      ],
+    },
+  },
+}
+```
+
+Then in your application code:
+
+```tsx filename="app/page.tsx"
+// Exact string match: applies raw-loader
+import rawText from './data.txt?raw'
+
+// RegExp match: applies upper-loader
+import upperText from './data.txt?upper'
+```
+
+#### `contentType`
+
+Matches the MIME content type of the resource (e.g., from data URLs like `data:text/plain,...`). A string is treated as a glob pattern (e.g., `text/*`, `image/*`), while a RegExp can be used to match the content type partially.
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*': {
+        condition: { contentType: 'text/*' },
+        loaders: ['raw-loader'],
+        as: '*.js',
+      },
+    },
+  },
+}
+```
+
+#### Combining operators
+
+If multiple operators are specified in the same object, it acts as an implicit `and`. For example, to match only SVG files inside a specific directory that contain an `<svg` tag:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*': {
+        condition: { path: 'assets/**/*.svg', content: /<svg\W/ },
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+}
+```
 
 In addition, a number of built-in conditions are supported:
 
@@ -305,7 +430,10 @@ This is useful when you want to apply a loader to a specific import without affe
 
 ```tsx filename="app/page.tsx"
 // Apply a raw loader to import a .txt file as a JavaScript module
-import rawText from '../data.txt' with { turbopackLoader: 'raw-loader', turbopackAs: '*.js' }
+import rawText from '../data.txt' with {
+  turbopackLoader: 'raw-loader',
+  turbopackAs: '*.js',
+}
 
 export default function Page() {
   return <p>{rawText}</p>
@@ -324,7 +452,10 @@ The following import attributes are supported:
 Loaders with options pass a JSON-encoded string via `turbopackLoaderOptions`:
 
 ```tsx filename="app/page.tsx"
-import value from '../data.js' with { turbopackLoader: 'string-replace-loader', turbopackLoaderOptions: '{"search":"PLACEHOLDER","replace":"replaced value"}' }
+import value from '../data.js' with {
+  turbopackLoader: 'string-replace-loader',
+  turbopackLoaderOptions: '{"search":"PLACEHOLDER","replace":"replaced value"}',
+}
 ```
 
 > **Good to know**: Import attributes with `turbopackLoader` are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.
