@@ -9388,7 +9388,6 @@ dependencies = [
  "turbo-bincode",
  "turbo-tasks-malloc",
  "twox-hash 2.1.2",
- "zstd",
 ]
 
 [[package]]

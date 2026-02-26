@@ -360,6 +360,9 @@ pub struct ProjectOptions {
 
     /// Whether to enable persistent caching
     pub is_persistent_caching_enabled: bool,
+
+    /// The version of Next.js that is running.
+    pub next_version: RcStr,
 }
 
 #[derive(Default)]
@@ -567,6 +570,7 @@ impl ProjectContainer {
         let span = tracing::info_span!(
             "initialize project",
             project_name = %self.await?.name,
+            version = options.next_version.as_str(),
             env_diff = Empty
         );
         let span_clone = span.clone();

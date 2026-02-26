@@ -105,6 +105,7 @@ export async function turbopackBuild(): Promise<{
     currentNodeJsVersion,
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,
+    nextVersion: process.env.__NEXT_VERSION as string,
   }
 
   const sharedTurboOptions = {

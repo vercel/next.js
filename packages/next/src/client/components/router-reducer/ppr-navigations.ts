@@ -1491,7 +1491,7 @@ function dispatchRetryDueToTreeMismatch(
         metadataVaryPath,
         false, // couldBeIntercepted - doesn't matter, we're just marking hasDynamicRewrite
         createHrefFromUrl(retryUrl),
-        false, // isPPREnabled - doesn't matter, we're just marking hasDynamicRewrite
+        false, // supportsPerSegmentPrefetching - doesn't matter, we're just marking hasDynamicRewrite
         true // hasDynamicRewrite
       )
     }
