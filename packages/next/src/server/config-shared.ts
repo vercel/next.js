@@ -355,6 +355,7 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
+  prefetchInlining?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -1636,6 +1637,7 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     varyParams: false,
+    prefetchInlining: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1780,6 +1782,7 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'optimisticRouting'
     | 'inlineCss'
+    | 'prefetchInlining'
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
@@ -1843,6 +1846,7 @@ export function getNextConfigRuntime(
         dynamicOnHover: ex.dynamicOnHover,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
+        prefetchInlining: ex.prefetchInlining,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,

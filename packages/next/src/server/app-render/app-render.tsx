@@ -6114,7 +6114,8 @@ async function collectSegmentData(
     fullPageDataBuffer,
     staleTime,
     clientModules,
-    serverConsumerManifest
+    serverConsumerManifest,
+    renderOpts.experimental.prefetchInlining
   )
 }
 

@@ -10,6 +10,7 @@ import {
   readOrCreateSegmentCacheEntry,
   fetchRouteOnCacheMiss,
   fetchSegmentOnCacheMiss,
+  fetchInlinedSegmentsOnCacheMiss,
   EntryStatus,
   type FulfilledRouteCacheEntry,
   type RouteCacheEntry,
@@ -793,6 +794,7 @@ function pingRootRouteTree(
               )
             }
           }
+
           return PrefetchTaskExitStatus.Done
         }
         case FetchStrategy.Full:
@@ -1482,6 +1484,25 @@ function pingStaticSegmentData(
 ): void {
   switch (segment.status) {
     case EntryStatus.Empty:
+      if (process.env.__NEXT_PREFETCH_INLINING) {
+        // All segment data for this route is bundled into a single
+        // /_inlined response. Walk the full route tree to collect all
+        // Empty segments, upgrade them to Pending, and spawn one
+        // bundled request. Subsequent calls for other segments in the
+        // same tree will see them as Pending and skip.
+        const inlinedEntries = collectInlinedEntries(now, route)
+        if (inlinedEntries.size > 0) {
+          spawnPrefetchSubtask(
+            fetchInlinedSegmentsOnCacheMiss(
+              route,
+              routeKey,
+              route.tree,
+              inlinedEntries
+            )
+          )
+        }
+        break
+      }
       // Upgrade to Pending so we know there's already a request in progress
       spawnPrefetchSubtask(
         fetchSegmentOnCacheMiss(
@@ -1555,6 +1576,51 @@ function pingStaticSegmentData(
   // Segments do not have dependent tasks, so once the prefetch is initiated,
   // there's nothing else for us to do (except write the server data into the
   // entry, which is handled by `fetchSegmentOnCacheMiss`).
+}
+
+/**
+ * Walks the RouteTree (including the head metadata) and collects any segments
+ * that are still Empty into a Map, upgrading them to Pending. These entries
+ * will be fulfilled by the inlined prefetch response.
+ */
+function collectInlinedEntries(
+  now: number,
+  route: FulfilledRouteCacheEntry
+): Map<SegmentRequestKey, PendingSegmentCacheEntry> {
+  const entries = new Map<SegmentRequestKey, PendingSegmentCacheEntry>()
+  collectInlinedEntriesImpl(now, route.tree, entries)
+  // Also collect the head/metadata entry.
+  const headEntry = readOrCreateSegmentCacheEntry(
+    now,
+    FetchStrategy.PPR,
+    route.metadata
+  )
+  if (headEntry.status === EntryStatus.Empty) {
+    entries.set(
+      route.metadata.requestKey,
+      upgradeToPendingSegment(headEntry, FetchStrategy.PPR)
+    )
+  }
+  return entries
+}
+
+function collectInlinedEntriesImpl(
+  now: number,
+  tree: RouteTree,
+  entries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
+): void {
+  const entry = readOrCreateSegmentCacheEntry(now, FetchStrategy.PPR, tree)
+  if (entry.status === EntryStatus.Empty) {
+    entries.set(
+      tree.requestKey,
+      upgradeToPendingSegment(entry, FetchStrategy.PPR)
+    )
+  }
+  if (tree.slots !== null) {
+    for (const parallelRouteKey in tree.slots) {
+      collectInlinedEntriesImpl(now, tree.slots[parallelRouteKey], entries)
+    }
+  }
 }
 
 function pingPPRSegmentRevalidation(
