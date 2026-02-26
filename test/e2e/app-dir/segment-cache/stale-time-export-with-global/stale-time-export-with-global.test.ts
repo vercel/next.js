@@ -39,7 +39,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     await toggleLink.click()
 
     // Advance 31 seconds - past global staleTimes.static (30s), within page unstable_staleTime (300s)
-    await page.clock.fastForward(31 * 1000)
+    await page.clock.fastForward('00:31')
 
     // Should NOT refetch page content - page's unstable_staleTime=300
     // hasn't elapsed.
@@ -55,7 +55,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     await toggleLink.click()
 
     // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
-    await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
+    await page.clock.fastForward('05:00')
 
     // Should refetch - unstable_staleTime has elapsed
     await act(
@@ -91,7 +91,7 @@ describe('segment cache - export const unstable_staleTime', () => {
 
     // Advance 31 seconds - past global staleTimes.dynamic (30s), within page unstable_staleTime (300s)
     await browser.back()
-    await page.clock.fastForward(31 * 1000)
+    await page.clock.fastForward('00:31')
 
     // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't
     // elapsed.
@@ -104,7 +104,7 @@ describe('segment cache - export const unstable_staleTime', () => {
 
     // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
     await browser.back()
-    await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
+    await page.clock.fastForward('05:00')
 
     // Should refetch - unstable_staleTime has elapsed
     await act(
