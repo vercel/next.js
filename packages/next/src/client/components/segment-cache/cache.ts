@@ -2899,8 +2899,6 @@ export async function getStaleAt(
 /**
  * Writes flight data into the segment cache as partial entries. The route-level
  * `isFullyStatic` flag handles skipping the dynamic follow-up at read time.
- *
- * Used for both navigation responses and initial HTML seed data.
  */
 export function writeStaticStageResponseIntoCache(
   now: number,
@@ -2929,6 +2927,36 @@ export function writeStaticStageResponseIntoCache(
     flightData,
     buildId,
     isResponsePartial,
+    headVaryParams,
+    staleAt,
+    route,
+    null // spawnedEntries — no pre-created entries; will create or upsert
+  )
+}
+
+/**
+ * Writes flight data from the initial HTML into the segment cache as complete
+ * entries. Used for fully static pages where all segments are present and no
+ * dynamic follow-up is needed.
+ */
+export function writeInitialFullyStaticResponseIntoCache(
+  now: number,
+  flightData: FlightData,
+  headVaryParamsThenable: VaryParamsThenable | null,
+  staleAt: number,
+  route: FulfilledRouteCacheEntry
+): void {
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
+
+  writeDynamicRenderResponseIntoCache(
+    now,
+    FetchStrategy.Full,
+    flightData,
+    undefined, // buildId — not applicable for initial HTML
+    false, // isResponsePartial — fully static, all segments are complete
     headVaryParams,
     staleAt,
     route,

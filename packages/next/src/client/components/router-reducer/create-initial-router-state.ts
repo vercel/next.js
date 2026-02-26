@@ -10,7 +10,7 @@ import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
   convertRootFlightRouterStateToRouteTree,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writeInitialFullyStaticResponseIntoCache,
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -105,10 +105,9 @@ export function createInitialRouterState({
 
       getStaleAt(now, initialStaleTime)
         .then((staleAt) => {
-          writeStaticStageResponseIntoCache(
+          writeInitialFullyStaticResponseIntoCache(
             now,
             initialFlightData,
-            undefined, // buildId - used to check mismatch during navigation
             initialHeadVaryParams,
             staleAt,
             route
