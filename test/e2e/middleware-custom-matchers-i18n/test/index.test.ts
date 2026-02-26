@@ -48,7 +48,7 @@ describe('Middleware custom matchers i18n', () => {
 })
 
 describe('Middleware custom matchers with root', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, '../app', 'pages')),
       'next.config.js': new FileRef(

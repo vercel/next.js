@@ -179,7 +179,6 @@ export async function turbopackBuild(): Promise<{
       distDir,
       encryptionKey,
       dev: false,
-      deploymentId: config.deploymentId,
       sriEnabled,
     })
 

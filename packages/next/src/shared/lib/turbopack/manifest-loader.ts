@@ -226,7 +226,6 @@ export class TurbopackManifestLoader {
     distDir: string
     encryptionKey: string
     dev: boolean
-    deploymentId: string
     sriEnabled: boolean
   }) {
     this.distDir = distDir
