@@ -288,9 +288,9 @@ impl TurbopackFormat {
                     }
                 }
             }
-            TraceRow::MemorySample { .. } => {
-                // Memory samples are recorded for offline analysis; not yet processed by the
-                // trace server.
+            TraceRow::MemorySample { ts, memory } => {
+                let ts = Timestamp::from_micros(ts);
+                store.add_memory_sample(ts, memory);
             }
             TraceRow::AllocationCounters {
                 ts: _,
