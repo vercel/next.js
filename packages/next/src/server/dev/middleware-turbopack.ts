@@ -307,17 +307,32 @@ async function createOriginalStackFrame(
     )
   }
 
-  return {
-    originalStackFrame: {
-      arguments: traced.frame.arguments,
-      file: normalizedStackFrameLocation,
-      line1: traced.frame.line1,
-      column1: traced.frame.column1,
-      ignored: traced.frame.ignored,
-      methodName: traced.frame.methodName,
+  /** undefined = not yet computed */
+  let originalCodeFrame: string | null | undefined
+
+  const tracedFrame = traced.frame
+  return Object.defineProperty(
+    {
+      originalStackFrame: {
+        arguments: tracedFrame.arguments,
+        file: normalizedStackFrameLocation,
+        line1: tracedFrame.line1,
+        column1: tracedFrame.column1,
+        ignored: tracedFrame.ignored,
+        methodName: tracedFrame.methodName,
+      },
+      originalCodeFrame: null,
     },
-    originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
-  }
+    'originalCodeFrame',
+    {
+      get: () => {
+        if (originalCodeFrame === undefined) {
+          originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source)
+        }
+        return originalCodeFrame
+      },
+    }
+  )
 }
 
 export function getOverlayMiddleware({
@@ -507,7 +522,18 @@ export async function getOriginalStackFrames({
             reason: 'Failed to create original stack frame',
           }
         }
-        return { status: 'fulfilled', value: stackFrame }
+        const originalStackFrame = stackFrame.originalStackFrame
+        return {
+          status: 'fulfilled',
+          value: {
+            originalStackFrame,
+            originalCodeFrame:
+              originalStackFrame?.ignored === false
+                ? // TODO: Don't get all codeframes of non-ignored frames eagerly.
+                  stackFrame.originalCodeFrame
+                : null,
+          },
+        }
       } catch (error) {
         return {
           status: 'rejected',

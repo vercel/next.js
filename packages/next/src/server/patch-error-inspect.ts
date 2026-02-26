@@ -303,7 +303,7 @@ function getSourcemappedFrameIfPossible(
     ignored,
   }
 
-  /** undefined = not yet computed*/
+  /** undefined = not yet computed */
   let codeFrame: string | null | undefined
 
   return Object.defineProperty(
