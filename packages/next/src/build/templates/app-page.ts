@@ -926,9 +926,10 @@ export async function handler(
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
                 )
-              : // Otherwise, if we're debugging the fallback shell, then we
-                // have to manually generate the fallback route params.
-                isDebugFallbackShell
+              : // Otherwise, if we're debugging the fallback shell or the
+                // static shell, then we have to manually generate the
+                // fallback route params.
+                isDebugFallbackShell || isDebugStaticShell
                 ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
 
@@ -1090,11 +1091,32 @@ export async function handler(
         prerenderInfo?.fallbackRouteParams &&
         getRequestMeta(req, 'renderFallbackShell')
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : // Otherwise, if we're debugging the fallback shell, then we have to
-            // manually generate the fallback route params.
-            isDebugFallbackShell
+          : // Otherwise, if we're debugging the fallback shell or the static
+            // shell, then we have to manually generate the fallback route
+            // params.
+            isDebugFallbackShell || isDebugStaticShell
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
+
+      // For staged dynamic rendering (cached navigations), pass the fallback
+      // params via request meta so the RequestStore knows which params to defer
+      // to the runtime stage. We don't pass them as fallbackRouteParams because
+      // that would replace actual param values with opaque placeholders during
+      // segment resolution.
+      if (
+        isProduction &&
+        nextConfig.cacheComponents &&
+        !isPrerendered &&
+        prerenderInfo?.fallbackRouteParams
+      ) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
 
       // Perform the render.
       return doRender({

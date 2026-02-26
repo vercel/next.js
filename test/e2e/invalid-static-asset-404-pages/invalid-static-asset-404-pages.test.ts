@@ -1,14 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('invalid-static-asset-404-pages', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
   it('should return correct output with status 200 on valid asset path', async () => {
-    const buildManifestPath = isNextDeploy
-      ? '/_next/static/_buildManifest.js'
-      : `/_next/static/${next.buildId}/_buildManifest.js`
+    const buildManifestPath = `/_next/static/${next.buildId}/_buildManifest.js`
 
     const res = await next.fetch(buildManifestPath)
     expect(res.status).toBe(200)

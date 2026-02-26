@@ -130,6 +130,17 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               underlyingCookies,
               workStore?.route
             )
+          } else if (workUnitStore.asyncApiPromises) {
+            const early = isInEarlyRenderStage(workUnitStore)
+            if (underlyingCookies === workUnitStore.mutableCookies) {
+              return early
+                ? workUnitStore.asyncApiPromises.earlyMutableCookies
+                : workUnitStore.asyncApiPromises.mutableCookies
+            } else {
+              return early
+                ? workUnitStore.asyncApiPromises.earlyCookies
+                : workUnitStore.asyncApiPromises.cookies
+            }
           } else {
             return makeUntrackedCookies(underlyingCookies)
           }

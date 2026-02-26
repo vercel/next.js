@@ -166,7 +166,6 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import {
@@ -549,12 +548,10 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
-    deploymentId,
   }: {
     buildId: string
     distDir: string
     locales: readonly string[] | undefined
-    deploymentId: string
   }
 ) {
   const ssgPages = new Set<string>(
@@ -571,12 +568,11 @@ async function writeClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
-  // When skew protection is enabled, we instead just rely on the deployment id query string to
-  // load the correct manifests, to avoid the build id.
-  let ssgManifestPath = deploymentId
-    ? path.join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
-    : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
-
+  let ssgManifestPath = path.join(
+    CLIENT_STATIC_FILES_PATH,
+    buildId,
+    '_ssgManifest.js'
+  )
   await writeFileUtf8(
     path.join(distDir, ssgManifestPath),
     clientSsgManifestContent
@@ -782,28 +778,35 @@ async function writeStandaloneDirectory(
     })
 }
 
-function getNumberOfWorkers(config: NextConfigComplete) {
+function getNumberOfWorkers(config: NextConfigComplete, maxTasks?: number) {
+  let workers: number
+
   if (
     config.experimental.cpus &&
     config.experimental.cpus !== defaultConfig.experimental!.cpus
   ) {
-    return config.experimental.cpus
-  }
-
-  if (config.experimental.memoryBasedWorkersCount) {
-    return Math.max(
+    // If it's not set to the default, it's a user override
+    workers = config.experimental.cpus
+  } else if (config.experimental.memoryBasedWorkersCount) {
+    workers = Math.max(
       Math.min(config.experimental.cpus || 1, Math.floor(os.freemem() / 1e9)),
       // enforce a minimum of 4 workers
       4
     )
+  } else if (config.experimental.cpus) {
+    workers = config.experimental.cpus
+  } else {
+    // Fall back to 4 workers if a count is not specified
+    workers = 4
   }
 
-  if (config.experimental.cpus) {
-    return config.experimental.cpus
+  // Cap workers to one more than the number of tasks.
+  // Tasks can be passed to avoid over-allocating workers.
+  if (maxTasks !== undefined && maxTasks > 0) {
+    workers = Math.min(workers, maxTasks + 1)
   }
 
-  // Fall back to 4 workers if a count is not specified
-  return 4
+  return Math.max(workers, 1)
 }
 
 const staticWorkerPath = require.resolve('./worker')
@@ -1946,7 +1949,8 @@ export default async function build(
       // #endregion
       // #region Collect data
 
-      const numberOfWorkers = getNumberOfWorkers(config)
+      const totalPageCount = pageKeys.pages.length + (pageKeys.app?.length || 0)
+      const numberOfWorkers = getNumberOfWorkers(config, totalPageCount)
       const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner(
         `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''}`
@@ -2584,16 +2588,11 @@ export default async function build(
               2
             )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
 
-            let clientMiddlewareManifestPath = config.deploymentId
-              ? path.join(
-                  CLIENT_STATIC_FILES_PATH,
-                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-                )
-              : path.join(
-                  CLIENT_STATIC_FILES_PATH,
-                  buildId,
-                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-                )
+            let clientMiddlewareManifestPath = path.join(
+              CLIENT_STATIC_FILES_PATH,
+              buildId,
+              TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+            )
 
             await writeFileUtf8(
               path.join(distDir, clientMiddlewareManifestPath),
@@ -2616,6 +2615,8 @@ export default async function build(
         buildTracesPromise = nextBuildSpan
           .traceChild('collect-build-traces')
           .traceAsyncFn(() => {
+            const { collectBuildTraces } =
+              require('./collect-build-traces') as typeof import('./collect-build-traces')
             return collectBuildTraces({
               dir,
               config,
@@ -3950,7 +3951,6 @@ export default async function build(
           distDir,
           buildId,
           locales: config.i18n?.locales,
-          deploymentId: config.deploymentId,
         })
       } else {
         await writePrerenderManifest(distDir, {

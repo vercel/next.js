@@ -129,7 +129,7 @@ impl MetaEntry {
 
     pub fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
         self.sst.get_or_try_init(|| {
-            StaticSortedFile::open(&meta.db_path, self.sst_data.clone()).with_context(|| {
+            StaticSortedFile::open(&meta.db_path, self.sst_data).with_context(|| {
                 format!(
                     "Unable to open static sorted file referenced from {:08}.meta",
                     meta.sequence_number()
@@ -161,6 +161,12 @@ impl MetaEntry {
 
     pub fn block_count(&self) -> u16 {
         self.sst_data.block_count
+    }
+
+    /// Returns the SST metadata needed to open the file independently.
+    /// Used during compaction to avoid caching mmaps on the MetaEntry.
+    pub fn sst_metadata(&self) -> StaticSortedFileMetaData {
+        self.sst_data
     }
 }
 

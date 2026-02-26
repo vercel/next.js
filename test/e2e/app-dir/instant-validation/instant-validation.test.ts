@@ -759,20 +759,34 @@ describe('instant validation', () => {
       await expectNoValidationErrors(browser, await browser.url())
     })
 
-    it('invalid - missing suspense around dynamic (with loading.js)', async () => {
+    it('valid - no suspense needed around dynamic in page if loading.js is present', async () => {
       const browser = await navigateTo(
-        '/suspense-in-root/static/invalid-only-loading-around-dynamic'
+        '/suspense-in-root/static/valid-only-loading-around-dynamic'
+      )
+      await expectNoValidationErrors(browser, await browser.url())
+    })
+
+    it('valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above', async () => {
+      const browser = await navigateTo(
+        '/suspense-in-root/static/valid-only-loading-around-dynamic-higher'
+      )
+      await expectNoValidationErrors(browser, await browser.url())
+    })
+
+    it('invalid - loading.js covers page, but not layout at the same level', async () => {
+      const browser = await navigateTo(
+        '/suspense-in-root/static/invalid-dynamic-layout-with-loading'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (4:33) @ unstable_instant
+             "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33) @ unstable_instant
        > 4 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
              "stack": [
-               "unstable_instant app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (4:33)",
+               "unstable_instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33)",
                "Set.forEach <anonymous>",
              ],
            },
@@ -792,12 +806,12 @@ describe('instant validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (31:19) @ Dynamic
-       > 31 |   await connection()
+         "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19) @ Dynamic
+       > 24 |   await connection()
             |                   ^",
          "stack": [
-           "Dynamic app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (31:19)",
-           "Page app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (19:9)",
+           "Dynamic app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19)",
+           "Layout app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (15:9)",
          ],
        }
       `)

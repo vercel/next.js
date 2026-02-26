@@ -12,9 +12,7 @@ const isBotUserAgent =
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
-  // global-error, there's no `reset` function;
-  // regular error boundary, there's a `reset` function.
-  reset?: () => void
+  reset: () => void
 }>
 
 export interface ErrorBoundaryProps {

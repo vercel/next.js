@@ -1073,5 +1073,8 @@
   "1072": "image of size %s could not be tracked by lru cache",
   "1073": "toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase",
   "1074": "Missing segment data: <head>",
-  "1075": "Page \"%s\" cannot use \\`unstable_staleTime\\` and \\`unstable_instant\\` together."
+  "1075": "Page \"%s\" cannot use \\`unstable_staleTime\\` and \\`unstable_instant\\` together.",
+  "1076": "Expected static stage body to be available",
+  "1077": "Page \"%s\" cannot use both \"use client\" and export const \"unstable_instant\".",
+  "1078": "Page \"%s\" cannot export \"unstable_instant\" from a Client Component module. To use this API, convert this module to a Server Component by removing the \"use client\" directive."
 }

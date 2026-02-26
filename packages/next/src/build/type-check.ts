@@ -17,11 +17,11 @@ import { hrtimeDurationToString } from './duration-to-string'
  * instead of running "next/lib/typescript/runTypeCheck" in a worker,
  * we will run entire "next/lib/verify-typescript-setup" in a worker instead.
  */
-function verifyTypeScriptSetup(
+function verifyAndRunTypeScript(
   dir: string,
   distDir: string,
   strictRouteTypes: boolean,
-  typeCheckPreflight: boolean,
+  shouldRunTypeCheck: boolean,
   tsconfigPath: string | undefined,
   typedRoutes: boolean,
   disableStaticImages: boolean,
@@ -33,38 +33,50 @@ function verifyTypeScriptSetup(
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ) {
-  const typeCheckWorker = new Worker(
-    require.resolve('../lib/verify-typescript-setup'),
-    {
-      exposedMethods: ['verifyTypeScriptSetup'],
-      debuggerPortOffset: -1,
-      isolatedMemory: false,
-      numWorkers: 1,
-      enableWorkerThreads,
-      maxRetries: 0,
-    }
-  ) as Worker & {
-    verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
+  let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
+  let typeCheckWorker:
+    | (Worker & {
+        verifyAndRunTypeScript: typeof impl
+      })
+    | undefined
+  if (shouldRunTypeCheck) {
+    typeCheckWorker = new Worker(
+      require.resolve('../lib/verify-typescript-setup'),
+      {
+        exposedMethods: ['verifyAndRunTypeScript'],
+        debuggerPortOffset: -1,
+        isolatedMemory: false,
+        numWorkers: 1,
+        enableWorkerThreads,
+        maxRetries: 0,
+      }
+    ) as typeof typeCheckWorker
+    impl = typeCheckWorker!.verifyAndRunTypeScript
+  } else {
+    // When not running typecheck, just run the implementation in-process without spawning a worker,
+    // to avoid the overhead of the worker.
+    impl = (
+      require('../lib/verify-typescript-setup') as typeof import('../lib/verify-typescript-setup')
+    ).verifyAndRunTypeScript
   }
 
-  return typeCheckWorker
-    .verifyTypeScriptSetup({
-      dir,
-      distDir,
-      strictRouteTypes,
-      typeCheckPreflight,
-      tsconfigPath,
-      typedRoutes,
-      disableStaticImages,
-      cacheDir,
-      hasAppDir,
-      hasPagesDir,
-      appDir,
-      pagesDir,
-      debugBuildPaths,
-    })
+  return impl({
+    dir,
+    distDir,
+    strictRouteTypes,
+    shouldRunTypeCheck,
+    tsconfigPath,
+    typedRoutes,
+    disableStaticImages,
+    cacheDir,
+    hasAppDir,
+    hasPagesDir,
+    appDir,
+    pagesDir,
+    debugBuildPaths,
+  })
     .then((result) => {
-      typeCheckWorker.end()
+      typeCheckWorker?.end()
       return result
     })
     .catch(() => {
@@ -116,7 +128,7 @@ export async function startTypeChecking({
     const [verifyResult, typeCheckEnd] = await nextBuildSpan
       .traceChild('run-typescript')
       .traceAsyncFn(() =>
-        verifyTypeScriptSetup(
+        verifyAndRunTypeScript(
           dir,
           config.distDir,
           Boolean(config.experimental.strictRouteTypes),

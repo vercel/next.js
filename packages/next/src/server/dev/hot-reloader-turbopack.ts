@@ -403,6 +403,7 @@ export async function createHotReloaderTurbopack(
       isPersistentCachingEnabled: isFileSystemCacheEnabledForDev(
         opts.nextConfig
       ),
+      nextVersion: process.env.__NEXT_VERSION as string,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
@@ -449,7 +450,6 @@ export async function createHotReloaderTurbopack(
     distDir,
     encryptionKey,
     dev: true,
-    deploymentId: nextConfig.deploymentId,
     sriEnabled: false,
   })
 

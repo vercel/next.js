@@ -126,7 +126,7 @@ if (!e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__) {
       global.test = wrapJestTestFn(global.test) as jest.It
     }
 
-    if (process.env.CI) {
+    if (process.env.NEXT_TEST_CI) {
       jest.retryTimes(1)
     }
   }

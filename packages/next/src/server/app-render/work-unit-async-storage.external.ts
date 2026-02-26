@@ -74,17 +74,17 @@ export interface RequestStore extends CommonWorkUnitStore {
    * This is used for dynamic pages to set the x-nextjs-stale-time header.
    */
   stale?: number
+  stagedRendering?: StagedRenderingController | null
+  asyncApiPromises?: AsyncApiPromises
+  cacheSignal?: CacheSignal | null
+  prerenderResumeDataCache?: PrerenderResumeDataCache | null
+  fallbackParams?: OpaqueFallbackRouteParams | null
 
   // DEV-only
   usedDynamic?: boolean
-  devFallbackParams?: OpaqueFallbackRouteParams | null
-  stagedRendering?: StagedRenderingController | null
-  asyncApiPromises?: DevAsyncApiPromises
-  cacheSignal?: CacheSignal | null
-  prerenderResumeDataCache?: PrerenderResumeDataCache | null
 }
 
-type DevAsyncApiPromises = {
+export type AsyncApiPromises = {
   cookies: Promise<ReadonlyRequestCookies>
   earlyCookies: Promise<ReadonlyRequestCookies>
 

@@ -5,6 +5,7 @@ import { errorStyles, errorThemeCss, ErrorIcon } from './error-styles'
 
 export type GlobalErrorComponent = React.ComponentType<{
   error: any
+  reset: () => void
 }>
 
 function DefaultGlobalError({ error }: { error: any }) {
