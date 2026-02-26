@@ -2,7 +2,6 @@ use std::{
     cmp::Ordering,
     fs::File,
     hash::BuildHasherDefault,
-    ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -121,8 +120,6 @@ impl ValueBlockCache for &mut Option<(u16, ArcBytes)> {
 pub struct StaticSortedFileMetaData {
     /// The sequence number of this file.
     pub sequence_number: u32,
-    /// The length of the key compression dictionary.
-    pub key_compression_dictionary_length: u16,
     /// The number of blocks in the SST file.
     pub block_count: u16,
 }
@@ -131,17 +128,6 @@ impl StaticSortedFileMetaData {
     pub fn block_offsets_start(&self, sst_len: usize) -> usize {
         let bc: usize = self.block_count.into();
         sst_len - (bc * size_of::<u32>())
-    }
-
-    pub fn blocks_start(&self) -> usize {
-        let k: usize = self.key_compression_dictionary_length.into();
-        k
-    }
-
-    pub fn key_compression_dictionary_range(&self) -> Range<usize> {
-        let start = 0;
-        let end: usize = self.key_compression_dictionary_length.into();
-        start..end
     }
 }
 
@@ -393,31 +379,22 @@ impl StaticSortedFile {
 
     /// Reads a key block from the file.
     fn read_key_block(&self, block_index: u16) -> Result<ArcBytes> {
-        self.read_block(
-            block_index,
-            Some(&self.mmap[self.meta.key_compression_dictionary_range()]),
-            false,
-        )
+        self.read_block(block_index)
     }
 
-    /// Reads a value block from the file.
+    /// Reads a small value block from the file.
     fn read_small_value_block(&self, block_index: u16) -> Result<ArcBytes> {
-        self.read_block(block_index, None, false)
+        self.read_block(block_index)
     }
 
     /// Reads a value block from the file.
     fn read_value_block(&self, block_index: u16) -> Result<ArcBytes> {
-        self.read_block(block_index, None, true)
+        self.read_block(block_index)
     }
 
     /// Reads a block from the file.
     #[tracing::instrument(level = "info", name = "reading database block", skip_all)]
-    fn read_block(
-        &self,
-        block_index: u16,
-        compression_dictionary: Option<&[u8]>,
-        long_term: bool,
-    ) -> Result<ArcBytes> {
+    fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
         let (uncompressed_length, block) = self.get_raw_block_slice(block_index)?;
 
         // 0 means the block was not compressed, return the mmap-backed ArcBytes directly
@@ -436,12 +413,7 @@ impl StaticSortedFile {
             block.len(),
         );
 
-        let buffer = decompress_into_arc(
-            uncompressed_length,
-            block,
-            compression_dictionary,
-            long_term,
-        )?;
+        let buffer = decompress_into_arc(uncompressed_length, block)?;
         Ok(ArcBytes::from(buffer))
     }
 
@@ -465,13 +437,11 @@ impl StaticSortedFile {
         #[cfg(feature = "strict_checks")]
         if block_index >= self.meta.block_count {
             bail!(
-                "Corrupted file seq:{} block:{} > number of blocks {} (block_offsets: {:x}, \
-                 blocks: {:x})",
+                "Corrupted file seq:{} block:{} > number of blocks {} (block_offsets: {:x})",
                 self.meta.sequence_number,
                 block_index,
                 self.meta.block_count,
                 self.meta.block_offsets_start(self.mmap.len()),
-                self.meta.blocks_start()
             );
         }
         let offset = self.meta.block_offsets_start(self.mmap.len()) + block_index as usize * 4;
@@ -479,34 +449,30 @@ impl StaticSortedFile {
         if offset + 4 > self.mmap.len() {
             bail!(
                 "Corrupted file seq:{} block:{} block offset locations {} + 4 bytes > file end {} \
-                 (block_offsets: {:x}, blocks: {:x})",
+                 (block_offsets: {:x})",
                 self.meta.sequence_number,
                 block_index,
                 offset,
                 self.mmap.len(),
                 self.meta.block_offsets_start(self.mmap.len()),
-                self.meta.blocks_start()
             );
         }
         let block_start = if block_index == 0 {
-            self.meta.blocks_start()
+            0
         } else {
-            self.meta.blocks_start() + (&self.mmap[offset - 4..offset]).read_u32::<BE>()? as usize
+            (&self.mmap[offset - 4..offset]).read_u32::<BE>()? as usize
         };
-        let block_end =
-            self.meta.blocks_start() + (&self.mmap[offset..offset + 4]).read_u32::<BE>()? as usize;
+        let block_end = (&self.mmap[offset..offset + 4]).read_u32::<BE>()? as usize;
         #[cfg(feature = "strict_checks")]
         if block_end > self.mmap.len() || block_start > self.mmap.len() {
             bail!(
-                "Corrupted file seq:{} block:{} block {} - {} > file end {} (block_offsets: {:x}, \
-                 blocks: {:x})",
+                "Corrupted file seq:{} block:{} block {} - {} > file end {} (block_offsets: {:x})",
                 self.meta.sequence_number,
                 block_index,
                 block_start,
                 block_end,
                 self.mmap.len(),
                 self.meta.block_offsets_start(self.mmap.len()),
-                self.meta.blocks_start()
             );
         }
         let uncompressed_length =

@@ -19,7 +19,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
-use lzzzz::lz4::{decompress, decompress_with_dict};
+use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::meta_file::MetaFile;
 // Import shared constants from the crate
@@ -80,8 +80,6 @@ struct SstStats {
     /// Value block sizes (small values)
     value_blocks: BlockSizeInfo,
 
-    /// Key compression dictionary size
-    key_dict_size: u64,
     /// Block directory size (block_count * 4 bytes at end of file)
     block_directory_size: u64,
 
@@ -105,7 +103,6 @@ impl SstStats {
         self.index_blocks.merge(&other.index_blocks);
         self.key_blocks.merge(&other.key_blocks);
         self.value_blocks.merge(&other.value_blocks);
-        self.key_dict_size += other.key_dict_size;
         self.block_directory_size += other.block_directory_size;
         self.inline_value_bytes += other.inline_value_bytes;
         self.small_value_refs += other.small_value_refs;
@@ -119,7 +116,6 @@ impl SstStats {
 /// Information about an SST file from the meta file
 struct SstInfo {
     sequence_number: u32,
-    key_compression_dictionary_length: u16,
     block_count: u16,
 }
 
@@ -201,7 +197,6 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
         for entry in meta_file.entries() {
             family_sst_info.entry(family).or_default().push(SstInfo {
                 sequence_number: entry.sequence_number(),
-                key_compression_dictionary_length: entry.key_compression_dictionary_length(),
                 block_count: entry.block_count(),
             });
         }
@@ -212,22 +207,14 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
 
 /// Decompress a block, respecting the optional compression protocol.
 /// When uncompressed_length is 0, the block is stored uncompressed.
-fn decompress_block(
-    compressed: &[u8],
-    uncompressed_length: u32,
-    dictionary: Option<&[u8]>,
-) -> Result<Arc<[u8]>> {
+fn decompress_block(compressed: &[u8], uncompressed_length: u32) -> Result<Arc<[u8]>> {
     // Sentinel: uncompressed_length = 0 means block is stored uncompressed
     if uncompressed_length == 0 {
         return Ok(Arc::from(compressed));
     }
 
     let mut buffer = vec![0u8; uncompressed_length as usize];
-    let bytes_written = if let Some(dict) = dictionary {
-        decompress_with_dict(compressed, &mut buffer, dict)?
-    } else {
-        decompress(compressed, &mut buffer)?
-    };
+    let bytes_written = decompress(compressed, &mut buffer)?;
     assert_eq!(
         bytes_written, uncompressed_length as usize,
         "Decompressed length does not match expected"
@@ -245,7 +232,6 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
     let mmap = unsafe { Mmap::map(&file)? };
 
     let mut stats = SstStats {
-        key_dict_size: info.key_compression_dictionary_length as u64,
         block_directory_size: info.block_count as u64 * 4,
         file_size,
         ..Default::default()
@@ -253,14 +239,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
 
     // Calculate offsets
     let block_offsets_start = mmap.len() - (info.block_count as usize * 4);
-    let blocks_start = info.key_compression_dictionary_length as usize;
-
-    // Get key compression dictionary if present
-    let key_dict = if info.key_compression_dictionary_length > 0 {
-        Some(&mmap[0..info.key_compression_dictionary_length as usize])
-    } else {
-        None
-    };
+    let blocks_start = 0;
 
     // Iterate through all blocks
     for block_index in 0..info.block_count {
@@ -287,27 +266,14 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
             uncompressed_length as u64
         };
 
-        // Try to decompress with key dictionary first (for key/index blocks)
-        let decompressed = match decompress_block(compressed_data, uncompressed_length, key_dict) {
+        let decompressed = match decompress_block(compressed_data, uncompressed_length) {
             Ok(data) => data,
-            Err(_) => {
-                // If that fails, try without dictionary (value blocks)
-                match decompress_block(compressed_data, uncompressed_length, None) {
-                    Ok(_) => {
-                        // This is a value block
-                        stats
-                            .value_blocks
-                            .add(compressed_size, actual_size, was_compressed);
-                        continue; // Value blocks don't have entry type headers
-                    }
-                    Err(e) => {
-                        eprintln!(
-                            "Warning: Failed to decompress block {} in {:08}.sst: {}",
-                            block_index, info.sequence_number, e
-                        );
-                        continue;
-                    }
-                }
+            Err(e) => {
+                eprintln!(
+                    "Warning: Failed to decompress block {} in {:08}.sst: {}",
+                    block_index, info.sequence_number, e
+                );
+                continue;
             }
         };
 
@@ -559,7 +525,7 @@ fn print_sst_details(seq_num: u32, stats: &SstStats) {
     );
 
     // Per-file overhead
-    let overhead = stats.key_dict_size + stats.block_directory_size;
+    let overhead = stats.block_directory_size;
     let overhead_pct = if stats.file_size > 0 {
         (overhead as f64 / stats.file_size as f64) * 100.0
     } else {
@@ -570,10 +536,6 @@ fn print_sst_details(seq_num: u32, stats: &SstStats) {
         "  │ Per-file Overhead: {} ({:.1}% of file)",
         format_bytes(overhead),
         overhead_pct
-    );
-    println!(
-        "  │   Key compression dictionary: {}",
-        format_bytes(stats.key_dict_size)
     );
     println!(
         "  │   Block directory: {}",
@@ -634,7 +596,7 @@ fn print_family_summary(family: u32, sst_count: usize, stats: &SstStats) {
     }
 
     // Per-file overhead
-    let total_overhead = stats.key_dict_size + stats.block_directory_size;
+    let total_overhead = stats.block_directory_size;
     let overhead_pct = if stats.file_size > 0 {
         (total_overhead as f64 / stats.file_size as f64) * 100.0
     } else {
@@ -646,16 +608,6 @@ fn print_family_summary(family: u32, sst_count: usize, stats: &SstStats) {
         format_bytes(total_overhead),
         overhead_pct
     );
-    println!(
-        "    Key compression dictionaries: {}",
-        format_bytes(stats.key_dict_size)
-    );
-    if sst_count > 0 {
-        println!(
-            "      Average per file: {}",
-            format_bytes(stats.key_dict_size / sst_count as u64)
-        );
-    }
     println!(
         "    Block directories: {}",
         format_bytes(stats.block_directory_size)

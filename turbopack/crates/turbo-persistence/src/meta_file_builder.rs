@@ -65,7 +65,6 @@ impl<'a> MetaFileBuilder<'a> {
         let mut amqf_offset = 0;
         for (sequence_number, sst) in &self.entries {
             file.write_u32::<BE>(*sequence_number)?;
-            file.write_u16::<BE>(sst.key_compression_dictionary_length)?;
             file.write_u16::<BE>(sst.block_count)?;
             file.write_u64::<BE>(sst.min_hash)?;
             file.write_u64::<BE>(sst.max_hash)?;

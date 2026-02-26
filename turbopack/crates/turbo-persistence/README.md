@@ -44,7 +44,7 @@ Therefore there are these value types:
 | Storage overhead      | 0                 | 8 B in key block + 8 B per ~8 kB in block table | 2 B in key block + 8 B in block table | 4 B in key block + 4 B in blob header     |
 | Compaction            | re-compressed     | re-compressed                                   | copied compressed                     | pointer copied                            |
 
-Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BLOCK_SIZE` (8 kB) of data. This means actual block sizes range from 8 kB up to 8 kB + `MAX_SMALL_VALUE_SIZE` (4 kB) = 12 kB. This provides a good balance between compression efficiency (blocks ≥ 4 kB don't need a compression dictionary) and access cost (only ~8–12 kB needs to be decompressed per lookup).
+Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BLOCK_SIZE` (8 kB) of data. This means actual block sizes range from 8 kB up to 8 kB + `MAX_SMALL_VALUE_SIZE` (4 kB) = 12 kB. This provides a good balance between compression efficiency (blocks ≥ 4 kB compress well with LZ4) and access cost (only ~8–12 kB needs to be decompressed per lookup).
 
 ### Meta file
 
@@ -59,7 +59,6 @@ A meta file can contain metadata about multiple SST files. The metadata is store
   - 4 bytes count of described SST files
   - foreach described SST file
     - 4 bytes sequence number of the SST file
-    - 2 bytes key Compression Dictionary length
     - 2 bytes block count
     - 8 bytes min hash
     - 8 bytes max hash
@@ -77,7 +76,6 @@ A meta file can contain metadata about multiple SST files. The metadata is store
 
 The SST file contains only data without any header.
 
-- serialized key Compression Dictionary
 - foreach block
   - 4 bytes block header (uncompressed length or sentinel)
   - block data (compressed or uncompressed)

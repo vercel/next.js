@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    cmp::min,
     fs::File,
     io::{BufWriter, Seek, Write},
     path::Path,
@@ -39,18 +38,6 @@ const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 20;
 const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = MIN_SMALL_VALUE_BLOCK_SIZE;
 /// The aimed false positive rate for the AMQF
 const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
-
-/// The maximum compression dictionary size for key and index blocks
-const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
-/// The maximum bytes that should be selected as key samples to create a compression dictionary
-const KEY_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
-/// The minimum bytes that should be selected as keys samples. Below that no compression dictionary
-/// is used.
-const MIN_KEY_COMPRESSION_SAMPLES_SIZE: usize = 1024;
-/// The bytes that are used per key entry for a sample.
-const COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 100;
-/// The minimum bytes that are used per key entry for a sample.
-const MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 16;
 
 /// Determines whether to store the hash per entry based on max key length.
 fn use_hash(max_key_len: usize) -> bool {
@@ -100,8 +87,6 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub max_hash: u64,
     /// The AMQF data
     pub amqf: Cow<'a, [u8]>,
-    /// The key compression dictionary
-    pub key_compression_dictionary_length: u16,
     /// The number of blocks in the SST file
     pub block_count: u16,
     /// The file size of the SST file
@@ -114,7 +99,6 @@ pub struct StaticSortedFileBuilderMeta<'a> {
 
 pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
-    total_key_size: usize,
     file: &Path,
     flags: MetaEntryFlags,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
@@ -122,12 +106,8 @@ pub fn write_static_stored_file<E: Entry>(
 
     let mut file = BufWriter::new(File::create(file)?);
 
-    let capacity = get_compression_buffer_capacity(total_key_size);
     // We use a shared buffer for all operations to avoid excessive allocations
-    let mut buffer = Vec::with_capacity(capacity);
-
-    let key_dict = compute_key_compression_dictionary(entries, total_key_size, &mut buffer)?;
-    file.write_all(&key_dict)?;
+    let mut buffer = Vec::new();
 
     let mut block_writer = BlockWriter::new(&mut file, &mut buffer);
 
@@ -142,7 +122,6 @@ pub fn write_static_stored_file<E: Entry>(
     let amqf = write_key_blocks_and_compute_amqf(
         entries,
         &value_locations,
-        &key_dict,
         &mut block_writer,
         &mut buffer,
     )
@@ -159,7 +138,6 @@ pub fn write_static_stored_file<E: Entry>(
         min_hash,
         max_hash,
         amqf: Cow::Owned(amqf.into_vec()),
-        key_compression_dictionary_length: key_dict.len().try_into().unwrap(),
         block_count,
         size: file.stream_position()?,
         flags,
@@ -168,70 +146,9 @@ pub fn write_static_stored_file<E: Entry>(
     Ok((meta, file.into_inner()?))
 }
 
-fn get_compression_buffer_capacity(total_key_size: usize) -> usize {
-    let mut size = 0;
-    if total_key_size >= MIN_KEY_COMPRESSION_SAMPLES_SIZE {
-        let key_compression_samples_size = min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 16);
-        size = key_compression_samples_size;
-    }
-    size
-}
-
-/// Computes compression dictionaries from keys of all entries
-#[tracing::instrument(level = "trace", skip(entries))]
-fn compute_key_compression_dictionary<E: Entry>(
-    entries: &[E],
-    total_key_size: usize,
-    buffer: &mut Vec<u8>,
-) -> Result<Vec<u8>> {
-    if total_key_size < MIN_KEY_COMPRESSION_SAMPLES_SIZE {
-        return Ok(Vec::new());
-    }
-    let key_compression_samples_size = min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 16);
-    let mut sample_sizes = Vec::new();
-
-    // Limit the number of iterations to avoid infinite loops
-    let max_iterations = total_key_size / COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY * 2;
-    for i in 0..max_iterations {
-        let entry = &entries[i % entries.len()];
-        let key_remaining = key_compression_samples_size - buffer.len();
-        if key_remaining < MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
-            break;
-        }
-        let len = entry.key_len();
-        if len >= MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
-            let used_len = min(key_remaining, COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);
-            if len <= used_len {
-                sample_sizes.push(len);
-                entry.write_key_to(buffer);
-            } else {
-                let mut temp = Vec::with_capacity(len);
-                entry.write_key_to(&mut temp);
-                debug_assert!(temp.len() == len);
-
-                let p = buffer.len() % (len - used_len);
-                sample_sizes.push(used_len);
-                buffer.extend_from_slice(&temp[p..p + used_len]);
-            }
-        }
-    }
-    debug_assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
-    let result = if buffer.len() > MIN_KEY_COMPRESSION_SAMPLES_SIZE && sample_sizes.len() > 5 {
-        zstd::dict::from_continuous(buffer, &sample_sizes, KEY_COMPRESSION_DICTIONARY_SIZE)
-            .context("Key dictionary creation failed")?
-    } else {
-        Vec::new()
-    };
-    buffer.clear();
-    Ok(result)
-}
-
-enum CompressionConfig<'a> {
+enum CompressionConfig {
     /// Attempt compression; use the result only if it's smaller than the original.
-    TryCompress {
-        dict: Option<&'a [u8]>,
-        long_term: bool,
-    },
+    TryCompress,
     /// Write the block uncompressed.
     Uncompressed,
 }
@@ -266,15 +183,9 @@ impl<'l> BlockWriter<'l> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn write_key_block(&mut self, block: &[u8], dict: &[u8]) -> Result<()> {
-        self.write_block(
-            block,
-            CompressionConfig::TryCompress {
-                dict: Some(dict),
-                long_term: false,
-            },
-        )
-        .context("Failed to write key block")
+    fn write_key_block(&mut self, block: &[u8]) -> Result<()> {
+        self.write_block(block, CompressionConfig::TryCompress)
+            .context("Failed to write key block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -286,32 +197,20 @@ impl<'l> BlockWriter<'l> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_small_value_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(
-            block,
-            CompressionConfig::TryCompress {
-                dict: None,
-                long_term: false,
-            },
-        )
-        .context("Failed to write small value block")
+        self.write_block(block, CompressionConfig::TryCompress)
+            .context("Failed to write small value block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_value_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(
-            block,
-            CompressionConfig::TryCompress {
-                dict: None,
-                long_term: true,
-            },
-        )
-        .context("Failed to write value block")
+        self.write_block(block, CompressionConfig::TryCompress)
+            .context("Failed to write value block")
     }
 
-    fn write_block(&mut self, block: &[u8], compression: CompressionConfig<'_>) -> Result<()> {
+    fn write_block(&mut self, block: &[u8], compression: CompressionConfig) -> Result<()> {
         let (uncompressed_size, data_to_write): (u32, &[u8]) = match compression {
-            CompressionConfig::TryCompress { dict, long_term } => {
-                self.compress_block_into_buffer(block, dict, long_term)?;
+            CompressionConfig::TryCompress => {
+                self.compress_block_into_buffer(block)?;
                 // Same threshold as LevelDB/RocksDB: require at least 12.5% savings to store
                 // compressed.
                 // See https://github.com/google/leveldb/blob/ac691084fdc5546421a55b25e7653d450e5a25fb/table/table_builder.cc#L164
@@ -369,14 +268,9 @@ impl<'l> BlockWriter<'l> {
         Ok(())
     }
 
-    /// Compresses a block with a compression dictionary.
-    fn compress_block_into_buffer(
-        &mut self,
-        block: &[u8],
-        dict: Option<&[u8]>,
-        long_term: bool,
-    ) -> Result<()> {
-        compress_into_buffer(block, dict, long_term, self.buffer)
+    /// Compresses a block using LZ4.
+    fn compress_block_into_buffer(&mut self, block: &[u8]) -> Result<()> {
+        compress_into_buffer(block, self.buffer)
     }
 }
 
@@ -457,7 +351,6 @@ fn write_value_blocks(
 fn write_key_blocks_and_compute_amqf(
     entries: &[impl Entry],
     value_locations: &[(u16, u32)],
-    key_compression_dictionary: &[u8],
     writer: &mut BlockWriter<'_>,
     buffer: &mut Vec<u8>,
 ) -> Result<TurboBincodeBuffer> {
@@ -531,7 +424,7 @@ fn write_key_blocks_and_compute_amqf(
                 writer.next_block_index(),
             ));
             block.finish();
-            writer.write_key_block(buffer, key_compression_dictionary)?;
+            writer.write_key_block(buffer)?;
             buffer.clear();
             current_block_size = 0;
             current_block_max_key_len = 0;
@@ -557,7 +450,7 @@ fn write_key_blocks_and_compute_amqf(
             writer.next_block_index(),
         ));
         block.finish();
-        writer.write_key_block(buffer, key_compression_dictionary)?;
+        writer.write_key_block(buffer)?;
         buffer.clear();
     }
 
