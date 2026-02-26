@@ -14,7 +14,7 @@ describe('segment cache - export const unstable_staleTime', () => {
     return
   }
 
-  it('overrides default staleTimes.static config', async () => {
+  it('overrides the default staleTimes.static value during prefetching', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -70,7 +70,67 @@ describe('segment cache - export const unstable_staleTime', () => {
     )
   })
 
-  it('overrides default staleTimes.dynamic config', async () => {
+  it('overrides the default staleTimes.dynamic value when navigating back via link', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+    await page.clock.install()
+    const pageContent = 'Dynamic page with unstable_staleTime = 300'
+
+    // Navigate to dynamic page with unstable_staleTime=300 (5 minutes)
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/dynamic-stale-5-minutes"]')
+          .click()
+        await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
+      },
+      { includes: pageContent }
+    )
+
+    // Navigate back to home using a link in the page.
+    await browser.elementByCss('#back-to-home').click()
+    await browser.elementByCss(
+      'input[data-link-accordion="/dynamic-stale-5-minutes"]'
+    )
+
+    // Advance 31 seconds - past default staleTimes.dynamic (0s), within page unstable_staleTime (300s)
+    await page.clock.fastForward(31 * 1000)
+
+    // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/dynamic-stale-5-minutes"]')
+        .click()
+      await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
+    }, 'no-requests')
+
+    // Navigate back to home using a link in the page.
+    await browser.elementByCss('#back-to-home').click()
+    await browser.elementByCss(
+      'input[data-link-accordion="/dynamic-stale-5-minutes"]'
+    )
+
+    // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
+    await page.clock.fastForward(5 * 60 * 1000 - 31 * 1000 + 1)
+
+    // Should refetch - unstable_staleTime has elapsed
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/dynamic-stale-5-minutes"]')
+          .click()
+        await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
+      },
+      { includes: pageContent }
+    )
+  })
+
+  it('overrides the default staleTimes.dynamic value when navigating back via browser back', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
