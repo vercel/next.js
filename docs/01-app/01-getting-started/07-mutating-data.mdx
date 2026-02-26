@@ -10,15 +10,13 @@ related:
     - app/api-reference/functions/redirect
 ---
 
-You can mutate data in Next.js using React's [Server Functions](https://react.dev/reference/rsc/server-functions). Learn how to [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions.
+You can mutate data in Next.js using [React Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions.
 
 ## What are Server Functions?
 
 A **Server Function** is an asynchronous function that runs on the server. You can call them from the client through a network request, which is why they must be asynchronous.
 
 In an `action` or mutation context, they are also called **Server Actions**.
-
-> **Good to know:** A Server Action is a Server Function used in a specific way (for handling form submissions and mutations). Server Function is the broader term.
 
 By convention, a Server Action is an async function used with [`startTransition`](https://react.dev/reference/react/startTransition). This happens automatically when the function is:
 
@@ -28,6 +26,8 @@ By convention, a Server Action is an async function used with [`startTransition`
 When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
 
 Behind the scenes, actions use the `POST` method, and only this HTTP method can invoke them.
+
+> **Good to know:** A Server Action is a Server Function used in a specific way (for handling form submissions and mutations). Server Function is the broader term.
 
 ## Creating Server Functions
 
