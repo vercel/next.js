@@ -403,6 +403,7 @@ export async function createHotReloaderTurbopack(
       isPersistentCachingEnabled: isFileSystemCacheEnabledForDev(
         opts.nextConfig
       ),
+      nextVersion: process.env.__NEXT_VERSION as string,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,

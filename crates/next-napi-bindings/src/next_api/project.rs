@@ -201,6 +201,9 @@ pub struct NapiProjectOptions {
 
     // Whether persistent caching is enabled
     pub is_persistent_caching_enabled: bool,
+
+    /// The version of Next.js that is running.
+    pub next_version: RcStr,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -307,6 +310,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             debug_build_paths,
             deferred_entries,
             is_persistent_caching_enabled,
+            next_version,
         } = val;
         ProjectOptions {
             root_path,
@@ -329,6 +333,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             }),
             deferred_entries,
             is_persistent_caching_enabled,
+            next_version,
         }
     }
 }

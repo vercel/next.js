@@ -169,6 +169,8 @@ export interface NapiProjectOptions {
   /** App-router page routes that should be built after non-deferred routes. */
   deferredEntries?: Array<RcStr>
   isPersistentCachingEnabled: boolean
+  /** The version of Next.js that is running. */
+  nextVersion: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
