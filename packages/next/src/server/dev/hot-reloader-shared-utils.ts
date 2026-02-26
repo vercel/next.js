@@ -8,7 +8,7 @@ export async function getVersionInfo(): Promise<VersionInfo> {
   let installed = '0.0.0'
 
   try {
-    installed = process.env.__NEXT_VERSION as string
+    installed = require('next/package.json').version
 
     let res
 
