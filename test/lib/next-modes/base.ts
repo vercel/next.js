@@ -54,6 +54,7 @@ export interface NextInstanceOpts {
   serverReadyPattern?: RegExp
   patchFileDelay?: number
   startServerTimeout?: number
+  disableAutoSkewProtection?: boolean
 }
 
 /**

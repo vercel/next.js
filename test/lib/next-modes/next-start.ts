@@ -1,10 +1,11 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
+import { shouldUseTurbopack } from 'next-test-utils'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -12,6 +13,14 @@ export class NextStartInstance extends NextInstance {
   private _cliOutput: string = ''
 
   private _prerenderFinishedTimeMS: number | null = null
+
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (!opts.disableAutoSkewProtection && shouldUseTurbopack()) {
+      this.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    }
+  }
 
   public get buildId() {
     return this._buildId

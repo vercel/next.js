@@ -265,6 +265,7 @@ export interface NextOptions {
   stderr?: true | 'log'
   stdout?: true | 'log'
   ignoreFail?: boolean
+  disableAutoSkewProtection?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -283,7 +284,7 @@ export function runNextCommand(
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
@@ -390,6 +391,7 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
+  disableAutoSkewProtection?: boolean
 
   stderr?: false
   stdout?: false
@@ -517,6 +519,11 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+  }
+
   return runNextCommand(['build', dir, ...args], opts)
 }
 
@@ -539,6 +546,11 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+  }
+
   return runNextCommandDev(
     ['start', '-p', port as string, '--hostname', '::', dir],
     undefined,

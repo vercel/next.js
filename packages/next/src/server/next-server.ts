@@ -700,9 +700,26 @@ export default class NextNodeServer extends BaseServer<
         return
       }
 
-      const { isAbsolute, href } = paramsResult
+      let { href } = paramsResult
 
-      const imageUpstream = isAbsolute
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.IS_TURBOPACK_TEST &&
+        !paramsResult.isAbsolute
+      ) {
+        // Forward the dpl query param from the original /_next/image request to the
+        // internal static file request so that the static file validation in
+        // resolve-routes.ts can verify it.
+        const dpl =
+          typeof req.url === 'string'
+            ? new URL(req.url, 'http://n').searchParams.get('dpl')
+            : undefined
+        if (dpl) {
+          href += `${href.includes('?') ? '&' : '?'}dpl=${dpl}`
+        }
+      }
+
+      const imageUpstream = paramsResult.isAbsolute
         ? await fetchExternalImage(
             href,
             this.nextConfig.images.dangerouslyAllowLocalIP,
