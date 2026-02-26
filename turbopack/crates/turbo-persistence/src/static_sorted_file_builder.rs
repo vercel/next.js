@@ -99,7 +99,6 @@ pub struct StaticSortedFileBuilderMeta<'a> {
 
 pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
-    _total_key_size: usize,
     file: &Path,
     flags: MetaEntryFlags,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
@@ -147,12 +146,9 @@ pub fn write_static_stored_file<E: Entry>(
     Ok((meta, file.into_inner()?))
 }
 
-enum CompressionConfig<'a> {
+enum CompressionConfig {
     /// Attempt compression; use the result only if it's smaller than the original.
-    TryCompress {
-        dict: Option<&'a [u8]>,
-        long_term: bool,
-    },
+    TryCompress,
     /// Write the block uncompressed.
     Uncompressed,
 }
@@ -188,14 +184,8 @@ impl<'l> BlockWriter<'l> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_key_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(
-            block,
-            CompressionConfig::TryCompress {
-                dict: None,
-                long_term: false,
-            },
-        )
-        .context("Failed to write key block")
+        self.write_block(block, CompressionConfig::TryCompress)
+            .context("Failed to write key block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -207,32 +197,20 @@ impl<'l> BlockWriter<'l> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_small_value_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(
-            block,
-            CompressionConfig::TryCompress {
-                dict: None,
-                long_term: false,
-            },
-        )
-        .context("Failed to write small value block")
+        self.write_block(block, CompressionConfig::TryCompress)
+            .context("Failed to write small value block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_value_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(
-            block,
-            CompressionConfig::TryCompress {
-                dict: None,
-                long_term: true,
-            },
-        )
-        .context("Failed to write value block")
+        self.write_block(block, CompressionConfig::TryCompress)
+            .context("Failed to write value block")
     }
 
-    fn write_block(&mut self, block: &[u8], compression: CompressionConfig<'_>) -> Result<()> {
+    fn write_block(&mut self, block: &[u8], compression: CompressionConfig) -> Result<()> {
         let (uncompressed_size, data_to_write): (u32, &[u8]) = match compression {
-            CompressionConfig::TryCompress { dict, long_term } => {
-                self.compress_block_into_buffer(block, dict, long_term)?;
+            CompressionConfig::TryCompress => {
+                self.compress_block_into_buffer(block)?;
                 // Same threshold as LevelDB/RocksDB: require at least 12.5% savings to store
                 // compressed.
                 // See https://github.com/google/leveldb/blob/ac691084fdc5546421a55b25e7653d450e5a25fb/table/table_builder.cc#L164
@@ -290,14 +268,9 @@ impl<'l> BlockWriter<'l> {
         Ok(())
     }
 
-    /// Compresses a block with a compression dictionary.
-    fn compress_block_into_buffer(
-        &mut self,
-        block: &[u8],
-        dict: Option<&[u8]>,
-        long_term: bool,
-    ) -> Result<()> {
-        compress_into_buffer(block, dict, long_term, self.buffer)
+    /// Compresses a block using LZ4.
+    fn compress_block_into_buffer(&mut self, block: &[u8]) -> Result<()> {
+        compress_into_buffer(block, self.buffer)
     }
 }
 
