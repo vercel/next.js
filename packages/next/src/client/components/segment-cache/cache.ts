@@ -2910,9 +2910,11 @@ export function writeStaticStageResponseIntoCache(
   staleAt: number,
   route: FulfilledRouteCacheEntry
 ): void {
-  // Always write segments as partial so that refreshes and other navigations
-  // can overwrite them. The route-level isFullyStatic flag handles skipping
-  // the dynamic follow-up at read time.
+  // Always write segments as partial, even for fully static routes. Writing as
+  // non-partial would prevent refreshes and shared parallel route slots from
+  // being overwritten on subsequent navigations. Instead, the route-level
+  // `isFullyStatic` flag is checked at read time (in
+  // `createCacheNodeForSegment`) to skip the dynamic follow-up request.
   const isResponsePartial = true
   const fetchStrategy = FetchStrategy.PPR
 
