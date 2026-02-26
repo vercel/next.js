@@ -41,7 +41,7 @@ impl OutputAsset for StaticOutputAsset {
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let content = self.source.content();
         let content_hash = content
-            .content_hash(HashAlgorithm::default())
+            .content_hash(HashAlgorithm::Xxh3Hash128Hex)
             .owned()
             .await?
             .context(
