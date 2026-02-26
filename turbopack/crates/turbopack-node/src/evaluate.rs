@@ -1,4 +1,6 @@
-use std::{borrow::Cow, iter, sync::Arc, thread::available_parallelism, time::Duration};
+use std::{
+    borrow::Cow, future::Future, iter, sync::Arc, thread::available_parallelism, time::Duration,
+};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
@@ -44,7 +46,11 @@ use crate::{
 #[serde(tag = "type", rename_all = "camelCase")]
 enum EvalJavaScriptOutgoingMessage<'a> {
     #[serde(rename_all = "camelCase")]
-    Evaluate { args: Vec<&'a JsonValue> },
+    Evaluate {
+        args: Vec<&'a JsonValue>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        compilation_marker: Option<u64>,
+    },
     Result {
         id: u64,
         data: Option<JsonValue>,
@@ -251,6 +257,9 @@ pub trait EvaluateContext {
     fn keep_alive(&self) -> bool {
         false
     }
+    fn compilation_marker(&self) -> impl Future<Output = Result<Option<u64>>> + Send {
+        async { Ok(None) }
+    }
     fn args(&self) -> &[ResolvedVc<JsonValue>];
     fn cwd(&self) -> Vc<FileSystemPath>;
     fn emit_error(
@@ -289,6 +298,7 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     // Assume this is a one-off operation, so we can kill the process
     // TODO use a better way to decide that.
     let kill = !evaluate_context.keep_alive();
+    let compilation_marker = evaluate_context.compilation_marker().await?;
 
     // Workers in the pool could be in a bad state that we didn't detect yet.
     // The bad state might even be unnoticeable until we actually send the job to the
@@ -301,6 +311,7 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
             operation
                 .send(EvalJavaScriptOutgoingMessage::Evaluate {
                     args: args.iter().map(|v| &**v).collect(),
+                    compilation_marker,
                 })
                 .await?;
             Ok(operation)

@@ -476,6 +476,30 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
+    fn compilation_marker(
+        &self,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<u64>>> + Send {
+        let cwd = self.cwd.clone();
+        async move {
+            let mut path = cwd;
+            loop {
+                if let Some(fs) = ResolvedVc::try_downcast_type::<
+                    turbo_tasks_fs::attach::AttachedFileSystem,
+                >(path.fs)
+                {
+                    path = fs.get_inner_fs_path(path).owned().await?;
+                    continue;
+                }
+                if let Some(fs) =
+                    ResolvedVc::try_downcast_type::<turbo_tasks_fs::DiskFileSystem>(path.fs)
+                {
+                    return Ok(Some(fs.await?.compilation_id()));
+                }
+                return Ok(None);
+            }
+        }
+    }
+
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
         EvaluationIssue {
             error,

@@ -61,6 +61,27 @@ const {
 
 const contextDir = process.cwd()
 
+let currentCompilationMarker: number | undefined = undefined
+let currentCompilation: object = Object.freeze({
+  __reserved: 'TurbopackContext',
+})
+
+/**
+ * Returns a stable object reference for the current compilation. All loader
+ * invocations within the same compilation batch share the same object, so it
+ * can be used as a key in a WeakMap or WeakSet to track per-compilation caches
+ *
+ * The marker is typed optional because `compilationMarker` is optional
+ * on the Ipc type for non webpack-loader transforms
+ */
+function getCompilationObject(marker: number | undefined): object {
+  if (marker !== currentCompilationMarker) {
+    currentCompilation = Object.freeze({ __reserved: 'TurbopackContext' })
+    currentCompilationMarker = marker
+  }
+  return currentCompilation
+}
+
 const LogType = Object.freeze({
   error: 'error',
   warn: 'warn',
@@ -178,6 +199,7 @@ const transform = (
             // webpack they can guess this comes from turbopack
             __reserved: 'TurbopackContext',
           },
+          _compilation: getCompilationObject(ipc.compilationMarker),
           currentTraceSpan: new DummySpan(),
           rootContext: contextDir,
           sourceMap,

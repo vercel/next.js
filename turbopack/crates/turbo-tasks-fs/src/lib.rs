@@ -42,7 +42,7 @@ use std::{
     io::{self, BufRead, BufReader, ErrorKind, Read, Write as _},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
-    sync::{Arc, LazyLock, Weak},
+    sync::{Arc, LazyLock, Weak, atomic::AtomicU64},
     time::Duration,
 };
 
@@ -299,9 +299,23 @@ struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "Handle::current")]
     tokio_handle: Handle,
+    /// Per-filesystem compilation id, incremented on each watcher batch flush.
+    /// Used to provide a stable `_compilation` object reference to webpack loaders
+    /// so they can use it as a WeakMap key for per-compilation caches.
+    /// Safety: This is an atomic on the shared `Arc<DiskFileSystemInner>`, so reads
+    /// via `DiskFileSystem.compilation_id()` see live values even across turbo-tasks
+    /// cell boundaries (the `Arc` is never serialized/deserialized, only cloned).
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip)]
+    compilation_id: AtomicU64,
 }
 
 impl DiskFileSystemInner {
+    fn increment_compilation_id(&self) {
+        self.compilation_id
+            .fetch_add(1, std::sync::atomic::Ordering::Release);
+    }
+
     /// Returns the root as Path
     fn root_path(&self) -> &Path {
         // just in case there's a windows unc path prefix we remove it with `dunce`
@@ -622,6 +636,12 @@ impl DiskFileSystem {
         self.inner.watcher.stop_watching();
     }
 
+    pub fn compilation_id(&self) -> u64 {
+        self.inner
+            .compilation_id
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
     /// filesystem root. If no `relative_to` argument is given, it is assumed that the `sys_path` is
     /// relative to the [`DiskFileSystem`] root.
@@ -748,6 +768,7 @@ impl DiskFileSystem {
                 denied_paths,
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
+                compilation_id: AtomicU64::new(1),
             }),
         };
 
