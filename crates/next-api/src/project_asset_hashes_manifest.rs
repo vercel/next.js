@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Serializer, ser::SerializeMap};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
@@ -155,11 +155,11 @@ impl Asset for AssetHashesManifestAsset {
                 for (path, content_hash) in self.asset_paths {
                     map.serialize_entry(
                         path,
-                        // TODO Error conversion
-                        &content_hash
-                            .as_ref()
-                            .context("asset content hash failed")
-                            .unwrap(),
+                        if let Some(content_hash) = content_hash.as_ref() {
+                            content_hash
+                        } else {
+                            return Err(S::Error::custom("asset content hash failed"));
+                        },
                     )?;
                 }
                 map.end()
