@@ -1,5 +1,3 @@
-import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
-
 // eslint-disable-next-line import/no-extraneous-dependencies
 export {
   createTemporaryReferenceSet,
@@ -49,6 +47,7 @@ export const InstantValidation =
     ? (require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation'))
     : undefined
 
+import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'

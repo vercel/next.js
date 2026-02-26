@@ -158,9 +158,9 @@ type ServerHmrSubscriptions = Map<
 function setupServerHmr(
   project: Project,
   {
-    onUpdateFailed,
+    clear,
   }: {
-    onUpdateFailed: () => void | Promise<void>
+    clear: () => void | Promise<void>
   }
 ) {
   const serverHmrSubscriptions: ServerHmrSubscriptions = new Map()
@@ -184,6 +184,14 @@ function setupServerHmr(
 
       for await (const result of subscription) {
         const update = result as NodeJsHmrUpdate
+
+        // Fully re-evaluate all chunks from disk. Clears the module cache and
+        // notifies browsers to refetch RSC.
+        if (update.type === 'restart') {
+          await clear()
+          continue
+        }
+
         if (update.type !== 'partial') {
           continue
         }
@@ -196,14 +204,14 @@ function setupServerHmr(
         if (typeof __turbopack_server_hmr_apply__ === 'function') {
           const applied = __turbopack_server_hmr_apply__(update)
           if (!applied) {
-            await onUpdateFailed()
+            await clear()
           }
         }
       }
     })().catch(async (err) => {
       console.error('[Server HMR] Subscription error:', err)
       serverHmrSubscriptions.delete(chunkPath)
-      await onUpdateFailed()
+      await clear()
     })
   }
 
@@ -580,33 +588,38 @@ export async function createHotReloaderTurbopack(
       }
     }
 
-    resetFetch()
-
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
       join(distDir, p)
     )
 
     const { type: entryType } = splitEntryKey(key)
-    // Server HMR only applies to App Router Node.js runtime endpoints.
+    // Server HMR only applies to App Router.
     // Pages Router uses Node's require(), root entries (middleware/instrumentation)
-    // use the edge runtime, and App Router edge routes all don't support server HMR.
-    const usesServerHmr = entryType === 'app' && writtenEndpoint.type !== 'edge'
+    // use the edge runtime.
+    const usesServerHmr =
+      experimentalServerFastRefresh &&
+      entryType === 'app' &&
+      writtenEndpoint.type !== 'edge'
 
     for (const file of serverPaths) {
-      const relativePath = relative(distDir, file)
-
-      if (usesServerHmr && serverHmrSubscriptions?.has(relativePath)) {
-        // Skip deleteCache for server HMR module chunks.
-        // Pages Router entries are excluded by usesServerHmr (always false for
-        // pages), so they always get deleteCache regardless of subscriptions.
-        continue
-      }
-
       clearModuleContext(file)
-      // For Pages Router, edge routes, middleware, and manifest files
-      // (e.g., *_client-reference-manifest.js): clear the sharedCache in
-      // evalManifest(), Node.js require.cache, and edge runtime module contexts.
-      deleteCache(file)
+
+      const relativePath = relative(distDir, file)
+      if (
+        // For Pages Router, edge routes, middleware, and manifest files
+        // (e.g., *_client-reference-manifest.js): clear the sharedCache in
+        // evalManifest(), Node.js require.cache, and edge runtime module contexts.
+        force ||
+        !usesServerHmr ||
+        !serverHmrSubscriptions?.has(relativePath)
+      ) {
+        deleteCache(file)
+      }
+    }
+
+    // Reset the fetch patch so patchFetch() can re-wrap on the next request.
+    if (serverPaths.length > 0) {
+      resetFetch()
     }
 
     // Clear Turbopack's chunk-loading cache so chunks are re-required from disk on
@@ -1808,13 +1821,21 @@ export async function createHotReloaderTurbopack(
 
   if (experimentalServerFastRefresh) {
     serverHmrSubscriptions = setupServerHmr(project, {
-      onUpdateFailed: async () => {
+      clear: async () => {
+        // Clear Node's require cache of all Turbopack-built modules
+        for (const chunkPath of serverHmrSubscriptions?.keys() ?? []) {
+          deleteCache(join(distDir, chunkPath))
+        }
+
+        // Clear Turbopack's runtime caches
         if (typeof __next__clear_chunk_cache__ === 'function') {
           __next__clear_chunk_cache__()
         }
 
-        // Clear all module contexts so they're re-evaluated on next request
+        // Clear all edge contexts
         await clearAllModuleContexts()
+
+        resetFetch()
 
         // Tell browsers to refetch RSC (soft refresh, not full page reload)
         hotReloader.send({
