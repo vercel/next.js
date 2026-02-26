@@ -4,12 +4,18 @@ import { connection } from 'next/server'
 export default function Page() {
   return (
     <Suspense>
-      <PageImpl />
+      <Container>
+        <Content />
+      </Container>
     </Suspense>
   )
 }
 
-async function PageImpl() {
+function Container({ children }) {
+  return <div>{children}</div>
+}
+
+async function Content() {
   await connection()
 
   if (!globalThis.__nextTestRecover) {
