@@ -3,6 +3,10 @@ import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('segment cache - unstable_staleTime with cacheComponents', () => {
+  // TODO: Specify behavior for how unstable_staleTime should behave with cacheComponents pages
+})
+
+describe('segment cache - unstable_staleTime with cacheComponents - build-time validations', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
