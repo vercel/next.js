@@ -181,7 +181,7 @@ describe('segment cache - export const unstable_staleTime', () => {
   })
 })
 
-describe('unstable_staleTime - layout build error', () => {
+describe('build-time validations', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
