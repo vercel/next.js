@@ -28,11 +28,6 @@ const transport: ChildTransport = {
   },
 }
 
-const listener = createMessageHandler(transport, (message) => {
-  // Worker threads receive JEST_WORKER_ID via the INITIALIZE message
-  if (message[4]) {
-    process.env.JEST_WORKER_ID = message[4] as string
-  }
-})
+const listener = createMessageHandler(transport)
 
 port.on('message', listener as (message: ChildMessage) => void)

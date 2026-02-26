@@ -814,26 +814,6 @@ describe('WorkerPool', () => {
       expect(options.execArgv).toEqual(['--max-old-space-size=512'])
       pool.close()
     })
-
-    it('sets JEST_WORKER_ID in env for child_process workers', () => {
-      const pool = new WorkerPool({
-        workerPath: '/fake/worker.js',
-        maxWorkers: 2,
-        maxBootingWorkers: 2,
-      })
-      pool.dispatch('a', [])
-      pool.dispatch('b', [])
-
-      const forkMock = (
-        require('child_process') as typeof import('child_process')
-      ).fork as jest.Mock
-      const env0 = forkMock.mock.calls[0][2].env
-      const env1 = forkMock.mock.calls[1][2].env
-      // Worker IDs should be 1-based
-      expect(env0.JEST_WORKER_ID).toBe('1')
-      expect(env1.JEST_WORKER_ID).toBe('2')
-      pool.close()
-    })
   })
 
   // -----------------------------------------------------------------------

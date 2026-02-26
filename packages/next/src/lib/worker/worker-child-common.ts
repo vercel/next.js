@@ -31,8 +31,7 @@ export interface ChildTransport {
  * INITIALIZE, CALL, and END internally, using the provided `transport` to
  * reply.
  *
- * An optional `onInitialize` hook is called after INITIALIZE, before any CALL;
- * the thread child uses this to set `process.env.JEST_WORKER_ID`.
+ * An optional `onInitialize` hook is called after INITIALIZE, before any CALL.
  */
 export function createMessageHandler(
   transport: ChildTransport,

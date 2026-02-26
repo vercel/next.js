@@ -15,7 +15,6 @@ export type ChildMessageInitialize = [
   reserved: false,
   workerPath: string,
   setupArgs: unknown[],
-  workerId?: string,
 ]
 
 export type ChildMessageCall = [

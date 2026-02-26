@@ -37,11 +37,9 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 
 | Message | Format |
 |---------|--------|
-| INITIALIZE | `[0, false, workerPath, setupArgs, workerId?]` |
+| INITIALIZE | `[0, false, workerPath, setupArgs]` |
 | CALL | `[1, requestId, methodName, args]` |
 | END | `[2]` |
-
-The `workerId` field in INITIALIZE is only set for `worker_threads` mode (the child uses it as `JEST_WORKER_ID`). In `child_process` mode, `JEST_WORKER_ID` is passed via the environment instead.
 
 ### Child → Parent
 

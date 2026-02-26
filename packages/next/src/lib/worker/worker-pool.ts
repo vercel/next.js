@@ -84,8 +84,6 @@ interface PoolWorker {
   process: ChildProcess | NodeWorker
   /** Map of in-flight request IDs to their resolve/reject callbacks */
   activeRequests: Map<number, PendingRequest>
-  /** Worker index (for JEST_WORKER_ID) */
-  workerId: number
   /** Whether this worker is being terminated (graceful or forced) */
   ending: boolean
   /** True from spawn until the worker sends PARENT_MESSAGE_READY */
@@ -205,8 +203,6 @@ export class WorkerPool {
   private _taskQueue: QueuedTask[] = []
   /** Monotonically increasing counter for correlating requests to responses */
   private _nextRequestId = 1
-  /** Monotonically increasing counter for assigning JEST_WORKER_ID values */
-  private _nextWorkerId = 0
   /** Set to true once `end()` or `close()` is called; prevents new dispatches */
   private _ending = false
   /** Merged stdout from all workers, piped through a PassThrough stream */
@@ -393,14 +389,8 @@ export class WorkerPool {
     return null
   }
 
-  /** Allocate a new worker ID and spawn the underlying process/thread */
-  private _spawnWorker(): PoolWorker {
-    const workerId = this._nextWorkerId++
-    return this._spawnWorkerProcess(workerId)
-  }
-
   /** Spawn a new worker process/thread and register it with the pool. */
-  private _spawnWorkerProcess(workerId: number): PoolWorker {
+  private _spawnWorker(): PoolWorker {
     const { workerPath, enableWorkerThreads, forkOptions, setupArgs } =
       this._options
 
@@ -423,7 +413,6 @@ export class WorkerPool {
         cwd: process.cwd(),
         env: {
           ...process.env,
-          JEST_WORKER_ID: String(workerId + 1),
           ...(forkOptions?.env as NodeJS.ProcessEnv),
         },
         execArgv:
@@ -438,7 +427,6 @@ export class WorkerPool {
     const worker: PoolWorker = {
       process: proc,
       activeRequests: new Map(),
-      workerId,
       ending: false,
       booting: true,
     }
@@ -471,16 +459,12 @@ export class WorkerPool {
     })
 
     // Send INITIALIZE message so the child knows which module to load
-    const initMessage: ChildMessageInitialize = [
+    handle.send([
       CHILD_MESSAGE_INITIALIZE,
       false,
       workerPath,
       setupArgs ?? [],
-    ]
-    if (enableWorkerThreads) {
-      initMessage.push(String(workerId + 1))
-    }
-    handle.send(initMessage)
+    ] satisfies ChildMessageInitialize)
 
     this._workers.push(worker)
     return worker
