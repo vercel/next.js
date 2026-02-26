@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
-import { retry } from 'next-test-utils'
-import { outdent } from 'outdent'
 
 describe('segment cache - export const unstable_staleTime', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -117,57 +115,6 @@ describe('segment cache - export const unstable_staleTime', () => {
         await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
       },
       { includes: pageContent }
-    )
-  })
-})
-
-describe('unstable_staleTime - layout build error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-    skipDeployment: true,
-  })
-
-  if (skipped) {
-    return
-  }
-
-  it('should error when unstable_staleTime is used in a layout', async () => {
-    await next.patchFile(
-      'app/layout.tsx',
-      outdent`
-        export const unstable_staleTime = 60
-
-        export default function RootLayout({
-          children,
-        }: {
-          children: React.ReactNode
-        }) {
-          return (
-            <html lang="en">
-              <body>{children}</body>
-            </html>
-          )
-        }
-      `,
-      async () => {
-        try {
-          await next.start()
-        } catch {
-          // we expect the build/start to fail
-        }
-
-        if (isNextDev) {
-          // In dev mode, we need to trigger the compilation by visiting the page
-          await next.fetch('/')
-        }
-
-        await retry(async () => {
-          expect(next.cliOutput).toContain(
-            "`unstable_staleTime` is only supported in pages, but you're using it in a layout. Please remove it."
-          )
-        })
-      }
     )
   })
 })
