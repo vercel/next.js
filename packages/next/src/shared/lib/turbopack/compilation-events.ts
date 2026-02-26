@@ -3,10 +3,8 @@ import * as Log from '../../../build/output/log'
 import { flushAllTraces, type Span } from '../../../trace'
 import { traceMemoryUsage } from '../../../lib/memory/trace'
 
-// Also defined in server/dev/turbopack-utils.ts — duplicated here to avoid
-// a dependency from shared/lib/ into server/dev/.
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-function msToNs(ms: number): bigint {
+export function msToNs(ms: number): bigint {
   return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
 }
 

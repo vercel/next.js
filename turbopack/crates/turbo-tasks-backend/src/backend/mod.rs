@@ -1374,6 +1374,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let wall_start_ms = wall_start
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_default()
+            // as_millis_f64 is not stable yet
             .as_secs_f64()
             * 1000.0;
         let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
