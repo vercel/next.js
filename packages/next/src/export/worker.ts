@@ -488,7 +488,11 @@ export async function exportPages(
             console.error(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
-            process.exit(1)
+            const exportError = new Error(
+              `Export encountered an error on ${pageKey}, exiting the build.`
+            )
+            ;(exportError as any).code = 'NEXT_EXPORT_ERROR'
+            throw exportError
           } else {
             // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
           }

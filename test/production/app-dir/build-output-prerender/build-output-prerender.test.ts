@@ -431,14 +431,13 @@ function getPrerenderOutput(cliOutput: string): string {
       continue
     }
 
-    if (line.includes('Next.js static worker exited')) {
-      break
-    }
-
     if (foundPrerenderingLine && !line.includes('Generating static pages')) {
       lines.push(
         line.replace(/at \w+ \(.next[^)]+\)/, 'at x (<next-dist-dir>)')
       )
+      if (line.includes('exiting the build')) {
+        break
+      }
     }
   }
 

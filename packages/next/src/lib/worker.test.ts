@@ -247,7 +247,7 @@ describe('lib/worker lazy spawning', () => {
     const worker = new Worker(__filename, noopOptions)
     worker.close()
 
-    const os = (require('os') as typeof import('os'))
+    const os = require('os') as typeof import('os')
     expect(latestPoolOptions?.maxWorkers).toBe(
       Math.max(os.cpus().length - 1, 1)
     )
