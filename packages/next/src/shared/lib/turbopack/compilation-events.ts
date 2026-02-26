@@ -46,7 +46,8 @@ export function backgroundLogCompilationEvents(
           // We flush after each event to make sure it makes it to disk.  These events are rare and
           // tend to happen at the very end of a build so to make sure they are logged we need to
           // flush.
-          flushAllTraces()
+          // NOTE: in a `next build` environment where we are reporting events to the parent thread, this is a no-op.
+          await flushAllTraces()
         } catch {}
         continue // don't log these events, they just go to the trace file
       }
