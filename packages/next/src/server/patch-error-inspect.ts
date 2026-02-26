@@ -303,33 +303,27 @@ function getSourcemappedFrameIfPossible(
     ignored,
   }
 
-  /** undefined = not yet computed*/
+  /** undefined = not yet computed */
   let codeFrame: string | null | undefined
 
-  return Object.defineProperty(
-    {
-      stack: originalFrame,
-      code: null,
+  return {
+    stack: originalFrame,
+    get code() {
+      if (codeFrame === undefined) {
+        const sourceContent: string | null =
+          sourceMapConsumer.sourceContentFor(
+            sourcePosition.source,
+            /* returnNullOnMissing */ true
+          ) ?? null
+        codeFrame = getOriginalCodeFrame(
+          originalFrame,
+          sourceContent,
+          inspectOptions.colors
+        )
+      }
+      return codeFrame
     },
-    'code',
-    {
-      get: () => {
-        if (codeFrame === undefined) {
-          const sourceContent: string | null =
-            sourceMapConsumer.sourceContentFor(
-              sourcePosition.source,
-              /* returnNullOnMissing */ true
-            ) ?? null
-          codeFrame = getOriginalCodeFrame(
-            originalFrame,
-            sourceContent,
-            inspectOptions.colors
-          )
-        }
-        return codeFrame
-      },
-    }
-  )
+  }
 }
 
 function parseAndSourceMap(
