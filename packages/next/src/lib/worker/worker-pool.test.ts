@@ -51,7 +51,7 @@ jest.mock('child_process', () => ({
 }))
 
 // We import WorkerPool *after* the mock so `fork` is already stubbed.
-import { WorkerPool } from './worker-pool'
+import { WorkerPool, WorkerExitError } from './worker-pool'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -645,7 +645,7 @@ describe('WorkerPool', () => {
       pool.close()
     })
 
-    it('rejects in-flight requests on unexpected exit', async () => {
+    it('rejects in-flight requests with WorkerExitError on unexpected exit', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
@@ -655,7 +655,16 @@ describe('WorkerPool', () => {
 
       proc.emit('exit', 1, null)
 
-      await expect(promise).rejects.toThrow('Worker exited with code 1')
+      await expect(promise).rejects.toThrow(
+        'Worker exited unexpectedly with code 1'
+      )
+      try {
+        await promise
+      } catch (err) {
+        expect(err).toBeInstanceOf(WorkerExitError)
+        expect((err as WorkerExitError).code).toBe(1)
+        expect((err as WorkerExitError).signal).toBeNull()
+      }
       pool.close()
     })
 
@@ -915,132 +924,35 @@ describe('WorkerPool', () => {
   })
 
   // -----------------------------------------------------------------------
-  // Worker respawning (maxRespawns)
+  // Worker crash with queued tasks
   // -----------------------------------------------------------------------
-  describe('worker respawning', () => {
-    it('respawns a worker on crash when maxRespawns > 0', () => {
+  describe('worker crash with queued tasks', () => {
+    it('removes crashed worker from pool', () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
-        maxRespawns: 2,
-      })
-      pool.dispatch('test', [])
-      expect(spawnedProcesses).toHaveLength(1)
-
-      const firstProc = latestProcess()
-      // Simulate crash
-      firstProc.emit('exit', 1, null)
-
-      // A replacement worker should have been spawned
-      expect(spawnedProcesses).toHaveLength(2)
-      expect(pool.getWorkerCount()).toBe(1)
-      pool.close()
-    })
-
-    it('rejects in-flight requests on the crashed worker', async () => {
-      const pool = new WorkerPool({
-        workerPath: '/fake/worker.js',
-        maxWorkers: 1,
-        maxRespawns: 1,
-      })
-      const promise = pool.dispatch('test', [])
-      const proc = latestProcess()
-
-      // Crash the worker
-      proc.emit('exit', 1, null)
-
-      await expect(promise).rejects.toThrow(
-        'Worker exited unexpectedly with code 1'
-      )
-      pool.close()
-    })
-
-    it('preserves respawn count across respawns', () => {
-      const pool = new WorkerPool({
-        workerPath: '/fake/worker.js',
-        maxWorkers: 1,
-        maxRespawns: 3,
-      })
-
-      // Dispatch to spawn first worker
-      pool.dispatch('a', [])
-      expect(spawnedProcesses).toHaveLength(1)
-
-      // First crash → respawn (count: 1)
-      spawnedProcesses[0].emit('exit', 1, null)
-      expect(spawnedProcesses).toHaveLength(2)
-
-      // Need to dispatch again to the new worker (it's already spawned)
-      pool.dispatch('b', [])
-
-      // Second crash → respawn (count: 2)
-      spawnedProcesses[1].emit('exit', 1, null)
-      expect(spawnedProcesses).toHaveLength(3)
-
-      pool.dispatch('c', [])
-
-      // Third crash → respawn (count: 3)
-      spawnedProcesses[2].emit('exit', 1, null)
-      expect(spawnedProcesses).toHaveLength(4)
-
-      pool.dispatch('d', [])
-
-      // Fourth crash → no more respawns (count would be 4 > maxRespawns=3)
-      spawnedProcesses[3].emit('exit', 1, null)
-      // Should NOT have spawned a 5th process
-      expect(spawnedProcesses).toHaveLength(4)
-      // Pool should have 0 workers now
-      expect(pool.getWorkerCount()).toBe(0)
-      pool.close()
-    })
-
-    it('does not respawn when maxRespawns is 0', () => {
-      const pool = new WorkerPool({
-        workerPath: '/fake/worker.js',
-        maxWorkers: 1,
-        maxRespawns: 0,
       })
       pool.dispatch('test', [])
       const proc = latestProcess()
 
       proc.emit('exit', 1, null)
 
-      // No replacement should be spawned
       expect(spawnedProcesses).toHaveLength(1)
       expect(pool.getWorkerCount()).toBe(0)
       pool.close()
     })
 
-    it('does not respawn on exit code 0', () => {
-      const onWorkerExit = jest.fn()
+    it('spawns replacement worker for queued tasks after crash', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
-        maxRespawns: 5,
-        onWorkerExit,
-      })
-      pool.dispatch('test', [])
-      const proc = latestProcess()
-
-      proc.emit('exit', 0, null)
-
-      // Exit code 0 is not a crash — no respawn
-      expect(spawnedProcesses).toHaveLength(1)
-      pool.close()
-    })
-
-    it('spawns replacement worker for queued tasks after unrecoverable exit', async () => {
-      const pool = new WorkerPool({
-        workerPath: '/fake/worker.js',
-        maxWorkers: 1,
-        maxRespawns: 0,
         concurrencyPerWorker: 1,
       })
       pool.dispatch('first', []) // occupies the worker
       const p2 = pool.dispatch('second', []) // queued
 
       const proc = latestProcess()
-      // Worker crashes — no more respawns for this slot, but there are queued tasks
+      // Worker crashes — queued tasks need a new worker
       proc.emit('exit', 1, null)
 
       // A new worker should be spawned for the queued task
@@ -1222,7 +1134,6 @@ describe('WorkerPool', () => {
         maxWorkers: 3,
         maxBootingWorkers: 1,
         concurrencyPerWorker: 1,
-        maxRespawns: 1,
       })
 
       pool.dispatch('a', [])
@@ -1231,12 +1142,9 @@ describe('WorkerPool', () => {
       expect(spawnedProcesses).toHaveLength(1)
 
       // Crash the booting worker — frees the booting slot
+      // Queued tasks cause a new worker to spawn
       spawnedProcesses[0].emit('exit', 1, null)
 
-      // A respawn should occur (maxRespawns=1), and queued tasks should
-      // also trigger more spawning since the booting slot is now free
-      // The crashed worker gets respawned (count 1), and queued tasks may
-      // cause additional workers to spawn
       expect(spawnedProcesses.length).toBeGreaterThanOrEqual(2)
 
       pool.close()

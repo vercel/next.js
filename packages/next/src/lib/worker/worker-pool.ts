@@ -16,6 +16,25 @@ import {
   type ChildMessageInitialize,
 } from './types'
 
+/**
+ * Error thrown when a worker process exits unexpectedly (non-zero exit code
+ * or signal). Callers can use `instanceof WorkerExitError` to distinguish
+ * worker crashes from errors thrown by worker methods.
+ */
+export class WorkerExitError extends Error {
+  code: number | null
+  signal: string | null
+
+  constructor(code: number | null, signal: string | null) {
+    super(
+      `Worker exited unexpectedly with code ${code}${signal ? `, signal ${signal}` : ''}`
+    )
+    this.name = 'WorkerExitError'
+    this.code = code
+    this.signal = signal
+  }
+}
+
 export interface WorkerPoolOptions {
   /** Absolute path to the worker module */
   workerPath: string
@@ -32,13 +51,6 @@ export interface WorkerPoolOptions {
   }
   /** Arguments passed to the optional setup() function in the worker module */
   setupArgs?: unknown[]
-  /**
-   * Maximum times a worker process is respawned after a non-zero exit.
-   * Note: in-flight requests on the crashed worker are always rejected;
-   * this only controls whether a replacement process is pre-spawned so the
-   * next dispatch doesn't pay the startup cost. (default: 0)
-   */
-  maxRespawns?: number
   /**
    * Maximum number of workers that can be in the "booting" state at once.
    * A worker is booting from the moment it is spawned until it sends a
@@ -74,8 +86,6 @@ interface PoolWorker {
   activeRequests: Map<number, PendingRequest>
   /** Worker index (for JEST_WORKER_ID) */
   workerId: number
-  /** Number of times this worker slot has been respawned after crashes */
-  respawnCount: number
   /** Whether this worker is being terminated (graceful or forced) */
   ending: boolean
   /** True from spawn until the worker sends PARENT_MESSAGE_READY */
@@ -183,7 +193,6 @@ export class WorkerPool {
       | 'maxWorkers'
       | 'concurrencyPerWorker'
       | 'enableWorkerThreads'
-      | 'maxRespawns'
       | 'maxBootingWorkers'
     >
   > &
@@ -214,7 +223,6 @@ export class WorkerPool {
       ...options,
       concurrencyPerWorker: options.concurrencyPerWorker ?? 1,
       enableWorkerThreads: options.enableWorkerThreads ?? false,
-      maxRespawns: options.maxRespawns ?? 0,
       maxBootingWorkers:
         options.maxBootingWorkers ?? Math.ceil(options.maxWorkers / 4),
     }
@@ -391,17 +399,8 @@ export class WorkerPool {
     return this._spawnWorkerProcess(workerId)
   }
 
-  /**
-   * Spawn a new worker process/thread and register it with the pool.
-   *
-   * If `existingRespawnCount` is provided (from a crashed worker being
-   * replaced), the new PoolWorker inherits that count so the
-   * maxRespawns limit is correctly enforced across respawns.
-   */
-  private _spawnWorkerProcess(
-    workerId: number,
-    existingRespawnCount: number = 0
-  ): PoolWorker {
+  /** Spawn a new worker process/thread and register it with the pool. */
+  private _spawnWorkerProcess(workerId: number): PoolWorker {
     const { workerPath, enableWorkerThreads, forkOptions, setupArgs } =
       this._options
 
@@ -440,7 +439,6 @@ export class WorkerPool {
       process: proc,
       activeRequests: new Map(),
       workerId,
-      respawnCount: existingRespawnCount,
       ending: false,
       booting: true,
     }
@@ -601,8 +599,8 @@ export class WorkerPool {
 
   /**
    * Handle a worker exit. During graceful shutdown, just reject lingering
-   * requests. Otherwise, optionally respawn the worker (if under maxRespawns),
-   * reject in-flight requests, and drain queued tasks to remaining workers.
+   * requests. Otherwise, reject in-flight requests with WorkerExitError,
+   * remove the worker, and drain queued tasks to remaining workers.
    */
   private _handleExit(
     worker: PoolWorker,
@@ -624,53 +622,22 @@ export class WorkerPool {
     // Notify the caller about the unexpected exit
     this._options.onWorkerExit?.(code, signal)
 
+    // Reject all in-flight requests and remove from pool
+    this._rejectActiveRequests(worker, new WorkerExitError(code, signal))
+
+    const idx = this._workers.indexOf(worker)
+    if (idx !== -1) {
+      this._workers.splice(idx, 1)
+    }
+
+    // If there are queued tasks, spawn a replacement worker (if booting allows)
     if (
-      code !== 0 &&
-      code !== null &&
-      worker.respawnCount < this._options.maxRespawns
+      this._taskQueue.length > 0 &&
+      !this._ending &&
+      this._bootingCount() < this._options.maxBootingWorkers
     ) {
-      // Respawn a replacement worker in this slot. We reject in-flight
-      // requests because we don't have the original method/args to retry.
-      const pendingRequests = new Map(worker.activeRequests)
-      worker.activeRequests.clear()
-
-      const idx = this._workers.indexOf(worker)
-      this._spawnWorkerProcess(worker.workerId, worker.respawnCount + 1)
-      // Remove the old entry (spawnWorkerProcess pushed the new one)
-      if (idx !== -1) {
-        this._workers.splice(idx, 1)
-      }
-
-      for (const [, pending] of pendingRequests) {
-        pending.reject(
-          new Error(
-            `Worker exited unexpectedly with code ${code}, signal ${signal}`
-          )
-        )
-      }
-    } else {
-      // No respawn — reject all in-flight requests and remove from pool
-      this._rejectActiveRequests(
-        worker,
-        new Error(
-          `Worker exited with code ${code}${signal ? `, signal ${signal}` : ''}`
-        )
-      )
-
-      const idx = this._workers.indexOf(worker)
-      if (idx !== -1) {
-        this._workers.splice(idx, 1)
-      }
-
-      // If there are queued tasks, spawn a replacement worker (if booting allows)
-      if (
-        this._taskQueue.length > 0 &&
-        !this._ending &&
-        this._bootingCount() < this._options.maxBootingWorkers
-      ) {
-        const newWorker = this._spawnWorker()
-        this._drainQueue(newWorker)
-      }
+      const newWorker = this._spawnWorker()
+      this._drainQueue(newWorker)
     }
 
     if (hasInFlightRequests && !this._ending) {

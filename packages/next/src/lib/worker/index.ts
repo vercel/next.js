@@ -7,9 +7,9 @@ import {
   getParsedNodeOptions,
   type DebugAddress,
 } from '../../server/lib/utils'
-import { WorkerPool } from './worker-pool'
+import { WorkerPool, WorkerExitError } from './worker-pool'
 
-export { WorkerPool } from './worker-pool'
+export { WorkerPool, WorkerExitError } from './worker-pool'
 
 export function getNextBuildDebuggerPortOffset(_: {
   kind: 'export-page'
@@ -64,7 +64,7 @@ export class Worker {
     const {
       enableSourceMaps,
       timeout,
-      onRestart: _onRestart,
+      onRestart,
       logger = console,
       debuggerPortOffset,
       isolatedMemory,
@@ -73,7 +73,7 @@ export class Worker {
       exposedMethods,
       enableWorkerThreads,
       numWorkers,
-      maxRetries,
+      maxRetries = 0,
       concurrencyPerWorker,
       forkOptions,
       maxBootingWorkers,
@@ -157,7 +157,6 @@ export class Worker {
         maxWorkers: numWorkers ?? 1,
         concurrencyPerWorker: concurrencyPerWorker ?? 1,
         enableWorkerThreads: enableWorkerThreads ?? false,
-        maxRespawns: maxRetries ?? 0,
         maxBootingWorkers,
         forkOptions: {
           env: workerEnv,
@@ -167,14 +166,6 @@ export class Worker {
               (arg) => !/^--(debug|inspect)/.test(arg)
             ),
           ],
-        },
-        onWorkerExit: (code, signal) => {
-          if ((code || (signal && signal !== 'SIGINT')) && this._pool) {
-            logger.error(
-              `Next.js build worker exited with code: ${code} and signal: ${signal}`
-            )
-            process.exit(code ?? 1)
-          }
         },
         onCustomMessage: (data) => {
           if (
@@ -249,6 +240,23 @@ export class Worker {
       ? (args: any[]) => JSON.parse(JSON.stringify(args))
       : (args: any[]) => args
 
+    const dispatchWithRetry = async (
+      method: string,
+      args: unknown[]
+    ): Promise<unknown> => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          return await this._pool!.dispatch(method, args)
+        } catch (error) {
+          if (error instanceof WorkerExitError && attempt < maxRetries) {
+            onRestart?.(method, args, attempt)
+            continue
+          }
+          throw error
+        }
+      }
+    }
+
     for (const method of exposedMethods) {
       if (method.startsWith('_')) continue
       ;(this as any)[method] = timeout
@@ -258,14 +266,14 @@ export class Worker {
             const sanitizedArgs = sanitizeArgs(args)
             try {
               onActivityImpl()
-              return await this._pool!.dispatch(method, sanitizedArgs)
+              return await dispatchWithRetry(method, sanitizedArgs)
             } finally {
               activeTasks--
               onActivityImpl()
             }
           }
         : (...args: any[]) => {
-            return this._pool!.dispatch(method, sanitizeArgs(args))
+            return dispatchWithRetry(method, sanitizeArgs(args))
           }
     }
   }

@@ -8,7 +8,7 @@ Custom worker pool implementation for Next.js, replacing `jest-worker`.
 - **Dynamic scaling**: Worker count grows as concurrent jobs increase, up to `maxWorkers`
 - **Per-worker concurrency**: Configurable concurrent calls per worker via `concurrencyPerWorker`
 - **Boot throttling**: `maxBootingWorkers` limits how many workers start concurrently, preventing resource contention when many tasks arrive at once
-- **Fault recovery**: `maxRespawns` controls automatic worker replacement after unexpected exits; in-flight requests on the failed worker are rejected and queued tasks continue on healthy workers
+- **Fault recovery**: Workers that exit unexpectedly are removed from the pool; queued tasks are drained to remaining workers or trigger new worker spawns. The high-level `Worker` class supports `maxRetries` to automatically re-dispatch failed calls.
 - **Individual worker restart**: Hung or failed workers are restarted without affecting others
 
 ## Architecture
@@ -122,7 +122,6 @@ The `setupArgs` are provided via `WorkerPoolOptions.setupArgs`. READY is sent af
 | `forkOptions.env` | object | {} | Environment variables for child processes |
 | `forkOptions.execArgv` | string[] | [] | Node.js CLI flags for child processes |
 | `setupArgs` | unknown[] | [] | Arguments for worker `setup()` function |
-| `maxRespawns` | number | 0 | Max times a worker slot is respawned after an unexpected exit (in-flight requests are always rejected; this only pre-spawns a replacement) |
 | `maxBootingWorkers` | number | ceil(maxWorkers/4) | Max workers starting up concurrently (must be >= 1). A worker is "booting" from spawn until it sends READY after module load + setup(). |
 | `onWorkerExit` | function | undefined | `(code, signal) => void` — called when a worker exits unexpectedly (not during graceful shutdown) |
 | `onCustomMessage` | function | undefined | `(message) => void` — called when a worker sends a CUSTOM message |
@@ -148,7 +147,8 @@ The `Worker` class wraps `WorkerPool` and adds timeout/restart logic, NODE_OPTIO
 | `debuggerPortOffset` | number | required | Debugger port offset (`-1` = not inspectable) |
 | `isolatedMemory` | boolean | required | If true, strips `--max-old-space-size` from NODE_OPTIONS |
 | `numWorkers` | number | 1 | Maps to `maxWorkers` |
-| `maxRetries` | number | 0 | Maps to `maxRespawns` |
+| `maxRetries` | number | 0 | Number of times to re-dispatch a call after a `WorkerExitError` (worker crash). Non-crash errors are never retried. |
+| `onRestart` | function | undefined | `(method, args, attempt) => void` — called before each retry attempt |
 | `maxBootingWorkers` | number | ceil(numWorkers/4) | Passed through to WorkerPool |
 | `concurrencyPerWorker` | number | 1 | Passed through to WorkerPool |
 | `enableWorkerThreads` | boolean | false | Passed through to WorkerPool |

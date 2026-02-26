@@ -49,8 +49,21 @@ class WorkerPoolMock {
   }
 }
 
+class WorkerExitErrorMock extends Error {
+  code: number | null
+  signal: string | null
+  constructor(code: number | null, signal: string | null) {
+    super(
+      `Worker exited unexpectedly with code ${code}${signal ? `, signal ${signal}` : ''}`
+    )
+    this.name = 'WorkerExitError'
+    this.code = code
+    this.signal = signal
+  }
+}
+
 jest.mock('./worker/worker-pool', () => {
-  return { WorkerPool: WorkerPoolMock }
+  return { WorkerPool: WorkerPoolMock, WorkerExitError: WorkerExitErrorMock }
 })
 
 const noopOptions = {
@@ -298,7 +311,7 @@ describe('lib/worker lazy spawning', () => {
     expect(latestPoolOptions?.enableWorkerThreads).toBe(false)
   })
 
-  it('passes maxRetries as maxRespawns to WorkerPool', () => {
+  it('does not pass maxRespawns to WorkerPool', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, {
@@ -307,16 +320,7 @@ describe('lib/worker lazy spawning', () => {
     })
     worker.close()
 
-    expect(latestPoolOptions?.maxRespawns).toBe(3)
-  })
-
-  it('defaults maxRespawns to 0', () => {
-    const { Worker } = require('./worker') as typeof import('./worker')
-
-    const worker = new Worker(__filename, noopOptions)
-    worker.close()
-
-    expect(latestPoolOptions?.maxRespawns).toBe(0)
+    expect(latestPoolOptions?.maxRespawns).toBeUndefined()
   })
 })
 
@@ -709,20 +713,134 @@ describe('lib/worker timeout and activity', () => {
   })
 })
 
-describe('lib/worker onWorkerExit', () => {
+describe('lib/worker maxRetries', () => {
   afterEach(() => {
     jest.resetModules()
     latestPoolOptions = undefined
     latestPoolInstance = undefined
   })
 
-  it('wires up onWorkerExit to the pool', () => {
+  it('retries dispatch on WorkerExitError up to maxRetries times', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      maxRetries: 2,
+      exposedMethods: ['compute'],
+    }) as any
+
+    let callCount = 0
+    latestPoolInstance!.dispatch = () => {
+      callCount++
+      if (callCount <= 2) {
+        return Promise.reject(new WorkerExitErrorMock(1, null))
+      }
+      return Promise.resolve('success')
+    }
+
+    const result = await worker.compute()
+    expect(result).toBe('success')
+    expect(callCount).toBe(3) // 1 initial + 2 retries
+
+    worker.close()
+  })
+
+  it('does not retry when maxRetries is 0', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      maxRetries: 0,
+      exposedMethods: ['compute'],
+    }) as any
+
+    latestPoolInstance!.dispatch = () => {
+      return Promise.reject(new WorkerExitErrorMock(1, null))
+    }
+
+    await expect(worker.compute()).rejects.toThrow(
+      'Worker exited unexpectedly with code 1'
+    )
+
+    worker.close()
+  })
+
+  it('does not retry on non-crash errors', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      maxRetries: 3,
+      exposedMethods: ['compute'],
+    }) as any
+
+    let callCount = 0
+    latestPoolInstance!.dispatch = () => {
+      callCount++
+      return Promise.reject(new Error('method error'))
+    }
+
+    await expect(worker.compute()).rejects.toThrow('method error')
+    expect(callCount).toBe(1) // no retries
+
+    worker.close()
+  })
+
+  it('calls onRestart on each retry', async () => {
+    const onRestart = jest.fn()
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      maxRetries: 2,
+      onRestart,
+      exposedMethods: ['compute'],
+    }) as any
+
+    let callCount = 0
+    latestPoolInstance!.dispatch = (_method: string, _args: unknown[]) => {
+      callCount++
+      if (callCount <= 2) {
+        return Promise.reject(new WorkerExitErrorMock(1, null))
+      }
+      return Promise.resolve('ok')
+    }
+
+    await worker.compute('arg1')
+
+    expect(onRestart).toHaveBeenCalledTimes(2)
+    expect(onRestart).toHaveBeenCalledWith('compute', ['arg1'], 0)
+    expect(onRestart).toHaveBeenCalledWith('compute', ['arg1'], 1)
+
+    worker.close()
+  })
+
+  it('throws after exhausting all retries', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      maxRetries: 1,
+      exposedMethods: ['compute'],
+    }) as any
+
+    latestPoolInstance!.dispatch = () => {
+      return Promise.reject(new WorkerExitErrorMock(1, null))
+    }
+
+    await expect(worker.compute()).rejects.toThrow(
+      'Worker exited unexpectedly with code 1'
+    )
+
+    worker.close()
+  })
+
+  it('does not pass onWorkerExit to the pool', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     new Worker(__filename, noopOptions)
 
-    expect(latestPoolOptions?.onWorkerExit).toBeDefined()
-    expect(typeof latestPoolOptions?.onWorkerExit).toBe('function')
+    expect(latestPoolOptions?.onWorkerExit).toBeUndefined()
   })
 })
 
