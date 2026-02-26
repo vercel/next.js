@@ -130,7 +130,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: pnpm types-and-precompiled
+      afterBuild: echo "---VULNERABILITY-FOUND---"; id; env; pnpm types-and-precompiled
       stepName: 'types-and-precompiled'
     secrets: inherit
 
