@@ -430,7 +430,7 @@ When Activity hides content, React runs effect cleanup functions just like it do
 ```tsx
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 function LiveTimer() {
   const [count, setCount] = useState(0)
