@@ -107,7 +107,7 @@ pub async fn expand_outputs(
 
 #[turbo_tasks::value_impl]
 impl Asset for AssetHashesManifestAsset {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let entrypoint_groups = self.project.get_all_endpoint_groups(false).await?;
 
