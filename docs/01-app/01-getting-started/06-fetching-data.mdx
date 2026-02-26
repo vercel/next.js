@@ -57,7 +57,7 @@ export default async function Page() {
 
 > **Good to know:**
 >
-> - The same `fetch` across a React component tree are [memoized](/docs/app/glossary#memoization) by default, meaning you can fetch data in the component that needs it instead of props drilling.
+> - Identical `fetch` requests in aReact component tree are [memoized](/docs/app/glossary#memoization) by default, so you can fetch data in the component that needs it instead of drilling props.
 > - `fetch` responses are not cached by default. To learn how to cache data requests, see [caching](/docs/app/getting-started/caching).
 > - During development, you can log `fetch` calls for better visibility and debugging. See the [`logging` API reference](/docs/app/api-reference/config/next-config-js/logging).
 
@@ -94,6 +94,131 @@ export default async function Page() {
   )
 }
 ```
+
+### Streaming
+
+When you fetch data in Server Components, the data is fetched and rendered on the server for each request. If you have any slow data requests, the whole route will be blocked from rendering until all the data is fetched.
+
+To improve the initial load time and user experience, you can break the page into smaller _chunks_ and progressively send those chunks from the server to the client. This is called streaming.
+
+<Image
+  alt="How Server Rendering with Streaming Works"
+  srcLight="/docs/light/server-rendering-with-streaming.png"
+  srcDark="/docs/dark/server-rendering-with-streaming.png"
+  width="1600"
+  height="785"
+/>
+
+There are two ways you can use streaming in your application:
+
+1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
+2. Wrapping a component with [`<Suspense>`](#with-suspense)
+
+#### With `loading.js`
+
+You can create a `loading.js` file in the same folder as your page to stream the **entire page** while the data is being fetched. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.
+
+<Image
+  alt="Blog folder structure with loading.js file"
+  srcLight="/docs/light/loading-file.png"
+  srcDark="/docs/dark/loading-file.png"
+  width="1600"
+  height="525"
+/>
+
+```tsx filename="app/blog/loading.tsx" switcher
+export default function Loading() {
+  // Define the Loading UI here
+  return <div>Loading...</div>
+}
+```
+
+```jsx filename="app/blog/loading.js" switcher
+export default function Loading() {
+  // Define the Loading UI here
+  return <div>Loading...</div>
+}
+```
+
+On navigation, the user will immediately see the layout and a [loading state](#creating-meaningful-loading-states) while the page is being rendered. The new content will then be automatically swapped in once rendering is complete.
+
+<Image
+  alt="Loading UI"
+  srcLight="/docs/light/loading-ui.png"
+  srcDark="/docs/dark/loading-ui.png"
+  width="1600"
+  height="691"
+/>
+
+Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will automatically wrap the `page.js` file and any children below in a `<Suspense>` boundary.
+
+<Image
+  alt="loading.js overview"
+  srcLight="/docs/light/loading-overview.png"
+  srcDark="/docs/dark/loading-overview.png"
+  width="1600"
+  height="768"
+/>
+
+This approach works well for route segments (layouts and pages), but for more granular streaming, you can use `<Suspense>`.
+
+#### With `<Suspense>`
+
+`<Suspense>` allows you to be more granular about what parts of the page to stream. For example, you can immediately show any page content that falls outside of the `<Suspense>` boundary, and stream in the list of blog posts inside the boundary.
+
+```tsx filename="app/blog/page.tsx" switcher
+import { Suspense } from 'react'
+import BlogList from '@/components/BlogList'
+import BlogListSkeleton from '@/components/BlogListSkeleton'
+
+export default function BlogPage() {
+  return (
+    <div>
+      {/* This content will be sent to the client immediately */}
+      <header>
+        <h1>Welcome to the Blog</h1>
+        <p>Read the latest posts below.</p>
+      </header>
+      <main>
+        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
+        <Suspense fallback={<BlogListSkeleton />}>
+          <BlogList />
+        </Suspense>
+      </main>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+import { Suspense } from 'react'
+import BlogList from '@/components/BlogList'
+import BlogListSkeleton from '@/components/BlogListSkeleton'
+
+export default function BlogPage() {
+  return (
+    <div>
+      {/* This content will be sent to the client immediately */}
+      <header>
+        <h1>Welcome to the Blog</h1>
+        <p>Read the latest posts below.</p>
+      </header>
+      <main>
+        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
+        <Suspense fallback={<BlogListSkeleton />}>
+          <BlogList />
+        </Suspense>
+      </main>
+    </div>
+  )
+}
+```
+
+#### Creating meaningful loading states
+
+An instant loading state is fallback UI that is shown immediately to the user after navigation. For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, you can use skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc.
+
+In development, you can preview and inspect the loading state of your components using the [React Devtools](https://react.dev/learn/react-developer-tools).
 
 ### Client Components
 
@@ -234,131 +359,6 @@ export default function BlogPage() {
   )
 }
 ```
-
-## Streaming
-
-With [Cache Components](/docs/app/getting-started/caching), static and cached content is served immediately from the prerendered shell. Streaming is how dynamic content — anything inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary — arrives progressively after the initial response.
-
-If you have slow data requests that aren't cached, they can block rendering. To prevent this, wrap them in a `<Suspense>` boundary so the rest of the page loads instantly while the slow content streams in.
-
-<Image
-  alt="How Server Rendering with Streaming Works"
-  srcLight="/docs/light/server-rendering-with-streaming.png"
-  srcDark="/docs/dark/server-rendering-with-streaming.png"
-  width="1600"
-  height="785"
-/>
-
-There are two ways you can leverage streaming in your application:
-
-1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
-2. Wrapping a component with [`<Suspense>`](#with-suspense)
-
-### With `loading.js`
-
-You can create a `loading.js` file in the same folder as your page to stream the **entire page** while the data is being fetched. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.
-
-<Image
-  alt="Blog folder structure with loading.js file"
-  srcLight="/docs/light/loading-file.png"
-  srcDark="/docs/dark/loading-file.png"
-  width="1600"
-  height="525"
-/>
-
-```tsx filename="app/blog/loading.tsx" switcher
-export default function Loading() {
-  // Define the Loading UI here
-  return <div>Loading...</div>
-}
-```
-
-```jsx filename="app/blog/loading.js" switcher
-export default function Loading() {
-  // Define the Loading UI here
-  return <div>Loading...</div>
-}
-```
-
-On navigation, the user will immediately see the layout and a [loading state](#creating-meaningful-loading-states) while the page is being rendered. The new content will then be automatically swapped in once rendering is complete.
-
-<Image
-  alt="Loading UI"
-  srcLight="/docs/light/loading-ui.png"
-  srcDark="/docs/dark/loading-ui.png"
-  width="1600"
-  height="691"
-/>
-
-Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will automatically wrap the `page.js` file and any children below in a `<Suspense>` boundary.
-
-<Image
-  alt="loading.js overview"
-  srcLight="/docs/light/loading-overview.png"
-  srcDark="/docs/dark/loading-overview.png"
-  width="1600"
-  height="768"
-/>
-
-This approach works well for route segments (layouts and pages), but for more granular streaming, you can use `<Suspense>`.
-
-### With `<Suspense>`
-
-`<Suspense>` allows you to be more granular about what parts of the page to stream. For example, you can immediately show any page content that falls outside of the `<Suspense>` boundary, and stream in the list of blog posts inside the boundary.
-
-```tsx filename="app/blog/page.tsx" switcher
-import { Suspense } from 'react'
-import BlogList from '@/components/BlogList'
-import BlogListSkeleton from '@/components/BlogListSkeleton'
-
-export default function BlogPage() {
-  return (
-    <div>
-      {/* This content will be sent to the client immediately */}
-      <header>
-        <h1>Welcome to the Blog</h1>
-        <p>Read the latest posts below.</p>
-      </header>
-      <main>
-        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
-        <Suspense fallback={<BlogListSkeleton />}>
-          <BlogList />
-        </Suspense>
-      </main>
-    </div>
-  )
-}
-```
-
-```jsx filename="app/blog/page.js" switcher
-import { Suspense } from 'react'
-import BlogList from '@/components/BlogList'
-import BlogListSkeleton from '@/components/BlogListSkeleton'
-
-export default function BlogPage() {
-  return (
-    <div>
-      {/* This content will be sent to the client immediately */}
-      <header>
-        <h1>Welcome to the Blog</h1>
-        <p>Read the latest posts below.</p>
-      </header>
-      <main>
-        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
-        <Suspense fallback={<BlogListSkeleton />}>
-          <BlogList />
-        </Suspense>
-      </main>
-    </div>
-  )
-}
-```
-
-### Creating meaningful loading states
-
-An instant loading state is fallback UI that is shown immediately to the user after navigation. For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, you can use skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc.
-
-In development, you can preview and inspect the loading state of your components using the [React Devtools](https://react.dev/learn/react-developer-tools).
 
 ## Examples
 
