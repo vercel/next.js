@@ -86,8 +86,9 @@ pnpm --filter=next dev
 
 ```bash
 # NEXT_SKIP_ISOLATE=1 - skip packing Next.js for each test (~100s faster)
-# testonly - runs with --runInBand (no worker isolation overhead)
-NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=dev pnpm testonly test/path/to/test.ts
+# NEXT_TEST_MODE=<mode> - run dev or start based on the context provided
+# testheadless - runs headless with --runInBand (no worker isolation overhead)
+NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=<dev|start> pnpm testheadless test/path/to/test.ts
 ```
 
 **3. When done, kill the background watch process (if you started it).**
@@ -139,7 +140,7 @@ pnpm test-dev-turbo test/development/
 **Other test commands:**
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
-- `pnpm testonly <path>` - Run tests without rebuilding (faster iteration when build artifacts are already up to date)
+- `pnpm testheadless <path>` - Run tests headless without rebuilding (faster iteration when build artifacts are already up to date)
 - `pnpm new-test` - Generate a new test file from template (interactive)
 
 **Generate tests non-interactively (for AI agents):**
