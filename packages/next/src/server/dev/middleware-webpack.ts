@@ -542,10 +542,10 @@ async function getOriginalStackFrame({
   return {
     originalStackFrame,
     originalCodeFrame:
-      originalStackFrame?.ignored === false
-        ? // TODO: Don't get all codeframes of non-ignored frames eagerly.
-          originalStackFrameResponse.originalCodeFrame
-        : null,
+      (originalStackFrame?.ignored ?? true)
+        ? null
+        : // TODO: Don't get all codeframes of non-ignored frames eagerly.
+          originalStackFrameResponse.originalCodeFrame,
   }
 }
 

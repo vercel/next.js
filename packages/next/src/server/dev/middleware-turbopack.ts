@@ -522,10 +522,10 @@ export async function getOriginalStackFrames({
           value: {
             originalStackFrame,
             originalCodeFrame:
-              originalStackFrame?.ignored === false
-                ? // TODO: Don't get all codeframes of non-ignored frames eagerly.
-                  stackFrame.originalCodeFrame
-                : null,
+              (originalStackFrame?.ignored ?? true)
+                ? null
+                : // TODO: Don't get all codeframes of non-ignored frames eagerly.
+                  stackFrame.originalCodeFrame,
           },
         }
       } catch (error) {
