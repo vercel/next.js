@@ -18,9 +18,11 @@ type AppDevOverlayErrorBoundaryState = {
 function ErroredHtml({
   globalError: [GlobalError, globalErrorStyles],
   error,
+  reset,
 }: {
   globalError: GlobalErrorState
   error: unknown
+  reset: () => void
 }) {
   if (!error) {
     return (
@@ -33,7 +35,7 @@ function ErroredHtml({
   return (
     <ErrorBoundary errorComponent={DefaultGlobalError}>
       {globalErrorStyles}
-      <GlobalError error={error} />
+      <GlobalError error={error} reset={reset} />
     </ErrorBoundary>
   )
 }
@@ -62,12 +64,20 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
     dispatcher.openErrorOverlay()
   }
 
+  reset = () => {
+    this.setState({ reactError: null })
+  }
+
   render() {
     const { children, globalError } = this.props
     const { reactError } = this.state
 
     const fallback = (
-      <ErroredHtml globalError={globalError} error={reactError} />
+      <ErroredHtml
+        globalError={globalError}
+        error={reactError}
+        reset={this.reset}
+      />
     )
 
     return reactError !== null ? fallback : children
