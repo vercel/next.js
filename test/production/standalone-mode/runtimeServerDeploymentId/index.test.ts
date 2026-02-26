@@ -23,6 +23,7 @@ describe('standalone mode: runtimeServerDeploymentId', () => {
         NEXT_DEPLOYMENT_ID: MY_DEPLOYMENT_ID,
       },
       skipStart: true,
+      disableAutoSkewProtection: true,
     })
     let { exitCode } = await next.build()
     // eslint-disable-next-line jest/no-standalone-expect
