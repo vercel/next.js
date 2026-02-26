@@ -91,7 +91,7 @@ export default async function Page() {
 
 ### Streaming uncached data
 
-When you need fresh data for each request (like real-time feeds or personalized content). Instead of adding `use cache`, you can wrap the component that access the data in [`<Suspense>`](https://react.dev/reference/react/Suspense) and provide fallback UI. At request time, the fallback UI will be shown first, while the content streams in:
+When you need fresh data for each request (like real-time feeds or personalized content), wrap the component that accesses the data in [`<Suspense>`](https://react.dev/reference/react/Suspense) and provide fallback UI instead of adding `use cache`. At request time, the fallback UI will be shown first, while the content streams in:
 
 ```tsx filename="page.tsx"
 import { Suspense } from 'react'
@@ -126,7 +126,7 @@ The fallback (`<p>Loading posts...</p>`) is included in the static shell, while 
 
 ## Working with runtime APIs
 
-Runtime APIs requires request context that isonly available when a user makes a request. These include:
+Runtime APIs require information that is only available when a user makes a request. These include:
 
 - [`cookies`](/docs/app/api-reference/functions/cookies) - User's cookie data
 - [`headers`](/docs/app/api-reference/functions/headers) - Request headers
@@ -254,9 +254,9 @@ export default async function Page() {
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:
 
-- [`use cache`](#caching-data-with-use-cache): the result is cached and included in the static shell
-- [`<Suspense>`](#streaming-uncached-data): fallback UI is included in the static shell while the content streams at request time
-- [Synchronous operations](#working-with-synchronous-operations): like pure computations and module imports are automatically included in the static shell
+- [`use cache`](#usage): the result is cached and included in the static shell
+- [`<Suspense>`](#stream-uncached-data): fallback UI is included in the static shell while the content streams at request time
+- [Synchronous operations](#work-with-synchronous-operations): like pure computations and module imports are automatically included in the static shell
 
 This generates a static shell consisting of HTML for initial page loads and a serialized [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation, ensuring the browser receives fully rendered content instantly whether users navigate directly to the URL or transition from another page.
 
@@ -270,7 +270,7 @@ This generates a static shell consisting of HTML for initial page loads and a se
 
 This rendering approach is called **Partial Prerendering (PPR)**, and it's the default behavior with Cache Components.
 
-> You can verify that a route was fully prerendered by checking the [build output summary](/docs/app/api-reference/cli/next-build#output). Alternatively, see what content was added to the static shell of any page by viewing the page source in your browser.
+> You can verify that a route was fully prerendered by checking the [build output summary](/docs/app/api-reference/cli/next#next-build-options). Alternatively, see what content was added to the static shell of any page by viewing the page source in your browser.
 
 <Image
   alt="Diagram showing partially rendered page on the client, with loading UI for chunks that are being streamed."

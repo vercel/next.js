@@ -12,7 +12,7 @@ related:
     - app/api-reference/config/next-config-js/taint
 ---
 
-This page will walk you through how you can fetch data in [Server](#server-components) and [Client](#client-components) Components, and how to [stream](#streaming) components that depend on dynamicdata.
+Learn how to fetch data in [Server](#server-components) and [Client](#client-components) Components, and how to [stream](#streaming) components that depend on dynamic data.
 
 ## Fetching data
 
@@ -57,8 +57,8 @@ export default async function Page() {
 
 > **Good to know:**
 >
-> - The same `fetch` across a React component tree are [memoized](/docs/app/glossary#memoization) by default, meaning you can fetch data in the component that needs it instead of props drilling.
 > - `fetch` responses are not cached by default. To learn how to cache data requests, see [caching](/docs/app/getting-started/caching).
+> - `fetch` requests are [memoized](/docs/app/glossary#memoization) by default, meaning you can fetch data in the component that needs the data instead of props drilling.
 > - During development, you can log `fetch` calls for better visibility and debugging. See the [`logging` API reference](/docs/app/api-reference/config/next-config-js/logging).
 
 #### With an ORM or database
@@ -237,9 +237,9 @@ export default function BlogPage() {
 
 ## Streaming
 
-With [Cache Components](/docs/app/getting-started/caching), static and cached content is served immediately from the prerendered shell. Streaming is how dynamic content — anything inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary — arrives progressively after the initial response.
+When you fetch data in Server Components, the data is fetched and rendered on the server for each request. If you have any slow data requests, the whole route will be blocked from rendering until all the data is fetched.
 
-If you have slow data requests that aren't cached, they can block rendering. To prevent this, wrap them in a `<Suspense>` boundary so the rest of the page loads instantly while the slow content streams in.
+To improve the initial load time and user experience, you can use streaming to break up the page's HTML into smaller chunks and progressively send those chunks from the server to the client.
 
 <Image
   alt="How Server Rendering with Streaming Works"
@@ -249,7 +249,7 @@ If you have slow data requests that aren't cached, they can block rendering. To 
   height="785"
 />
 
-There are two ways you can leverage streaming in your application:
+There are two ways you can use streaming in your application:
 
 1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
 2. Wrapping a component with [`<Suspense>`](#with-suspense)

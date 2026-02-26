@@ -12,7 +12,7 @@ related:
     - app/api-reference/functions/revalidatePath
 ---
 
-> This page covers revalidation with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), enabled by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.ts` file. If you're not using Cache Components, see the [Caching without Cache Components](/docs/app/guides/caching-without-cache-components) guide.
+> This page covers revalidation with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), enabled by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.ts` file. If you're not using Cache Components, see the [Caching and Revalidating (Previous Model)](/docs/app/guides/caching-without-cache-components) guide.
 
 Revalidation is the process of updating cached data. It lets you keep serving fast, cached responses while ensuring content stays fresh. There are two strategies:
 
@@ -189,6 +189,6 @@ See the [`revalidatePath` API reference](/docs/app/api-reference/functions/reval
 
 ## What should I cache?
 
-Cache data that doesn't depend on [runtime data](/docs/app/getting-started/caching#runtime-data) and that you're OK serving from cache for a period of time. Use `use cache` with `cacheLife` to describe that behavior.
+Cache data that doesn't depend on [runtime data](/docs/app/getting-started/caching#work-with-runtime-apis) and that you're OK serving from cache for a period of time. Use `use cache` with `cacheLife` to describe that behavior.
 
 For content management systems with update mechanisms, use tags with longer cache durations and rely on `revalidateTag` to refresh content when it actually changes, rather than expiring the cache preemptively.

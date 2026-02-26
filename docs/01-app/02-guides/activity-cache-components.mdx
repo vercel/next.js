@@ -6,11 +6,11 @@ related:
   title: Related
   description: Learn more about Activity and Cache Components.
   links:
-    - app/getting-started/cache-components
+    - app/getting-started/caching
     - app/guides/activity
 ---
 
-When [Cache Components](/docs/app/getting-started/cache-components) is enabled, routes don't unmount when you navigate away from them. Instead, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to hide them - setting them to `mode="hidden"` rather than removing them from the tree.
+When [Cache Components](/docs/app/getting-started/caching) is enabled, routes don't unmount when you navigate away from them. Instead, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to hide them - setting them to `mode="hidden"` rather than removing them from the tree.
 
 This preserves component state and DOM state, which is great for back/forward navigation. But it can also surprise you: patterns that relied on components unmounting to reset state will now behave differently.
 
