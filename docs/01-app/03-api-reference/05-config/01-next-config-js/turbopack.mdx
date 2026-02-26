@@ -430,10 +430,7 @@ This is useful when you want to apply a loader to a specific import without affe
 
 ```tsx filename="app/page.tsx"
 // Apply a raw loader to import a .txt file as a JavaScript module
-import rawText from '../data.txt' with {
-  turbopackLoader: 'raw-loader',
-  turbopackAs: '*.js',
-}
+import rawText from '../data.txt' with { turbopackLoader: 'raw-loader', turbopackAs: '*.js' }
 
 export default function Page() {
   return <p>{rawText}</p>
@@ -452,10 +449,7 @@ The following import attributes are supported:
 Loaders with options pass a JSON-encoded string via `turbopackLoaderOptions`:
 
 ```tsx filename="app/page.tsx"
-import value from '../data.js' with {
-  turbopackLoader: 'string-replace-loader',
-  turbopackLoaderOptions: '{"search":"PLACEHOLDER","replace":"replaced value"}',
-}
+import value from '../data.js' with { turbopackLoader: 'string-replace-loader', turbopackLoaderOptions: '{"search":"PLACEHOLDER","replace":"replaced value"}' }
 ```
 
 > **Good to know**: Import attributes with `turbopackLoader` are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.
