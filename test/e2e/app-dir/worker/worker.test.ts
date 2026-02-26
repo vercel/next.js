@@ -8,6 +8,7 @@ describe('app dir - workers', () => {
     env: {
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
     },
+    disableAutoSkewProtection: true,
   })
 
   function beforePageLoad(page: Page) {

@@ -16,6 +16,9 @@ describe(`Handle new URL asset references`, () => {
     env: {
       // rely on skew protection when deployed
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
+      VERCEL_IMMUTABLE_DEPLOYMENT_ID: isNextStart
+        ? 'test-immutable-tkn-7890'
+        : undefined,
     },
     skipDeployment: true,
   })

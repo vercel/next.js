@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextStart, nextTestSetup } from 'e2e-utils'
 
 describe('css-url-deployment-id', () => {
   const deploymentId = 'test-deployment-id'
@@ -7,6 +7,13 @@ describe('css-url-deployment-id', () => {
     files: __dirname,
     skipDeployment: true,
     dependencies: { sass: '1.54.0' },
+    env: {
+      NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
+      VERCEL_IMMUTABLE_DEPLOYMENT_ID: isNextStart
+        ? 'imm-deployment-id'
+        : undefined,
+    },
+    disableAutoSkewProtection: true,
   })
 
   it('should include dpl query in CSS url() references for images and fonts', async () => {

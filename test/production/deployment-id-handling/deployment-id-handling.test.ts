@@ -18,6 +18,7 @@ describe.each([
           ? '1'
           : undefined,
       },
+      disableAutoSkewProtection: true,
     })
 
     it.each([
@@ -170,6 +171,7 @@ describe('deployment-id-handling disabled', () => {
   const deploymentId = Date.now() + ''
   const { next } = nextTestSetup({
     files: join(__dirname, 'app'),
+    disableAutoSkewProtection: true,
   })
   it.each([
     { urlPath: '/' },

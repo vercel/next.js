@@ -47,6 +47,7 @@ describe('standalone mode: runtimeServerDeploymentId', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         HOSTNAME: '::',
         PORT: appPort,
         NEXT_DEPLOYMENT_ID: MY_DEPLOYMENT_ID,
