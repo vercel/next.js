@@ -920,6 +920,14 @@ pub enum ModuleIds {
 #[turbo_tasks::value(transparent)]
 pub struct OptionModuleIds(pub Option<ModuleIds>);
 
+#[turbo_tasks::value(operation)]
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TurbopackNodeBackend {
+    WorkerThreads,
+    ChildProcesses,
+}
+
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -1150,6 +1158,7 @@ pub struct ExperimentalConfig {
 
     turbopack_minify: Option<bool>,
     turbopack_module_ids: Option<ModuleIds>,
+    turbopack_node_backend: Option<TurbopackNodeBackend>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -2044,6 +2053,14 @@ impl NextConfig {
                 .turbopack_infer_module_side_effects
                 .unwrap_or(true),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_node_backend(&self) -> Vc<TurbopackNodeBackend> {
+        self.experimental
+            .turbopack_node_backend
+            .unwrap_or(TurbopackNodeBackend::WorkerThreads)
+            .cell()
     }
 
     #[turbo_tasks::function]

@@ -14,7 +14,7 @@ use next_core::{
     next_client::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
-    next_config::{ModuleIds as ModuleIdStrategyConfig, NextConfig},
+    next_config::{ModuleIds as ModuleIdStrategyConfig, NextConfig, TurbopackNodeBackend},
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
@@ -79,7 +79,9 @@ use turbopack_core::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
 };
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{
+    child_process_backend, execution_context::ExecutionContext, worker_threads_backend,
+};
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
@@ -1217,6 +1219,10 @@ impl Project {
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root().owned().await?;
         let next_mode = self.next_mode().await?;
+        let node_backend = match *self.next_config().turbopack_node_backend().await? {
+            TurbopackNodeBackend::WorkerThreads => worker_threads_backend(),
+            TurbopackNodeBackend::ChildProcesses => child_process_backend(),
+        };
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
@@ -1237,6 +1243,7 @@ impl Project {
             self.project_path().owned().await?,
             node_execution_chunking_context,
             self.env(),
+            node_backend,
         ))
     }
 
@@ -1475,10 +1482,12 @@ impl Project {
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
+            let execution_context = self.execution_context().await?;
+            let node_backend = execution_context.node_backend.into_trait_ref().await?;
             if *self.is_watch_enabled().await? {
-                turbopack_node::evaluate::scale_down();
+                node_backend.scale_down()?;
             } else {
-                turbopack_node::evaluate::scale_zero();
+                node_backend.scale_zero()?;
             }
 
             Ok(module_graphs_vc)
