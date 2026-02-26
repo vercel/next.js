@@ -19,6 +19,8 @@ import {
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
+  processStaticStageResponse,
+  writeStaticStageResponseIntoCache,
   type RouteTree,
   type FulfilledRouteCacheEntry,
 } from './cache'
@@ -211,7 +213,8 @@ export function navigateToKnownRoute(
         nextUrl,
         freshnessPolicy,
         accumulation,
-        routeCacheEntry
+        routeCacheEntry,
+        navigateType
       )
     }
     return completeSoftNavigation(
@@ -368,6 +371,8 @@ async function navigateToUnknownRoute(
     renderedSearch,
     couldBeIntercepted,
     prerendered,
+    staticStageResponse,
+    responseHeaders,
     debugInfo,
   } = result
 
@@ -387,9 +392,10 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
   if (metadataVaryPath !== null) {
-    discoverKnownRoute(
+    const fulfilledRoute = discoverKnownRoute(
       now,
       url.pathname,
+      nextUrl,
       null, // No pending entry
       navigationSeed.routeTree,
       metadataVaryPath,
@@ -398,6 +404,26 @@ async function navigateToUnknownRoute(
       prerendered,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
+
+    // Write the static stage of the response into the segment cache so
+    // that subsequent navigations can serve cached static segments instantly.
+    if (staticStageResponse !== null) {
+      processStaticStageResponse(now, staticStageResponse).then(
+        ({ serverData, headVaryParams, staleAt }) =>
+          writeStaticStageResponseIntoCache(
+            now,
+            serverData,
+            responseHeaders,
+            headVaryParams,
+            staleAt,
+            fulfilledRoute
+          ),
+        () => {
+          // The static stage processing failed. Not fatal — the navigation
+          // completed normally, we just won't write into the cache.
+        }
+      )
+    }
   }
 
   return navigateToKnownRoute(
@@ -843,9 +869,13 @@ async function tryNavigateUsingTestingAPIPrefetch(
       )
     }
 
-    // Prefetch failed - fall through to normal unknown route path. This is fine
-    // because the lock will still be held, and waitForNavigationLockIfActive()
-    // in the dynamic data path will block until the lock is released.
+    // Prefetch failed. Wait for the lock to be released before falling
+    // through to the normal navigation path. This prevents runtime data
+    // from leaking into the shell while the lock is held — the navigation
+    // blocks until the instant scope ends, then proceeds normally.
+    const { waitForNavigationLockIfActive } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    await waitForNavigationLockIfActive()
     return null
   }
   return null

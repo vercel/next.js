@@ -1,7 +1,7 @@
 ---
 title: Activity with Cache Components
 nav_title: Activity with Cache Components
-description: Learn how to handle UI patterns like dropdowns, dialogs, and forms that behave differently when Cache Components keeps routes mounted with Activity.
+description: Learn how to decide which UI state to preserve and which to reset when Cache Components keeps routes mounted with Activity.
 related:
   title: Related
   description: Learn more about Activity and Cache Components.
@@ -12,7 +12,7 @@ related:
 
 When [Cache Components](/docs/app/getting-started/cache-components) is enabled, routes don't unmount when you navigate away from them. Instead, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to hide them - setting them to `mode="hidden"` rather than removing them from the tree.
 
-This preserves component state and DOM state, which is great for back/forward navigation. But it can also surprise you: patterns that relied on components unmounting to reset state will now behave differently.
+This preserves component state and DOM state, which is great for back/forward navigation. But patterns that relied on unmounting to clear state will no longer reset automatically. You decide what to keep and what to reset.
 
 Next.js uses a **3-entry limit** - it preserves up to 3 routes. When you navigate beyond that, the oldest route's DOM and React state are dropped. This means if a user navigates through many pages and then goes back, very old states may have been evicted and will re-render fresh.
 
@@ -29,15 +29,19 @@ This foundation enables full route prefetching, instant back/forward navigation,
 
 If you want to understand how Activity works and the patterns it enables, see the [Activity guide](/docs/app/guides/activity).
 
-## Common issues and fixes
+## Choosing what to preserve
 
-### Dropdown stays open after navigation
+Activity preserves all component state by default. For each piece of state, you decide whether that's the right behavior for your UI. The patterns below show common scenarios and how to handle both sides.
 
-Consider a settings page with a dropdown menu. If a user opens the dropdown, navigates to another page, then navigates back, the dropdown is still open. Activity preserved the component state, including `isOpen: true`.
+### Expandable UI (dropdowns, accordions, panels)
 
-**Fix: Reset state when hidden**
+When a user navigates away and returns, Activity preserves the open/closed state of expandable elements.
 
-Use Effect cleanup to close the dropdown when Activity hides the component:
+**When to keep it:** A sidebar with expanded sections, a FAQ accordion, or a filters panel - the user set up their view intentionally, and restoring it avoids re-doing that work.
+
+**When to reset it:** A dropdown menu or popover triggered by a button click - these are transient interactions, not persistent view state. Returning to a page with a dropdown already open is not user friendly.
+
+To reset transient open/closed state, close it in a `useLayoutEffect` cleanup function:
 
 ```tsx highlight={8-13}
 'use client'
@@ -76,9 +80,15 @@ When Activity hides this component, the cleanup function runs and resets `isOpen
 
 You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback to close dropdowns immediately when a navigation link is clicked.
 
-### Dialog doesn't re-run initialization logic
+### Dialog and initialization logic
 
-Consider a page with a dialog that focuses its first input when opened:
+Activity preserves dialog open/closed state. This also affects Effects that run based on that state.
+
+**When to keep it:** A multi-step wizard or a settings panel that the user was actively working in - preserving the step and input state avoids losing progress.
+
+**When to reset it:** A dialog that runs initialization logic (like focusing an input) each time it opens. If the user navigated away while the dialog was open, Activity preserves `isDialogOpen: true`. Opening it again sets it to `true` when it's already `true` - no state change means the Effect doesn't re-run.
+
+Consider this example:
 
 ```tsx
 'use client'
@@ -99,13 +109,9 @@ function ProductTab() {
 }
 ```
 
-A user opens the dialog (input gets focused), closes it, navigates to another page, navigates back, and opens the dialog again. This time the input doesn't get focused.
+If the user navigated away while the dialog was open, returning and opening the dialog won't trigger the focus Effect because `isDialogOpen` was already `true`.
 
-The issue is subtle: if the dialog was closed before navigating away, the state is `false`. Returning and opening it sets `isDialogOpen` to `true`, triggering the Effect as expected. However, if the user navigated away _while the dialog was open_, Activity preserved `isDialogOpen: true`. Opening the dialog again sets it to `true` when it's already `true`. No state change means the Effect doesn't re-run.
-
-**Fix: Derive dialog state from something that resets**
-
-Make the open/closed state derive from something outside the preserved component state - like a search param:
+To fix this, derive the dialog state from something outside the preserved component state like a search param:
 
 ```tsx highlight={3,7-9,20,25}
 'use client'
@@ -144,13 +150,15 @@ function ProductTab() {
 
 With this approach, `isDialogOpen` derives from the URL rather than component state. When navigating away and returning, the search param is cleared (the URL changed), so `isDialogOpen` becomes `false`. Opening the dialog sets the param, which changes `isDialogOpen` and triggers the Effect.
 
-### Form state persists on "create" routes
+### Form input values
 
-A "create new item" page might show stale data when returning to it if form values were preserved by Activity.
+Activity preserves form input values - text typed into fields, selected options, checkbox states.
 
-**Fix: Use ref cleanup to reset on hide**
+**When to keep it:** A search page with filters, a draft the user was composing, or a settings form with unsaved changes. Preserving input state is one of Activity's biggest UX wins - the user doesn't lose work.
 
-Use a callback ref to reset form fields when Activity hides the component:
+**When to reset it:** A "create new item" page where returning should start fresh, or a contact form after successful submission.
+
+To reset form fields when Activity hides the component, use a callback ref:
 
 ```tsx
 <form
@@ -165,11 +173,80 @@ Use a callback ref to reset form fields when Activity hides the component:
 
 This resets the form whenever the user navigates away. See [Resetting state](/docs/app/guides/activity#resetting-state) in the Activity guide for more patterns, including key-based resets for React state.
 
+### Action state (`useActionState`)
+
+Activity preserves [`useActionState`](https://react.dev/reference/react/useActionState) results - success messages, error messages, and any other state returned by the action.
+
+**When to keep it:** A ticket redemption form showing "Ticket redeemed successfully", or a settings form showing "Changes saved". Seeing the result of a previous action when returning to the page is useful confirmation so the user can see what happened.
+
+**When to reset it:** A "new transaction" flow where each visit should start fresh, or a form where stale success/error messages would be confusing in a new context.
+
+You can think of `useActionState` as a `useReducer` that allows side effects. It doesn't have to only handle form submissions - you can dispatch any action to it. Adding a `RESET` action gives you a clean way to clear state when Activity hides the component (see [Reset state](https://react.dev/reference/react/useActionState#reset-state) in the React docs):
+
+```tsx highlight={5-6,9-21,26-35}
+'use client'
+
+import { useActionState, useLayoutEffect, useRef, startTransition } from 'react'
+
+type Action = { type: 'SUBMIT'; data: FormData } | { type: 'RESET' }
+type State = { success: boolean; error: string | null }
+
+function CommentForm() {
+  const [state, dispatch, isPending] = useActionState(
+    async (prev: State, action: Action) => {
+      if (action.type === 'RESET') {
+        return { success: false, error: null }
+      }
+      // Handle the form submission
+      const res = await saveComment(action.data)
+      if (!res.ok) return { success: false, error: res.message }
+      shouldReset.current = true
+      return { success: true, error: null }
+    },
+    { success: false, error: null }
+  )
+
+  const shouldReset = useRef(false)
+
+  // Dispatch RESET when Activity hides this component
+  useLayoutEffect(() => {
+    return () => {
+      if (shouldReset.current) {
+        shouldReset.current = false
+        startTransition(() => {
+          dispatch({ type: 'RESET' })
+        })
+      }
+    }
+  }, [dispatch])
+
+  return (
+    <form action={(formData) => dispatch({ type: 'SUBMIT', data: formData })}>
+      <textarea name="comment" />
+      <button type="submit" disabled={isPending}>
+        {isPending ? 'Posting...' : 'Post Comment'}
+      </button>
+      {state.success && <p>Comment posted!</p>}
+      {state.error && <p>{state.error}</p>}
+    </form>
+  )
+}
+```
+
+Here's what happens step by step:
+
+1. The user submits the form. The reducer receives a `SUBMIT` action with the `FormData`, calls `saveComment`, and returns `{ success: true }`. It also sets `shouldReset.current = true` to mark that a reset is needed.
+2. The user navigates away. Activity hides the component and runs the `useLayoutEffect` cleanup. Because `shouldReset.current` is `true`, it dispatches a `RESET` action.
+3. The reducer receives `RESET` and returns the initial state (`{ success: false, error: null }`). The stale success message is cleared.
+4. If the user navigates back, the form is ready for a new submission. If they never submitted (step 1 didn't happen), `shouldReset.current` is still `false`, so no `RESET` is dispatched. The form stays as-is.
+
 ## State and authentication
 
-Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior - props changing (such as receiving a new user) triggers a re-render but does not reset existing state. If your application needs fresh state when users change, you can handle this explicitly.
+Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior: props changing (such as receiving a new user) triggers a re-render but does not reset existing state. A draft composed by one user shouldn't be visible to another.
 
-For logout flows, using `window.location.href` instead of `router.push` triggers a full page reload, clearing all client-side state. For finer control, reset state when the user identity changes:
+For logout flows, using `window.location.href` instead of `router.push` triggers a full page reload, clearing all client-side state.
+
+To reset specific state when the user changes without a full reload:
 
 ```tsx
 'use client'
@@ -192,3 +269,45 @@ function UserScopedForm({ userId }: { userId: string | null }) {
 ```
 
 Alternatively, key components by user ID to let React handle the reset: `<Form key={userId} />`. See [Resetting state](/docs/app/guides/activity#resetting-state) for more patterns.
+
+## Global styles
+
+Page-level styles (CSS variables, z-index, global classes) can affect visible pages when the originating component is hidden by Activity. You likely want to disable them when hidden: a hidden page's accent color or z-index overrides shouldn't leak into the visible page.
+
+Use a callback ref to toggle the stylesheet's `media` attribute:
+
+```tsx
+<style
+  ref={(style) => {
+    if (style) style.media = '' // Enable when visible
+    return () => {
+      if (style) style.media = 'not all' // Disable when hidden
+    }
+  }}
+>
+  {`:root { --page-accent: blue; }`}
+</style>
+```
+
+Or use `useLayoutEffect` when managing multiple style elements or more complex cleanup:
+
+```tsx
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+
+function PageWithStyles() {
+  const styleRef = useRef<HTMLStyleElement>(null)
+
+  useLayoutEffect(() => {
+    if (styleRef.current) styleRef.current.media = ''
+    return () => {
+      if (styleRef.current) styleRef.current.media = 'not all'
+    }
+  }, [])
+
+  return <style ref={styleRef}>{`:root { --page-accent: blue; }`}</style>
+}
+```
+
+When Activity hides the component, the cleanup sets `media="not all"`, which disables the stylesheet. When visible again, the effect re-runs and resets `media` to enable it.

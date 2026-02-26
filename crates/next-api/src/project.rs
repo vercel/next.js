@@ -33,7 +33,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
     ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Vc,
-    debug::ValueDebugFormat, fxindexmap, mark_root, trace::TraceRawVcs,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -608,121 +608,137 @@ impl ProjectContainer {
         .await
     }
 
-    #[tracing::instrument(level = "info", name = "update project options", skip_all)]
     pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
-        let PartialProjectOptions {
-            root_path,
-            project_path,
-            next_config,
-            env,
-            define_env,
-            watch,
-            dev,
-            encryption_key,
-            build_id,
-            preview_props,
-            browserslist_query,
-            no_mangling,
-            write_routes_hashes_manifest,
-            debug_build_paths,
-        } = options;
+        let span = tracing::info_span!(
+            "update project options",
+            project_name = %self.await?.name,
+            env_diff = Empty
+        );
+        let span_clone = span.clone();
+        async move {
+            let PartialProjectOptions {
+                root_path,
+                project_path,
+                next_config,
+                env,
+                define_env,
+                watch,
+                dev,
+                encryption_key,
+                build_id,
+                preview_props,
+                browserslist_query,
+                no_mangling,
+                write_routes_hashes_manifest,
+                debug_build_paths,
+            } = options;
 
-        let resolved_self = self.to_resolved().await?;
-        let this = resolved_self.await?;
+            let resolved_self = self.to_resolved().await?;
+            let this = resolved_self.await?;
 
-        let mut new_options = this
-            .options_state
-            .get()
-            .clone()
-            .context("ProjectContainer need to be initialized with initialize()")?;
+            let mut new_options = this
+                .options_state
+                .get()
+                .clone()
+                .context("ProjectContainer need to be initialized with initialize()")?;
 
-        if let Some(root_path) = root_path {
-            new_options.root_path = root_path;
-        }
-        if let Some(project_path) = project_path {
-            new_options.project_path = project_path;
-        }
-        if let Some(next_config) = next_config {
-            new_options.next_config = next_config;
-        }
-        if let Some(env) = env {
-            new_options.env = env;
-        }
-        if let Some(define_env) = define_env {
-            new_options.define_env = define_env;
-        }
-        if let Some(watch) = watch {
-            new_options.watch = watch;
-        }
-        if let Some(dev) = dev {
-            new_options.dev = dev;
-        }
-        if let Some(encryption_key) = encryption_key {
-            new_options.encryption_key = encryption_key;
-        }
-        if let Some(build_id) = build_id {
-            new_options.build_id = build_id;
-        }
-        if let Some(preview_props) = preview_props {
-            new_options.preview_props = preview_props;
-        }
-        if let Some(browserslist_query) = browserslist_query {
-            new_options.browserslist_query = browserslist_query;
-        }
-        if let Some(no_mangling) = no_mangling {
-            new_options.no_mangling = no_mangling;
-        }
-        if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
-            new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
-        }
-        if let Some(debug_build_paths) = debug_build_paths {
-            new_options.debug_build_paths = Some(debug_build_paths);
-        }
+            if let Some(root_path) = root_path {
+                new_options.root_path = root_path;
+            }
+            if let Some(project_path) = project_path {
+                new_options.project_path = project_path;
+            }
+            if let Some(next_config) = next_config {
+                new_options.next_config = next_config;
+            }
+            if let Some(env) = env {
+                new_options.env = env;
+            }
+            if let Some(define_env) = define_env {
+                new_options.define_env = define_env;
+            }
+            if let Some(watch) = watch {
+                new_options.watch = watch;
+            }
+            if let Some(dev) = dev {
+                new_options.dev = dev;
+            }
+            if let Some(encryption_key) = encryption_key {
+                new_options.encryption_key = encryption_key;
+            }
+            if let Some(build_id) = build_id {
+                new_options.build_id = build_id;
+            }
+            if let Some(preview_props) = preview_props {
+                new_options.preview_props = preview_props;
+            }
+            if let Some(browserslist_query) = browserslist_query {
+                new_options.browserslist_query = browserslist_query;
+            }
+            if let Some(no_mangling) = no_mangling {
+                new_options.no_mangling = no_mangling;
+            }
+            if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
+                new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
+            }
+            if let Some(debug_build_paths) = debug_build_paths {
+                new_options.debug_build_paths = Some(debug_build_paths);
+            }
 
-        // TODO: Handle mode switch, should prevent mode being switched.
-        let watch = new_options.watch;
+            // TODO: Handle mode switch, should prevent mode being switched.
+            let watch = new_options.watch;
 
-        let project = project_operation(resolved_self)
-            .resolve_strongly_consistent()
-            .await?;
-        let prev_project_fs = project_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-        let prev_output_fs = output_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
+            let project = project_operation(resolved_self)
+                .resolve_strongly_consistent()
+                .await?;
+            let prev_project_fs = project_fs_operation(project)
+                .read_strongly_consistent()
+                .await?;
+            let prev_output_fs = output_fs_operation(project)
+                .read_strongly_consistent()
+                .await?;
 
-        this.options_state.set(Some(new_options));
-        let project = project_operation(resolved_self)
-            .resolve_strongly_consistent()
-            .await?;
-        let project_fs = project_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-        let output_fs = output_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
+            if let Some(old_options) = &*this.options_state.get_untracked() {
+                span.record(
+                    "env_diff",
+                    define_env_diff_report(&old_options.define_env, &new_options.define_env)
+                        .as_str(),
+                );
+            }
+            this.options_state.set(Some(new_options));
+            let project = project_operation(resolved_self)
+                .resolve_strongly_consistent()
+                .await?;
+            let project_fs = project_fs_operation(project)
+                .read_strongly_consistent()
+                .await?;
+            let output_fs = output_fs_operation(project)
+                .read_strongly_consistent()
+                .await?;
 
-        if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
-            if watch.enable {
-                // TODO stop watching: prev_project_fs.stop_watching()?;
-                project_fs
-                    .start_watching_with_invalidation_reason(watch.poll_interval)
-                    .await?;
-            } else {
-                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                    // this path is just used for display purposes
+            if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
+                if watch.enable {
+                    // TODO stop watching: prev_project_fs.stop_watching()?;
+                    project_fs
+                        .start_watching_with_invalidation_reason(watch.poll_interval)
+                        .await?;
+                } else {
+                    project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                        // this path is just used for display purposes
+                        path: RcStr::from(path.to_string_lossy()),
+                    });
+                }
+            }
+            if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
+                prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
                     path: RcStr::from(path.to_string_lossy()),
                 });
             }
-        }
-        if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
-            prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                path: RcStr::from(path.to_string_lossy()),
-            });
-        }
 
-        Ok(())
+            Ok(())
+        }
+        .instrument(span_clone)
+        .await
     }
 }
 
@@ -2365,12 +2381,10 @@ impl Project {
 
 // This is a performance optimization. This function is a root aggregation function that
 // aggregates over the whole subgraph.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
-    mark_root();
-
     let next_mode = project.next_mode();
     let next_mode_ref = next_mode.await?;
     let should_trace = next_mode_ref.is_production();

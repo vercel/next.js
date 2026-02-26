@@ -58,8 +58,11 @@ Before editing or creating files in any subdirectory (e.g., `packages/*`, `crate
 # Build the Next.js package
 pnpm --filter=next build
 
-# Build everything
+# Build all JS code
 pnpm build
+
+# Build all JS and Rust code
+pnpm build-all
 
 # Run specific task
 pnpm --filter=next exec taskr <task>
@@ -83,21 +86,22 @@ pnpm --filter=next dev
 
 ```bash
 # NEXT_SKIP_ISOLATE=1 - skip packing Next.js for each test (~100s faster)
-# testonly - runs with --runInBand (no worker isolation overhead)
-NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=dev pnpm testonly test/path/to/test.ts
+# NEXT_TEST_MODE=<mode> - run dev or start based on the context provided
+# testheadless - runs headless with --runInBand (no worker isolation overhead)
+NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=<dev|start> pnpm testheadless test/path/to/test.ts
 ```
 
 **3. When done, kill the background watch process (if you started it).**
 
 **For type errors only:** Use `pnpm --filter=next types` (~10s) instead of `pnpm --filter=next build` (~60s).
 
-After the workspace is bootstrapped, prefer `pnpm --filter=next build` when edits are limited to core Next.js files. Use full `pnpm build` for branch switches/bootstrap, before CI push, or when changes span multiple packages.
+After the workspace is bootstrapped, prefer `pnpm --filter=next build` when edits are limited to core Next.js files. Use full `pnpm build-all` for branch switches/bootstrap, before CI push, or when changes span multiple packages.
 
 **Always run a full bootstrap build after switching branches:**
 
 ```bash
 git checkout <branch>
-pnpm build   # Sets up outputs for dependent packages (Turborepo dedupes if unchanged)
+pnpm build-all   # Sets up outputs for dependent packages (Turborepo dedupes if unchanged)
 ```
 
 **When NOT to use NEXT_SKIP_ISOLATE:** Drop it when testing module resolution changes (new require() paths, new exports from entry-base.ts, edge route imports). Without isolation, the test uses local dist/ directly, hiding resolution failures that occur when Next.js is packed as a real npm package.
@@ -136,7 +140,7 @@ pnpm test-dev-turbo test/development/
 **Other test commands:**
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
-- `pnpm testonly <path>` - Run tests without rebuilding (faster iteration when build artifacts are already up to date)
+- `pnpm testheadless <path>` - Run tests headless without rebuilding (faster iteration when build artifacts are already up to date)
 - `pnpm new-test` - Generate a new test file from template (interactive)
 
 **Generate tests non-interactively (for AI agents):**
@@ -326,7 +330,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 
 **Build & test output:**
 
-- Capture to file once, then analyze: `pnpm build 2>&1 | tee /tmp/build.log`
+- Capture to file once, then analyze: e.g. `pnpm build 2>&1 | tee /tmp/build.log`
 - Don't re-run the same test command without code changes; re-analyze saved output instead
 
 **Batch edits before building:**
@@ -365,9 +369,9 @@ npx eslint --config eslint.config.mjs --fix <files>
 
 When running Next.js integration tests, you must rebuild if source files have changed:
 
-- **First run after branch switch/bootstrap (or if unsure)?** → `pnpm build`
+- **First run after branch switch/bootstrap (or if unsure)?** → `pnpm build-all`
 - **Edited only core Next.js files (`packages/next/**`) after bootstrap?** → `pnpm --filter=next build`
-- **Edited Next.js code or Turbopack (Rust)?** → `pnpm build`
+- **Edited Next.js code or Turbopack (Rust)?** → `pnpm build-all`
 
 ## Development Anti-Patterns
 

@@ -18,7 +18,7 @@ import {
 import { getDigestForWellKnownError } from '../create-error-handler'
 import {
   // NOTE: we're in the server layer, so this is a client reference
-  InstantValidationBoundary,
+  PlaceValidationBoundaryBelowThisLevel,
 } from './boundary'
 import type { ValidationBoundaryTracking } from './boundary-tracking'
 import {
@@ -200,24 +200,6 @@ export async function findNavigationsToValidate(
             if (instantConfig === false) {
               navigationParents = []
             } else {
-              // If the page itself has a prefetch config, then
-              // make sure we always validate a navigation from its parent
-              // to ensure `__PAGE__?p=foo -> __PAGE__?p=bar` works.
-              //
-              // This is relevant if the parent layout is implicit, as in
-              //   my-segment/
-              //     loading.tsx
-              //     page.tsx
-              // because the above code for layouts wouldn't add it.
-              // TODO: what if this is runtime-prefetched? how does that affect a search-param navigation?
-              // TODO: this can cause double validation if the parent segment is empty
-              //       but we have a parent layout that'd be validated
-              if (parentPath === null) {
-                throw new InvariantError('A page must have a root layout')
-              }
-              if (!navigationParents.includes(parentPath)) {
-                navigationParents.push(parentPath)
-              }
               const task: ValidationTask = {
                 target: segmentPath,
                 parents: navigationParents,
@@ -278,7 +260,6 @@ function traverseRootSeedDataSegments(
     seedData: CacheNodeSeedData
   ) => void
 ) {
-  // TODO: handle head as well
   const { flightRouterState, seedData } =
     getRootDataFromPayload(initialRSCPayload)
 
@@ -437,6 +418,8 @@ export async function collectStagedSegmentData(
   // We have to preserve the stage information for each of them,
   // so that we can later render each segment in any stage we need.
 
+  const { head } = getRootDataFromPayload(payload)
+
   const segments = new Map<SegmentPath, SegmentData>()
   traverseRootSeedDataSegments(payload, (segmentPath, seedData) => {
     segments.set(segmentPath, createSegmentData(seedData))
@@ -451,75 +434,73 @@ export async function collectStagedSegmentData(
     [RenderStage.Runtime]: -1,
   }
 
+  const renderIntoCacheItem = async (
+    data: HeadData | SegmentData,
+    cacheEntry: SegmentCacheItem
+  ): Promise<void> => {
+    const segmentDebugChannel = cacheEntry.debugChunks
+      ? createDebugChannel()
+      : undefined
+
+    const itemStream = renderToReadableStream(
+      data,
+      clientReferenceManifest.clientModules,
+      {
+        filterStackFrame,
+        debugChannel: segmentDebugChannel?.serverSide,
+        environmentName,
+        startTime,
+        onError(error: unknown) {
+          const digest = getDigestForWellKnownError(error)
+          if (digest) {
+            return digest
+          }
+          // We don't need to log the errors because we would have already done that
+          // when generating the original Flight stream for the whole page.
+          if (
+            process.env.NEXT_DEBUG_BUILD ||
+            process.env.__NEXT_VERBOSE_LOGGING
+          ) {
+            const workStore = workAsyncStorage.getStore()
+            printDebugThrownValueForProspectiveRender(
+              error,
+              workStore?.route ?? 'unknown route',
+              Phase.InstantValidation
+            )
+          }
+        },
+      }
+    )
+
+    await Promise.all([
+      // accumulate Flight chunks
+      (async () => {
+        for await (const chunk of itemStream.values()) {
+          writeChunk(cacheEntry.chunks, controller.currentStage, chunk)
+        }
+      })(),
+      // accumulate Debug chunks
+      segmentDebugChannel &&
+        (async () => {
+          for await (const chunk of segmentDebugChannel.clientSide.readable.values()) {
+            cacheEntry.debugChunks!.push(chunk)
+          }
+        })(),
+    ])
+  }
+
   await runInSequentialTasks(
     () => {
+      {
+        const headCacheItem = createSegmentCacheItem(!!fullPageDebugChunks)
+        cache.head = headCacheItem
+        pendingTasks.push(renderIntoCacheItem(head, headCacheItem))
+      }
+
       for (const [segmentPath, segmentData] of segments) {
-        const segmentCacheItem: SegmentCacheItem = {
-          chunks: {
-            [RenderStage.Static]: [],
-            [RenderStage.Runtime]: [],
-            [RenderStage.Dynamic]: [],
-          },
-          debugChunks: fullPageDebugChunks ? [] : null,
-        }
-        cache.set(segmentPath, segmentCacheItem)
-
-        const segmentTask = async () => {
-          const segmentDebugChannel = fullPageDebugChunks
-            ? createDebugChannel()
-            : undefined
-
-          const segmentStream = renderToReadableStream(
-            segmentData,
-            clientReferenceManifest.clientModules,
-            {
-              filterStackFrame,
-              debugChannel: segmentDebugChannel?.serverSide,
-              environmentName,
-              startTime,
-              onError(error: unknown) {
-                const digest = getDigestForWellKnownError(error)
-                if (digest) {
-                  return digest
-                }
-                // We don't need to log the errors because we would have already done that
-                // when generating the original Flight stream for the whole page.
-                if (
-                  process.env.NEXT_DEBUG_BUILD ||
-                  process.env.__NEXT_VERBOSE_LOGGING
-                ) {
-                  const workStore = workAsyncStorage.getStore()
-                  printDebugThrownValueForProspectiveRender(
-                    error,
-                    workStore?.route ?? 'unknown route',
-                    Phase.InstantValidation
-                  )
-                }
-              },
-            }
-          )
-
-          await Promise.all([
-            // accumulate Flight chunks
-            (async () => {
-              for await (const chunk of segmentStream.values()) {
-                writeChunk(
-                  segmentCacheItem.chunks,
-                  controller.currentStage,
-                  chunk
-                )
-              }
-            })(),
-            // accumulate Debug chunks
-            segmentDebugChannel &&
-              (async () => {
-                for await (const chunk of segmentDebugChannel.clientSide.readable.values()) {
-                  segmentCacheItem.debugChunks!.push(chunk)
-                }
-              })(),
-          ])
-        }
-        pendingTasks.push(segmentTask())
+        const segmentCacheItem = createSegmentCacheItem(!!fullPageDebugChunks)
+        cache.segments.set(segmentPath, segmentCacheItem)
+        pendingTasks.push(renderIntoCacheItem(segmentData, segmentCacheItem))
       }
     },
     () => {
@@ -803,7 +784,7 @@ export async function createCombinedPayload(
   /** mutable out-param - Which stages are actually used in the resulting payload */
   usedSegmentKinds: Set<SegmentStage>
 ): Promise<InitialRSCPayload> {
-  const { head, flightRouterState } = getRootDataFromPayload(initialRSCPayload)
+  const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
   const combinedSeedData = await createValidationSeedData(
     cache,
     validationRouteTree,
@@ -815,6 +796,23 @@ export async function createCombinedPayload(
     useRuntimeStageForPartialSegments,
     usedSegmentKinds
   )
+
+  // If we did a runtime prefetch for this navigation, then we'd get a runtime-stage head.
+  // Otherwise, we'd only have the `/_head` segment prefetch which is static.
+  // TODO(instant-validation): not sure about this as a way of detecting runtime prefetches
+  // (in the presence of `useRuntimeStageForPartialSegments`), but maybe it's actually correct?
+  const headStage = usedSegmentKinds.has(RenderStage.Runtime)
+    ? RenderStage.Runtime
+    : RenderStage.Static
+  debug?.(`    <head> - ${RenderStage[headStage]}`)
+  const head = await createValidationHead(
+    cache,
+    releaseSignal,
+    clientReferenceManifest,
+    stageEndTimes,
+    headStage
+  )
+
   const combinedRSCPayload: InitialRSCPayload = {
     ...initialRSCPayload,
     f: [
@@ -822,7 +820,7 @@ export async function createCombinedPayload(
       [
         flightRouterState satisfies FlightRouterState,
         combinedSeedData satisfies CacheNodeSeedData,
-        head satisfies HeadData, // TODO: handle head better
+        head satisfies HeadData,
       ],
     ],
   }
@@ -862,8 +860,7 @@ function createValidationSeedData(
 
   async function createSeedDataFromValidationTreeImpl(
     routeTree: RouteTree,
-    state: TraversalState,
-    parentState: TraversalState | null
+    state: TraversalState
   ) {
     const { path, slots } = routeTree
 
@@ -926,7 +923,7 @@ function createValidationSeedData(
     }
 
     debug?.(`    ${path || '/'} - ${RenderStage[stage]}`)
-    const segmentCacheItem = cache.get(path)
+    const segmentCacheItem = cache.segments.get(path)
     if (!segmentCacheItem) {
       throw new InvariantError(`Missing segment data: ${path}`)
     }
@@ -949,28 +946,28 @@ function createValidationSeedData(
     // We place the validation boundary right below the shared parent segment
     // This means that a dynamic hole is accepted as long as it has a Suspense boundary
     // in the new subtree (i.e. it wouldn't block the navigation).
-    const isValidationBoundary =
-      state.kind === 'new-tree' &&
-      parentState &&
-      parentState.kind === 'shared-tree'
+    const isInnermostSharedParent =
+      state.kind === 'shared-tree' && nextState.kind === 'new-tree'
 
-    if (isValidationBoundary) {
+    if (isInnermostSharedParent) {
       debug?.(
-        `    ['${path}' is in the new subtree, adding validation boundary around it]`
+        `    ['${path}' is the innermost shared parent, adding validation boundary below it]`
       )
       const boundaryId = path
       boundaryState.expectedIds.add(boundaryId)
       segmentData = {
         ...segmentData,
         node: (
-          // bundled in the server layer
-          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-          <InstantValidationBoundary
+          // When we wrap the node in a context provider,
+          // the first OuterLayoutRouter inside it will see it and place a validation boundary.
+
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- bundled in the server layer
+          <PlaceValidationBoundaryBelowThisLevel
             id={boundaryId}
             key="c" /* matching `cacheNodeKey` */
           >
             {segmentData.node}
-          </InstantValidationBoundary>
+          </PlaceValidationBoundaryBelowThisLevel>
         ),
       }
     }
@@ -981,8 +978,7 @@ function createValidationSeedData(
         slotsSeedData[parallelRouteKey] =
           await createSeedDataFromValidationTreeImpl(
             slots[parallelRouteKey],
-            nextState,
-            state
+            nextState
           )
       }
     }
@@ -992,8 +988,28 @@ function createValidationSeedData(
   return createSeedDataFromValidationTreeImpl(
     rootRouteTree,
     // Root layouts are always shared. Navigating to a new root layout is an MPA navigation.
-    { kind: 'shared-tree' },
-    null
+    { kind: 'shared-tree' }
+  )
+}
+
+async function createValidationHead(
+  cache: SegmentCache,
+  releaseSignal: AbortSignal,
+  clientReferenceManifest: ClientReferenceManifest,
+  stageEndTimes: StageEndTimes,
+  stage: RenderStage.Static | RenderStage.Runtime
+): Promise<HeadData> {
+  const segmentCacheItem = cache.head
+  if (!segmentCacheItem) {
+    throw new InvariantError(`Missing segment data: <head>`)
+  }
+  return await deserializeFromChunks<HeadData>(
+    segmentCacheItem.chunks[stage],
+    segmentCacheItem.chunks[RenderStage.Dynamic],
+    segmentCacheItem.debugChunks,
+    releaseSignal,
+    clientReferenceManifest,
+    { startTime: undefined, endTime: stageEndTimes[stage] }
   )
 }
 
@@ -1086,10 +1102,24 @@ function getCacheNodeSeedDataFromSegment(
 }
 
 function createSegmentCache(): SegmentCache {
-  return new Map()
+  return { head: null, segments: new Map() }
 }
 
-export type SegmentCache = Map<SegmentPath, SegmentCacheItem>
+function createSegmentCacheItem(withDebugChunks: boolean): SegmentCacheItem {
+  return {
+    chunks: {
+      [RenderStage.Static]: [],
+      [RenderStage.Runtime]: [],
+      [RenderStage.Dynamic]: [],
+    },
+    debugChunks: withDebugChunks ? [] : null,
+  }
+}
+
+export type SegmentCache = {
+  head: SegmentCacheItem | null
+  segments: Map<SegmentPath, SegmentCacheItem>
+}
 
 type SegmentCacheItem = {
   chunks: StageChunks

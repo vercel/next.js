@@ -115,7 +115,7 @@ pub use crate::{
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
-        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
+        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
         mark_session_dependent, mark_stateful, prevent_gc, run, run_once, run_once_with_reason,
         trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
     },
