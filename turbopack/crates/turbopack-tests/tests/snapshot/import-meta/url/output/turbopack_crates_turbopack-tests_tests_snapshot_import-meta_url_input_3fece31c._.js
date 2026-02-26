@@ -1,7 +1,7 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_import-meta_url_input_3fece31c._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)", ((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/asset.6fdf3006.txt");}),
+__turbopack_context__.q("/static/asset.76d5cf5c.txt");}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
