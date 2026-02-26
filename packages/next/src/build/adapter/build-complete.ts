@@ -253,7 +253,11 @@ export interface AdapterOutput {
     filePath: string
     pathname: string
     type: AdapterOutputType.STATIC_FILE
-    immutable: string | undefined
+    /**
+     * If this static file is immutable (because its filename contains a content hash), then this
+     * field contains the untruncated content hash.
+     */
+    immutableHash: string | undefined
   }
 
   /**
@@ -479,7 +483,7 @@ export async function handleBuildComplete({
           pathname,
           filePath: path.join(configOutDir, file),
           type: AdapterOutputType.STATIC_FILE,
-          immutable: undefined,
+          immutableHash: undefined,
         } satisfies AdapterOutput['STATIC_FILE'])
       }
     } else {
@@ -505,7 +509,7 @@ export async function handleBuildComplete({
           id,
           pathname,
           filePath,
-          immutable: clientHashes?.[id],
+          immutableHash: clientHashes?.[id],
         })
       }
 
@@ -853,7 +857,7 @@ export async function handleBuildComplete({
                   pagesDistDir,
                   `${normalizePagePath(localePage)}.html`
                 ),
-                immutable: undefined,
+                immutableHash: undefined,
               } satisfies AdapterOutput['STATIC_FILE']
 
               outputs.staticFiles.push(localeOutput)
@@ -864,7 +868,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
-                  immutable: undefined,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -874,7 +878,7 @@ export async function handleBuildComplete({
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: pageFile.replace(/\.js$/, '.html'),
-              immutable: undefined,
+              immutableHash: undefined,
             } satisfies AdapterOutput['STATIC_FILE']
 
             outputs.staticFiles.push(staticOutput)
@@ -885,7 +889,7 @@ export async function handleBuildComplete({
                 pathname: `${route}.rsc`,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
-                immutable: undefined,
+                immutableHash: undefined,
               })
             }
           }
@@ -948,7 +952,7 @@ export async function handleBuildComplete({
                 pathname: rscPage,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
-                immutable: undefined,
+                immutableHash: undefined,
               })
             }
           }
@@ -980,7 +984,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
-                  immutable: undefined,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -1342,7 +1346,7 @@ export async function handleBuildComplete({
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: staticMetadataFilePath,
-              immutable: undefined,
+              immutableHash: undefined,
             })
             continue
           }
@@ -1467,7 +1471,7 @@ export async function handleBuildComplete({
             pathname: rscPage,
             type: AdapterOutputType.STATIC_FILE,
             filePath: rscFallbackPath,
-            immutable: undefined,
+            immutableHash: undefined,
           })
         }
 
@@ -1655,7 +1659,7 @@ export async function handleBuildComplete({
               pathname: rscPage,
               type: AdapterOutputType.STATIC_FILE,
               filePath: rscFallbackPath,
-              immutable: undefined,
+              immutableHash: undefined,
             })
           }
 
@@ -1763,7 +1767,7 @@ export async function handleBuildComplete({
                 pathname: rscPage,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
-                immutable: undefined,
+                immutableHash: undefined,
               })
             }
 
@@ -1818,7 +1822,7 @@ export async function handleBuildComplete({
                 id: currentDocPath,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: currentFilePath,
-                immutable: undefined,
+                immutableHash: undefined,
               })
             }
           }
