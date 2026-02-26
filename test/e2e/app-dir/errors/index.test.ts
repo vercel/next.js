@@ -184,7 +184,6 @@ describe('app-dir - errors', () => {
               |           ^",
            "stack": [
              "Page app/global-error-boundary/client/page.js (8:11)",
-             "ClientPageRoot ../../../packages/next/src/client/components/client-page.tsx (83:12)",
            ],
          }
         `)
