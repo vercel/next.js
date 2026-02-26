@@ -18,7 +18,7 @@ pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
 mod heap_queue;
-mod pool;
+pub mod pool;
 pub mod source_map;
 pub mod transforms;
 
