@@ -78,31 +78,40 @@ pub struct OutputAssetsWithPaths(Vec<(ResolvedVc<Box<dyn OutputAsset>>, RcStr)>)
 
 #[turbo_tasks::function]
 pub async fn expand_outputs(
-    outputs: Vc<OutputAssets>,
+    outputs: Vec<Vc<OutputAssets>>,
     root: FileSystemPath,
 ) -> Result<Vc<OutputAssetsWithPaths>> {
     let output_assets = expand_output_assets(
         outputs
+            .iter()
+            .try_join()
             .await?
             .into_iter()
+            .flatten()
             .map(|asset| ExpandOutputAssetsInput::Asset(*asset)),
         true,
     )
     .await?;
 
-    Ok(Vc::cell(
-        output_assets
-            .into_iter()
-            .map(async |asset| {
-                if let Some(path) = root.get_path_to(&*asset.path().await?) {
-                    Ok(Some((asset, RcStr::from(path))))
-                } else {
-                    Ok(None)
-                }
-            })
-            .try_flat_join()
-            .await?,
-    ))
+    let mut output_assets = output_assets
+        .into_iter()
+        .map(async |asset| {
+            if let Some(path) = root.get_path_to(&*asset.path().await?) {
+                Ok(Some((asset, RcStr::from(path))))
+            } else {
+                Ok(None)
+            }
+        })
+        .try_flat_join()
+        .await?;
+
+    // Shared JS assets aren't duplicated here, but we have some duplicate OutputAssets with the
+    // same path, e.g. a static image which exists twice, once with the server and then also with
+    // the client chunking context.
+    output_assets.sort_unstable_by(|(_, a), (_, b)| a.cmp(b));
+    output_assets.dedup_by(|(_, a), (_, b)| a == b);
+
+    Ok(Vc::cell(output_assets))
 }
 
 #[turbo_tasks::value_impl]
@@ -111,23 +120,21 @@ impl Asset for AssetHashesManifestAsset {
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let entrypoint_groups = self.project.get_all_endpoint_groups(false).await?;
 
-        let mut files = entrypoint_groups
+        let output_assets = entrypoint_groups
             .iter()
             .map(|(_, EndpointGroup { primary, .. })| {
                 if let &[entry] = &primary.as_slice() {
-                    expand_outputs(endpoint_outputs(*entry.endpoint), self.asset_root.clone())
+                    endpoint_outputs(*entry.endpoint)
                 } else {
                     let endpoints = Vc::cell(primary.iter().map(|entry| entry.endpoint).collect());
-                    expand_outputs(endpoints_outputs(endpoints), self.asset_root.clone())
+                    endpoints_outputs(endpoints)
                 }
             })
-            .try_flat_join()
-            .await?;
-        // deduplicate shared assets across entrypoints
-        files.sort_unstable_by(|(_, a), (_, b)| a.cmp(b));
-        files.dedup_by(|(_, a), (_, b)| a == b);
+            .collect::<Vec<_>>();
 
-        let asset_paths = files
+        let output_assets = expand_outputs(output_assets, self.asset_root.clone()).await?;
+
+        let asset_paths = output_assets
             .into_iter()
             .map(async |(asset, path)| {
                 Ok((
