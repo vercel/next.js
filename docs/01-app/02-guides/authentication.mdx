@@ -119,6 +119,9 @@ export const SignupFormSchema = z.object({
     .regex(/[^a-zA-Z0-9]/, {
       error: 'Contain at least one special character.',
     })
+    .regex(/^(?:[^\s]|[^\s].*[^\s])$/, {
+      error: "Not start or end with a space."
+    })
     .trim(),
 })
 
@@ -150,6 +153,9 @@ export const SignupFormSchema = z.object({
     .regex(/[0-9]/, { error: 'Contain at least one number.' })
     .regex(/[^a-zA-Z0-9]/, {
       error: 'Contain at least one special character.',
+    })
+    .regex(/^(?:[^\s]|[^\s].*[^\s])$/, {
+      error: "Not start or end with a space."
     })
     .trim(),
 })
