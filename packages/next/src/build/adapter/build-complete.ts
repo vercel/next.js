@@ -47,9 +47,7 @@ import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { defaultOverrides } from '../../server/require-hook'
-import { makeIgnoreFn } from '../collect-build-traces'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 
@@ -500,24 +498,6 @@ export async function handleBuildComplete({
       const pagesSharedNodeAssets: Record<string, string> = {}
       const appPagesSharedNodeAssets: Record<string, string> = {}
 
-      const sharedTraceIgnores = [
-        '**/next/dist/compiled/next-server/**/*.dev.js',
-        '**/next/dist/compiled/webpack/*',
-        '**/node_modules/webpack5/**/*',
-        '**/next/dist/server/lib/route-resolver*',
-        'next/dist/compiled/semver/semver/**/*.js',
-        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
-        '**/*.d.ts',
-        '**/*.map',
-        '**/next/dist/pages/**/*',
-        '**/node_modules/sharp/**/*',
-        '**/@img/sharp-libvips*/**/*',
-        '**/next/dist/compiled/edge-runtime/**/*',
-        '**/next/dist/server/web/sandbox/**/*',
-        '**/next/dist/server/post-process.js',
-      ]
-      const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
-
       for (const file of requiredServerFiles) {
         // add to shared node assets
         const filePath = path.join(dir, file)
@@ -576,6 +556,29 @@ export async function handleBuildComplete({
       }
 
       if (bundler !== Bundler.Turbopack) {
+        const { nodeFileTrace } =
+          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+        const { makeIgnoreFn } =
+          require('../collect-build-traces') as typeof import('../collect-build-traces')
+
+        const sharedTraceIgnores = [
+          '**/next/dist/compiled/next-server/**/*.dev.js',
+          '**/next/dist/compiled/webpack/*',
+          '**/node_modules/webpack5/**/*',
+          '**/next/dist/server/lib/route-resolver*',
+          'next/dist/compiled/semver/semver/**/*.js',
+          '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
+          '**/*.d.ts',
+          '**/*.map',
+          '**/next/dist/pages/**/*',
+          '**/node_modules/sharp/**/*',
+          '**/@img/sharp-libvips*/**/*',
+          '**/next/dist/compiled/edge-runtime/**/*',
+          '**/next/dist/server/web/sandbox/**/*',
+          '**/next/dist/server/post-process.js',
+        ]
+        const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
+
         // These are modules that are necessary for bootstrapping node env
         const necessaryNodeDependencies = [
           require.resolve('next/dist/server/node-environment'),
