@@ -2360,6 +2360,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/concurrent-navigations/server-patch-history.test.ts": {
+    "passed": [
+      "server patch - history entry server patch preserves the push intent of a suspended transition"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
     "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
@@ -3407,6 +3416,7 @@
   },
   "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
     "passed": [
+      "instant-navigation-testing-api does not leak runtime data from hover prefetch into instant shell",
       "instant-navigation-testing-api logs an error when attempting to nest instant scopes",
       "instant-navigation-testing-api reload followed by MPA navigation, both block dynamic data",
       "instant-navigation-testing-api renders full prefetch content instantly when prefetch={true}",
@@ -3414,6 +3424,12 @@
       "instant-navigation-testing-api renders runtime-prefetched content instantly during navigation",
       "instant-navigation-testing-api renders static shell on MPA navigation via plain anchor",
       "instant-navigation-testing-api renders static shell on page reload",
+      "instant-navigation-testing-api runtime params are excluded from instant shell does not include cookie values in instant shell during client navigation",
+      "instant-navigation-testing-api runtime params are excluded from instant shell does not include cookie values in instant shell during page load",
+      "instant-navigation-testing-api runtime params are excluded from instant shell does not include dynamic param values in instant shell during client navigation",
+      "instant-navigation-testing-api runtime params are excluded from instant shell does not include dynamic param values in instant shell during page load",
+      "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during client navigation",
+      "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during page load",
       "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
       "instant-navigation-testing-api successive MPA navigations within instant scope"
     ],
@@ -3426,6 +3442,15 @@
     "passed": [],
     "failed": [],
     "pending": ["instant validation causes Only implemented in dev"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
+    "passed": [
+      "app dir - instant-validation-client should error when a client component exports unstable_instant"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7124,6 +7149,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/cached-navigations/cached-navigations.test.ts": {
+    "passed": [
+      "cached navigations caches static segments when navigating to a known route without a prefetch",
+      "cached navigations defers fallback params to the runtime stage",
+      "cached navigations includes static params in the cached static stage",
+      "cached navigations serves a fully static page without any requests on the second navigation",
+      "cached navigations serves cached static segments instantly on the second navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
     "passed": [
       "segment cache (CDN cache busting) perform fully prefetched navigation when a third-party proxy performs a redirect",
@@ -7220,6 +7258,15 @@
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
     "passed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/optimistic-route-cache-keying-regression/optimistic-route-cache-keying-regression.test.ts": {
+    "passed": [
+      "optimistic routing - route cache keying regression regression: route cache entries from navigation are reusable by subsequent prefetches"
     ],
     "failed": [],
     "pending": [],
@@ -7378,6 +7425,9 @@
   "test/e2e/app-dir/segment-cache/vary-params/vary-params.test.ts": {
     "passed": [
       "segment cache - vary params caches head segment when generateMetadata does not access params",
+      "segment cache - vary params does not reuse cached segment for optional catch-all when page accesses slug",
+      "segment cache - vary params does not reuse cached segment for optional catch-all when page checks slug with in operator",
+      "segment cache - vary params does not reuse cached segment for optional catch-all when page enumerates params",
       "segment cache - vary params does not reuse prefetched segment when page accesses searchParams",
       "segment cache - vary params renders cached loading state instantly during navigation",
       "segment cache - vary params reuses page segment when layout varies but page does not",
@@ -19665,7 +19715,8 @@
     "runtimeError": false
   },
   "test/integration/node-fetch-keep-alive/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "node-fetch-keep-alive dev should send keep-alive for getServerSideProps",
       "node-fetch-keep-alive dev should send keep-alive for getStaticPaths",
       "node-fetch-keep-alive dev should send keep-alive for getStaticProps",
@@ -19675,10 +19726,9 @@
       "node-fetch-keep-alive production mode should send keep-alive for getStaticProps",
       "node-fetch-keep-alive production mode should send keep-alive for json API"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/integration/non-next-dist-exclude/test/index.test.ts": {
     "passed": [
@@ -20118,18 +20168,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/react-profiling-mode/test/index.test.ts": {
-    "passed": [
-      "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for client component",
-      "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for pages",
-      "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component",
-      "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/relay-graphql-swc-multi-project/test/index.test.ts": {
     "passed": [
       "Relay Compiler Transform - Multi Project Config production mode project-a should resolve index page correctly",
@@ -20214,41 +20252,41 @@
       "404 handling custom _error production mode next start should handle slashes in router push correctly",
       "404 handling custom _error production mode next start should have no error from encoded slashes in router push",
       "404 handling custom _error production mode next start should normalize repeated slashes in redirects correctly",
-      "404 handling pages/404 production mode next dev should handle backslashes correctly",
-      "404 handling pages/404 production mode next dev should handle double slashes correctly",
-      "404 handling pages/404 production mode next dev should handle double slashes correctly with encoded",
-      "404 handling pages/404 production mode next dev should handle double slashes correctly with encoded and hash",
-      "404 handling pages/404 production mode next dev should handle double slashes correctly with encoded and query",
-      "404 handling pages/404 production mode next dev should handle double slashes correctly with hash",
-      "404 handling pages/404 production mode next dev should handle double slashes correctly with query",
-      "404 handling pages/404 production mode next dev should handle mixed backslashes/forward slashes correctly",
-      "404 handling pages/404 production mode next dev should handle slashes in next/link correctly",
-      "404 handling pages/404 production mode next dev should handle slashes in router push correctly",
-      "404 handling pages/404 production mode next dev should have no error from encoded slashes in router push",
-      "404 handling pages/404 production mode next dev should normalize repeated slashes in redirects correctly",
-      "404 handling pages/404 production mode production mode next export should handle backslashes correctly",
-      "404 handling pages/404 production mode production mode next export should handle double slashes correctly",
-      "404 handling pages/404 production mode production mode next export should handle double slashes correctly with encoded",
-      "404 handling pages/404 production mode production mode next export should handle double slashes correctly with encoded and hash",
-      "404 handling pages/404 production mode production mode next export should handle double slashes correctly with encoded and query",
-      "404 handling pages/404 production mode production mode next export should handle double slashes correctly with hash",
-      "404 handling pages/404 production mode production mode next export should handle double slashes correctly with query",
-      "404 handling pages/404 production mode production mode next export should handle mixed backslashes/forward slashes correctly",
-      "404 handling pages/404 production mode production mode next export should handle slashes in next/link correctly",
-      "404 handling pages/404 production mode production mode next export should handle slashes in router push correctly",
-      "404 handling pages/404 production mode production mode next export should have no error from encoded slashes in router push",
-      "404 handling pages/404 production mode production mode next start should handle backslashes correctly",
-      "404 handling pages/404 production mode production mode next start should handle double slashes correctly",
-      "404 handling pages/404 production mode production mode next start should handle double slashes correctly with encoded",
-      "404 handling pages/404 production mode production mode next start should handle double slashes correctly with encoded and hash",
-      "404 handling pages/404 production mode production mode next start should handle double slashes correctly with encoded and query",
-      "404 handling pages/404 production mode production mode next start should handle double slashes correctly with hash",
-      "404 handling pages/404 production mode production mode next start should handle double slashes correctly with query",
-      "404 handling pages/404 production mode production mode next start should handle mixed backslashes/forward slashes correctly",
-      "404 handling pages/404 production mode production mode next start should handle slashes in next/link correctly",
-      "404 handling pages/404 production mode production mode next start should handle slashes in router push correctly",
-      "404 handling pages/404 production mode production mode next start should have no error from encoded slashes in router push",
-      "404 handling pages/404 production mode production mode next start should normalize repeated slashes in redirects correctly"
+      "404 handling pages/404 next dev should handle backslashes correctly",
+      "404 handling pages/404 next dev should handle double slashes correctly",
+      "404 handling pages/404 next dev should handle double slashes correctly with encoded",
+      "404 handling pages/404 next dev should handle double slashes correctly with encoded and hash",
+      "404 handling pages/404 next dev should handle double slashes correctly with encoded and query",
+      "404 handling pages/404 next dev should handle double slashes correctly with hash",
+      "404 handling pages/404 next dev should handle double slashes correctly with query",
+      "404 handling pages/404 next dev should handle mixed backslashes/forward slashes correctly",
+      "404 handling pages/404 next dev should handle slashes in next/link correctly",
+      "404 handling pages/404 next dev should handle slashes in router push correctly",
+      "404 handling pages/404 next dev should have no error from encoded slashes in router push",
+      "404 handling pages/404 next dev should normalize repeated slashes in redirects correctly",
+      "404 handling pages/404 production mode next export should handle backslashes correctly",
+      "404 handling pages/404 production mode next export should handle double slashes correctly",
+      "404 handling pages/404 production mode next export should handle double slashes correctly with encoded",
+      "404 handling pages/404 production mode next export should handle double slashes correctly with encoded and hash",
+      "404 handling pages/404 production mode next export should handle double slashes correctly with encoded and query",
+      "404 handling pages/404 production mode next export should handle double slashes correctly with hash",
+      "404 handling pages/404 production mode next export should handle double slashes correctly with query",
+      "404 handling pages/404 production mode next export should handle mixed backslashes/forward slashes correctly",
+      "404 handling pages/404 production mode next export should handle slashes in next/link correctly",
+      "404 handling pages/404 production mode next export should handle slashes in router push correctly",
+      "404 handling pages/404 production mode next export should have no error from encoded slashes in router push",
+      "404 handling pages/404 production mode next start should handle backslashes correctly",
+      "404 handling pages/404 production mode next start should handle double slashes correctly",
+      "404 handling pages/404 production mode next start should handle double slashes correctly with encoded",
+      "404 handling pages/404 production mode next start should handle double slashes correctly with encoded and hash",
+      "404 handling pages/404 production mode next start should handle double slashes correctly with encoded and query",
+      "404 handling pages/404 production mode next start should handle double slashes correctly with hash",
+      "404 handling pages/404 production mode next start should handle double slashes correctly with query",
+      "404 handling pages/404 production mode next start should handle mixed backslashes/forward slashes correctly",
+      "404 handling pages/404 production mode next start should handle slashes in next/link correctly",
+      "404 handling pages/404 production mode next start should handle slashes in router push correctly",
+      "404 handling pages/404 production mode next start should have no error from encoded slashes in router push",
+      "404 handling pages/404 production mode next start should normalize repeated slashes in redirects correctly"
     ],
     "failed": [],
     "pending": [],
@@ -22201,12 +22239,13 @@
     "runtimeError": false
   },
   "test/production/escheck-output/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "ES Check .next output should downlevel JS according to default browserslist",
-      "ES Check .next output should downlevel JS according to manual browserslist with es2020"
+    "passed": [
+      "escheck-output default browserslist should downlevel JS",
+      "escheck-output es2020 should downlevel JS",
+      "escheck-output nomodule browsers should downlevel JS"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -22633,6 +22672,21 @@
   },
   "test/production/proxy-typescript/test/index.test.ts": {
     "passed": ["proxy-typescript should have built and started"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/react-profiling-mode/react-profiling-mode.test.ts": {
+    "passed": [
+      "React Profiling Mode default is disabled should not have used the react-dom profiling bundle",
+      "React Profiling Mode enabled with CLI flag should have used the react-dom profiling bundle for client component",
+      "React Profiling Mode enabled with CLI flag should have used the react-dom profiling bundle for pages",
+      "React Profiling Mode enabled with CLI flag should have used the react-dom profiling bundle for server component",
+      "React Profiling Mode enabled with config setting should have used the react-dom profiling bundle for client component",
+      "React Profiling Mode enabled with config setting should have used the react-dom profiling bundle for pages",
+      "React Profiling Mode enabled with config setting should have used the react-dom profiling bundle for server component"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
