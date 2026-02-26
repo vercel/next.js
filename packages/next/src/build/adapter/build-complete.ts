@@ -486,7 +486,8 @@ export async function handleBuildComplete({
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
       const clientHashes: Record<string, string> | undefined =
-        bundler === Bundler.Turbopack
+        // @ts-expect-error immutableAssetToken will be added in followup
+        bundler === Bundler.Turbopack && config.experimental.immutableAssetToken
           ? JSON.parse(
               await fs.readFile(
                 path.join(distDir, 'immutable-static-hashes.json'),
