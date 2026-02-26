@@ -79,10 +79,17 @@ The SST file contains only data without any header.
 
 - serialized key Compression Dictionary
 - foreach block
-  - 4 bytes uncompressed block length
-  - compressed data
+  - 4 bytes block header (uncompressed length or sentinel)
+  - block data (compressed or uncompressed)
 - foreach block
   - 4 bytes end of block offset relative to start of all blocks
+
+#### Block Compression
+
+Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header distinguishes them:
+
+- **Header > 0**: Block is LZ4 compressed. Header value is the uncompressed length.
+- **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
 
 #### Index Block
 
@@ -105,7 +112,7 @@ The hashes are sorted.
 - foreach entry
   - 1 byte type
   - 3 bytes position in block after header
-- Max block size: 16 MB
+- Max block size: 16 KB
 
 A Key block contains n keys, which specify n key value pairs.
 
@@ -147,6 +154,9 @@ Depending on the `type` field entry has a different format:
 
 The entries are sorted by key hash and key.
 
+Future:
+ * Some tables have fixed sized keys with consistent values (4 byte task ids).  We could optimize key block representation in this case by skipping offset tables.
+
 #### Value Block
 
 - no header, all bytes are data referenced by other blocks
@@ -170,6 +180,7 @@ Reading start from the current sequence number and goes downwards.
       - not found -> break
     - Key Block: find key by binary search
       - found -> lookup value from value block, return
+          - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
 
 ## Writing

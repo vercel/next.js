@@ -454,12 +454,13 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     async fn asset_path(
         &self,
-        content_hash: RcStr,
+        content_hash: Vc<RcStr>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
+        let content_hash = content_hash.await?;
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{content_hash}.{ext}",

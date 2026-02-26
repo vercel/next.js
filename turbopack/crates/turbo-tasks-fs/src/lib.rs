@@ -67,7 +67,9 @@ use turbo_tasks::{
     ResolvedVc, TaskInput, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, effect,
     mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak,
 };
-use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
+use turbo_tasks_hash::{
+    DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
+};
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
 };
@@ -2364,8 +2366,20 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(self: Vc<Self>) -> Result<Vc<u64>> {
-        Ok(Vc::cell(hash_xxh3_hash64(&self.await?)))
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        Ok(Vc::cell(hash_xxh3_hash64(self)))
+    }
+
+    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and nothing
+    /// else. If there is no file content, it returns `None`.
+    #[turbo_tasks::function]
+    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
+        match self {
+            FileContent::Content(file) => Ok(Vc::cell(Some(
+                deterministic_hash(file.content().content_hash(), algorithm).into(),
+            ))),
+            FileContent::NotFound => Ok(Vc::cell(None)),
+        }
     }
 }
 

@@ -5,21 +5,20 @@ import { promises as fs } from 'fs'
 export async function writeAppTypeDeclarations({
   baseDir,
   distDir,
-  distDirRoot,
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
+  strictRouteTypes,
+  typedRoutes,
 }: {
   baseDir: string
   distDir: string
-  /** The root dist directory without /dev suffix, used for fixed type paths */
-  distDirRoot?: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
+  strictRouteTypes: boolean
+  typedRoutes: boolean
 }): Promise<void> {
-  // Use distDirRoot for fixed paths in next-env.d.ts, fallback to distDir
-  const typesDistDir = distDirRoot ?? distDir
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
 
@@ -62,15 +61,35 @@ export async function writeAppTypeDeclarations({
     )
   }
 
-  // Use fixed path for the entry type file (always at .next/types/routes.d.ts)
-  // This entry file re-exports from actual type files which may be at different paths
   const routeTypesPath = path.posix.join(
-    typesDistDir.replaceAll(path.win32.sep, path.posix.sep),
+    distDir.replaceAll(path.win32.sep, path.posix.sep),
     'types/routes.d.ts'
   )
 
   // Use ESM import instead of triple-slash reference for better ESLint compatibility
   lines.push(`import "./${routeTypesPath}";`)
+
+  if (strictRouteTypes) {
+    const cacheLifePath = path.posix.join(
+      distDir.replaceAll(path.win32.sep, path.posix.sep),
+      'types/cache-life.d.ts'
+    )
+    lines.push(`import "./${cacheLifePath}";`)
+
+    const routeValidatorPath = path.posix.join(
+      distDir.replaceAll(path.win32.sep, path.posix.sep),
+      'types/validator.ts'
+    )
+    lines.push(`import "./${routeValidatorPath}";`)
+
+    if (typedRoutes === true) {
+      const linkTypesPath = path.posix.join(
+        distDir.replaceAll(path.win32.sep, path.posix.sep),
+        'types/link.d.ts'
+      )
+      lines.push(`import "./${linkTypesPath}";`)
+    }
+  }
 
   // Push the notice in.
   lines.push(

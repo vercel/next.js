@@ -49,6 +49,8 @@ export type RouterServerContext = Record<
       errorsRscStream: ReadableStream<Uint8Array>,
       htmlRequestId: string
     ) => void
+    // indicates request handlers are already wrapped by next-server tracing
+    isWrappedByNextServer?: boolean
   }
 >
 

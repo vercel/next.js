@@ -1064,5 +1064,14 @@
   "1063": "`connection` must not be used within a Client Component. Next.js should be preventing `connection` from being included in Client Components statically, but did not in this case.",
   "1064": "createServerParamsForRoute should not be called in client contexts.",
   "1065": "createServerPathnameForMetadata should not be called in client contexts.",
-  "1066": "createServerSearchParamsForServerPage should not be called in a client validation."
+  "1066": "createServerSearchParamsForServerPage should not be called in a client validation.",
+  "1067": "The Next.js unhandled rejection filter is being installed more than once. This is a bug in Next.js.",
+  "1068": "Expected workStore to be initialized",
+  "1069": "Invariant: cache entry \"%s\" not found in dir \"%s\"",
+  "1070": "image of size %s could not be tracked by lru cache",
+  "1071": "toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase",
+  "1072": "Missing segment data: <head>",
+  "1073": "Expected static stage body to be available",
+  "1074": "Page \"%s\" cannot use both \"use client\" and export const \"unstable_instant\".",
+  "1075": "Page \"%s\" cannot export \"unstable_instant\" from a Client Component module. To use this API, convert this module to a Server Component by removing the \"use client\" directive."
 }

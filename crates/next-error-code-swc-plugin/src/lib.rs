@@ -75,7 +75,7 @@ fn is_error_class_name(name: &str) -> bool {
         || name == "Warning"
 }
 
-// Get the string representation of the first argument of `new Error(...)`
+// Get the string representation of the message argument of `new Error(...)`
 fn stringify_new_error_arg(expr: &Expr, bindings: &FxHashMap<Id, String>) -> String {
     match expr {
         Expr::Lit(lit) => match lit {
@@ -136,10 +136,13 @@ impl VisitMut for TransformVisitor {
             Expr::New(new_expr) => match &*new_expr.callee {
                 Expr::Ident(ident) if is_error_class_name(ident.sym.as_str()) => {
                     if let Some(args) = &new_expr.args {
-                        if let Some(first_arg) = args.first() {
+                        // AggregateError(errors, message) has the message as the second arg
+                        let message_arg_index =
+                            if ident.sym.as_str() == "AggregateError" { 1 } else { 0 };
+                        if let Some(message_arg) = args.get(message_arg_index) {
                             new_error_expr = Some(new_expr.clone());
                             error_message = Some(stringify_new_error_arg(
-                                &first_arg.expr,
+                                &message_arg.expr,
                                 &self.resolved_bindings,
                             ));
                         }
@@ -150,9 +153,12 @@ impl VisitMut for TransformVisitor {
             Expr::Call(call_expr) => match &call_expr.callee {
                 Callee::Expr(expr) => match &**expr {
                     Expr::Ident(ident) if is_error_class_name(ident.sym.as_str()) => {
-                        if let Some(first_arg) = call_expr.args.first() {
+                        // AggregateError(errors, message) has the message as the second arg
+                        let message_arg_index =
+                            if ident.sym.as_str() == "AggregateError" { 1 } else { 0 };
+                        if let Some(message_arg) = call_expr.args.get(message_arg_index) {
                             error_message = Some(stringify_new_error_arg(
-                                &first_arg.expr,
+                                &message_arg.expr,
                                 &self.resolved_bindings,
                             ));
 

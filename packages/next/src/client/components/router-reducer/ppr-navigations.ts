@@ -21,6 +21,7 @@ import {
   type ServerPatchAction,
 } from './router-reducer-types'
 import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
+import { getLastCommittedTree } from './reducers/committed-state'
 import {
   convertServerPatchToFullTree,
   type NavigationSeed,
@@ -34,6 +35,8 @@ import {
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
+  processStaticStageResponse,
+  writeStaticStageResponseIntoCache,
   EntryStatus,
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
@@ -1225,7 +1228,11 @@ export function spawnDynamicRequests(
   // prediction. Passed through so it can be marked as having a dynamic rewrite
   // if the server returns a different pathname than expected (indicating
   // dynamic rewrite behavior that varies by param value).
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  // The original navigation's push/replace intent. Threaded through to the
+  // server-patch retry logic so it can inherit the intent if the original
+  // transition hasn't committed yet.
+  navigateType: 'push' | 'replace'
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1248,7 +1255,8 @@ export function spawnDynamicRequests(
     dynamicRequestTree,
     primaryUrl,
     nextUrl,
-    freshnessPolicy
+    freshnessPolicy,
+    routeCacheEntry
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1299,7 +1307,8 @@ export function spawnDynamicRequests(
             // if a refresh fails due to a mismatch, it will trigger a
             // hard refresh.
             nextUrl,
-            freshnessPolicy
+            freshnessPolicy,
+            routeCacheEntry
           )
         )
       }
@@ -1313,7 +1322,8 @@ export function spawnDynamicRequests(
     nextUrl,
     primaryRequestPromise,
     refreshRequestPromises,
-    routeCacheEntry
+    routeCacheEntry,
+    navigateType
   )
   // `finishNavigationTask` is responsible for error handling, so we can attach
   // noop callbacks to this promise.
@@ -1327,7 +1337,8 @@ async function finishNavigationTask(
   refreshRequestPromises: Array<
     ReturnType<typeof fetchMissingDynamicData>
   > | null,
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  navigateType: 'push' | 'replace'
 ): Promise<void> {
   // Wait for all the requests to finish, or for the first one to fail.
   let exitStatus = await waitForRequestsToFinish(
@@ -1364,7 +1375,8 @@ async function finishNavigationTask(
         nextUrl,
         primaryRequestResult.seed,
         task.route,
-        routeCacheEntry
+        routeCacheEntry,
+        navigateType
       )
       return
     }
@@ -1385,7 +1397,8 @@ async function finishNavigationTask(
         nextUrl,
         primaryRequestResult.seed,
         task.route,
-        routeCacheEntry
+        routeCacheEntry,
+        navigateType
       )
       return
     }
@@ -1453,7 +1466,9 @@ function dispatchRetryDueToTreeMismatch(
   // The route cache entry used for this navigation, if it came from route
   // prediction. If the navigation results in a mismatch, we mark it as having
   // a dynamic rewrite so future predictions bail out.
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  // The original navigation's push/replace intent.
+  originalNavigateType: 'push' | 'replace'
 ) {
   // If the navigation used a route prediction, mark it as having a dynamic
   // rewrite since it resulted in a mismatch.
@@ -1470,6 +1485,7 @@ function dispatchRetryDueToTreeMismatch(
       discoverKnownRoute(
         now,
         retryUrl.pathname,
+        retryNextUrl,
         null,
         seed.routeTree,
         metadataVaryPath,
@@ -1490,6 +1506,27 @@ function dispatchRetryDueToTreeMismatch(
   // mismatch, fall back to a hard (MPA) refresh.
   isHardRetry = isHardRetry || previousNavigationDidMismatch
   previousNavigationDidMismatch = true
+
+  // If the original navigation hasn't committed to the browser history yet
+  // (the transition suspended before React committed), inherit its push/replace
+  // intent. Otherwise, the pushState already ran, so use 'replace' to avoid
+  // creating a duplicate history entry.
+  //
+  // This works because React entangles the retry's state update with the
+  // original pending transition — they commit together as a single batch,
+  // so the navigate type from the retry is what HistoryUpdater ultimately sees.
+  //
+  // TODO: Ideally this check would happen right before we schedule the React
+  // update (i.e., closer to where the action is dispatched into the queue),
+  // not here where the action is constructed. But the current action queue
+  // doesn't provide a natural place for that. Revisit when we refactor the
+  // action queue into a more reactive navigation model.
+  const lastCommitted = getLastCommittedTree()
+  const retryNavigateType: 'push' | 'replace' =
+    lastCommitted !== null && baseTree !== lastCommitted
+      ? originalNavigateType
+      : 'replace'
+
   const retryAction: ServerPatchAction = {
     type: ACTION_SERVER_PATCH,
     previousTree: baseTree,
@@ -1497,6 +1534,7 @@ function dispatchRetryDueToTreeMismatch(
     nextUrl: retryNextUrl,
     seed,
     mpa: isHardRetry,
+    navigateType: retryNavigateType,
   }
   dispatchAppRouterAction(retryAction)
 }
@@ -1506,7 +1544,8 @@ async function fetchMissingDynamicData(
   dynamicRequestTree: FlightRouterState,
   url: URL,
   nextUrl: string | null,
-  freshnessPolicy: FreshnessPolicy
+  freshnessPolicy: FreshnessPolicy,
+  routeCacheEntry: FulfilledRouteCacheEntry | null
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1540,6 +1579,25 @@ async function fetchMissingDynamicData(
     // UI state.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
       await waitForNavigationLock()
+    }
+
+    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
+      const now = Date.now()
+      processStaticStageResponse(now, result.staticStageResponse).then(
+        ({ serverData, headVaryParams, staleAt }) =>
+          writeStaticStageResponseIntoCache(
+            now,
+            serverData,
+            result.responseHeaders,
+            headVaryParams,
+            staleAt,
+            routeCacheEntry
+          ),
+        () => {
+          // The static stage processing failed. Not fatal — the navigation
+          // completed normally, we just won't write into the cache.
+        }
+      )
     }
 
     const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(

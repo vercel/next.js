@@ -896,11 +896,14 @@ export async function waitForNoRedbox(
   }
 }
 
-export async function waitForNoErrorToast(browser: Playwright): Promise<void> {
+export async function waitForNoErrorToast(
+  browser: Playwright,
+  { waitInMs }: { waitInMs?: number } = {}
+): Promise<void> {
   let didOpenRedbox = false
 
   try {
-    await browser.waitForElementByCss('[data-issues]').click()
+    await browser.waitForElementByCss('[data-issues]', waitInMs).click()
     didOpenRedbox = true
   } catch {
     // We expect this to fail.
@@ -1186,6 +1189,22 @@ export function getRedboxDescription(
     const root = portal.shadowRoot
     return (
       root.querySelector('#nextjs__container_errors_desc')?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxErrorCode(
+  browser: Playwright
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root
+        .querySelector('[data-nextjs-error-code]')
+        ?.getAttribute('data-nextjs-error-code') ?? null
     )
   })
 }
@@ -1487,12 +1506,12 @@ const nextjsClientComponentNames = [
   'HTTPAccessFallbackErrorBoundary',
   'InnerLayoutRouter',
   'InnerScrollAndFocusHandlerOld',
-  'InnerScrollAndFocusHandlerNew',
+  'InnerScrollHandlerNew',
   'RedirectBoundary',
   'RedirectErrorBoundary',
   'RenderFromTemplateContext',
   'Root',
-  'ScrollAndFocusHandler',
+  'ScrollAndMaybeFocusHandler',
   'SegmentViewNode',
   'SegmentTrieNode',
   // These are added due to user actions e.g. loading.js -> LoadingBoundary
@@ -1854,33 +1873,6 @@ export const checkLink = (
   rel: string,
   content: string | string[]
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
-
-export async function getStackFramesContent(browser) {
-  const stackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const stackFramesContent = (
-    await Promise.all(
-      stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('.call-stack-frame-method-name')
-        const fileEl = await frame.$('[data-has-original-code-frame="true"]')
-        const functionName = functionNameEl
-          ? await functionNameEl.innerText()
-          : ''
-        const file = fileEl ? await fileEl.innerText() : ''
-
-        if (!functionName) {
-          return ''
-        }
-        return `at ${functionName} (${file})`
-      })
-    )
-  )
-    .filter(Boolean)
-    .join('\n')
-
-  return stackFramesContent
-}
 
 export async function toggleCollapseCallStackFrames(browser: Playwright) {
   const button = await browser.elementByCss(

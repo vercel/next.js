@@ -450,6 +450,7 @@ export async function createHotReloaderTurbopack(
     encryptionKey,
     dev: true,
     deploymentId: nextConfig.deploymentId,
+    sriEnabled: false,
   })
 
   // Dev specific
@@ -585,26 +586,37 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
+    const { type: entryType } = splitEntryKey(key)
+    // Server HMR only applies to App Router Node.js runtime endpoints.
+    // Pages Router uses Node's require(), root entries (middleware/instrumentation)
+    // use the edge runtime, and App Router edge routes all don't support server HMR.
+    const usesServerHmr = entryType === 'app' && writtenEndpoint.type !== 'edge'
+
     for (const file of serverPaths) {
-      // Skip clearing cache for server chunks with active HMR subscriptions
-      // Server HMR already applied granular updates to the turbopack module cache
       const relativePath = relative(distDir, file)
-      if (serverHmrSubscriptions?.has(relativePath)) {
+
+      if (usesServerHmr && serverHmrSubscriptions?.has(relativePath)) {
+        // Skip deleteCache for server HMR module chunks.
+        // Pages Router entries are excluded by usesServerHmr (always false for
+        // pages), so they always get deleteCache regardless of subscriptions.
         continue
       }
 
       clearModuleContext(file)
+      // For Pages Router, edge routes, middleware, and manifest files
+      // (e.g., *_client-reference-manifest.js): clear the sharedCache in
+      // evalManifest(), Node.js require.cache, and edge runtime module contexts.
       deleteCache(file)
     }
 
-    // Clear Turbopack's module cache when server HMR is not active.
-    // When server HMR IS active, HMR manages the module cache granularly,
-    // so we must not clear it here.
-    // Not available in:
-    // - Pages Router (no server-side HMR)
-    // - Edge Runtime (uses browser runtime which already disposes chunks individually)
+    // Clear Turbopack's chunk-loading cache so chunks are re-required from disk on
+    // the next request.
+    //
+    // For App Router with server HMR, this is normally skipped as server HMR
+    // manages module updates in-place. However, it *is* required when force is `true`
+    // (like for .env file or tsconfig changes).
     if (
-      !serverHmrSubscriptions &&
+      (!usesServerHmr || force) &&
       typeof __next__clear_chunk_cache__ === 'function'
     ) {
       __next__clear_chunk_cache__()

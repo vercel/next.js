@@ -1027,6 +1027,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": null,
                "label": "Console Error",
@@ -1123,6 +1124,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
+                   "code": "E394",
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
@@ -1135,6 +1137,7 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
+                   "code": "E394",
                    "description": "(0 , next_headers__rspack_import_1.cookies)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
@@ -1303,6 +1306,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
+                   "code": "E394",
                    "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
@@ -1315,6 +1319,7 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
+                   "code": "E394",
                    "description": "(0 , next_headers__rspack_import_1.cookies)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
@@ -1457,6 +1462,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
+                   "code": "E394",
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
@@ -1469,6 +1475,7 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
+                   "code": "E394",
                    "description": "(0 , next_headers__rspack_import_1.headers)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
@@ -1637,6 +1644,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
+                   "code": "E394",
                    "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
@@ -1649,6 +1657,7 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
+                   "code": "E394",
                    "description": "(0 , next_headers__rspack_import_1.headers)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
@@ -1713,6 +1722,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E394",
                  "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                  "environmentLabel": null,
                  "label": "Console Error",
@@ -2182,6 +2192,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -2287,6 +2298,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -2391,6 +2403,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -2763,6 +2776,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": "A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3137,6 +3151,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": "A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3519,6 +3534,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3534,6 +3550,7 @@ describe('Cache Components Errors', () => {
             } else {
               await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3645,6 +3662,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3909,6 +3927,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E394",
                  "description": "Route /use-cache-private-connection used \`connection()\` inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -5842,6 +5861,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
+               "code": "E394",
                "description": "BOOM",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -5851,6 +5871,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
+               "code": "E394",
                "description": "⨯ "unhandledRejection:" "BOOM"",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -5860,6 +5881,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
+               "code": "E394",
                "description": "⨯ "unhandledRejection: " "BOOM"",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -5869,6 +5891,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
+               "code": "E394",
                "description": "BAM",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5878,6 +5901,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
+               "code": "E394",
                "description": "⨯ "unhandledRejection:" "BAM"",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5887,6 +5911,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
+               "code": "E394",
                "description": "⨯ "unhandledRejection: " "BAM"",
                "environmentLabel": "Server",
                "label": "Console Error",

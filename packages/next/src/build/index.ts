@@ -166,7 +166,6 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import {
@@ -217,7 +216,6 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
-  writeRouteTypesEntryFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
 import {
@@ -374,6 +372,8 @@ export type PrerenderManifest = {
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
 }
+
+export type SubresourceIntegrityManifest = Record<string, string>
 
 type ManifestBuiltRoute = {
   /**
@@ -781,28 +781,35 @@ async function writeStandaloneDirectory(
     })
 }
 
-function getNumberOfWorkers(config: NextConfigComplete) {
+function getNumberOfWorkers(config: NextConfigComplete, maxTasks?: number) {
+  let workers: number
+
   if (
     config.experimental.cpus &&
     config.experimental.cpus !== defaultConfig.experimental!.cpus
   ) {
-    return config.experimental.cpus
-  }
-
-  if (config.experimental.memoryBasedWorkersCount) {
-    return Math.max(
+    // If it's not set to the default, it's a user override
+    workers = config.experimental.cpus
+  } else if (config.experimental.memoryBasedWorkersCount) {
+    workers = Math.max(
       Math.min(config.experimental.cpus || 1, Math.floor(os.freemem() / 1e9)),
       // enforce a minimum of 4 workers
       4
     )
+  } else if (config.experimental.cpus) {
+    workers = config.experimental.cpus
+  } else {
+    // Fall back to 4 workers if a count is not specified
+    workers = 4
   }
 
-  if (config.experimental.cpus) {
-    return config.experimental.cpus
+  // Cap workers to one more than the number of tasks.
+  // Tasks can be passed to avoid over-allocating workers.
+  if (maxTasks !== undefined && maxTasks > 0) {
+    workers = Math.min(workers, maxTasks + 1)
   }
 
-  // Fall back to 4 workers if a count is not specified
-  return 4
+  return Math.max(workers, 1)
 }
 
 const staticWorkerPath = require.resolve('./worker')
@@ -840,15 +847,21 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
-    forkOptions: process.env.NEXT_CPU_PROF
-      ? {
-          env: {
-            NEXT_CPU_PROF: '1',
-            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
-            __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
-          },
-        }
-      : undefined,
+    forkOptions: {
+      env: {
+        ...(process.env.NEXT_CPU_PROF
+          ? {
+              NEXT_CPU_PROF: '1',
+              NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+              __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
+            }
+          : undefined),
+        // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
+        __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX: config.deploymentId
+          ? `?dpl=${config.deploymentId}`
+          : '',
+      },
+    },
   }) as StaticWorker
 }
 
@@ -1359,13 +1372,7 @@ export default async function build(
       await nextBuildSpan
         .traceChild('generate-route-types')
         .traceAsyncFn(async () => {
-          // Actual type files go to route-types.d.ts (not routes.d.ts)
-          // routes.d.ts is reserved for the entry file
-          const routeTypesFilePath = path.join(
-            distDir,
-            'types',
-            'route-types.d.ts'
-          )
+          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
           const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
           await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
@@ -1392,20 +1399,6 @@ export default async function build(
             validatorFilePath,
             Boolean(config.experimental.strictRouteTypes)
           )
-
-          // Write the entry file at {distDirRoot}/types/routes.d.ts
-          // This ensures next-env.d.ts has a consistent import path
-          const entryFilePath = path.join(
-            dir,
-            config.distDirRoot,
-            'types',
-            'routes.d.ts'
-          )
-          const actualTypesDir = path.join(distDir, 'types')
-          await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
-            strictRouteTypes: Boolean(config.experimental.strictRouteTypes),
-            typedRoutes: Boolean(config.typedRoutes),
-          })
         })
 
       // Turbopack already handles conflicting app and page routes.
@@ -1959,7 +1952,8 @@ export default async function build(
       // #endregion
       // #region Collect data
 
-      const numberOfWorkers = getNumberOfWorkers(config)
+      const totalPageCount = pageKeys.pages.length + (pageKeys.app?.length || 0)
+      const numberOfWorkers = getNumberOfWorkers(config, totalPageCount)
       const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner(
         `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''}`
@@ -2068,6 +2062,7 @@ export default async function build(
               pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
+              deploymentId: config.deploymentId,
               sriEnabled,
               cacheMaxMemorySize: config.cacheMaxMemorySize,
             })
@@ -2176,7 +2171,10 @@ export default async function build(
                   for (const [originalPath, normalizedPath] of Object.entries(
                     appPathRoutes
                   )) {
-                    if (normalizedPath === page) {
+                    if (
+                      normalizedPath === page &&
+                      mappedAppPages[originalPath]
+                    ) {
                       pagePath = mappedAppPages[originalPath].replace(
                         /^private-next-app-dir/,
                         ''
@@ -2290,6 +2288,7 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
+                            deploymentId: config.deploymentId,
                             sriEnabled,
                           })
                         }
@@ -2624,6 +2623,8 @@ export default async function build(
         buildTracesPromise = nextBuildSpan
           .traceChild('collect-build-traces')
           .traceAsyncFn(() => {
+            const { collectBuildTraces } =
+              require('./collect-build-traces') as typeof import('./collect-build-traces')
             return collectBuildTraces({
               dir,
               config,

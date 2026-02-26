@@ -276,8 +276,10 @@ export type NavigationFlightResponse = {
   q: string
   /** couldBeIntercepted */
   i: boolean
-  /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
-  rp?: [boolean, number]
+  /** staleTime - Only present in dynamic runtime prefetch responses. */
+  s?: AsyncIterable<number>
+  /** staticStageByteLength - Resolves when the static stage ends. */
+  l?: Promise<number>
   /** headVaryParams */
   h: VaryParamsThenable | null
 }
