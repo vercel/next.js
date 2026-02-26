@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import { useState, useRef } from 'react'
 import { ErrorOverlayCallStack } from './error-overlay-call-stack'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
@@ -59,31 +60,53 @@ const ignoredFrame = {
 export const SingleFrame: Story = {
   args: {
     frames: [frame],
+    selectedFrameIndex: 0,
+    onFrameSelect: () => {},
+    isIgnoreListOpen: false,
+    setIsIgnoreListOpen: () => {},
+    tabGroupId: 'storybook-error-overlay-call-stack',
   },
 }
 
-export const MultipleFrames: Story = {
-  args: {
-    frames: [
-      frame,
-      {
-        ...frame,
-        originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'ParentComponent',
-          lineNumber: 5,
-        },
-      },
-      ...Array(5).fill(ignoredFrame),
-      {
-        ...frame,
-        originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'GrandparentComponent',
-          lineNumber: 1,
-        },
-      },
-      ...Array(5).fill(ignoredFrame),
-    ],
+const multipleFrames = [
+  frame,
+  {
+    ...frame,
+    originalStackFrame: {
+      ...frame.originalStackFrame,
+      methodName: 'ParentComponent',
+      lineNumber: 5,
+    },
   },
+  ...Array(5).fill(ignoredFrame),
+  {
+    ...frame,
+    originalStackFrame: {
+      ...frame.originalStackFrame,
+      methodName: 'GrandparentComponent',
+      lineNumber: 1,
+    },
+  },
+  ...Array(5).fill(ignoredFrame),
+]
+
+function InteractiveErrorOverlayCallStack() {
+  const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(0)
+  const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
+  const dialogResizerRef = useRef<HTMLDivElement>(null)
+  return (
+    <ErrorOverlayCallStack
+      frames={multipleFrames}
+      dialogResizerRef={dialogResizerRef}
+      selectedFrameIndex={selectedFrameIndex}
+      onFrameSelect={setSelectedFrameIndex}
+      isIgnoreListOpen={isIgnoreListOpen}
+      setIsIgnoreListOpen={setIsIgnoreListOpen}
+      tabGroupId="storybook-error-overlay-call-stack"
+    />
+  )
+}
+
+export const MultipleFrames: Story = {
+  render: () => <InteractiveErrorOverlayCallStack />,
 }

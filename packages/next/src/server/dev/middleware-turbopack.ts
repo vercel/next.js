@@ -85,12 +85,13 @@ async function batchedTraceSource(
   let source = null
   const originalFile = sourceFrame.originalFile
 
-  // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
     // Check the sourcemap's ignoreList (e.g. from 3rd party packages)
     !!sourceFrame.isIgnored ||
     shouldIgnorePath(originalFile ?? sourceFrame.file)
-  if (originalFile && !ignored) {
+
+  // Load source for all frames to support codeframe display for ignored frames too
+  if (originalFile) {
     let sourcePromise = currentSourcesByFile.get(originalFile)
     if (!sourcePromise) {
       sourcePromise = project.getSourceForAsset(originalFile)

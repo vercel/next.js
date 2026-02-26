@@ -1,27 +1,119 @@
-import { useMemo } from 'react'
+import { useCallback, useId, useReducer } from 'react'
 import React from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import type { ReadyErrorCause } from '../../utils/get-error-by-type'
+import type { OriginalStackFrame } from '../../../shared/stack-frame'
 
 type ErrorCauseProps = {
   cause: ReadyErrorCause
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
+interface SelectedFrameState {
+  isIgnoreListOpen: boolean
+  selectedFrameIndex: number | null
+}
+
+function getDefaultSelectedFrameState(
+  frames: readonly OriginalStackFrame[]
+): SelectedFrameState {
+  const defaultIsIgnoreListOpen = false
+  const defaultSelectedFrameIndex = frames.findIndex(
+    (frame) => defaultIsIgnoreListOpen || !frame.ignored
+  )
+
+  return {
+    isIgnoreListOpen: defaultIsIgnoreListOpen,
+    selectedFrameIndex:
+      defaultSelectedFrameIndex === -1 ? null : defaultSelectedFrameIndex,
+  }
+}
+
 export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
   const frames = React.use(cause.frames())
   const trimmedMessage = cause.error.message.trim()
 
-  const firstFrame = useMemo(() => {
-    const index = frames.findIndex(
-      (entry) =>
-        !entry.ignored &&
-        Boolean(entry.originalCodeFrame) &&
-        Boolean(entry.originalStackFrame)
-    )
-    return frames[index] ?? null
-  }, [frames])
+  const [{ isIgnoreListOpen, selectedFrameIndex }, dispatch] = useReducer(
+    (
+      prevState: SelectedFrameState,
+      action:
+        | { type: 'toggleIgnoreList' }
+        | { type: 'selectFrame'; index: number }
+    ) => {
+      switch (action.type) {
+        case 'toggleIgnoreList':
+          const nextIsIgnoreListOpen = !prevState.isIgnoreListOpen
+          const previouslySelectedFrameIndex = prevState.selectedFrameIndex
+          if (nextIsIgnoreListOpen || previouslySelectedFrameIndex === null) {
+            return {
+              ...prevState,
+              isIgnoreListOpen: nextIsIgnoreListOpen,
+            }
+          } else {
+            if (frames[previouslySelectedFrameIndex].ignored) {
+              for (let i = previouslySelectedFrameIndex - 1; i >= 0; i--) {
+                if (!frames[i].ignored) {
+                  return {
+                    ...prevState,
+                    selectedFrameIndex: i,
+                    isIgnoreListOpen: nextIsIgnoreListOpen,
+                  }
+                }
+              }
+              for (
+                let i = previouslySelectedFrameIndex + 1;
+                i < frames.length;
+                i++
+              ) {
+                if (!frames[i].ignored) {
+                  return {
+                    ...prevState,
+                    selectedFrameIndex: i,
+                    isIgnoreListOpen: nextIsIgnoreListOpen,
+                  }
+                }
+              }
+
+              return {
+                ...prevState,
+                selectedFrameIndex: null,
+                isIgnoreListOpen: nextIsIgnoreListOpen,
+              }
+            } else {
+              return {
+                ...prevState,
+                isIgnoreListOpen: nextIsIgnoreListOpen,
+              }
+            }
+          }
+        case 'selectFrame':
+          return {
+            ...prevState,
+            selectedFrameIndex: action.index,
+          }
+        default:
+          return prevState
+      }
+    },
+    frames,
+    getDefaultSelectedFrameState
+  )
+
+  const setIsIgnoreListOpen = useCallback(
+    () => dispatch({ type: 'toggleIgnoreList' }),
+    []
+  )
+
+  const selectedFrame =
+    selectedFrameIndex !== null ? frames[selectedFrameIndex] : null
+
+  const handleFrameSelect = useCallback(
+    (index: number) => dispatch({ type: 'selectFrame', index }),
+    []
+  )
+
+  const codeFrameTabGroupId = useId()
 
   return (
     <div data-nextjs-error-cause>
@@ -34,17 +126,27 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
         <p className="error-cause-message">{trimmedMessage}</p>
       ) : null}
 
-      {firstFrame && (
-        <CodeFrame
-          stackFrame={firstFrame.originalStackFrame!}
-          codeFrame={firstFrame.originalCodeFrame!}
-        />
-      )}
+      {selectedFrameIndex !== null &&
+        selectedFrame !== null &&
+        selectedFrame.originalStackFrame &&
+        selectedFrame.originalCodeFrame && (
+          <CodeFrame
+            stackFrame={selectedFrame.originalStackFrame}
+            codeFrame={selectedFrame.originalCodeFrame}
+            selectedFrameIndex={selectedFrameIndex}
+            tabGroupId={codeFrameTabGroupId}
+          />
+        )}
 
       {frames.length > 0 && (
         <ErrorOverlayCallStack
           dialogResizerRef={dialogResizerRef}
           frames={frames}
+          selectedFrameIndex={selectedFrameIndex}
+          onFrameSelect={handleFrameSelect}
+          isIgnoreListOpen={isIgnoreListOpen}
+          setIsIgnoreListOpen={setIsIgnoreListOpen}
+          tabGroupId={codeFrameTabGroupId}
         />
       )}
 
