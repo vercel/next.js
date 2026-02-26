@@ -53,11 +53,13 @@ export interface WorkerPoolOptions {
   onCustomMessage?: (message: unknown) => void
 }
 
+/** Resolve/reject callbacks stored for an in-flight request sent to a worker */
 interface PendingRequest {
   resolve: (value: unknown) => void
   reject: (error: unknown) => void
 }
 
+/** A task waiting in the FIFO queue until a worker has capacity to accept it */
 interface QueuedTask {
   method: string
   args: unknown[]
@@ -80,6 +82,7 @@ interface PoolWorker {
   booting: boolean
 }
 
+/** Milliseconds to wait for a worker to exit gracefully before force-killing it */
 const FORCE_EXIT_DELAY = 500
 
 /**
@@ -166,6 +169,12 @@ class WorkerHandle {
   }
 }
 
+/**
+ * Low-level worker pool that manages process/thread lifecycle, task dispatch,
+ * and queue draining. Workers are spawned lazily on the first dispatch and
+ * scale up to `maxWorkers`. Use `dispatch()` to call exported functions in the
+ * worker module and `end()` or `close()` to shut down.
+ */
 export class WorkerPool {
   private _options: Required<
     Pick<
@@ -183,13 +192,23 @@ export class WorkerPool {
   private _workers: PoolWorker[] = []
   /** Handles keyed by PoolWorker identity for uniform process operations */
   private _handles = new WeakMap<PoolWorker, WorkerHandle>()
+  /** FIFO queue of tasks waiting for a worker with available capacity */
   private _taskQueue: QueuedTask[] = []
+  /** Monotonically increasing counter for correlating requests to responses */
   private _nextRequestId = 1
+  /** Monotonically increasing counter for assigning JEST_WORKER_ID values */
   private _nextWorkerId = 0
+  /** Set to true once `end()` or `close()` is called; prevents new dispatches */
   private _ending = false
+  /** Merged stdout from all workers, piped through a PassThrough stream */
   private _stdout: PassThrough
+  /** Merged stderr from all workers, piped through a PassThrough stream */
   private _stderr: PassThrough
 
+  /**
+   * Create a new pool. No workers are spawned until the first `dispatch()` call.
+   * Validates options and applies defaults for optional fields.
+   */
   constructor(options: WorkerPoolOptions) {
     this._options = {
       ...options,
@@ -254,14 +273,17 @@ export class WorkerPool {
     })
   }
 
+  /** Returns the merged stdout stream from all worker processes */
   getStdout(): PassThrough {
     return this._stdout
   }
 
+  /** Returns the merged stderr stream from all worker processes */
   getStderr(): PassThrough {
     return this._stderr
   }
 
+  /** Returns the number of currently alive workers (including booting ones) */
   getWorkerCount(): number {
     return this._workers.length
   }
@@ -350,6 +372,7 @@ export class WorkerPool {
   // Internal: worker lifecycle
   // ---------------------------------------------------------------------------
 
+  /** Find a non-ending worker that has available concurrency slots */
   private _findAvailableWorker(): PoolWorker | null {
     for (const worker of this._workers) {
       if (
@@ -362,6 +385,7 @@ export class WorkerPool {
     return null
   }
 
+  /** Allocate a new worker ID and spawn the underlying process/thread */
   private _spawnWorker(): PoolWorker {
     const workerId = this._nextWorkerId++
     return this._spawnWorkerProcess(workerId)
@@ -468,6 +492,7 @@ export class WorkerPool {
   // Internal: request dispatch
   // ---------------------------------------------------------------------------
 
+  /** Assign a unique request ID, store the promise callbacks, and send a CALL message to the worker */
   private _sendCall(
     worker: PoolWorker,
     method: string,
@@ -486,6 +511,7 @@ export class WorkerPool {
   // Internal: message handling
   // ---------------------------------------------------------------------------
 
+  /** Route an incoming IPC message from a worker to the appropriate handler (OK, CLIENT_ERROR, SETUP_ERROR, CUSTOM, READY) */
   private _handleMessage(worker: PoolWorker, message: ParentMessage): void {
     switch (message[0]) {
       case PARENT_MESSAGE_OK: {
@@ -573,6 +599,11 @@ export class WorkerPool {
   // Internal: exit and error handling
   // ---------------------------------------------------------------------------
 
+  /**
+   * Handle a worker exit. During graceful shutdown, just reject lingering
+   * requests. Otherwise, optionally respawn the worker (if under maxRespawns),
+   * reject in-flight requests, and drain queued tasks to remaining workers.
+   */
   private _handleExit(
     worker: PoolWorker,
     code: number | null,
