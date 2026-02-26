@@ -92,6 +92,9 @@ describe('isMetadataRouteFile', () => {
       )
       expect(isMetadataRouteFile('/favicon.ico', [], true)).toBe(true)
       expect(isMetadataRouteFile('/robots.txt', [], true)).toBe(true)
+      expect(isMetadataRouteFile('/llms.txt', [], true)).toBe(true)
+      // llms is root-only (global metadata), not matched in subdirectories
+      expect(isMetadataRouteFile('/foo/llms.txt', [], true)).toBe(false)
       expect(isMetadataRouteFile('/manifest.json', [], true)).toBe(true)
       expect(isMetadataRouteFile('/sitemap.xml', [], true)).toBe(true)
     })
@@ -121,7 +124,9 @@ describe('isMetadataRoute', () => {
 
   it('should match metadata routes', () => {
     expect(isMetadataRoute('/app/robots/route')).toBe(true)
+    expect(isMetadataRoute('/app/llms/route')).toBe(true)
     expect(isMetadataRoute('/robots/route')).toBe(true)
+    expect(isMetadataRoute('/llms/route')).toBe(true)
     expect(isMetadataRoute('/sitemap/[__metadata_id__]/route')).toBe(true)
     expect(isMetadataRoute('/app/sitemap/page')).toBe(false)
     expect(isMetadataRoute('/icon-a102f4/route')).toBe(true)
@@ -146,6 +151,7 @@ describe('isMetadataPage', () => {
     expect(isMetadataPage('/favicon.ico')).toBe(true)
     expect(isMetadataPage('/manifest.json')).toBe(true)
     expect(isMetadataPage('/robots.txt')).toBe(true)
+    expect(isMetadataPage('/llms.txt')).toBe(true)
   })
 
   it('should not match app router page path or error boundary path', () => {
