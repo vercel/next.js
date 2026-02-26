@@ -257,21 +257,15 @@ export async function createOriginalStackFrame({
   /** undefined = not yet computed */
   let originalCodeFrame: string | null | undefined
 
-  return Object.defineProperty(
-    {
-      originalStackFrame: traced,
-      originalCodeFrame: null,
+  return {
+    originalStackFrame: traced,
+    get originalCodeFrame() {
+      if (originalCodeFrame === undefined) {
+        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent)
+      }
+      return originalCodeFrame
     },
-    'originalCodeFrame',
-    {
-      get: () => {
-        if (originalCodeFrame === undefined) {
-          originalCodeFrame = getOriginalCodeFrame(traced, sourceContent)
-        }
-        return originalCodeFrame
-      },
-    }
-  )
+  }
 }
 
 async function getSourceMapFromCompilation(

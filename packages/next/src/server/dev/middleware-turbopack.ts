@@ -311,28 +311,22 @@ async function createOriginalStackFrame(
   let originalCodeFrame: string | null | undefined
 
   const tracedFrame = traced.frame
-  return Object.defineProperty(
-    {
-      originalStackFrame: {
-        arguments: tracedFrame.arguments,
-        file: normalizedStackFrameLocation,
-        line1: tracedFrame.line1,
-        column1: tracedFrame.column1,
-        ignored: tracedFrame.ignored,
-        methodName: tracedFrame.methodName,
-      },
-      originalCodeFrame: null,
+  return {
+    originalStackFrame: {
+      arguments: tracedFrame.arguments,
+      file: normalizedStackFrameLocation,
+      line1: tracedFrame.line1,
+      column1: tracedFrame.column1,
+      ignored: tracedFrame.ignored,
+      methodName: tracedFrame.methodName,
     },
-    'originalCodeFrame',
-    {
-      get: () => {
-        if (originalCodeFrame === undefined) {
-          originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source)
-        }
-        return originalCodeFrame
-      },
-    }
-  )
+    get originalCodeFrame() {
+      if (originalCodeFrame === undefined) {
+        originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source)
+      }
+      return originalCodeFrame
+    },
+  }
 }
 
 export function getOverlayMiddleware({
