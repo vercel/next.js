@@ -780,7 +780,6 @@ export async function handleBuildComplete({
           outputs.pages.push({
             ...output,
             pathname: nextDataPath,
-            id: nextDataPath,
           })
         }
       }
