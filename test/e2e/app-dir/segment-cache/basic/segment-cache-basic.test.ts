@@ -3,7 +3,7 @@ import { createRouterAct } from 'router-act'
 import { waitFor } from 'next-test-utils'
 
 describe('segment cache (basic tests)', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
   if (isNextDev) {
@@ -277,75 +277,71 @@ describe('segment cache (basic tests)', () => {
     expect(await dynamicDiv.innerHTML()).toBe('Dynamic page')
   })
 
-  // TODO: Fix same-page navigation refresh behavior in deploy mode
-  ;(isNextDeploy ? it.skip : it)(
-    'refreshes page segments when navigating to the exact same URL as the current location',
-    async () => {
-      let act: ReturnType<typeof createRouterAct>
-      const browser = await next.browser('/same-page-nav', {
-        beforePageLoad(page) {
-          act = createRouterAct(page)
-        },
-      })
+  it('refreshes page segments when navigating to the exact same URL as the current location', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/same-page-nav', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
 
-      const linkWithNoHash = await browser.elementByCss(
-        'a[href="/same-page-nav"]'
-      )
-      const linkWithHashA = await browser.elementByCss(
-        'a[href="/same-page-nav#hash-a"]'
-      )
-      const linkWithHashB = await browser.elementByCss(
-        'a[href="/same-page-nav#hash-b"]'
-      )
+    const linkWithNoHash = await browser.elementByCss(
+      'a[href="/same-page-nav"]'
+    )
+    const linkWithHashA = await browser.elementByCss(
+      'a[href="/same-page-nav#hash-a"]'
+    )
+    const linkWithHashB = await browser.elementByCss(
+      'a[href="/same-page-nav#hash-b"]'
+    )
 
-      async function readRandomNumberFromPage() {
-        const randomNumber = await browser.elementById('random-number')
-        return await randomNumber.textContent()
-      }
-
-      // Navigating to the same URL should refresh the page
-      const randomNumber = await readRandomNumberFromPage()
-      await act(async () => {
-        await linkWithNoHash.click()
-      }, [
-        {
-          includes: 'random-number',
-        },
-        {
-          // Only the page segments should be refreshed, not the layouts.
-          // TODO: We plan to change this in the future.
-          block: 'reject',
-          includes: 'same-page-nav-layout',
-        },
-      ])
-      const randomNumber2 = await readRandomNumberFromPage()
-      expect(randomNumber2).not.toBe(randomNumber)
-
-      // Navigating to a different hash should *not* refresh the page
-      await act(async () => {
-        await linkWithHashA.click()
-      }, 'no-requests')
-      expect(await readRandomNumberFromPage()).toBe(randomNumber2)
-
-      // Navigating to the same hash again should refresh the page
-      await act(
-        async () => {
-          await linkWithHashA.click()
-        },
-        {
-          includes: 'random-number',
-        }
-      )
-      const randomNumber3 = await readRandomNumberFromPage()
-      expect(randomNumber3).not.toBe(randomNumber2)
-
-      // Navigating to a different hash should *not* refresh the page
-      await act(async () => {
-        await linkWithHashB.click()
-      }, 'no-requests')
-      expect(await readRandomNumberFromPage()).toBe(randomNumber3)
+    async function readRandomNumberFromPage() {
+      const randomNumber = await browser.elementById('random-number')
+      return await randomNumber.textContent()
     }
-  )
+
+    // Navigating to the same URL should refresh the page
+    const randomNumber = await readRandomNumberFromPage()
+    await act(async () => {
+      await linkWithNoHash.click()
+    }, [
+      {
+        includes: 'random-number',
+      },
+      {
+        // Only the page segments should be refreshed, not the layouts.
+        // TODO: We plan to change this in the future.
+        block: 'reject',
+        includes: 'same-page-nav-layout',
+      },
+    ])
+    const randomNumber2 = await readRandomNumberFromPage()
+    expect(randomNumber2).not.toBe(randomNumber)
+
+    // Navigating to a different hash should *not* refresh the page
+    await act(async () => {
+      await linkWithHashA.click()
+    }, 'no-requests')
+    expect(await readRandomNumberFromPage()).toBe(randomNumber2)
+
+    // Navigating to the same hash again should refresh the page
+    await act(
+      async () => {
+        await linkWithHashA.click()
+      },
+      {
+        includes: 'random-number',
+      }
+    )
+    const randomNumber3 = await readRandomNumberFromPage()
+    expect(randomNumber3).not.toBe(randomNumber2)
+
+    // Navigating to a different hash should *not* refresh the page
+    await act(async () => {
+      await linkWithHashB.click()
+    }, 'no-requests')
+    expect(await readRandomNumberFromPage()).toBe(randomNumber3)
+  })
 
   it('does not throw an error when navigating to a page with a server action', async () => {
     let act: ReturnType<typeof createRouterAct>

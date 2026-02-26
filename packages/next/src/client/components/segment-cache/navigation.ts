@@ -375,8 +375,8 @@ async function navigateToUnknownRoute(
     canonicalUrl,
     renderedSearch,
     couldBeIntercepted,
-    prerendered,
     staleTime,
+    supportsPerSegmentPrefetching,
     staticStageResponse,
     responseHeaders,
     debugInfo,
@@ -411,7 +411,7 @@ async function navigateToUnknownRoute(
       metadataVaryPath,
       couldBeIntercepted,
       createHrefFromUrl(canonicalUrl),
-      prerendered,
+      supportsPerSegmentPrefetching,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
     if (dynamicStaleTimeMs !== null) {

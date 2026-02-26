@@ -414,7 +414,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut buffer = Vec::new();
         buffer.write_u32::<BE>(value.len() as u32)?;
-        compress_into_buffer(value, None, true, &mut buffer)
+        compress_into_buffer(value, &mut buffer)
             .context("Compression of value for blob file failed")?;
 
         let file = self.db_path.join(format!("{seq:08}.blob"));
@@ -433,15 +433,13 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         family: u32,
         collector_data: (&[CollectorEntry<K>], usize),
     ) -> Result<(u32, File)> {
-        let (entries, total_key_size) = collector_data;
+        let (entries, _total_key_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
         let path = self.db_path.join(format!("{seq:08}.sst"));
         let (meta, file) = self
             .parallel_scheduler
-            .block_in_place(|| {
-                write_static_stored_file(entries, total_key_size, &path, MetaEntryFlags::FRESH)
-            })
+            .block_in_place(|| write_static_stored_file(entries, &path, MetaEntryFlags::FRESH))
             .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
 
         #[cfg(feature = "verify_sst_content")]
@@ -463,7 +461,6 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 &self.db_path,
                 StaticSortedFileMetaData {
                     sequence_number: seq,
-                    key_compression_dictionary_length: meta.key_compression_dictionary_length,
                     block_count: meta.block_count,
                 },
             )?;
