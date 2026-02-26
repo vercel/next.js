@@ -16,7 +16,7 @@ export interface InitialRouterStateParameters {
   initialRenderedSearch: string
   initialFlightData: FlightDataPath[]
   initialCouldBeIntercepted: boolean
-  initialPrerendered: boolean
+  initialSupportsPerSegmentPrefetching: boolean
   location: Location | null
 }
 
@@ -26,7 +26,7 @@ export function createInitialRouterState({
   initialCanonicalUrlParts,
   initialRenderedSearch,
   initialCouldBeIntercepted,
-  initialPrerendered,
+  initialSupportsPerSegmentPrefetching,
   location,
 }: InitialRouterStateParameters): AppRouterState {
   // When initialized on the server, the canonical URL is provided as an array of parts.
@@ -82,7 +82,7 @@ export function createInitialRouterState({
       metadataVaryPath,
       initialCouldBeIntercepted,
       canonicalUrl,
-      initialPrerendered,
+      initialSupportsPerSegmentPrefetching,
       false // hasDynamicRewrite
     )
   }

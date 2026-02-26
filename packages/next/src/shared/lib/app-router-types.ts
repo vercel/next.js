@@ -256,7 +256,7 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
-  /** prerendered */
+  /** supportsPerSegmentPrefetching */
   S: boolean
   /**
    * headVaryParams - vary params for the head (metadata) of the response.
@@ -270,7 +270,7 @@ export type NavigationFlightResponse = {
   b?: string
   /** flightData */
   f: FlightData
-  /** prerendered */
+  /** supportsPerSegmentPrefetching */
   S: boolean
   /** renderedSearch */
   q: string

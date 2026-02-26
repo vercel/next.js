@@ -68,7 +68,7 @@ type SpaFetchServerResponseResult = {
   canonicalUrl: URL
   renderedSearch: NormalizedSearch
   couldBeIntercepted: boolean
-  prerendered: boolean
+  supportsPerSegmentPrefetching: boolean
   postponed: boolean
   staleTime: number
   staticStageResponse: Promise<NavigationFlightResponse> | null
@@ -281,7 +281,7 @@ export async function fetchServerResponse(
       // wrong for interception routes.
       renderedSearch: flightResponse.q as NormalizedSearch,
       couldBeIntercepted: interception,
-      prerendered: flightResponse.S,
+      supportsPerSegmentPrefetching: flightResponse.S,
       postponed,
       staleTime,
       staticStageResponse,
