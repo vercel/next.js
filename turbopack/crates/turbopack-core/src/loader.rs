@@ -67,3 +67,18 @@ impl TaskInput for ResolvedWebpackLoaderItem {
 #[derive(Debug, Clone)]
 #[turbo_tasks::value(shared, transparent)]
 pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
+
+impl std::fmt::Display for WebpackLoaderItems {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut iter = self.0.iter();
+
+        if let Some(first) = iter.next() {
+            write!(f, "{}", first.loader)?;
+            for remaining in iter {
+                write!(f, ", {}", remaining.loader)?;
+            }
+        }
+
+        Ok(())
+    }
+}
