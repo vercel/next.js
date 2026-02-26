@@ -264,7 +264,7 @@ While [dynamic content](#dynamic-content) is fetched from external sources, it's
 
 If this data doesn't depend on [runtime data](#runtime-data), you can use the `use cache` directive to include it in the static HTML shell. Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to define how long to use the cached data.
 
-When revalidation occurs, the static shell is updated with fresh content. See [Tagging and revalidating](#tagging-and-revalidating) for details on on-demand revalidation.
+When revalidation occurs, the static shell is updated with fresh content. See [Tagging and revalidating](#tagging-and-revalidating) for details about on-demand revalidation.
 
 ```tsx filename="app/page.tsx" highlight={1,4,5}
 import { cacheLife } from 'next/cache'
