@@ -8,12 +8,11 @@ use std::{
 
 use anyhow::{Context, Result};
 use byteorder::{BE, ByteOrder, WriteBytesExt};
-use turbo_bincode::turbo_bincode_encode;
 
 use crate::{
     compression::{checksum_block, compress_into_buffer},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
-    meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
+    meta_file::MetaEntryFlags,
     static_sorted_file::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH,
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH, DELETED_VALUE_REF_SIZE,
@@ -956,9 +955,8 @@ impl<E: Entry> StreamingSstWriter<E> {
         let mut filter = self.filter.take().unwrap();
         filter.shrink_to_fit();
 
-        // Serialize AMQF
-        let amqf =
-            turbo_bincode_encode(&AmqfBincodeWrapper(filter)).expect("AMQF serialization failed");
+        // Serialize AMQF using postcard for zero-copy deserialization via FilterRef
+        let amqf = postcard::to_allocvec(&filter).expect("AMQF serialization failed");
 
         // Compute file size from block offsets rather than calling stream_position()
         // (which requires a flush + seek).
@@ -969,7 +967,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         let meta = StaticSortedFileBuilderMeta {
             min_hash: self.min_hash,
             max_hash: self.max_hash,
-            amqf: Cow::Owned(amqf.into_vec()),
+            amqf: Cow::Owned(amqf),
             block_count,
             size: file_size,
             flags: self.flags,

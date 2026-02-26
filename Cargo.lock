@@ -1309,7 +1309,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3053,7 +3053,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.2",
  "tokio",
  "tower-service",
  "tracing",
@@ -5407,17 +5407,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pot"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf741fa415952eb20f27fbc210dc85f31cc7cdc80aa3ce81d5e27d28a6f45dc2"
-dependencies = [
- "byteorder",
- "half",
- "serde",
-]
-
-[[package]]
 name = "potential_utf"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5674,9 +5663,9 @@ dependencies = [
 
 [[package]]
 name = "qfilter"
-version = "0.3.0-alpha.2"
+version = "0.3.0-alpha.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bd0ea20afc2eab082dde00f58d9e83ed70dcb693fa88c23890e122e19355635"
+checksum = "9fb8c6e59c09e93a6dbc7ff5feff747fc4efc3f5a90c00851e1472ce1bdf2eff"
 dependencies = [
  "serde",
  "serde_bytes",
@@ -5723,7 +5712,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.2",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
@@ -5761,7 +5750,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.2",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -9441,7 +9430,6 @@ name = "turbo-persistence"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bincode 2.0.1",
  "bitfield",
  "byteorder",
  "codspeed-criterion-compat",
@@ -9453,7 +9441,7 @@ dependencies = [
  "memmap2 0.9.5",
  "nohash-hasher",
  "parking_lot",
- "pot",
+ "postcard",
  "qfilter",
  "quick_cache",
  "rand 0.10.0",
@@ -9463,9 +9451,9 @@ dependencies = [
  "tempfile",
  "thread_local",
  "tracing",
- "turbo-bincode",
  "turbo-tasks-malloc",
  "xxhash-rust",
+ "zerocopy",
 ]
 
 [[package]]
