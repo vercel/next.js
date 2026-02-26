@@ -463,7 +463,6 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 &self.db_path,
                 StaticSortedFileMetaData {
                     sequence_number: seq,
-                    key_compression_dictionary_length: meta.key_compression_dictionary_length,
                     block_count: meta.block_count,
                 },
             )?;

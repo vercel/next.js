@@ -1012,8 +1012,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         min_hash: entry.min_hash(),
                                         max_hash: entry.max_hash(),
                                         amqf,
-                                        key_compression_dictionary_length: entry
-                                            .key_compression_dictionary_length(),
                                         block_count: entry.block_count(),
                                         size: entry.size(),
                                         flags: entry.flags(),
@@ -1636,8 +1634,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             flags: entry.flags(),
                             amqf_size: entry.amqf_size(),
                             amqf_entries: amqf.len(),
-                            key_compression_dictionary_size: entry
-                                .key_compression_dictionary_length(),
                             block_count: entry.block_count(),
                         }
                     })
@@ -1699,6 +1695,5 @@ pub struct MetaFileEntryInfo {
     pub amqf_entries: usize,
     pub sst_size: u64,
     pub flags: MetaEntryFlags,
-    pub key_compression_dictionary_size: u16,
     pub block_count: u16,
 }

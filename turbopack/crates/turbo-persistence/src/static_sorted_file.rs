@@ -2,7 +2,6 @@ use std::{
     cmp::Ordering,
     fs::File,
     hash::BuildHasherDefault,
-    ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -121,8 +120,6 @@ impl ValueBlockCache for &mut Option<(u16, ArcBytes)> {
 pub struct StaticSortedFileMetaData {
     /// The sequence number of this file.
     pub sequence_number: u32,
-    /// The length of the key compression dictionary.
-    pub key_compression_dictionary_length: u16,
     /// The number of blocks in the SST file.
     pub block_count: u16,
 }
@@ -134,14 +131,7 @@ impl StaticSortedFileMetaData {
     }
 
     pub fn blocks_start(&self) -> usize {
-        let k: usize = self.key_compression_dictionary_length.into();
-        k
-    }
-
-    pub fn key_compression_dictionary_range(&self) -> Range<usize> {
-        let start = 0;
-        let end: usize = self.key_compression_dictionary_length.into();
-        start..end
+        0
     }
 }
 
@@ -393,11 +383,7 @@ impl StaticSortedFile {
 
     /// Reads a key block from the file.
     fn read_key_block(&self, block_index: u16) -> Result<ArcBytes> {
-        self.read_block(
-            block_index,
-            Some(&self.mmap[self.meta.key_compression_dictionary_range()]),
-            false,
-        )
+        self.read_block(block_index, None, false)
     }
 
     /// Reads a value block from the file.

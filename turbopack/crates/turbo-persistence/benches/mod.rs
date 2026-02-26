@@ -801,7 +801,6 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
             // Open the SST file
             let sst_meta = StaticSortedFileMetaData {
                 sequence_number: 1,
-                key_compression_dictionary_length: meta.key_compression_dictionary_length,
                 block_count: meta.block_count,
             };
             let sst = StaticSortedFile::open(tempdir.path(), sst_meta).unwrap();
