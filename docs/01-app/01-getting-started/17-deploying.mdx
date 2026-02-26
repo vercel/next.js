@@ -44,16 +44,19 @@ Docker deployments support all Next.js features. Learn how to [configure them](/
 
 > **Note for development:** While Docker is excellent for production deployments, consider using local development (`npm run dev`) instead of Docker during development on Mac and Windows for better performance. [Learn more about optimizing local development](/docs/app/guides/local-development).
 
-### Templates
+The following examples demonstrate best practices for containerizing Next.js applications:
 
-- [Docker Standalone Output](https://github.com/vercel/next.js/tree/canary/examples/with-docker) – Deploy a Next.js application using output: "standalone" to generate a minimal, production-ready Docker image with only the required runtime files and dependencies.
-- [Docker Export Output](https://github.com/vercel/next.js/tree/canary/examples/with-docker-export-output) – Deploy a fully static Next.js application using output: "export" to generate optimized HTML files that can be served from a lightweight container or any static hosting environment.
-- [Docker Multi-Environment](https://github.com/vercel/next.js/tree/canary/examples/with-docker-multi-env) - Deploy a Next.js application using multiple Docker environments to manage development, staging, and production configurations.
-- [DigitalOcean](https://github.com/nextjs/deploy-digitalocean) - Deploy a Next.js application to DigitalOcean using Docker.
-- [Fly.io](https://github.com/nextjs/deploy-fly) - Deploy a Next.js application to Fly.io using Docker.
-- [Google Cloud Run](https://github.com/nextjs/deploy-google-cloud-run) - Deploy a Next.js application to Google Cloud Run using Docker.
-- [Render](https://github.com/nextjs/deploy-render) - Deploy a Next.js application to Render using Docker.
-- [SST](https://github.com/nextjs/deploy-sst) - Deploy a Next.js application to SST using Docker.
+- [Docker Standalone Output](https://github.com/vercel/next.js/tree/canary/examples/with-docker) - Deploy a Next.js application using `output: "standalone"` to generate a minimal, production-ready Docker image with only the required runtime files and dependencies.
+- [Docker Export Output](https://github.com/vercel/next.js/tree/canary/examples/with-docker-export-output) - Deploy a fully static Next.js application using `output: "export"` to generate optimized HTML files that can be served from a lightweight container or any static hosting environment.
+- [Docker Multi-Environment](https://github.com/vercel/next.js/tree/canary/examples/with-docker-multi-env) - Manage separate Docker configurations for development, staging, and production environments with different environment variables.
+
+Additionally, hosting providers offer guidance on deploying Next.js:
+
+- [DigitalOcean](https://github.com/nextjs/deploy-digitalocean)
+- [Fly.io](https://github.com/nextjs/deploy-fly)
+- [Google Cloud Run](https://github.com/nextjs/deploy-google-cloud-run)
+- [Render](https://github.com/nextjs/deploy-render)
+- [SST](https://github.com/nextjs/deploy-sst)
 
 ## Static export
 
