@@ -69,18 +69,16 @@ export interface RequestStore extends CommonWorkUnitStore {
    */
   renderResumeDataCache: RenderResumeDataCache | null
 
-  stale?: number
-  stagedRendering?: StagedRenderingController | null
-  asyncApiPromises?: AsyncApiPromises
-  cacheSignal?: CacheSignal | null
-  prerenderResumeDataCache?: PrerenderResumeDataCache | null
-  fallbackParams?: OpaqueFallbackRouteParams | null
-
   // DEV-only
   usedDynamic?: boolean
+  devFallbackParams?: OpaqueFallbackRouteParams | null
+  stagedRendering?: StagedRenderingController | null
+  asyncApiPromises?: DevAsyncApiPromises
+  cacheSignal?: CacheSignal | null
+  prerenderResumeDataCache?: PrerenderResumeDataCache | null
 }
 
-export type AsyncApiPromises = {
+type DevAsyncApiPromises = {
   cookies: Promise<ReadonlyRequestCookies>
   earlyCookies: Promise<ReadonlyRequestCookies>
 

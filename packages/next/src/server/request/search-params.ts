@@ -265,12 +265,6 @@ function createRenderSearchParams(
         requestStore,
         isRuntimePrefetchable
       )
-    } else if (requestStore.asyncApiPromises) {
-      return (
-        isRuntimePrefetchable
-          ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
-          : requestStore.asyncApiPromises.sharedSearchParamsParent
-      ).then(() => underlyingSearchParams)
     } else {
       return makeUntrackedSearchParams(underlyingSearchParams)
     }

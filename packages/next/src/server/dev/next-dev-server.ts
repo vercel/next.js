@@ -852,9 +852,9 @@ export default class DevServer extends Server {
           }
 
           // Since generateStaticParams run on the background, when accessing the
-          // fallbackParams during the render, it is still set to the previous
+          // devFallbackParams during the render, it is still set to the previous
           // result from the cache. Therefore when the result has changed, re-render
-          // the Server Component to sync the fallbackParams with the new result.
+          // the Server Component to sync the devFallbackParams with the new result.
           if (
             isAppPath &&
             this.nextConfig.cacheComponents &&

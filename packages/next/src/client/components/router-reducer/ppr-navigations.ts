@@ -35,8 +35,6 @@ import {
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
-  processStaticStageResponse,
-  writeStaticStageResponseIntoCache,
   EntryStatus,
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
@@ -1255,8 +1253,7 @@ export function spawnDynamicRequests(
     dynamicRequestTree,
     primaryUrl,
     nextUrl,
-    freshnessPolicy,
-    routeCacheEntry
+    freshnessPolicy
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1307,8 +1304,7 @@ export function spawnDynamicRequests(
             // if a refresh fails due to a mismatch, it will trigger a
             // hard refresh.
             nextUrl,
-            freshnessPolicy,
-            routeCacheEntry
+            freshnessPolicy
           )
         )
       }
@@ -1543,8 +1539,7 @@ async function fetchMissingDynamicData(
   dynamicRequestTree: FlightRouterState,
   url: URL,
   nextUrl: string | null,
-  freshnessPolicy: FreshnessPolicy,
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  freshnessPolicy: FreshnessPolicy
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1578,25 +1573,6 @@ async function fetchMissingDynamicData(
     // UI state.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
       await waitForNavigationLock()
-    }
-
-    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
-      const now = Date.now()
-      processStaticStageResponse(now, result.staticStageResponse).then(
-        ({ serverData, headVaryParams, staleAt }) =>
-          writeStaticStageResponseIntoCache(
-            now,
-            serverData,
-            result.responseHeaders,
-            headVaryParams,
-            staleAt,
-            routeCacheEntry
-          ),
-        () => {
-          // The static stage processing failed. Not fatal — the navigation
-          // completed normally, we just won't write into the cache.
-        }
-      )
     }
 
     const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(

@@ -146,10 +146,6 @@ export function headers(): Promise<ReadonlyHeaders> {
               workStore?.route,
               workUnitStore
             )
-          } else if (workUnitStore.asyncApiPromises) {
-            return isInEarlyRenderStage(workUnitStore)
-              ? workUnitStore.asyncApiPromises.earlyHeaders
-              : workUnitStore.asyncApiPromises.headers
           } else {
             return makeUntrackedHeaders(workUnitStore.headers)
           }

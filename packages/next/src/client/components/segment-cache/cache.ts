@@ -973,48 +973,6 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
   return null
 }
 
-/**
- * Attempts to replace an existing segment cache entry with data from the
- * bfcache. Unlike `attemptToFulfillDynamicSegmentFromBFCache` (which fills an
- * empty entry), this creates a new entry and upserts it, so it works even when
- * the segment is already fulfilled.
- */
-export function attemptToUpgradeSegmentFromBFCache(
-  now: number,
-  tree: RouteTree
-): FulfilledSegmentCacheEntry | null {
-  const varyPath = tree.varyPath
-  const adjustedCurrentTime = now - STATIC_STALETIME_MS + DYNAMIC_STALETIME_MS
-  const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-    adjustedCurrentTime,
-    varyPath
-  )
-  if (bfcacheEntry !== null) {
-    const requestedAt = bfcacheEntry.staleAt - DYNAMIC_STALETIME_MS
-    const dynamicPrefetchStaleAt = requestedAt + STATIC_STALETIME_MS
-    const pendingSegment = upgradeToPendingSegment(
-      createDetachedSegmentCacheEntry(now),
-      FetchStrategy.Full
-    )
-    const isPartial = false
-    const newEntry = fulfillSegmentCacheEntry(
-      pendingSegment,
-      bfcacheEntry.rsc,
-      dynamicPrefetchStaleAt,
-      isPartial
-    )
-    const segmentVaryPath = getSegmentVaryPathForRequest(
-      FetchStrategy.Full,
-      tree
-    )
-    const upserted = upsertSegmentEntry(now, segmentVaryPath, newEntry)
-    if (upserted !== null && upserted.status === EntryStatus.Fulfilled) {
-      return upserted
-    }
-  }
-  return null
-}
-
 function pingBlockedTasks(entry: {
   blockedTasks: Set<PrefetchTask> | null
 }): void {
@@ -1548,6 +1506,7 @@ export function convertRouteTreeToFlightRouterState(
 
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
+  task: PrefetchTask,
   key: RouteCacheKey
 ): Promise<PrefetchSubtaskResult<null> | null> {
   // This function is allowed to use async/await because it contains the actual
@@ -1790,6 +1749,7 @@ export async function fetchRouteOnCacheMiss(
           : null
       writeDynamicTreeResponseIntoCache(
         Date.now(),
+        task,
         // The non-PPR response format is what we'd get if we prefetched these segments
         // using the LoadingBoundary fetch strategy, so mark their cache entries accordingly.
         FetchStrategy.LoadingBoundary,
@@ -2104,8 +2064,9 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // in the LRU as more data comes in.
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
+      task,
       fetchStrategy,
-      response.headers,
+      response as RSCResponse<NavigationFlightResponse>,
       serverData,
       isResponsePartial,
       headVaryParams,
@@ -2125,6 +2086,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 
 function writeDynamicTreeResponseIntoCache(
   now: number,
+  task: PrefetchTask,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
@@ -2205,8 +2167,9 @@ function writeDynamicTreeResponseIntoCache(
   // remove the "client-only" option. Then, we can delete this function call.
   writeDynamicRenderResponseIntoCache(
     now,
+    task,
     fetchStrategy,
-    response.headers,
+    response,
     serverData,
     isResponsePartial,
     headVaryParams,
@@ -2231,14 +2194,14 @@ function rejectSegmentEntriesIfStillPending(
   return fulfilledEntries
 }
 
-export function writeDynamicRenderResponseIntoCache(
+function writeDynamicRenderResponseIntoCache(
   now: number,
+  task: PrefetchTask,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
-    | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  responseHeaders: Headers,
+  response: RSCResponse<NavigationFlightResponse>,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
@@ -2246,10 +2209,10 @@ export function writeDynamicRenderResponseIntoCache(
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
-  const buildId =
-    responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
-
-  if (buildId !== getNavigationBuildId()) {
+  if (
+    (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b) !==
+    getNavigationBuildId()
+  ) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
     if (spawnedEntries !== null) {
@@ -2291,6 +2254,7 @@ export function writeDynamicRenderResponseIntoCache(
 
       writeSeedDataIntoCache(
         now,
+        task,
         fetchStrategy,
         tree,
         staleAt,
@@ -2335,9 +2299,9 @@ export function writeDynamicRenderResponseIntoCache(
 
 function writeSeedDataIntoCache(
   now: number,
+  task: PrefetchTask,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
-    | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   tree: RouteTree,
@@ -2381,6 +2345,7 @@ function writeSeedDataIntoCache(
       if (childSeedData !== null && childSeedData !== undefined) {
         writeSeedDataIntoCache(
           now,
+          task,
           fetchStrategy,
           childTree,
           staleAt,
@@ -2397,7 +2362,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   now: number,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
-    | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   rsc: React.ReactNode,
@@ -2644,7 +2608,7 @@ function getStaleAtFromHeader(
 async function getStaleAt(
   now: number,
   serverData: NavigationFlightResponse,
-  response?: RSCResponse<unknown>
+  response: RSCResponse<unknown>
 ): Promise<number> {
   if (serverData.s !== undefined) {
     // Iterate the async iterable and take the last yielded value. The server
@@ -2671,68 +2635,7 @@ async function getStaleAt(
     }
   }
 
-  if (response !== undefined) {
-    return getStaleAtFromHeader(now, response)
-  }
-
-  return now + STATIC_STALETIME_MS
-}
-
-type ProcessedStaticStageResponse = {
-  readonly serverData: NavigationFlightResponse
-  readonly headVaryParams: VaryParams | null
-  readonly staleAt: number
-}
-
-/**
- * Resolves a static stage response promise and computes derived values
- * (stale time, vary params). Callers should `.then()` the result into
- * `writeStaticStageResponseIntoCache`.
- */
-export async function processStaticStageResponse(
-  now: number,
-  staticStageResponse: Promise<NavigationFlightResponse>
-): Promise<ProcessedStaticStageResponse> {
-  const serverData = await staticStageResponse
-  const staleAt = await getStaleAt(now, serverData)
-
-  const headVaryParams =
-    serverData.h !== null ? readVaryParams(serverData.h) : null
-
-  return { serverData, headVaryParams, staleAt }
-}
-
-/**
- * Writes the static stage of a dynamic navigation response into the segment
- * cache.
- */
-export function writeStaticStageResponseIntoCache(
-  now: number,
-  serverData: NavigationFlightResponse,
-  responseHeaders: Headers,
-  headVaryParams: VaryParams | null,
-  staleAt: number,
-  route: FulfilledRouteCacheEntry
-): void {
-  // All segments are partial — the static stage needs a dynamic fetch to fill
-  // in runtime/dynamic content within their subtrees.
-  const isResponsePartial = true
-
-  // The static stage corresponds to the default prefetching strategy for
-  // Cache Components (FetchStrategy.PPR).
-  const fetchStrategy = FetchStrategy.PPR
-
-  writeDynamicRenderResponseIntoCache(
-    now,
-    fetchStrategy,
-    responseHeaders,
-    serverData,
-    isResponsePartial,
-    headVaryParams,
-    staleAt,
-    route,
-    null // spawnedEntries — no pre-created entries; will create or upsert
-  )
+  return getStaleAtFromHeader(now, response)
 }
 
 /**

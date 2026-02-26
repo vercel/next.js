@@ -278,8 +278,6 @@ export type NavigationFlightResponse = {
   i: boolean
   /** staleTime - Only present in dynamic runtime prefetch responses. */
   s?: AsyncIterable<number>
-  /** staticStageByteLength - Resolves when the static stage ends. */
-  l?: Promise<number>
   /** headVaryParams */
   h: VaryParamsThenable | null
 }

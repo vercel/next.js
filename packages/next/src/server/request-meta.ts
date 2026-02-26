@@ -277,10 +277,9 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
-   * The fallback params for this route. In dev, used for validating prerenders.
-   * In production, used to defer params resolution during staged rendering.
+   * DEV only: The fallback params that should be used when validating prerenders during dev
    */
-  fallbackParams?: OpaqueFallbackRouteParams
+  devFallbackParams?: OpaqueFallbackRouteParams
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()
