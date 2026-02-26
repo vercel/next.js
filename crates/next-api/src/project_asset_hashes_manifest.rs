@@ -1,5 +1,8 @@
 use anyhow::Result;
-use serde::{Serializer, ser::SerializeMap};
+use serde::{
+    Serializer,
+    ser::{Error, SerializeMap},
+};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -78,11 +81,25 @@ pub struct OutputAssetsWithPaths(Vec<(ResolvedVc<Box<dyn OutputAsset>>, RcStr)>)
 
 #[turbo_tasks::function]
 pub async fn expand_outputs(
-    outputs: Vec<Vc<OutputAssets>>,
+    project: Vc<Project>,
     root: FileSystemPath,
 ) -> Result<Vc<OutputAssetsWithPaths>> {
+    let entrypoint_groups = project.get_all_endpoint_groups(false).await?;
+
+    let output_assets = entrypoint_groups
+        .iter()
+        .map(|(_, EndpointGroup { primary, .. })| {
+            if let &[entry] = &primary.as_slice() {
+                endpoint_outputs(*entry.endpoint)
+            } else {
+                let endpoints = Vc::cell(primary.iter().map(|entry| entry.endpoint).collect());
+                endpoints_outputs(endpoints)
+            }
+        })
+        .collect::<Vec<_>>();
+
     let output_assets = expand_output_assets(
-        outputs
+        output_assets
             .iter()
             .try_join()
             .await?
@@ -118,21 +135,7 @@ pub async fn expand_outputs(
 impl Asset for AssetHashesManifestAsset {
     #[turbo_tasks::function(root)]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let entrypoint_groups = self.project.get_all_endpoint_groups(false).await?;
-
-        let output_assets = entrypoint_groups
-            .iter()
-            .map(|(_, EndpointGroup { primary, .. })| {
-                if let &[entry] = &primary.as_slice() {
-                    endpoint_outputs(*entry.endpoint)
-                } else {
-                    let endpoints = Vc::cell(primary.iter().map(|entry| entry.endpoint).collect());
-                    endpoints_outputs(endpoints)
-                }
-            })
-            .collect::<Vec<_>>();
-
-        let output_assets = expand_outputs(output_assets, self.asset_root.clone()).await?;
+        let output_assets = expand_outputs(*self.project, self.asset_root.clone()).await?;
 
         let asset_paths = output_assets
             .into_iter()
