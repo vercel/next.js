@@ -1,15 +1,15 @@
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css) */
 .style-module__3oVw9q__module-style {
-  cursor: url("../static/image.7bbaf41b.png");
-  background-image: url("../static/image.7bbaf41b.png");
-  list-style-image: url("../static/image.7bbaf41b.png");
+  cursor: url("../static/image.de249277.png");
+  background-image: url("../static/image.de249277.png");
+  list-style-image: url("../static/image.de249277.png");
 }
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css) */
 .style {
-  cursor: url("../static/image.7bbaf41b.png");
-  background-image: url("../static/image.7bbaf41b.png");
-  list-style-image: url("../static/image.7bbaf41b.png");
+  cursor: url("../static/image.de249277.png");
+  background-image: url("../static/image.de249277.png");
+  list-style-image: url("../static/image.de249277.png");
 }
 
 .style-unresolveable {
