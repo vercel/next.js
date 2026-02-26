@@ -119,11 +119,7 @@ export function createMessageHandler(
     method: string,
     args: unknown[]
   ): void {
-    // eval('require') prevents the bundler from statically tracing this
-    // require(). The module path is provided at runtime via the INITIALIZE
-    // message, so static analysis would fail or produce incorrect bundles.
-    // eslint-disable-next-line no-eval
-    const main = eval('require')(workerModule)
+    const main = require(workerModule)
 
     let fn: Function
     if (method === 'default') {
@@ -167,11 +163,7 @@ export function createMessageHandler(
   }
 
   function end(): void {
-    // eval('require') prevents the bundler from statically tracing this
-    // require(). The module path is provided at runtime via the INITIALIZE
-    // message, so static analysis would fail or produce incorrect bundles.
-    // eslint-disable-next-line no-eval
-    const main = eval('require')(workerModule)
+    const main = require(workerModule)
     if (!main.teardown) {
       transport.disconnect()
       return

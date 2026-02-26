@@ -47,9 +47,7 @@ async function webpackBuildWithWorker(
   for (const compilerName of compilerNames) {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain'],
-      debuggerPortOffset: -1,
-      isolatedMemory: false,
-      numWorkers: 1,
+      maxWorkers: 1,
       maxRetries: 0,
       forkOptions: {
         env: {

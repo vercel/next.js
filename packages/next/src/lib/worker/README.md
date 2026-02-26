@@ -64,9 +64,7 @@ import { Worker } from '../lib/worker'
 
 const worker = new Worker(require.resolve('./my-worker'), {
   exposedMethods: ['doWork'],
-  numWorkers: 4,
-  debuggerPortOffset: -1,
-  isolatedMemory: false,
+  maxWorkers: 4,
 })
 
 const result = await (worker as any).doWork(args)
@@ -142,12 +140,13 @@ The `Worker` class wraps `WorkerPool` and adds timeout/restart logic, NODE_OPTIO
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `exposedMethods` | string[] | required | Methods to wire up from worker module (underscore-prefixed names are skipped) |
-| `debuggerPortOffset` | number | required | Debugger port offset (`-1` = not inspectable) |
-| `isolatedMemory` | boolean | required | If true, strips `--max-old-space-size` from NODE_OPTIONS |
-| `numWorkers` | number | 1 | Maps to `maxWorkers` |
+| `workerName` | string | undefined | Human-readable name for error messages (e.g. "Next.js build worker") |
+| `debuggerPortOffset` | number \| undefined | undefined | Debugger port offset; `undefined` = not inspectable |
+| `isolatedMemory` | boolean | false | If true, strips `--max-old-space-size` from NODE_OPTIONS |
+| `maxWorkers` | number | cpus - 1 (min 1) | Maximum number of workers to spawn |
 | `maxRetries` | number | 0 | Number of times to re-dispatch a call after a `WorkerExitError` (worker crash). Non-crash errors are never retried. |
 | `onRestart` | function | undefined | `(method, args, attempt) => void` — called before each retry attempt |
-| `maxBootingWorkers` | number | ceil(numWorkers/4) | Passed through to WorkerPool |
+| `maxBootingWorkers` | number | ceil(maxWorkers/4) | Passed through to WorkerPool |
 | `concurrencyPerWorker` | number | 1 | Passed through to WorkerPool |
 | `enableWorkerThreads` | boolean | false | Passed through to WorkerPool |
 | `enableSourceMaps` | boolean | false | Adds `--enable-source-maps` to NODE_OPTIONS |

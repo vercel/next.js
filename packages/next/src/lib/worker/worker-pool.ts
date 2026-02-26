@@ -25,9 +25,11 @@ export class WorkerExitError extends Error {
   code: number | null
   signal: string | null
 
-  constructor(code: number | null, signal: string | null) {
+  constructor(code: number | null, signal: string | null, workerName?: string) {
     super(
-      `Worker exited unexpectedly with code ${code}${signal ? `, signal ${signal}` : ''}`
+      workerName
+        ? `${workerName} exited with code: ${code} and signal: ${signal}`
+        : `Worker exited unexpectedly with code ${code}${signal ? `, signal ${signal}` : ''}`
     )
     this.name = 'WorkerExitError'
     this.code = code

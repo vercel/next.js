@@ -67,8 +67,6 @@ jest.mock('./worker/worker-pool', () => {
 })
 
 const noopOptions = {
-  debuggerPortOffset: -1,
-  isolatedMemory: false,
   exposedMethods: [] as string[],
 }
 
@@ -231,25 +229,28 @@ describe('lib/worker lazy spawning', () => {
     latestPoolInstance = undefined
   })
 
-  it('passes numWorkers as maxWorkers to WorkerPool', () => {
+  it('passes maxWorkers to WorkerPool', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, {
       ...noopOptions,
-      numWorkers: 4,
+      maxWorkers: 4,
     })
     worker.close()
 
     expect(latestPoolOptions?.maxWorkers).toBe(4)
   })
 
-  it('defaults to 1 maxWorker when numWorkers is not set', () => {
+  it('defaults maxWorkers to os.cpus().length - 1 (minimum 1)', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
     worker.close()
 
-    expect(latestPoolOptions?.maxWorkers).toBe(1)
+    const os = (require('os') as typeof import('os'))
+    expect(latestPoolOptions?.maxWorkers).toBe(
+      Math.max(os.cpus().length - 1, 1)
+    )
   })
 
   it('wires up exposed methods to call pool.dispatch', async () => {

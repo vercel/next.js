@@ -45,9 +45,7 @@ function verifyAndRunTypeScript(
       require.resolve('../lib/verify-typescript-setup'),
       {
         exposedMethods: ['verifyAndRunTypeScript'],
-        debuggerPortOffset: -1,
-        isolatedMemory: false,
-        numWorkers: 1,
+        maxWorkers: 1,
         enableWorkerThreads,
         maxRetries: 0,
       }

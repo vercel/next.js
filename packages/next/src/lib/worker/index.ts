@@ -1,4 +1,5 @@
 import { Transform } from 'stream'
+import os from 'os'
 import {
   formatDebugAddress,
   formatNodeOptions,
@@ -19,23 +20,31 @@ export function getNextBuildDebuggerPortOffset(_: {
 }
 
 export interface WorkerOptions {
+  /**
+   * Human-readable name for this worker, used in error messages.
+   * e.g. "Next.js build worker" produces "Next.js build worker exited with code: ..."
+   */
+  workerName?: string
   forkOptions?: {
     env?: Partial<NodeJS.ProcessEnv> | undefined
   }
-  numWorkers?: number
+  /**
+   * Maximum number of workers to spawn (default: os.cpus().length - 1, minimum 1)
+   */
+  maxWorkers?: number
   /**
    * Maximum concurrent calls per worker (default: 1)
    */
   concurrencyPerWorker?: number
   /**
-   * `-1` if not inspectable
+   * Debugger port offset, or `undefined` if not inspectable (default: undefined)
    */
-  debuggerPortOffset: number
+  debuggerPortOffset?: number
   enableSourceMaps?: boolean
   /**
-   * True if `--max-old-space-size` should not be forwarded to the worker.
+   * If true, strips `--max-old-space-size` from NODE_OPTIONS (default: false)
    */
-  isolatedMemory: boolean
+  isolatedMemory?: boolean
   timeout?: number
   onActivity?: () => void
   onActivityAbort?: () => void
@@ -48,9 +57,9 @@ export interface WorkerOptions {
 }
 
 interface BuildWorkerEnvOptions {
-  debuggerPortOffset: number
+  debuggerPortOffset?: number
   enableSourceMaps?: boolean
-  isolatedMemory: boolean
+  isolatedMemory?: boolean
   forkOptions?: { env?: Partial<NodeJS.ProcessEnv> }
 }
 
@@ -74,7 +83,7 @@ function buildWorkerEnv(options: BuildWorkerEnvOptions): {
   delete nodeOptions['inspect-brk']
   delete nodeOptions['inspect_brk']
 
-  if (debuggerPortOffset !== -1) {
+  if (debuggerPortOffset != null) {
     const nodeDebugType = getNodeDebugType(originalOptions)
     if (nodeDebugType) {
       const debuggerAddress = getParsedDebugAddress(
@@ -98,7 +107,7 @@ function buildWorkerEnv(options: BuildWorkerEnvOptions): {
     nodeOptions['enable-source-maps'] = true
   }
 
-  if (isolatedMemory) {
+  if (isolatedMemory === true) {
     delete nodeOptions['max-old-space-size']
     delete nodeOptions['max_old_space_size']
   }
@@ -148,6 +157,7 @@ export class Worker {
 
   constructor(workerPath: string, options: WorkerOptions) {
     const {
+      workerName,
       enableSourceMaps,
       timeout,
       onRestart,
@@ -158,7 +168,7 @@ export class Worker {
       onActivityAbort,
       exposedMethods,
       enableWorkerThreads,
-      numWorkers,
+      maxWorkers: maxWorkersOption,
       maxRetries = 0,
       concurrencyPerWorker,
       forkOptions,
@@ -187,7 +197,7 @@ export class Worker {
     const createPool = () => {
       const pool = new WorkerPool({
         workerPath,
-        maxWorkers: numWorkers ?? 1,
+        maxWorkers: maxWorkersOption ?? Math.max(os.cpus().length - 1, 1),
         concurrencyPerWorker: concurrencyPerWorker ?? 1,
         enableWorkerThreads: enableWorkerThreads ?? false,
         maxBootingWorkers,
@@ -281,9 +291,15 @@ export class Worker {
         try {
           return await this._pool!.dispatch(method, args)
         } catch (error) {
-          if (error instanceof WorkerExitError && attempt < maxRetries) {
-            onRestart?.(method, args, attempt)
-            continue
+          if (error instanceof WorkerExitError) {
+            if (attempt < maxRetries) {
+              onRestart?.(method, args, attempt)
+              continue
+            }
+            // Re-throw with workerName for a user-friendly message
+            if (workerName) {
+              throw new WorkerExitError(error.code, error.signal, workerName)
+            }
           }
           throw error
         }
