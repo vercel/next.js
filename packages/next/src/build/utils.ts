@@ -1447,6 +1447,12 @@ export async function copyTracedFiles(
   )
   await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
 
+  if (process.env.HOSTNAME) {
+    Log.warn(
+      `The "HOSTNAME" environment variable usage is deprecated for the standalone output listening hostname. Use "NEXT_STANDALONE_HOSTNAME" instead.`
+    )
+  }
+
   await fs.writeFile(
     serverOutputPath,
     `${
@@ -1467,7 +1473,7 @@ process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
-const hostname = process.env.HOSTNAME || '0.0.0.0'
+const hostname = process.env.NEXT_STANDALONE_HOSTNAME || process.env.HOSTNAME || '0.0.0.0'
 
 let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify(nextConfig)}

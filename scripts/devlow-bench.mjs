@@ -39,7 +39,7 @@ const nextBuildWorkflow =
         TURBO_CACHE: enableTurbopackCache ? '1' : '0',
         PATH: process.env.PATH,
         NODE: process.env.NODE,
-        HOSTNAME: process.env.HOSTNAME,
+        NEXT_STANDALONE_HOSTNAME: process.env.NEXT_STANDALONE_HOSTNAME,
         PWD: process.env.PWD,
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
         NEXT_PRIVATE_SKIP_CANARY_CHECK: 'true',
@@ -258,7 +258,7 @@ const nextDevWorkflow =
       const env = {
         PATH: process.env.PATH,
         NODE: process.env.NODE,
-        HOSTNAME: process.env.HOSTNAME,
+        NEXT_STANDALONE_HOSTNAME: process.env.NEXT_STANDALONE_HOSTNAME,
         PWD: process.env.PWD,
         // Disable otel initialization to prevent pending / hanging request to otel collector
         OTEL_SDK_DISABLED: 'true',

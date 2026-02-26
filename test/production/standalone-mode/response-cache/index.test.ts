@@ -68,7 +68,7 @@ describe('minimal-mode-response-cache', () => {
       /- Local:/,
       {
         ...process.env,
-        HOSTNAME: '',
+        NEXT_STANDALONE_HOSTNAME: '',
         PORT: port.toString(),
       },
       undefined,

@@ -51,4 +51,4 @@ EXPOSE 3000
 
 ENV PORT=3000
 
-CMD HOSTNAME="0.0.0.0" node server.js
+CMD NEXT_STANDALONE_HOSTNAME="0.0.0.0" node server.js
