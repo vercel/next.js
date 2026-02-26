@@ -193,6 +193,7 @@ describe('app-dir - errors', () => {
               |           ^",
            "stack": [
              "Page app/global-error-boundary/client/page.js (8:11)",
+             "ClientPageRoot ../../../packages/next/src/client/components/client-page.tsx (83:12)",
            ],
          }
         `)
@@ -423,6 +424,88 @@ describe('app-dir - errors', () => {
             ? 'this is a test'
             : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
         )
+
+        if (isNextDev) {
+          expect(
+            normalizeComponentStack(
+              await browser.elementByCss('#error-component-stack').text()
+            )
+          ).toMatchInlineSnapshot(`
+           [
+             "at Content",
+             "at div",
+             "at Container [Server]",
+             "at Suspense",
+             "at Page",
+             "at SegmentViewNode",
+             "at InnerLayoutRouter",
+             "at RedirectErrorBoundary",
+             "at RedirectBoundary",
+             "at HTTPAccessFallbackBoundary",
+             "at LoadingBoundary",
+             "at ErrorBoundary",
+             "at InnerScrollAndFocusHandlerOld",
+             "at ScrollAndFocusHandler",
+             "at RenderFromTemplateContext",
+             "at SegmentStateProvider",
+             "at OuterLayoutRouter",
+             "at InnerLayoutRouter",
+             "at RedirectErrorBoundary",
+             "at RedirectBoundary",
+             "at HTTPAccessFallbackBoundary",
+             "at LoadingBoundary",
+             "at ErrorBoundaryHandler",
+             "at ErrorBoundary",
+             "at InnerScrollAndFocusHandlerOld",
+             "at ScrollAndFocusHandler",
+             "at RenderFromTemplateContext",
+             "at SegmentStateProvider",
+             "at OuterLayoutRouter",
+             "at InnerLayoutRouter",
+             "at RedirectErrorBoundary",
+             "at RedirectBoundary",
+             "at HTTPAccessFallbackErrorBoundary",
+             "at HTTPAccessFallbackBoundary",
+             "at LoadingBoundary",
+             "at ErrorBoundary",
+             "at InnerScrollAndFocusHandlerOld",
+             "at ScrollAndFocusHandler",
+             "at RenderFromTemplateContext",
+             "at SegmentStateProvider",
+             "at OuterLayoutRouter",
+             "at body",
+             "at html",
+             "at RootLayout [Server]",
+             "at SegmentViewNode",
+             "at __next_root_layout_boundary__",
+             "at RedirectErrorBoundary",
+             "at RedirectBoundary",
+             "at HTTPAccessFallbackErrorBoundary",
+             "at HTTPAccessFallbackBoundary",
+             "at DevRootHTTPAccessFallbackBoundary",
+             "at AppDevOverlayErrorBoundary",
+             "at HotReload",
+             "at Router",
+             "at ErrorBoundaryHandler",
+             "at ErrorBoundary",
+             "at RootErrorBoundary",
+             "at AppRouter",
+             "at ServerRoot",
+             "at Root",
+           ]
+          `)
+
+          expect(
+            normalizeComponentStack(
+              await browser.elementByCss('#error-owner-stack').text()
+            )
+          ).toMatchInlineSnapshot(`
+            [
+              "at ErrorBoundary",
+              "at OuterLayoutRouter",
+            ]
+          `)
+        }
 
         // Signal the server to stop throwing before retrying
         await next.fetch('/server-component/recover/set-recover')
