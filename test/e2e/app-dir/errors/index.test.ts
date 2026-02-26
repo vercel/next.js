@@ -424,12 +424,18 @@ describe('app-dir - errors', () => {
             : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
         )
 
+        // Signal the server to stop throwing before retrying
+        await next.fetch('/server-component/recover/set-recover')
+
         await browser
           .elementByCss('#retry')
           .click()
           .waitForElementByCss('#recover')
 
         expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
+
+        // Restore error state for subsequent runs
+        await next.fetch('/server-component/recover/set-recover?enabled=false')
       })
 
       it('should recover Client Component error after unstable_retry', async () => {
