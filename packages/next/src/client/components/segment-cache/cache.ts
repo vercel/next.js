@@ -57,7 +57,6 @@ import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import type {
   NormalizedPathname,
   NormalizedSearch,
-  NormalizedNextUrl,
   RouteCacheKey,
 } from './cache-key'
 import { createCacheKey as createPrefetchRequestKey } from './cache-key'
@@ -1083,7 +1082,6 @@ export function fulfillRouteCacheEntry(
 export function writeRouteIntoCache(
   now: number,
   pathname: NormalizedPathname,
-  nextUrl: string | null,
   tree: RouteTree,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
@@ -1100,13 +1098,10 @@ export function writeRouteIntoCache(
     canonicalUrl,
     isPPREnabled
   )
+  // nextUrl is always null here because we only write to the route cache for
+  // non-intercepted routes. Intercepted routes are deopted in attemptOptimisticRouting.
   const renderedSearch = fulfilledEntry.renderedSearch
-  const varyPath = getFulfilledRouteVaryPath(
-    pathname,
-    renderedSearch,
-    nextUrl as NormalizedNextUrl | null,
-    couldBeIntercepted
-  )
+  const varyPath = getRouteVaryPath(pathname, renderedSearch, null)
   const isRevalidation = false
   setInCacheMap(routeCacheMap, varyPath, fulfilledEntry, isRevalidation)
   return fulfilledEntry
@@ -1747,7 +1742,6 @@ export async function fetchRouteOnCacheMiss(
       discoverKnownRoute(
         Date.now(),
         pathname,
-        nextUrl,
         entry,
         routeTree,
         metadataVaryPath,
@@ -1806,8 +1800,7 @@ export async function fetchRouteOnCacheMiss(
         canonicalUrl,
         routeIsPPREnabled,
         headVaryParams,
-        pathname,
-        nextUrl
+        pathname
       )
     }
 
@@ -2143,8 +2136,7 @@ function writeDynamicTreeResponseIntoCache(
   canonicalUrl: string,
   routeIsPPREnabled: boolean,
   headVaryParams: VaryParams | null,
-  originalPathname: string,
-  nextUrl: string | null
+  originalPathname: string
 ): void {
   const renderedSearch = getRenderedSearch(response)
 
@@ -2193,7 +2185,6 @@ function writeDynamicTreeResponseIntoCache(
   const fulfilledEntry = discoverKnownRoute(
     now,
     originalPathname,
-    nextUrl,
     entry,
     routeTree,
     metadataVaryPath,

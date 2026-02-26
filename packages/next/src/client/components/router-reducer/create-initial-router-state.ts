@@ -76,7 +76,6 @@ export function createInitialRouterState({
     discoverKnownRoute(
       Date.now(),
       location.pathname,
-      null, // nextUrl — initial render is never an interception
       null, // No pending entry
       initialRouteTree,
       metadataVaryPath,

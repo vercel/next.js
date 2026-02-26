@@ -36,11 +36,7 @@
  *
  * Current limitations (deopt to server resolution):
  * - Rewrites: Detected during traversal (tree not populated, but route cached)
- * - Intercepted routes: The route tree varies by referrer (Next-Url header),
- *   so we can't predict the correct structure from the URL alone. Patterns are
- *   still stored during discovery (so the trie stays populated for non-
- *   intercepted siblings), but matching bails out when the pattern is marked
- *   as interceptable.
+ * - Intercepted routes: Routes using (.), (..), (...) patterns
  */
 
 import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-types'
@@ -171,7 +167,6 @@ let knownRouteTreeRoot: KnownRoutePart = createEmptyPart()
 export function discoverKnownRoute(
   now: number,
   pathname: string,
-  nextUrl: string | null,
   pendingEntry: PendingRouteCacheEntry | null,
   routeTree: RouteTree,
   metadataVaryPath: PageVaryPath,
@@ -211,7 +206,6 @@ export function discoverKnownRoute(
       fulfilledEntry,
       now,
       pathname,
-      nextUrl,
       tree,
       metadataVaryPath,
       couldBeIntercepted,
@@ -232,7 +226,6 @@ export function discoverKnownRoute(
     null,
     now,
     pathname,
-    nextUrl,
     tree,
     metadataVaryPath,
     couldBeIntercepted,
@@ -288,7 +281,6 @@ function discoverKnownRoutePart(
   // These are passed through unchanged for entry creation at the leaf
   now: number,
   pathname: string,
-  nextUrl: string | null,
   fullTree: RouteTree,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
@@ -329,7 +321,6 @@ function discoverKnownRoutePart(
       return writeRouteIntoCache(
         now,
         pathname as NormalizedPathname,
-        nextUrl,
         fullTree,
         metadataVaryPath,
         couldBeIntercepted,
@@ -408,7 +399,6 @@ function discoverKnownRoutePart(
         existingEntry,
         now,
         pathname,
-        nextUrl,
         fullTree,
         metadataVaryPath,
         couldBeIntercepted,
@@ -431,7 +421,6 @@ function discoverKnownRoutePart(
     return writeRouteIntoCache(
       now,
       pathname as NormalizedPathname,
-      nextUrl,
       fullTree,
       metadataVaryPath,
       couldBeIntercepted,
@@ -461,7 +450,6 @@ function discoverKnownRoutePart(
     entry = writeRouteIntoCache(
       now,
       pathname as NormalizedPathname,
-      nextUrl,
       fullTree,
       metadataVaryPath,
       couldBeIntercepted,
@@ -505,18 +493,8 @@ export function matchKnownRoute(
   const matchedPart = match.part
   const pattern = match.pattern
 
-  // If the pattern could be intercepted, we can't safely use it for prediction.
-  // Interception routes resolve to different route trees depending on the
-  // referrer (the Next-Url header), which means the same URL can map to
-  // different page components depending on where the navigation originated.
-  // Since the known route tree only stores a single pattern per URL shape, we
-  // can't distinguish between the intercepted and non-intercepted cases, so we
-  // bail out to server resolution.
-  //
-  // TODO: We could store interception behavior in the known route tree itself
-  // (e.g., which segments use interception markers and what they resolve to).
-  // With enough information embedded in the trie, we could match interception
-  // routes entirely on the client without a server round-trip.
+  // If the pattern could be intercepted, we can't safely use it for prediction
+  // because the route structure may vary based on the Next-Url header.
   if (pattern.couldBeIntercepted) {
     return null
   }

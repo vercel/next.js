@@ -395,7 +395,6 @@ async function navigateToUnknownRoute(
     const fulfilledRoute = discoverKnownRoute(
       now,
       url.pathname,
-      nextUrl,
       null, // No pending entry
       navigationSeed.routeTree,
       metadataVaryPath,
