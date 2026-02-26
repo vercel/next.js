@@ -53,6 +53,7 @@ export interface ServerActionAction {
   type: typeof ACTION_SERVER_ACTION
   actionId: string
   actionArgs: any[]
+  actionDispatchPath?: string
   resolve: (value: any) => void
   reject: (reason?: any) => void
   didRevalidate?: boolean

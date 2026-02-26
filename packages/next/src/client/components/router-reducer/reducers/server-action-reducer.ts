@@ -91,13 +91,22 @@ type FetchServerActionResult = {
   actionFlightDataRenderedSearch: NormalizedSearch | undefined
   isPrerender: boolean
   couldBeIntercepted: boolean
+  isCrossRouteDispatch: boolean
 }
 
 async function fetchServerAction(
   state: ReadonlyReducerState,
   nextUrl: ReadonlyReducerState['nextUrl'],
-  { actionId, actionArgs }: ServerActionAction
+  { actionId, actionArgs, actionDispatchPath }: ServerActionAction
 ): Promise<FetchServerActionResult> {
+  const currentRequestUrl = new URL(state.canonicalUrl, window.location.href)
+  const actionRequestUrl = actionDispatchPath
+    ? new URL(actionDispatchPath, window.location.href)
+    : currentRequestUrl
+  const isCrossRouteDispatch =
+    actionRequestUrl.pathname !== currentRequestUrl.pathname ||
+    actionRequestUrl.search !== currentRequestUrl.search
+
   const temporaryReferences = createTemporaryReferenceSet()
   const info = extractInfoFromServerReferenceId(actionId)
   const usedArgs = omitUnusedArgs(actionArgs, info)
@@ -133,7 +142,11 @@ async function fetchServerAction(
       .toString(16)
   }
 
-  const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+  const res = await fetch(createHrefFromUrl(actionRequestUrl), {
+    method: 'POST',
+    headers,
+    body,
+  })
 
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
@@ -239,6 +252,7 @@ async function fetchServerAction(
     revalidationKind,
     isPrerender,
     couldBeIntercepted,
+    isCrossRouteDispatch,
   }
 }
 
@@ -277,7 +291,16 @@ export function serverActionReducer(
       redirectType,
       isPrerender,
       couldBeIntercepted,
+      isCrossRouteDispatch,
     }) => {
+      // A delayed action might be dispatched to a different route than the one
+      // currently rendered. In that case, don't apply the seeded response tree
+      // to the current route.
+      if (isCrossRouteDispatch && redirectLocation === undefined) {
+        flightData = undefined
+        flightDataRenderedSearch = undefined
+      }
+
       if (revalidationKind !== ActionDidNotRevalidate) {
         // There was either a revalidation or a refresh, or maybe both.
 

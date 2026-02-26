@@ -897,10 +897,23 @@ describe('app-dir action handling', () => {
   }
 
   it.each(['node', 'edge'])(
-    'should forward action request to a worker that contains the action handler (%s)',
+    'should dispatch delayed action request to a route that contains the action handler (%s)',
     async (runtime) => {
       const cliOutputIndex = next.cliOutput.length
-      const browser = await next.browser(`/delayed-action/${runtime}`)
+      let actionRequestPathname: string | undefined
+
+      const browser = await next.browser(`/delayed-action/${runtime}`, {
+        beforePageLoad(page) {
+          page.on('request', async (request) => {
+            if (request.method() !== 'POST') return
+
+            const headers = await request.allHeaders().catch(() => ({}))
+            if (!headers['next-action']) return
+
+            actionRequestPathname = new URL(request.url()).pathname
+          })
+        },
+      })
 
       // confirm there's no data yet
       expect(await browser.elementById('delayed-action-result').text()).toBe(
@@ -929,6 +942,9 @@ describe('app-dir action handling', () => {
       // make sure that we still are rendering other-page content
       expect(await browser.hasElementByCssSelector('#other-page')).toBe(true)
 
+      // delayed actions should dispatch against the original route that has the action
+      expect(actionRequestPathname).toBe(`/delayed-action/${runtime}`)
+
       // make sure we didn't get any errors in the console
       expect(next.cliOutput.slice(cliOutputIndex)).not.toContain(
         'Failed to find Server Action'
@@ -937,11 +953,21 @@ describe('app-dir action handling', () => {
   )
 
   it.each(['node', 'edge'])(
-    'should not error when a forwarded action triggers a redirect (%s)',
+    'should not error when a delayed action triggers a redirect (%s)',
     async (runtime) => {
       let redirectResponseCode
+      let actionRequestPathname: string | undefined
       const browser = await next.browser(`/delayed-action/${runtime}`, {
         beforePageLoad(page) {
+          page.on('request', async (request) => {
+            if (request.method() !== 'POST') return
+
+            const headers = await request.allHeaders().catch(() => ({}))
+            if (!headers['next-action']) return
+
+            actionRequestPathname = new URL(request.url()).pathname
+          })
+
           page.on('response', async (res) => {
             const headers = await res.allHeaders().catch(() => ({}))
             if (headers['x-action-redirect']) {
@@ -962,11 +988,56 @@ describe('app-dir action handling', () => {
 
       // confirm a successful response code on the redirected action
       await retry(async () => {
-        expect(redirectResponseCode).toBe(200)
+        expect([200, 303]).toContain(redirectResponseCode)
       })
+
+      // delayed redirects should dispatch against the original route that has the action
+      expect(actionRequestPathname).toBe(`/delayed-action/${runtime}`)
 
       // confirm that the redirect was handled
       await browser.waitForElementByCss('#run-action-redirect')
+    }
+  )
+
+  it.each(['node', 'edge'])(
+    'should reject action requests posted to a route that does not bundle the action (%s)',
+    async (runtime) => {
+      let actionId: string | undefined
+      const browser = await next.browser(`/delayed-action/${runtime}`, {
+        beforePageLoad(page) {
+          page.on('request', async (request) => {
+            if (request.method() !== 'POST') return
+
+            const headers = await request.allHeaders().catch(() => ({}))
+            if (!headers['next-action']) return
+
+            actionId = headers['next-action']
+          })
+        },
+      })
+
+      await browser.elementById('run-action').click()
+      await retry(async () => {
+        expect(actionId).toBeDefined()
+      })
+
+      if (!actionId) {
+        throw new Error('Failed to capture action ID')
+      }
+
+      const res = await next.fetch(`/delayed-action/${runtime}/other`, {
+        method: 'POST',
+        headers: {
+          'next-action': actionId,
+          'next-resume': '1',
+          'content-type': 'text/plain',
+        },
+        body: 'test',
+        signal: AbortSignal.timeout(3_000),
+      })
+
+      expect(res.status).toBe(404)
+      expect(res.headers.get('x-nextjs-action-not-found')).toBe('1')
     }
   )
 

@@ -40,7 +40,6 @@ import {
 import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
 import {
-  JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
@@ -51,7 +50,7 @@ import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import {
-  selectWorkerForForwarding,
+  hasActionWorkerForPage,
   type ServerModuleMap,
   getServerActionsManifest,
   getServerModuleMap,
@@ -195,98 +194,6 @@ function addRevalidationHeader(
       JSON.stringify(workStore.pathWasRevalidated)
     )
   }
-}
-
-/**
- * Forwards a server action request to a separate worker. Used when the requested action is not available in the current worker.
- */
-async function createForwardedActionResponse(
-  req: BaseNextRequest,
-  res: BaseNextResponse,
-  host: Host,
-  workerPathname: string,
-  basePath: string
-) {
-  if (!host) {
-    throw new Error(
-      'Invariant: Missing `host` header from a forwarded Server Actions request.'
-    )
-  }
-
-  const forwardedHeaders = getForwardedHeaders(req, res)
-
-  // indicate that this action request was forwarded from another worker
-  // we use this to skip rendering the flight tree so that we don't update the UI
-  // with the response from the forwarded worker
-  forwardedHeaders.set('x-action-forwarded', '1')
-
-  const proto =
-    getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
-
-  // For standalone or the serverful mode, use the internal origin directly
-  // other than the host headers from the request.
-  const origin = process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${host.value}`
-
-  const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
-
-  try {
-    let body: BodyInit | ReadableStream<Uint8Array> | undefined
-    if (
-      // The type check here ensures that `req` is correctly typed, and the
-      // environment variable check provides dead code elimination.
-      process.env.NEXT_RUNTIME === 'edge' &&
-      isWebNextRequest(req)
-    ) {
-      if (!req.body) {
-        throw new Error('Invariant: missing request body.')
-      }
-
-      body = req.body
-    } else if (
-      // The type check here ensures that `req` is correctly typed, and the
-      // environment variable check provides dead code elimination.
-      process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req)
-    ) {
-      body = req.stream()
-    } else {
-      throw new Error('Invariant: Unknown request type.')
-    }
-
-    // Forward the request to the new worker
-    const response = await fetch(fetchUrl, {
-      method: 'POST',
-      body,
-      duplex: 'half',
-      headers: forwardedHeaders,
-      redirect: 'manual',
-      next: {
-        // @ts-ignore
-        internal: 1,
-      },
-    })
-
-    if (
-      response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
-    ) {
-      // copy the headers from the redirect response to the response we're sending
-      for (const [key, value] of response.headers) {
-        if (!actionsForbiddenHeaders.includes(key)) {
-          res.setHeader(key, value)
-        }
-      }
-
-      return new FlightRenderResult(response.body!)
-    } else {
-      // Since we aren't consuming the response body, we cancel it to avoid memory leaks
-      response.body?.cancel()
-    }
-  } catch (err) {
-    // we couldn't stream the forwarded response, so we'll just return an empty response
-    console.error(`failed to forward action response`, err)
-  }
-
-  return RenderResult.fromStatic('{}', JSON_CONTENT_TYPE_HEADER)
 }
 
 /**
@@ -701,25 +608,10 @@ export async function handleAction({
 
   const { actionAsyncStorage } = ComponentMod
 
-  const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
-
-  if (actionId) {
-    const forwardedWorker = selectWorkerForForwarding(actionId, page)
-
-    // If forwardedWorker is truthy, it means there isn't a worker for the action
-    // in the current handler, so we forward the request to a worker that has the action.
-    if (forwardedWorker) {
-      return {
-        type: 'done',
-        result: await createForwardedActionResponse(
-          req,
-          res,
-          host,
-          forwardedWorker,
-          ctx.renderOpts.basePath
-        ),
-      }
-    }
+  // Server Actions fetch requests are only valid on routes that bundle the
+  // action. Reject invalid route/action combinations before reading the body.
+  if (actionId && isFetchAction && !hasActionWorkerForPage(actionId, page)) {
+    return handleUnrecognizedFetchAction(getActionNotFoundError(actionId))
   }
 
   try {
@@ -791,8 +683,7 @@ export async function handleAction({
                   action as () => Promise<unknown>,
                   [],
                   workStore,
-                  requestStore,
-                  actionWasForwarded
+                  requestStore
                 )
 
                 const formState = await decodeFormState(
@@ -999,8 +890,7 @@ export async function handleAction({
                   action as () => Promise<unknown>,
                   [],
                   workStore,
-                  requestStore,
-                  actionWasForwarded
+                  requestStore
                 )
 
                 const formState = await decodeFormState(
@@ -1128,8 +1018,7 @@ export async function handleAction({
             actionHandler,
             boundActionArguments,
             workStore,
-            requestStore,
-            actionWasForwarded
+            requestStore
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1259,12 +1148,10 @@ export async function handleAction({
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
-          // If the page was not revalidated, or if the action was forwarded
-          // from another worker, we can skip rendering the page.
+          // If the page was not revalidated, we can skip rendering the page.
           skipPageRendering:
             workStore.pathWasRevalidated === undefined ||
-            workStore.pathWasRevalidated === ActionDidNotRevalidate ||
-            actionWasForwarded,
+            workStore.pathWasRevalidated === ActionDidNotRevalidate,
           temporaryReferences,
         }),
       }
@@ -1287,14 +1174,13 @@ async function executeActionAndPrepareForRender<
   action: TFn,
   args: Parameters<TFn>,
   workStore: WorkStore,
-  requestStore: RequestStore,
-  actionWasForwarded: boolean
+  requestStore: RequestStore
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
-  let skipPageRendering = actionWasForwarded
+  let skipPageRendering = false
 
   if (args.length > SERVER_ACTION_ARGS_LIMIT) {
     throw new Error(
@@ -1307,8 +1193,7 @@ async function executeActionAndPrepareForRender<
       action.apply(null, args)
     )
 
-    // If the page was not revalidated, or if the action was forwarded from
-    // another worker, we can skip rendering the page.
+    // If the page was not revalidated, we can skip rendering the page.
     skipPageRendering ||=
       workStore.pathWasRevalidated === undefined ||
       workStore.pathWasRevalidated === ActionDidNotRevalidate

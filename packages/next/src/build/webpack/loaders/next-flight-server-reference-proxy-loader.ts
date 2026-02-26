@@ -18,10 +18,10 @@ const flightServerReferenceProxyLoader: webpack.LoaderDefinitionFunction<{
   // Because of that, Webpack is able to concatenate the modules and inline the
   // reference IDs recursively directly into the module that uses them.
   return `\
-import { createServerReference, callServer, findSourceMapURL } from 'private-next-rsc-action-client-wrapper'
+import { createServerReference, createBoundActionCallServer, findSourceMapURL } from 'private-next-rsc-action-client-wrapper'
 export ${
     name === 'default' ? 'default' : `const ${name} =`
-  } /*#__PURE__*/createServerReference(${JSON.stringify(id)}, callServer, undefined, findSourceMapURL, ${JSON.stringify(name)})`
+  } /*#__PURE__*/createServerReference(${JSON.stringify(id)}, /*#__PURE__*/createBoundActionCallServer(), undefined, findSourceMapURL, ${JSON.stringify(name)})`
 }
 
 export default flightServerReferenceProxyLoader

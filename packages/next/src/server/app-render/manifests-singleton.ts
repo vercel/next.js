@@ -4,7 +4,6 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
-import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { workAsyncStorage } from './work-async-storage.external'
 
 export interface ServerModuleMap {
@@ -235,40 +234,21 @@ function normalizeWorkerPageName(pageName: string) {
   return 'app' + pageName
 }
 
-/**
- * Converts a bundlePath (relative path to the entrypoint) to a routable page
- * name.
- */
-function denormalizeWorkerPageName(bundlePath: string) {
-  return normalizeAppPath(removePathPrefix(bundlePath, 'app'))
-}
-
-/**
- * Checks if the requested action has a worker for the current page.
- * If not, it returns the first worker that has a handler for the action.
- */
-export function selectWorkerForForwarding(
+export function hasActionWorkerForPage(
   actionId: string,
   pageName: string
-): string | undefined {
+): boolean {
   const serverActionsManifest = getServerActionsManifest()
   const workers =
     serverActionsManifest[
       process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
     ][actionId]?.workers
 
-  // There are no workers to handle this action, nothing to forward to.
   if (!workers) {
-    return
+    return false
   }
 
-  // If there is an entry for the current page, we don't need to forward.
-  if (workers[normalizeWorkerPageName(pageName)]) {
-    return
-  }
-
-  // Otherwise, grab the first worker that has a handler for this action id.
-  return denormalizeWorkerPageName(Object.keys(workers)[0])
+  return Boolean(workers[normalizeWorkerPageName(pageName)])
 }
 
 export function setManifestsSingleton({
