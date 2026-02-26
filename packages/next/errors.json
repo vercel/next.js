@@ -1072,5 +1072,6 @@
   "1071": "Invariant: cache entry \"%s\" not found in dir \"%s\"",
   "1072": "image of size %s could not be tracked by lru cache",
   "1073": "toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase",
-  "1074": "Missing segment data: <head>"
+  "1074": "Missing segment data: <head>",
+  "1075": "Page \"%s\" cannot use \\`unstable_staleTime\\` and \\`unstable_instant\\` together."
 }

@@ -697,6 +697,12 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  if ('unstable_staleTime' in config && 'unstable_instant' in config) {
+    throw new Error(
+      `Page "${page}" cannot use \`unstable_staleTime\` and \`unstable_instant\` together.`
+    )
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,

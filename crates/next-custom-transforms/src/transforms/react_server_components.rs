@@ -101,6 +101,7 @@ enum RSCErrorKind {
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
     NextRscErrTaintWithoutConfig((String, Span)),
     NextRscErrStaleTimeInLayout(Span),
+    NextRscErrStaleTimeWithInstant(Span),
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -370,6 +371,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         RSCErrorKind::NextRscErrStaleTimeInLayout(span) => (
             "`unstable_staleTime` is only supported in pages, but you're using it in a layout. Please remove it."
                 .to_string(),
+            vec![span],
+        ),
+        RSCErrorKind::NextRscErrStaleTimeWithInstant(span) => (
+            "cannot use `unstable_staleTime` and `unstable_instant` together".to_string(),
             vec![span],
         ),
     };
@@ -899,6 +904,8 @@ impl ReactServerComponentValidator {
         if is_app_entry {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
                 FxIndexMap::default();
+            let mut unstable_stale_time_span: Option<Span> = None;
+            let mut unstable_instant_span: Option<Span> = None;
 
             let mut collect_possibly_invalid_exports =
                 |export_name: &Atom, span: &Span| match &**export_name {
@@ -948,12 +955,16 @@ impl ReactServerComponentValidator {
                         }
                     }
                     "unstable_staleTime" => {
+                        unstable_stale_time_span = Some(*span);
                         if is_layout {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),
                                 (InvalidExportKind::StaleTimeInLayout, *span),
                             );
                         }
+                    }
+                    "unstable_instant" => {
+                        unstable_instant_span = Some(*span);
                     }
                     _ => (),
                 };
@@ -982,6 +993,14 @@ impl ReactServerComponentValidator {
                     },
                     _ => {}
                 }
+            }
+
+            if let (Some(span), Some(_)) = (unstable_stale_time_span, unstable_instant_span) {
+                report_error(
+                    &self.app_dir,
+                    &self.filepath,
+                    RSCErrorKind::NextRscErrStaleTimeWithInstant(span),
+                );
             }
 
             for (export_name, (kind, span)) in &possibly_invalid_exports {
