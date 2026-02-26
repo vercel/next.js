@@ -641,8 +641,18 @@ export class NextInstance {
     return undefined
   }
 
-  public get deploymentIdQuery(): string {
-    return this.deploymentId ? `?dpl=${this.deploymentId}` : ''
+  public getDeploymentIdQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.deploymentId ? `${prefix}dpl=${this.deploymentId}` : ''
+  }
+
+  public get assetToken(): string | undefined {
+    return this.deploymentId
+  }
+
+  public getAssetQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.assetToken ? `${prefix}dpl=${this.assetToken}` : ''
   }
 
   public get cliOutput(): string {
