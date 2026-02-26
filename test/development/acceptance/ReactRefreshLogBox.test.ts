@@ -3,7 +3,7 @@ import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   getRedboxTotalErrorCount,
-  getStackFramesContent,
+  getRedboxCallStack,
   retry,
   toggleCollapseCallStackFrames,
 } from 'next-test-utils'
@@ -1435,7 +1435,7 @@ describe('ReactRefreshLogBox', () => {
     }
   })
 
-  test('should collapse nodejs internal stack frames from stack trace', async () => {
+  test('should collapse nodejs internal stack frames from stack trace by default', async () => {
     await using sandbox = await createSandbox(
       next,
       new Map([
@@ -1474,7 +1474,15 @@ describe('ReactRefreshLogBox', () => {
     `)
 
     await toggleCollapseCallStackFrames(browser)
-    const stackCollapsed = await getStackFramesContent(browser)
-    expect(stackCollapsed).toContain('at new URL ()')
+    const stackExpanded = await getRedboxCallStack(browser)
+    expect(stackExpanded).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          // ignore exact location.
+          // If this breaks, choose a different error that contains Node.js internals in its stack.
+          'new URL node:internal/url ('
+        ),
+      ])
+    )
   })
 })
