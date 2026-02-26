@@ -2677,8 +2677,10 @@ async function renderToStream(
 
   // In development mode, set the request ID as a global variable, before the
   // bootstrap script is executed, which depends on it during hydration.
+  // For MPA navigations (page reload, direct URL entry), the request ID
+  // header is not present, so we generate a random one.
   const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
-    ? `self.__next_r=${JSON.stringify(requestId)}`
+    ? `self.__next_r=${JSON.stringify(requestId ?? crypto.randomUUID())}`
     : undefined
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.
