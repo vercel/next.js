@@ -7,7 +7,7 @@ import type {
 } from '../../../server/app-render/collect-segment-data'
 import type {
   CacheNodeSeedData,
-  HeadData,
+  FlightData,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
 import {
@@ -2304,11 +2304,13 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
     // in the LRU as more data comes in.
+    const buildId =
+      response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
       fetchStrategy,
-      response.headers,
-      serverData,
+      serverData.f,
+      buildId,
       isResponsePartial,
       headVaryParams,
       staleAt,
@@ -2407,11 +2409,13 @@ function writeDynamicTreeResponseIntoCache(
   // the page is fully static), the normal check is bypassed and the server
   // responds with the full page. This is a temporary situation until we can
   // remove the "client-only" option. Then, we can delete this function call.
+  const buildId =
+    response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
   writeDynamicRenderResponseIntoCache(
     now,
     fetchStrategy,
-    response.headers,
-    serverData,
+    serverData.f,
+    buildId,
     isResponsePartial,
     headVaryParams,
     getStaleAtFromHeader(now, response),
@@ -2442,18 +2446,15 @@ export function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  responseHeaders: Headers,
-  serverData: NavigationFlightResponse,
+  flightData: FlightData,
+  buildId: string | undefined,
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
   staleAt: number,
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
-  const buildId =
-    responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
-
-  if (buildId !== getNavigationBuildId()) {
+  if (buildId && buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
     if (spawnedEntries !== null) {
@@ -2462,15 +2463,15 @@ export function writeDynamicRenderResponseIntoCache(
     return null
   }
 
-  const flightDatas = normalizeFlightData(serverData.f)
+  const flightDatas = normalizeFlightData(flightData)
   if (typeof flightDatas === 'string') {
     // This means navigating to this route will result in an MPA navigation.
     // TODO: We should cache this, too, so that the MPA navigation is immediate.
     return null
   }
 
-  for (const flightData of flightDatas) {
-    const seedData = flightData.seedData
+  for (const flightDataEntry of flightDatas) {
+    const seedData = flightDataEntry.seedData
     if (seedData !== null) {
       // The data sent by the server represents only a subtree of the app. We
       // need to find the part of the task tree that matches the response.
@@ -2479,7 +2480,7 @@ export function writeDynamicRenderResponseIntoCache(
       // pattern of parallel route key and segment:
       //
       //   [string, Segment, string, Segment, string, Segment, ...]
-      const segmentPath = flightData.segmentPath
+      const segmentPath = flightDataEntry.segmentPath
       let tree = route.tree
       for (let i = 0; i < segmentPath.length; i += 2) {
         const parallelRouteKey: string = segmentPath[i]
@@ -2504,7 +2505,7 @@ export function writeDynamicRenderResponseIntoCache(
       )
     }
 
-    const head = flightData.head
+    const head = flightDataEntry.head
     if (head !== null) {
       // The server conservatively marks the head as partial whenever Cache
       // Components is enabled, even for fully static pages where the head is
@@ -2512,7 +2513,7 @@ export function writeDynamicRenderResponseIntoCache(
       // override this since the server confirmed no dynamic content exists.
       const isHeadPartial = route.isFullyStatic
         ? false
-        : flightData.isHeadPartial
+        : flightDataEntry.isHeadPartial
 
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
@@ -2865,7 +2866,7 @@ function getStaleAtFromHeader(
  * starts leaving async iterables hanging when the outer RSC stream is
  * aborted e.g. due to sync I/O (with unstable_allowPartialStream).
  */
-async function getStaleAt(
+export async function getStaleAt(
   now: number,
   staleTimeIterable: AsyncIterable<number> | undefined,
   response?: RSCResponse<unknown>
@@ -2895,40 +2896,17 @@ async function getStaleAt(
   return now + STATIC_STALETIME_MS
 }
 
-type ProcessedStaticStageResponse = {
-  readonly headVaryParams: VaryParams | null
-  readonly staleAt: number
-}
-
 /**
- * Computes derived values (stale time, vary params) from a static stage
- * response.
- */
-export async function processStaticStageResponse(
-  now: number,
-  serverData: NavigationFlightResponse
-): Promise<ProcessedStaticStageResponse> {
-  const staleAt = await getStaleAt(now, serverData.s)
-
-  const headVaryParams =
-    serverData.h !== null ? readVaryParams(serverData.h) : null
-
-  return { headVaryParams, staleAt }
-}
-
-/**
- * Writes the static stage of a dynamic navigation response into the segment
- * cache.
+ * Writes flight data into the segment cache as partial entries. The route-level
+ * `isFullyStatic` flag handles skipping the dynamic follow-up at read time.
  *
- * When the response is fully static, all segments and the head are cached as
- * complete entries. Otherwise, segments are marked as partial and need a
- * dynamic follow-up.
+ * Used for both navigation responses and initial HTML seed data.
  */
 export function writeStaticStageResponseIntoCache(
   now: number,
-  serverData: NavigationFlightResponse,
-  responseHeaders: Headers,
-  headVaryParams: VaryParams | null,
+  flightData: FlightData,
+  buildId: string | undefined,
+  headVaryParamsThenable: VaryParamsThenable | null,
   staleAt: number,
   route: FulfilledRouteCacheEntry
 ): void {
@@ -2938,78 +2916,22 @@ export function writeStaticStageResponseIntoCache(
   const isResponsePartial = true
   const fetchStrategy = FetchStrategy.PPR
 
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
+
   writeDynamicRenderResponseIntoCache(
     now,
     fetchStrategy,
-    responseHeaders,
-    serverData,
+    flightData,
+    buildId,
     isResponsePartial,
     headVaryParams,
     staleAt,
     route,
     null // spawnedEntries — no pre-created entries; will create or upsert
   )
-}
-
-/**
- * Writes the initial HTML RSC payload (seed data from hydration) into the
- * segment cache. This allows subsequent client-side navigations to serve cached
- * segments instantly instead of re-fetching them from the server.
- *
- * Called during createInitialRouterState when the server included a stale time
- * in the InitialRSCPayload (currently only for fully static prerendered pages
- * with Cache Components enabled).
- */
-export async function writeInitialSeedDataIntoCache(
-  route: FulfilledRouteCacheEntry,
-  routeTree: RouteTree,
-  seedData: CacheNodeSeedData,
-  head: HeadData,
-  staleTimeIterable: AsyncIterable<number>,
-  headVaryParamsThenable: VaryParamsThenable | null
-): Promise<void> {
-  const now = Date.now()
-  const staleAt = await getStaleAt(now, staleTimeIterable)
-
-  // We currently only reach this branch for fully static pages (where
-  // initialStaleTimeSeconds is set), so the head is never partial.
-  const isHeadPartial = false
-
-  // For fully static prerendered pages, all segments are complete.
-  const isResponsePartial = false
-
-  // Use Full fetch strategy since the initial HTML contains the complete
-  // render, not just a loading boundary prefix.
-  const fetchStrategy = FetchStrategy.Full
-
-  writeSeedDataIntoCache(
-    now,
-    fetchStrategy,
-    routeTree,
-    staleAt,
-    seedData,
-    isResponsePartial,
-    null // spawnedEntries — no pre-created entries; will create or upsert
-  )
-
-  // Write the head (metadata) into the cache.
-  if (head !== null) {
-    const headVaryParams =
-      headVaryParamsThenable !== null
-        ? readVaryParams(headVaryParamsThenable)
-        : null
-
-    fulfillEntrySpawnedByRuntimePrefetch(
-      now,
-      fetchStrategy,
-      head,
-      isHeadPartial,
-      staleAt,
-      headVaryParams,
-      route.metadata,
-      null // spawnedEntries
-    )
-  }
 }
 
 /**

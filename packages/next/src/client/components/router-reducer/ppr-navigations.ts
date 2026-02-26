@@ -35,11 +35,12 @@ import {
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
-  processStaticStageResponse,
+  getStaleAt,
   writeStaticStageResponseIntoCache,
   EntryStatus,
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import {
   getRenderedSearchFromVaryPath,
@@ -1608,28 +1609,34 @@ async function fetchMissingDynamicData(
     }
 
     if (routeCacheEntry !== null && result.staticStageData !== null) {
+      const { response: staticStageResponse, isFullyStatic } =
+        result.staticStageData
+
       // Update the route entry so future navigations to this route can skip the
       // dynamic follow-up when reading from the segment cache.
-      routeCacheEntry.isFullyStatic = result.staticStageData.isFullyStatic
+      routeCacheEntry.isFullyStatic = isFullyStatic
 
       const now = Date.now()
-      const { staticStageData } = result
 
-      processStaticStageResponse(now, staticStageData.response).then(
-        ({ headVaryParams, staleAt }) =>
+      getStaleAt(now, staticStageResponse.s)
+        .then((staleAt) => {
+          const buildId =
+            result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+            staticStageResponse.b
+
           writeStaticStageResponseIntoCache(
             now,
-            staticStageData.response,
-            result.responseHeaders,
-            headVaryParams,
+            staticStageResponse.f,
+            buildId,
+            staticStageResponse.h,
             staleAt,
             routeCacheEntry
-          ),
-        () => {
+          )
+        })
+        .catch(() => {
           // The static stage processing failed. Not fatal — the navigation
           // completed normally, we just won't write into the cache.
-        }
-      )
+        })
     }
 
     const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(

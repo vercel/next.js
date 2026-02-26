@@ -14,12 +14,13 @@ import {
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import {
   EntryStatus,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
-  processStaticStageResponse,
+  getStaleAt,
   writeStaticStageResponseIntoCache,
   type RouteTree,
   type FulfilledRouteCacheEntry,
@@ -407,27 +408,33 @@ async function navigateToUnknownRoute(
     )
 
     if (staticStageData !== null) {
+      const { response: staticStageResponse, isFullyStatic } = staticStageData
+
       // Store whether the response is fully static on the route entry. This is
       // checked at navigation read time to skip the dynamic follow-up request.
-      fulfilledRoute.isFullyStatic = staticStageData.isFullyStatic
+      fulfilledRoute.isFullyStatic = isFullyStatic
 
       // Write the static stage of the response into the segment cache so that
       // subsequent navigations can serve cached static segments instantly.
-      processStaticStageResponse(now, staticStageData.response).then(
-        ({ headVaryParams, staleAt }) =>
+      getStaleAt(now, staticStageResponse.s)
+        .then((staleAt) => {
+          const buildId =
+            responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+            staticStageResponse.b
+
           writeStaticStageResponseIntoCache(
             now,
-            staticStageData.response,
-            responseHeaders,
-            headVaryParams,
+            staticStageResponse.f,
+            buildId,
+            staticStageResponse.h,
             staleAt,
             fulfilledRoute
-          ),
-        () => {
+          )
+        })
+        .catch(() => {
           // The static stage processing failed. Not fatal — the navigation
           // completed normally, we just won't write into the cache.
-        }
-      )
+        })
     }
   }
 

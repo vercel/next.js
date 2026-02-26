@@ -9,7 +9,8 @@ import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
   convertRootFlightRouterStateToRouteTree,
-  writeInitialSeedDataIntoCache,
+  getStaleAt,
+  writeStaticStageResponseIntoCache,
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -100,14 +101,23 @@ export function createInitialRouterState({
       // Currently only fully static pages include initialStaleTime.
       route.isFullyStatic = true
 
-      writeInitialSeedDataIntoCache(
-        route,
-        initialRouteTree,
-        initialSeedData,
-        initialHead,
-        initialStaleTime,
-        initialHeadVaryParams
-      )
+      const now = Date.now()
+
+      getStaleAt(now, initialStaleTime)
+        .then((staleAt) => {
+          writeStaticStageResponseIntoCache(
+            now,
+            initialFlightData,
+            undefined, // buildId - used to check mismatch during navigation
+            initialHeadVaryParams,
+            staleAt,
+            route
+          )
+        })
+        .catch(() => {
+          // The static stage processing failed. Not fatal — the page
+          // rendered normally, we just won't write into the cache.
+        })
     }
   }
 
