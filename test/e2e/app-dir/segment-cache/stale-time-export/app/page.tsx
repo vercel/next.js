@@ -5,8 +5,8 @@ export default function Page() {
     <>
       <p>
         Tests for export const unstable_staleTime segment config. This test
-        suite does NOT use cacheComponents, as unstable_staleTime segment
-        config is not supported with cacheComponents.
+        suite does NOT use cacheComponents, as unstable_staleTime segment config
+        is not supported with cacheComponents.
       </p>
       <p>
         No global staleTimes config is provided in next.config.js. Defaults are
@@ -15,12 +15,12 @@ export default function Page() {
       <ul>
         <li>
           <LinkAccordion href="/static-stale-6-minutes">
-            Static page with unstable_staleTime = 360
+            Static link
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/dynamic-stale-5-minutes" prefetch={false}>
-            Dynamic page with unstable_staleTime = 300
+          <LinkAccordion href="/dynamic-stale-5-minutes">
+            Dynamic link
           </LinkAccordion>
         </li>
       </ul>

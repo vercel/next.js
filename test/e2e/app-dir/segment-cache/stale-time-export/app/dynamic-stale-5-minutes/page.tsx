@@ -8,7 +8,7 @@ export default async function Page() {
   return (
     <>
       <div>Dynamic page with unstable_staleTime = 300</div>
-      <Link id="back-to-home" href="/" prefetch={false}>
+      <Link id="back-to-home" href="/">
         Back to home
       </Link>
     </>

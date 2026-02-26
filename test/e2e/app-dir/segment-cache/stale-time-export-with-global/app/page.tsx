@@ -11,12 +11,12 @@ export default function Page() {
       <ul>
         <li>
           <LinkAccordion href="/static-stale-5-minutes">
-            Static page with unstable_staleTime = 300
+            Static link
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/dynamic-stale-5-minutes" prefetch={false}>
-            Dynamic page with unstable_staleTime = 300
+          <LinkAccordion href="/dynamic-stale-5-minutes">
+            Dynamic link
           </LinkAccordion>
         </li>
       </ul>

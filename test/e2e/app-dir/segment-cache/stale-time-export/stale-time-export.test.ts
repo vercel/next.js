@@ -92,14 +92,14 @@ describe('segment cache - export const unstable_staleTime', () => {
       { includes: pageContent }
     )
 
+    // Advance 31 seconds - past default staleTimes.dynamic (0s), within page unstable_staleTime (300s)
+    await page.clock.fastForward('00:31')
+
     // Navigate back to home using a link in the page.
     await browser.elementByCss('#back-to-home').click()
     await browser.elementByCss(
       'input[data-link-accordion="/dynamic-stale-5-minutes"]'
     )
-
-    // Advance 31 seconds - past default staleTimes.dynamic (0s), within page unstable_staleTime (300s)
-    await page.clock.fastForward('00:31')
 
     // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
     await act(async () => {
@@ -109,14 +109,14 @@ describe('segment cache - export const unstable_staleTime', () => {
       await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
     }, 'no-requests')
 
+    // Advance another 5 minutes - past unstable_staleTime=300
+    await page.clock.fastForward('05:00')
+
     // Navigate back to home using a link in the page.
     await browser.elementByCss('#back-to-home').click()
     await browser.elementByCss(
       'input[data-link-accordion="/dynamic-stale-5-minutes"]'
     )
-
-    // Advance another 5 minutes - past unstable_staleTime=300
-    await page.clock.fastForward('05:00')
 
     // Should refetch - unstable_staleTime has elapsed
     await act(
@@ -153,20 +153,23 @@ describe('segment cache - export const unstable_staleTime', () => {
     )
 
     // Advance 31 seconds - past default staleTimes.dynamic (0s), within page unstable_staleTime (300s)
-    await browser.back()
     await page.clock.fastForward('00:31')
+    await browser.back()
 
     // Navigation should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
-    await act(async () => {
-      await browser
-        .elementByCss('input[data-link-accordion="/dynamic-stale-5-minutes"]')
-        .click()
-      await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
-    }, 'no-requests')
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/dynamic-stale-5-minutes"]')
+          .click()
+        await browser.elementByCss('a[href="/dynamic-stale-5-minutes"]').click()
+      },
+      { includes: pageContent, block: 'reject' }
+    )
 
     // Advance to 5 minutes + 1ms total - past unstable_staleTime=300
-    await browser.back()
     await page.clock.fastForward('05:00')
+    await browser.back()
 
     // Should refetch - unstable_staleTime has elapsed
     await act(
