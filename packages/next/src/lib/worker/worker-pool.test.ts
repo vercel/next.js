@@ -305,6 +305,43 @@ describe('WorkerPool', () => {
       pool.close()
     })
 
+    it('accepts new work and READY after setup error on same worker', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        concurrencyPerWorker: 1,
+      })
+
+      // First dispatch triggers worker spawn; setup fails
+      const p1 = pool.dispatch('a', [])
+      const proc = latestProcess()
+      replySetupError(proc, 'Error', 'setup failed')
+      await expect(p1).rejects.toThrow('Error when calling setup: setup failed')
+
+      // Worker is still in the pool (booting=false, ending=false, no active requests).
+      // No new process should be spawned — the existing one is reused.
+      expect(spawnedProcesses).toHaveLength(1)
+
+      // Second dispatch goes to the same (only) worker
+      const p2 = pool.dispatch('b', [])
+      expect(spawnedProcesses).toHaveLength(1) // still no new process
+
+      // The pool sent a second CALL to the same process
+      const callMsgs = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(callMsgs).toHaveLength(2)
+      expect(callMsgs[1][2]).toBe('b')
+      const requestId = callMsgs[1][1] as number
+
+      // On the child side, initialized=true means setup is skipped.
+      // sendReadyAndExec() sends READY then executes the method.
+      // READY is a no-op on the pool side (booting already false).
+      replyReady(proc)
+      replyOk(proc, requestId, 'result-b')
+      await expect(p2).resolves.toBe('result-b')
+
+      pool.close()
+    })
+
     it('dispatches correct method and args', () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
