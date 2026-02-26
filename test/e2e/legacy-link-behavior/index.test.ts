@@ -2,11 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('Link with legacyBehavior', () => {
-  if (process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
-    it('should skip debug mode test', () => {})
-    return
-  }
-
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,

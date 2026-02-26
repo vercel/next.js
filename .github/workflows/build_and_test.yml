@@ -707,7 +707,6 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
@@ -948,7 +947,6 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export IS_WEBPACK_TEST=1
 
@@ -972,7 +970,6 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export IS_WEBPACK_TEST=1
@@ -998,7 +995,6 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_WEBPACK_TEST=1

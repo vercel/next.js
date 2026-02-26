@@ -447,9 +447,7 @@ export class NextInstance {
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
             process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER = process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER
           }
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL) {
-            process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL = process.env.NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL
-          }
+
         `
           )
 

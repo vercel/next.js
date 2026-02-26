@@ -99,7 +99,7 @@ Analyze PR status including CI failures and review comments.
    - `IS_WEBPACK_TEST=1` forces webpack (turbopack is default locally)
    - `NEXT_SKIP_ISOLATE=1` skips packing next.js into a separate project (hides module resolution failures)
    - Feature flags like `__NEXT_USE_NODE_STREAMS=true`, `__NEXT_CACHE_COMPONENTS=true` change build-time DefinePlugin replacements
-   - Example: a failure in "test node streams prod" needs `IS_WEBPACK_TEST=1 __NEXT_USE_NODE_STREAMS=true __NEXT_CACHE_COMPONENTS=true __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true NEXT_TEST_MODE=start`
+   - Example: a failure in "test node streams prod" needs `IS_WEBPACK_TEST=1 __NEXT_USE_NODE_STREAMS=true __NEXT_CACHE_COMPONENTS=true NEXT_TEST_MODE=start`
    - Never use `NEXT_SKIP_ISOLATE=1` when verifying module resolution or build-time compilation fixes
 
 9. The script automatically checks the last 3 main branch CI runs for known flaky tests. Check the **"Known Flaky Tests"** section in index.md and the `flaky-tests.json` file. Tests listed there also fail on main and are likely pre-existing flakes, not caused by the PR. Mark them as **FLAKY (pre-existing)** in your summary table. Use `--skip-flaky-check` to skip this step if it's too slow.
