@@ -25,7 +25,7 @@ updateTag(tag: string): void;
 
 Tags must first be assigned to cached data. You can do this in two ways:
 
-- Using the [`next.tags`](/docs/app/guides/caching#fetch-optionsnexttags-and-revalidatetag) option with `fetch` for caching external API requests:
+- Using the [`next.tags`](/docs/app/api-reference/functions/fetch) option with `fetch` for caching external API requests:
 
 ```tsx
 fetch(url, { next: { tags: ['posts'] } })
