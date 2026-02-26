@@ -31,7 +31,7 @@ import { Playwright } from 'next-webdriver'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
-import escapeRegex from 'escape-string-regexp'
+import escapeRegex from 'tiny-escape'
 
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.

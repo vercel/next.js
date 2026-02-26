@@ -6,7 +6,7 @@ import webdriver from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
-import escapeStringRegexp from 'escape-string-regexp'
+import escapeStringRegexp from 'tiny-escape'
 
 describe('Middleware Rewrite', () => {
   let next: NextInstance

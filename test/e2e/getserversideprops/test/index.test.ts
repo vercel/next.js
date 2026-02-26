@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
-import escapeRegex from 'escape-string-regexp'
+import escapeRegex from 'tiny-escape'
 import {
   check,
   retry,

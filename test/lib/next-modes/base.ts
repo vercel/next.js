@@ -17,7 +17,7 @@ import {
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { Playwright } from 'next-webdriver'
-import escapeStringRegexp from 'escape-string-regexp'
+import escapeStringRegexp from 'tiny-escape'
 import { Page, Response } from 'playwright'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'

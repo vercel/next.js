@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, normalizeRegEx } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
-import escapeStringRegexp from 'escape-string-regexp'
+import escapeStringRegexp from 'tiny-escape'
 import fs from 'fs-extra'
 
 describe('edge-render-getserversideprops', () => {
