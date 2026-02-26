@@ -677,6 +677,11 @@ export async function handleBuildComplete({
         }
 
         const route = page.page.replace(/^(app|pages)\//, '')
+        const pathname = isAppPrefix
+          ? normalizeAppPath(route)
+          : route === '/index'
+            ? '/'
+            : route
 
         const output: Omit<AdapterOutput[typeof type], 'type'> & {
           type: any
@@ -685,7 +690,7 @@ export async function handleBuildComplete({
           id: page.name,
           runtime: 'edge',
           sourcePage: route,
-          pathname: isAppPrefix ? normalizeAppPath(route) : route,
+          pathname,
           filePath: path.join(
             distDir,
             page.files.find(
@@ -766,16 +771,15 @@ export async function handleBuildComplete({
             pathname: rscPathname,
             id: page.name + '.rsc',
           })
-        } else if (serverPropsPages.has(route === '/index' ? '/' : route)) {
+        } else if (serverPropsPages.has(pathname)) {
           const nextDataPath = path.posix.join(
             '/_next/data/',
             buildId,
-            normalizePagePath(output.pathname) + '.json'
+            normalizePagePath(pathname) + '.json'
           )
-          outputs.appPages.push({
+          outputs.pages.push({
             ...output,
             pathname: nextDataPath,
-            id: page.name,
           })
         }
       }
