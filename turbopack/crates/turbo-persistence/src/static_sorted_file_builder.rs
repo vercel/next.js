@@ -295,9 +295,6 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
-    // Reusable scratch buffer for serializing keys during key block flushing
-    key_scratch: Vec<u8>,
-
     // AMQF filter (built incrementally). Wrapped in Option for the same reason as `file`.
     filter: Option<qfilter::Filter>,
 
@@ -344,7 +341,6 @@ impl<E: Entry> StreamingSstWriter<E> {
             pending_small_values: Vec::new(),
             pending_small_value_count: 0,
             key_buffer: Vec::new(),
-            key_scratch: Vec::new(),
             filter: Some(filter),
             key_block_boundaries: Vec::new(),
             min_hash: u64::MAX,
@@ -648,40 +644,25 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         for i in start..end {
             let pending = &self.pending_keys[i];
-            let key_hash = pending.entry.key_hash();
-            self.key_scratch.clear();
-            pending.entry.write_key_to(&mut self.key_scratch);
             match pending.value_ref {
                 ValueRef::Small {
                     block_index,
                     offset,
                     size,
                 } => {
-                    builder.put_small(
-                        key_hash,
-                        &self.key_scratch,
-                        block_index,
-                        offset,
-                        size,
-                        has_hash,
-                    );
+                    builder.put_small(&pending.entry, block_index, offset, size, has_hash);
                 }
                 ValueRef::Medium { block_index } => {
-                    builder.put_medium(key_hash, &self.key_scratch, block_index, has_hash);
+                    builder.put_medium(&pending.entry, block_index, has_hash);
                 }
                 ValueRef::Inline { data, len } => {
-                    builder.put_inline(
-                        key_hash,
-                        &self.key_scratch,
-                        &data[..len as usize],
-                        has_hash,
-                    );
+                    builder.put_inline(&pending.entry, &data[..len as usize], has_hash);
                 }
                 ValueRef::Blob { blob_id } => {
-                    builder.put_blob(key_hash, &self.key_scratch, blob_id, has_hash);
+                    builder.put_blob(&pending.entry, blob_id, has_hash);
                 }
                 ValueRef::Deleted => {
-                    builder.delete(key_hash, &self.key_scratch, has_hash);
+                    builder.delete(&pending.entry, has_hash);
                 }
                 ValueRef::PendingSmall { .. } => {
                     unreachable!("PendingSmall should have been resolved");
@@ -891,19 +872,23 @@ impl<'l> KeyBlockBuilder<'l> {
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
     }
 
+    /// Writes the hash and key from an entry.
+    fn write_entry_key<E: Entry>(&mut self, entry: &E, has_hash: bool) {
+        self.write_hash(entry.key_hash(), has_hash);
+        entry.write_key_to(self.buffer);
+    }
+
     /// Writes a small-sized value entry.
-    fn put_small(
+    fn put_small<E: Entry>(
         &mut self,
-        hash: u64,
-        key: &[u8],
+        entry: &E,
         value_block: u16,
         value_offset: u32,
         value_size: u16,
         has_hash: bool,
     ) {
         self.write_entry_header(KEY_BLOCK_ENTRY_TYPE_SMALL);
-        self.write_hash(hash, has_hash);
-        self.buffer.extend_from_slice(key);
+        self.write_entry_key(entry, has_hash);
         self.buffer.write_u16::<BE>(value_block).unwrap();
         self.buffer.write_u16::<BE>(value_size).unwrap();
         self.buffer.write_u32::<BE>(value_offset).unwrap();
@@ -911,38 +896,34 @@ impl<'l> KeyBlockBuilder<'l> {
     }
 
     /// Writes a medium-sized value entry.
-    fn put_medium(&mut self, hash: u64, key: &[u8], value_block: u16, has_hash: bool) {
+    fn put_medium<E: Entry>(&mut self, entry: &E, value_block: u16, has_hash: bool) {
         self.write_entry_header(KEY_BLOCK_ENTRY_TYPE_MEDIUM);
-        self.write_hash(hash, has_hash);
-        self.buffer.extend_from_slice(key);
+        self.write_entry_key(entry, has_hash);
         self.buffer.write_u16::<BE>(value_block).unwrap();
         self.current_entry += 1;
     }
 
     /// Writes a tombstone entry.
-    fn delete(&mut self, hash: u64, key: &[u8], has_hash: bool) {
+    fn delete<E: Entry>(&mut self, entry: &E, has_hash: bool) {
         self.write_entry_header(KEY_BLOCK_ENTRY_TYPE_DELETED);
-        self.write_hash(hash, has_hash);
-        self.buffer.extend_from_slice(key);
+        self.write_entry_key(entry, has_hash);
         self.current_entry += 1;
     }
 
     /// Writes a blob value entry.
-    fn put_blob(&mut self, hash: u64, key: &[u8], blob_id: u32, has_hash: bool) {
+    fn put_blob<E: Entry>(&mut self, entry: &E, blob_id: u32, has_hash: bool) {
         self.write_entry_header(KEY_BLOCK_ENTRY_TYPE_BLOB);
-        self.write_hash(hash, has_hash);
-        self.buffer.extend_from_slice(key);
+        self.write_entry_key(entry, has_hash);
         self.buffer.write_u32::<BE>(blob_id).unwrap();
         self.current_entry += 1;
     }
 
     /// Writes an inline value entry.
-    fn put_inline(&mut self, hash: u64, key: &[u8], value: &[u8], has_hash: bool) {
+    fn put_inline<E: Entry>(&mut self, entry: &E, value: &[u8], has_hash: bool) {
         debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
         let entry_type = KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + value.len() as u8;
         self.write_entry_header(entry_type);
-        self.write_hash(hash, has_hash);
-        self.buffer.extend_from_slice(key);
+        self.write_entry_key(entry, has_hash);
         self.buffer.extend_from_slice(value);
         self.current_entry += 1;
     }
