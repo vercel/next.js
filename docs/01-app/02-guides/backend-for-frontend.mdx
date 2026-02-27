@@ -4,10 +4,11 @@ nav_title: Backend for Frontend
 description: Learn how to use Next.js as a backend framework
 related:
   title: API Reference
-  description: Learn more about Route Handlers and Proxy
+  description: Learn more about Route Handlers, Proxy, and Rewrites
   links:
     - app/api-reference/file-conventions/route
     - app/api-reference/file-conventions/proxy
+    - app/api-reference/config/next-config-js/rewrites
 ---
 
 Next.js supports the "Backend for Frontend" pattern. This lets you create public endpoints to handle HTTP requests and return any content type—not just HTML. You can also access data sources and perform side effects like updating remote data.
@@ -177,6 +178,105 @@ export async function GET(request) {
 ```
 
 Sanitize any input used to generate markup.
+
+### Content negotiation
+
+You can use [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) with header matching to serve different content types from the same URL based on the request's `Accept` header. This is known as [content negotiation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation).
+
+For example, a documentation site might serve HTML pages to browsers and raw Markdown to AI agents from the same `/docs/…` URLs.
+
+**1. Configure a rewrite that matches the `Accept` header:**
+
+```js filename="next.config.js"
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/docs/:slug*',
+        destination: '/docs/md/:slug*',
+        has: [
+          {
+            type: 'header',
+            key: 'accept',
+            value: '(.*)text/markdown(.*)',
+          },
+        ],
+      },
+    ]
+  },
+}
+```
+
+When a request to `/docs/getting-started` includes `Accept: text/markdown`, the rewrite routes it to `/docs/md/getting-started`. A Route Handler at that path returns the Markdown response. Clients that do not send `text/markdown` in their `Accept` header continue to receive the normal HTML page.
+
+**2. Create a Route Handler for the Markdown response:**
+
+```ts filename="app/docs/md/[...slug]/route.ts" switcher
+import { getDocsMd, generateDocsStaticParams } from '@/lib/docs'
+
+export async function generateStaticParams() {
+  return generateDocsStaticParams()
+}
+
+export async function GET(_: Request, ctx: RouteContext<'/docs/md/[...slug]'>) {
+  const { slug } = await ctx.params
+  const mdDoc = await getDocsMd({ slug })
+
+  if (mdDoc == null) {
+    return new Response(null, { status: 404 })
+  }
+
+  return new Response(mdDoc, {
+    headers: {
+      'Content-Type': 'text/markdown; charset=utf-8',
+      Vary: 'Accept',
+    },
+  })
+}
+```
+
+```js filename="app/docs/md/[...slug]/route.js" switcher
+import { getDocsMd, generateDocsStaticParams } from '@/lib/docs'
+
+export async function generateStaticParams() {
+  return generateDocsStaticParams()
+}
+
+export async function GET(_, { params }) {
+  const { slug } = await params
+  const mdDoc = await getDocsMd({ slug })
+
+  if (mdDoc == null) {
+    return new Response(null, { status: 404 })
+  }
+
+  return new Response(mdDoc, {
+    headers: {
+      'Content-Type': 'text/markdown; charset=utf-8',
+      Vary: 'Accept',
+    },
+  })
+}
+```
+
+The [`Vary: Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary) response header tells caches that the response body depends on the `Accept` request header. Without it, a shared cache could serve a cached Markdown response to a browser (or vice versa). Most hosting providers already include the `Accept` header in their cache key, but setting `Vary` explicitly ensures correct behavior across all CDNs and proxy caches.
+
+`generateStaticParams` lets you pre-render the Markdown variants at build time so they can be served from the edge without hitting the origin server on every request.
+
+**3. Test it with `curl`:**
+
+```bash
+# Returns Markdown
+curl -H "Accept: text/markdown" https://example.com/docs/getting-started
+
+# Returns the normal HTML page
+curl https://example.com/docs/getting-started
+```
+
+> **Good to know:**
+>
+> - The `/docs/md/...` route is still directly accessible without the rewrite. If you want to restrict it to only serve via the rewrite, use [`proxy`](/docs/app/api-reference/file-conventions/proxy) to block direct requests that don't include the expected `Accept` header.
+> - For more advanced negotiation logic, you can use [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead of rewrites for more flexibility.
 
 ### Consuming request payloads
 
