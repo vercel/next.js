@@ -1323,7 +1323,7 @@ pub mod tests {
             source.push_str(&format!("const x{i} = {i};\n"));
         }
         source.push_str("/** sneaky\n");
-        source.push_str("\n"); // blank line inside block comment
+        source.push('\n'); // blank line inside block comment
         source.push_str("*/\n");
         source.push_str("const after = 1;\n");
 
