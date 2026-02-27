@@ -771,7 +771,10 @@ export async function handleBuildComplete({
             pathname: rscPathname,
             id: page.name + '.rsc',
           })
-        } else if (serverPropsPages.has(pathname)) {
+        } else if (
+          type !== AdapterOutputType.MIDDLEWARE &&
+          serverPropsPages.has(pathname)
+        ) {
           const nextDataPath = path.posix.join(
             '/_next/data/',
             buildId,
