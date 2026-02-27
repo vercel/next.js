@@ -79,6 +79,7 @@ jobs:
   test-deploy-webpack:
     name: Run Deploy Tests (Webpack)
     needs: setup
+    if: ${{ github.event.inputs.deployScriptPath == '' }}
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:
@@ -137,6 +138,8 @@ jobs:
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
+        NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
@@ -189,7 +192,7 @@ jobs:
 
   report-test-results-to-datadog:
     needs: [test-deploy-turbopack, test-deploy-webpack]
-    if: ${{ always() }}
+    if: ${{ always() && github.event.inputs.deployScriptPath == '' }}
 
     runs-on: ubuntu-latest
     name: Report test results to datadog
@@ -280,7 +283,7 @@ jobs:
   update-prs:
     name: Update prs as ready for review
     needs: [test-deploy-turbopack, test-deploy-webpack, create-draft-prs]
-    if: ${{ needs.test-deploy-webpack.result == 'success' &&  needs.test-deploy-turbopack.result == 'success' && github.repository_owner == 'vercel' && github.event_name == 'release' }}
+    if: ${{ (needs.test-deploy-webpack.result == 'success' || needs.test-deploy-webpack.result == 'skipped') && needs.test-deploy-turbopack.result == 'success' && github.repository_owner == 'vercel' && github.event_name == 'release' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
