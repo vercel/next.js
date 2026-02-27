@@ -975,6 +975,7 @@ export default async function build(
                     ({ key: a }, { key: b }) => a.localeCompare(b)
                   )
                 },
+                bundler,
               }),
             turborepoAccessTraceResult
           )

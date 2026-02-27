@@ -45,6 +45,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
+import { Bundler } from '../lib/bundler'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -1478,6 +1479,7 @@ type LoadConfigOptions = {
   ) => void
   reactProductionProfiling?: boolean
   debugPrerender?: boolean
+  bundler?: Bundler
 }
 
 export default async function loadConfig(
@@ -1506,6 +1508,7 @@ export default async function loadConfig(
     reportExperimentalFeatures,
     reactProductionProfiling,
     debugPrerender,
+    bundler,
   }: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
@@ -1724,6 +1727,16 @@ export default async function loadConfig(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
+    }
+
+    if (
+      // TODO enable once everything is merged
+      (true || bundler !== Bundler.Turbopack) &&
+      userConfig.experimental?.immutableAssetToken
+    ) {
+      // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
+      // in `static/chunks` are always immutable without checking the manifest.
+      userConfig.experimental.immutableAssetToken = undefined
     }
 
     if (reactProductionProfiling) {
