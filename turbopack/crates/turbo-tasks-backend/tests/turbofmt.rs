@@ -41,12 +41,7 @@ async fn test_turbobail() {
         }
         .cell();
 
-        let result: anyhow::Result<()> = async {
-            turbobail!("error: {} with {}", 42u32, v);
-            #[allow(unreachable_code)]
-            Ok(())
-        }
-        .await;
+        let result: anyhow::Result<()> = async { turbobail!("error: {} with {}", 42u32, v) }.await;
 
         assert!(result.is_err());
         assert_eq!(
