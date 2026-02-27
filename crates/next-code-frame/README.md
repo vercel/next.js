@@ -29,6 +29,37 @@ cargo run -p next-code-frame --bin code_frame -- src/app.tsx 10:5 10:20
 cargo run -p next-code-frame --bin code_frame -- -m "Unexpected token" src/app.tsx 10:5 10:20
 ```
 
+## Syntax highlighting
+
+The highlighter uses a single compiled regex pass over the visible content to
+tokenize strings, comments, numbers, regex literals, and identifiers. Keywords
+are identified via a compile-time perfect hash set (`phf`).
+
+### Skip-scan heuristic
+
+For large files, scanning from byte 0 is expensive — the regex tokenizer
+dominates runtime. To avoid this, `extract_highlights()` walks backwards from
+the visible window looking for a **blank line** and starts the scan there.
+A blank line is a safe restart point for single-line constructs (strings,
+line comments, regex literals) because they cannot span blank lines.
+
+**Known limitation:** The heuristic can produce incorrect highlighting when a
+multi-line construct (block comment or template literal) contains a blank line
+that falls between the scan start and the visible window. In this case the
+scanner misses the opening delimiter and the closing delimiter / trailing code
+may lose its expected coloring. For example:
+
+```js
+/** sneaky
+
+*/
+const after = 1; // `*/` may lose comment highlighting
+```
+
+This is a deliberate tradeoff — blank lines inside block comments or template
+literals that span the window boundary are vanishingly rare in practice, and
+the consequence is only slightly wrong colors, never a crash or missing output.
+
 ## Features
 
 - Caller-provided output width (no terminal detection — sans-io)

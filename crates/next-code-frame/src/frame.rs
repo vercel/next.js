@@ -132,10 +132,6 @@ pub fn render_code_frame(
         return Ok(None);
     }
 
-    // Single O(n) scan to compute line-start offsets, shared by both
-    // rendering and extract_highlights (avoids a duplicate scan).
-    let lines = Lines::new(source);
-
     // ── Validate and normalize the location ──────────────────────────────
     //
     // All line/column values are 1-indexed on input. We convert to
@@ -143,8 +139,6 @@ pub fn render_code_frame(
     // coherent. Invalid or out-of-range locations return `None` rather
     // than erroring — the source may have changed since the error was
     // captured (e.g., a racing file edit).
-
-    let line_count = lines.len().get();
 
     // Columns must be >0 (1-indexed). A column of 0 is a caller bug.
     if let Some(0) = location.start.column {
@@ -158,14 +152,29 @@ pub fn render_code_frame(
 
     // Convert 1-indexed line to 0-indexed. line==0 is treated as line 1.
     let start_line_idx = location.start.line.saturating_sub(1);
-    if start_line_idx >= line_count {
-        // This implies some kind of skew issue between the error and the code
-        // no
-        return Ok(None);
-    }
 
     // Start column (None = no column highlighting, just the line)
     let start_column = location.start.column;
+
+    // Compute a generous end line for the windowed scan. We don't know the
+    // total line count yet, but we need an upper bound for the window.
+    let max_end_line = location
+        .end
+        .map(|e| e.line.saturating_sub(1))
+        .unwrap_or(start_line_idx);
+
+    // Build a windowed line index that only stores offsets for the visible
+    // window (plus margin for the skip-scan heuristic). This avoids the
+    // O(file_size) cost of scanning every line in large files.
+    let first_line_idx = start_line_idx.saturating_sub(options.lines_above);
+    let last_line_idx_upper = max_end_line + options.lines_below + 1;
+    let lines = Lines::windowed(source, first_line_idx, last_line_idx_upper);
+    let line_count = lines.len().get();
+
+    if start_line_idx >= line_count {
+        // Start line is past the end of the file — skew between error and code
+        return Ok(None);
+    }
 
     // Normalize end location: clamp to valid range and ensure end >= start.
     // If the end location is before the start (invalid input), fall back to
@@ -192,7 +201,6 @@ pub fn render_code_frame(
     };
 
     // Calculate window of lines to show (0-indexed, last is exclusive)
-    let first_line_idx = start_line_idx.saturating_sub(options.lines_above);
     let last_line_idx = (end_line_idx + options.lines_below + 1).min(line_count);
 
     let gutter_width = last_line_idx.ilog10() as usize + 1;

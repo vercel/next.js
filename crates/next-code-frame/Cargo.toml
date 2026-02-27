@@ -25,4 +25,9 @@ regex-automata = "0.4"
 serde = { workspace = true }
 
 [dev-dependencies]
+criterion = { workspace = true }
 insta = { version = "1.43.1", features = ["yaml"] }
+
+[[bench]]
+name = "code_frame_bench"
+harness = false

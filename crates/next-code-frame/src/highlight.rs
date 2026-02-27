@@ -182,66 +182,103 @@ impl ColorScheme {
 /// - U+2028 LINE SEPARATOR, U+2029 PARAGRAPH SEPARATOR
 pub(crate) struct Lines<'a> {
     source: &'a str,
-    /// Byte offset of the start of each line. First entry is always 0.
+    /// Byte offset of the start of each line. `line_starts[0]` corresponds
+    /// to the line at absolute index `first_line`.
     line_starts: Vec<usize>,
+    /// The 0-indexed absolute line number of `line_starts[0]`.
+    first_line: usize,
+    /// Total number of lines in the source (always ≥ 1).
+    total_lines: usize,
 }
 
 impl<'a> Lines<'a> {
-    /// Build the line index by scanning for all ECMA-262 line terminators.
-    ///
-    /// Uses `memchr3` to scan for `\n` (0x0A), `\r` (0x0D), and 0xE2 (the
-    /// leading byte of the 3-byte UTF-8 encoding of U+2028 / U+2029)
-    /// concurrently.
+    /// Build the full line index by scanning for all line terminators.
+    #[cfg(test)]
     pub fn new(source: &'a str) -> Self {
+        Self::windowed(source, 0, usize::MAX)
+    }
+
+    /// Build a windowed line index. Only stores line-start offsets for
+    /// approximately `window_start..window_end` (0-indexed), plus a margin
+    /// for the skip-scan heuristic. Stops scanning once the window is
+    /// covered — never reads past the end of the window.
+    ///
+    /// This is much faster than `new()` for large files because it avoids
+    /// allocating a Vec entry for every line in the file.
+    pub fn windowed(source: &'a str, window_start: usize, window_end: usize) -> Self {
         let bytes = source.as_bytes();
-        let mut line_starts = vec![0usize];
-        let mut offset = 0;
 
-        while let Some(pos) = memchr::memchr3(b'\n', b'\r', b'\xE2', &bytes[offset..]) {
-            let found_at = offset + pos;
-            let byte = bytes[found_at];
+        // Add margin before the window for the skip-scan backscan
+        // heuristic (which walks up to MAX_BACKSCAN_LINES backwards).
+        let store_start = window_start.saturating_sub(MAX_BACKSCAN_LINES);
+        // +1 so byte_bounds works for the last visible line.
+        let store_end = window_end.saturating_add(1);
 
-            if byte == b'\n' {
-                // LF — next line starts after it
-                line_starts.push(found_at + 1);
-                offset = found_at + 1;
-            } else if byte == b'\r' {
-                // CR or CRLF — if followed by LF, consume both
-                let next_line = if found_at + 1 < bytes.len() && bytes[found_at + 1] == b'\n' {
-                    found_at + 2
-                } else {
-                    found_at + 1
-                };
-                line_starts.push(next_line);
-                offset = next_line;
-            } else {
-                // N.B. we are parsing UTF8 and in UTF8 overlong encoding are an error so we can
-                // rely on this exact byte sequence safely 0xE2: check for U+2028
-                // (E2 80 A8) or U+2029 (E2 80 A9)
-                debug_assert_eq!(byte, b'\xE2');
-                if found_at + 2 < bytes.len()
-                    && bytes[found_at + 1] == 0x80
-                    && (bytes[found_at + 2] == 0xA8 || bytes[found_at + 2] == 0xA9)
-                {
-                    line_starts.push(found_at + 3);
-                    offset = found_at + 3;
-                } else {
-                    // Not a line terminator — skip past this 0xE2 byte
-                    offset = found_at + 1;
+        let mut line_starts = Vec::new();
+        let mut line_num: usize = 0;
+        // Line 0 always starts at byte 0.
+        if store_start == 0 {
+            line_starts.push(0);
+        }
+        line_num += 1;
+
+        for found in memchr::Memchr3::new(b'\n', b'\r', b'\xE2', bytes) {
+            let b = bytes[found];
+            let line_start = if b == b'\n' {
+                found + 1
+            } else if b == b'\r' {
+                // CRLF: skip the \r and let the \n branch handle it.
+                if found + 1 < bytes.len() && bytes[found + 1] == b'\n' {
+                    continue;
                 }
+                // Standalone \r (classic Mac line ending).
+                found + 1
+            } else {
+                // 0xE2 is the leading byte of the 3-byte UTF-8 encoding of
+                // U+2028 LINE SEPARATOR (E2 80 A8) and U+2029 PARAGRAPH
+                // SEPARATOR (E2 80 A9). UTF-8 forbids overlong encodings,
+                // so this exact sequence is the only way these codepoints
+                // appear.
+                if found + 2 < bytes.len()
+                    && bytes[found + 1] == 0x80
+                    && (bytes[found + 2] == 0xA8 || bytes[found + 2] == 0xA9)
+                {
+                    found + 3
+                } else {
+                    // Not a line separator — just a 0xE2 byte in some
+                    // other multi-byte character. Skip it.
+                    continue;
+                }
+            };
+
+            if line_num >= store_end {
+                // Past the window — we have enough data.
+                return Self {
+                    source,
+                    line_starts,
+                    first_line: store_start,
+                    total_lines: line_num + 1,
+                };
             }
+            if line_num >= store_start {
+                line_starts.push(line_start);
+            }
+            line_num += 1;
         }
 
+        // File ended before or within the window — total is exact.
         Self {
             source,
             line_starts,
+            first_line: store_start.min(line_num.saturating_sub(1)),
+            total_lines: line_num,
         }
     }
 
     /// Number of lines (always at least 1).
     pub fn len(&self) -> NonZeroUsize {
-        // SAFETY: line_starts always contains at least [0] from the constructor.
-        NonZeroUsize::new(self.line_starts.len()).unwrap()
+        // SAFETY: total_lines is always at least 1.
+        NonZeroUsize::new(self.total_lines).unwrap()
     }
 
     /// The full source string.
@@ -250,12 +287,22 @@ impl<'a> Lines<'a> {
     }
 
     /// The raw line-start offsets (for passing to highlight internals).
+    /// Index 0 corresponds to absolute line `first_line()`.
     pub fn starts(&self) -> &[usize] {
         &self.line_starts
     }
 
-    /// Get the content of line `idx` (0-indexed), stripping the trailing
-    /// line terminator (LF, CRLF, CR, U+2028, or U+2029).
+    /// The absolute 0-indexed line number of `starts()[0]`.
+    pub fn first_line(&self) -> usize {
+        self.first_line
+    }
+
+    /// Get the content of line `idx` (0-indexed absolute), stripping the
+    /// trailing line terminator (LF, CRLF, CR, U+2028, or U+2029).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `idx` is outside the stored window.
     pub fn content(&self, idx: usize) -> &'a str {
         let (start, end) = self.byte_bounds(idx);
         let line = &self.source[start..end];
@@ -267,9 +314,21 @@ impl<'a> Lines<'a> {
             .unwrap_or(line)
     }
 
-    /// Byte range `[start, end)` for line `idx` (including the newline terminator).
+    /// Byte range `[start, end)` for line `idx` (0-indexed absolute,
+    /// including the newline terminator).
     pub fn byte_bounds(&self, idx: usize) -> (usize, usize) {
-        line_bounds(&self.line_starts, self.source.len(), idx)
+        let local = idx - self.first_line;
+        let start = self
+            .line_starts
+            .get(local)
+            .copied()
+            .unwrap_or(self.source.len());
+        let end = self
+            .line_starts
+            .get(local + 1)
+            .copied()
+            .unwrap_or(self.source.len());
+        (start, end)
     }
 }
 
@@ -365,6 +424,50 @@ impl<'a> Scanner<'a> {
 }
 
 // ---------------------------------------------------------------------------
+// Scan-start heuristic
+// ---------------------------------------------------------------------------
+
+/// Maximum number of lines to walk back looking for a safe restart point.
+/// If we don't find one within this limit, fall back to byte 0.
+const MAX_BACKSCAN_LINES: usize = 200;
+
+/// Find a safe byte offset to start the tokenizer scan from, close to
+/// `target_line` (0-indexed). This avoids scanning the entire file from
+/// byte 0 when the visible window is in the middle of a large file.
+///
+/// Walks backwards from `target_line` looking for a blank line. A blank
+/// line is a reliable restart point for single-line constructs (strings,
+/// regex literals, line comments). It could theoretically land inside a
+/// multiline block comment or template literal that spans the blank line,
+/// but this is vanishingly rare in practice and the consequence is just
+/// slightly wrong highlighting colors — never a crash or missing output.
+fn find_scan_start(lines: &Lines<'_>, target_line: usize) -> usize {
+    if target_line == 0 {
+        return 0;
+    }
+
+    let first = lines.first_line();
+    let search_start = target_line.saturating_sub(MAX_BACKSCAN_LINES).max(first);
+
+    for line_idx in (search_start..target_line).rev() {
+        if lines.content(line_idx).trim().is_empty() {
+            let (start, _) = lines.byte_bounds(line_idx);
+            return start;
+        }
+    }
+
+    // No blank line found in the backscan window — fall back to byte 0
+    // if we didn't search all the way to the start, otherwise start at
+    // the beginning of the search window.
+    if search_start > first {
+        0
+    } else {
+        let (start, _) = lines.byte_bounds(search_start);
+        start
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
@@ -386,18 +489,21 @@ pub fn extract_highlights(
     language: Language,
 ) -> Vec<Vec<StyleSpan>> {
     let line_starts = lines.starts();
+    let first_line = lines.first_line();
     let source = lines.source();
-    let line_count = line_starts.len();
+    let local_count = line_starts.len();
 
     let byte_range = {
-        let start_byte = if line_range.start < line_count {
-            line_starts[line_range.start]
+        let local_start = line_range.start - first_line;
+        let start_byte = if local_start < local_count {
+            line_starts[local_start]
         } else {
             usize::MAX
         };
 
-        let end_byte = if line_range.end < line_count {
-            line_bounds(line_starts, source.len(), line_range.end).0
+        let local_end = line_range.end - first_line;
+        let end_byte = if local_end < local_count {
+            line_bounds(line_starts, source.len(), local_end).0
         } else {
             source.len()
         };
@@ -405,14 +511,14 @@ pub fn extract_highlights(
         (start_byte, end_byte)
     };
 
-    // We scan from byte 0 to maintain correct tokenizer state across
-    // multiline comments and strings that may start before the visible
-    // window. The scanner exits early once it passes the end of the
-    // output range since no further tokens can be visible.
-    // TODO: consider heuristics to start scanning later, see what vim does: https://neovim.io/doc/user/syntax.html#_11.-synchronizing
+    // Instead of scanning from byte 0 (which is O(file_size)), find a safe
+    // restart position close to the visible window. We walk backwards
+    // looking for a blank line (which cannot be inside a single-line string
+    // or regex).
+    let scan_start = find_scan_start(lines, line_range.start);
 
     let mut scanner = Scanner::new(line_starts, source, byte_range, language);
-    scanner.scan(0, source.len(), None);
+    scanner.scan(scan_start, source.len(), None);
     let all_spans = scanner.markers;
 
     debug_assert!(
@@ -423,7 +529,7 @@ pub fn extract_highlights(
         all_spans.windows(2).all(|w| w[0].end <= w[1].start),
         "spans should be non-overlapping"
     );
-    group_spans_by_line(&all_spans, line_starts, source, line_range)
+    group_spans_by_line(&all_spans, line_starts, first_line, source, line_range)
 }
 
 // ---------------------------------------------------------------------------
@@ -699,6 +805,7 @@ impl LastToken {
 fn group_spans_by_line(
     spans: &[StyleSpan],
     line_starts: &[usize],
+    first_line: usize,
     source: &str,
     line_range: Range<usize>,
 ) -> Vec<Vec<StyleSpan>> {
@@ -706,7 +813,7 @@ fn group_spans_by_line(
         return Vec::new();
     }
 
-    let line_count = line_starts.len();
+    let line_count = first_line + line_starts.len();
 
     let start_line_idx = line_range.start.min(line_count);
     let end_line_idx = line_range.end.min(line_count);
@@ -717,7 +824,8 @@ fn group_spans_by_line(
     let mut span_idx = 0;
 
     for line_idx in start_line_idx..end_line_idx {
-        let (line_start, line_end) = line_bounds(line_starts, source.len(), line_idx);
+        let local_idx = line_idx - first_line;
+        let (line_start, line_end) = line_bounds(line_starts, source.len(), local_idx);
 
         let mut line_spans = Vec::new();
 
@@ -1190,6 +1298,52 @@ pub mod tests {
         assert!(
             !has_keyword,
             "CSS language should not produce keyword markers"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Scan-start heuristic tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_block_comment_with_blank_line_known_limitation() {
+        // Known limitation: when a block comment contains a blank line, the
+        // skip-scan heuristic restarts scanning from that blank line, losing
+        // track of the opening `/*`. The `*/` closer loses its comment
+        // highlighting because the scanner never saw the opener.
+        //
+        // This is a deliberate tradeoff: blank lines inside block comments
+        // that span the visible window boundary are vanishingly rare in
+        // practice, and the only consequence is slightly wrong colors —
+        // never a crash or missing output.
+        let mut source = String::new();
+        // Push enough lines so the blank line inside the comment is chosen
+        // as the scan start rather than scanning from byte 0.
+        for i in 0..20 {
+            source.push_str(&format!("const x{i} = {i};\n"));
+        }
+        source.push_str("/** sneaky\n");
+        source.push_str("\n"); // blank line inside block comment
+        source.push_str("*/\n");
+        source.push_str("const after = 1;\n");
+
+        let lines = Lines::new(&source);
+        // Target the `*/` line — should be Comment but won't be.
+        let closer_line_idx = lines.len().get() - 3;
+
+        let highlights = extract_highlights(&lines, closer_line_idx..closer_line_idx + 1, JS);
+        assert_eq!(highlights.len(), 1);
+
+        // With correct full-file scanning, `*/` would be highlighted as a
+        // comment. But the skip-scan heuristic restarts at the blank line
+        // inside the comment, so the scanner sees `*/` as stray punctuation.
+        let has_comment = highlights[0]
+            .iter()
+            .any(|m| m.token_type == TokenType::Comment);
+        assert!(
+            !has_comment,
+            "Known limitation: `*/` loses comment highlighting when the skip-scan heuristic \
+             starts after the `/*` opener"
         );
     }
 }

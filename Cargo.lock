@@ -4475,6 +4475,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
+ "codspeed-criterion-compat",
  "insta",
  "memchr",
  "phf",
