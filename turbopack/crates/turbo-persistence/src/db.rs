@@ -37,7 +37,6 @@ use crate::{
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
-    value_block_count_tracker::ValueBlockCountTracker,
     write_batch::{FinishResult, WriteBatch},
 };
 
@@ -1052,39 +1051,29 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                                 struct Collector {
                                     /// The active writer and its sequence number. `None` if no
-                                    /// entries have been added since the last flush.
+                                    /// entries have been added since the last flush. We defer
+                                    /// allocation to avoid creating empty SST files for collectors
+                                    /// that receive no entries (e.g., the unused_collector when
+                                    /// all keys are in the
+                                    /// used set).
                                     writer: Option<(u32, StreamingSstWriter)>,
-                                    total_key_size: usize,
-                                    total_value_size: usize,
-                                    entry_count: usize,
-                                    value_block_tracker: ValueBlockCountTracker,
+                                    flags: MetaEntryFlags,
                                     new_sst_files:
                                         Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
                                 }
                                 impl Collector {
-                                    fn new() -> Self {
+                                    fn new(flags: MetaEntryFlags) -> Self {
                                         Self {
                                             writer: None,
-                                            total_key_size: 0,
-                                            total_value_size: 0,
-                                            entry_count: 0,
-                                            value_block_tracker: ValueBlockCountTracker::default(),
+                                            flags,
                                             new_sst_files: Vec::new(),
                                         }
-                                    }
-
-                                    fn is_full(&self) -> bool {
-                                        self.total_key_size + self.total_value_size
-                                            > DATA_THRESHOLD_PER_COMPACTED_FILE
-                                            || self.entry_count >= MAX_ENTRIES_PER_COMPACTED_FILE
-                                            || self.value_block_tracker.is_full()
                                     }
 
                                     /// Ensures a writer is open, creating one if needed.
                                     fn ensure_writer(
                                         &mut self,
                                         path: &Path,
-                                        flags: MetaEntryFlags,
                                         sequence_number: &AtomicU32,
                                     ) -> Result<&mut StreamingSstWriter>
                                     {
@@ -1094,7 +1083,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             let sst_path = path.join(format!("{seq:08}.sst"));
                                             let writer = StreamingSstWriter::new(
                                                 &sst_path,
-                                                flags,
+                                                self.flags,
                                                 MAX_ENTRIES_PER_COMPACTED_FILE as u64,
                                             )?;
                                             self.writer = Some((seq, writer));
@@ -1102,58 +1091,49 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         Ok(&mut self.writer.as_mut().unwrap().1)
                                     }
 
-                                    /// Finishes the current writer and records the SST file.
-                                    fn finish_current(
+                                    /// Closes the current SST file (flushing remaining blocks and
+                                    /// writing the index) and records it in the completed files
+                                    /// list.
+                                    fn close_sst_file(
                                         &mut self,
                                         keys_written: &mut u64,
                                     ) -> Result<()> {
                                         if let Some((seq, writer)) = self.writer.take() {
                                             let _span =
-                                                tracing::trace_span!("write merged sst file")
+                                                tracing::trace_span!("close merged sst file")
                                                     .entered();
                                             let (meta, file) = writer.finish()?;
                                             *keys_written += meta.entries;
                                             self.new_sst_files.push((seq, file, meta));
                                         }
-                                        self.total_key_size = 0;
-                                        self.total_value_size = 0;
-                                        self.entry_count = 0;
-                                        self.value_block_tracker =
-                                            ValueBlockCountTracker::default();
                                         Ok(())
                                     }
 
-                                    /// Adds an entry to the collector, flushing if full.
+                                    /// Adds an entry to the collector. Writes the entry first,
+                                    /// then checks if the file is full and closes it if so.
                                     fn add_entry(
                                         &mut self,
                                         entry: &LookupEntry,
                                         path: &Path,
-                                        flags: MetaEntryFlags,
                                         sequence_number: &AtomicU32,
                                         keys_written: &mut u64,
                                     ) -> Result<()> {
-                                        let key_size = entry.key.len();
-                                        let value_size = entry.value.uncompressed_size_in_sst();
-                                        let is_medium = entry.value.is_medium_value();
-                                        let small_size = entry.value.small_value_size();
-
-                                        self.total_key_size += key_size;
-                                        self.total_value_size += value_size;
-                                        self.entry_count += 1;
-                                        self.value_block_tracker.track(is_medium, small_size);
-
-                                        if self.is_full() {
-                                            self.finish_current(keys_written)?;
-                                        }
-
-                                        let writer =
-                                            self.ensure_writer(path, flags, sequence_number)?;
+                                        let writer = self.ensure_writer(path, sequence_number)?;
                                         writer.add(entry)?;
+
+                                        // Check fullness after adding -- the writer tracks sizes
+                                        // and block counts internally.
+                                        if writer.is_full(
+                                            MAX_ENTRIES_PER_COMPACTED_FILE,
+                                            DATA_THRESHOLD_PER_COMPACTED_FILE,
+                                        ) {
+                                            self.close_sst_file(keys_written)?;
+                                        }
                                         Ok(())
                                     }
                                 }
-                                let mut used_collector = Collector::new();
-                                let mut unused_collector = Collector::new();
+                                let mut used_collector = Collector::new(MetaEntryFlags::WARM);
+                                let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
                                 for entry in iter {
                                     let entry = entry?;
 
@@ -1164,15 +1144,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                 used_key_hashes.as_ref().is_some_and(|amqf| {
                                                     amqf.contains_fingerprint(current.hash)
                                                 });
-                                            let (collector, flags) = if is_used {
-                                                (&mut used_collector, MetaEntryFlags::WARM)
+                                            let collector = if is_used {
+                                                &mut used_collector
                                             } else {
-                                                (&mut unused_collector, MetaEntryFlags::COLD)
+                                                &mut unused_collector
                                             };
                                             collector.add_entry(
                                                 &current,
                                                 path,
-                                                flags,
                                                 sequence_number,
                                                 &mut keys_written,
                                             )?;
@@ -1187,23 +1166,22 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     let is_used = used_key_hashes
                                         .as_ref()
                                         .is_some_and(|amqf| amqf.contains_fingerprint(entry.hash));
-                                    let (collector, flags) = if is_used {
-                                        (&mut used_collector, MetaEntryFlags::WARM)
+                                    let collector = if is_used {
+                                        &mut used_collector
                                     } else {
-                                        (&mut unused_collector, MetaEntryFlags::COLD)
+                                        &mut unused_collector
                                     };
                                     collector.add_entry(
                                         &entry,
                                         path,
-                                        flags,
                                         sequence_number,
                                         &mut keys_written,
                                     )?;
                                 }
 
-                                // Finish remaining writers
-                                used_collector.finish_current(&mut keys_written)?;
-                                unused_collector.finish_current(&mut keys_written)?;
+                                // Close remaining writers
+                                used_collector.close_sst_file(&mut keys_written)?;
+                                unused_collector.close_sst_file(&mut keys_written)?;
 
                                 let mut new_sst_files = take(&mut unused_collector.new_sst_files);
                                 new_sst_files.append(&mut used_collector.new_sst_files);

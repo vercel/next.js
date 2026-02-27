@@ -19,6 +19,7 @@ use crate::{
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
+    value_block_count_tracker::ValueBlockCountTracker,
 };
 
 /// The maximum number of entries that should go into a single key block
@@ -102,6 +103,8 @@ pub struct StaticSortedFileBuilderMeta<'a> {
 ///
 /// This is a convenience wrapper around [`StreamingSstWriter`] for callers that already have all
 /// entries in memory.
+// TODO: Consider adding a variant that takes ownership (Vec<E> or drain iterator)
+// to free entry memory as blocks are written.
 pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     file: &Path,
@@ -119,50 +122,11 @@ pub fn write_static_stored_file<E: Entry>(
 // Block I/O helpers (free functions for borrow-checker friendliness)
 // ---------------------------------------------------------------------------
 
-/// Writes a block to the file, optionally compressing it. Returns the block index assigned.
-fn write_block_to_file(
-    file: &mut BufWriter<File>,
-    compress_buffer: &mut Vec<u8>,
-    block_offsets: &mut Vec<u32>,
-    block: &[u8],
-    try_compress: bool,
-) -> Result<u16> {
-    let block_index: u16 = block_offsets
-        .len()
-        .try_into()
-        .expect("Block index overflow");
-
-    let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
-        compress_into_buffer(block, compress_buffer)?;
-        // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
-        if compress_buffer.len() < block.len() - (block.len() / 8) {
-            (block.len().try_into().unwrap(), compress_buffer.as_slice())
-        } else {
-            (0, block)
-        }
-    } else {
-        (0, block)
-    };
-
-    let len: u32 = (data_to_write.len() + 4).try_into().unwrap();
-    let offset = block_offsets
-        .last()
-        .copied()
-        .unwrap_or_default()
-        .checked_add(len)
-        .expect("Block offset overflow");
-    block_offsets.push(offset);
-
-    file.write_u32::<BE>(uncompressed_size)
-        .context("Failed to write uncompressed_size")?;
-    file.write_all(data_to_write)
-        .context("Failed to write block data")?;
-    compress_buffer.clear();
-    Ok(block_index)
-}
-
-/// Writes a pre-compressed block to the file. Returns the block index assigned.
-fn write_compressed_block_to_file(
+/// Writes a raw (already-formatted) block to the file. Returns the block index assigned.
+///
+/// `uncompressed_size` is the original uncompressed size of the block data, or `0` if the block
+/// is stored uncompressed.
+fn write_raw_block_to_file(
     file: &mut BufWriter<File>,
     block_offsets: &mut Vec<u32>,
     uncompressed_size: u32,
@@ -185,8 +149,33 @@ fn write_compressed_block_to_file(
     file.write_u32::<BE>(uncompressed_size)
         .context("Failed to write uncompressed size")?;
     file.write_all(block)
-        .context("Failed to write compressed block")?;
+        .context("Failed to write block data")?;
     Ok(block_index)
+}
+
+/// Writes a block to the file, optionally compressing it. Returns the block index assigned.
+fn write_block_to_file(
+    file: &mut BufWriter<File>,
+    compress_buffer: &mut Vec<u8>,
+    block_offsets: &mut Vec<u32>,
+    block: &[u8],
+    try_compress: bool,
+) -> Result<u16> {
+    let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
+        compress_into_buffer(block, compress_buffer)?;
+        // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
+        if compress_buffer.len() < block.len() - (block.len() / 8) {
+            (block.len().try_into().unwrap(), compress_buffer.as_slice())
+        } else {
+            (0, block)
+        }
+    } else {
+        (0, block)
+    };
+
+    let result = write_raw_block_to_file(file, block_offsets, uncompressed_size, data_to_write);
+    compress_buffer.clear();
+    result
 }
 
 // ---------------------------------------------------------------------------
@@ -201,10 +190,10 @@ enum ValueRef {
         offset: u32,
         size: u16,
     },
-    /// Value is in a small value block that hasn't been written yet.
-    /// `small_block_id` indexes into `small_block_indices` to find the block_index once flushed.
+    /// Value is in a small value block that hasn't been written yet. Will be resolved in-place
+    /// to [`ValueRef::Small`] when the small block is flushed.
     PendingSmall {
-        small_block_id: u32,
+        small_block_id: u16,
         offset: u32,
         size: u16,
     },
@@ -223,7 +212,7 @@ enum ValueRef {
 
 struct PendingKeyEntry {
     key_hash: u64,
-    key: Vec<u8>,
+    key: Box<[u8]>,
     value_ref: ValueRef,
 }
 
@@ -242,22 +231,25 @@ pub struct StreamingSstWriter {
     compress_buffer: Vec<u8>,
     block_offsets: Vec<u32>,
 
-    // Pending key entries (VecDeque for efficient front drain)
+    /// Pending key entries waiting to be flushed as key blocks.
+    ///
+    /// Entries are appended at the back and flushed from the front. The front entries up to
+    /// `first_pending_small_index` are fully resolved and eligible for key block flushing.
+    ///
+    /// **Note:** This queue is effectively unbounded. In a pathological case -- a small number of
+    /// small values followed by a large number of medium/inline values -- the queue can grow large
+    /// because the front entries reference an unflushed small value block while the back keeps
+    /// accepting resolved entries.
     pending_keys: VecDeque<PendingKeyEntry>,
 
-    // Key block size tracking (tracks the accumulated size from the front of pending_keys)
-    current_key_block_size: usize,
-    current_key_block_entry_count: usize,
-    current_key_block_max_key_len: usize,
+    /// Index into `pending_keys` of the first entry that has a `PendingSmall` reference for the
+    /// current (unflushed) small value block. All entries before this index are fully resolved
+    /// (their value block indices are known). Equals `pending_keys.len()` when no pending small
+    /// entries exist.
+    first_pending_small_index: usize,
 
-    // Small value block indirection
-    /// Maps small_block_id -> actual block_index. `None` means not yet flushed.
-    small_block_indices: Vec<Option<u16>>,
     /// The current small_block_id being accumulated into.
-    current_small_block_id: u32,
-    /// The smallest small_block_id that hasn't been resolved yet.
-    /// All IDs below this are resolved.
-    first_unresolved_small_block_id: u32,
+    current_small_block_id: u16,
 
     // Pending small value block buffer
     pending_small_values: Vec<u8>,
@@ -277,6 +269,11 @@ pub struct StreamingSstWriter {
     max_hash: u64,
     entry_count: u64,
     flags: MetaEntryFlags,
+
+    // Fullness tracking (for compaction callers)
+    total_key_size: usize,
+    total_value_size: usize,
+    value_block_count_tracker: ValueBlockCountTracker,
 }
 
 impl StreamingSstWriter {
@@ -294,12 +291,8 @@ impl StreamingSstWriter {
             compress_buffer: Vec::new(),
             block_offsets: Vec::new(),
             pending_keys: VecDeque::new(),
-            current_key_block_size: 0,
-            current_key_block_entry_count: 0,
-            current_key_block_max_key_len: 0,
-            small_block_indices: Vec::new(),
+            first_pending_small_index: 0,
             current_small_block_id: 0,
-            first_unresolved_small_block_id: 0,
             pending_small_values: Vec::new(),
             pending_small_value_count: 0,
             key_buffer: Vec::new(),
@@ -309,7 +302,19 @@ impl StreamingSstWriter {
             max_hash: 0,
             entry_count: 0,
             flags,
+            total_key_size: 0,
+            total_value_size: 0,
+            value_block_count_tracker: ValueBlockCountTracker::default(),
         })
+    }
+
+    /// Returns true if the SST file has reached capacity limits.
+    ///
+    /// This is intended for compaction callers that need to split output across multiple SST files.
+    pub fn is_full(&self, max_entries: usize, max_data_size: usize) -> bool {
+        self.entry_count as usize >= max_entries
+            || self.total_key_size + self.total_value_size > max_data_size
+            || self.value_block_count_tracker.is_full()
     }
 
     /// Adds an entry to the SST file. Entries must be added in key-hash order.
@@ -329,12 +334,22 @@ impl StreamingSstWriter {
             .expect("AMQF insert failed");
 
         // Copy key bytes
-        let mut key = Vec::with_capacity(entry.key_len());
-        entry.write_key_to(&mut key);
+        // TODO: Explore deferring key copies until key block writing time.
+        // This would require changing the Entry API to support borrowing keys or
+        // storing entry references instead of copying key bytes eagerly.
+        let mut key_buf = Vec::with_capacity(entry.key_len());
+        entry.write_key_to(&mut key_buf);
+        let key_len = key_buf.len();
+        let key: Box<[u8]> = key_buf.into_boxed_slice();
+
+        // Track key size for fullness
+        self.total_key_size += key_len;
 
         // Route value
         let value_ref = match entry.value() {
             EntryValue::Medium { value } => {
+                self.total_value_size += value.len();
+                self.value_block_count_tracker.track(true, 0);
                 let block_index = write_block_to_file(
                     &mut self.file,
                     &mut self.compress_buffer,
@@ -349,7 +364,9 @@ impl StreamingSstWriter {
                 uncompressed_size,
                 block,
             } => {
-                let block_index = write_compressed_block_to_file(
+                self.total_value_size += block.len();
+                self.value_block_count_tracker.track(true, 0);
+                let block_index = write_raw_block_to_file(
                     &mut self.file,
                     &mut self.block_offsets,
                     uncompressed_size,
@@ -359,10 +376,27 @@ impl StreamingSstWriter {
                 ValueRef::Medium { block_index }
             }
             EntryValue::Small { value } => {
+                self.total_value_size += value.len();
+                self.value_block_count_tracker.track(false, value.len());
+
+                // Flush small value block if full BEFORE adding this value,
+                // so entries referencing the previous block get resolved.
+                if self.pending_small_values.len() >= MIN_SMALL_VALUE_BLOCK_SIZE
+                    || self.pending_small_value_count >= MAX_SMALL_VALUE_BLOCK_ENTRIES
+                {
+                    self.flush_small_value_block()?;
+                }
+
                 let offset = self.pending_small_values.len() as u32;
                 let size: u16 = value.len().try_into().unwrap();
                 self.pending_small_values.extend_from_slice(value);
                 self.pending_small_value_count += 1;
+
+                // Track where the first PendingSmall entry is in the queue
+                if self.first_pending_small_index >= self.pending_keys.len() {
+                    self.first_pending_small_index = self.pending_keys.len();
+                }
+
                 let small_block_id = self.current_small_block_id;
                 ValueRef::PendingSmall {
                     small_block_id,
@@ -384,24 +418,11 @@ impl StreamingSstWriter {
         };
 
         // Push pending key entry
-        let key_len = key.len();
         self.pending_keys.push_back(PendingKeyEntry {
             key_hash,
             key,
             value_ref,
         });
-
-        // Update key block size tracking
-        self.current_key_block_size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
-        self.current_key_block_entry_count += 1;
-        self.current_key_block_max_key_len = self.current_key_block_max_key_len.max(key_len);
-
-        // Flush small value block if full
-        if self.pending_small_values.len() >= MIN_SMALL_VALUE_BLOCK_SIZE
-            || self.pending_small_value_count >= MAX_SMALL_VALUE_BLOCK_ENTRIES
-        {
-            self.flush_small_value_block()?;
-        }
 
         // Try to flush completed key blocks
         self.try_flush_key_blocks()?;
@@ -409,8 +430,11 @@ impl StreamingSstWriter {
         Ok(())
     }
 
-    /// Flushes the current pending small value block to disk.
+    /// Flushes the current pending small value block to disk and resolves all `PendingSmall`
+    /// entries in-place.
     fn flush_small_value_block(&mut self) -> Result<()> {
+        // Early return if empty -- this simplifies trailing small value block handling in
+        // `finish()` where we call this unconditionally.
         if self.pending_small_values.is_empty() {
             return Ok(());
         }
@@ -424,130 +448,88 @@ impl StreamingSstWriter {
         )
         .context("Failed to write small value block")?;
 
-        // Record the mapping from small_block_id -> block_index
-        let id = self.current_small_block_id as usize;
-        debug_assert_eq!(id, self.small_block_indices.len());
-        self.small_block_indices.push(Some(block_index));
+        // Resolve all PendingSmall entries for this block in-place.
+        // Only scan from first_pending_small_index -- entries before it are guaranteed
+        // already resolved (from previous flush calls).
+        let flushed_id = self.current_small_block_id;
+        for i in self.first_pending_small_index..self.pending_keys.len() {
+            let entry = &mut self.pending_keys[i];
+            if let ValueRef::PendingSmall {
+                small_block_id,
+                offset,
+                size,
+            } = entry.value_ref
+            {
+                debug_assert_eq!(small_block_id, flushed_id);
+                entry.value_ref = ValueRef::Small {
+                    block_index,
+                    offset,
+                    size,
+                };
+            }
+        }
+
+        // All PendingSmall entries are now resolved. No entries reference an unflushed block
+        // until the next Small value arrives.
+        self.first_pending_small_index = self.pending_keys.len();
 
         // Advance to next small block id
         self.current_small_block_id += 1;
         self.pending_small_values.clear();
         self.pending_small_value_count = 0;
 
-        // Advance first_unresolved_small_block_id
-        while (self.first_unresolved_small_block_id as usize) < self.small_block_indices.len()
-            && self.small_block_indices[self.first_unresolved_small_block_id as usize].is_some()
-        {
-            self.first_unresolved_small_block_id += 1;
-        }
-
         Ok(())
     }
 
-    /// Checks if a value reference is resolved (i.e., its block index is known).
-    fn is_resolved(&self, value_ref: &ValueRef) -> bool {
-        match value_ref {
-            ValueRef::PendingSmall { small_block_id, .. } => {
-                *small_block_id < self.first_unresolved_small_block_id
-            }
-            _ => true,
-        }
-    }
-
-    /// Resolves a `PendingSmall` to a `Small` value reference. Panics if not yet resolved.
-    fn resolve_value_ref(value_ref: &ValueRef, small_block_indices: &[Option<u16>]) -> ValueRef {
-        match *value_ref {
-            ValueRef::PendingSmall {
-                small_block_id,
-                offset,
-                size,
-            } => {
-                let block_index = small_block_indices[small_block_id as usize]
-                    .expect("small block not yet resolved");
-                ValueRef::Small {
-                    block_index,
-                    offset,
-                    size,
-                }
-            }
-            // Already resolved variants are returned as-is
-            ValueRef::Small {
-                block_index,
-                offset,
-                size,
-            } => ValueRef::Small {
-                block_index,
-                offset,
-                size,
-            },
-            ValueRef::Medium { block_index } => ValueRef::Medium { block_index },
-            ValueRef::Inline { data, len } => ValueRef::Inline { data, len },
-            ValueRef::Blob { blob_id } => ValueRef::Blob { blob_id },
-            ValueRef::Deleted => ValueRef::Deleted,
-        }
-    }
-
     /// Tries to flush complete key blocks from the front of `pending_keys`.
+    ///
+    /// The resolved prefix boundary is known directly from `first_pending_small_index` -- all
+    /// entries before that index have resolved value references. Within that prefix, we find
+    /// key block boundaries and flush complete blocks in a single pass.
     fn try_flush_key_blocks(&mut self) -> Result<()> {
-        // Find the resolved prefix length
-        let mut resolved_count = 0;
-        for entry in &self.pending_keys {
-            if !self.is_resolved(&entry.value_ref) {
-                break;
-            }
-            resolved_count += 1;
-        }
+        let resolved_end = self.first_pending_small_index;
 
-        if resolved_count == 0 {
+        if resolved_end == 0 {
             return Ok(());
         }
 
-        // Within the resolved prefix, find and flush complete key blocks.
-        // We need to re-scan the resolved entries to find block boundaries,
-        // tracking size from the front.
+        // Single pass: find block boundaries and flush complete blocks.
         let mut block_start = 0;
-        let mut block_size = 0;
-        let mut block_max_key_len = 0;
+        let mut block_size = 0usize;
+        let mut block_entry_count = 0usize;
+        let mut block_max_key_len = 0usize;
+        let mut last_flushed_end = 0usize;
         let mut last_hash = 0u64;
 
-        for i in 0..resolved_count {
+        for i in 0..resolved_end {
             let entry = &self.pending_keys[i];
             let key_len = entry.key.len();
             let key_hash = entry.key_hash;
 
-            // Check if we should start a new block (same logic as old code)
-            if block_size > 0
+            if block_entry_count > 0
                 && (block_size + key_len + KEY_BLOCK_ENTRY_META_OVERHEAD > MAX_KEY_BLOCK_SIZE
-                    || i - block_start >= MAX_KEY_BLOCK_ENTRIES)
+                    || block_entry_count >= MAX_KEY_BLOCK_ENTRIES)
                 && last_hash != key_hash
             {
-                // Flush this key block
                 self.flush_key_block(block_start, i, block_max_key_len)?;
+                last_flushed_end = i;
                 block_start = i;
                 block_size = 0;
                 block_max_key_len = 0;
+                block_entry_count = 0;
             }
 
             block_size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
             block_max_key_len = block_max_key_len.max(key_len);
+            block_entry_count += 1;
             last_hash = key_hash;
         }
 
-        // Don't flush the trailing incomplete block here -- it may grow more.
-        // But if we flushed any blocks, drain those entries and recompute tracking.
-        if block_start > 0 {
-            // Drain the consumed entries
-            self.pending_keys.drain(..block_start);
+        // Don't flush the trailing incomplete block -- it may grow more.
 
-            // Recompute key block tracking from the remaining entries
-            self.current_key_block_size = 0;
-            self.current_key_block_entry_count = self.pending_keys.len();
-            self.current_key_block_max_key_len = 0;
-            for entry in &self.pending_keys {
-                self.current_key_block_size += entry.key.len() + KEY_BLOCK_ENTRY_META_OVERHEAD;
-                self.current_key_block_max_key_len =
-                    self.current_key_block_max_key_len.max(entry.key.len());
-            }
+        if last_flushed_end > 0 {
+            self.pending_keys.drain(..last_flushed_end);
+            self.first_pending_small_index -= last_flushed_end;
         }
 
         Ok(())
@@ -563,9 +545,7 @@ impl StreamingSstWriter {
 
         for i in start..end {
             let entry = &self.pending_keys[i];
-            let resolved = Self::resolve_value_ref(&entry.value_ref, &self.small_block_indices);
-
-            match resolved {
+            match entry.value_ref {
                 ValueRef::Small {
                     block_index,
                     offset,
@@ -619,7 +599,7 @@ impl StreamingSstWriter {
     /// Finishes writing the SST file. Flushes remaining blocks, writes the index, and returns
     /// metadata.
     pub fn finish(mut self) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
-        // Flush remaining small value block
+        // Flush remaining small value block (even if under MIN_SMALL_VALUE_BLOCK_SIZE).
         self.flush_small_value_block()?;
 
         // Now all PendingSmall entries are resolved. Flush all remaining key blocks.
