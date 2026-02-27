@@ -69,7 +69,12 @@ jobs:
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-
+      - name: Safe check (no secret values)
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        run: |
+          echo "PR_STATS_COMMENT_TOKEN set? ${{ secrets.PR_STATS_COMMENT_TOKEN != '' }}"
+          echo "TURBO_TOKEN set? ${{ secrets.TURBO_TOKEN != '' }}"
+          echo "KV_REST_API_TOKEN set? ${{ secrets.KV_REST_API_TOKEN != '' }}"
       - uses: ./.github/actions/next-stats-action
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
