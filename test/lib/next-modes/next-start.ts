@@ -20,7 +20,7 @@ export class NextStartInstance extends NextInstance {
 
     if (!opts.disableAutoSkewProtection && shouldUseTurbopack()) {
       this.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-      this.env.VERCEL_IMMUTABLE_DEPLOYMENT_ID = 'test-immutable-tkn-7890'
+      this.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
     }
   }
 

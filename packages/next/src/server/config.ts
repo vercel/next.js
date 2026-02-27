@@ -980,16 +980,16 @@ function assignDefaultsAndValidate(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  // Only read process.env.VERCEL_IMMUTABLE_DEPLOYMENT_ID to make our testing setup easier. This is
+  // Only read process.env.__NEXT_IMMUTABLE_ASSET_TOKEN to make our testing setup easier. This is
   // actually done by the adapter's modifyConfig
   if (
     process.env.__NEXT_TEST_MODE &&
     process.env.IS_TURBOPACK_TEST &&
     result.deploymentId &&
-    process.env.VERCEL_IMMUTABLE_DEPLOYMENT_ID
+    process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
   ) {
     result.experimental.immutableAssetToken =
-      process.env.VERCEL_IMMUTABLE_DEPLOYMENT_ID
+      process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
   }
 
   const tracingRoot = result?.outputFileTracingRoot
