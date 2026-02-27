@@ -379,6 +379,8 @@ impl StreamingSstWriter {
                 uncompressed_size,
                 block,
             } => {
+                // Note: tracks compressed block size (not uncompressed) unlike EntryValue::Medium.
+                // Both are acceptable approximations of disk usage for is_full() thresholds.
                 self.total_value_size += block.len();
                 let block_index = write_raw_block_to_file(
                     &mut self.file,
@@ -442,6 +444,9 @@ impl StreamingSstWriter {
 
         // Advance the resolved boundary for non-PendingSmall entries, but only when there are
         // no earlier unresolved PendingSmall entries blocking the boundary.
+        // The `== len - 1` check means the just-pushed entry sits immediately after the current
+        // boundary, so it's safe to extend. If a PendingSmall entry exists earlier in the queue,
+        // the boundary stays put until `flush_small_value_block()` resolves all pending entries.
         if is_resolved && self.first_pending_small_index == self.pending_keys.len() - 1 {
             self.first_pending_small_index = self.pending_keys.len();
         }
@@ -550,6 +555,7 @@ impl StreamingSstWriter {
         // Don't flush the trailing incomplete block -- it may grow more.
 
         if last_flushed_end > 0 {
+            // VecDeque::drain from the front is O(1) -- it just adjusts the head pointer.
             self.pending_keys.drain(..last_flushed_end);
             self.first_pending_small_index -= last_flushed_end;
         }
@@ -888,5 +894,515 @@ impl<'l> IndexBlockBuilder<'l> {
     /// Returns the index block buffer
     fn finish(self) -> &'l mut Vec<u8> {
         self.buffer
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::BuildHasherDefault;
+
+    use quick_cache::sync::Cache;
+    use rustc_hash::FxHasher;
+
+    use super::*;
+    use crate::{
+        key::hash_key,
+        lookup_entry::LookupValue,
+        static_sorted_file::{
+            BlockWeighter, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+        },
+    };
+
+    type TestBlockCache =
+        Cache<(u32, u16), crate::ArcBytes, BlockWeighter, BuildHasherDefault<FxHasher>>;
+
+    fn make_cache() -> TestBlockCache {
+        TestBlockCache::with(
+            100,
+            4 * 1024 * 1024,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        )
+    }
+
+    /// A simple entry type for testing with configurable value type.
+    struct TestEntry {
+        key: Vec<u8>,
+        hash: u64,
+        value_kind: TestValueKind,
+    }
+
+    enum TestValueKind {
+        Inline(Vec<u8>),
+        Small(Vec<u8>),
+        Medium(Vec<u8>),
+        Blob(u32),
+        Deleted,
+    }
+
+    impl TestEntry {
+        fn small(key: &[u8], value: &[u8]) -> Self {
+            let key = key.to_vec();
+            let hash = hash_key(&key);
+            Self {
+                key,
+                hash,
+                value_kind: TestValueKind::Small(value.to_vec()),
+            }
+        }
+
+        fn inline(key: &[u8], value: &[u8]) -> Self {
+            debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
+            let key = key.to_vec();
+            let hash = hash_key(&key);
+            Self {
+                key,
+                hash,
+                value_kind: TestValueKind::Inline(value.to_vec()),
+            }
+        }
+
+        fn medium(key: &[u8], value: &[u8]) -> Self {
+            let key = key.to_vec();
+            let hash = hash_key(&key);
+            Self {
+                key,
+                hash,
+                value_kind: TestValueKind::Medium(value.to_vec()),
+            }
+        }
+
+        fn blob(key: &[u8], blob_id: u32) -> Self {
+            let key = key.to_vec();
+            let hash = hash_key(&key);
+            Self {
+                key,
+                hash,
+                value_kind: TestValueKind::Blob(blob_id),
+            }
+        }
+
+        fn deleted(key: &[u8]) -> Self {
+            let key = key.to_vec();
+            let hash = hash_key(&key);
+            Self {
+                key,
+                hash,
+                value_kind: TestValueKind::Deleted,
+            }
+        }
+
+        fn expected_value(&self) -> Option<&[u8]> {
+            match &self.value_kind {
+                TestValueKind::Inline(v) | TestValueKind::Small(v) | TestValueKind::Medium(v) => {
+                    Some(v)
+                }
+                _ => None,
+            }
+        }
+    }
+
+    impl Entry for TestEntry {
+        fn key_hash(&self) -> u64 {
+            self.hash
+        }
+
+        fn key_len(&self) -> usize {
+            self.key.len()
+        }
+
+        fn write_key_to(&self, buf: &mut Vec<u8>) {
+            buf.extend_from_slice(&self.key);
+        }
+
+        fn value(&self) -> EntryValue<'_> {
+            match &self.value_kind {
+                TestValueKind::Inline(v) => EntryValue::Inline { value: v },
+                TestValueKind::Small(v) => EntryValue::Small { value: v },
+                TestValueKind::Medium(v) => EntryValue::Medium { value: v },
+                TestValueKind::Blob(id) => EntryValue::Large { blob: *id },
+                TestValueKind::Deleted => EntryValue::Deleted,
+            }
+        }
+    }
+
+    /// Sort entries by hash (required by SST writer).
+    fn sort_entries(entries: &mut [TestEntry]) {
+        entries.sort_by_key(|e| e.hash);
+    }
+
+    /// Open an SST file for lookup given a path and metadata.
+    fn open_sst(
+        dir: &Path,
+        seq: u32,
+        meta: &StaticSortedFileBuilderMeta<'_>,
+    ) -> Result<StaticSortedFile> {
+        StaticSortedFile::open(
+            dir,
+            StaticSortedFileMetaData {
+                sequence_number: seq,
+                block_count: meta.block_count,
+            },
+        )
+    }
+
+    /// Helper: write entries via StreamingSstWriter, return meta.
+    fn write_sst(
+        dir: &Path,
+        seq: u32,
+        entries: &[TestEntry],
+        flags: MetaEntryFlags,
+    ) -> Result<StaticSortedFileBuilderMeta<'static>> {
+        let sst_path = dir.join(format!("{seq:08}.sst"));
+        let mut writer = StreamingSstWriter::new(&sst_path, flags, entries.len() as u64)?;
+        for entry in entries {
+            writer.add(entry)?;
+        }
+        let (meta, _file) = writer.finish()?;
+        Ok(meta)
+    }
+
+    /// Lookup a key in an SST file and assert it matches the expected value kind.
+    fn assert_lookup(
+        sst: &StaticSortedFile,
+        entry: &TestEntry,
+        kc: &TestBlockCache,
+        vc: &TestBlockCache,
+    ) -> Result<()> {
+        let result = sst.lookup(entry.hash, &entry.key, kc, vc)?;
+        match (&entry.value_kind, result) {
+            (_, SstLookupResult::Found(LookupValue::Slice { value })) => {
+                let expected = entry
+                    .expected_value()
+                    .expect("Got Slice but entry has no value");
+                assert_eq!(
+                    value.as_ref(),
+                    expected,
+                    "value mismatch for key {:?}",
+                    std::str::from_utf8(&entry.key)
+                );
+            }
+            (
+                TestValueKind::Blob(expected_id),
+                SstLookupResult::Found(LookupValue::Blob { sequence_number }),
+            ) => {
+                assert_eq!(sequence_number, *expected_id);
+            }
+            (TestValueKind::Deleted, SstLookupResult::Found(LookupValue::Deleted)) => {}
+            _ => {
+                panic!(
+                    "Unexpected lookup result for key {:?}",
+                    std::str::from_utf8(&entry.key)
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn single_inline_entry() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let mut entries = vec![TestEntry::inline(b"key1", b"val1")];
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, 1);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        assert_lookup(&sst, &entries[0], &kc, &vc)?;
+        Ok(())
+    }
+
+    #[test]
+    fn single_small_entry() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let value = vec![0xAB; 100]; // > MAX_INLINE_VALUE_SIZE, <= MAX_SMALL_VALUE_SIZE
+        let mut entries = vec![TestEntry::small(b"skey", &value)];
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, 1);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        assert_lookup(&sst, &entries[0], &kc, &vc)?;
+        Ok(())
+    }
+
+    #[test]
+    fn single_medium_entry() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let value = vec![0xCD; 8192]; // > MAX_SMALL_VALUE_SIZE
+        let mut entries = vec![TestEntry::medium(b"mkey", &value)];
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, 1);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        assert_lookup(&sst, &entries[0], &kc, &vc)?;
+        Ok(())
+    }
+
+    #[test]
+    fn single_blob_entry() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let mut entries = vec![TestEntry::blob(b"bkey", 42)];
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, 1);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        assert_lookup(&sst, &entries[0], &kc, &vc)?;
+        Ok(())
+    }
+
+    #[test]
+    fn single_deleted_entry() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let mut entries = vec![TestEntry::deleted(b"dkey")];
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, 1);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        assert_lookup(&sst, &entries[0], &kc, &vc)?;
+        Ok(())
+    }
+
+    #[test]
+    fn many_small_values() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        // Create enough small entries to trigger multiple small value block flushes.
+        // MIN_SMALL_VALUE_BLOCK_SIZE = 8KB, each value is 200 bytes -> ~40 entries per block.
+        let count = 200;
+        let mut entries: Vec<TestEntry> = (0..count)
+            .map(|i| {
+                let key = format!("key-{i:04}");
+                let value = vec![(i & 0xFF) as u8; 200];
+                TestEntry::small(key.as_bytes(), &value)
+            })
+            .collect();
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, count as u64);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn many_medium_values() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let count = 50;
+        let mut entries: Vec<TestEntry> = (0..count)
+            .map(|i| {
+                let key = format!("mkey-{i:04}");
+                let value = vec![(i & 0xFF) as u8; 8192];
+                TestEntry::medium(key.as_bytes(), &value)
+            })
+            .collect();
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, count as u64);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn mixed_value_types() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let mut entries = vec![
+            TestEntry::inline(b"a-inline", b"tiny"),
+            TestEntry::small(b"b-small", &vec![0x11; 200]),
+            TestEntry::medium(b"c-medium", &vec![0x22; 8192]),
+            TestEntry::blob(b"d-blob", 99),
+            TestEntry::deleted(b"e-deleted"),
+            TestEntry::small(b"f-small2", &vec![0x33; 300]),
+            TestEntry::inline(b"g-inline2", b"mini"),
+            TestEntry::medium(b"h-medium2", &vec![0x44; 16384]),
+        ];
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, 8);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn is_full_entry_count_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let sst_path = dir.path().join("test.sst");
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100).unwrap();
+
+        let max_entries = 50;
+        for i in 0..max_entries {
+            let key = format!("k{i:06}");
+            let entry = TestEntry::inline(key.as_bytes(), &[0; 4]);
+            writer.add(&entry).unwrap();
+        }
+
+        assert_eq!(writer.entry_count, max_entries as u64);
+        assert!(
+            writer.is_full(max_entries, usize::MAX),
+            "Should be full when entry count reaches max_entries"
+        );
+        assert!(
+            !writer.is_full(max_entries + 1, usize::MAX),
+            "Should not be full when limit is higher"
+        );
+    }
+
+    #[test]
+    fn is_full_data_size_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let sst_path = dir.path().join("test.sst");
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100).unwrap();
+
+        let value = vec![0u8; 1000];
+        for i in 0..10 {
+            let key = format!("k{i:06}");
+            let entry = TestEntry::small(key.as_bytes(), &value);
+            writer.add(&entry).unwrap();
+        }
+
+        let total = writer.total_key_size + writer.total_value_size;
+        assert!(total > 10_000, "total data should exceed 10KB");
+        assert!(writer.is_full(usize::MAX, total - 1));
+        assert!(!writer.is_full(usize::MAX, total + 1));
+    }
+
+    #[test]
+    fn write_static_stored_file_matches_streaming() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+
+        let mut entries: Vec<TestEntry> = (0..100)
+            .map(|i| {
+                let key = format!("rkey-{i:04}");
+                if i % 3 == 0 {
+                    TestEntry::inline(key.as_bytes(), &[(i & 0xFF) as u8; 4])
+                } else if i % 3 == 1 {
+                    TestEntry::small(key.as_bytes(), &vec![(i & 0xFF) as u8; 200])
+                } else {
+                    TestEntry::medium(key.as_bytes(), &vec![(i & 0xFF) as u8; 8192])
+                }
+            })
+            .collect();
+        sort_entries(&mut entries);
+
+        // Write via convenience function
+        let batch_path = dir.path().join("00000001.sst");
+        let (meta1, _) =
+            write_static_stored_file(&entries, &batch_path, MetaEntryFlags::default())?;
+
+        // Write via streaming API
+        let streaming_path = dir.path().join("00000002.sst");
+        let mut writer = StreamingSstWriter::new(
+            &streaming_path,
+            MetaEntryFlags::default(),
+            entries.len() as u64,
+        )?;
+        for entry in &entries {
+            writer.add(entry)?;
+        }
+        let (meta2, _) = writer.finish()?;
+
+        // Metadata should match
+        assert_eq!(meta1.entries, meta2.entries);
+        assert_eq!(meta1.min_hash, meta2.min_hash);
+        assert_eq!(meta1.max_hash, meta2.max_hash);
+        assert_eq!(meta1.block_count, meta2.block_count);
+
+        // Both files should produce the same lookup results
+        let sst1 = StaticSortedFile::open(
+            dir.path(),
+            StaticSortedFileMetaData {
+                sequence_number: 1,
+                block_count: meta1.block_count,
+            },
+        )?;
+        let sst2 = StaticSortedFile::open(
+            dir.path(),
+            StaticSortedFileMetaData {
+                sequence_number: 2,
+                block_count: meta2.block_count,
+            },
+        )?;
+        let kc = make_cache();
+        let vc = make_cache();
+
+        for entry in &entries {
+            let r1 = sst1.lookup(entry.hash, &entry.key, &kc, &vc)?;
+            let r2 = sst2.lookup(entry.hash, &entry.key, &kc, &vc)?;
+            match (r1, r2) {
+                (
+                    SstLookupResult::Found(LookupValue::Slice { value: v1 }),
+                    SstLookupResult::Found(LookupValue::Slice { value: v2 }),
+                ) => {
+                    assert_eq!(
+                        v1.as_ref(),
+                        v2.as_ref(),
+                        "Value mismatch for key {:?}",
+                        std::str::from_utf8(&entry.key)
+                    );
+                }
+                (
+                    SstLookupResult::Found(LookupValue::Deleted),
+                    SstLookupResult::Found(LookupValue::Deleted),
+                ) => {}
+                (
+                    SstLookupResult::Found(LookupValue::Blob {
+                        sequence_number: s1,
+                    }),
+                    SstLookupResult::Found(LookupValue::Blob {
+                        sequence_number: s2,
+                    }),
+                ) => {
+                    assert_eq!(s1, s2);
+                }
+                _ => panic!(
+                    "Mismatched results for key {:?}",
+                    std::str::from_utf8(&entry.key)
+                ),
+            }
+        }
+        Ok(())
     }
 }
