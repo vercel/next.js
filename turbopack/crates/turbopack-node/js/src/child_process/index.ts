@@ -1,26 +1,6 @@
 import { createConnection } from 'node:net'
 import { Writable } from 'node:stream'
-import type { StackFrame } from '../compiled/stacktrace-parser'
-import { parse as parseStackTrace } from '../compiled/stacktrace-parser'
-import { getProperError } from './error'
-
-export type StructuredError = {
-  name: string
-  message: string
-  stack: StackFrame[]
-  cause: StructuredError | undefined
-}
-
-export function structuredError(e: unknown): StructuredError {
-  e = getProperError(e)
-
-  return {
-    name: e.name,
-    message: e.message,
-    stack: typeof e.stack === 'string' ? parseStackTrace(e.stack) : [],
-    cause: e.cause ? structuredError(getProperError(e.cause)) : undefined,
-  }
-}
+import { structuredError } from '../error'
 
 type State =
   | {

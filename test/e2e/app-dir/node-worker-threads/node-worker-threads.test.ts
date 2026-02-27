@@ -75,8 +75,8 @@ describe('node-worker-threads', () => {
       /\/_next\/static.*\/test-image\.[a-f0-9]+\.png/
     )
     if (!isNextDev) {
-      expect(next.deploymentId).toMatch(/.+/)
-      expect(url.searchParams.get('dpl')).toBe(next.deploymentId)
+      expect(next.assetToken).toMatch(/.+/)
+      expect(url.searchParams.get('dpl')).toBe(next.assetToken)
     }
 
     // Now fetch the PNG URL from the client to verify it's accessible

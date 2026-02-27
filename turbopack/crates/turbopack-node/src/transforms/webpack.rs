@@ -54,11 +54,11 @@ use crate::{
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluationIssue, custom_evaluate,
-        get_evaluate_entries, get_evaluate_pool,
+        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluatePool, EvaluationIssue,
+        custom_evaluate, get_evaluate_entries, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
-    pool::{FormattingMode, NodeJsPool},
+    format::FormattingMode,
     source_map::{StackFrame, StructuredError},
     transforms::util::{EmittedAsset, emitted_assets_to_virtual_sources},
 };
@@ -448,7 +448,7 @@ impl EvaluateContext for WebpackLoaderContext {
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
+    fn pool(&self) -> OperationVc<EvaluatePool> {
         get_evaluate_pool(
             self.entries,
             self.cwd.clone(),
@@ -476,7 +476,7 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
-    async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
+    async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
             source: IssueSource::from_source_only(self.context_source_for_issue),
@@ -493,7 +493,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         state: &mut Self::State,
         data: Self::InfoMessage,
-        pool: &NodeJsPool,
+        pool: &EvaluatePool,
     ) -> Result<()> {
         match data {
             InfoMessage::Dependencies {
@@ -569,7 +569,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         _state: &mut Self::State,
         data: Self::RequestMessage,
-        _pool: &NodeJsPool,
+        _pool: &EvaluatePool,
     ) -> Result<Self::ResponseMessage> {
         match data {
             RequestMessage::Resolve {
@@ -623,7 +623,7 @@ impl EvaluateContext for WebpackLoaderContext {
         }
     }
 
-    async fn finish(&self, state: Self::State, pool: &NodeJsPool) -> Result<()> {
+    async fn finish(&self, state: Self::State, pool: &EvaluatePool) -> Result<()> {
         let has_errors = state.iter().any(|log| log.log_type == LogType::Error);
         let has_warnings = state.iter().any(|log| log.log_type == LogType::Warn);
         if has_errors || has_warnings {

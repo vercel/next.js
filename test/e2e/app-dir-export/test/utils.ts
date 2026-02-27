@@ -210,6 +210,7 @@ export function runTests({
     files: join(__dirname, '..'),
     skipDeployment: true,
     skipStart: true,
+    disableAutoSkewProtection: true,
   })
   if (skipped) {
     return

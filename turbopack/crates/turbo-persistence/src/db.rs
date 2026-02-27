@@ -391,7 +391,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut compressed = &mmap[..];
         let uncompressed_length = compressed.read_u32::<BE>()?;
 
-        let buffer = decompress_into_arc(uncompressed_length, compressed, None, true)?;
+        let buffer = decompress_into_arc(uncompressed_length, compressed)?;
         Ok(ArcBytes::from(buffer))
     }
 
@@ -1012,8 +1012,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         min_hash: entry.min_hash(),
                                         max_hash: entry.max_hash(),
                                         amqf,
-                                        key_compression_dictionary_length: entry
-                                            .key_compression_dictionary_length(),
                                         block_count: entry.block_count(),
                                         size: entry.size(),
                                         flags: entry.flags(),
@@ -1028,7 +1026,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 fn create_sst_file<S: ParallelScheduler>(
                                     parallel_scheduler: &S,
                                     entries: &[LookupEntry],
-                                    total_key_size: usize,
                                     path: &Path,
                                     seq: u32,
                                     flags: MetaEntryFlags,
@@ -1039,7 +1036,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     let (meta, file) = parallel_scheduler.block_in_place(|| {
                                         write_static_stored_file(
                                             entries,
-                                            total_key_size,
                                             &path.join(format!("{seq:08}.sst")),
                                             flags,
                                         )
@@ -1130,8 +1126,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                 .track(is_medium, small_size);
 
                                             if collector.is_full() {
-                                                let selected_total_key_size =
-                                                    collector.last_entries_total_key_size;
                                                 swap(
                                                     &mut collector.entries,
                                                     &mut collector.last_entries,
@@ -1156,7 +1150,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                     collector.new_sst_files.push(create_sst_file(
                                                         &self.parallel_scheduler,
                                                         &collector.entries,
-                                                        selected_total_key_size,
                                                         path,
                                                         seq,
                                                         flags,
@@ -1184,7 +1177,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                 collector.new_sst_files.push(create_sst_file(
                                                     &self.parallel_scheduler,
                                                     &collector.last_entries,
-                                                    collector.last_entries_total_key_size,
                                                     path,
                                                     seq,
                                                     flags,
@@ -1230,7 +1222,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         collector.new_sst_files.push(create_sst_file(
                                             &self.parallel_scheduler,
                                             &collector.entries,
-                                            collector.total_key_size,
                                             path,
                                             seq,
                                             flags,
@@ -1258,8 +1249,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         collector.new_sst_files.push(create_sst_file(
                                             &self.parallel_scheduler,
                                             part1,
-                                            // We don't know the exact sizes so we estimate them
-                                            collector.last_entries_total_key_size / 2,
                                             path,
                                             seq1,
                                             flags,
@@ -1269,7 +1258,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         collector.new_sst_files.push(create_sst_file(
                                             &self.parallel_scheduler,
                                             part2,
-                                            collector.last_entries_total_key_size / 2,
                                             path,
                                             seq2,
                                             flags,
@@ -1636,8 +1624,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             flags: entry.flags(),
                             amqf_size: entry.amqf_size(),
                             amqf_entries: amqf.len(),
-                            key_compression_dictionary_size: entry
-                                .key_compression_dictionary_length(),
                             block_count: entry.block_count(),
                         }
                     })
@@ -1699,6 +1685,5 @@ pub struct MetaFileEntryInfo {
     pub amqf_entries: usize,
     pub sst_size: u64,
     pub flags: MetaEntryFlags,
-    pub key_compression_dictionary_size: u16,
     pub block_count: u16,
 }

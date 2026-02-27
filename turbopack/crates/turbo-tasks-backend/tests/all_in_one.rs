@@ -10,56 +10,70 @@ use turbo_tasks_testing::{Registration, register, run_once};
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn all_in_one() {
-    run_once(&REGISTRATION, || async {
-        let a: Vc<u32> = Vc::cell(4242);
-        assert_eq!(*a.await?, 4242);
-
-        let a: Vc<MyTransparentValue> = Vc::cell(4242);
-        assert_eq!(*a.await?, 4242);
-
-        let b = MyEnumValue::cell(MyEnumValue::More(MyEnumValue::Yeah(42).resolved_cell()));
-        assert_eq!(*b.to_string().await?, "42");
-
-        let c = MyStructValue {
-            value: 42,
-            next: Some(MyStructValue::new(a).to_resolved().await?),
+async fn test_all_in_one() {
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || {
+        // pass a nonce to re-run the test body on every turbo-tasks restart
+        nonce += 1;
+        async move {
+            test_all_in_one_operation(nonce)
+                .read_strongly_consistent()
+                .await
         }
-        .cell();
-
-        let result = my_function(a, b.get_last(), c, MyEnumValue::Yeah(42));
-        assert_eq!(*result.my_trait_function().await?, "42");
-        assert_eq!(*result.my_trait_function2().await?, "42");
-        assert_eq!(*result.my_trait_function3().await?, "4242");
-        assert_eq!(*result.to_string().await?, "42");
-
-        // Testing Vc<Self> in traits
-
-        let a: Vc<Number> = Vc::cell(32);
-        let b: Vc<Number> = Vc::cell(10);
-        let c: Vc<Number> = a.add(Vc::upcast(b));
-
-        assert_eq!(*c.await?, 42);
-
-        let a_erased: Vc<Box<dyn Add>> = Vc::upcast(a);
-        let b_erased: Vc<Box<dyn Add>> = Vc::upcast(b);
-        let c_erased: Vc<Box<dyn Add>> = a_erased.add(b_erased);
-
-        assert_eq!(
-            *ResolvedVc::try_downcast_type::<Number>(c_erased.to_resolved().await?)
-                .unwrap()
-                .await?,
-            42
-        );
-
-        let b_erased_other: Vc<Box<dyn Add>> = Vc::upcast(Vc::<NumberB>::cell(10));
-        let c_erased_invalid: Vc<Box<dyn Add>> = a_erased.add(b_erased_other);
-        assert!(c_erased_invalid.resolve().await.is_err());
-
-        anyhow::Ok(())
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_all_in_one_operation(nonce: u32) -> Result<Vc<()>> {
+    let _ = nonce; // ensure the nonce is part of our cache key
+
+    let a: Vc<u32> = Vc::cell(4242);
+    assert_eq!(*a.await?, 4242);
+
+    let a: Vc<MyTransparentValue> = Vc::cell(4242);
+    assert_eq!(*a.await?, 4242);
+
+    let b = MyEnumValue::cell(MyEnumValue::More(MyEnumValue::Yeah(42).resolved_cell()));
+    assert_eq!(*b.to_string().await?, "42");
+
+    let c = MyStructValue {
+        value: 42,
+        next: Some(MyStructValue::new(a).to_resolved().await?),
+    }
+    .cell();
+
+    let result = my_function(a, b.get_last(), c, MyEnumValue::Yeah(42));
+    assert_eq!(*result.my_trait_function().await?, "42");
+    assert_eq!(*result.my_trait_function2().await?, "42");
+    assert_eq!(*result.my_trait_function3().await?, "4242");
+    assert_eq!(*result.to_string().await?, "42");
+
+    // Testing Vc<Self> in traits
+
+    let a: Vc<Number> = Vc::cell(32);
+    let b: Vc<Number> = Vc::cell(10);
+    let c: Vc<Number> = a.add(Vc::upcast(b));
+
+    assert_eq!(*c.await?, 42);
+
+    let a_erased: Vc<Box<dyn Add>> = Vc::upcast(a);
+    let b_erased: Vc<Box<dyn Add>> = Vc::upcast(b);
+    let c_erased: Vc<Box<dyn Add>> = a_erased.add(b_erased);
+
+    assert_eq!(
+        *ResolvedVc::try_downcast_type::<Number>(c_erased.to_resolved().await?)
+            .unwrap()
+            .await?,
+        42
+    );
+
+    let b_erased_other: Vc<Box<dyn Add>> = Vc::upcast(Vc::<NumberB>::cell(10));
+    let c_erased_invalid: Vc<Box<dyn Add>> = a_erased.add(b_erased_other);
+    assert!(c_erased_invalid.resolve().await.is_err());
+
+    Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::value(transparent)]

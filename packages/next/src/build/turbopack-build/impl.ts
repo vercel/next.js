@@ -26,6 +26,7 @@ import type {
   RawEntrypoints,
   TurbopackResult,
 } from '../swc/types'
+import { Bundler } from '../../lib/bundler'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -105,6 +106,7 @@ export async function turbopackBuild(): Promise<{
     currentNodeJsVersion,
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,
+    nextVersion: process.env.__NEXT_VERSION as string,
   }
 
   const sharedTurboOptions = {
@@ -129,6 +131,7 @@ export async function turbopackBuild(): Promise<{
               debugPrerender: NextBuildContext.debugPrerender,
               reactProductionProfiling:
                 NextBuildContext.reactProductionProfiling,
+              bundler: Bundler.Turbopack,
             })
 
             await workerConfig.experimental.onBeforeDeferredEntries?.()
@@ -143,11 +146,9 @@ export async function turbopackBuild(): Promise<{
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
     await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-    if (!config.deploymentId) {
-      await fs.mkdir(path.join(distDir, 'static', buildId), {
-        recursive: true,
-      })
-    }
+    await fs.mkdir(path.join(distDir, 'static', buildId), {
+      recursive: true,
+    })
     await fs.writeFile(
       path.join(distDir, 'package.json'),
       '{"type": "commonjs"}'
@@ -181,7 +182,6 @@ export async function turbopackBuild(): Promise<{
       distDir,
       encryptionKey,
       dev: false,
-      deploymentId: config.deploymentId,
       sriEnabled,
     })
 
@@ -281,6 +281,7 @@ export async function workerMain(workerData: {
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      bundler: Bundler.Turbopack,
     }
   )
   NextBuildContext.config = config
