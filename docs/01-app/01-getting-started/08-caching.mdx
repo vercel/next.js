@@ -225,7 +225,7 @@ export default async function Page() {
 }
 ```
 
-## Working with synchronous operations
+## Working with deterministic operations
 
 Operations like synchronous I/O, module imports, and pure computations can complete during prerendering. Components using only these operations have their rendered output automatically included in the static HTML shell.
 
@@ -256,7 +256,7 @@ At build time, Next.js renders your route's component tree. How each component i
 
 - [`use cache`](#usage): the result is cached and included in the static shell
 - [`<Suspense>`](#streaming-uncached-data): fallback UI is included in the static shell while the content streams at request time
-- [Synchronous operations](#working-with-synchronous-operations): like pure computations and module imports are automatically included in the static shell
+- [Deterministic operations](#working-with-deterministic-operations): like pure computations and module imports are automatically included in the static shell
 
 This generates a static shell consisting of HTML for initial page loads and a serialized [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation, ensuring the browser receives fully rendered content instantly whether users navigate directly to the URL or transition from another page.
 
