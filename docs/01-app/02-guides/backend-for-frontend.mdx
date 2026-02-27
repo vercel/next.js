@@ -266,6 +266,21 @@ The [`Vary: Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/V
 
 `generateStaticParams` lets you pre-render the Markdown variants at build time so they can be served from the edge without hitting the origin server on every request.
 
+**3. Test it with `curl`:**
+
+```bash
+# Returns Markdown
+curl -H "Accept: text/markdown" https://example.com/docs/getting-started
+
+# Returns the normal HTML page
+curl https://example.com/docs/getting-started
+```
+
+> **Good to know:**
+>
+> - The `/docs/md/...` route is still directly accessible without the rewrite. If you want to restrict it to only serve via the rewrite, use [`proxy`](/docs/app/api-reference/file-conventions/proxy) to block direct requests that don't include the expected `Accept` header.
+> - For more advanced negotiation logic—such as handling multiple content types or `q`-value priorities—you can use [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead of rewrites for more flexibility.
+
 ### Consuming request payloads
 
 Use Request [instance methods](https://developer.mozilla.org/en-US/docs/Web/API/Request#instance_methods) like `.json()`, `.formData()`, or `.text()` to access the request body.
