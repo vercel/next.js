@@ -1742,6 +1742,7 @@ export default async function loadConfig(
     }
 
     if (
+      phase === PHASE_PRODUCTION_BUILD &&
       bundler !== Bundler.Turbopack &&
       userConfig.experimental?.immutableAssetToken
     ) {
