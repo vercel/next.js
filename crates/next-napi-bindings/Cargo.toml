@@ -46,12 +46,12 @@ workspace = true
 
 [package.metadata.cargo-shear]
 ignored = [
-  # we need to set features on these packages when building for WASM, but we don't directly use them
-  "getrandom",
-  "iana-time-zone",
-  # the plugins feature needs to set a feature on this transitively depended-on package, we never
-  # directly import it
-  "turbopack-ecmascript-plugins",
+    # we need to set features on these packages when building for WASM, but we don't directly use them
+    "getrandom",
+    "iana-time-zone",
+    # the plugins feature needs to set a feature on this transitively depended-on package, we never
+    # directly import it
+    "turbopack-ecmascript-plugins",
 ]
 
 [dependencies]
@@ -64,7 +64,7 @@ flate2 = { workspace = true }
 futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
-napi-derive = "2"
+napi-derive = { workspace = true }
 next-custom-transforms = { workspace = true }
 next-taskless = { workspace = true }
 rand = { workspace = true }
@@ -117,7 +117,7 @@ next-core = { workspace = true }
 mdxjs = { workspace = true, features = ["serializable"] }
 
 turbo-tasks-malloc = { workspace = true, default-features = false, features = [
-    "custom_allocator"
+    "custom_allocator",
 ] }
 
 turbopack-core = { workspace = true }
@@ -125,6 +125,7 @@ turbopack-ecmascript-hmr-protocol = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 turbopack-trace-server = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
+turbopack-node = { workspace = true, default-features = false, features = ["worker_pool"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = "0.60"
@@ -145,8 +146,7 @@ tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
 anyhow = { workspace = true }
-napi-build = "2"
+napi-build = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 vergen-gitcl = { workspace = true }
-

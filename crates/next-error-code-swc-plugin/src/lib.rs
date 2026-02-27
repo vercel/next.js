@@ -137,8 +137,11 @@ impl VisitMut for TransformVisitor {
                 Expr::Ident(ident) if is_error_class_name(ident.sym.as_str()) => {
                     if let Some(args) = &new_expr.args {
                         // AggregateError(errors, message) has the message as the second arg
-                        let message_arg_index =
-                            if ident.sym.as_str() == "AggregateError" { 1 } else { 0 };
+                        let message_arg_index = if ident.sym.as_str() == "AggregateError" {
+                            1
+                        } else {
+                            0
+                        };
                         if let Some(message_arg) = args.get(message_arg_index) {
                             new_error_expr = Some(new_expr.clone());
                             error_message = Some(stringify_new_error_arg(
@@ -154,8 +157,11 @@ impl VisitMut for TransformVisitor {
                 Callee::Expr(expr) => match &**expr {
                     Expr::Ident(ident) if is_error_class_name(ident.sym.as_str()) => {
                         // AggregateError(errors, message) has the message as the second arg
-                        let message_arg_index =
-                            if ident.sym.as_str() == "AggregateError" { 1 } else { 0 };
+                        let message_arg_index = if ident.sym.as_str() == "AggregateError" {
+                            1
+                        } else {
+                            0
+                        };
                         if let Some(message_arg) = call_expr.args.get(message_arg_index) {
                             error_message = Some(stringify_new_error_arg(
                                 &message_arg.expr,

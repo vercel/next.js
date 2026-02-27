@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
@@ -10,41 +11,55 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileSystemPath, VirtualFileSystem};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
-use turbopack_node::{AssetsForSourceMapping, pool::NodeJsPool};
+use turbopack_node::{
+    AssetsForSourceMapping,
+    evaluate::{EvaluatePool, Operation},
+};
 
 static REGISTRATION: Registration = register!();
 
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
 fn test_worker(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("tests/{name}"))
 }
 
 /// Create a pool backed by the given test worker JS file.
-async fn create_pool(worker: &str, concurrency: usize) -> Result<NodeJsPool> {
-    let vfs = VirtualFileSystem::new();
-    let fs: Vc<Box<dyn turbo_tasks_fs::FileSystem>> = Vc::upcast(vfs);
-    let fs = fs.to_resolved().await?;
-    let root_path = FileSystemPath {
-        fs,
-        path: RcStr::default(),
-    };
+async fn create_pool(worker: &str, concurrency: usize) -> Result<EvaluatePool> {
+    #[cfg(feature = "worker_pool")]
+    {
+        let _ = (worker, concurrency);
+        unreachable!("Tests only work with process_pool feature");
+    }
+    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+    {
+        use turbopack_node::process_pool::ChildProcessPool;
 
-    let assets: Vc<AssetsForSourceMapping> = Vc::cell(Default::default());
-    let assets = assets.to_resolved().await?;
+        let vfs = VirtualFileSystem::new();
+        let fs: Vc<Box<dyn turbo_tasks_fs::FileSystem>> = Vc::upcast(vfs);
+        let fs = fs.to_resolved().await?;
+        let root_path = FileSystemPath {
+            fs,
+            path: RcStr::default(),
+        };
 
-    Ok(NodeJsPool::new(
-        std::env::current_dir()?,
-        test_worker(worker),
-        FxHashMap::default(),
-        assets,
-        root_path.clone(),
-        root_path,
-        concurrency,
-        false,
-    ))
+        let assets: Vc<AssetsForSourceMapping> = Vc::cell(Default::default());
+        let assets = assets.to_resolved().await?;
+
+        Ok(ChildProcessPool::create(
+            std::env::current_dir()?,
+            test_worker(worker),
+            FxHashMap::default(),
+            assets,
+            root_path.clone(),
+            root_path,
+            concurrency,
+            false,
+        ))
+    }
 }
 
 /// Shorthand: create a pool with the echo worker.
-async fn create_test_pool(concurrency: usize) -> Result<NodeJsPool> {
+async fn create_test_pool(concurrency: usize) -> Result<EvaluatePool> {
     create_pool("pool_test_worker.js", concurrency).await
 }
 
@@ -57,9 +72,9 @@ struct Echo {
 }
 
 /// Helper: send a message and return the echo response.
-async fn send_recv(op: &mut turbopack_node::pool::NodeJsOperation, msg: serde_json::Value) -> Echo {
-    op.send(msg).await.unwrap();
-    op.recv().await.unwrap()
+async fn send_recv(op: &mut Box<dyn Operation>, msg: serde_json::Value) -> Echo {
+    op.send(serde_json::to_vec(&msg).unwrap()).await.unwrap();
+    serde_json::from_slice(&op.recv().await.unwrap()).unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -130,6 +145,7 @@ async fn test_pool_process_reuse() {
     .await;
 }
 
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_pool_pre_warm() {
     run_once_without_cache_check(&REGISTRATION, async {
@@ -243,6 +259,7 @@ async fn test_pool_concurrent_operations() {
     .await;
 }
 
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_pool_pre_warm_failure() {
     run_once_without_cache_check(&REGISTRATION, async {

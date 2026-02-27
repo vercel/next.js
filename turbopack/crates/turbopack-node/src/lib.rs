@@ -17,10 +17,15 @@ pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
-mod heap_queue;
-pub mod pool;
+mod format;
+mod pool_stats;
+// When both features are enabled, worker_pool takes priority
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+pub mod process_pool;
 pub mod source_map;
 pub mod transforms;
+#[cfg(feature = "worker_pool")]
+pub mod worker_pool;
 
 #[turbo_tasks::function]
 async fn emit(

@@ -40,7 +40,7 @@ turbopack-browser = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
-turbopack-node = { workspace = true }
+turbopack-node = { workspace = true, default-features = false }
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-wasm = { workspace = true }

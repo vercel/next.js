@@ -1,3 +1,6 @@
+import type { StackFrame } from './compiled/stacktrace-parser'
+import { parse as parseStackTrace } from './compiled/stacktrace-parser'
+
 // merged from next.js
 // https://github.com/vercel/next.js/blob/e657741b9908cf0044aaef959c0c4defb19ed6d8/packages/next/src/lib/is-error.ts
 // https://github.com/vercel/next.js/blob/e657741b9908cf0044aaef959c0c4defb19ed6d8/packages/next/src/shared/lib/is-plain-object.ts
@@ -49,4 +52,22 @@ function isPlainObject(value: any): boolean {
    * It was changed to the current implementation since it's resilient to serialization.
    */
   return prototype === null || prototype.hasOwnProperty('isPrototypeOf')
+}
+
+export type StructuredError = {
+  name: string
+  message: string
+  stack: StackFrame[]
+  cause: StructuredError | undefined
+}
+
+export function structuredError(e: Error | string): StructuredError {
+  e = getProperError(e)
+
+  return {
+    name: e.name,
+    message: e.message,
+    stack: typeof e.stack === 'string' ? parseStackTrace(e.stack) : [],
+    cause: e.cause ? structuredError(getProperError(e.cause)) : undefined,
+  }
 }

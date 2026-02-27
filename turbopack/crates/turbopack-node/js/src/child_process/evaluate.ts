@@ -1,6 +1,8 @@
 import { IPC } from './index'
 import type { Ipc as GenericIpc } from './index'
 
+import type { Channel as Ipc } from '../types'
+
 type IpcIncomingMessage =
   | {
       type: 'evaluate'
@@ -29,11 +31,6 @@ type IpcOutgoingMessage =
       data: any
     }
 
-export type Ipc<IM, RM> = {
-  sendInfo(message: IM): Promise<void>
-  sendRequest(message: RM): Promise<unknown>
-  sendError(error: Error): Promise<never>
-}
 const ipc = IPC as GenericIpc<IpcIncomingMessage, IpcOutgoingMessage>
 
 const queue: string[][] = []

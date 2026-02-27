@@ -21,7 +21,7 @@ use turbopack_core::{
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 pub use crate::source_map::trace::{StackFrame, TraceResult, trace_source_map};
-use crate::{AssetsForSourceMapping, pool::FormattingMode};
+use crate::{AssetsForSourceMapping, format::FormattingMode};
 
 pub mod trace;
 

@@ -69,7 +69,7 @@ turbopack-ecmascript-plugins = { workspace = true, features = [
 ] }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-env = { workspace = true }
-turbopack-node = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-trace-utils = { workspace = true }
