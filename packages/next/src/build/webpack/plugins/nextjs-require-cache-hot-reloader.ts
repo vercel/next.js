@@ -22,16 +22,14 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
     compiler.hooks.assetEmitted.tap(PLUGIN_NAME, (_file, { targetPath }) => {
       // Clear module context in this process
       clearModuleContext(targetPath)
-      deleteCache(targetPath)
+      deleteCache([targetPath])
     })
 
     compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async (compilation) => {
+      const allPaths: string[] = []
+
       for (const name of RUNTIME_NAMES) {
-        const runtimeChunkPath = path.join(
-          compilation.outputOptions.path!,
-          `${name}.js`
-        )
-        deleteCache(runtimeChunkPath)
+        allPaths.push(path.join(compilation.outputOptions.path!, `${name}.js`))
       }
 
       // we need to make sure to clear all server entries from cache
@@ -43,12 +41,10 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       })
 
       for (const page of entries) {
-        const outputPath = path.join(
-          compilation.outputOptions.path!,
-          page + '.js'
-        )
-        deleteCache(outputPath)
+        allPaths.push(path.join(compilation.outputOptions.path!, page + '.js'))
       }
+
+      deleteCache(allPaths)
     })
   }
 }
