@@ -1056,7 +1056,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     /// that receive no entries (e.g., the unused_collector when
                                     /// all keys are in the
                                     /// used set).
-                                    writer: Option<(u32, StreamingSstWriter)>,
+                                    writer: Option<(u32, StreamingSstWriter<LookupEntry>)>,
                                     flags: MetaEntryFlags,
                                     new_sst_files:
                                         Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
@@ -1075,7 +1075,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         &mut self,
                                         path: &Path,
                                         sequence_number: &AtomicU32,
-                                    ) -> Result<&mut StreamingSstWriter>
+                                    ) -> Result<&mut StreamingSstWriter<LookupEntry>>
                                     {
                                         if self.writer.is_none() {
                                             let seq =
@@ -1113,7 +1113,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     /// then checks if the file is full and closes it if so.
                                     fn add_entry(
                                         &mut self,
-                                        entry: &LookupEntry,
+                                        entry: LookupEntry,
                                         path: &Path,
                                         sequence_number: &AtomicU32,
                                         keys_written: &mut u64,
@@ -1161,7 +1161,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                 &mut unused_collector
                                             };
                                             collector.add_entry(
-                                                &current,
+                                                current,
                                                 path,
                                                 sequence_number,
                                                 &mut keys_written,
@@ -1183,7 +1183,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         &mut unused_collector
                                     };
                                     collector.add_entry(
-                                        &entry,
+                                        entry,
                                         path,
                                         sequence_number,
                                         &mut keys_written,

@@ -76,6 +76,21 @@ pub trait Entry {
     fn value(&self) -> EntryValue<'_>;
 }
 
+impl<E: Entry> Entry for &E {
+    fn key_hash(&self) -> u64 {
+        (*self).key_hash()
+    }
+    fn key_len(&self) -> usize {
+        (*self).key_len()
+    }
+    fn write_key_to(&self, buf: &mut Vec<u8>) {
+        (*self).write_key_to(buf)
+    }
+    fn value(&self) -> EntryValue<'_> {
+        (*self).value()
+    }
+}
+
 /// Reference to a value
 #[derive(Copy, Clone)]
 pub enum EntryValue<'l> {
@@ -228,9 +243,8 @@ enum ValueRef {
     Deleted,
 }
 
-struct PendingKeyEntry {
-    key_hash: u64,
-    key: Box<[u8]>,
+struct PendingKeyEntry<E> {
+    entry: E,
     value_ref: ValueRef,
 }
 
@@ -243,7 +257,7 @@ struct PendingKeyEntry {
 ///
 /// The SST reader is block-index-addressed (not file-position-addressed), so interleaving block
 /// types is fully compatible.
-pub struct StreamingSstWriter {
+pub struct StreamingSstWriter<E: Entry> {
     // File I/O. Wrapped in Option so close() can take ownership without a partial-move
     // compile error (partial moves are forbidden when the type has a Drop impl).
     file: Option<BufWriter<File>>,
@@ -259,7 +273,7 @@ pub struct StreamingSstWriter {
     /// small values followed by a large number of medium/inline values -- the queue can grow large
     /// because the front entries reference an unflushed small value block while the back keeps
     /// accepting resolved entries.
-    pending_keys: VecDeque<PendingKeyEntry>,
+    pending_keys: VecDeque<PendingKeyEntry<E>>,
 
     /// Index into `pending_keys` of the first entry that has a `PendingSmall` reference for the
     /// current (unflushed) small value block. All entries before this index are fully resolved
@@ -280,6 +294,9 @@ pub struct StreamingSstWriter {
 
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
+
+    // Reusable scratch buffer for serializing keys during key block flushing
+    key_scratch: Vec<u8>,
 
     // AMQF filter (built incrementally). Wrapped in Option for the same reason as `file`.
     filter: Option<qfilter::Filter>,
@@ -305,7 +322,7 @@ pub struct StreamingSstWriter {
     finished: bool,
 }
 
-impl StreamingSstWriter {
+impl<E: Entry> StreamingSstWriter<E> {
     /// Creates a new streaming SST writer.
     ///
     /// `max_entry_count` is used to size the AMQF filter. It must be an upper bound on the number
@@ -327,6 +344,7 @@ impl StreamingSstWriter {
             pending_small_values: Vec::new(),
             pending_small_value_count: 0,
             key_buffer: Vec::new(),
+            key_scratch: Vec::new(),
             filter: Some(filter),
             key_block_boundaries: Vec::new(),
             min_hash: u64::MAX,
@@ -371,8 +389,9 @@ impl StreamingSstWriter {
     }
 
     /// Adds an entry to the SST file. Entries must be added in (key-hash, key) order.
-    pub fn add<E: Entry>(&mut self, entry: &E) -> Result<()> {
+    pub fn add(&mut self, entry: E) -> Result<()> {
         let key_hash = entry.key_hash();
+        let key_len = entry.key_len();
 
         // Update metadata
         if self.entry_count == 0 {
@@ -387,15 +406,6 @@ impl StreamingSstWriter {
             .unwrap()
             .insert_fingerprint(false, key_hash)
             .expect("AMQF insert failed");
-
-        // Copy key bytes
-        // TODO: Explore deferring key copies until key block writing time.
-        // This would require changing the Entry API to support borrowing keys or
-        // storing entry references instead of copying key bytes eagerly.
-        let mut key_buf = Vec::with_capacity(entry.key_len());
-        entry.write_key_to(&mut key_buf);
-        let key_len = key_buf.len();
-        let key: Box<[u8]> = key_buf.into_boxed_slice();
 
         // Track key size for fullness and block capacity
         self.total_key_size += key_len;
@@ -451,7 +461,7 @@ impl StreamingSstWriter {
                     size,
                 };
 
-                self.push_pending_key_entry(key_hash, key, value_ref);
+                self.push_pending_key_entry(entry, value_ref);
                 self.try_advance_resolved_boundary();
 
                 // Eagerly flush the small block AFTER pushing the new entry. This resolves
@@ -478,18 +488,15 @@ impl StreamingSstWriter {
             EntryValue::Deleted => ValueRef::Deleted,
         };
 
-        self.push_pending_key_entry(key_hash, key, value_ref);
+        self.push_pending_key_entry(entry, value_ref);
         self.try_advance_resolved_boundary();
         self.try_flush_key_blocks()
     }
 
     /// Appends a new entry to the pending-keys queue.
-    fn push_pending_key_entry(&mut self, key_hash: u64, key: Box<[u8]>, value_ref: ValueRef) {
-        self.pending_keys.push_back(PendingKeyEntry {
-            key_hash,
-            key,
-            value_ref,
-        });
+    fn push_pending_key_entry(&mut self, entry: E, value_ref: ValueRef) {
+        self.pending_keys
+            .push_back(PendingKeyEntry { entry, value_ref });
     }
 
     /// Advances `first_pending_small_index` past the just-pushed entry if that entry is
@@ -595,8 +602,8 @@ impl StreamingSstWriter {
 
         for i in 0..resolved_end {
             let entry = &self.pending_keys[i];
-            let key_len = entry.key.len();
-            let key_hash = entry.key_hash;
+            let key_len = entry.entry.key_len();
+            let key_hash = entry.entry.key_hash();
 
             if should_flush_key_block(block_size, block_entry_count, key_len, last_hash, key_hash) {
                 self.flush_key_block(block_start, i, block_max_key_len)?;
@@ -620,7 +627,7 @@ impl StreamingSstWriter {
             let drained_key_size: usize = self
                 .pending_keys
                 .range(..last_flushed_end)
-                .map(|e| e.key.len())
+                .map(|e| e.entry.key_len())
                 .sum();
             self.pending_key_total_size -= drained_key_size;
             // VecDeque::drain from the front is O(1) -- it just adjusts the head pointer.
@@ -640,16 +647,19 @@ impl StreamingSstWriter {
         let mut builder = KeyBlockBuilder::new(&mut self.key_buffer, entry_count as u32, has_hash);
 
         for i in start..end {
-            let entry = &self.pending_keys[i];
-            match entry.value_ref {
+            let pending = &self.pending_keys[i];
+            let key_hash = pending.entry.key_hash();
+            self.key_scratch.clear();
+            pending.entry.write_key_to(&mut self.key_scratch);
+            match pending.value_ref {
                 ValueRef::Small {
                     block_index,
                     offset,
                     size,
                 } => {
                     builder.put_small(
-                        entry.key_hash,
-                        &entry.key,
+                        key_hash,
+                        &self.key_scratch,
                         block_index,
                         offset,
                         size,
@@ -657,16 +667,21 @@ impl StreamingSstWriter {
                     );
                 }
                 ValueRef::Medium { block_index } => {
-                    builder.put_medium(entry.key_hash, &entry.key, block_index, has_hash);
+                    builder.put_medium(key_hash, &self.key_scratch, block_index, has_hash);
                 }
                 ValueRef::Inline { data, len } => {
-                    builder.put_inline(entry.key_hash, &entry.key, &data[..len as usize], has_hash);
+                    builder.put_inline(
+                        key_hash,
+                        &self.key_scratch,
+                        &data[..len as usize],
+                        has_hash,
+                    );
                 }
                 ValueRef::Blob { blob_id } => {
-                    builder.put_blob(entry.key_hash, &entry.key, blob_id, has_hash);
+                    builder.put_blob(key_hash, &self.key_scratch, blob_id, has_hash);
                 }
                 ValueRef::Deleted => {
-                    builder.delete(entry.key_hash, &entry.key, has_hash);
+                    builder.delete(key_hash, &self.key_scratch, has_hash);
                 }
                 ValueRef::PendingSmall { .. } => {
                     unreachable!("PendingSmall should have been resolved");
@@ -678,7 +693,7 @@ impl StreamingSstWriter {
         builder.finish();
 
         // Record boundary
-        let first_hash = self.pending_keys[start].key_hash;
+        let first_hash = self.pending_keys[start].entry.key_hash();
         let block_index = write_block_to_file(
             self.file.as_mut().unwrap(),
             &mut self.compress_buffer,
@@ -780,8 +795,8 @@ impl StreamingSstWriter {
 
         for i in 0..total {
             let entry = &self.pending_keys[i];
-            let key_len = entry.key.len();
-            let key_hash = entry.key_hash;
+            let key_len = entry.entry.key_len();
+            let key_hash = entry.entry.key_hash();
             let block_entry_count = i - block_start;
 
             if should_flush_key_block(block_size, block_entry_count, key_len, last_hash, key_hash) {
@@ -808,7 +823,7 @@ impl StreamingSstWriter {
 }
 
 #[cfg(debug_assertions)]
-impl Drop for StreamingSstWriter {
+impl<E: Entry> Drop for StreamingSstWriter<E> {
     fn drop(&mut self) {
         // Skip assertion during panic unwinding to avoid a double-panic (which would abort).
         if !std::thread::panicking() {
@@ -1370,7 +1385,7 @@ mod tests {
         for i in 0..max_entries {
             let key = format!("k{i:06}");
             let entry = TestEntry::inline(key.as_bytes(), &[0; 4]);
-            writer.add(&entry).unwrap();
+            writer.add(entry).unwrap();
         }
 
         assert_eq!(writer.entry_count, max_entries as u64);
@@ -1396,7 +1411,7 @@ mod tests {
         for i in 0..10 {
             let key = format!("k{i:06}");
             let entry = TestEntry::small(key.as_bytes(), &value);
-            writer.add(&entry).unwrap();
+            writer.add(entry).unwrap();
         }
 
         let total = writer.total_key_size + writer.total_value_size;
@@ -1508,7 +1523,8 @@ mod tests {
     fn close_empty_writer_panics() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("empty.sst");
-        let writer = StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 0).unwrap();
+        let writer =
+            StreamingSstWriter::<TestEntry>::new(&sst_path, MetaEntryFlags::default(), 0).unwrap();
         writer.close().unwrap();
     }
 
