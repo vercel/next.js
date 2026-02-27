@@ -10,16 +10,18 @@ use turbo_tasks_testing::{Registration, register, run_once};
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn random_change() {
+async fn test_random_change() {
     run_once(&REGISTRATION, || async {
-        let state = make_state_operation().resolve_strongly_consistent().await?;
+        let state_op = make_state_operation();
+        let state_vc = state_op.resolve_strongly_consistent().await?;
+        let state = state_op.read_strongly_consistent().await?;
 
         let mut rng = StdRng::from_seed(Default::default());
-        let func_op = func_operation(state);
-        let func2_op = func2_operation(state);
+        let func_op = func_operation(state_vc);
+        let func2_op = func2_operation(state_vc);
         for _i in 0..10 {
             let value = rng.random_range(0..100);
-            state.await?.state.set(value);
+            state.state.set(value);
 
             let result = func_op.read_strongly_consistent().await?;
             assert_eq!(result.value, value);

@@ -9676,6 +9676,7 @@ dependencies = [
  "serde",
  "tokio",
  "trybuild",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
  "turbo-tasks-testing",

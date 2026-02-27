@@ -9,7 +9,7 @@ use tokio::{
 use turbo_tasks::{
     State, TransientInstance, Vc, prevent_gc,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    turbo_tasks,
+    turbo_tasks, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
 
@@ -87,6 +87,7 @@ async fn spawns_detached(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`
         prevent_gc();
         // timeout: prevent the test from hanging, and fail instead if this is broken

@@ -9,28 +9,38 @@ use turbo_tasks_testing::{Registration, register, run_once};
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn basic() {
-    run_once(&REGISTRATION, || async {
-        let output1 = func_without_args();
-        assert_eq!(output1.await?.value, 123);
-
-        let input = Value { value: 42 }.cell();
-        let output2 = func_transient(input);
-        assert_eq!(output2.await?.value, 42);
-
-        let output3 = func_persistent(output1);
-        assert_eq!(output3.await?.value, 123);
-
-        let output4 = nested_func_without_args_waiting();
-        assert_eq!(output4.await?.value, 123);
-
-        let output5 = nested_func_without_args_non_waiting();
-        assert_eq!(output5.await?.value, 123);
-
-        anyhow::Ok(())
+async fn test_basic() {
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || {
+        // pass a nonce to re-run the test body on every turbo-tasks restart
+        nonce += 1;
+        async move { test_basic_operation(nonce).read_strongly_consistent().await }
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_basic_operation(nonce: u32) -> Result<Vc<()>> {
+    let _ = nonce; // ensure the nonce is part of our cache key
+
+    let output1 = func_without_args();
+    assert_eq!(output1.await?.value, 123);
+
+    let input = Value { value: 42 }.cell();
+    let output2 = func_transient(input);
+    assert_eq!(output2.await?.value, 42);
+
+    let output3 = func_persistent(output1);
+    assert_eq!(output3.await?.value, 123);
+
+    let output4 = nested_func_without_args_waiting();
+    assert_eq!(output4.await?.value, 123);
+
+    let output5 = nested_func_without_args_non_waiting();
+    assert_eq!(output5.await?.value, 123);
+
+    Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::value]

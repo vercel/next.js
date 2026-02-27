@@ -477,13 +477,13 @@ pub mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_leaves_test().await })
+        tt.run_once(async { run_leaves_test_operation().read_strongly_consistent().await })
             .await
             .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_leaves_test() -> Result<()> {
+    #[turbo_tasks::function(operation)]
+    pub async fn run_leaves_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
@@ -610,13 +610,17 @@ pub mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_rule_condition_tree_test().await })
-            .await
-            .unwrap();
+        tt.run_once(async {
+            run_rule_condition_tree_test_operation()
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+        .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_rule_condition_tree_test() -> Result<()> {
+    #[turbo_tasks::function(operation)]
+    pub async fn run_rule_condition_tree_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(

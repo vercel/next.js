@@ -6,13 +6,13 @@ use std::time::Duration;
 
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit};
+use turbo_tasks::{CollectiblesSource, ReadRef, ResolvedVc, State, ValueToString, Vc, emit};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn dirty_in_progress() {
+async fn test_dirty_in_progress() {
     run_once(&REGISTRATION, || async {
         let cases = [
             (1, 3, 2, 2, ""),
@@ -24,24 +24,23 @@ async fn dirty_in_progress() {
         ];
         for (a, b, c, value, collectible) in cases {
             println!("{a} -> {b} -> {c} = {value} {collectible}");
-            let input = ChangingInput {
+            let input_val = ReadRef::new_owned(ChangingInput {
                 state: State::new(a),
-            }
-            .cell();
-            let input_val = input.await?;
-            let output = compute(input);
-            output.await?;
+            });
+            let input_vc = ReadRef::resolved_cell(input_val.clone());
+            let output_op = compute_operation(input_vc);
+            output_op.read_strongly_consistent().await?;
             println!("update to {b}");
             input_val.state.set(b);
             tokio::time::sleep(Duration::from_millis(50)).await;
             println!("update to {c}");
             input_val.state.set(c);
-            let read = output.strongly_consistent().await?;
+            let read = output_op.read_strongly_consistent().await?;
             assert_eq!(read.value, value);
             assert_eq!(read.collectible, collectible);
             println!("\n");
         }
-        anyhow::Ok(())
+        Ok(())
     })
     .await
     .unwrap()
@@ -89,8 +88,8 @@ async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     }
 }
 
-#[turbo_tasks::function]
-async fn compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<Output>> {
+#[turbo_tasks::function(operation)]
+async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<Output>> {
     println!("start compute");
     let operation = inner_compute(input);
     let value = *operation.connect().await?;

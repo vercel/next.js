@@ -35,7 +35,7 @@ pub async fn node_file_trace(
     max_depth: Option<usize>,
 ) -> Result<()> {
     let op = node_file_trace_operation(project_root.clone(), input.clone(), graph, max_depth);
-    let result = op.resolve_strongly_consistent().await?;
+    let result = op.read_strongly_consistent().await?;
 
     if show_issues {
         let issue_reporter: Vc<Box<dyn IssueReporter>> =
@@ -51,7 +51,7 @@ pub async fn node_file_trace(
     }
 
     println!("FILELIST:");
-    for a in result.await? {
+    for a in result {
         println!("{a}");
     }
 

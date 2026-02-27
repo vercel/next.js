@@ -19,7 +19,7 @@ async fn multiply(value: OperationVc<i32>, coefficient: ResolvedVc<i32>) -> Resu
     Ok(Vc::cell((*value.connect().await?) * (*coefficient.await?)))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 fn use_operations() -> Vc<i32> {
     let twenty_one: OperationVc<i32> = bare_op_fn();
     let forty_two: OperationVc<i32> = multiply(twenty_one, ResolvedVc::cell(2));
@@ -29,7 +29,7 @@ fn use_operations() -> Vc<i32> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_use_operations() -> Result<()> {
     run(&REGISTRATION, || async {
-        assert_eq!(*use_operations().await?, 42);
+        assert_eq!(*use_operations().read_strongly_consistent().await?, 42);
         Ok(())
     })
     .await
