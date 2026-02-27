@@ -394,6 +394,12 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Show the Instant Navigation Mode toggle in the dev tools indicator.
+   * When enabled, a menu item lets you lock navigations to only show
+   * the cached/prefetched state.
+   */
+  instantNavigationDevToolsToggle?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -945,6 +951,12 @@ export interface ExperimentalConfig {
    * @default false
    */
   runtimeServerDeploymentId?: boolean
+
+  /**
+   * A different token to use for static assets (as opposed to config.deploymentId) which
+   * doesn't have to be unique per deployment.
+   */
+  immutableAssetToken?: string
 
   /**
    * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
@@ -1686,7 +1698,7 @@ export const defaultConfig = Object.freeze({
       static: 300,
     },
     allowDevelopmentBuild: undefined,
-    reactDebugChannel: false,
+    reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
@@ -1805,6 +1817,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'exposeTestingApiInProductionBuild'
+    | 'immutableAssetToken'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1869,6 +1882,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        immutableAssetToken: ex.immutableAssetToken,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

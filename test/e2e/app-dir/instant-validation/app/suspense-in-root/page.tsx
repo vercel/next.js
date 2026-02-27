@@ -47,6 +47,18 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-generate-metadata-static-page" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-layout-generate-metadata-static-page" />
+        </li>
       </ul>
 
       <h2>Static</h2>
@@ -76,7 +88,13 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic" />
         </li>
         <li>
-          <DebugLinks href="/suspense-in-root/static/invalid-only-loading-around-dynamic" />
+          <DebugLinks href="/suspense-in-root/static/valid-only-loading-around-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-only-loading-around-dynamic-higher" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-dynamic-layout-with-loading" />
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/missing-suspense-around-runtime" />
@@ -113,6 +131,31 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation" />
+        </li>
+      </ul>
+
+      <h2>Head</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-dynamic-metadata-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-runtime-metadata-in-static" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-runtime-viewport-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-dynamic-viewport-in-blocking" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-dynamic-viewport-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-runtime-viewport-in-static" />
         </li>
       </ul>
 

@@ -69,16 +69,18 @@ export interface RequestStore extends CommonWorkUnitStore {
    */
   renderResumeDataCache: RenderResumeDataCache | null
 
-  // DEV-only
-  usedDynamic?: boolean
-  devFallbackParams?: OpaqueFallbackRouteParams | null
+  stale?: number
   stagedRendering?: StagedRenderingController | null
-  asyncApiPromises?: DevAsyncApiPromises
+  asyncApiPromises?: AsyncApiPromises
   cacheSignal?: CacheSignal | null
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
+  fallbackParams?: OpaqueFallbackRouteParams | null
+
+  // DEV-only
+  usedDynamic?: boolean
 }
 
-type DevAsyncApiPromises = {
+export type AsyncApiPromises = {
   cookies: Promise<ReadonlyRequestCookies>
   earlyCookies: Promise<ReadonlyRequestCookies>
 
@@ -537,6 +539,27 @@ export function getDraftModeProviderForCacheScope(
   }
 
   return undefined
+}
+
+export function getStagedRenderingController(
+  workUnitStore: WorkUnitStore
+): StagedRenderingController | null {
+  switch (workUnitStore.type) {
+    case 'request':
+    case 'prerender-runtime':
+      return workUnitStore.stagedRendering ?? null
+    case 'prerender':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
 }
 
 export function getCacheSignal(

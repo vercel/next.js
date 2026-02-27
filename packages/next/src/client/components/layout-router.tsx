@@ -694,6 +694,17 @@ export default function OuterLayoutRouter({
     use(unresolvedThenable) as never
   }
 
+  let maybeValidationBoundaryId: string | null = null
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    process.env.__NEXT_DEV_SERVER
+  ) {
+    const { InstantValidationBoundaryContext } =
+      require('../../server/app-render/instant-validation/boundary') as typeof import('../../server/app-render/instant-validation/boundary')
+    maybeValidationBoundaryId = use(InstantValidationBoundaryContext)
+  }
+
   const activeSegment = activeTree[0]
   const activeCacheNode = maybeParentSlots![parallelRouterKey] ?? null
   const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
@@ -779,54 +790,68 @@ export default function OuterLayoutRouter({
     const isVirtual = debugName === undefined
     const debugNameToDisplay = isVirtual ? undefined : debugNameContext
 
-    let child = (
-      <TemplateContext.Provider
-        key={stateKey}
-        value={
-          <ScrollAndMaybeFocusHandler segmentPath={segmentPath}>
-            <ErrorBoundary
-              errorComponent={error}
-              errorStyles={errorStyles}
-              errorScripts={errorScripts}
+    let templateValue = (
+      <ScrollAndMaybeFocusHandler segmentPath={segmentPath}>
+        <ErrorBoundary
+          errorComponent={error}
+          errorStyles={errorStyles}
+          errorScripts={errorScripts}
+        >
+          <LoadingBoundary
+            name={debugNameToDisplay}
+            // TODO: The loading module data for a segment is stored on the
+            // parent, then applied to each of that parent segment's
+            // parallel route slots. In the simple case where there's only
+            // one parallel route (the `children` slot), this is no
+            // different from if the loading module data were stored on the
+            // child directly. But I'm not sure this actually makes sense
+            // when there are multiple parallel routes. It's not a huge
+            // issue because you always have the option to define a narrower
+            // loading boundary for a particular slot. But this sort of
+            // smells like an implementation accident to me.
+            loading={parentLoadingData}
+          >
+            <HTTPAccessFallbackBoundary
+              notFound={notFound}
+              forbidden={forbidden}
+              unauthorized={unauthorized}
             >
-              <LoadingBoundary
-                name={debugNameToDisplay}
-                // TODO: The loading module data for a segment is stored on the
-                // parent, then applied to each of that parent segment's
-                // parallel route slots. In the simple case where there's only
-                // one parallel route (the `children` slot), this is no
-                // different from if the loading module data were stored on the
-                // child directly. But I'm not sure this actually makes sense
-                // when there are multiple parallel routes. It's not a huge
-                // issue because you always have the option to define a narrower
-                // loading boundary for a particular slot. But this sort of
-                // smells like an implementation accident to me.
-                loading={parentLoadingData}
-              >
-                <HTTPAccessFallbackBoundary
-                  notFound={notFound}
-                  forbidden={forbidden}
-                  unauthorized={unauthorized}
-                >
-                  <RedirectBoundary>
-                    <InnerLayoutRouter
-                      url={url}
-                      tree={tree}
-                      params={params}
-                      cacheNode={cacheNode}
-                      segmentPath={segmentPath}
-                      debugNameContext={childDebugNameContext}
-                      isActive={isActive && stateKey === activeStateKey}
-                    />
-                    {segmentBoundaryTriggerNode}
-                  </RedirectBoundary>
-                </HTTPAccessFallbackBoundary>
-              </LoadingBoundary>
-            </ErrorBoundary>
-            {segmentViewStateNode}
-          </ScrollAndMaybeFocusHandler>
-        }
-      >
+              <RedirectBoundary>
+                <InnerLayoutRouter
+                  url={url}
+                  tree={tree}
+                  params={params}
+                  cacheNode={cacheNode}
+                  segmentPath={segmentPath}
+                  debugNameContext={childDebugNameContext}
+                  isActive={isActive && stateKey === activeStateKey}
+                />
+                {segmentBoundaryTriggerNode}
+              </RedirectBoundary>
+            </HTTPAccessFallbackBoundary>
+          </LoadingBoundary>
+        </ErrorBoundary>
+        {segmentViewStateNode}
+      </ScrollAndMaybeFocusHandler>
+    )
+
+    if (
+      typeof window === 'undefined' &&
+      process.env.__NEXT_CACHE_COMPONENTS &&
+      process.env.__NEXT_DEV_SERVER &&
+      typeof maybeValidationBoundaryId === 'string'
+    ) {
+      const { RenderValidationBoundaryAtThisLevel } =
+        require('../../server/app-render/instant-validation/boundary') as typeof import('../../server/app-render/instant-validation/boundary')
+      templateValue = (
+        <RenderValidationBoundaryAtThisLevel id={maybeValidationBoundaryId}>
+          {templateValue}
+        </RenderValidationBoundaryAtThisLevel>
+      )
+    }
+
+    let child = (
+      <TemplateContext.Provider key={stateKey} value={templateValue}>
         {templateStyles}
         {templateScripts}
         {template}
