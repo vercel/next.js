@@ -8,6 +8,7 @@ describe('app dir - workers', () => {
     env: {
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
     },
+    disableAutoSkewProtection: true,
   })
 
   function beforePageLoad(page: Page) {
@@ -17,7 +18,7 @@ describe('app dir - workers', () => {
         const url = request.url()
         if (url.includes('/_next/')) {
           let parsed = new URL(url, next.url)
-          expect(parsed.searchParams.get('dpl')).toBe(next.deploymentId)
+          expect(parsed.searchParams.get('dpl')).toBe(next.assetToken)
         }
       })
     }

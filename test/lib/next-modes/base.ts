@@ -54,6 +54,7 @@ export interface NextInstanceOpts {
   serverReadyPattern?: RegExp
   patchFileDelay?: number
   startServerTimeout?: number
+  disableAutoSkewProtection?: boolean
 }
 
 /**
@@ -284,7 +285,7 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID)'`,
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nIMMUTABLE_ASSET" + "_TOKEN: " + process.env.VERCEL_IMMUTABLE_ASSET_TOKEN)'`,
                       }
                     : {}),
                   ...pkgScripts,
@@ -641,8 +642,22 @@ export class NextInstance {
     return undefined
   }
 
-  public get deploymentIdQuery(): string {
-    return this.deploymentId ? `?dpl=${this.deploymentId}` : ''
+  public getDeploymentIdQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.deploymentId ? `${prefix}dpl=${this.deploymentId}` : ''
+  }
+
+  public get immutableAssetToken(): string | undefined {
+    return undefined
+  }
+
+  public get assetToken(): string | undefined {
+    return this.immutableAssetToken || this.deploymentId
+  }
+
+  public getAssetQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.assetToken ? `${prefix}dpl=${this.assetToken}` : ''
   }
 
   public get cliOutput(): string {

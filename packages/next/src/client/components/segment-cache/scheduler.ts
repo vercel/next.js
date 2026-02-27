@@ -727,7 +727,7 @@ function pingRootRouteTree(
         // continue to work until you opt into `instant`.
         fetchStrategy = FetchStrategy.PPR
       } else if (task.fetchStrategy === FetchStrategy.PPR) {
-        fetchStrategy = route.isPPREnabled
+        fetchStrategy = route.supportsPerSegmentPrefetching
           ? FetchStrategy.PPR
           : FetchStrategy.LoadingBoundary
       } else {

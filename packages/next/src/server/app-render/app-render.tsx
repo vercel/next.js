@@ -132,6 +132,7 @@ import {
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
+import { extractNextErrorCode } from '../../lib/error-telemetry-utils'
 import {
   accessedDynamicData,
   createRenderInBrowserAbortSignal,
@@ -266,6 +267,7 @@ export type GenerateFlight = typeof generateDynamicFlightRenderResult
 export type AppSharedContext = {
   buildId: string
   deploymentId: string
+  clientAssetToken: string
 }
 
 export type AppRenderContext = {
@@ -1645,7 +1647,11 @@ async function getRSCPayload(
     ],
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
-    S: workStore.isStaticGeneration,
+    // Tells the client whether this route supports per-segment prefetching.
+    // With Cache Components, all routes support it. Without it, only fully
+    // static pages do, because their per-segment prefetch responses are
+    // generated during static generation (build or ISR).
+    S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
     h: getMetadataVaryParamsThenable(),
   })
 }
@@ -1771,7 +1777,11 @@ async function getErrorRSCPayload(
       ] as FlightDataPath,
     ],
     G: [GlobalError, globalErrorStyles],
-    S: workStore.isStaticGeneration,
+    // Tells the client whether this route supports per-segment prefetching.
+    // With Cache Components, all routes support it. Without it, only fully
+    // static pages do, because their per-segment prefetch responses are
+    // generated during static generation (build or ISR).
+    S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
     h: getMetadataVaryParamsThenable(),
   } satisfies InitialRSCPayload)
 }
@@ -1815,7 +1825,7 @@ function App<T>({
     initialCanonicalUrlParts: response.c,
     initialRenderedSearch: response.q,
     initialCouldBeIntercepted: response.i,
-    initialPrerendered: response.S,
+    initialSupportsPerSegmentPrefetching: response.S,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -1880,7 +1890,7 @@ function ErrorApp<T>({
     initialCanonicalUrlParts: response.c,
     initialRenderedSearch: response.q,
     initialCouldBeIntercepted: response.i,
-    initialPrerendered: response.S,
+    initialSupportsPerSegmentPrefetching: response.S,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -3711,11 +3721,23 @@ async function logMessagesAndSendErrorsToBrowser(
       )
     }
 
+    // Build a Map of error → error code for errors that have one.
+    // React doesn't revive __NEXT_ERROR_CODE during RSC deserialization, so we
+    // send it as a side-channel Map. RSC preserves object identity, so the
+    // deserialized Map keys will reference the same Error objects.
+    const errorCodes = new Map<Error, string>()
+    for (const err of errors) {
+      const code = extractNextErrorCode(err)
+      if (code !== undefined) {
+        errorCodes.set(err, code)
+      }
+    }
+
     const { clientModules } = getClientReferenceManifest()
 
     const errorsFlightStream = renderToFlightStream(
       ctx.componentMod,
-      errors,
+      { errors, errorCodes },
       clientModules,
       { filterStackFrame }
     )

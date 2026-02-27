@@ -953,6 +953,12 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
+   * A different token to use for static assets (as opposed to config.deploymentId) which
+   * doesn't have to be unique per deployment.
+   */
+  immutableAssetToken?: string
+
+  /**
    * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
    * This allows conditional requests to the server, which can help with development
    * workflows that benefit from caching validation.
@@ -1811,6 +1817,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'exposeTestingApiInProductionBuild'
+    | 'immutableAssetToken'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1875,6 +1882,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        immutableAssetToken: ex.immutableAssetToken,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
