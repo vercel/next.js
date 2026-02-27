@@ -1854,9 +1854,9 @@
   },
   "test/e2e/app-dir/cache-components-allow-otel-spans/cache-components-allow-otel-spans.test.ts": {
     "passed": [
-      "hello-world should allow creating Spans during prerendering at runtime - inside a Cache Components",
-      "hello-world should allow creating Spans during prerendering during the build - inside a Cache Components",
-      "hello-world should allow creating Spans during resuming a fallback - inside a Cache Component"
+      "cache-components OTEL spans should allow creating Spans during prerendering at runtime - inside a Cache Components",
+      "cache-components OTEL spans should allow creating Spans during prerendering during the build - inside a Cache Components",
+      "cache-components OTEL spans should allow creating Spans during resuming a fallback - inside a Cache Component"
     ],
     "failed": [],
     "pending": [],
@@ -3051,7 +3051,9 @@
       "app-dir - errors error component should trigger error component when an error happens during server components rendering",
       "app-dir - errors error component should trigger error component when null is thrown during server components rendering",
       "app-dir - errors error component should trigger error component when undefined is thrown during server components rendering",
-      "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified"
+      "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified",
+      "app-dir - errors error component unstable_retry should recover Client Component error after unstable_retry",
+      "app-dir - errors error component unstable_retry should recover Server Component error after unstable_retry"
     ],
     "failed": [],
     "pending": [],
@@ -19715,8 +19717,7 @@
     "runtimeError": false
   },
   "test/integration/node-fetch-keep-alive/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "node-fetch-keep-alive dev should send keep-alive for getServerSideProps",
       "node-fetch-keep-alive dev should send keep-alive for getStaticPaths",
       "node-fetch-keep-alive dev should send keep-alive for getStaticProps",
@@ -19726,9 +19727,10 @@
       "node-fetch-keep-alive production mode should send keep-alive for getStaticProps",
       "node-fetch-keep-alive production mode should send keep-alive for json API"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/integration/non-next-dist-exclude/test/index.test.ts": {
     "passed": [
