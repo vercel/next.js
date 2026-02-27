@@ -509,6 +509,21 @@ impl NodeJsPoolProcess {
     }
 }
 
+/// A snapshot of pool statistics, useful for testing and diagnostics.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PoolStatsSnapshot {
+    /// Total number of processes ever successfully booted.
+    pub bootup_count: u32,
+    /// Number of completed operations that reused an idle process.
+    pub warm_operation_count: u32,
+    /// Number of completed operations that spawned a fresh process.
+    pub cold_operation_count: u32,
+    /// Current number of tracked workers (booting + idle + in-use).
+    pub workers: u32,
+    /// Current number of workers still booting.
+    pub booting_workers: u32,
+}
+
 #[derive(Default)]
 struct NodeJsPoolStats {
     pub total_bootup_time: Duration,
@@ -676,6 +691,40 @@ type IdleProcessQueues = Mutex<Vec<Arc<HeapQueue<NodeJsPoolProcess>>>>;
 /// This is used to scale down processes globally.
 static ACTIVE_POOLS: Lazy<IdleProcessQueues> = Lazy::new(Default::default);
 
+/// Arguments needed to spawn a new Node.js process. Extracted so that
+/// `pre_warm` can clone them once instead of cloning each pool field
+/// individually.
+struct ProcessArgs {
+    cwd: PathBuf,
+    env: FxHashMap<RcStr, RcStr>,
+    entrypoint: PathBuf,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
+    shared_stdout: SharedOutputSet,
+    shared_stderr: SharedOutputSet,
+    debug: bool,
+}
+
+impl ProcessArgs {
+    async fn create_process(self) -> Result<(NodeJsPoolProcess, Duration)> {
+        let start = Instant::now();
+        let process = NodeJsPoolProcess::new(
+            &self.cwd,
+            &self.env,
+            &self.entrypoint,
+            self.assets_for_source_mapping,
+            self.assets_root,
+            self.project_dir,
+            self.shared_stdout,
+            self.shared_stderr,
+            self.debug,
+        )
+        .await?;
+        Ok((process, start.elapsed()))
+    }
+}
+
 /// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
 /// [env].
 ///
@@ -714,7 +763,7 @@ pub struct NodeJsPool {
 impl NodeJsPool {
     /// * debug: Whether to automatically enable Node's `--inspect-brk` when spawning it. Note:
     ///   automatically overrides concurrency to 1.
-    pub(super) fn new(
+    pub fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: FxHashMap<RcStr, RcStr>,
@@ -779,22 +828,25 @@ impl NodeJsPool {
         }
     }
 
+    fn process_args(&self) -> ProcessArgs {
+        ProcessArgs {
+            cwd: self.cwd.clone(),
+            env: self.env.clone(),
+            entrypoint: self.entrypoint.clone(),
+            assets_for_source_mapping: self.assets_for_source_mapping,
+            assets_root: self.assets_root.clone(),
+            project_dir: self.project_dir.clone(),
+            shared_stdout: self.shared_stdout.clone(),
+            shared_stderr: self.shared_stderr.clone(),
+            debug: self.debug,
+        }
+    }
+
     async fn create_process(&self) -> Result<(NodeJsPoolProcess, Duration), anyhow::Error> {
-        let start = Instant::now();
-        let process = NodeJsPoolProcess::new(
-            self.cwd.as_path(),
-            &self.env,
-            self.entrypoint.as_path(),
-            self.assets_for_source_mapping,
-            self.assets_root.clone(),
-            self.project_dir.clone(),
-            self.shared_stdout.clone(),
-            self.shared_stderr.clone(),
-            self.debug,
-        )
-        .await
-        .context("creating new process")?;
-        Ok((process, start.elapsed()))
+        self.process_args()
+            .create_process()
+            .await
+            .context("creating new process")
     }
 
     pub async fn operation(&self) -> Result<NodeJsOperation> {
@@ -811,6 +863,42 @@ impl NodeJsPool {
         })
     }
 
+    /// Eagerly spawn a Node.js process so it's ready when the first
+    /// `operation()` is called. The process goes into the idle queue.
+    /// If a node request comes in while this is still initializing, it waits
+    /// on the bootup semaphore and will resume when the process is ready.
+    pub fn pre_warm(&self) {
+        let args = self.process_args();
+        let bootup_semaphore = self.bootup_semaphore.clone();
+        let idle_processes = self.idle_processes.clone();
+        let stats = self.stats.clone();
+
+        tokio::spawn(async move {
+            let Ok(bootup_permit) = bootup_semaphore.clone().acquire_owned().await else {
+                return;
+            };
+            {
+                stats.lock().add_booting_worker();
+            }
+            match args.create_process().await {
+                Ok((process, bootup_time)) => {
+                    {
+                        let mut s = stats.lock();
+                        s.add_bootup_time(bootup_time);
+                        s.finished_booting_worker();
+                    }
+                    drop(bootup_permit);
+                    idle_processes.push(process, &ACTIVE_POOLS);
+                }
+                Err(_e) => {
+                    let mut s = stats.lock();
+                    s.finished_booting_worker();
+                    s.remove_worker();
+                }
+            }
+        });
+    }
+
     pub fn scale_down() {
         let pools = ACTIVE_POOLS.lock().clone();
         for pool in pools {
@@ -822,6 +910,18 @@ impl NodeJsPool {
         let pools = ACTIVE_POOLS.lock().clone();
         for pool in pools {
             pool.reduce_to_zero(&ACTIVE_POOLS);
+        }
+    }
+
+    /// Returns a snapshot of the pool's internal statistics.
+    pub fn stats(&self) -> PoolStatsSnapshot {
+        let s = self.stats.lock();
+        PoolStatsSnapshot {
+            bootup_count: s.bootup_count,
+            warm_operation_count: s.warm_process_count,
+            cold_operation_count: s.cold_process_count,
+            workers: s.workers,
+            booting_workers: s.booting_workers,
         }
     }
 }

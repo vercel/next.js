@@ -200,6 +200,7 @@ pub async fn get_evaluate_pool(
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
+    pool.pre_warm();
     additional_invalidation.await?;
     Ok(pool.cell())
 }

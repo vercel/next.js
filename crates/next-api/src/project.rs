@@ -291,10 +291,8 @@ impl DebugBuildPathsRouteKeys {
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
-    Hash,
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
@@ -458,8 +456,8 @@ pub struct ProjectContainer {
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
-    #[turbo_tasks::function]
-    pub fn new(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+    #[turbo_tasks::function(operation)]
+    pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
         Ok(ProjectContainer {
             name,
             // we only need to enable versioning in dev mode, since build
@@ -566,10 +564,18 @@ fn define_env_diff_report(old: &DefineEnv, new: &DefineEnv) -> String {
 }
 
 impl ProjectContainer {
-    pub async fn initialize(self: ResolvedVc<Self>, options: ProjectOptions) -> Result<()> {
+    /// Set up filesystems, watchers, and construct the [`Project`] instance inside the container.
+    ///
+    /// This function is intended to be called inside of [`turbo_tasks::TurboTasks::run`], but not
+    /// part of a [`turbo_tasks::function`]. We don't want it to be possibly re-executed.
+    ///
+    /// This is an associated function instead of a method because we don't currently implement
+    /// [`std::ops::Receiver`] on [`OperationVc`].
+    pub async fn initialize(this_op: OperationVc<Self>, options: ProjectOptions) -> Result<()> {
+        let this = this_op.read_strongly_consistent().await?;
         let span = tracing::info_span!(
             "initialize project",
-            project_name = %self.await?.name,
+            project_name = %this.name,
             version = options.next_version.as_str(),
             env_diff = Empty
         );
@@ -577,7 +583,6 @@ impl ProjectContainer {
         async move {
             let watch = options.watch;
 
-            let this = self.await?;
             if let Some(old_options) = &*this.options_state.get_untracked() {
                 span.record(
                     "env_diff",
@@ -586,7 +591,15 @@ impl ProjectContainer {
             }
             this.options_state.set(Some(options));
 
-            let project = self.project().to_resolved().await?;
+            #[turbo_tasks::function(operation)]
+            fn project_from_container_operation(
+                container: OperationVc<ProjectContainer>,
+            ) -> Vc<Project> {
+                container.connect().project()
+            }
+            let project = project_from_container_operation(this_op)
+                .resolve_strongly_consistent()
+                .await?;
             let project_fs = project_fs_operation(project)
                 .read_strongly_consistent()
                 .await?;
@@ -612,7 +625,7 @@ impl ProjectContainer {
         .await
     }
 
-    pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
+    pub async fn update(self: ResolvedVc<Self>, options: PartialProjectOptions) -> Result<()> {
         let span = tracing::info_span!(
             "update project options",
             project_name = %self.await?.name,
@@ -620,6 +633,20 @@ impl ProjectContainer {
         );
         let span_clone = span.clone();
         async move {
+            // HACK: `update` is called from a top-level function. Top-level functions are not
+            // allowed to perform eventually consistent reads. Create a stub operation
+            // to upgrade the `ResolvedVc` to an `OperationVc`. This is mostly okay
+            // because we can assume the `ProjectContainer` was originally resolved with
+            // strong consistency, and is rarely updated.
+            #[turbo_tasks::function(operation)]
+            fn project_container_operation_hack(
+                container: ResolvedVc<ProjectContainer>,
+            ) -> Vc<ProjectContainer> {
+                *container
+            }
+            let this = project_container_operation_hack(self)
+                .read_strongly_consistent()
+                .await?;
             let PartialProjectOptions {
                 root_path,
                 project_path,
@@ -636,9 +663,6 @@ impl ProjectContainer {
                 write_routes_hashes_manifest,
                 debug_build_paths,
             } = options;
-
-            let resolved_self = self.to_resolved().await?;
-            let this = resolved_self.await?;
 
             let mut new_options = this
                 .options_state
@@ -692,7 +716,7 @@ impl ProjectContainer {
             // TODO: Handle mode switch, should prevent mode being switched.
             let watch = new_options.watch;
 
-            let project = project_operation(resolved_self)
+            let project = project_operation(self)
                 .resolve_strongly_consistent()
                 .await?;
             let prev_project_fs = project_fs_operation(project)
@@ -710,7 +734,7 @@ impl ProjectContainer {
                 );
             }
             this.options_state.set(Some(new_options));
-            let project = project_operation(resolved_self)
+            let project = project_operation(self)
                 .resolve_strongly_consistent()
                 .await?;
             let project_fs = project_fs_operation(project)

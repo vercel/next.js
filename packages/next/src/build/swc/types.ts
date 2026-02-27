@@ -219,7 +219,14 @@ export interface NodeJsPartialHmrUpdate extends BaseUpdate {
   }
 }
 
-export type NodeJsHmrUpdate = IssuesUpdate | NodeJsPartialHmrUpdate
+export interface NodeJsRestartHmrUpdate {
+  type: 'restart'
+}
+
+export type NodeJsHmrUpdate =
+  | IssuesUpdate
+  | NodeJsPartialHmrUpdate
+  | NodeJsRestartHmrUpdate
 
 export interface HmrChunkNames {
   /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
