@@ -91,7 +91,9 @@ export default async function Page() {
 
 ### Streaming uncached data
 
-When you need fresh data for each request (like real-time feeds or personalized content), wrap the component that accesses the data in [`<Suspense>`](https://react.dev/reference/react/Suspense) and provide fallback UI instead of adding `use cache`. At request time, the fallback UI will be shown first, while the content streams in:
+For components that fetch data from an asynchronous source such as an API, a database, or any other async operation, and require fresh data on every request, do not use `"use cache"`.
+
+Instead, wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) and provide a fallback UI. At request time, React renders the fallback first, then streams in the resolved content once the async work completes.
 
 ```tsx filename="page.tsx"
 import { Suspense } from 'react'
@@ -121,8 +123,6 @@ export default function Page() {
 ```
 
 The fallback (`<p>Loading posts...</p>`) is included in the static shell, while the component's content streams in at request time.
-
-> **Good to know**: For dynamic content that doesn't change frequently, you can use `use cache` to cache it instead of streaming it at request time.
 
 ## Working with runtime APIs
 
@@ -291,7 +291,7 @@ Here's a complete example showing static content, cached dynamic content, and st
 ```tsx filename="app/blog/page.tsx"
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
-import { cacheLife } from 'next/cache'
+import { cacheLife, cacheTag, updateTag } from 'next/cache'
 import Link from 'next/link'
 
 export default function BlogPage() {
@@ -312,6 +312,11 @@ export default function BlogPage() {
       <Suspense fallback={<p>Loading your preferences...</p>}>
         <UserPreferences />
       </Suspense>
+
+      {/* Mutation - server action that revalidates the cache */}
+      <Suspense fallback={<p>Loading...</p>}>
+        <CreatePost />
+      </Suspense>
     </>
   )
 }
@@ -320,6 +325,7 @@ export default function BlogPage() {
 async function BlogPosts() {
   'use cache'
   cacheLife('hours')
+  cacheTag('posts')
 
   const res = await fetch('https://api.vercel.app/blog')
   const posts = await res.json()
@@ -353,8 +359,27 @@ async function UserPreferences() {
     </aside>
   )
 }
+
+// Admin-only form that creates a post and revalidates the cache
+async function CreatePost() {
+  const isAdmin = (await cookies()).get('role')?.value === 'admin'
+  if (!isAdmin) return null
+
+  async function createPost(formData: FormData) {
+    'use server'
+    await db.post.create({ data: { title: formData.get('title') } })
+    updateTag('posts')
+  }
+
+  return (
+    <form action={createPost}>
+      <input name="title" placeholder="Post title" required />
+      <button type="submit">Publish</button>
+    </form>
+  )
+}
 ```
 
-During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell along with the fallback UI for user preferences. Only the personalized preferences stream in at request time.
+During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell along with the fallback UI for user preferences. Only the personalized preferences stream in at request time. When an admin publishes a new post, the [`updateTag`](/docs/app/getting-started/revalidating#updatetag) call immediately expires the blog posts cache so the next visitor sees it.
 
 > **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
