@@ -74,6 +74,7 @@ function getBaseSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   jest?: boolean
@@ -409,6 +410,7 @@ export function getLoaderSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   development: boolean
