@@ -121,6 +121,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub track_dynamic_imports: bool,
+
+    #[serde(default)]
+    pub page_extensions: Vec<String>,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -350,6 +353,7 @@ where
             ),
             crate::transforms::debug_instant_stack::debug_instant_stack(
                 file_path_for_instant_stack,
+                opts.page_extensions.clone(),
             ),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(
