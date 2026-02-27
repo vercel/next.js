@@ -742,9 +742,25 @@ impl<E: Entry> StreamingSstWriter<E> {
             .try_into()
             .expect("Block count overflow");
 
-        // Serialize AMQF — take ownership via Option::take to avoid partial-move error.
-        let amqf = turbo_bincode_encode(&AmqfBincodeWrapper(self.filter.take().unwrap()))
-            .expect("AMQF serialization failed");
+        // Shrink the AMQF filter to the actual entry count. The filter was created with
+        // `max_entry_count` which may be larger than the number of entries actually added.
+        // Re-creating with the exact count reduces serialized size.
+        let old_filter = self.filter.take().unwrap();
+        let filter = if old_filter.len() > 0 {
+            let mut shrunk = qfilter::Filter::new(old_filter.len(), AMQF_FALSE_POSITIVE_RATE)
+                .expect("Filter can't be constructed");
+            shrunk
+                .merge(false, &old_filter)
+                .expect("Failed to merge AMQF filter");
+            shrunk.shrink_to_fit();
+            shrunk
+        } else {
+            old_filter
+        };
+
+        // Serialize AMQF
+        let amqf =
+            turbo_bincode_encode(&AmqfBincodeWrapper(filter)).expect("AMQF serialization failed");
 
         let file = self.file.as_mut().unwrap();
         let meta = StaticSortedFileBuilderMeta {
