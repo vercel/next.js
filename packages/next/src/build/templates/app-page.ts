@@ -1184,13 +1184,18 @@ export async function handler(
 
       const didPostpone = typeof cacheEntry.value.postponed === 'string'
 
-      // Set the build ID header for RSC navigation requests when deploymentId is configured. This
-      // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
-      // from the RSC payload when deploymentId is set (relying on this header instead). Server
-      // actions are excluded because the client doesn't check the build ID for action responses.
-      // For static prerenders served from CDN, routes-manifest.json adds a header.
-      if (isRSCRequest && !isPossibleServerAction && deploymentId) {
-        res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+      // Set the build ID header for RSC navigation requests. When deploymentId is configured, use
+      // it (this corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the
+      // build ID from the RSC payload when deploymentId is set). Otherwise, use the buildId so the
+      // client can detect build mismatches from the header before starting Flight decode, avoiding
+      // fatal runtime errors from executing incompatible modules during rolling deploys.
+      // Server actions are excluded because the client doesn't check the build ID for action
+      // responses. For static prerenders served from CDN, routes-manifest.json adds a header.
+      if (isRSCRequest && !isPossibleServerAction) {
+        res.setHeader(
+          NEXT_NAV_DEPLOYMENT_ID_HEADER,
+          deploymentId || buildId
+        )
       }
 
       if (
