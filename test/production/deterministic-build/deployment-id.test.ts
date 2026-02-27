@@ -207,6 +207,7 @@ const FILES = {
         },
         skipStart: true,
         skipDeployment: true,
+        disableAutoSkewProtection: true,
       })
 
       it('should produce identical build outputs even when changing deployment id', async () => {
@@ -240,6 +241,7 @@ const FILES = {
             : undefined,
         skipStart: true,
         skipDeployment: true,
+        disableAutoSkewProtection: true,
       })
 
       it('should produce identical build outputs even when changing deployment id', async () => {

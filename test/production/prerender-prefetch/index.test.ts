@@ -307,6 +307,8 @@ describe('Prerender prefetch', () => {
           // See https://github.com/vercel/next.js/pull/70674 for context.
           NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL: '1',
         },
+        // relies on changing build id
+        disableAutoSkewProtection: true,
       })
     })
     afterAll(() => next.destroy())
@@ -333,6 +335,8 @@ describe('Prerender prefetch', () => {
           // See https://github.com/vercel/next.js/pull/70674 for context.
           NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL: '1',
         },
+        // relies on changing build id
+        disableAutoSkewProtection: true,
       })
     })
     afterAll(() => next.destroy())

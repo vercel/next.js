@@ -125,6 +125,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
               NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID1,
               OUTPUT_MODE,
             },
+            disableAutoSkewProtection: true,
           })
           let appPort1 = await findPort()
           apps.push(
@@ -134,6 +135,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
                 NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID1,
                 OUTPUT_MODE,
               },
+              disableAutoSkewProtection: true,
             })
           )
 
@@ -142,6 +144,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
               DIST_DIR: '2',
               NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID2,
             },
+            disableAutoSkewProtection: true,
           })
           let appPort2 = await findPort()
           apps.push(
@@ -150,6 +153,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
                 DIST_DIR: '2',
                 NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID2,
               },
+              disableAutoSkewProtection: true,
             })
           )
 

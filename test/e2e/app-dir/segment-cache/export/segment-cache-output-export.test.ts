@@ -22,7 +22,10 @@ describe('segment cache (output: "export")', () => {
 
   beforeAll(async () => {
     const appDir = __dirname
-    await nextBuild(appDir, undefined, { cwd: appDir })
+    await nextBuild(appDir, undefined, {
+      cwd: appDir,
+      disableAutoSkewProtection: true,
+    })
     port = await findPort()
     server.listen(port)
   })

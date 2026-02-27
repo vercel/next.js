@@ -474,6 +474,27 @@ export function getResolveRoutes(
               if (output.locale) {
                 addRequestMeta(req, 'locale', output.locale)
               }
+
+              if (
+                process.env.__NEXT_TEST_MODE &&
+                process.env.IS_TURBOPACK_TEST &&
+                output.type === 'nextStaticFolder' &&
+                config.deploymentId
+              ) {
+                const expectedToken = config.deploymentId
+                if (parsedUrl.query.dpl !== expectedToken) {
+                  console.error(
+                    `Invalid dpl query param: ${req.url}, expected: ${expectedToken}`
+                  )
+                  return {
+                    finished: true,
+                    parsedUrl,
+                    resHeaders,
+                    matchedOutput: null,
+                  }
+                }
+              }
+
               return {
                 parsedUrl,
                 resHeaders,

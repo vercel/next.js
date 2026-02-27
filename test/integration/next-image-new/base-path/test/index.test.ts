@@ -11,6 +11,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  getDeploymentId,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -50,7 +51,7 @@ function getRatio(width, height) {
   return height / width
 }
 
-function runTests(mode) {
+function runTests(mode: 'dev' | 'server') {
   it('should load the images', async () => {
     let browser
     try {
@@ -69,7 +70,7 @@ function runTests(mode) {
       }, /result-correct/)
 
       expect(await getImageUrls(browser)).toContain(
-        `http://localhost:${appPort}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75`
+        `http://localhost:${appPort}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75${getDeploymentId(appDir, mode === 'dev').getDeploymentIdQuery(true)}`
       )
     } finally {
       if (browser) {

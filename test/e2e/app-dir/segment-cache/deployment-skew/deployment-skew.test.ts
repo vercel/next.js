@@ -65,6 +65,7 @@ describe('segment cache (deployment skew)', () => {
         // rely on skew protection when deployed
         NEXT_DEPLOYMENT_ID: isNextDeploy ? undefined : 'test-deployment-id',
       },
+      disableAutoSkewProtection: true,
     })
 
     // Deployment skew is hard to properly e2e deploy test, so this just checks for the header.

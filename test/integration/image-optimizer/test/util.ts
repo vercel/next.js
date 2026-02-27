@@ -8,6 +8,7 @@ import {
   fetchViaHTTP,
   File,
   findPort,
+  getDeploymentId,
   getDistDir,
   killApp,
   launchApp,
@@ -1522,10 +1523,14 @@ export function runTests(ctx: RunTestsCtx) {
         .readdirSync(join(ctx.appDir, '.next/static/media'))
         .find((f) => /^test\.[0-9a-f]+\.jpg$/.test(f))
       expect(filename).toBeString()
-      const query = {
+      const query: Record<string, string> = {
         url: `/_next/static/media/${filename}`,
-        w: ctx.w,
-        q: ctx.q,
+        w: String(ctx.w),
+        q: String(ctx.q),
+      }
+      const assetToken = getDeploymentId(ctx.appDir, false).assetToken
+      if (assetToken) {
+        query.dpl = assetToken
       }
       const opts = { headers: { accept: 'image/webp' } }
 

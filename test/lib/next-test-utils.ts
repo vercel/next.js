@@ -265,6 +265,7 @@ export interface NextOptions {
   stderr?: true | 'log'
   stdout?: true | 'log'
   ignoreFail?: boolean
+  disableAutoSkewProtection?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -283,7 +284,7 @@ export function runNextCommand(
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
@@ -390,6 +391,7 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
+  disableAutoSkewProtection?: boolean
 
   stderr?: false
   stdout?: false
@@ -517,6 +519,11 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+  }
+
   return runNextCommand(['build', dir, ...args], opts)
 }
 
@@ -539,6 +546,11 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+  }
+
   return runNextCommandDev(
     ['start', '-p', port as string, '--hostname', '::', dir],
     undefined,
@@ -2040,3 +2052,36 @@ export function getClientReferenceManifest(
 export const getCacheHeader = (curRes: Response) =>
   // favor generic header
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
+
+export function getDeploymentId(appDir: string, isDev: boolean) {
+  let requiredServerFiles
+  if (!isDev) {
+    // File isn't written in dev, but it might still exist because it was created by a prior
+    // production build.
+    try {
+      requiredServerFiles = JSON.parse(
+        readFileSync(
+          path.join(appDir, getDistDir(), 'required-server-files.json'),
+          'utf8'
+        )
+      )
+    } catch {}
+  }
+
+  const deploymentId: string | undefined =
+    requiredServerFiles?.config?.deploymentId
+  const immutableAssetToken: string | undefined =
+    requiredServerFiles?.config?.experimental?.immutableAssetToken
+  const assetToken: string | undefined = immutableAssetToken || deploymentId
+
+  return {
+    deploymentId,
+    getDeploymentIdQuery(ampersand = false) {
+      return deploymentId ? `${ampersand ? '&' : '?'}dpl=${deploymentId}` : ''
+    },
+    assetToken,
+    getAssetQuery(ampersand = false) {
+      return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
+    },
+  }
+}

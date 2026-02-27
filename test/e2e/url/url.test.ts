@@ -16,6 +16,9 @@ describe(`Handle new URL asset references`, () => {
     env: {
       // rely on skew protection when deployed
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
+      VERCEL_IMMUTABLE_DEPLOYMENT_ID: isNextStart
+        ? 'test-immutable-tkn-7890'
+        : undefined,
     },
     skipDeployment: true,
   })
@@ -40,7 +43,7 @@ describe(`Handle new URL asset references`, () => {
     if (isNextDev || !isTurbopack) {
       expectedToken = undefined
     } else {
-      expectedToken = next.deploymentId
+      expectedToken = next.assetToken
       if (!expectedToken) {
         throw new Error('Missing deployment id')
       }

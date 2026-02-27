@@ -84,6 +84,7 @@ describe('required server files app router', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         PORT: `${appPort}`,
       },
       undefined,

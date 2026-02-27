@@ -102,6 +102,7 @@ if (isNextProd) {
         /Listening/,
         {
           ...process.env,
+          ...next.env,
           PORT: appPort,
         },
         undefined,

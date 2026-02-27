@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { findPort, check } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import https from 'https'
 import httpProxy from 'http-proxy'
 import fs from 'fs'
@@ -77,32 +77,21 @@ describe('next-image-proxy', () => {
     })
 
     const local = await browser.elementByCss('#app-page').getAttribute('src')
-
-    if (process.env.IS_TURBOPACK_TEST) {
-      expect(local).toMatchInlineSnapshot(
-        `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.c5ae911e.png&w=828&q=90"`
-      )
-    } else {
-      expect(local).toMatchInlineSnapshot(
-        `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90"`
-      )
-    }
+    expect(local.replace(/test\.[0-9a-f]{8,}\.png/g, 'test.HASH.png')).toEqual(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)}`
+    )
 
     const remote = await browser
       .elementByCss('#remote-app-page')
       .getAttribute('src')
-    if (process.env.IS_TURBOPACK_TEST) {
-      expect(remote).toMatchInlineSnapshot(
-        `"/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90"`
-      )
-    } else {
-      expect(remote).toMatchInlineSnapshot(
-        `"/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90"`
-      )
-    }
+    expect(remote).toEqual(
+      `/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90`
+    )
 
-    const expected = JSON.stringify({ fulfilledCount: 4, failCount: 0 })
-    await check(() => JSON.stringify({ fulfilledCount, failCount }), expected)
+    await retry(() => {
+      expect(fulfilledCount).toBe(4)
+      expect(failCount).toBe(0)
+    })
     await browser.close()
   })
 

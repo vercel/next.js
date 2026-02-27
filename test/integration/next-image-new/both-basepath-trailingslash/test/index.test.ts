@@ -3,6 +3,7 @@
 import {
   fetchViaHTTP,
   findPort,
+  getDeploymentId,
   killApp,
   launchApp,
   nextBuild,
@@ -16,25 +17,32 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-const runTests = () => {
+const runTests = (mode: 'dev' | 'server') => {
+  let dpl: string
+  let assetDpl: string
+  beforeAll(() => {
+    dpl = getDeploymentId(appDir, mode === 'dev').getDeploymentIdQuery(true)
+    assetDpl = getDeploymentId(appDir, mode === 'dev').getAssetQuery(true)
+  })
+
   it('should correctly load image src from import', async () => {
-    expect.assertions(3)
     const browser = await webdriver(appPort, '/prefix/')
     const img = await browser.elementById('import-img')
     const src = await img.getAttribute('src')
-    expect(src).toMatch(
-      /\/prefix\/_next\/image\/\?url=%2Fprefix%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.jpg&w=828&q=75/
+    expect(stripTestHash(src)).toBe(
+      `/prefix/_next/image/?url=%2Fprefix%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
     )
     const res = await fetchViaHTTP(appPort, src)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/jpeg')
   })
   it('should correctly load image src from string', async () => {
-    expect.assertions(3)
     const browser = await webdriver(appPort, '/prefix/')
     const img = await browser.elementById('string-img')
     const src = await img.getAttribute('src')
-    expect(src).toBe('/prefix/_next/image/?url=%2Fprefix%2Ftest.jpg&w=640&q=75')
+    expect(src).toBe(
+      `/prefix/_next/image/?url=%2Fprefix%2Ftest.jpg&w=640&q=75${dpl}`
+    )
     const res = await fetchViaHTTP(appPort, src)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/jpeg')
@@ -51,7 +59,7 @@ describe('Image Component basePath + trailingSlash Tests', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests('dev')
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -64,7 +72,11 @@ describe('Image Component basePath + trailingSlash Tests', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests('server')
     }
   )
 })
+
+function stripTestHash(text: string) {
+  return text.replace(/test\.[0-9a-f]{8,}\.(png|jpe?g)/g, 'test.HASH.$1')
+}
