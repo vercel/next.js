@@ -58,7 +58,7 @@ const after = 1; // `*/` may lose comment highlighting
 
 This is a deliberate tradeoff — blank lines inside block comments or template
 literals that span the window boundary are vanishingly rare in practice, and
-the consequence is only slightly wrong colors, never a crash or missing output.
+the consequence is only slightly wrong highlighting, never a failure or missing output.
 
 ## Features
 
