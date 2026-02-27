@@ -18,8 +18,9 @@ const nextDistPath = new RegExp(
 
 const nodeModulesPath = /[\\/]node_modules[\\/]/
 
-const regeneratorRuntimePath =
-  require.resolve('next/dist/compiled/regenerator-runtime')
+const regeneratorRuntimePath = require.resolve(
+  'next/dist/compiled/regenerator-runtime'
+)
 
 function isTypeScriptFile(filename: string) {
   return filename.endsWith('.ts') || filename.endsWith('.tsx')
