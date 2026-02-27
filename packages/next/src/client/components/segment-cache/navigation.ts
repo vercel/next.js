@@ -22,6 +22,8 @@ import {
   convertRootFlightRouterStateToRouteTree,
   getStaleAt,
   writeStaticStageResponseIntoCache,
+  processRuntimePrefetchStream,
+  writeDynamicRenderResponseIntoCache,
   type RouteTree,
   type FulfilledRouteCacheEntry,
 } from './cache'
@@ -373,6 +375,7 @@ async function navigateToUnknownRoute(
     couldBeIntercepted,
     supportsPerSegmentPrefetching,
     staticStageData,
+    runtimePrefetchStream,
     responseHeaders,
     debugInfo,
   } = result
@@ -432,6 +435,27 @@ async function navigateToUnknownRoute(
         .catch(() => {
           // The static stage processing failed. Not fatal — the navigation
           // completed normally, we just won't write into the cache.
+        })
+    }
+
+    if (runtimePrefetchStream !== null) {
+      processRuntimePrefetchStream(now, runtimePrefetchStream)
+        .then((processed) =>
+          writeDynamicRenderResponseIntoCache(
+            now,
+            FetchStrategy.PPRRuntime,
+            processed.flightData,
+            processed.buildId,
+            processed.isResponsePartial,
+            processed.headVaryParams,
+            processed.staleAt,
+            fulfilledRoute,
+            null
+          )
+        )
+        .catch(() => {
+          // The runtime prefetch cache write failed. Not fatal — the
+          // navigation completed normally, we just won't cache runtime data.
         })
     }
   }

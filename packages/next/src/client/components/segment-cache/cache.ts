@@ -2939,6 +2939,47 @@ export function writeStaticStageResponseIntoCache(
 }
 
 /**
+ * Decodes an embedded runtime prefetch Flight stream and computes derived
+ * values (stale time, vary params, partiality). Callers should `.then()`
+ * the result into `writeDynamicRenderResponseIntoCache`.
+ */
+export async function processRuntimePrefetchStream(
+  now: number,
+  runtimePrefetchStream: ReadableStream<Uint8Array>
+): Promise<{
+  flightData: FlightData
+  buildId: string | undefined
+  isResponsePartial: boolean
+  headVaryParams: VaryParams | null
+  staleAt: number
+}> {
+  const { stream, isPartial } = await stripIsPartialByte(runtimePrefetchStream)
+
+  const serverData =
+    await createFromNextReadableStream<NavigationFlightResponse>(
+      stream,
+      undefined,
+      { allowPartialStream: true }
+    )
+
+  const headVaryParamsThenable = serverData.h
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
+
+  const staleAt = await getStaleAt(now, serverData.s)
+
+  return {
+    flightData: serverData.f,
+    buildId: serverData.b,
+    isResponsePartial: isPartial,
+    headVaryParams,
+    staleAt,
+  }
+}
+
+/**
  * Strips the leading isPartial byte from an RSC response stream.
  *
  * The server prepends a single byte: '~' (0x7e) for partial, '#' (0x23) for
