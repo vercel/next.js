@@ -192,6 +192,7 @@ enum ValueRef {
     /// Value is in a small value block that hasn't been written yet. Will be resolved in-place
     /// to [`ValueRef::Small`] when the small block is flushed.
     PendingSmall {
+        #[cfg(debug_assertions)]
         small_block_id: u16,
         offset: u32,
         size: u16,
@@ -247,7 +248,8 @@ pub struct StreamingSstWriter {
     /// entries exist.
     first_pending_small_index: usize,
 
-    /// The current small_block_id being accumulated into.
+    /// The current small_block_id being accumulated into (debug-only consistency check).
+    #[cfg(debug_assertions)]
     current_small_block_id: u16,
 
     // Pending small value block buffer
@@ -272,6 +274,9 @@ pub struct StreamingSstWriter {
     // Fullness tracking (for compaction callers)
     total_key_size: usize,
     total_value_size: usize,
+
+    /// Total byte size of keys in `pending_keys` (for block capacity estimation).
+    pending_key_total_size: usize,
 }
 
 impl StreamingSstWriter {
@@ -291,6 +296,7 @@ impl StreamingSstWriter {
             block_offsets: Vec::new(),
             pending_keys: VecDeque::new(),
             first_pending_small_index: 0,
+            #[cfg(debug_assertions)]
             current_small_block_id: 0,
             pending_small_values: Vec::new(),
             pending_small_value_count: 0,
@@ -303,6 +309,7 @@ impl StreamingSstWriter {
             flags,
             total_key_size: 0,
             total_value_size: 0,
+            pending_key_total_size: 0,
         })
     }
 
@@ -322,13 +329,14 @@ impl StreamingSstWriter {
         let blocks_written = self.block_offsets.len();
         // Blocks still needed:
         // - 1 pending small value block (if buffer is non-empty)
-        // - key blocks for pending entries (upper bound)
+        // - key blocks for pending entries (upper bound from both entry count and byte size)
         // - 1 index block
         let pending_small_block = usize::from(!self.pending_small_values.is_empty());
         let pending_key_blocks = self
             .pending_keys
             .len()
             .div_ceil(MAX_KEY_BLOCK_ENTRIES)
+            .max(self.pending_key_total_size.div_ceil(MAX_KEY_BLOCK_SIZE))
             .max(1);
         let index_block = 1;
         blocks_written + pending_small_block + pending_key_blocks + index_block < u16::MAX as usize
@@ -359,8 +367,9 @@ impl StreamingSstWriter {
         let key_len = key_buf.len();
         let key: Box<[u8]> = key_buf.into_boxed_slice();
 
-        // Track key size for fullness
+        // Track key size for fullness and block capacity
         self.total_key_size += key_len;
+        self.pending_key_total_size += key_len;
 
         // Route value
         let value_ref = match entry.value() {
@@ -413,9 +422,9 @@ impl StreamingSstWriter {
                     self.first_pending_small_index = self.pending_keys.len();
                 }
 
-                let small_block_id = self.current_small_block_id;
                 ValueRef::PendingSmall {
-                    small_block_id,
+                    #[cfg(debug_assertions)]
+                    small_block_id: self.current_small_block_id,
                     offset,
                     size,
                 }
@@ -479,15 +488,18 @@ impl StreamingSstWriter {
         // Resolve all PendingSmall entries for this block in-place.
         // Only scan from first_pending_small_index -- entries before it are guaranteed
         // already resolved (from previous flush calls).
+        #[cfg(debug_assertions)]
         let flushed_id = self.current_small_block_id;
         for i in self.first_pending_small_index..self.pending_keys.len() {
             let entry = &mut self.pending_keys[i];
             if let ValueRef::PendingSmall {
+                #[cfg(debug_assertions)]
                 small_block_id,
                 offset,
                 size,
             } = entry.value_ref
             {
+                #[cfg(debug_assertions)]
                 debug_assert_eq!(small_block_id, flushed_id);
                 entry.value_ref = ValueRef::Small {
                     block_index,
@@ -501,8 +513,11 @@ impl StreamingSstWriter {
         // until the next Small value arrives.
         self.first_pending_small_index = self.pending_keys.len();
 
-        // Advance to next small block id
-        self.current_small_block_id += 1;
+        // Advance to next small block id (debug-only consistency check)
+        #[cfg(debug_assertions)]
+        {
+            self.current_small_block_id += 1;
+        }
         self.pending_small_values.clear();
         self.pending_small_value_count = 0;
 
@@ -556,6 +571,13 @@ impl StreamingSstWriter {
         // Don't flush the trailing incomplete block -- it may grow more.
 
         if last_flushed_end > 0 {
+            // Subtract drained entries' key sizes from the pending total.
+            let drained_key_size: usize = self
+                .pending_keys
+                .range(..last_flushed_end)
+                .map(|e| e.key.len())
+                .sum();
+            self.pending_key_total_size -= drained_key_size;
             // VecDeque::drain from the front is O(1) -- it just adjusts the head pointer.
             self.pending_keys.drain(..last_flushed_end);
             self.first_pending_small_index -= last_flushed_end;
@@ -730,6 +752,7 @@ impl StreamingSstWriter {
         }
 
         self.pending_keys.clear();
+        self.pending_key_total_size = 0;
         Ok(())
     }
 }
