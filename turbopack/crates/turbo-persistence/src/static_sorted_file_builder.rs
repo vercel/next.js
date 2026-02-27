@@ -277,11 +277,12 @@ pub struct StreamingSstWriter {
 impl StreamingSstWriter {
     /// Creates a new streaming SST writer.
     ///
-    /// `entry_count_hint` is used to size the AMQF filter. It may be an upper bound; a slightly
-    /// oversized filter only improves the false-positive rate.
-    pub fn new(file: &Path, flags: MetaEntryFlags, entry_count_hint: u64) -> Result<Self> {
+    /// `max_entry_count` is used to size the AMQF filter. It must be an upper bound on the number
+    /// of entries that will be added; the filter is not resizable. A slightly oversized value only
+    /// improves the false-positive rate.
+    pub fn new(file: &Path, flags: MetaEntryFlags, max_entry_count: u64) -> Result<Self> {
         let file = BufWriter::new(File::create(file)?);
-        let filter = qfilter::Filter::new(entry_count_hint.max(1), AMQF_FALSE_POSITIVE_RATE)
+        let filter = qfilter::Filter::new(max_entry_count.max(1), AMQF_FALSE_POSITIVE_RATE)
             .expect("Filter can't be constructed");
 
         Ok(Self {
@@ -333,7 +334,7 @@ impl StreamingSstWriter {
         blocks_written + pending_small_block + pending_key_blocks + index_block < u16::MAX as usize
     }
 
-    /// Adds an entry to the SST file. Entries must be added in key-hash order.
+    /// Adds an entry to the SST file. Entries must be added in (key-hash, key) order.
     pub fn add<E: Entry>(&mut self, entry: &E) -> Result<()> {
         let key_hash = entry.key_hash();
 
@@ -633,42 +634,31 @@ impl StreamingSstWriter {
         // Now all PendingSmall entries are resolved. Flush all remaining key blocks.
         self.flush_remaining_key_blocks()?;
 
-        // Handle empty file edge case
-        if self.key_block_boundaries.is_empty() {
-            // No entries were added. Write a minimal index block.
-            self.key_buffer.clear();
-            let index_block = IndexBlockBuilder::new(&mut self.key_buffer, 0, 0);
-            index_block.finish();
-            write_block_to_file(
-                &mut self.file,
-                &mut self.compress_buffer,
-                &mut self.block_offsets,
-                &self.key_buffer,
-                false,
-            )
-            .context("Failed to write index block")?;
-        } else {
-            // Write index block
-            self.key_buffer.clear();
-            let entry_count: u16 = (self.key_block_boundaries.len() - 1)
-                .try_into()
-                .expect("Index entries count overflow");
-            let first_block = self.key_block_boundaries[0].1;
-            let mut index_block =
-                IndexBlockBuilder::new(&mut self.key_buffer, entry_count, first_block);
-            for &(hash, block) in &self.key_block_boundaries[1..] {
-                index_block.put(hash, block);
-            }
-            index_block.finish();
-            write_block_to_file(
-                &mut self.file,
-                &mut self.compress_buffer,
-                &mut self.block_offsets,
-                &self.key_buffer,
-                false,
-            )
-            .context("Failed to write index block")?;
+        assert!(
+            !self.key_block_boundaries.is_empty(),
+            "StreamingSstWriter::finish() called with no entries"
+        );
+
+        // Write index block
+        self.key_buffer.clear();
+        let entry_count: u16 = (self.key_block_boundaries.len() - 1)
+            .try_into()
+            .expect("Index entries count overflow");
+        let first_block = self.key_block_boundaries[0].1;
+        let mut index_block =
+            IndexBlockBuilder::new(&mut self.key_buffer, entry_count, first_block);
+        for &(hash, block) in &self.key_block_boundaries[1..] {
+            index_block.put(hash, block);
         }
+        index_block.finish();
+        write_block_to_file(
+            &mut self.file,
+            &mut self.compress_buffer,
+            &mut self.block_offsets,
+            &self.key_buffer,
+            false,
+        )
+        .context("Failed to write index block")?;
 
         // Write block offset table
         for offset in &self.block_offsets {
