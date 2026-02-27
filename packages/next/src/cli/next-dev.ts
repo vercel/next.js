@@ -323,8 +323,12 @@ const nextDev = async (
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
+      const { nodeOptions: formattedNodeOptions, execArgv } =
+        formatNodeOptions(nodeOptions)
+
       child = fork(startServerPath, {
         stdio: 'inherit',
+        execArgv,
         env: {
           ...defaultEnv,
           ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
@@ -336,7 +340,7 @@ const nextDev = async (
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
-          NODE_OPTIONS: formatNodeOptions(nodeOptions),
+          NODE_OPTIONS: formattedNodeOptions,
           // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
           // This limits the number of watchers to mitigate the issue.
           // https://github.com/nodejs/node/issues/29949
