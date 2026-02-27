@@ -1,5 +1,11 @@
 use std::{
-    borrow::Cow, fmt::Write, marker::PhantomData, sync::atomic::AtomicU64, thread, time::Instant,
+    borrow::Cow,
+    cell::Cell,
+    fmt::Write,
+    marker::PhantomData,
+    sync::atomic::{AtomicU64, Ordering},
+    thread,
+    time::Instant,
 };
 
 use tracing::{
@@ -15,6 +21,15 @@ use crate::{
     trace_writer::TraceWriter,
     tracing::{TraceRow, TraceValue},
 };
+
+/// 10ms in microseconds
+const MEMORY_SAMPLE_INTERVAL_US: u64 = 10_000;
+
+static GLOBAL_LAST_MEMORY_SAMPLE: AtomicU64 = AtomicU64::new(0);
+
+thread_local! {
+    static THREAD_LOCAL_LAST_MEMORY_SAMPLE: Cell<u64> = const { Cell::new(0) };
+}
 
 pub struct RawTraceLayerOptions {}
 
@@ -58,6 +73,42 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
         let guard = self.trace_writer.start_write();
         postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap();
         TurboMalloc::reset_allocation_counters(start);
+    }
+
+    fn maybe_report_memory_sample(&self, ts: u64) {
+        // Fast thread-local check
+        let skip = THREAD_LOCAL_LAST_MEMORY_SAMPLE
+            .with(|tl| ts.saturating_sub(tl.get()) < MEMORY_SAMPLE_INTERVAL_US);
+        if skip {
+            return;
+        }
+
+        // Check global atomic
+        let global_last = GLOBAL_LAST_MEMORY_SAMPLE.load(Ordering::Relaxed);
+        if ts.saturating_sub(global_last) < MEMORY_SAMPLE_INTERVAL_US {
+            // Another thread sampled recently; update thread-local cache
+            THREAD_LOCAL_LAST_MEMORY_SAMPLE.with(|tl| tl.set(global_last));
+            return;
+        }
+
+        // Try to atomically claim the sample
+        match GLOBAL_LAST_MEMORY_SAMPLE.compare_exchange(
+            global_last,
+            ts,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        ) {
+            Ok(_) => {
+                // We won the race — write the sample
+                THREAD_LOCAL_LAST_MEMORY_SAMPLE.with(|tl| tl.set(ts));
+                let memory = TurboMalloc::memory_usage() as u64;
+                self.write(TraceRow::MemorySample { ts, memory });
+            }
+            Err(actual) => {
+                // Lost the race; update thread-local with the winner's timestamp
+                THREAD_LOCAL_LAST_MEMORY_SAMPLE.with(|tl| tl.set(actual));
+            }
+        }
     }
 
     fn report_allocations(&self, ts: u64, thread_id: u64) {
@@ -115,6 +166,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     fn on_enter(&self, id: &span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         let thread_id = thread::current().id().as_u64().into();
+        self.maybe_report_memory_sample(ts);
         self.report_allocations(ts, thread_id);
         self.write(TraceRow::Enter {
             ts,

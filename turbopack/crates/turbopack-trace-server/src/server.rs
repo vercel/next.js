@@ -43,6 +43,7 @@ pub enum ServerToClientMessage {
         persistent_allocations: u64,
         args: Vec<(String, String)>,
         path: Vec<String>,
+        memory_samples: Vec<u64>,
     },
 }
 
@@ -286,6 +287,8 @@ fn handle_connection(
                                     current = parent;
                                 }
                                 path.reverse();
+                                let memory_samples =
+                                    store.memory_samples_for_range(span.start(), span.end());
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,
@@ -299,6 +302,7 @@ fn handle_connection(
                                     persistent_allocations,
                                     args,
                                     path,
+                                    memory_samples,
                                 }
                             } else {
                                 ServerToClientMessage::QueryResult {
@@ -314,6 +318,7 @@ fn handle_connection(
                                     persistent_allocations: 0,
                                     args: Vec::new(),
                                     path: Vec::new(),
+                                    memory_samples: Vec::new(),
                                 }
                             }
                         };

@@ -100,6 +100,13 @@ pub enum TraceRow<'a> {
         /// Deallocation count
         deallocation_count: u64,
     },
+    /// A snapshot of the process memory usage at a point in time.
+    MemorySample {
+        /// Timestamp
+        ts: u64,
+        /// Memory usage in bytes (from TurboMalloc::memory_usage())
+        memory: u64,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
