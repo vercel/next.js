@@ -24,10 +24,10 @@ import { useEffect } from 'react'
 
 export default function Error({
   error,
-  retry,
+  unstable_retry,
 }: {
   error: Error & { digest?: string }
-  retry: () => void
+  unstable_retry: () => void
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
@@ -40,7 +40,7 @@ export default function Error({
       <button
         onClick={
           // Attempt to recover by re-fetching and re-rendering the segment
-          () => retry()
+          () => unstable_retry()
         }
       >
         Try again
@@ -55,7 +55,7 @@ export default function Error({
 
 import { useEffect } from 'react'
 
-export default function Error({ error, retry }) {
+export default function Error({ error, unstable_retry }) {
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error)
@@ -67,7 +67,7 @@ export default function Error({ error, retry }) {
       <button
         onClick={
           // Attempt to recover by re-fetching and re-rendering the segment
-          () => retry()
+          () => unstable_retry()
         }
       >
         Try again
@@ -111,26 +111,26 @@ An instance of an [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Re
 
 An automatically generated hash of the error thrown. It can be used to match the corresponding error in server-side logs.
 
-#### `retry`
+#### `unstable_retry`
 
 The cause of an error can sometimes be temporary. In these cases, trying again might resolve the issue.
 
-An error component can use the `retry()` function to prompt the user to attempt to recover from the error. When executed, the function will try to re-fetch and re-render the error boundary's contents. If successful, the fallback error component is replaced with the result of the re-render.
+An error component can use the `unstable_retry()` function to prompt the user to attempt to recover from the error. When executed, the function will try to re-fetch and re-render the error boundary's contents. If successful, the fallback error component is replaced with the result of the re-render.
 
 ```tsx filename="app/dashboard/error.tsx" switcher
 'use client' // Error boundaries must be Client Components
 
 export default function Error({
   error,
-  retry,
+  unstable_retry,
 }: {
   error: Error & { digest?: string }
-  retry: () => void
+  unstable_retry: () => void
 }) {
   return (
     <div>
       <h2>Something went wrong!</h2>
-      <button onClick={() => retry()}>Try again</button>
+      <button onClick={() => unstable_retry()}>Try again</button>
     </div>
   )
 }
@@ -139,11 +139,11 @@ export default function Error({
 ```jsx filename="app/dashboard/error.js" switcher
 'use client' // Error boundaries must be Client Components
 
-export default function Error({ error, retry }) {
+export default function Error({ error, unstable_retry }) {
   return (
     <div>
       <h2>Something went wrong!</h2>
-      <button onClick={() => retry()}>Try again</button>
+      <button onClick={() => unstable_retry()}>Try again</button>
     </div>
   )
 }
@@ -151,17 +151,7 @@ export default function Error({ error, retry }) {
 
 #### `reset`
 
-In most cases, you should use [`retry()`](#retry) instead. However, if you have a specific reason to clear the error state and re-render the error boundary's contents without re-fetching the contents, you can use the `reset()` function.
-
-#### `componentStack`
-
-The React component stack trace at the time the error was thrown. It shows the full component tree path from the root down to the component that threw.
-
-#### `ownerStack`
-
-The owner component stack, captured via [`React.captureOwnerStack()`](https://react.dev/reference/react/captureOwnerStack). Unlike `componentStack` which shows the full tree, the Owner Stack shows only the components that directly rendered the erroring component.
-
-> **Good to know**: `ownerStack` is only available in development mode. In production, it will be `null`.
+In most cases, you should use [`unstable_retry()`](#unstable_retry) instead. However, if you have a specific reason to clear the error state and re-render the error boundary's contents without re-fetching the contents, you can use the `reset()` function.
 
 ## Examples
 
@@ -176,17 +166,17 @@ While less common, you can handle errors in the root layout or template using `g
 
 export default function GlobalError({
   error,
-  retry,
+  unstable_retry,
 }: {
   error: Error & { digest?: string }
-  retry: () => void
+  unstable_retry: () => void
 }) {
   return (
     // global-error must include html and body tags
     <html>
       <body>
         <h2>Something went wrong!</h2>
-        <button onClick={() => retry()}>Try again</button>
+        <button onClick={() => unstable_retry()}>Try again</button>
       </body>
     </html>
   )
@@ -196,13 +186,13 @@ export default function GlobalError({
 ```jsx filename="app/global-error.js" switcher
 'use client' // Error boundaries must be Client Components
 
-export default function GlobalError({ error, retry }) {
+export default function GlobalError({ error, unstable_retry }) {
   return (
     // global-error must include html and body tags
     <html>
       <body>
         <h2>Something went wrong!</h2>
-        <button onClick={() => retry()}>Try again</button>
+        <button onClick={() => unstable_retry()}>Try again</button>
       </body>
     </html>
   )
@@ -331,9 +321,9 @@ export default GracefullyDegradingErrorBoundary
 
 ## Version History
 
-| Version   | Changes                                                  |
-| --------- | -------------------------------------------------------- |
-| `v16.2.0` | `retry`, `componentStack`, and `ownerStack` props added. |
-| `v15.2.0` | Also display `global-error` in development.              |
-| `v13.1.0` | `global-error` introduced.                               |
-| `v13.0.0` | `error` introduced.                                      |
+| Version   | Changes                                     |
+| --------- | ------------------------------------------- |
+| `v16.2.0` | `unstable_retry` prop added.                |
+| `v15.2.0` | Also display `global-error` in development. |
+| `v13.1.0` | `global-error` introduced.                  |
+| `v13.0.0` | `error` introduced.                         |
