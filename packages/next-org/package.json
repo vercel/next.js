@@ -1,0 +1,14 @@
+{
+  "name": "@next/org",
+  "version": "10.2.1-canary.5",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/next-org"
+  },
+  "peerDependencies": {
+    "@orgajs/loader": "*",
+    "@orgajs/react": "*"
+  }
+}
