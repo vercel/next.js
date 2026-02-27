@@ -8,6 +8,19 @@ jest.mock('next/dist/shared/lib/deployment-id.js', () => {
     getDeploymentId() {
       return deploymentId
     },
+    getDeploymentIdQuery(ampersand = false): string {
+      let id = deploymentId
+      if (id) {
+        return `${ampersand ? '&' : '?'}dpl=${id}`
+      }
+      return ''
+    },
+    getAssetToken() {
+      throw new Error("getAssetToken shouldn't be called ")
+    },
+    getAssetTokenQuery(ampersand = false) {
+      throw new Error("getAssetTokenQuery shouldn't be called ")
+    },
   }
 })
 

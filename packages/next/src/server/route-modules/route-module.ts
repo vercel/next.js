@@ -569,6 +569,7 @@ export abstract class RouteModule<
     | {
         buildId: string
         deploymentId: string
+        clientAssetToken: string
         locale?: string
         locales?: readonly string[]
         defaultLocale?: string
@@ -1026,6 +1027,8 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
+      clientAssetToken:
+        nextConfig.experimental.immutableAssetToken || deploymentId,
     }
   }
 

@@ -48,7 +48,6 @@ import type {
   GetStaticPaths,
   GetStaticProps,
 } from '../../../types'
-import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
 export const getHandler = ({
   srcPage: originalSrcPage,
@@ -146,6 +145,8 @@ export const getHandler = ({
       nextConfig,
       resolvedPathname,
       encodedResolvedPathname,
+      deploymentId,
+      clientAssetToken,
     } = prepareResult
 
     const isExperimentalCompile =
@@ -266,7 +267,8 @@ export const getHandler = ({
                     buildId,
                     customServer:
                       Boolean(routerServerContext?.isCustomServer) || undefined,
-                    deploymentId: getDeploymentId() || '',
+                    deploymentId,
+                    clientAssetToken,
                   },
                   renderOpts: {
                     params,
@@ -634,7 +636,6 @@ export const getHandler = ({
           res.statusCode = 404
 
           if (isNextDataRequest) {
-            const deploymentId = getDeploymentId()
             if (deploymentId) {
               res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
             }
@@ -646,7 +647,6 @@ export const getHandler = ({
 
         if (result.value.kind === CachedRouteKind.REDIRECT) {
           if (isNextDataRequest) {
-            const deploymentId = getDeploymentId()
             if (deploymentId) {
               res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
             }
@@ -724,7 +724,6 @@ export const getHandler = ({
 
         // Add deployment ID header for data requests
         if (isNextDataRequest && !isErrorPage && !is500Page) {
-          const deploymentId = getDeploymentId()
           if (deploymentId) {
             res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
           }

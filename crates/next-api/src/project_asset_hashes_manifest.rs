@@ -183,7 +183,7 @@ impl Asset for AssetHashesManifestAsset {
 pub async fn immutable_hashes_manifest_asset_if_enabled(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<OutputAssets>> {
-    if *project.emit_client_hashes().await? {
+    if *project.next_config().enable_immutable_assets().await? {
         let path = project
             .node_root()
             .await?

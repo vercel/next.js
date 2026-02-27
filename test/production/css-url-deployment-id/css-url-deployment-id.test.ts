@@ -7,7 +7,7 @@ describe('css-url-deployment-id', () => {
     dependencies: { sass: '1.54.0' },
     env: {
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
-      VERCEL_IMMUTABLE_DEPLOYMENT_ID: isNextStart
+      __NEXT_IMMUTABLE_ASSET_TOKEN: isNextStart
         ? 'imm-deployment-id'
         : undefined,
     },

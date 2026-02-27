@@ -467,9 +467,6 @@ export default abstract class Server<
         )
       }
       this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = this.deploymentId
-        ? `?dpl=${this.deploymentId}`
-        : ''
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
@@ -477,8 +474,11 @@ export default abstract class Server<
 
       this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
-      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = id ? `?dpl=${id}` : ''
     }
+    ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
+      this.nextConfig.experimental.immutableAssetToken || this.deploymentId
+        ? `?dpl=${this.nextConfig.experimental.immutableAssetToken || this.deploymentId}`
+        : ''
 
     this.hostname = hostname
     if (this.hostname) {
