@@ -1,0 +1,11 @@
+:target {
+  outline: 4px solid #1177cc;
+}
+
+:focus {
+  outline: 4px dashed #dd1199;
+}
+
+:focus-visible {
+  outline: 4px solid #dd1199;
+}

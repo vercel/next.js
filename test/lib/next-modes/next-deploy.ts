@@ -9,6 +9,8 @@ import { Span } from 'next/dist/trace'
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
+  private _deploymentId: string | undefined
+  private _immutableAssetToken: string | undefined
   private _writtenHostsLine: string | null = null
 
   protected throwIfUnavailable(): void | never {
@@ -31,6 +33,14 @@ export class NextDeployInstance extends NextInstance {
     // get deployment ID via fetch since we can't access
     // build artifacts directly
     return this._buildId
+  }
+
+  public get deploymentId() {
+    return this._deploymentId
+  }
+
+  public get immutableAssetToken() {
+    return process.env.IS_TURBOPACK_TEST ? this._immutableAssetToken : undefined
   }
 
   private async deployUsingCustomScript(): Promise<{ url: string }> {
@@ -113,6 +123,34 @@ export class NextDeployInstance extends NextInstance {
     return logsRes.stdout + logsRes.stderr
   }
 
+  private parseIdsFromCliOuput(): void {
+    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
+    if (!buildId) {
+      throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
+    }
+    this._buildId = buildId
+    const deploymentId = this._cliOutput
+      .match(/DEPLOYMENT_ID: (.+)/)?.[1]
+      ?.trim()
+    if (!deploymentId) {
+      throw new Error(`Failed to get deploymentId from logs ${this._cliOutput}`)
+    }
+    this._deploymentId = deploymentId
+    const immutableAssetToken = this._cliOutput
+      .match(/IMMUTABLE_ASSET_TOKEN: (.+)/)?.[1]
+      ?.trim()
+    if (!immutableAssetToken) {
+      throw new Error(
+        `Failed to get immutableAssetToken from logs ${this._cliOutput}`
+      )
+    }
+    this._immutableAssetToken = immutableAssetToken
+
+    require('console').log(
+      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, immutableAssetToken: ${this._immutableAssetToken}`
+    )
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
@@ -161,14 +199,7 @@ export class NextDeployInstance extends NextInstance {
         this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
-      const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-
-      if (!buildId) {
-        throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
-      }
-      this._buildId = buildId
-
-      require('console').log(`Got buildId: ${this._buildId}`)
+      this.parseIdsFromCliOuput()
       return
     }
 
@@ -192,17 +223,7 @@ export class NextDeployInstance extends NextInstance {
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-
-      const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-
-      if (!buildId) {
-        throw new Error(
-          `Failed to get buildId from custom deploy logs ${this._cliOutput}`
-        )
-      }
-      this._buildId = buildId
-
-      require('console').log(`Got buildId: ${this._buildId}`)
+      this.parseIdsFromCliOuput()
       return
     }
 
@@ -305,12 +326,6 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
       )
     }
-    if (process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL=${process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL}`
-      )
-    }
-
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }
@@ -384,14 +399,7 @@ export class NextDeployInstance extends NextInstance {
     // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
     this._cliOutput = buildLogs.stdout + buildLogs.stderr
 
-    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-
-    if (!buildId) {
-      throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
-    }
-    this._buildId = buildId
-
-    require('console').log(`Got buildId: ${this._buildId}`)
+    this.parseIdsFromCliOuput()
     // Use the stdout from the logs command as the CLI output. The CLI will
     // output other unrelated logs to stderr.
   }

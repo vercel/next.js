@@ -86,6 +86,7 @@ async function exportPageImpl(
     outDir: commonOutDir,
     buildId,
     deploymentId,
+    clientAssetToken,
     renderResumeDataCache,
   } = input
 
@@ -275,7 +276,11 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId, deploymentId }
+    const sharedContext: AppSharedContext = {
+      buildId,
+      deploymentId,
+      clientAssetToken,
+    }
 
     return exportAppPage(
       req,
@@ -296,6 +301,7 @@ async function exportPageImpl(
     const sharedContext: PagesSharedContext = {
       buildId,
       deploymentId,
+      clientAssetToken,
       customServer: undefined,
     }
 
@@ -343,13 +349,7 @@ export async function exportPages(
     nextConfig,
     options,
     renderResumeDataCachesByPage = {},
-    deploymentId,
   } = input
-
-  // Set the global asset suffix for Turbopack compiled code to use during prerendering
-  ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = deploymentId
-    ? `?dpl=${deploymentId}`
-    : ''
 
   installGlobalBehaviors(nextConfig)
 
@@ -424,6 +424,7 @@ export async function exportPages(
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
             deploymentId: input.deploymentId,
+            clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
           }),
           hasDebuggerAttached

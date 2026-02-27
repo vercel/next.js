@@ -33,6 +33,12 @@ impl ValueBlockCountTracker {
             >= MAX_VALUE_BLOCK_COUNT
     }
 
+    /// Returns true if the tracked value block count has reached half of the maximum.
+    pub fn is_half_full(&self) -> bool {
+        self.value_block_count + (self.current_small_value_block_size > 0) as usize
+            >= MAX_VALUE_BLOCK_COUNT / 2
+    }
+
     /// Reset the tracker to empty.
     pub fn reset(&mut self) {
         self.value_block_count = 0;

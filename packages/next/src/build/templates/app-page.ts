@@ -65,10 +65,12 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import {
-  DEFAULT_MAX_POSTPONED_STATE_SIZE,
-  parseMaxPostponedStateSize,
-} from '../../shared/lib/size-limit'
+  getMaxPostponedStateSize,
+  getPostponedStateExceededErrorMessage,
+  readBodyWithSizeLimit,
+} from '../../server/lib/postponed-request-body'
 
 // These are injected by the loader afterwards.
 
@@ -182,6 +184,7 @@ export async function handler(
     parsedUrl,
     interceptionRoutePatterns,
     deploymentId,
+    clientAssetToken,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -243,23 +246,13 @@ export async function handler(
     typeof resumeStateLengthHeader === 'string'
   ) {
     const stateLength = parseInt(resumeStateLengthHeader, 10)
-    const maxPostponedStateSize =
-      nextConfig.experimental.maxPostponedStateSize ??
-      DEFAULT_MAX_POSTPONED_STATE_SIZE
-    const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
-      nextConfig.experimental.maxPostponedStateSize
-    )
+    const { maxPostponedStateSize, maxPostponedStateSizeBytes } =
+      getMaxPostponedStateSize(nextConfig.experimental.maxPostponedStateSize)
 
     if (!isNaN(stateLength) && stateLength > 0) {
-      if (
-        maxPostponedStateSizeBytes === undefined ||
-        stateLength > maxPostponedStateSizeBytes
-      ) {
+      if (stateLength > maxPostponedStateSizeBytes) {
         res.statusCode = 413
-        res.end(
-          `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
-            `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
-        )
+        res.end(getPostponedStateExceededErrorMessage(maxPostponedStateSize))
         ctx.waitUntil?.(Promise.resolve())
         return null
       }
@@ -280,24 +273,16 @@ export async function handler(
           : 1024 * 1024 // 1 MB
       const maxTotalBodySize = stateLength + actionBodySizeLimitBytes
 
-      // Read the entire body, checking size as we go.
-      const bodyChunks: Array<Buffer> = []
-      let size = 0
-      for await (const chunk of req) {
-        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-        size += buffer.byteLength
-        if (size > maxTotalBodySize) {
-          res.statusCode = 413
-          res.end(
-            `Request body exceeded limit. ` +
-              `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
-          )
-          ctx.waitUntil?.(Promise.resolve())
-          return null
-        }
-        bodyChunks.push(buffer)
+      const fullBody = await readBodyWithSizeLimit(req, maxTotalBodySize)
+      if (fullBody === null) {
+        res.statusCode = 413
+        res.end(
+          `Request body exceeded limit. ` +
+            `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+        )
+        ctx.waitUntil?.(Promise.resolve())
+        return null
       }
-      const fullBody = Buffer.concat(bodyChunks)
 
       if (fullBody.length >= stateLength) {
         // Extract postponed state from the beginning
@@ -323,15 +308,20 @@ export async function handler(
     req.headers[NEXT_RESUME_HEADER] === '1' &&
     req.method === 'POST'
   ) {
+    const { maxPostponedStateSize, maxPostponedStateSizeBytes } =
+      getMaxPostponedStateSize(nextConfig.experimental.maxPostponedStateSize)
+
     // Decode the postponed state from the request body, it will come as
     // an array of buffers, so collect them and then concat them to form
     // the string.
-
-    const body: Array<Buffer> = []
-    for await (const chunk of req) {
-      body.push(chunk)
+    const body = await readBodyWithSizeLimit(req, maxPostponedStateSizeBytes)
+    if (body === null) {
+      res.statusCode = 413
+      res.end(getPostponedStateExceededErrorMessage(maxPostponedStateSize))
+      ctx.waitUntil?.(Promise.resolve())
+      return null
     }
-    const postponed = Buffer.concat(body).toString('utf8')
+    const postponed = body.toString('utf8')
 
     addRequestMeta(req, 'postponed', postponed)
   }
@@ -538,6 +528,9 @@ export async function handler(
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
+  const isWrappedByNextServer = Boolean(
+    routerServerContext?.isWrappedByNextServer
+  )
 
   const render404 = async () => {
     // TODO: should route-module itself handle rendering the 404
@@ -651,6 +644,7 @@ export async function handler(
         sharedContext: {
           buildId,
           deploymentId,
+          clientAssetToken,
         },
         serverComponentsHmrCache: getRequestMeta(
           req,
@@ -934,9 +928,10 @@ export async function handler(
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
                 )
-              : // Otherwise, if we're debugging the fallback shell, then we
-                // have to manually generate the fallback route params.
-                isDebugFallbackShell
+              : // Otherwise, if we're debugging the fallback shell or the
+                // static shell, then we have to manually generate the
+                // fallback route params.
+                isDebugFallbackShell || isDebugStaticShell
                 ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
 
@@ -1098,11 +1093,32 @@ export async function handler(
         prerenderInfo?.fallbackRouteParams &&
         getRequestMeta(req, 'renderFallbackShell')
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : // Otherwise, if we're debugging the fallback shell, then we have to
-            // manually generate the fallback route params.
-            isDebugFallbackShell
+          : // Otherwise, if we're debugging the fallback shell or the static
+            // shell, then we have to manually generate the fallback route
+            // params.
+            isDebugFallbackShell || isDebugStaticShell
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
+
+      // For staged dynamic rendering (cached navigations), pass the fallback
+      // params via request meta so the RequestStore knows which params to defer
+      // to the runtime stage. We don't pass them as fallbackRouteParams because
+      // that would replace actual param values with opaque placeholders during
+      // segment resolution.
+      if (
+        isProduction &&
+        nextConfig.cacheComponents &&
+        !isPrerendered &&
+        prerenderInfo?.fallbackRouteParams
+      ) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
 
       // Perform the render.
       return doRender({
@@ -1478,6 +1494,15 @@ export async function handler(
         body.push(
           new ReadableStream({
             start(controller) {
+              if (isInstantNavigationTest) {
+                // Inject a global so the client can detect that this response
+                // is a partial static shell, independent of document.cookie
+                // (which may be empty on the new page in some browsers).
+                const encoder = new TextEncoder()
+                controller.enqueue(
+                  encoder.encode('<script>self.__next_instant_test=1</script>')
+                )
+              }
               controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
               controller.close()
             },
@@ -1555,22 +1580,26 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
-      return await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      return await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          handleResponse
-        )
+            handleResponse
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {

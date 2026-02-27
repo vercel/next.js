@@ -54,12 +54,9 @@ use turbopack_ecmascript::{
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
         follow_reexports,
     },
-    side_effect_optimization::{
-        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
-    },
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     tree_shake::asset::EcmascriptModulePartAsset,
 };
-use turbopack_json::JsonModuleAsset;
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
 use turbopack_resolve::{
     resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
@@ -199,33 +196,13 @@ async fn apply_module_type(
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
+                        // Returns the split module if necessary due to re-exports
                         if let Some(part) = part {
                             match part {
-                                ModulePart::Evaluation => {
-                                    if *module.get_exports().split_locals_and_reexports().await? {
-                                        Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                                    } else {
-                                        Vc::upcast(*module)
-                                    }
-                                }
+                                ModulePart::Evaluation => Vc::upcast(module.get_locals_if_split()),
                                 ModulePart::Export(_) => {
-                                    if *module.get_exports().split_locals_and_reexports().await? {
-                                        apply_reexport_tree_shaking(
-                                            Vc::upcast(
-                                                EcmascriptModuleFacadeModule::new(
-                                                    Vc::upcast(*module),
-                                                    ModulePart::facade(),
-                                                )
-                                                .resolve()
-                                                .await?,
-                                            ),
-                                            part,
-                                        )
+                                    apply_reexport_tree_shaking(module.get_facade_if_split(), part)
                                         .await?
-                                    } else {
-                                        apply_reexport_tree_shaking(Vc::upcast(*module), part)
-                                            .await?
-                                    }
                                 }
                                 _ => bail!(
                                     "Invalid module part \"{}\" for reexports only tree shaking \
@@ -233,13 +210,8 @@ async fn apply_module_type(
                                     part
                                 ),
                             }
-                        } else if *module.get_exports().split_locals_and_reexports().await? {
-                            Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                Vc::upcast(*module),
-                                ModulePart::facade(),
-                            ))
                         } else {
-                            Vc::upcast(*module)
+                            Vc::upcast(module.get_facade_if_split())
                         }
                     }
                     None => Vc::upcast(*module),
@@ -248,7 +220,6 @@ async fn apply_module_type(
                 .await?
             }
         }
-        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
         ModuleType::NodeAddon => {
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
