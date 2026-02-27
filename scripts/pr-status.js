@@ -1,4 +1,4 @@
-const { execSync } = require('child_process')
+const { execSync, spawn } = require('child_process')
 const fs = require('fs/promises')
 const path = require('path')
 
@@ -19,6 +19,30 @@ function exec(cmd) {
     console.error(error.stderr || error.message)
     throw error
   }
+}
+
+function execAsync(cmd) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('/bin/sh', ['-c', cmd], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const chunks = []
+    let stderr = ''
+    child.stdout.on('data', (chunk) => chunks.push(chunk))
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.on('close', (code) => {
+      if (code !== 0) {
+        const error = new Error(`Command failed: ${cmd}`)
+        error.stderr = stderr
+        reject(error)
+      } else {
+        resolve(Buffer.concat(chunks).toString('utf8').trim())
+      }
+    })
+    child.on('error', reject)
+  })
 }
 
 function execJson(cmd) {
@@ -272,9 +296,11 @@ function getJobMetadata(jobId) {
   )
 }
 
-function getJobLogs(jobId) {
+async function getJobLogs(jobId) {
   try {
-    return exec(`gh api "repos/vercel/next.js/actions/jobs/${jobId}/logs"`)
+    return await execAsync(
+      `gh api "repos/vercel/next.js/actions/jobs/${jobId}/logs"`
+    )
   } catch {
     return 'Logs not available'
   }
@@ -1021,7 +1047,7 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
     const results = await Promise.all(
       batch.map(async ({ job, branch }) => {
         try {
-          const logs = exec(
+          const logs = await execAsync(
             `gh api "repos/vercel/next.js/actions/jobs/${job.id}/logs"`
           )
           return { logs, branch }
@@ -1229,7 +1255,7 @@ async function main() {
     processedFailedJobs.push(jobMetadata)
 
     // Get job logs
-    const logs = getJobLogs(id)
+    const logs = await getJobLogs(id)
 
     // Extract test output JSON
     const testResults = extractTestOutputJson(logs)
