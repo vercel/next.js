@@ -26,7 +26,7 @@ pub mod source;
 pub async fn wasm_edge_var_name(asset: Vc<Box<dyn Asset>>) -> Result<Vc<RcStr>> {
     let hash = asset
         .content()
-        .content_hash(HashAlgorithm::default())
+        .content_hash(HashAlgorithm::Xxh3Hash128Hex)
         .await?;
     let hash = hash
         .as_ref()

@@ -1,10 +1,13 @@
 'use client'
 
+import React from 'react'
 import { HandleISRError } from '../handle-isr-error'
 import { errorStyles, errorThemeCss, ErrorIcon } from './error-styles'
 
 export type GlobalErrorComponent = React.ComponentType<{
   error: any
+  reset: () => void
+  unstable_retry: () => void
 }>
 
 function DefaultGlobalError({ error }: { error: any }) {

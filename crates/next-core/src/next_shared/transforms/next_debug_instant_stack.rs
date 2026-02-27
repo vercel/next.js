@@ -28,8 +28,8 @@ struct NextDebugInstantStack {}
 #[async_trait]
 impl CustomTransformer for NextDebugInstantStack {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "debug_instant_stack", skip_all)]
-    async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
-        program.mutate(debug_instant_stack());
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        program.mutate(debug_instant_stack(ctx.file_path_str.to_string()));
         Ok(())
     }
 }

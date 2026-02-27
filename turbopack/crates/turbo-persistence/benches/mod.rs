@@ -788,20 +788,12 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
             // Create temp directory and write SST file
             let tempdir = tempfile::tempdir().unwrap();
             let sst_path = tempdir.path().join("00000001.sst");
-            let total_key_size = entry_count * 8;
-
-            let (meta, _file) = write_static_stored_file(
-                &entries,
-                total_key_size,
-                &sst_path,
-                MetaEntryFlags::FRESH,
-            )
-            .unwrap();
+            let (meta, _file) =
+                write_static_stored_file(&entries, &sst_path, MetaEntryFlags::FRESH).unwrap();
 
             // Open the SST file
             let sst_meta = StaticSortedFileMetaData {
                 sequence_number: 1,
-                key_compression_dictionary_length: meta.key_compression_dictionary_length,
                 block_count: meta.block_count,
             };
             let sst = StaticSortedFile::open(tempdir.path(), sst_meta).unwrap();

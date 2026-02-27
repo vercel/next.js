@@ -50,6 +50,7 @@ describe('standalone mode: ipv6 hostname', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         HOSTNAME: '::',
         PORT: appPort,
       },
