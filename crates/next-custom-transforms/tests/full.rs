@@ -82,7 +82,6 @@ fn test(input: &Path, minify: bool) {
                 debug_function_name: false,
                 css_env: None,
                 track_dynamic_imports: false,
-                page_extensions: vec![],
             };
 
             let unresolved_mark = Mark::new();

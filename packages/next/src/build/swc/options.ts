@@ -242,7 +242,6 @@ function getBaseSWCOptions({
     lintCodemodComments: true,
     trackDynamicImports: trackDynamicImports,
     debugFunctionName: development,
-    pageExtensions: pageExtensions || [],
 
     ...(supportedBrowsers && supportedBrowsers.length > 0
       ? {
