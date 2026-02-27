@@ -1135,10 +1135,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 #[cfg(debug_assertions)]
                                 impl Drop for Collector {
                                     fn drop(&mut self) {
-                                        assert!(
-                                            self.writer.is_none(),
-                                            "Collector dropped with an open writer"
-                                        );
+                                        if !std::thread::panicking() {
+                                            assert!(
+                                                self.writer.is_none(),
+                                                "Collector dropped with an open writer"
+                                            );
+                                        }
                                     }
                                 }
                                 let mut used_collector = Collector::new(MetaEntryFlags::WARM);

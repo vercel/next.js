@@ -45,6 +45,24 @@ fn use_hash(max_key_len: usize) -> bool {
     max_key_len > 32
 }
 
+/// Returns true when the current key block should be flushed before adding the next entry.
+///
+/// `block_size` and `block_entry_count` describe the block accumulated so far.
+/// `next_key_len` is the key length of the candidate entry being considered.
+/// `last_hash` / `next_hash` are compared to avoid splitting a block mid-hash-collision.
+fn should_flush_key_block(
+    block_size: usize,
+    block_entry_count: usize,
+    next_key_len: usize,
+    last_hash: u64,
+    next_hash: u64,
+) -> bool {
+    block_entry_count > 0
+        && (block_size + next_key_len + KEY_BLOCK_ENTRY_META_OVERHEAD > MAX_KEY_BLOCK_SIZE
+            || block_entry_count >= MAX_KEY_BLOCK_ENTRIES)
+        && last_hash != next_hash
+}
+
 /// Trait for entries from that SST files can be created
 pub trait Entry {
     /// Returns the hash of the key
@@ -253,7 +271,10 @@ pub struct StreamingSstWriter {
     #[cfg(debug_assertions)]
     current_small_block_id: u16,
 
-    // Pending small value block buffer
+    // Pending small value block buffer.
+    // `pending_small_value_count` counts only the entries whose bytes are currently in
+    // `pending_small_values`; it is independent of `pending_keys.len()`, which includes
+    // entries of all value types (including already-flushed small, medium, inline, etc.).
     pending_small_values: Vec<u8>,
     pending_small_value_count: usize,
 
@@ -577,11 +598,7 @@ impl StreamingSstWriter {
             let key_len = entry.key.len();
             let key_hash = entry.key_hash;
 
-            if block_entry_count > 0
-                && (block_size + key_len + KEY_BLOCK_ENTRY_META_OVERHEAD > MAX_KEY_BLOCK_SIZE
-                    || block_entry_count >= MAX_KEY_BLOCK_ENTRIES)
-                && last_hash != key_hash
-            {
+            if should_flush_key_block(block_size, block_entry_count, key_len, last_hash, key_hash) {
                 self.flush_key_block(block_start, i, block_max_key_len)?;
                 last_flushed_end = i;
                 block_start = i;
@@ -765,12 +782,9 @@ impl StreamingSstWriter {
             let entry = &self.pending_keys[i];
             let key_len = entry.key.len();
             let key_hash = entry.key_hash;
+            let block_entry_count = i - block_start;
 
-            if block_size > 0
-                && (block_size + key_len + KEY_BLOCK_ENTRY_META_OVERHEAD > MAX_KEY_BLOCK_SIZE
-                    || i - block_start >= MAX_KEY_BLOCK_ENTRIES)
-                && last_hash != key_hash
-            {
+            if should_flush_key_block(block_size, block_entry_count, key_len, last_hash, key_hash) {
                 self.flush_key_block(block_start, i, block_max_key_len)?;
                 block_start = i;
                 block_size = 0;
@@ -796,10 +810,13 @@ impl StreamingSstWriter {
 #[cfg(debug_assertions)]
 impl Drop for StreamingSstWriter {
     fn drop(&mut self) {
-        assert!(
-            self.finished || self.entry_count == 0,
-            "StreamingSstWriter dropped without calling close()"
-        );
+        // Skip assertion during panic unwinding to avoid a double-panic (which would abort).
+        if !std::thread::panicking() {
+            assert!(
+                self.finished || self.entry_count == 0,
+                "StreamingSstWriter dropped without calling close()"
+            );
+        }
     }
 }
 
@@ -926,14 +943,14 @@ impl<'l> KeyBlockBuilder<'l> {
 // ---------------------------------------------------------------------------
 
 /// Builder for a single index block.
-pub struct IndexBlockBuilder<'l> {
+struct IndexBlockBuilder<'l> {
     buffer: &'l mut Vec<u8>,
 }
 
 impl<'l> IndexBlockBuilder<'l> {
     /// Creates a new builder for an index block with the specified number of entries and a pointer
     /// to the first block.
-    pub fn new(buffer: &'l mut Vec<u8>, entry_count: u16, first_block: u16) -> Self {
+    fn new(buffer: &'l mut Vec<u8>, entry_count: u16, first_block: u16) -> Self {
         buffer.reserve(
             entry_count as usize * (size_of::<u64>() + size_of::<u16>())
                 + size_of::<u8>()
@@ -945,7 +962,7 @@ impl<'l> IndexBlockBuilder<'l> {
     }
 
     /// Adds a hash boundary to the index block.
-    pub fn put(&mut self, hash: u64, block: u16) {
+    fn put(&mut self, hash: u64, block: u16) {
         self.buffer.write_u64::<BE>(hash).unwrap();
         self.buffer.write_u16::<BE>(block).unwrap();
     }
@@ -996,6 +1013,8 @@ mod tests {
         Inline(Vec<u8>),
         Small(Vec<u8>),
         Medium(Vec<u8>),
+        /// Already-formatted block with `uncompressed_size = 0` (stored as-is).
+        MediumRaw(Vec<u8>),
         Blob(u32),
         Deleted,
     }
@@ -1052,11 +1071,23 @@ mod tests {
             }
         }
 
+        fn medium_raw(key: &[u8], value: &[u8]) -> Self {
+            let key = key.to_vec();
+            let hash = hash_key(&key);
+            Self {
+                key,
+                hash,
+                // Store as uncompressed raw block (uncompressed_size = 0 means "not compressed").
+                value_kind: TestValueKind::MediumRaw(value.to_vec()),
+            }
+        }
+
         fn expected_value(&self) -> Option<&[u8]> {
             match &self.value_kind {
-                TestValueKind::Inline(v) | TestValueKind::Small(v) | TestValueKind::Medium(v) => {
-                    Some(v)
-                }
+                TestValueKind::Inline(v)
+                | TestValueKind::Small(v)
+                | TestValueKind::Medium(v)
+                | TestValueKind::MediumRaw(v) => Some(v),
                 _ => None,
             }
         }
@@ -1080,6 +1111,11 @@ mod tests {
                 TestValueKind::Inline(v) => EntryValue::Inline { value: v },
                 TestValueKind::Small(v) => EntryValue::Small { value: v },
                 TestValueKind::Medium(v) => EntryValue::Medium { value: v },
+                TestValueKind::MediumRaw(v) => EntryValue::MediumRaw {
+                    // uncompressed_size = 0 means the block is stored as-is (no compression).
+                    uncompressed_size: 0,
+                    block: v,
+                },
                 TestValueKind::Blob(id) => EntryValue::Large { blob: *id },
                 TestValueKind::Deleted => EntryValue::Deleted,
             }
@@ -1464,6 +1500,61 @@ mod tests {
                 ),
             }
         }
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "StreamingSstWriter::close() called with no entries")]
+    fn close_empty_writer_panics() {
+        let dir = tempfile::tempdir().unwrap();
+        let sst_path = dir.path().join("empty.sst");
+        let writer = StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 0).unwrap();
+        writer.close().unwrap();
+    }
+
+    #[test]
+    fn key_block_boundary_at_max_entries() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let count = MAX_KEY_BLOCK_ENTRIES + 1;
+        let mut entries: Vec<TestEntry> = (0..count)
+            .map(|i| {
+                let key = format!("boundary-{i:06}");
+                TestEntry::inline(key.as_bytes(), &[0u8; 4])
+            })
+            .collect();
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, count as u64);
+        // count > MAX_KEY_BLOCK_ENTRIES so we need at least 2 key blocks plus 1 index block
+        assert!(
+            meta.block_count >= 3,
+            "expected at least 2 key blocks + 1 index block"
+        );
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn single_medium_raw_entry() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let value = vec![0xBE; 8192];
+        let mut entries = vec![TestEntry::medium_raw(b"rkey", &value)];
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        assert_eq!(meta.entries, 1);
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        assert_lookup(&sst, &entries[0], &kc, &vc)?;
         Ok(())
     }
 }
