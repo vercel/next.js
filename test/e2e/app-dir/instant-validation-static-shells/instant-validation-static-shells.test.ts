@@ -45,6 +45,7 @@ describe('instant validation', () => {
         await browser.elementByCss('main')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "code": "E1084",
            "description": "Data that blocks navigation was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.

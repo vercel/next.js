@@ -132,6 +132,7 @@ import {
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
+import { extractNextErrorCode } from '../../lib/error-telemetry-utils'
 import {
   accessedDynamicData,
   createRenderInBrowserAbortSignal,
@@ -3719,11 +3720,23 @@ async function logMessagesAndSendErrorsToBrowser(
       )
     }
 
+    // Build a Map of error → error code for errors that have one.
+    // React doesn't revive __NEXT_ERROR_CODE during RSC deserialization, so we
+    // send it as a side-channel Map. RSC preserves object identity, so the
+    // deserialized Map keys will reference the same Error objects.
+    const errorCodes = new Map<Error, string>()
+    for (const err of errors) {
+      const code = extractNextErrorCode(err)
+      if (code !== undefined) {
+        errorCodes.set(err, code)
+      }
+    }
+
     const { clientModules } = getClientReferenceManifest()
 
     const errorsFlightStream = renderToFlightStream(
       ctx.componentMod,
-      errors,
+      { errors, errorCodes },
       clientModules,
       { filterStackFrame }
     )
