@@ -76,7 +76,7 @@ describe('Middleware custom matchers with root', () => {
 
   it('should not match', async () => {
     const res = await next.fetch(
-      `/_next/static/${next.buildId}/_buildManifest.js`
+      `/_next/static/${next.buildId}/_buildManifest.js${next.getDeploymentIdQuery()}`
     )
     expect(res.status).toBe(200)
     expect(res.headers.get('x-from-middleware')).toBeFalsy()

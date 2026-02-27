@@ -11,9 +11,10 @@ bincode = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 trybuild = { version = "1.0.116" }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
+turbo-tasks-testing = { workspace = true }
 
 [lints]
 workspace = true

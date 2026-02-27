@@ -12,18 +12,20 @@ static REGISTRATION: Registration = register!();
 #[turbo_tasks::value(transparent)]
 struct Step(State<u32>);
 
-#[turbo_tasks::function]
-fn create_state() -> Vc<Step> {
+#[turbo_tasks::function(operation)]
+fn create_state_operation() -> Vc<Step> {
     Step(State::new(0)).cell()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn invalidation_map() {
+async fn test_invalidation_map() {
     run(&REGISTRATION, || async {
-        let state = create_state().to_resolved().await?;
-        state.await?.set(1);
+        let state_op = create_state_operation();
+        let state_vc = state_op.resolve_strongly_consistent().await?;
+        let state = state_op.read_strongly_consistent().await?;
+        state.set(1);
 
-        let map = create_map(state);
+        let map = create_map(state_vc);
         let a = get_value(map, "a".to_string());
         let b = get_value(map, "b".to_string());
         let c = get_value(map, "c".to_string());
@@ -36,7 +38,7 @@ async fn invalidation_map() {
         assert_eq!(b_ref.value, Some(2));
         assert_eq!(c_ref.value, None);
 
-        state.await?.set(2);
+        state.set(2);
 
         let a_ref2 = a.read_strongly_consistent().await?;
         let b_ref2 = b.read_strongly_consistent().await?;
@@ -48,7 +50,7 @@ async fn invalidation_map() {
         assert_eq!(a_ref.random, a_ref2.random);
         assert_eq!(c_ref.random, c_ref2.random);
 
-        state.await?.set(3);
+        state.set(3);
 
         let a_ref3 = a.read_strongly_consistent().await?;
         let b_ref3 = b.read_strongly_consistent().await?;
@@ -96,12 +98,14 @@ async fn get_value(map: OperationVc<Map>, key: String) -> Result<Vc<GetValueResu
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn invalidation_set() {
+async fn test_invalidation_set() {
     run(&REGISTRATION, || async {
-        let state = create_state().to_resolved().await?;
-        state.await?.set(1);
+        let state_op = create_state_operation();
+        let state_vc = state_op.resolve_strongly_consistent().await?;
+        let state = state_op.read_strongly_consistent().await?;
+        state.set(1);
 
-        let set = create_set(state);
+        let set = create_set(state_vc);
         let a = has_value(set, "a".to_string());
         let b = has_value(set, "b".to_string());
         let c = has_value(set, "c".to_string());
@@ -114,7 +118,7 @@ async fn invalidation_set() {
         assert!(b_ref.value);
         assert!(!c_ref.value);
 
-        state.await?.set(2);
+        state.set(2);
 
         let a_ref2 = a.read_strongly_consistent().await?;
         let b_ref2 = b.read_strongly_consistent().await?;
@@ -127,7 +131,7 @@ async fn invalidation_set() {
         assert_eq!(b_ref.random, b_ref2.random);
         assert_eq!(c_ref.random, c_ref2.random);
 
-        state.await?.set(3);
+        state.set(3);
 
         let a_ref3 = a.read_strongly_consistent().await?;
         let b_ref3 = b.read_strongly_consistent().await?;

@@ -325,7 +325,7 @@ turbopack-ecmascript-hmr-protocol = { path = "turbopack/crates/turbopack-ecmascr
 turbopack-env = { path = "turbopack/crates/turbopack-env" }
 turbopack-image = { path = "turbopack/crates/turbopack-image" }
 turbopack-mdx = { path = "turbopack/crates/turbopack-mdx" }
-turbopack-node = { path = "turbopack/crates/turbopack-node" }
+turbopack-node = { path = "turbopack/crates/turbopack-node", default-features = false }
 turbopack-resolve = { path = "turbopack/crates/turbopack-resolve" }
 turbopack-static = { path = "turbopack/crates/turbopack-static" }
 turbopack-swc-utils = { path = "turbopack/crates/turbopack-swc-utils" }
@@ -419,6 +419,8 @@ napi = { version = "2", default-features = false, features = [
   "napi5",
   "compat-mode",
 ] }
+napi-derive = "2"
+napi-build = "2"
 nohash-hasher = "0.2.0"
 notify = "8.1.0"
 once_cell = "1.17.1"

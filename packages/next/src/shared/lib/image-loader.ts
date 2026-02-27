@@ -26,7 +26,9 @@ function defaultLoader({
     }
   }
 
-  // Extract dpl parameter early so validation uses the clean URL
+  // Extract dpl parameter early so validation uses the clean URL.
+  // If a immutable asset token should be used, it was already added as a query parameter and will
+  // be extracted and reused here.
   let deploymentId = getDeploymentId()
   if (src.startsWith('/') && !src.startsWith('//')) {
     // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes

@@ -253,6 +253,11 @@ export interface AdapterOutput {
     filePath: string
     pathname: string
     type: AdapterOutputType.STATIC_FILE
+    /**
+     * If this static file is immutable (because its filename contains a content hash), then this
+     * field contains the untruncated content hash.
+     */
+    immutableHash: string | undefined
   }
 
   /**
@@ -478,19 +483,32 @@ export async function handleBuildComplete({
           pathname,
           filePath: path.join(configOutDir, file),
           type: AdapterOutputType.STATIC_FILE,
+          immutableHash: undefined,
         } satisfies AdapterOutput['STATIC_FILE'])
       }
     } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
+      const clientHashes: Record<string, string> | undefined =
+        bundler === Bundler.Turbopack && config.experimental.immutableAssetToken
+          ? JSON.parse(
+              await fs.readFile(
+                path.join(distDir, 'immutable-static-hashes.json'),
+                'utf8'
+              )
+            )
+          : undefined
+
       for (const file of staticFiles) {
         const pathname = path.posix.join('/_next/static', file)
         const filePath = path.join(distDir, 'static', file)
+        const id = path.join('static', file)
         outputs.staticFiles.push({
           type: AdapterOutputType.STATIC_FILE,
-          id: path.join('static', file),
+          id,
           pathname,
           filePath,
+          immutableHash: clientHashes?.[id],
         })
       }
 
@@ -677,6 +695,11 @@ export async function handleBuildComplete({
         }
 
         const route = page.page.replace(/^(app|pages)\//, '')
+        const pathname = isAppPrefix
+          ? normalizeAppPath(route)
+          : route === '/index'
+            ? '/'
+            : route
 
         const output: Omit<AdapterOutput[typeof type], 'type'> & {
           type: any
@@ -685,7 +708,7 @@ export async function handleBuildComplete({
           id: page.name,
           runtime: 'edge',
           sourcePage: route,
-          pathname: isAppPrefix ? normalizeAppPath(route) : route,
+          pathname,
           filePath: path.join(
             distDir,
             page.files.find(
@@ -766,16 +789,18 @@ export async function handleBuildComplete({
             pathname: rscPathname,
             id: page.name + '.rsc',
           })
-        } else if (serverPropsPages.has(route === '/index' ? '/' : route)) {
+        } else if (
+          type !== AdapterOutputType.MIDDLEWARE &&
+          serverPropsPages.has(pathname)
+        ) {
           const nextDataPath = path.posix.join(
             '/_next/data/',
             buildId,
-            normalizePagePath(output.pathname) + '.json'
+            normalizePagePath(pathname) + '.json'
           )
-          outputs.appPages.push({
+          outputs.pages.push({
             ...output,
             pathname: nextDataPath,
-            id: page.name,
           })
         }
       }
@@ -831,6 +856,7 @@ export async function handleBuildComplete({
                   pagesDistDir,
                   `${normalizePagePath(localePage)}.html`
                 ),
+                immutableHash: undefined,
               } satisfies AdapterOutput['STATIC_FILE']
 
               outputs.staticFiles.push(localeOutput)
@@ -841,6 +867,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -850,6 +877,7 @@ export async function handleBuildComplete({
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: pageFile.replace(/\.js$/, '.html'),
+              immutableHash: undefined,
             } satisfies AdapterOutput['STATIC_FILE']
 
             outputs.staticFiles.push(staticOutput)
@@ -860,6 +888,7 @@ export async function handleBuildComplete({
                 pathname: `${route}.rsc`,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
           }
@@ -922,6 +951,7 @@ export async function handleBuildComplete({
                 pathname: rscPage,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
           }
@@ -953,6 +983,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -1314,6 +1345,7 @@ export async function handleBuildComplete({
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: staticMetadataFilePath,
+              immutableHash: undefined,
             })
             continue
           }
@@ -1438,6 +1470,7 @@ export async function handleBuildComplete({
             pathname: rscPage,
             type: AdapterOutputType.STATIC_FILE,
             filePath: rscFallbackPath,
+            immutableHash: undefined,
           })
         }
 
@@ -1625,6 +1658,7 @@ export async function handleBuildComplete({
               pathname: rscPage,
               type: AdapterOutputType.STATIC_FILE,
               filePath: rscFallbackPath,
+              immutableHash: undefined,
             })
           }
 
@@ -1732,6 +1766,7 @@ export async function handleBuildComplete({
                 pathname: rscPage,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
 
@@ -1786,6 +1821,7 @@ export async function handleBuildComplete({
                 id: currentDocPath,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: currentFilePath,
+                immutableHash: undefined,
               })
             }
           }

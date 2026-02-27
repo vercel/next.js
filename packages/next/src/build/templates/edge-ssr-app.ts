@@ -85,6 +85,7 @@ async function requestHandler(
     interceptionRoutePatterns,
     routerServerContext,
     deploymentId,
+    clientAssetToken,
   } = prepareResult
 
   // Initialize the cache handlers interface.
@@ -107,6 +108,7 @@ async function requestHandler(
     sharedContext: {
       buildId,
       deploymentId,
+      clientAssetToken,
     },
     fallbackRouteParams: null,
 

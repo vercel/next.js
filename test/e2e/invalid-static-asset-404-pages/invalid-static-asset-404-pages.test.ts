@@ -6,7 +6,7 @@ describe('invalid-static-asset-404-pages', () => {
   })
 
   it('should return correct output with status 200 on valid asset path', async () => {
-    const buildManifestPath = `/_next/static/${next.buildId}/_buildManifest.js`
+    const buildManifestPath = `/_next/static/${next.buildId}/_buildManifest.js${next.getDeploymentIdQuery()}`
 
     const res = await next.fetch(buildManifestPath)
     expect(res.status).toBe(200)

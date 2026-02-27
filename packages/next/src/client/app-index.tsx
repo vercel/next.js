@@ -325,7 +325,7 @@ export async function hydrate(
       initialCanonicalUrlParts: initialRSCPayload.c,
       initialRenderedSearch: initialRSCPayload.q,
       initialCouldBeIntercepted: initialRSCPayload.i,
-      initialPrerendered: initialRSCPayload.S,
+      initialSupportsPerSegmentPrefetching: initialRSCPayload.S,
       location: window.location,
     }),
     instrumentationHooks

@@ -26,6 +26,7 @@ import type {
   RawEntrypoints,
   TurbopackResult,
 } from '../swc/types'
+import { Bundler } from '../../lib/bundler'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -105,6 +106,7 @@ export async function turbopackBuild(): Promise<{
     currentNodeJsVersion,
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,
+    nextVersion: process.env.__NEXT_VERSION as string,
   }
 
   const sharedTurboOptions = {
@@ -129,6 +131,7 @@ export async function turbopackBuild(): Promise<{
               debugPrerender: NextBuildContext.debugPrerender,
               reactProductionProfiling:
                 NextBuildContext.reactProductionProfiling,
+              bundler: Bundler.Turbopack,
             })
 
             await workerConfig.experimental.onBeforeDeferredEntries?.()
@@ -278,6 +281,7 @@ export async function workerMain(workerData: {
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      bundler: Bundler.Turbopack,
     }
   )
   NextBuildContext.config = config
