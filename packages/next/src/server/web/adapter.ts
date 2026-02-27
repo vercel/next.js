@@ -35,7 +35,7 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
-import { setRequestMeta } from '../request-meta'
+import { getRequestMeta, setRequestMeta } from '../request-meta'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -204,11 +204,16 @@ export async function adapter(
     })
   }
 
+  const requestMinimalMode = getRequestMeta(request, 'minimalMode') === true
+
   if (
     // If we are inside of the next start sandbox
     // leverage the shared instance if not we need
-    // to create a fresh cache instance each time
+    // to create a fresh cache instance each time.
+    // In minimal mode we also avoid reusing a non-shared global cache
+    // as it can contain stale request-derived state.
     !(globalThis as any).__incrementalCacheShared &&
+    (requestMinimalMode || !(globalThis as any).__incrementalCache) &&
     (params as any).IncrementalCache
   ) {
     ;(globalThis as any).__incrementalCache = new (
