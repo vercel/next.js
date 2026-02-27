@@ -19,7 +19,6 @@ use crate::{
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
-    value_block_count_tracker::ValueBlockCountTracker,
 };
 
 /// The maximum number of entries that should go into a single key block
@@ -273,7 +272,6 @@ pub struct StreamingSstWriter {
     // Fullness tracking (for compaction callers)
     total_key_size: usize,
     total_value_size: usize,
-    value_block_count_tracker: ValueBlockCountTracker,
 }
 
 impl StreamingSstWriter {
@@ -304,7 +302,6 @@ impl StreamingSstWriter {
             flags,
             total_key_size: 0,
             total_value_size: 0,
-            value_block_count_tracker: ValueBlockCountTracker::default(),
         })
     }
 
@@ -314,7 +311,26 @@ impl StreamingSstWriter {
     pub fn is_full(&self, max_entries: usize, max_data_size: usize) -> bool {
         self.entry_count as usize >= max_entries
             || self.total_key_size + self.total_value_size > max_data_size
-            || self.value_block_count_tracker.is_full()
+            || !self.has_block_index_capacity()
+    }
+
+    /// Returns true if the SST file has room for more blocks without overflowing the `u16` block
+    /// index. Uses the exact count of blocks already written plus a conservative estimate of
+    /// blocks still needed for pending entries and the index.
+    fn has_block_index_capacity(&self) -> bool {
+        let blocks_written = self.block_offsets.len();
+        // Blocks still needed:
+        // - 1 pending small value block (if buffer is non-empty)
+        // - key blocks for pending entries (upper bound)
+        // - 1 index block
+        let pending_small_block = usize::from(!self.pending_small_values.is_empty());
+        let pending_key_blocks = self
+            .pending_keys
+            .len()
+            .div_ceil(MAX_KEY_BLOCK_ENTRIES)
+            .max(1);
+        let index_block = 1;
+        blocks_written + pending_small_block + pending_key_blocks + index_block < u16::MAX as usize
     }
 
     /// Adds an entry to the SST file. Entries must be added in key-hash order.
@@ -349,7 +365,6 @@ impl StreamingSstWriter {
         let value_ref = match entry.value() {
             EntryValue::Medium { value } => {
                 self.total_value_size += value.len();
-                self.value_block_count_tracker.track(true, 0);
                 let block_index = write_block_to_file(
                     &mut self.file,
                     &mut self.compress_buffer,
@@ -365,7 +380,6 @@ impl StreamingSstWriter {
                 block,
             } => {
                 self.total_value_size += block.len();
-                self.value_block_count_tracker.track(true, 0);
                 let block_index = write_raw_block_to_file(
                     &mut self.file,
                     &mut self.block_offsets,
@@ -377,7 +391,6 @@ impl StreamingSstWriter {
             }
             EntryValue::Small { value } => {
                 self.total_value_size += value.len();
-                self.value_block_count_tracker.track(false, value.len());
 
                 // Flush small value block if full BEFORE adding this value,
                 // so entries referencing the previous block get resolved.
@@ -417,12 +430,21 @@ impl StreamingSstWriter {
             EntryValue::Deleted => ValueRef::Deleted,
         };
 
+        // Track whether this entry is immediately resolved (not PendingSmall).
+        let is_resolved = !matches!(value_ref, ValueRef::PendingSmall { .. });
+
         // Push pending key entry
         self.pending_keys.push_back(PendingKeyEntry {
             key_hash,
             key,
             value_ref,
         });
+
+        // Advance the resolved boundary for non-PendingSmall entries, but only when there are
+        // no earlier unresolved PendingSmall entries blocking the boundary.
+        if is_resolved && self.first_pending_small_index == self.pending_keys.len() - 1 {
+            self.first_pending_small_index = self.pending_keys.len();
+        }
 
         // Try to flush completed key blocks
         self.try_flush_key_blocks()?;
