@@ -1742,8 +1742,7 @@ export default async function loadConfig(
     }
 
     if (
-      // TODO enable once everything is merged
-      (true || bundler !== Bundler.Turbopack) &&
+      bundler !== Bundler.Turbopack &&
       userConfig.experimental?.immutableAssetToken
     ) {
       // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
