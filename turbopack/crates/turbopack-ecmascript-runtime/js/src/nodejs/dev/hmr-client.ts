@@ -13,6 +13,25 @@ type NodeJsHmrPayload = {
   instruction: EcmascriptMergedUpdate
 }
 
+/**
+ * Appends the module code with //# sourceURL and //# sourceMappingURL so
+ * that Node.js can resolve stack frames from `eval`ed server HMR modules back to
+ * their original source files. Mirrors the browser's _eval in dev-backend-dom.ts.
+ */
+function inlineSourcemaps(entry: EcmascriptModuleEntry): string {
+  const [chunkPath, moduleId] = entry.url.split('?', 2)
+  const absolutePath = path.resolve(RUNTIME_ROOT, chunkPath)
+  const fileHref = url.pathToFileURL(absolutePath).href
+  const sourceURL = moduleId ? `${fileHref}?${moduleId}` : fileHref
+  let code = entry.code + '\n\n//# sourceURL=' + sourceURL
+  if (entry.map) {
+    code +=
+      '\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,' +
+      Buffer.from(entry.map).toString('base64')
+  }
+  return code
+}
+
 let serverHmrUpdateHandler: ((msg: NodeJsHmrPayload) => void) | null = null
 
 function initializeServerHmr(
@@ -75,10 +94,9 @@ function handleNodejsUpdate(
   try {
     const { entries = {}, chunks = {} } = instruction
 
-    // Node.js eval function (no source maps)
     const evalModuleEntry = (entry: EcmascriptModuleEntry) => {
       // eslint-disable-next-line no-eval
-      return (0, eval)(entry.code)
+      return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code)
     }
 
     const { added, modified } = computeChangedModules(

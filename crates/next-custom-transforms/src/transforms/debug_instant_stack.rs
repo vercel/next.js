@@ -1,19 +1,27 @@
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_core::{
     common::{Span, Spanned},
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold},
+        visit::{VisitMut, visit_mut_pass},
     },
     quote,
 };
 
-pub fn debug_instant_stack() -> impl Pass {
-    fold_pass(DebugInstantStack {
+/// Only apply to page/layout segment files.
+static PAGE_OR_LAYOUT_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"[\\/](page|layout|default)\.(ts|js)x?$").unwrap());
+
+pub fn debug_instant_stack(filepath: String) -> impl Pass {
+    visit_mut_pass(DebugInstantStack {
+        filepath,
         instant_export_span: None,
     })
 }
 
 struct DebugInstantStack {
+    filepath: String,
     instant_export_span: Option<Span>,
 }
 
@@ -52,32 +60,34 @@ fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
             _ => continue,
         };
         for d in &decl.decls {
-            if let Pat::Ident(ident) = &d.name {
-                if ident.id.sym == local_name {
-                    if let Some(init) = &d.init {
-                        return Some(init.span());
-                    }
-                }
+            if let Pat::Ident(ident) = &d.name
+                && ident.id.sym == local_name
+                && let Some(init) = &d.init
+            {
+                return Some(init.span());
             }
         }
     }
     None
 }
 
-impl Fold for DebugInstantStack {
-    fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-        for item in &items {
+impl VisitMut for DebugInstantStack {
+    fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
+        if !PAGE_OR_LAYOUT_RE.is_match(&self.filepath) {
+            return;
+        }
+
+        for item in items.iter() {
             match item {
                 // `export const unstable_instant = ...`
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
                     if let Decl::Var(var_decl) = &export_decl.decl {
                         for decl in &var_decl.decls {
-                            if let Pat::Ident(ident) = &decl.name {
-                                if ident.id.sym == "unstable_instant" {
-                                    if let Some(init) = &decl.init {
-                                        self.instant_export_span = Some(init.span());
-                                    }
-                                }
+                            if let Pat::Ident(ident) = &decl.name
+                                && ident.id.sym == "unstable_instant"
+                                && let Some(init) = &decl.init
+                            {
+                                self.instant_export_span = Some(init.span());
                             }
                         }
                     }
@@ -94,7 +104,7 @@ impl Fold for DebugInstantStack {
                             } else {
                                 // Local named export: try to find the variable's initializer
                                 let local_name = &orig.sym;
-                                if let Some(init_span) = find_var_init_span(&items, local_name) {
+                                if let Some(init_span) = find_var_init_span(items, local_name) {
                                     self.instant_export_span = Some(init_span);
                                 } else {
                                     // Fallback to the export specifier span
@@ -109,8 +119,6 @@ impl Fold for DebugInstantStack {
         }
 
         if let Some(source_span) = self.instant_export_span {
-            let mut new_items = items;
-
             // TODO: Change React to deserialize errors with a zero-length message
             // instead of using a fallback message ("no message was provided").
             // We're working around this by using a message that is empty
@@ -142,10 +150,7 @@ impl Fold for DebugInstantStack {
                 cons: Expr = cons,
             );
 
-            new_items.push(export);
-            new_items
-        } else {
-            items
+            items.push(export);
         }
     }
 }
