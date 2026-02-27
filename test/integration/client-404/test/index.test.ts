@@ -49,7 +49,7 @@ const clientNavigation = (context, isProd = false) => {
         let chunk = getClientBuildManifestLoaderChunkUrlPath(appDir, '/missing')
         const browser = await webdriver(context.appPort, '/to-missing-link', {
           beforePageLoad(page) {
-            page.route('**/' + chunk, (route) => {
+            page.route(`**/${chunk}*`, (route) => {
               route.abort('internetdisconnected')
             })
           },

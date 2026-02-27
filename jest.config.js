@@ -19,7 +19,27 @@ const customJestConfig = {
     '<rootDir>/../packages/font/src/',
     '<rootDir>/../packages/next-routing/',
   ],
-  modulePathIgnorePatterns: ['/\\.next/'],
+  haste: {
+    // Throwing to avoid warnings creeping up over time polluting log output.
+    throwOnModuleCollision: true,
+  },
+  modulePathIgnorePatterns: [
+    '/\\.next/',
+    // Prevents jest-haste-map warnings due to multiple versions of the same
+    // package being vendored. Also means tests in `compiled` will be ignored.
+    // Jest does not normalize/resolve paths in modulePathIgnorePatterns so we can't
+    // prefix with <rootDir>/../ like we do in roots.
+    'packages/next/src/compiled/',
+    '<rootDir>/development/app-dir/ssr-in-rsc/internal-pkg/',
+    '<rootDir>/e2e/app-dir/self-importing-package/internal-pkg',
+    '<rootDir>/e2e/app-dir/self-importing-package-monorepo/internal-pkg',
+    '<rootDir>/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg',
+    '<rootDir>/e2e/transpile-packages-typescript-foreign/pkg',
+    '<rootDir>/production/standalone-mode/tracing-side-effects-false/foo',
+    '<rootDir>/production/standalone-mode/tracing-static-files/foo',
+    '<rootDir>/production/standalone-mode/tracing-unparsable/foo',
+    '<rootDir>/production/supports-module-resolution-nodenext/pkg',
+  ],
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
   moduleNameMapper: {

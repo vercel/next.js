@@ -38,7 +38,7 @@ Node.js deployments support all Next.js features. Learn how to [configure them](
 
 ## Docker
 
-Next.js can be deployed to any provider that supports [Docker](https://www.docker.com/) containers. This includes container orchestrators like Kubernetes or a cloud provider that runs Docker.
+Next.js can be deployed to any provider that supports [Docker](https://www.docker.com/) containers. This includes container orchestrators like Kubernetes or a cloud provider that runs Docker. For containerization best practices, see the [Docker guide for React.js](https://docs.docker.com/guides/reactjs/).
 
 Docker deployments support all Next.js features. Learn how to [configure them](/docs/app/guides/self-hosting) for your infrastructure.
 
@@ -46,8 +46,14 @@ Docker deployments support all Next.js features. Learn how to [configure them](/
 
 ### Templates
 
-- [Docker](https://github.com/vercel/next.js/tree/canary/examples/with-docker)
-- [Docker Multi-Environment](https://github.com/vercel/next.js/tree/canary/examples/with-docker-multi-env)
+The following examples demonstrate best practices for containerizing Next.js applications:
+
+- [Docker Standalone Output](https://github.com/vercel/next.js/tree/canary/examples/with-docker) - Deploy a Next.js application using `output: "standalone"` to generate a minimal, production-ready Docker image with only the required runtime files and dependencies.
+- [Docker Export Output](https://github.com/vercel/next.js/tree/canary/examples/with-docker-export-output) - Deploy a fully static Next.js application using `output: "export"` to generate optimized HTML files that can be served from a lightweight container or any static hosting environment.
+- [Docker Multi-Environment](https://github.com/vercel/next.js/tree/canary/examples/with-docker-multi-env) - Manage separate Docker configurations for development, staging, and production environments with different environment variables.
+
+Additionally, hosting providers offer guidance on deploying Next.js:
+
 - [DigitalOcean](https://github.com/nextjs/deploy-digitalocean)
 - [Fly.io](https://github.com/nextjs/deploy-fly)
 - [Google Cloud Run](https://github.com/nextjs/deploy-google-cloud-run)

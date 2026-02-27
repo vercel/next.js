@@ -34,6 +34,30 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
+export declare function registerWorkerScheduler(
+  creator: (arg: NapiWorkerCreation) => any,
+  terminator: (arg: NapiWorkerTermination) => any
+): void
+export declare function workerCreated(workerId: number): void
+export interface NapiWorkerCreation {
+  options: NapiWorkerOptions
+}
+export interface NapiWorkerOptions {
+  filename: RcStr
+  cwd: RcStr
+}
+export interface NapiWorkerTermination {
+  options: NapiWorkerOptions
+  workerId: number
+}
+export interface NapiTaskMessage {
+  taskId: number
+  data: Buffer
+}
+export declare function recvTaskMessageInWorker(
+  workerId: number
+): Promise<NapiTaskMessage>
+export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
 export declare function lockfileTryAcquireSync(
   path: string,
   content?: string | undefined | null
@@ -67,7 +91,7 @@ export declare function minify(
 ): Promise<TransformOutput>
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
-export interface NapiServerPath {
+export interface NapiAssetPath {
   path: string
   contentHash: string
 }
@@ -75,7 +99,7 @@ export interface NapiWrittenEndpoint {
   type: string
   entryPath?: string
   clientPaths: Array<string>
-  serverPaths: Array<NapiServerPath>
+  serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
 }
 export declare function endpointWriteToDisk(endpoint: {
@@ -169,6 +193,8 @@ export interface NapiProjectOptions {
   /** App-router page routes that should be built after non-deferred routes. */
   deferredEntries?: Array<RcStr>
   isPersistentCachingEnabled: boolean
+  /** The version of Next.js that is running. */
+  nextVersion: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -362,7 +388,7 @@ export declare function projectCompilationEventsSubscribe(
 ): void
 export interface StackFrame {
   isServer: boolean
-  isInternal?: boolean
+  isIgnored?: boolean
   originalFile?: RcStr
   file: RcStr
   /** 1-indexed, unlike source map tokens */

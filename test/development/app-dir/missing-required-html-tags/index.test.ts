@@ -32,6 +32,7 @@ describe('app-dir - missing required html tags', () => {
     await waitForRedbox(browser)
     await expect(browser).toDisplayRedbox(`
      {
+       "code": "E394",
        "description": "Missing <html> and <body> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
@@ -57,6 +58,7 @@ describe('app-dir - missing required html tags', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
+       "code": "E394",
        "description": "Missing <html> and <body> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
@@ -77,15 +79,16 @@ describe('app-dir - missing required html tags', () => {
 
     await retry(() =>
       expect(browser).toDisplayRedbox(`
-     {
-       "description": "Missing <html> tags in the root layout.
-     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
-       "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": null,
-       "stack": [],
-     }
-    `)
+       {
+         "code": "E394",
+         "description": "Missing <html> tags in the root layout.
+       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     )
 
     reloaded = false

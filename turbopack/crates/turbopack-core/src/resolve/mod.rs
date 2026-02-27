@@ -161,6 +161,8 @@ pub enum ImportUsage {
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 pub enum ExportUsage {
     Named(RcStr),
+    /// Multiple named exports are used via a partial namespace object.
+    PartialNamespaceObject(SmallVec<[RcStr; 1]>),
     /// This means the whole content of the module is used.
     #[default]
     All,
@@ -172,6 +174,16 @@ impl Display for ExportUsage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ExportUsage::Named(name) => write!(f, "export {name}"),
+            ExportUsage::PartialNamespaceObject(names) => {
+                write!(f, "exports ")?;
+                for (i, name) in names.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{name}")?;
+                }
+                Ok(())
+            }
             ExportUsage::All => write!(f, "all"),
             ExportUsage::Evaluation => write!(f, "evaluation"),
         }
@@ -3656,34 +3668,56 @@ mod tests {
         ));
 
         tt.run_once(async move {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
-            let lookup_path = fs.root().owned().await?;
+            #[turbo_tasks::value(transparent)]
+            struct ResolveRelativeRequestOutput(Vec<(String, String)>);
 
-            let result = resolve_relative_helper(
-                lookup_path,
+            #[turbo_tasks::function(operation)]
+            async fn resolve_relative_request_operation(
+                path: RcStr,
+                pattern: Pattern,
+                enable_typescript_with_output_extension: bool,
+                fully_specified: bool,
+            ) -> anyhow::Result<Vc<ResolveRelativeRequestOutput>> {
+                let fs = DiskFileSystem::new(rcstr!("temp"), path);
+                let lookup_path = fs.root().owned().await?;
+
+                let result = resolve_relative_helper(
+                    lookup_path,
+                    pattern,
+                    enable_typescript_with_output_extension,
+                    fully_specified,
+                )
+                .await?;
+
+                let results: Vec<(String, String)> = result
+                    .primary
+                    .iter()
+                    .map(async |(k, v)| {
+                        Ok((
+                            k.to_string(),
+                            if let ResolveResultItem::Source(source) = v {
+                                source.ident().await?.path.path.to_string()
+                            } else {
+                                unreachable!()
+                            },
+                        ))
+                    })
+                    .try_join()
+                    .await?;
+
+                Ok(Vc::cell(results))
+            }
+
+            let results = resolve_relative_request_operation(
+                path,
                 pattern,
                 enable_typescript_with_output_extension,
                 fully_specified,
             )
+            .read_strongly_consistent()
             .await?;
 
-            let results: Vec<(String, String)> = result
-                .primary
-                .iter()
-                .map(async |(k, v)| {
-                    Ok((
-                        k.to_string(),
-                        if let ResolveResultItem::Source(source) = v {
-                            source.ident().await?.path.path.to_string()
-                        } else {
-                            unreachable!()
-                        },
-                    ))
-                })
-                .try_join()
-                .await?;
-
-            assert_eq!(results, expected_owned);
+            assert_eq!(&*results, &expected_owned);
 
             Ok(())
         })

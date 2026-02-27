@@ -256,7 +256,7 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
-  /** prerendered */
+  /** supportsPerSegmentPrefetching */
   S: boolean
   /**
    * headVaryParams - vary params for the head (metadata) of the response.
@@ -270,14 +270,16 @@ export type NavigationFlightResponse = {
   b?: string
   /** flightData */
   f: FlightData
-  /** prerendered */
+  /** supportsPerSegmentPrefetching */
   S: boolean
   /** renderedSearch */
   q: string
   /** couldBeIntercepted */
   i: boolean
-  /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
-  rp?: [boolean, number]
+  /** staleTime - Only present in dynamic runtime prefetch responses. */
+  s?: AsyncIterable<number>
+  /** staticStageByteLength - Resolves when the static stage ends. */
+  l?: Promise<number>
   /** headVaryParams */
   h: VaryParamsThenable | null
 }

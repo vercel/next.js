@@ -1,14 +1,14 @@
 declare const __turbopack_external_require__: {
-  resolve: (name: string, opt: { paths: string[] }) => string
+  resolve: (name: string, opt?: { paths: string[] }) => string
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
-import type { Ipc } from '../ipc/evaluate'
+import type { Channel as Ipc } from '../types'
 import { dirname, resolve as pathResolve, relative } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
-import { structuredError, type StructuredError } from '../ipc'
+import { structuredError, type StructuredError } from '../error'
 import {
   fromPath,
   getReadEnvVariables,
