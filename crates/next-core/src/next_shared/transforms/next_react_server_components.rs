@@ -11,10 +11,7 @@ use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 use super::get_ecma_transform_rule;
-use crate::{
-    next_config::NextConfig,
-    next_shared::transforms::EcmascriptTransformStage,
-};
+use crate::{next_config::NextConfig, next_shared::transforms::EcmascriptTransformStage};
 
 /// Returns a rule which applies the Next.js react server components transform.
 /// This transform owns responsibility to assert various import / usage

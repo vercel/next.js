@@ -12,9 +12,10 @@ pub fn get_next_debug_instant_stack_rule(
     enable_mdx_rs: bool,
     page_extensions: Vec<String>,
 ) -> ModuleRule {
-    let transform = EcmascriptInputTransform::Plugin(ResolvedVc::cell(
-        Box::new(NextDebugInstantStack { page_extensions }) as _,
-    ));
+    let transform =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextDebugInstantStack {
+            page_extensions,
+        }) as _));
 
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),

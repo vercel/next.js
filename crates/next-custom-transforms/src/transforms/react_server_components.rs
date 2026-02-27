@@ -15,7 +15,10 @@ fn build_page_extensions_regex(page_extensions: &[String]) -> String {
     if page_extensions.is_empty() {
         "(ts|js)x?".to_string()
     } else {
-        let escaped: Vec<String> = page_extensions.iter().map(|ext| regex::escape(ext)).collect();
+        let escaped: Vec<String> = page_extensions
+            .iter()
+            .map(|ext| regex::escape(ext))
+            .collect();
         format!("({})", escaped.join("|"))
     }
 }
