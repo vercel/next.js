@@ -65,30 +65,26 @@ impl ImportMetaBinding {
 
         let hmr_enabled = *chunking_context.is_hot_module_replacement_enabled().await?;
 
-        if hmr_enabled {
+        // [NOTE] url property is lazy-evaluated, as it should be computed once
+        // turbopack_runtime injects a function to calculate an absolute path.
+        let stmt = if hmr_enabled {
+            // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
             let turbopack_module: Expr = TURBOPACK_MODULE.into();
-            Ok(CodeGeneration::hoisted_stmt(
-                rcstr!("import.meta"),
-                // [NOTE] url property is lazy-evaluated, as it should be computed once
-                // turbopack_runtime injects a function to calculate an absolute path.
-                // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
-                quote!(
-                    "const $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
-                    name = meta_ident(),
-                    path: Expr = path.clone(),
-                    m: Expr = turbopack_module,
-                ),
-            ))
+            quote!(
+                "const $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
+                name = meta_ident(),
+                path: Expr = path,
+                m: Expr = turbopack_module,
+            )
         } else {
-            Ok(CodeGeneration::hoisted_stmt(
-                rcstr!("import.meta"),
-                quote!(
-                    "const $name = { get url() { return $path } };" as Stmt,
-                    name = meta_ident(),
-                    path: Expr = path.clone(),
-                ),
-            ))
-        }
+            quote!(
+                "const $name = { get url() { return $path } };" as Stmt,
+                name = meta_ident(),
+                path: Expr = path,
+            )
+        };
+
+        Ok(CodeGeneration::hoisted_stmt(rcstr!("import.meta"), stmt))
     }
 }
 

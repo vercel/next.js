@@ -201,7 +201,7 @@ function getAffectedModuleEffects(
       const parentHotState = moduleHotState.get(parent)
 
       // Check if parent declined this dependency
-      if (parentHotState?.declinedDependencies[moduleId as string]) {
+      if (parentHotState?.declinedDependencies[moduleId]) {
         return {
           type: 'declined',
           dependencyChain: [...dependencyChain, moduleId],
@@ -216,7 +216,7 @@ function getAffectedModuleEffects(
       }
 
       // Check if parent accepts this dependency
-      if (parentHotState?.acceptedDependencies[moduleId as string]) {
+      if (parentHotState?.acceptedDependencies[moduleId]) {
         if (!outdatedDependencies.has(parentId)) {
           outdatedDependencies.set(parentId, new Set())
         }
@@ -601,7 +601,7 @@ function instantiateModuleShared(
   ) => void
 ): HotModule {
   // 1. Factory validation (same in both browser and Node.js)
-  const id = moduleId as string
+  const id = moduleId
   const moduleFactory = moduleFactories.get(id)
   if (typeof moduleFactory !== 'function') {
     throw new Error(
@@ -838,7 +838,7 @@ function applyPhase(
     >()
 
     for (const dep of deps) {
-      const acceptCallback = hotState.acceptedDependencies[dep as string]
+      const acceptCallback = hotState.acceptedDependencies[dep]
       if (acceptCallback) {
         let depList = callbackDeps.get(acceptCallback)
         if (!depList) {
@@ -846,7 +846,7 @@ function applyPhase(
           callbackDeps.set(acceptCallback, depList)
           callbackErrorHandlers.set(
             acceptCallback,
-            hotState.acceptedErrorHandlers[dep as string]
+            hotState.acceptedErrorHandlers[dep]
           )
         }
         depList.push(dep)
@@ -855,14 +855,14 @@ function applyPhase(
 
     for (const [callback, cbDeps] of callbackDeps) {
       try {
-        callback.call(null, cbDeps as string[])
+        callback.call(null, cbDeps)
       } catch (err: any) {
         const errorHandler = callbackErrorHandlers.get(callback)
         if (typeof errorHandler === 'function') {
           try {
             errorHandler(err, {
-              moduleId: parentId as string,
-              dependencyId: cbDeps[0] as string,
+              moduleId: parentId,
+              dependencyId: cbDeps[0],
             })
           } catch (err2) {
             reportError(err2)

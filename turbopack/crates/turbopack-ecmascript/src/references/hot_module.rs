@@ -37,6 +37,9 @@ use crate::{
     utils::module_id_to_lit,
 };
 
+/// An asset reference for modules accepted via `module.hot.accept(dep, callback)` or
+/// `import.meta.hot.accept(dep, callback)`. Ensures the accepted dependency is included
+/// in the chunk graph so it can be hot-replaced at runtime.
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct ModuleHotReferenceAssetReference {
