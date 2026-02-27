@@ -215,14 +215,14 @@ When a request to `/docs/getting-started` includes `Accept: text/markdown`, the 
 import { getDocsMd, generateDocsStaticParams } from '@/lib/docs'
 
 export async function generateStaticParams() {
-  return [...generateDocsStaticParams()]
+  return generateDocsStaticParams()
 }
 
 export async function GET(
   _: Request,
-  { params }: { params: Promise<{ slug: string[] }> }
+  ctx: RouteContext<'/docs/md/[...slug]'>
 ) {
-  const { slug } = await params
+  const { slug } = await ctx.params
   const mdDoc = await getDocsMd({ slug })
 
   if (mdDoc == null) {
@@ -242,7 +242,7 @@ export async function GET(
 import { getDocsMd, generateDocsStaticParams } from '@/lib/docs'
 
 export async function generateStaticParams() {
-  return [...generateDocsStaticParams()]
+  return generateDocsStaticParams()
 }
 
 export async function GET(_, { params }) {
