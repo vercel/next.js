@@ -11,7 +11,7 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
     trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_env::ProcessEnv;

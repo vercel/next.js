@@ -567,15 +567,14 @@ impl Issue for StaticMetadataFileSizeIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let current_size = format!("{:.1}", (self.file_size as f32) / 1024.0 / 1024.0);
+        let current_size = (self.file_size as f32) / 1024.0 / 1024.0;
         Ok(Vc::cell(Some(
             StyledString::Text(
                 turbofmt!(
-                    "File size for {} image \"{}\" exceeds {}MB. (Current: {}MB)",
+                    "File size for {} image \"{}\" exceeds {}MB. (Current: {current_size:.1}MB)",
                     self.img_name,
                     self.path,
                     self.file_size_limit_mb,
-                    current_size
                 )
                 .await?,
             )

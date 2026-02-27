@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
@@ -346,7 +346,7 @@ async fn test_torture_enum() {
         // AllFieldTypes: Display + RcStr + ResolvedVc + ResolvedVc
         let v1 = (TortureEnum::AllFieldTypes {
             display_val: DisplayVal(42),
-            rc_str: "hello".into(),
+            rc_str: rcstr!("hello"),
             resolved_named: named_resolved,
             resolved_const: const_resolved,
         })

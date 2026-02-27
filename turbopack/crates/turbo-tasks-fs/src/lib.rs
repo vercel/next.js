@@ -1381,13 +1381,17 @@ impl FileSystemPath {
 
 impl ValueToStringRef for FileSystemPath {
     async fn to_string_ref(&self) -> Result<RcStr> {
-        turbofmt!("[{}]/{}", self.fs, self.path).await
+        if ResolvedVc::try_downcast_type::<DiskFileSystem>(self.fs).is_some() {
+            Ok(self.path.clone())
+        } else {
+            turbofmt!("[{}]/{}", self.fs, self.path).await
+        }
     }
 }
 
 #[turbo_tasks::function]
 async fn value_to_string(path: FileSystemPath) -> Result<Vc<RcStr>> {
-    Ok(Vc::cell(turbofmt!("[{}]/{}", path.fs, path.path).await?))
+    Ok(Vc::cell(path.to_string_ref().await?))
 }
 
 impl FileSystemPath {
