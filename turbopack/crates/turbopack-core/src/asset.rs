@@ -20,6 +20,12 @@ pub trait Asset {
     fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
     }
+
+    /// Hash of the content of the [Asset]
+    #[turbo_tasks::function]
+    fn content_hash(self: Vc<Self>, algorithm: HashAlgorithm) -> Vc<Option<RcStr>> {
+        self.content().content_hash(algorithm)
+    }
 }
 
 #[turbo_tasks::value(shared)]

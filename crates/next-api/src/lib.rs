@@ -21,6 +21,7 @@ pub mod operation;
 mod pages;
 pub mod paths;
 pub mod project;
+pub mod project_asset_hashes_manifest;
 pub mod route;
 pub mod routes_hashes_manifest;
 mod server_actions;
