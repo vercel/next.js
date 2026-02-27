@@ -1,3 +1,5 @@
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_core::{
     common::{Span, Spanned},
     ecma::{
@@ -7,13 +9,19 @@ use swc_core::{
     quote,
 };
 
-pub fn debug_instant_stack() -> impl Pass {
+/// Only apply to page/layout segment files.
+static PAGE_OR_LAYOUT_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"[\\/](page|layout|default)\.(ts|js)x?$").unwrap());
+
+pub fn debug_instant_stack(filepath: String) -> impl Pass {
     fold_pass(DebugInstantStack {
+        filepath,
         instant_export_span: None,
     })
 }
 
 struct DebugInstantStack {
+    filepath: String,
     instant_export_span: Option<Span>,
 }
 
@@ -65,6 +73,10 @@ fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
 
 impl Fold for DebugInstantStack {
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
+        if !PAGE_OR_LAYOUT_RE.is_match(&self.filepath) {
+            return items;
+        }
+
         for item in &items {
             match item {
                 // `export const unstable_instant = ...`

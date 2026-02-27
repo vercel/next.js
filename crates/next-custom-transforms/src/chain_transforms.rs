@@ -136,6 +136,7 @@ where
     C: Clone + Comments + 'a,
 {
     let file_path_str = file.name.to_string();
+    let file_path_for_instant_stack = file_path_str.clone();
 
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop_pass();
@@ -347,7 +348,9 @@ where
                 crate::transforms::debug_fn_name::debug_fn_name(),
                 opts.debug_function_name,
             ),
-            crate::transforms::debug_instant_stack::debug_instant_stack(),
+            crate::transforms::debug_instant_stack::debug_instant_stack(
+                file_path_for_instant_stack,
+            ),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(
                 linter(lint_codemod_comments(comments)),

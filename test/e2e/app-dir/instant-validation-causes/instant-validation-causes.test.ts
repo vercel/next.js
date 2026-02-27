@@ -270,4 +270,12 @@ describe('instant validation causes', () => {
      }
     `)
   })
+
+  it('does not add an instant stack for random unstable_instant exports', async () => {
+    const browser = await next.browser('/not-actual-instant')
+    const config = await browser.waitForElementByCss('[data-testid="config"]')
+    expect(await config.innerText()).toBe(
+      JSON.stringify({ unstable_instant: false })
+    )
+  })
 })
