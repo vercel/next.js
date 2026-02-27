@@ -413,14 +413,6 @@ impl StreamingSstWriter {
             EntryValue::Small { value } => {
                 self.total_value_size += value.len();
 
-                // Flush small value block if full BEFORE adding this value,
-                // so entries referencing the previous block get resolved.
-                if self.pending_small_values.len() >= MIN_SMALL_VALUE_BLOCK_SIZE
-                    || self.pending_small_value_count >= MAX_SMALL_VALUE_BLOCK_ENTRIES
-                {
-                    self.flush_small_value_block()?;
-                }
-
                 let offset = self.pending_small_values.len() as u32;
                 let size: u16 = value.len().try_into().unwrap();
                 self.pending_small_values.extend_from_slice(value);
@@ -431,12 +423,26 @@ impl StreamingSstWriter {
                     self.first_pending_small_index = self.pending_keys.len();
                 }
 
-                ValueRef::PendingSmall {
+                let value_ref = ValueRef::PendingSmall {
                     #[cfg(debug_assertions)]
                     small_block_id: self.current_small_block_id,
                     offset,
                     size,
+                };
+
+                self.push_pending_key_entry(key_hash, key, value_ref);
+                self.try_advance_resolved_boundary();
+
+                // Eagerly flush the small block AFTER pushing the new entry. This resolves
+                // the just-pushed entry immediately, so the subsequent key-block flush below
+                // can include it rather than leaving it behind in `pending_keys`.
+                if self.pending_small_values.len() >= MIN_SMALL_VALUE_BLOCK_SIZE
+                    || self.pending_small_value_count >= MAX_SMALL_VALUE_BLOCK_ENTRIES
+                {
+                    self.flush_small_value_block()?;
                 }
+
+                return self.try_flush_key_blocks();
             }
             EntryValue::Inline { value } => {
                 debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
@@ -451,29 +457,37 @@ impl StreamingSstWriter {
             EntryValue::Deleted => ValueRef::Deleted,
         };
 
-        // Track whether this entry is immediately resolved (not PendingSmall).
-        let is_resolved = !matches!(value_ref, ValueRef::PendingSmall { .. });
+        self.push_pending_key_entry(key_hash, key, value_ref);
+        self.try_advance_resolved_boundary();
+        self.try_flush_key_blocks()
+    }
 
-        // Push pending key entry
+    /// Appends a new entry to the pending-keys queue.
+    fn push_pending_key_entry(&mut self, key_hash: u64, key: Box<[u8]>, value_ref: ValueRef) {
         self.pending_keys.push_back(PendingKeyEntry {
             key_hash,
             key,
             value_ref,
         });
+    }
 
+    /// Advances `first_pending_small_index` past the just-pushed entry if that entry is
+    /// immediately resolved (not `PendingSmall`) and sits right at the current boundary.
+    ///
+    /// Must be called immediately after [`push_pending_key_entry`].
+    fn try_advance_resolved_boundary(&mut self) {
         // Advance the resolved boundary for non-PendingSmall entries, but only when there are
         // no earlier unresolved PendingSmall entries blocking the boundary.
         // The `== len - 1` check means the just-pushed entry sits immediately after the current
         // boundary, so it's safe to extend. If a PendingSmall entry exists earlier in the queue,
         // the boundary stays put until `flush_small_value_block()` resolves all pending entries.
-        if is_resolved && self.first_pending_small_index == self.pending_keys.len() - 1 {
+        let is_last_resolved = !matches!(
+            self.pending_keys.back().unwrap().value_ref,
+            ValueRef::PendingSmall { .. }
+        );
+        if is_last_resolved && self.first_pending_small_index == self.pending_keys.len() - 1 {
             self.first_pending_small_index = self.pending_keys.len();
         }
-
-        // Try to flush completed key blocks
-        self.try_flush_key_blocks()?;
-
-        Ok(())
     }
 
     /// Flushes the current pending small value block to disk and resolves all `PendingSmall`
@@ -538,6 +552,11 @@ impl StreamingSstWriter {
     /// The resolved prefix boundary is known directly from `first_pending_small_index` -- all
     /// entries before that index have resolved value references. Within that prefix, we find
     /// key block boundaries and flush complete blocks in a single pass.
+    ///
+    /// TODO: This scan is O(pending_keys.len()) in the worst case. When small value blocks are
+    /// rare relative to medium/inline entries, `pending_keys` can grow large because the front
+    /// entry references an unflushed small block while the back keeps accumulating resolved
+    /// entries. A future improvement could track the resolved-prefix length incrementally.
     fn try_flush_key_blocks(&mut self) -> Result<()> {
         let resolved_end = self.first_pending_small_index;
 
