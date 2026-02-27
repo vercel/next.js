@@ -243,7 +243,7 @@ enum ValueRef {
     Deleted,
 }
 
-struct PendingKeyEntry<E> {
+struct PendingEntry<E> {
     entry: E,
     value_ref: ValueRef,
 }
@@ -273,7 +273,7 @@ pub struct StreamingSstWriter<E: Entry> {
     /// small values followed by a large number of medium/inline values -- the queue can grow large
     /// because the front entries reference an unflushed small value block while the back keeps
     /// accepting resolved entries.
-    pending_keys: VecDeque<PendingKeyEntry<E>>,
+    pending_keys: VecDeque<PendingEntry<E>>,
 
     /// Index into `pending_keys` of the first entry that has a `PendingSmall` reference for the
     /// current (unflushed) small value block. All entries before this index are fully resolved
@@ -395,7 +395,10 @@ impl<E: Entry> StreamingSstWriter<E> {
             .max(self.pending_key_total_size.div_ceil(MAX_KEY_BLOCK_SIZE))
             .max(1);
         let index_block = 1;
-        blocks_written + pending_small_block + pending_key_blocks + index_block < u16::MAX as usize
+        // Add some buffer, just to be safe...
+        let buffer = 16;
+        blocks_written + pending_small_block + pending_key_blocks + index_block + buffer
+            < u16::MAX as usize
     }
 
     /// Adds an entry to the SST file. Entries must be added in (key-hash, key) order.
@@ -504,7 +507,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// Appends a new entry to the pending-keys queue.
     fn push_pending_key_entry(&mut self, entry: E, value_ref: ValueRef) {
         self.pending_keys
-            .push_back(PendingKeyEntry { entry, value_ref });
+            .push_back(PendingEntry { entry, value_ref });
     }
 
     /// Advances `first_pending_small_index` past the just-pushed entry if it is resolved and
@@ -746,7 +749,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         // was used. The filter was created with `max_entry_count` which may be larger than the
         // number of entries actually added.
         let old_filter = self.filter.take().unwrap();
-        let filter = if old_filter.len() > 0 && old_filter.len() < old_filter.capacity() / 2 {
+        let filter = if !old_filter.is_empty() && old_filter.len() < old_filter.capacity() / 2 {
             let mut shrunk = qfilter::Filter::new(old_filter.len(), AMQF_FALSE_POSITIVE_RATE)
                 .expect("Filter can't be constructed");
             shrunk
