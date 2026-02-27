@@ -742,17 +742,16 @@ impl<E: Entry> StreamingSstWriter<E> {
             .try_into()
             .expect("Block count overflow");
 
-        // Shrink the AMQF filter to the actual entry count. The filter was created with
-        // `max_entry_count` which may be larger than the number of entries actually added.
-        // Re-creating with the exact count reduces serialized size.
+        // Shrink the AMQF filter to the actual entry count if less than half the capacity
+        // was used. The filter was created with `max_entry_count` which may be larger than the
+        // number of entries actually added.
         let old_filter = self.filter.take().unwrap();
-        let filter = if old_filter.len() > 0 {
+        let filter = if old_filter.len() > 0 && old_filter.len() < old_filter.capacity() / 2 {
             let mut shrunk = qfilter::Filter::new(old_filter.len(), AMQF_FALSE_POSITIVE_RATE)
                 .expect("Filter can't be constructed");
             shrunk
                 .merge(false, &old_filter)
                 .expect("Failed to merge AMQF filter");
-            shrunk.shrink_to_fit();
             shrunk
         } else {
             old_filter
