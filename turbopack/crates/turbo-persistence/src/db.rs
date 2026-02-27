@@ -1102,7 +1102,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             let _span =
                                                 tracing::trace_span!("close merged sst file")
                                                     .entered();
-                                            let (meta, file) = writer.finish()?;
+                                            let (meta, file) = writer.close()?;
                                             *keys_written += meta.entries;
                                             self.new_sst_files.push((seq, file, meta));
                                         }
@@ -1130,6 +1130,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             self.close_sst_file(keys_written)?;
                                         }
                                         Ok(())
+                                    }
+                                }
+                                #[cfg(debug_assertions)]
+                                impl Drop for Collector {
+                                    fn drop(&mut self) {
+                                        assert!(
+                                            self.writer.is_none(),
+                                            "Collector dropped with an open writer"
+                                        );
                                     }
                                 }
                                 let mut used_collector = Collector::new(MetaEntryFlags::WARM);

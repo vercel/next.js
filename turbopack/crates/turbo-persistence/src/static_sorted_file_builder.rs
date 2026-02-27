@@ -114,7 +114,7 @@ pub fn write_static_stored_file<E: Entry>(
     for entry in entries {
         writer.add(entry)?;
     }
-    writer.finish()
+    writer.close()
 }
 
 // ---------------------------------------------------------------------------
@@ -226,8 +226,9 @@ struct PendingKeyEntry {
 /// The SST reader is block-index-addressed (not file-position-addressed), so interleaving block
 /// types is fully compatible.
 pub struct StreamingSstWriter {
-    // File I/O
-    file: BufWriter<File>,
+    // File I/O. Wrapped in Option so close() can take ownership without a partial-move
+    // compile error (partial moves are forbidden when the type has a Drop impl).
+    file: Option<BufWriter<File>>,
     compress_buffer: Vec<u8>,
     block_offsets: Vec<u32>,
 
@@ -259,8 +260,8 @@ pub struct StreamingSstWriter {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
-    // AMQF filter (built incrementally)
-    filter: qfilter::Filter,
+    // AMQF filter (built incrementally). Wrapped in Option for the same reason as `file`.
+    filter: Option<qfilter::Filter>,
 
     // Index block data: (first_hash, block_index) for each key block written
     key_block_boundaries: Vec<(u64, u16)>,
@@ -277,6 +278,10 @@ pub struct StreamingSstWriter {
 
     /// Total byte size of keys in `pending_keys` (for block capacity estimation).
     pending_key_total_size: usize,
+
+    /// Set to `true` by `close()` so the Drop guard can detect writers dropped without closing.
+    #[cfg(debug_assertions)]
+    finished: bool,
 }
 
 impl StreamingSstWriter {
@@ -291,7 +296,7 @@ impl StreamingSstWriter {
             .expect("Filter can't be constructed");
 
         Ok(Self {
-            file,
+            file: Some(file),
             compress_buffer: Vec::new(),
             block_offsets: Vec::new(),
             pending_keys: VecDeque::new(),
@@ -301,7 +306,7 @@ impl StreamingSstWriter {
             pending_small_values: Vec::new(),
             pending_small_value_count: 0,
             key_buffer: Vec::new(),
-            filter,
+            filter: Some(filter),
             key_block_boundaries: Vec::new(),
             min_hash: u64::MAX,
             max_hash: 0,
@@ -310,6 +315,8 @@ impl StreamingSstWriter {
             total_key_size: 0,
             total_value_size: 0,
             pending_key_total_size: 0,
+            #[cfg(debug_assertions)]
+            finished: false,
         })
     }
 
@@ -355,6 +362,8 @@ impl StreamingSstWriter {
 
         // Insert into AMQF
         self.filter
+            .as_mut()
+            .unwrap()
             .insert_fingerprint(false, key_hash)
             .expect("AMQF insert failed");
 
@@ -376,7 +385,7 @@ impl StreamingSstWriter {
             EntryValue::Medium { value } => {
                 self.total_value_size += value.len();
                 let block_index = write_block_to_file(
-                    &mut self.file,
+                    self.file.as_mut().unwrap(),
                     &mut self.compress_buffer,
                     &mut self.block_offsets,
                     value,
@@ -393,7 +402,7 @@ impl StreamingSstWriter {
                 // Both are acceptable approximations of disk usage for is_full() thresholds.
                 self.total_value_size += block.len();
                 let block_index = write_raw_block_to_file(
-                    &mut self.file,
+                    self.file.as_mut().unwrap(),
                     &mut self.block_offsets,
                     uncompressed_size,
                     block,
@@ -471,13 +480,13 @@ impl StreamingSstWriter {
     /// entries in-place.
     fn flush_small_value_block(&mut self) -> Result<()> {
         // Early return if empty -- this simplifies trailing small value block handling in
-        // `finish()` where we call this unconditionally.
+        // `close()` where we call this unconditionally.
         if self.pending_small_values.is_empty() {
             return Ok(());
         }
 
         let block_index = write_block_to_file(
-            &mut self.file,
+            self.file.as_mut().unwrap(),
             &mut self.compress_buffer,
             &mut self.block_offsets,
             &self.pending_small_values,
@@ -635,7 +644,7 @@ impl StreamingSstWriter {
         // Record boundary
         let first_hash = self.pending_keys[start].key_hash;
         let block_index = write_block_to_file(
-            &mut self.file,
+            self.file.as_mut().unwrap(),
             &mut self.compress_buffer,
             &mut self.block_offsets,
             &self.key_buffer,
@@ -649,7 +658,12 @@ impl StreamingSstWriter {
 
     /// Finishes writing the SST file. Flushes remaining blocks, writes the index, and returns
     /// metadata.
-    pub fn finish(mut self) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+    pub fn close(mut self) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+        #[cfg(debug_assertions)]
+        {
+            self.finished = true;
+        }
+
         // Flush remaining small value block (even if under MIN_SMALL_VALUE_BLOCK_SIZE).
         self.flush_small_value_block()?;
 
@@ -658,7 +672,7 @@ impl StreamingSstWriter {
 
         assert!(
             !self.key_block_boundaries.is_empty(),
-            "StreamingSstWriter::finish() called with no entries"
+            "StreamingSstWriter::close() called with no entries"
         );
 
         // Write index block
@@ -674,7 +688,7 @@ impl StreamingSstWriter {
         }
         index_block.finish();
         write_block_to_file(
-            &mut self.file,
+            self.file.as_mut().unwrap(),
             &mut self.compress_buffer,
             &mut self.block_offsets,
             &self.key_buffer,
@@ -685,6 +699,8 @@ impl StreamingSstWriter {
         // Write block offset table
         for offset in &self.block_offsets {
             self.file
+                .as_mut()
+                .unwrap()
                 .write_u32::<BE>(*offset)
                 .context("Failed to write block offset")?;
         }
@@ -695,24 +711,25 @@ impl StreamingSstWriter {
             .try_into()
             .expect("Block count overflow");
 
-        // Serialize AMQF
-        let amqf = turbo_bincode_encode(&AmqfBincodeWrapper(self.filter))
+        // Serialize AMQF — take ownership via Option::take to avoid partial-move error.
+        let amqf = turbo_bincode_encode(&AmqfBincodeWrapper(self.filter.take().unwrap()))
             .expect("AMQF serialization failed");
 
+        let file = self.file.as_mut().unwrap();
         let meta = StaticSortedFileBuilderMeta {
             min_hash: self.min_hash,
             max_hash: self.max_hash,
             amqf: Cow::Owned(amqf.into_vec()),
             block_count,
-            size: self.file.stream_position()?,
+            size: file.stream_position()?,
             flags: self.flags,
             entries: self.entry_count,
         };
 
-        Ok((meta, self.file.into_inner()?))
+        Ok((meta, self.file.take().unwrap().into_inner()?))
     }
 
-    /// Flushes all remaining entries as key blocks. Called from `finish()` after all small value
+    /// Flushes all remaining entries as key blocks. Called from `close()` after all small value
     /// blocks have been flushed, so all PendingSmall entries are resolved.
     fn flush_remaining_key_blocks(&mut self) -> Result<()> {
         if self.pending_keys.is_empty() {
@@ -754,6 +771,16 @@ impl StreamingSstWriter {
         self.pending_keys.clear();
         self.pending_key_total_size = 0;
         Ok(())
+    }
+}
+
+#[cfg(debug_assertions)]
+impl Drop for StreamingSstWriter {
+    fn drop(&mut self) {
+        assert!(
+            self.finished || self.entry_count == 0,
+            "StreamingSstWriter dropped without calling close()"
+        );
     }
 }
 
@@ -1072,7 +1099,7 @@ mod tests {
         for entry in entries {
             writer.add(entry)?;
         }
-        let (meta, _file) = writer.finish()?;
+        let (meta, _file) = writer.close()?;
         Ok(meta)
     }
 
@@ -1300,6 +1327,7 @@ mod tests {
             !writer.is_full(max_entries + 1, usize::MAX),
             "Should not be full when limit is higher"
         );
+        writer.close().unwrap();
     }
 
     #[test]
@@ -1320,6 +1348,7 @@ mod tests {
         assert!(total > 10_000, "total data should exceed 10KB");
         assert!(writer.is_full(usize::MAX, total - 1));
         assert!(!writer.is_full(usize::MAX, total + 1));
+        writer.close().unwrap();
     }
 
     #[test]
@@ -1355,7 +1384,7 @@ mod tests {
         for entry in &entries {
             writer.add(entry)?;
         }
-        let (meta2, _) = writer.finish()?;
+        let (meta2, _) = writer.close()?;
 
         // Metadata should match
         assert_eq!(meta1.entries, meta2.entries);
