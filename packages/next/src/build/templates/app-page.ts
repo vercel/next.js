@@ -184,7 +184,7 @@ export async function handler(
     parsedUrl,
     interceptionRoutePatterns,
     deploymentId,
-    immutableAssetToken,
+    clientAssetToken,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -644,7 +644,7 @@ export async function handler(
         sharedContext: {
           buildId,
           deploymentId,
-          immutableAssetToken,
+          clientAssetToken,
         },
         serverComponentsHmrCache: getRequestMeta(
           req,

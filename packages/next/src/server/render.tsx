@@ -308,9 +308,9 @@ export type PagesSharedContext = {
   deploymentId: string | undefined
 
   /**
-   * See NextConfig.experimental.immutableAssetToken
+   * Either NextConfig.experimental.immutableAssetToken or NextConfig.deploymentId
    */
-  immutableAssetToken: string | undefined
+  clientAssetToken: string | undefined
 
   /**
    * True if the user is using a custom server.
@@ -480,8 +480,8 @@ export async function renderToHTMLImpl(
       : '')
   const assetQueryString =
     baseAssetQueryString +
-    (sharedContext.immutableAssetToken
-      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.immutableAssetToken}`
+    (sharedContext.clientAssetToken
+      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
       : '')
   const metadata: PagesRenderResultMetadata = {
     assetQueryString,

@@ -18,8 +18,8 @@ export function getAssetQueryString(
     qs += `?v=${ctx.requestTimestamp}`
   }
 
-  if (ctx.sharedContext.immutableAssetToken) {
-    qs += `${shouldAddVersion ? '&' : '?'}dpl=${ctx.sharedContext.immutableAssetToken}`
+  if (ctx.sharedContext.clientAssetToken) {
+    qs += `${shouldAddVersion ? '&' : '?'}dpl=${ctx.sharedContext.clientAssetToken}`
   }
   return qs
 }

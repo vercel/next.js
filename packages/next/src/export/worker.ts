@@ -86,7 +86,7 @@ async function exportPageImpl(
     outDir: commonOutDir,
     buildId,
     deploymentId,
-    immutableAssetToken,
+    clientAssetToken,
     renderResumeDataCache,
   } = input
 
@@ -279,7 +279,7 @@ async function exportPageImpl(
     const sharedContext: AppSharedContext = {
       buildId,
       deploymentId,
-      immutableAssetToken,
+      clientAssetToken,
     }
 
     return exportAppPage(
@@ -301,7 +301,7 @@ async function exportPageImpl(
     const sharedContext: PagesSharedContext = {
       buildId,
       deploymentId,
-      immutableAssetToken,
+      clientAssetToken,
       customServer: undefined,
     }
 
@@ -424,7 +424,7 @@ export async function exportPages(
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
             deploymentId: input.deploymentId,
-            immutableAssetToken: input.immutableAssetToken,
+            clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
           }),
           hasDebuggerAttached

@@ -146,7 +146,7 @@ export const getHandler = ({
       resolvedPathname,
       encodedResolvedPathname,
       deploymentId,
-      immutableAssetToken,
+      clientAssetToken,
     } = prepareResult
 
     const isExperimentalCompile =
@@ -268,7 +268,7 @@ export const getHandler = ({
                     customServer:
                       Boolean(routerServerContext?.isCustomServer) || undefined,
                     deploymentId,
-                    immutableAssetToken,
+                    clientAssetToken,
                   },
                   renderOpts: {
                     params,

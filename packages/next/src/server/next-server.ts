@@ -636,7 +636,7 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            immutableAssetToken:
+            clientAssetToken:
               this.nextConfig.experimental.immutableAssetToken ??
               this.deploymentId,
           }
@@ -654,7 +654,7 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            immutableAssetToken:
+            clientAssetToken:
               this.nextConfig.experimental.immutableAssetToken ??
               this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
