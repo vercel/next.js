@@ -48,7 +48,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This API is only available in Server Components/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
@@ -81,7 +81,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a module that depends on "next/headers" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
+Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -96,7 +97,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that depends on "next/headers" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
+Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -131,7 +133,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This API is only available in Server Components/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
@@ -164,7 +166,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a module that depends on "server-only" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
+Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -183,7 +186,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that depends on "server-only" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
+Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -216,7 +220,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This API is only available in Server Components/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
@@ -249,7 +253,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a module that depends on "after" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
+Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -268,7 +273,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that depends on "after" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
+Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -310,7 +316,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This API is only available in Server Components/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
@@ -343,7 +349,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a module that depends on "next/root-params" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
+Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -362,7 +369,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that depends on "next/root-params" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
+Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -401,7 +409,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
       await session.waitForRedbox()
       await expect(session.getRedboxSource()).resolves.toMatch(
-        `You're importing a component that needs "${api}". That only works in a Server Component which is not supported in the pages/ directory.`
+        `You're importing a module that depends on "${api}" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.`
       )
     })
 
