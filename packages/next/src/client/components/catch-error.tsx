@@ -1,33 +1,28 @@
 'use client'
 
-import React, { type JSX } from 'react'
+import React from 'react'
 import { ErrorBoundary, type ErrorInfo } from './error-boundary'
 import { RouterContext as PagesRouterContext } from '../../shared/lib/router-context.shared-runtime'
 
 export function unstable_catchError<P extends Record<string, any>>(
-  fallback: (
-    props: P & { children?: React.ReactNode },
-    errorInfo: ErrorInfo
-  ) => React.ReactNode
-): React.ComponentType<P & { children?: React.ReactNode }> {
-  function NextErrorBoundary(
-    props: P & { children?: React.ReactNode }
-  ): JSX.Element {
+  fallback: (props: P, errorInfo: ErrorInfo) => React.ReactNode
+) {
+  function NextErrorBoundary(props: P & { children?: React.ReactNode }) {
     const isPagesRouter = React.useContext(PagesRouterContext) !== null
     const { children, ...fallbackProps } = props
 
-    function Fallback(info: ErrorInfo) {
+    function Fallback(errorInfo: ErrorInfo) {
       const unstable_retry: ErrorInfo['unstable_retry'] = () => {
         if (isPagesRouter) {
           throw new Error(
             '`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
           )
         }
-        info.unstable_retry()
+        errorInfo.unstable_retry()
       }
 
       return fallback(fallbackProps as P, {
-        ...info,
+        ...errorInfo,
         unstable_retry,
       })
     }
@@ -38,7 +33,8 @@ export function unstable_catchError<P extends Record<string, any>>(
   }
 
   if (process.env.NODE_ENV !== 'production') {
-    // `unstable_catchError()` is parsed as an HOC-style name and displays as a label (<name> [unstable_catchError]) in DevTools.
+    // `unstable_catchError()` is parsed as an HOC-style name and displays as
+    // a label (<name> [unstable_catchError]) in DevTools.
     NextErrorBoundary.displayName = 'unstable_catchError(NextErrorBoundary)'
   }
 
