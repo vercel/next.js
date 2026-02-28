@@ -197,12 +197,18 @@ pub async fn make_production_chunks(
             span.record("chunks", merged.len());
 
             let mut total_size = 0;
-            for merged_group in merged {
+            for mut merged_group in merged {
                 total_size += merged_group.total_size;
 
                 // Collect chunk items from all merged groups
                 let mut chunk_items_out: Vec<&ChunkItemOrBatchWithInfo> = Vec::new();
                 let mut batch_groups_out: Vec<ResolvedVc<ChunkItemBatchGroup>> = Vec::new();
+
+                // Sort group indices to ensure deterministic chunk item ordering.
+                // Without this, the same set of modules can produce different output
+                // depending on the order groups were merged during the algorithm.
+                merged_group.group_indices.sort_unstable();
+                merged_group.batch_group_ids.sort_unstable();
 
                 for &group_idx in &merged_group.group_indices {
                     chunk_items_out.extend(groups_data[group_idx].chunk_items.iter());
