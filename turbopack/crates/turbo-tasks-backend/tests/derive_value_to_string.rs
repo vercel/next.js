@@ -344,30 +344,41 @@ async fn test_torture_enum() {
         let const_resolved = ConstantString.resolved_cell();
 
         // AllFieldTypes: Display + RcStr + ResolvedVc + ResolvedVc
-        let v1 = (TortureEnum::AllFieldTypes {
-            display_val: DisplayVal(42),
-            rc_str: rcstr!("hello"),
-            resolved_named: named_resolved,
-            resolved_const: const_resolved,
-        })
-        .cell();
+        let v1 = ResolvedVc::upcast(
+            (TortureEnum::AllFieldTypes {
+                display_val: DisplayVal(42),
+                rc_str: rcstr!("hello"),
+                resolved_named: named_resolved,
+                resolved_const: const_resolved,
+            })
+            .resolved_cell(),
+        );
         assert_eq!(
-            &*v1.to_string().await?,
+            &*to_string_operation(v1).read_strongly_consistent().await?,
             "d=dv:42 r=hello rv1=item x (count: 1) rv2=constant-value"
         );
 
         // ExprVc: FormatExprs with ResolvedVc positional arg
-        let v2 = TortureEnum::ExprVc(named_resolved2).cell();
-        assert_eq!(&*v2.to_string().await?, "expr(item y (count: 2))");
+        let v2 = ResolvedVc::upcast(TortureEnum::ExprVc(named_resolved2).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v2).read_strongly_consistent().await?,
+            "expr(item y (count: 2))"
+        );
 
         // DelegateVc: DirectExpr delegating to ResolvedVc
-        let v3 = TortureEnum::DelegateVc(const_resolved).cell();
-        assert_eq!(&*v3.to_string().await?, "constant-value");
+        let v3 = ResolvedVc::upcast(TortureEnum::DelegateVc(const_resolved).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v3).read_strongly_consistent().await?,
+            "constant-value"
+        );
 
         // WithReadRef: ReadRef field
         let named_read: ReadRef<NamedFields> = named_resolved.await?;
-        let v4 = TortureEnum::WithReadRef(named_read).cell();
-        assert_eq!(&*v4.to_string().await?, "read=item x (count: 1)");
+        let v4 = ResolvedVc::upcast(TortureEnum::WithReadRef(named_read).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v4).read_strongly_consistent().await?,
+            "read=item x (count: 1)"
+        );
 
         anyhow::Ok(())
     })

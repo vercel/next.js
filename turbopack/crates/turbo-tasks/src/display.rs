@@ -1,14 +1,11 @@
-use std::{
-    fmt::{self, Display},
-    future::Future,
-};
+use std::future::Future;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 pub use turbo_tasks_macros::ValueToString;
 
-use crate::{self as turbo_tasks, ReadRef, VcValueType, vc::ResolvedVc};
+use crate::{self as turbo_tasks};
 
 /// Async counterpart to `Display`, returning `Vc<RcStr>`.
 ///
@@ -49,126 +46,133 @@ impl ValueToStringRef for RcStr {
     }
 }
 
+/// Deref-following: `ReadRef<T>` delegates to the deref target's `ValueToStringRef`.
+impl<T> ValueToStringRef for crate::ReadRef<T>
+where
+    T: crate::VcValueType,
+    <T::Read as crate::VcRead<T>>::Target: ValueToStringRef,
+{
+    fn to_string_ref(&self) -> impl Future<Output = Result<RcStr>> + Send {
+        (**self).to_string_ref()
+    }
+}
+
 /// Part of the auto-deref specialization system.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __turbo_stringify {
     ($name:ident, $i:expr) => {
-        let __tmp = $crate::display::ValueToStringifyWrap($i);
         // Ugh: https://sabrinajewson.org/blog/truly-hygienic-let
         // This "let mut" makes errors more obvious in this case
-        let mut $name: $crate::display::StringifyType = {
-            use $crate::display::ValueToStringify as _;
-            (&&&__tmp).to_stringify().await?
+        let mut $name: $crate::display::macro_helpers::StringifyType = {
+            use $crate::display::macro_helpers::ValueToStringify as _;
+            let tmp = $crate::display::macro_helpers::ValueToStringifyWrap($i);
+            (&&&tmp).to_stringify().await?
         };
     };
 }
 
-/// Part of the auto-deref specialization system.
+/// Runtime helpers for the `turbofmt!`/`turbobail!` macros. Not part of the
+/// public API.
 #[doc(hidden)]
-pub struct ValueToStringifyWrap<T>(pub T);
+pub mod macro_helpers {
+    use std::{
+        fmt::{self, Display},
+        future::Future,
+    };
 
-/// Part of the auto-deref specialization system.
-#[doc(hidden)]
-pub trait ValueToStringify<const LEVEL: u8> {
-    fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send;
-}
+    use anyhow::Result;
+    use turbo_rcstr::RcStr;
 
-/// Part of the auto-deref specialization system.
-#[doc(hidden)]
-pub enum StringifyType {
-    RcStrRef(ReadRef<RcStr>),
-    RcStr(RcStr),
-    String(String),
-}
+    use super::{ValueToString, ValueToStringRef};
+    use crate::vc::ResolvedVc;
 
-impl AsRef<str> for StringifyType {
-    fn as_ref(&self) -> &str {
-        match self {
-            StringifyType::RcStrRef(s) => s.as_str(),
-            StringifyType::RcStr(s) => s.as_str(),
-            StringifyType::String(s) => s.as_str(),
+    pub struct ValueToStringifyWrap<T>(pub T);
+
+    pub trait ValueToStringify<const LEVEL: u8> {
+        fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send;
+    }
+
+    pub enum StringifyType {
+        RcStr(RcStr),
+        String(String),
+    }
+
+    impl AsRef<str> for StringifyType {
+        fn as_ref(&self) -> &str {
+            match self {
+                StringifyType::RcStr(s) => s.as_str(),
+                StringifyType::String(s) => s.as_str(),
+            }
         }
     }
-}
 
-impl fmt::Debug for StringifyType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.as_ref(), f)
-    }
-}
-
-impl Display for StringifyType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_ref())
-    }
-}
-
-impl From<StringifyType> for RcStr {
-    fn from(s: StringifyType) -> Self {
-        match s {
-            StringifyType::RcStrRef(r) => (*r).clone(),
-            StringifyType::RcStr(r) => r.clone(),
-            StringifyType::String(s) => RcStr::from(s),
+    impl fmt::Debug for StringifyType {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            fmt::Debug::fmt(self.as_ref(), f)
         }
     }
-}
 
-/// Blanket impl: uses synchronous `Display::to_string()` for owned values.
-impl<T: Display + Send + Sync> ValueToStringify<1> for &ValueToStringifyWrap<&T> {
-    #[inline(always)]
-    fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
-        let s = (self.0).to_string();
-        async move { Ok(StringifyType::String(s)) }
-    }
-}
-
-impl<T: Send> ValueToStringify<2> for &&ValueToStringifyWrap<&Vc<T>>
-where
-    T: ValueToString,
-{
-    #[inline(always)]
-    fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
-        let vc = self.0;
-        async move {
-            let s = vc.to_string().await?;
-            Ok(StringifyType::RcStrRef(s))
+    impl Display for StringifyType {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(self.as_ref())
         }
     }
-}
 
-impl<T: Send> ValueToStringify<2> for &&ValueToStringifyWrap<&ResolvedVc<T>>
-where
-    T: ValueToString,
-{
-    #[inline(always)]
-    fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
-        let vc = self.0;
-        async move {
-            let s = vc.to_string().await?;
-            Ok(StringifyType::RcStrRef(s))
+    impl From<StringifyType> for RcStr {
+        fn from(s: StringifyType) -> Self {
+            match s {
+                StringifyType::RcStr(r) => r,
+                StringifyType::String(s) => RcStr::from(s),
+            }
         }
     }
-}
 
-impl<T: Send> ValueToStringify<2> for &&&ValueToStringifyWrap<&T>
-where
-    T: ValueToStringRef,
-{
-    #[inline(always)]
-    fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> {
-        let s = self.0.to_string_ref();
-        async move { Ok(StringifyType::RcStr(s.await?)) }
+    /// Blanket impl: uses synchronous `Display::to_string()` for owned values.
+    impl<T: Display + Send + Sync> ValueToStringify<1> for &ValueToStringifyWrap<&T> {
+        #[inline(always)]
+        fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
+            let s = (self.0).to_string();
+            async move { Ok(StringifyType::String(s)) }
+        }
     }
-}
 
-impl<T: Send> ValueToStringify<3> for &&&ValueToStringifyWrap<&ReadRef<T>>
-where
-    T: ValueToString + VcValueType,
-{
-    #[inline(always)]
-    async fn to_stringify(&self) -> Result<StringifyType> {
-        let s = ReadRef::<T>::cell((self.0).clone()).to_string().await?;
-        Ok(StringifyType::RcStrRef(s))
+    impl<T: Send> ValueToStringify<2> for &&ValueToStringifyWrap<&crate::Vc<T>>
+    where
+        T: ValueToString,
+    {
+        #[inline(always)]
+        fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
+            let vc = self.0;
+            async move {
+                let s = vc.to_string().await?;
+                Ok(StringifyType::RcStr((*s).clone()))
+            }
+        }
+    }
+
+    impl<T: Send> ValueToStringify<2> for &&ValueToStringifyWrap<&ResolvedVc<T>>
+    where
+        T: ValueToString,
+    {
+        #[inline(always)]
+        fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
+            let vc = self.0;
+            async move {
+                let s = vc.to_string().await?;
+                Ok(StringifyType::RcStr((*s).clone()))
+            }
+        }
+    }
+
+    impl<T: Send> ValueToStringify<2> for &&&ValueToStringifyWrap<&T>
+    where
+        T: ValueToStringRef,
+    {
+        #[inline(always)]
+        fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> {
+            let s = self.0.to_string_ref();
+            async move { Ok(StringifyType::RcStr(s.await?)) }
+        }
     }
 }
