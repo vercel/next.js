@@ -483,7 +483,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    let node_backend = child_process_backend().to_resolved().await?;
+    let node_backend = child_process_backend();
 
     let entries = get_evaluate_entries(jest_entry_asset, asset_context, node_backend, None);
 
