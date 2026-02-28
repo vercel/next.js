@@ -156,6 +156,48 @@ describe('server-hmr', () => {
     )
   })
 
+  describe('external package hmr', () => {
+    itTurbopackDev(
+      'reflects changes to a node_modules serverExternalPackages module on the next request',
+      async () => {
+        const initial = await next.render$('/external')
+        expect(initial('#value').text()).toBe('external-value: 0')
+
+        // Patch the external package directly — it lives outside Turbopack's
+        // module graph so server HMR cannot patch it in-place. The runtime must
+        // fall back to clearing require.cache so the updated file is re-required
+        // on the next request.
+        await next.patchFile('node_modules/hmr-external/index.js', (content) =>
+          content.replace('external-value: 0', 'external-value: 1')
+        )
+
+        await retry(async () => {
+          const updated = await next.render$('/external')
+          expect(updated('#value').text()).toBe('external-value: 1')
+        })
+      }
+    )
+
+    itTurbopackDev(
+      'reflects changes to a non-node_modules serverExternalPackages file on the next request',
+      async () => {
+        const initial = await next.render$('/external')
+        expect(initial('#file-value').text()).toBe('file-external-value: 0')
+
+        // Patch the external file directly — it lives outside Turbopack's
+        // module graph so server HMR cannot patch it in-place.
+        await next.patchFile('lib/hmr-file-external.js', (content) =>
+          content.replace('file-external-value: 0', 'file-external-value: 1')
+        )
+
+        await retry(async () => {
+          const updated = await next.render$('/external')
+          expect(updated('#file-value').text()).toBe('file-external-value: 1')
+        })
+      }
+    )
+  })
+
   describe('route handler hmr', () => {
     function getText(res: Response) {
       return res.ok

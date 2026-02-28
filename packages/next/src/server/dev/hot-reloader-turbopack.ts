@@ -37,7 +37,7 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteCache } from './require-cache'
+import { deleteCache, ExternalWatcher } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -358,6 +358,19 @@ export async function createHotReloaderTurbopack(
   const fileLogger = getFileLogger()
   fileLogger.initialize(distDir, mcpServerEnabled)
 
+  // Watch external (non-distDir) modules loaded by Turbopack chunks so that
+  // changes to serverExternalPackages modules are reflected on the next request
+  // without needing a recompile.
+  const externalWatcher = new ExternalWatcher(distDir)
+  externalWatcher.onExternalChanged = () => {
+    if (process.env.NEXT_HMR_EXTERNAL_DEBUG) {
+      console.log('[ExternalWatcher] external changed — clearing chunk cache')
+    }
+    if (typeof __next__clear_chunk_cache__ === 'function') {
+      __next__clear_chunk_cache__()
+    }
+  }
+
   const encryptionKey = await generateEncryptionKeyBase64({
     isBuild: false,
     distDir,
@@ -629,6 +642,11 @@ export async function createHotReloaderTurbopack(
     // Reset the fetch patch so patchFetch() can re-wrap on the next request.
     if (serverPaths.length > 0) {
       resetFetch()
+      // Discover any external (non-distDir) modules that Turbopack chunks have
+      // loaded via require() and start watching them for changes. When a watched
+      // file changes on disk it is immediately evicted from require.cache so the
+      // next request picks up the fresh version — without needing a recompile.
+      externalWatcher.scan()
     }
 
     // Clear Turbopack's chunk-loading cache so chunks are re-required from disk on
@@ -1545,6 +1563,12 @@ export async function createHotReloaderTurbopack(
         if (inputPage === '/src/instrumentation') return
       }
 
+      // Scan for any external modules that were loaded by Turbopack chunks
+      // during previous requests and start watching them. This is cheap (just
+      // iterating require.cache) and ensures we catch externals that were first
+      // loaded after the last chunk write.
+      externalWatcher.scan()
+
       return hotReloaderSpan
         .traceChild('ensure-page', {
           inputPage,
@@ -1705,6 +1729,8 @@ export async function createHotReloaderTurbopack(
         })
     },
     close() {
+      externalWatcher.dispose()
+
       // Report MCP telemetry if MCP server is enabled
       recordMcpTelemetry(opts.telemetry)
 
