@@ -13,21 +13,21 @@ Analyze PR status including CI failures and review comments.
 
 ## Instructions
 
-1. Run the script to fetch PR status data:
+1. Run the script with `--wait` in the background to fetch PR status data and wait for CI completion:
 
    ```bash
-   node scripts/pr-status.js $ARGUMENTS
+   node scripts/pr-status.js $ARGUMENTS --wait
    ```
 
-   This fetches workflow runs, failed jobs, logs, and PR review comments, then generates markdown files.
+   Use the `run_in_background` Bash parameter. The script writes a partial report immediately with currently available results, then blocks on `gh run watch` until CI completes, and finally re-runs the full analysis to produce the final report. Remember the background task ID for step 10.
 
-2. Read the generated index file for a summary:
+2. Wait ~10 seconds for the initial report to be written, then read the generated index file:
 
    ```bash
    # Read scripts/pr-status/index.md
    ```
 
-   The index shows failed jobs, PR reviews, and inline review comments with links to details.
+   The index shows failed jobs, PR reviews, and inline review comments with links to details. If CI is still in progress, some jobs may not have results yet — this is the partial report.
 
 3. Spawn parallel haiku subagents to analyze the failing jobs (limit to 3-4 to avoid rate limits)
    - **Agent prompt template** (copy-paste for each agent):
@@ -103,6 +103,15 @@ Analyze PR status including CI failures and review comments.
    - Never use `NEXT_SKIP_ISOLATE=1` when verifying module resolution or build-time compilation fixes
 
 9. The script automatically checks the last 3 main branch CI runs for known flaky tests. Check the **"Known Flaky Tests"** section in index.md and the `flaky-tests.json` file. Tests listed there also fail on main and are likely pre-existing flakes, not caused by the PR. Mark them as **FLAKY (pre-existing)** in your summary table. Use `--skip-flaky-check` to skip this step if it's too slow.
+
+10. After presenting the partial analysis, wait for the background script (from step 1) to complete using `TaskOutput` with a ~60 second timeout. If it completes in time:
+    - Re-read `scripts/pr-status/index.md` for the final report (CI has now finished)
+    - Compare with the partial report: identify any **newly failed** jobs that weren't in the earlier analysis
+    - Spawn haiku subagents to analyze the new failures (same template as step 3)
+    - Present an updated summary incorporating all final results
+    - If no new failures appeared, confirm that the partial results were the complete picture
+
+    If it does **not** complete in time, inform the user that CI is still running and the current report is partial. They can re-run `/pr-status` later for the final results.
 
 - Do not try to fix these failures or address review comments without user confirmation.
 - If failures would require complex analysis and there are multiple problems, only do some basic analysis and point out that further investigation is needed and could be performed when requested.
