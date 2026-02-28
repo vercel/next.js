@@ -1,4 +1,4 @@
-import type { Response } from 'next-fetch'
+import type { Response } from 'node-fetch'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
