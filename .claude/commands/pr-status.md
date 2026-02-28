@@ -104,14 +104,14 @@ Analyze PR status including CI failures and review comments.
 
 9. The script automatically checks the last 3 main branch CI runs for known flaky tests. Check the **"Known Flaky Tests"** section in index.md and the `flaky-tests.json` file. Tests listed there also fail on main and are likely pre-existing flakes, not caused by the PR. Mark them as **FLAKY (pre-existing)** in your summary table. Use `--skip-flaky-check` to skip this step if it's too slow.
 
-10. After presenting the partial analysis, wait for the background script (from step 1) to complete using `TaskOutput` with a ~5 minute timeout. If it completes in time:
+10. After presenting the partial analysis, poll for the background script (from step 1) to complete by calling `TaskOutput` with `block=true` and `timeout` of 300000 (5 minutes). If the script completes:
     - Re-read `scripts/pr-status/index.md` for the final report (CI has now finished)
     - Compare with the partial report: identify any **newly failed** jobs that weren't in the earlier analysis
     - Spawn haiku subagents to analyze the new failures (same template as step 3)
     - Present an updated summary incorporating all final results
     - If no new failures appeared, confirm that the partial results were the complete picture
 
-    If it does **not** complete in time, inform the user that CI is still running and the current report is partial. They can re-run `/pr-status` later for the final results.
+    If `TaskOutput` times out, the script is still waiting for CI. Poll again with another `TaskOutput` call (same 5-minute timeout) until the script finishes or you decide CI is taking too long. Inform the user that CI is still running and the current report is partial. They can re-run `/pr-status` later for the final results.
 
 - Do not try to fix these failures or address review comments without user confirmation.
 - If failures would require complex analysis and there are multiple problems, only do some basic analysis and point out that further investigation is needed and could be performed when requested.
