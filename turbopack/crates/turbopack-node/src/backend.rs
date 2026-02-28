@@ -21,10 +21,18 @@ pub struct CreatePoolOptions {
 
 pub type CreatePoolFuture = Pin<Box<dyn Future<Output = Result<EvaluatePool>> + Send + 'static>>;
 
-pub(crate) mod sealed {
+mod sealed {
     #[turbo_tasks::value_trait]
     pub(crate) trait Sealed {}
 }
+
+#[cfg(feature = "worker_pool")]
+#[turbo_tasks::value_impl]
+impl sealed::Sealed for crate::worker_pool::WorkerThreadsBackend {}
+
+#[cfg(feature = "process_pool")]
+#[turbo_tasks::value_impl]
+impl sealed::Sealed for crate::process_pool::ChildProcessesBackend {}
 
 #[turbo_tasks::value_trait]
 pub trait NodeBackend: sealed::Sealed {

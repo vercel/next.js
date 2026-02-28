@@ -31,7 +31,7 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 use crate::{
     AssetsForSourceMapping,
-    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend, sealed},
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
@@ -600,9 +600,6 @@ impl ChildProcessPool {
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct ChildProcessesBackend;
-
-#[turbo_tasks::value_impl]
-impl sealed::Sealed for ChildProcessesBackend {}
 
 #[turbo_tasks::value_impl]
 impl NodeBackend for ChildProcessesBackend {

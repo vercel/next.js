@@ -19,7 +19,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     AssetsForSourceMapping,
-    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend, sealed},
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
     pool_stats::{AcquiredPermits, PoolStatsSnapshot},
     worker_pool::{
@@ -151,9 +151,6 @@ impl WorkerThreadPool {
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct WorkerThreadsBackend;
-
-#[turbo_tasks::value_impl]
-impl sealed::Sealed for WorkerThreadsBackend {}
 
 #[turbo_tasks::value_impl]
 impl NodeBackend for WorkerThreadsBackend {
