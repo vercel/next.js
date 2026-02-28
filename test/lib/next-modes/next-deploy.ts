@@ -470,7 +470,12 @@ export class NextDeployInstance extends NextInstance {
     const customCleanupScriptPath =
       process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH?.trim()
     if (customCleanupScriptPath) {
-      await this.cleanupUsingCustomScript()
+      await this.cleanupUsingCustomScript().catch((err) => {
+        require('console').error(
+          'Error running custom cleanup script, continuing with destroy:',
+          err
+        )
+      })
     }
 
     // If configured, we should remove the proxy address from the hosts file.
