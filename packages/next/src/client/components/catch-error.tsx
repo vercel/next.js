@@ -11,7 +11,8 @@ export function unstable_catchError<P extends Record<string, any>>(
     const isPagesRouter = React.useContext(PagesRouterContext) !== null
     const { children, ...fallbackProps } = props
 
-    function Fallback(errorInfo: ErrorInfo) {
+    // This is a hook instead of a component to avoid lint error about nested components.
+    function useFallback(errorInfo: ErrorInfo) {
       const unstable_retry: ErrorInfo['unstable_retry'] = () => {
         if (isPagesRouter) {
           throw new Error(
@@ -27,9 +28,11 @@ export function unstable_catchError<P extends Record<string, any>>(
       })
     }
 
-    Fallback.displayName = fallback.name
+    useFallback.displayName = fallback.name
 
-    return <ErrorBoundary errorComponent={Fallback}>{children}</ErrorBoundary>
+    return (
+      <ErrorBoundary errorComponent={useFallback}>{children}</ErrorBoundary>
+    )
   }
 
   if (process.env.NODE_ENV !== 'production') {
