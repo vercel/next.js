@@ -37,6 +37,8 @@ const MAX_KEY_BLOCK_SIZE: usize = 16 * 1024;
 const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 20;
 /// The aimed false positive rate for the AMQF
 const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
+/// Assumed average small value size for pre-allocation estimates.
+const AVG_SMALL_VALUE_SIZE: usize = 64;
 
 /// Safety margin for block index capacity estimation in
 /// [`StreamingSstWriter::has_block_index_capacity`]. Accounts for rounding in the entry-count and
@@ -390,9 +392,12 @@ impl<E: Entry> StreamingSstWriter<E> {
         let estimated_key_blocks = (max_entry_count as usize)
             .div_ceil(MAX_KEY_BLOCK_ENTRIES)
             .max(1);
-        // Estimate total blocks: key blocks + some value blocks + index block.
-        // Assume roughly 1 value block per 40 entries (small values) plus medium blocks.
-        let estimated_value_blocks = (max_entry_count as usize / 40).max(1);
+        // Estimate value blocks assuming all entries are small values of average size.
+        // Each small value block holds ~MIN_SMALL_VALUE_BLOCK_SIZE / AVG_SMALL_VALUE_SIZE entries.
+        let entries_per_value_block = MIN_SMALL_VALUE_BLOCK_SIZE / AVG_SMALL_VALUE_SIZE;
+        let estimated_value_blocks = (max_entry_count as usize)
+            .div_ceil(entries_per_value_block)
+            .max(1);
         let estimated_total_blocks = estimated_key_blocks + estimated_value_blocks + 1;
 
         Ok(Self {
