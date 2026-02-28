@@ -20,7 +20,6 @@ import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
   getFallbackRouteParams,
   createOpaqueFallbackRouteParams,
@@ -99,7 +98,6 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { scheduleOnNextTick } from '../../lib/scheduler'
-import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -194,16 +192,8 @@ export async function handler(
   // We use the resolvedPathname instead of the parsedUrl.pathname because it
   // is not rewritten as resolvedPathname is. This will ensure that the correct
   // prerender info is used instead of using the original pathname as the
-  // source. If however PPR is enabled and cacheComponents is disabled, we
-  // treat the pathname as dynamic. Currently, there's a bug in the PPR
-  // implementation that incorrectly leaves %%drp placeholders in the output of
-  // parallel routes. This is addressed with cacheComponents.
-  const prerenderInfo =
-    nextConfig.experimental.ppr &&
-    !nextConfig.cacheComponents &&
-    isInterceptionRouteAppPath(resolvedPathname)
-      ? null
-      : routeModule.match(resolvedPathname, prerenderManifest)
+  // source.
+  const prerenderInfo = routeModule.match(resolvedPathname, prerenderManifest)
 
   const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
@@ -227,12 +217,10 @@ export async function handler(
   const isPossibleServerAction = getIsPossibleServerAction(req)
 
   /**
-   * If the route being rendered is an app page, and the ppr feature has been
-   * enabled, then the given route _could_ support PPR.
+   * If the route being rendered is an app page, and the cacheComponents feature
+   * has been enabled, then the given route _could_ support PPR.
    */
-  const couldSupportPPR: boolean = checkIsAppPPREnabled(
-    nextConfig.experimental.ppr
-  )
+  const couldSupportPPR: boolean = !!nextConfig.cacheComponents
 
   // Stash postponed state for server actions when in minimal mode.
   // We extract it here so the RDC is available for the re-render after the action completes.
