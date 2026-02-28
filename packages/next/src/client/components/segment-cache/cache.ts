@@ -1617,22 +1617,28 @@ export async function fetchRouteOnCacheMiss(
       // NOTE: We could embed the route tree into the HTML document, to avoid
       // a second request. We're not doing that currently because it would make
       // the HTML document larger and affect normal page loads.
-      const headResponse = await fetch(url, {
-        method: 'HEAD',
-      })
-      if (headResponse.status < 200 || headResponse.status >= 400) {
-        // The target page responded w/o a successful status code
-        // Could be a WAF serving a 403, or a 5xx from a backend
-        //
-        // Note that we can't use headResponse.ok here, because
-        // Response#ok returns `false` with 3xx responses.
-        rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
-        return null
-      }
+      if (!process.env.__NEXT_DISABLE_PREFLIGHT_FETCH) {
+        const headResponse = await fetch(url, {
+          method: 'HEAD',
+        })
+        if (headResponse.status < 200 || headResponse.status >= 400) {
+          // The target page responded w/o a successful status code
+          // Could be a WAF serving a 403, or a 5xx from a backend
+          //
+          // Note that we can't use headResponse.ok here, because
+          // Response#ok returns `false` with 3xx responses.
+          rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
+          return null
+        }
 
-      urlAfterRedirects = headResponse.redirected
-        ? new URL(headResponse.url)
-        : url
+        urlAfterRedirects = headResponse.redirected
+          ? new URL(headResponse.url)
+          : url
+      } else {
+        // When preflight fetches are disabled, skip the extra request and
+        // proceed with the original URL.
+        urlAfterRedirects = url
+      }
 
       response = await fetchPrefetchResponse(
         addSegmentPathToUrlInOutputExportMode(urlAfterRedirects, segmentPath),

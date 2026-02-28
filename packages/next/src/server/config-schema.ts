@@ -746,6 +746,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     expireTime: z.number().optional(),
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
+    disablePreflightFetch: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),
     turbopack: zTurbopackConfig.optional(),
     typescript: z

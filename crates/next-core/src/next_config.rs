@@ -104,6 +104,7 @@ pub struct NextConfig {
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     sass_options: Option<serde_json::Value>,
     trailing_slash: Option<bool>,
+    disable_preflight_fetch: Option<bool>,
     asset_prefix: Option<RcStr>,
     base_path: Option<RcStr>,
     skip_proxy_url_normalize: Option<bool>,
@@ -1877,6 +1878,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn skip_trailing_slash_redirect(&self) -> Vc<bool> {
         Vc::cell(self.skip_trailing_slash_redirect.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn disable_preflight_fetch(&self) -> Vc<bool> {
+        Vc::cell(self.disable_preflight_fetch.unwrap_or(false))
     }
 
     /// Returns the final asset prefix. If an assetPrefix is set, it's used.

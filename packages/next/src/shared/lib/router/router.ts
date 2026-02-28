@@ -632,8 +632,12 @@ function fetchNextData({
   if (inflightCache[cacheKey] !== undefined) {
     return inflightCache[cacheKey]
   }
+  // Background prefetches use `HEAD` by default to avoid downloading the full
+  // payload. This can be disabled via next.config.js (`disablePreflightFetch`).
+  const shouldUseHead =
+    isBackground && !process.env.__NEXT_DISABLE_PREFLIGHT_FETCH
   return (inflightCache[cacheKey] = getData(
-    isBackground ? { method: 'HEAD' } : {}
+    shouldUseHead ? { method: 'HEAD' } : {}
   ))
 }
 

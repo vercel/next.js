@@ -1154,6 +1154,15 @@ export interface NextConfig {
   trailingSlash?: boolean
 
   /**
+   * Disables the client-side "preflight" fetches that Next.js performs during
+   * prefetching (for example, background `HEAD` requests). When `true`, Next.js
+   * will skip issuing these preflight requests.
+   *
+   * @default false
+   */
+  disablePreflightFetch?: boolean
+
+  /**
    * Next.js comes with built-in support for environment variables
    *
    * @see [Environment Variables documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/env)
@@ -1567,6 +1576,7 @@ export const defaultConfig = Object.freeze({
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
+  disablePreflightFetch: false,
   i18n: null,
   productionBrowserSourceMaps: false,
   excludeDefaultMomentLocales: true,
