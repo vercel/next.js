@@ -144,7 +144,8 @@ export class NextDeployInstance extends NextInstance {
         `Failed to get immutableAssetToken from logs ${this._cliOutput}`
       )
     }
-    this._immutableAssetToken = immutableAssetToken
+    this._immutableAssetToken =
+      immutableAssetToken === 'undefined' ? undefined : immutableAssetToken
 
     require('console').log(
       `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, immutableAssetToken: ${this._immutableAssetToken}`
