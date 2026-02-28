@@ -27,6 +27,10 @@ on:
         description: Custom deploy logs script path (NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH)
         default: ''
         type: string
+      cleanupScriptPath:
+        description: Custom cleanup script path (NEXT_TEST_CLEANUP_SCRIPT_PATH)
+        default: ''
+        type: string
 
 env:
   DD_ENV: 'ci'
@@ -122,6 +126,7 @@ jobs:
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
+        NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
@@ -166,6 +171,7 @@ jobs:
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
+        NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'

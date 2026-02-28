@@ -123,6 +123,34 @@ export class NextDeployInstance extends NextInstance {
     return logsRes.stdout + logsRes.stderr
   }
 
+  private async cleanupUsingCustomScript(): Promise<void> {
+    const cleanupScriptPath = process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH!
+
+    require('console').log(
+      `Running cleanup using custom script: ${cleanupScriptPath}`
+    )
+
+    const scriptEnv = {
+      ...process.env,
+      NEXT_TEST_DIR: this.testDir,
+      NEXT_TEST_DEPLOY_URL: this._url,
+      ...this.env,
+    }
+
+    const cleanupRes = await execa(cleanupScriptPath, [], {
+      cwd: this.testDir,
+      env: scriptEnv,
+      reject: false,
+      stderr: 'inherit',
+    })
+
+    if (cleanupRes.exitCode !== 0) {
+      throw new Error(
+        `Custom cleanup script failed: ${cleanupRes.stdout} ${cleanupRes.stderr} (${cleanupRes.exitCode})`
+      )
+    }
+  }
+
   private parseIdsFromCliOuput(): void {
     const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
     if (!buildId) {
@@ -438,6 +466,18 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async destroy() {
+    // Run custom cleanup script if provided
+    const customCleanupScriptPath =
+      process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH?.trim()
+    if (customCleanupScriptPath) {
+      await this.cleanupUsingCustomScript().catch((err) => {
+        require('console').error(
+          'Error running custom cleanup script, continuing with destroy:',
+          err
+        )
+      })
+    }
+
     // If configured, we should remove the proxy address from the hosts file.
     if (this._writtenHostsLine) {
       const trimmed = this._writtenHostsLine.trim()
