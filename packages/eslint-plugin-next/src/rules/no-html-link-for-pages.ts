@@ -2,6 +2,7 @@ import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
+import { getPageExtensions, setPageExtensions } from '../utils/get-page-extensions'
 
 import {
   getUrlFromPagesDirectories,
@@ -69,6 +70,10 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
+    // Get page extensions from next.config.js and set them for URL parsing
+    const pageExtensions = getPageExtensions(context)
+    setPageExtensions(pageExtensions)
+
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
 
