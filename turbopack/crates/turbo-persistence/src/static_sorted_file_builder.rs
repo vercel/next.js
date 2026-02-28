@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     collections::VecDeque,
     fs::File,
-    io::{BufWriter, Seek, Write},
+    io::{BufWriter, Write},
     path::Path,
 };
 
@@ -35,32 +35,12 @@ const MAX_KEY_BLOCK_SIZE: usize = 16 * 1024;
 /// - 2 bytes size
 /// - 4 bytes position in block
 const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 20;
-/// The maximum number of entries that should go into a single small value block
-const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = MIN_SMALL_VALUE_BLOCK_SIZE;
 /// The aimed false positive rate for the AMQF
 const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
 
 /// Determines whether to store the hash per entry based on max key length.
 fn use_hash(max_key_len: usize) -> bool {
     max_key_len > 32
-}
-
-/// Returns true when the current key block should be flushed before adding the next entry.
-///
-/// `block_size` and `block_entry_count` describe the block accumulated so far.
-/// `next_key_len` is the key length of the candidate entry being considered.
-/// `last_hash` / `next_hash` are compared to avoid splitting a block mid-hash-collision.
-fn should_flush_key_block(
-    block_size: usize,
-    block_entry_count: usize,
-    next_key_len: usize,
-    last_hash: u64,
-    next_hash: u64,
-) -> bool {
-    block_entry_count > 0
-        && (block_size + next_key_len + KEY_BLOCK_ENTRY_META_OVERHEAD > MAX_KEY_BLOCK_SIZE
-            || block_entry_count >= MAX_KEY_BLOCK_ENTRIES)
-        && last_hash != next_hash
 }
 
 /// Trait for entries from that SST files can be created
@@ -286,11 +266,7 @@ pub struct StreamingSstWriter<E: Entry> {
     current_small_block_id: u16,
 
     // Pending small value block buffer.
-    // `pending_small_value_count` counts only the entries whose bytes are currently in
-    // `pending_small_values`; it is independent of `pending_keys.len()`, which includes
-    // entries of all value types (including already-flushed small, medium, inline, etc.).
-    pending_small_values: Vec<u8>,
-    pending_small_value_count: usize,
+    pending_small_value_block: Vec<u8>,
 
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
@@ -348,8 +324,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             first_pending_small_index: 0,
             #[cfg(debug_assertions)]
             current_small_block_id: 0,
-            pending_small_values: Vec::new(),
-            pending_small_value_count: 0,
+            pending_small_value_block: Vec::new(),
             key_buffer: Vec::new(),
             filter: Some(filter),
             key_block_boundaries: Vec::new(),
@@ -374,7 +349,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// This is intended for compaction callers that need to split output across multiple SST files.
     pub fn is_full(&self, max_entries: usize, max_data_size: usize) -> bool {
         self.entry_count as usize >= max_entries
-            || self.total_key_size + self.total_value_size > max_data_size
+            || self.total_key_size + self.total_value_size >= max_data_size
             || !self.has_block_index_capacity()
     }
 
@@ -387,7 +362,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         // - 1 pending small value block (if buffer is non-empty)
         // - key blocks for pending entries (upper bound from both entry count and byte size)
         // - 1 index block
-        let pending_small_block = usize::from(!self.pending_small_values.is_empty());
+        let pending_small_block = usize::from(!self.pending_small_value_block.is_empty());
         let pending_key_blocks = self
             .pending_keys
             .len()
@@ -457,10 +432,9 @@ impl<E: Entry> StreamingSstWriter<E> {
             EntryValue::Small { value } => {
                 self.total_value_size += value.len();
 
-                let offset = self.pending_small_values.len() as u32;
+                let offset = self.pending_small_value_block.len() as u32;
                 let size: u16 = value.len().try_into().unwrap();
-                self.pending_small_values.extend_from_slice(value);
-                self.pending_small_value_count += 1;
+                self.pending_small_value_block.extend_from_slice(value);
 
                 // Track where the first PendingSmall entry is in the queue
                 if self.first_pending_small_index >= self.pending_keys.len() {
@@ -479,9 +453,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                 // Eagerly flush the small block AFTER pushing the new entry. This resolves
                 // the just-pushed entry immediately via advance_boundary_to(), so key blocks
                 // can be flushed incrementally.
-                if self.pending_small_values.len() >= MIN_SMALL_VALUE_BLOCK_SIZE
-                    || self.pending_small_value_count >= MAX_SMALL_VALUE_BLOCK_ENTRIES
-                {
+                if self.pending_small_value_block.len() >= MIN_SMALL_VALUE_BLOCK_SIZE {
                     self.flush_small_value_block()?;
                 }
 
@@ -501,7 +473,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         };
 
         self.push_pending_key_entry(entry, value_ref);
-        self.advance_resolved_boundary()
+        self.try_flush_key_blocks()
     }
 
     /// Appends a new entry to the pending-keys queue.
@@ -515,7 +487,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     ///
     /// Must be called immediately after [`push_pending_key_entry`] with a resolved
     /// (non-`PendingSmall`) entry.
-    fn advance_resolved_boundary(&mut self) -> Result<()> {
+    fn try_flush_key_blocks(&mut self) -> Result<()> {
         debug_assert!(!matches!(
             self.pending_keys.back().unwrap().value_ref,
             ValueRef::PendingSmall { .. }
@@ -534,31 +506,22 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// must have resolved (non-`PendingSmall`) value references.
     fn advance_boundary_to(&mut self, new_boundary: usize) -> Result<()> {
         let mut last_flushed_end = 0usize;
+        // Cumulative key sizes of all entries visited so far, and the snapshot at the last
+        // flush point. The difference at the end gives the total key size of drained entries.
+        let mut cumulative_key_size = 0usize;
+        let mut flushed_key_size = 0usize;
 
         for i in self.first_pending_small_index..new_boundary {
             let entry = &self.pending_keys[i];
             let key_len = entry.entry.key_len();
             let key_hash = entry.entry.key_hash();
 
-            if should_flush_key_block(
-                self.current_key_block_size,
-                self.current_key_block_entry_count,
-                key_len,
-                self.current_key_block_last_hash,
-                key_hash,
-            ) {
-                let block_end = last_flushed_end + self.current_key_block_entry_count;
-                self.flush_key_block(
-                    last_flushed_end,
-                    block_end,
-                    self.current_key_block_max_key_len,
-                )?;
-                last_flushed_end = block_end;
-                self.current_key_block_size = 0;
-                self.current_key_block_entry_count = 0;
-                self.current_key_block_max_key_len = 0;
+            if self.try_flush_key_block(last_flushed_end, key_len, key_hash)? {
+                flushed_key_size = cumulative_key_size;
+                last_flushed_end = i;
             }
 
+            cumulative_key_size += key_len;
             self.current_key_block_size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
             self.current_key_block_max_key_len = self.current_key_block_max_key_len.max(key_len);
             self.current_key_block_entry_count += 1;
@@ -566,12 +529,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         }
 
         if last_flushed_end > 0 {
-            let drained_key_size: usize = self
-                .pending_keys
-                .range(..last_flushed_end)
-                .map(|e| e.entry.key_len())
-                .sum();
-            self.pending_key_total_size -= drained_key_size;
+            self.pending_key_total_size -= flushed_key_size;
             self.pending_keys.drain(..last_flushed_end);
         }
 
@@ -584,7 +542,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     fn flush_small_value_block(&mut self) -> Result<()> {
         // Early return if empty -- this simplifies trailing small value block handling in
         // `close()` where we call this unconditionally.
-        if self.pending_small_values.is_empty() {
+        if self.pending_small_value_block.is_empty() {
             return Ok(());
         }
 
@@ -592,7 +550,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             self.file.as_mut().unwrap(),
             &mut self.compress_buffer,
             &mut self.block_offsets,
-            &self.pending_small_values,
+            &self.pending_small_value_block,
             true,
         )
         .context("Failed to write small value block")?;
@@ -612,7 +570,11 @@ impl<E: Entry> StreamingSstWriter<E> {
             } = entry.value_ref
             {
                 #[cfg(debug_assertions)]
-                debug_assert_eq!(small_block_id, flushed_id);
+                debug_assert_eq!(
+                    small_block_id, flushed_id,
+                    "all pending small entries must reference the small value block that was just \
+                     written"
+                );
                 entry.value_ref = ValueRef::Small {
                     block_index,
                     offset,
@@ -630,16 +592,47 @@ impl<E: Entry> StreamingSstWriter<E> {
         {
             self.current_small_block_id += 1;
         }
-        self.pending_small_values.clear();
-        self.pending_small_value_count = 0;
+        self.pending_small_value_block.clear();
 
         Ok(())
     }
 
+    /// Flushes the current key block if it is full (considering the next entry), then resets
+    /// the block-tracking state. Returns `true` if a block was flushed.
+    ///
+    /// `block_start` is the index into `pending_keys` where the current key block begins.
+    /// `next_key_len` / `next_key_hash` describe the entry about to be added.
+    fn try_flush_key_block(
+        &mut self,
+        block_start: usize,
+        next_key_len: usize,
+        next_key_hash: u64,
+    ) -> Result<bool> {
+        if self.current_key_block_entry_count == 0 {
+            return Ok(false);
+        }
+        let would_exceed_size =
+            self.current_key_block_size + next_key_len + KEY_BLOCK_ENTRY_META_OVERHEAD
+                > MAX_KEY_BLOCK_SIZE;
+        let would_exceed_entries = self.current_key_block_entry_count >= MAX_KEY_BLOCK_ENTRIES;
+        if !(would_exceed_size || would_exceed_entries)
+            || self.current_key_block_last_hash == next_key_hash
+        {
+            return Ok(false);
+        }
+
+        let block_end = block_start + self.current_key_block_entry_count;
+        self.flush_key_block(block_start, block_end)?;
+        self.current_key_block_size = 0;
+        self.current_key_block_entry_count = 0;
+        self.current_key_block_max_key_len = 0;
+        Ok(true)
+    }
+
     /// Flushes a single key block from `pending_keys[start..end]`.
-    fn flush_key_block(&mut self, start: usize, end: usize, max_key_len: usize) -> Result<()> {
+    fn flush_key_block(&mut self, start: usize, end: usize) -> Result<()> {
         let entry_count = end - start;
-        let has_hash = use_hash(max_key_len);
+        let has_hash = use_hash(self.current_key_block_max_key_len);
 
         self.key_buffer.clear();
         let mut builder = KeyBlockBuilder::new(&mut self.key_buffer, entry_count as u32, has_hash);
@@ -709,33 +702,39 @@ impl<E: Entry> StreamingSstWriter<E> {
             "StreamingSstWriter::close() called with no entries"
         );
 
-        // Write index block
-        self.key_buffer.clear();
-        let entry_count: u16 = (self.key_block_boundaries.len() - 1)
+        let mut file = self.file.take().unwrap();
+
+        // Write index block directly to file (index blocks are never compressed).
+        let index_entry_count: u16 = (self.key_block_boundaries.len() - 1)
             .try_into()
             .expect("Index entries count overflow");
+        let index_block_size: u32 = (INDEX_BLOCK_HEADER_SIZE
+            + index_entry_count as usize * INDEX_BLOCK_ENTRY_SIZE)
+            .try_into()
+            .unwrap();
+        // Register block offset (uncompressed_size = 0 since we store raw).
+        {
+            let block_len = index_block_size + 4; // +4 for the uncompressed_size header
+            let offset = self
+                .block_offsets
+                .last()
+                .copied()
+                .unwrap_or_default()
+                .checked_add(block_len)
+                .expect("Block offset overflow");
+            self.block_offsets.push(offset);
+        }
+        file.write_u32::<BE>(0)
+            .context("Failed to write index block header")?;
         let first_block = self.key_block_boundaries[0].1;
-        let mut index_block =
-            IndexBlockBuilder::new(&mut self.key_buffer, entry_count, first_block);
+        let mut index_block = IndexBlockBuilder::new(&mut file, first_block);
         for &(hash, block) in &self.key_block_boundaries[1..] {
             index_block.put(hash, block);
         }
-        index_block.finish();
-        write_block_to_file(
-            self.file.as_mut().unwrap(),
-            &mut self.compress_buffer,
-            &mut self.block_offsets,
-            &self.key_buffer,
-            false,
-        )
-        .context("Failed to write index block")?;
 
         // Write block offset table
         for offset in &self.block_offsets {
-            self.file
-                .as_mut()
-                .unwrap()
-                .write_u32::<BE>(*offset)
+            file.write_u32::<BE>(*offset)
                 .context("Failed to write block offset")?;
         }
 
@@ -745,37 +744,32 @@ impl<E: Entry> StreamingSstWriter<E> {
             .try_into()
             .expect("Block count overflow");
 
-        // Shrink the AMQF filter to the actual entry count if less than half the capacity
-        // was used. The filter was created with `max_entry_count` which may be larger than the
-        // number of entries actually added.
-        let old_filter = self.filter.take().unwrap();
-        let filter = if !old_filter.is_empty() && old_filter.len() < old_filter.capacity() / 2 {
-            let mut shrunk = qfilter::Filter::new(old_filter.len(), AMQF_FALSE_POSITIVE_RATE)
-                .expect("Filter can't be constructed");
-            shrunk
-                .merge(false, &old_filter)
-                .expect("Failed to merge AMQF filter");
-            shrunk
-        } else {
-            old_filter
-        };
+        // Shrink the AMQF filter to the actual entry count. The filter was created with
+        // `max_entry_count` which may be larger than the number of entries actually added.
+        let mut filter = self.filter.take().unwrap();
+        filter.shrink_to_fit();
 
         // Serialize AMQF
         let amqf =
             turbo_bincode_encode(&AmqfBincodeWrapper(filter)).expect("AMQF serialization failed");
 
-        let file = self.file.as_mut().unwrap();
+        // Compute file size from block offsets rather than calling stream_position()
+        // (which requires a flush + seek).
+        let last_block_end = self.block_offsets.last().copied().unwrap_or_default() as u64;
+        let offset_table_size = block_count as u64 * size_of::<u32>() as u64;
+        let file_size = last_block_end + offset_table_size;
+
         let meta = StaticSortedFileBuilderMeta {
             min_hash: self.min_hash,
             max_hash: self.max_hash,
             amqf: Cow::Owned(amqf.into_vec()),
             block_count,
-            size: file.stream_position()?,
+            size: file_size,
             flags: self.flags,
             entries: self.entry_count,
         };
 
-        Ok((meta, self.file.take().unwrap().into_inner()?))
+        Ok((meta, file.into_inner()?))
     }
 
     /// Flushes all remaining entries as key blocks. Called from `close()` after all small value
@@ -787,31 +781,31 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         let total = self.pending_keys.len();
         let mut block_start = 0;
-        let mut block_size = 0;
-        let mut block_max_key_len = 0;
-        let mut last_hash = 0u64;
+
+        // Reset current block state so we iterate from scratch. The partially-tracked
+        // block from previous add() calls is irrelevant here since we re-scan all entries.
+        self.current_key_block_size = 0;
+        self.current_key_block_entry_count = 0;
+        self.current_key_block_max_key_len = 0;
 
         for i in 0..total {
             let entry = &self.pending_keys[i];
             let key_len = entry.entry.key_len();
             let key_hash = entry.entry.key_hash();
-            let block_entry_count = i - block_start;
 
-            if should_flush_key_block(block_size, block_entry_count, key_len, last_hash, key_hash) {
-                self.flush_key_block(block_start, i, block_max_key_len)?;
+            if self.try_flush_key_block(block_start, key_len, key_hash)? {
                 block_start = i;
-                block_size = 0;
-                block_max_key_len = 0;
             }
 
-            block_size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
-            block_max_key_len = block_max_key_len.max(key_len);
-            last_hash = key_hash;
+            self.current_key_block_size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
+            self.current_key_block_max_key_len = self.current_key_block_max_key_len.max(key_len);
+            self.current_key_block_entry_count += 1;
+            self.current_key_block_last_hash = key_hash;
         }
 
         // Flush the final block
         if block_start < total {
-            self.flush_key_block(block_start, total, block_max_key_len)?;
+            self.flush_key_block(block_start, total)?;
         }
 
         self.pending_keys.clear();
@@ -959,33 +953,29 @@ impl<'l> KeyBlockBuilder<'l> {
 // ---------------------------------------------------------------------------
 
 /// Builder for a single index block.
-struct IndexBlockBuilder<'l> {
-    buffer: &'l mut Vec<u8>,
+struct IndexBlockBuilder<W: Write> {
+    writer: W,
 }
 
-impl<'l> IndexBlockBuilder<'l> {
+/// Size of a single index block entry (u64 hash + u16 block index).
+const INDEX_BLOCK_ENTRY_SIZE: usize = size_of::<u64>() + size_of::<u16>();
+
+/// Size of the index block header (u8 type + u16 first_block).
+const INDEX_BLOCK_HEADER_SIZE: usize = size_of::<u8>() + size_of::<u16>();
+
+impl<W: Write> IndexBlockBuilder<W> {
     /// Creates a new builder for an index block with the specified number of entries and a pointer
     /// to the first block.
-    fn new(buffer: &'l mut Vec<u8>, entry_count: u16, first_block: u16) -> Self {
-        buffer.reserve(
-            entry_count as usize * (size_of::<u64>() + size_of::<u16>())
-                + size_of::<u8>()
-                + size_of::<u16>(),
-        );
-        buffer.write_u8(BLOCK_TYPE_INDEX).unwrap();
-        buffer.write_u16::<BE>(first_block).unwrap();
-        Self { buffer }
+    fn new(mut writer: W, first_block: u16) -> Self {
+        writer.write_u8(BLOCK_TYPE_INDEX).unwrap();
+        writer.write_u16::<BE>(first_block).unwrap();
+        Self { writer }
     }
 
     /// Adds a hash boundary to the index block.
     fn put(&mut self, hash: u64, block: u16) {
-        self.buffer.write_u64::<BE>(hash).unwrap();
-        self.buffer.write_u16::<BE>(block).unwrap();
-    }
-
-    /// Returns the index block buffer
-    fn finish(self) -> &'l mut Vec<u8> {
-        self.buffer
+        self.writer.write_u64::<BE>(hash).unwrap();
+        self.writer.write_u16::<BE>(block).unwrap();
     }
 }
 
