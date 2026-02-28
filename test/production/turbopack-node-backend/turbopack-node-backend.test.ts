@@ -8,19 +8,8 @@ describe.each([
   (turbopackPluginRuntimeStrategy, expectSamePid) => {
     const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
-      nextConfig: {
-        experimental: {
-          turbopackPluginRuntimeStrategy,
-        },
-        turbopack: {
-          rules: {
-            '*.pid': {
-              as: '*.js',
-              loaders: ['./pid-loader.js'],
-            },
-          },
-        },
-        generateBuildId: () => String(process.pid),
+      env: {
+        TEST_TURBOPACK_PLUGIN_RUNTIME_STRATEGY: turbopackPluginRuntimeStrategy,
       },
     })
 
