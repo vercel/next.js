@@ -21,7 +21,7 @@ Analyze PR status including CI failures and review comments.
 
    Use the `run_in_background` Bash parameter. The script writes a partial report immediately with currently available results, then blocks on `gh run watch` until CI completes, and finally re-runs the full analysis to produce the final report. Remember the background task ID for step 10.
 
-2. Wait ~10 seconds for the initial report to be written, then read the generated index file:
+2. Poll the background task output using `TaskOutput` with `block=false` until it contains `Output written to` (this means the initial report is ready). Then read the generated index file:
 
    ```bash
    # Read scripts/pr-status/index.md
