@@ -2059,10 +2059,10 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
-        #[cfg(feature = "worker_pool")]
-        let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
-        #[cfg(all(not(feature = "worker_pool"), feature = "process_pool"))]
+        #[cfg(feature = "process_pool")]
         let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
+        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
+        let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
 
         self.experimental
             .turbopack_plugin_runtime_strategy
