@@ -104,7 +104,7 @@ Analyze PR status including CI failures and review comments.
 
 9. The script automatically checks the last 3 main branch CI runs for known flaky tests. Check the **"Known Flaky Tests"** section in index.md and the `flaky-tests.json` file. Tests listed there also fail on main and are likely pre-existing flakes, not caused by the PR. Mark them as **FLAKY (pre-existing)** in your summary table. Use `--skip-flaky-check` to skip this step if it's too slow.
 
-10. After presenting the partial analysis, wait for the background script (from step 1) to complete using `TaskOutput` with a ~60 second timeout. If it completes in time:
+10. After presenting the partial analysis, wait for the background script (from step 1) to complete using `TaskOutput` with a ~5 minute timeout. If it completes in time:
     - Re-read `scripts/pr-status/index.md` for the final report (CI has now finished)
     - Compare with the partial report: identify any **newly failed** jobs that weren't in the earlier analysis
     - Spawn haiku subagents to analyze the new failures (same template as step 3)
