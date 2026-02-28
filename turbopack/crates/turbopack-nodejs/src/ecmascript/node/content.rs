@@ -60,12 +60,18 @@ impl EcmascriptBuildNodeChunkContent {
 
         let content = self.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
-        for item in chunk_items {
-            for (id, item_code) in item {
-                write!(code, "\n{}, ", StringifyJs(&id))?;
-                code.push_code(item_code);
-                write!(code, ",")?;
-            }
+
+        // Sort chunk items by module ID to ensure deterministic output regardless of
+        // the order modules were discovered during graph traversal. Without this,
+        // the same set of modules can produce different content hashes when reached
+        // from different entry points, causing duplicate chunk downloads.
+        let mut all_items: Vec<_> = chunk_items.iter().flat_map(|item| item.iter()).collect();
+        all_items.sort_by(|(id_a, _), (id_b, _)| id_a.cmp(id_b));
+
+        for (id, item_code) in all_items {
+            write!(code, "\n{}, ", StringifyJs(id))?;
+            code.push_code(item_code);
+            write!(code, ",")?;
         }
 
         write!(code, "\n];")?;
