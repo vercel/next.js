@@ -5,12 +5,12 @@ describe.each([
   ['childProcesses', false],
 ] as const)(
   'turbopack-node-backend (%s)',
-  (turbopackNodeBackend, expectSamePid) => {
+  (turbopackPluginRuntimeStrategy, expectSamePid) => {
     const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
       nextConfig: {
         experimental: {
-          turbopackNodeBackend,
+          turbopackPluginRuntimeStrategy,
         },
         turbopack: {
           rules: {

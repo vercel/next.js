@@ -500,7 +500,7 @@ export interface ExperimentalConfig {
   /**
    * Selects the runtime backend used by Turbopack for Node.js evaluation.
    */
-  turbopackNodeBackend?: 'workerThreads' | 'childProcesses'
+  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
@@ -1722,7 +1722,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
-    turbopackNodeBackend: 'workerThreads',
+    turbopackPluginRuntimeStrategy: 'workerThreads',
     devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,

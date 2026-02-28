@@ -14,7 +14,9 @@ use next_core::{
     next_client::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
-    next_config::{ModuleIds as ModuleIdStrategyConfig, NextConfig, TurbopackNodeBackend},
+    next_config::{
+        ModuleIds as ModuleIdStrategyConfig, NextConfig, TurbopackPluginRuntimeStrategy,
+    },
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
@@ -1219,9 +1221,13 @@ impl Project {
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root().owned().await?;
         let next_mode = self.next_mode().await?;
-        let node_backend = match *self.next_config().turbopack_node_backend().await? {
-            TurbopackNodeBackend::WorkerThreads => worker_threads_backend(),
-            TurbopackNodeBackend::ChildProcesses => child_process_backend(),
+        let node_backend = match *self
+            .next_config()
+            .turbopack_plugin_runtime_strategy()
+            .await?
+        {
+            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
+            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
         };
 
         let node_execution_chunking_context = Vc::upcast(

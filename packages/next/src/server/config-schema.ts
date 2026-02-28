@@ -324,7 +324,9 @@ export const experimentalSchema = {
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
   turbopackMemoryLimit: z.number().optional(),
-  turbopackNodeBackend: z.enum(['workerThreads', 'childProcesses']).optional(),
+  turbopackPluginRuntimeStrategy: z
+    .enum(['workerThreads', 'childProcesses'])
+    .optional(),
   turbopackMinify: z.boolean().optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),

@@ -923,7 +923,7 @@ pub struct OptionModuleIds(pub Option<ModuleIds>);
 #[turbo_tasks::value(operation)]
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum TurbopackNodeBackend {
+pub enum TurbopackPluginRuntimeStrategy {
     WorkerThreads,
     ChildProcesses,
 }
@@ -1158,7 +1158,7 @@ pub struct ExperimentalConfig {
 
     turbopack_minify: Option<bool>,
     turbopack_module_ids: Option<ModuleIds>,
-    turbopack_node_backend: Option<TurbopackNodeBackend>,
+    turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -2056,10 +2056,10 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn turbopack_node_backend(&self) -> Vc<TurbopackNodeBackend> {
+    pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
         self.experimental
-            .turbopack_node_backend
-            .unwrap_or(TurbopackNodeBackend::WorkerThreads)
+            .turbopack_plugin_runtime_strategy
+            .unwrap_or(TurbopackPluginRuntimeStrategy::WorkerThreads)
             .cell()
     }
 
