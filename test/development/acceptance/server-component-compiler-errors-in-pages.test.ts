@@ -82,7 +82,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          ╰─▶   × Error:   x You're importing a module that depends on "next/headers" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
-Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+               │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -98,7 +98,7 @@ Learn more: https://nextjs.org/docs/app/building-your-application/rendering/serv
         .toMatchInlineSnapshot(`
        "./components/Comp.js
        Error:   x You're importing a module that depends on "next/headers" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
-Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -167,7 +167,7 @@ Learn more: https://nextjs.org/docs/app/building-your-application/rendering/serv
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          ╰─▶   × Error:   x You're importing a module that depends on "server-only" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
-Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+               │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -187,7 +187,7 @@ Learn more: https://nextjs.org/docs/app/building-your-application/rendering/serv
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
        Error:   x You're importing a module that depends on "server-only" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
-Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -254,7 +254,7 @@ Learn more: https://nextjs.org/docs/app/building-your-application/rendering/serv
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          ╰─▶   × Error:   x You're importing a module that depends on "after" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
-Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+               │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -274,7 +274,7 @@ Learn more: https://nextjs.org/docs/app/building-your-application/rendering/serv
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
        Error:   x You're importing a module that depends on "after" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
-Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -350,7 +350,7 @@ Learn more: https://nextjs.org/docs/app/building-your-application/rendering/serv
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          ╰─▶   × Error:   x You're importing a module that depends on "next/root-params" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
-Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+               │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -370,7 +370,7 @@ Learn more: https://nextjs.org/docs/app/building-your-application/rendering/serv
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
        Error:   x You're importing a module that depends on "next/root-params" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.
-Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
