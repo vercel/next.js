@@ -316,18 +316,28 @@ impl<E: Entry> StreamingSstWriter<E> {
         let filter = qfilter::Filter::new(max_entry_count.max(1), AMQF_FALSE_POSITIVE_RATE)
             .expect("Filter can't be constructed");
 
+        // Estimate number of key blocks based on max entry count.
+        // Each key block holds up to MAX_KEY_BLOCK_ENTRIES entries.
+        let estimated_key_blocks = (max_entry_count as usize)
+            .div_ceil(MAX_KEY_BLOCK_ENTRIES)
+            .max(1);
+        // Estimate total blocks: key blocks + some value blocks + index block.
+        // Assume roughly 1 value block per 40 entries (small values) plus medium blocks.
+        let estimated_value_blocks = (max_entry_count as usize / 40).max(1);
+        let estimated_total_blocks = estimated_key_blocks + estimated_value_blocks + 1;
+
         Ok(Self {
             file: Some(file),
-            compress_buffer: Vec::new(),
-            block_offsets: Vec::new(),
+            compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE),
+            block_offsets: Vec::with_capacity(estimated_total_blocks),
             pending_keys: VecDeque::new(),
             first_pending_small_index: 0,
             #[cfg(debug_assertions)]
             current_small_block_id: 0,
-            pending_small_value_block: Vec::new(),
-            key_buffer: Vec::new(),
+            pending_small_value_block: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE),
+            key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
             filter: Some(filter),
-            key_block_boundaries: Vec::new(),
+            key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
             max_hash: 0,
             entry_count: 0,
