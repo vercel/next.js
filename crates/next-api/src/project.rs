@@ -81,9 +81,11 @@ use turbopack_core::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
 };
-use turbopack_node::{
-    child_process_backend, execution_context::ExecutionContext, worker_threads_backend,
-};
+#[cfg(feature = "process_pool")]
+use turbopack_node::child_process_backend;
+use turbopack_node::execution_context::ExecutionContext;
+#[cfg(feature = "worker_pool")]
+use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
@@ -1221,12 +1223,14 @@ impl Project {
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root().owned().await?;
         let next_mode = self.next_mode().await?;
-        let node_backend = match *self
+        let strategy = *self
             .next_config()
             .turbopack_plugin_runtime_strategy()
-            .await?
-        {
+            .await?;
+        let node_backend = match strategy {
+            #[cfg(feature = "worker_pool")]
             TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
+            #[cfg(feature = "process_pool")]
             TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
         };
 

@@ -924,7 +924,9 @@ pub struct OptionModuleIds(pub Option<ModuleIds>);
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TurbopackPluginRuntimeStrategy {
+    #[cfg(feature = "worker_pool")]
     WorkerThreads,
+    #[cfg(feature = "process_pool")]
     ChildProcesses,
 }
 
@@ -2057,9 +2059,14 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
+        #[cfg(feature = "worker_pool")]
+        let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
+        #[cfg(all(not(feature = "worker_pool"), feature = "process_pool"))]
+        let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
+
         self.experimental
             .turbopack_plugin_runtime_strategy
-            .unwrap_or(TurbopackPluginRuntimeStrategy::WorkerThreads)
+            .unwrap_or(default)
             .cell()
     }
 
