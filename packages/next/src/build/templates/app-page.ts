@@ -184,6 +184,7 @@ export async function handler(
     parsedUrl,
     interceptionRoutePatterns,
     deploymentId,
+    clientAssetToken,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -527,6 +528,9 @@ export async function handler(
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
+  const isWrappedByNextServer = Boolean(
+    routerServerContext?.isWrappedByNextServer
+  )
 
   const render404 = async () => {
     // TODO: should route-module itself handle rendering the 404
@@ -640,6 +644,7 @@ export async function handler(
         sharedContext: {
           buildId,
           deploymentId,
+          clientAssetToken,
         },
         serverComponentsHmrCache: getRequestMeta(
           req,
@@ -923,9 +928,10 @@ export async function handler(
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
                 )
-              : // Otherwise, if we're debugging the fallback shell, then we
-                // have to manually generate the fallback route params.
-                isDebugFallbackShell
+              : // Otherwise, if we're debugging the fallback shell or the
+                // static shell, then we have to manually generate the
+                // fallback route params.
+                isDebugFallbackShell || isDebugStaticShell
                 ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
 
@@ -1087,11 +1093,32 @@ export async function handler(
         prerenderInfo?.fallbackRouteParams &&
         getRequestMeta(req, 'renderFallbackShell')
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : // Otherwise, if we're debugging the fallback shell, then we have to
-            // manually generate the fallback route params.
-            isDebugFallbackShell
+          : // Otherwise, if we're debugging the fallback shell or the static
+            // shell, then we have to manually generate the fallback route
+            // params.
+            isDebugFallbackShell || isDebugStaticShell
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
+
+      // For staged dynamic rendering (cached navigations), pass the fallback
+      // params via request meta so the RequestStore knows which params to defer
+      // to the runtime stage. We don't pass them as fallbackRouteParams because
+      // that would replace actual param values with opaque placeholders during
+      // segment resolution.
+      if (
+        isProduction &&
+        nextConfig.cacheComponents &&
+        !isPrerendered &&
+        prerenderInfo?.fallbackRouteParams
+      ) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
 
       // Perform the render.
       return doRender({
@@ -1467,6 +1494,15 @@ export async function handler(
         body.push(
           new ReadableStream({
             start(controller) {
+              if (isInstantNavigationTest) {
+                // Inject a global so the client can detect that this response
+                // is a partial static shell, independent of document.cookie
+                // (which may be empty on the new page in some browsers).
+                const encoder = new TextEncoder()
+                controller.enqueue(
+                  encoder.encode('<script>self.__next_instant_test=1</script>')
+                )
+              }
               controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
               controller.close()
             },
@@ -1544,22 +1580,26 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
-      return await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      return await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          handleResponse
-        )
+            handleResponse
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {

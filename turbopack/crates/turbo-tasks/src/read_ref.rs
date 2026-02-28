@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
-    SharedReference, Vc, VcRead, VcValueType,
+    ResolvedVc, SharedReference, Vc, VcRead, VcValueType,
     debug::{ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::VcCellMode,
@@ -272,8 +272,7 @@ impl<T> ReadRef<T>
 where
     T: VcValueType,
 {
-    /// Returns a new cell that points to the same value as the given
-    /// reference.
+    /// Returns a new [`Vc`] that points to the same value as the given reference.
     pub fn cell(read_ref: ReadRef<T>) -> Vc<T> {
         let type_id = T::get_value_type_id();
         Vc {
@@ -281,6 +280,13 @@ where
                 SharedReference::new(read_ref.0).into_typed(type_id),
             ),
             _t: PhantomData,
+        }
+    }
+
+    /// Returns a new [`ResolvedVc`] that points to the same value as the given reference.
+    pub fn resolved_cell(read_ref: ReadRef<T>) -> ResolvedVc<T> {
+        ResolvedVc {
+            node: ReadRef::cell(read_ref),
         }
     }
 }

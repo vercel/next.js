@@ -93,9 +93,7 @@ export default (next: NextInstance) => {
     })
 
     it("should not leak the user's home directory into the build", async () => {
-      const buildId = next.buildId
-
-      const readPath = join(next.testDir, `.next/static/${buildId}`)
+      const readPath = join(next.testDir, `.next/static/`)
       const buildFiles = await recursiveReadDir(readPath, {
         pathnameFilter: (f) => /\.js$/.test(f),
       })

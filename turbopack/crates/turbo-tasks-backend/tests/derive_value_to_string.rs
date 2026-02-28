@@ -10,6 +10,11 @@ use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
+#[turbo_tasks::function(operation)]
+fn to_string_operation(value: ResolvedVc<Box<dyn ValueToString>>) -> Vc<RcStr> {
+    value.to_string()
+}
+
 // --- Test types ---
 
 #[turbo_tasks::value(shared)]
@@ -99,8 +104,12 @@ enum MixedEnum {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_display_delegation() {
     run_once(&REGISTRATION, || async {
-        let v: Vc<SimpleDisplay> = SimpleDisplay(42).cell();
-        assert_eq!(&*v.to_string().await?, "simple:42");
+        let v: ResolvedVc<Box<dyn ValueToString>> =
+            ResolvedVc::upcast(SimpleDisplay(42).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v).read_strongly_consistent().await?,
+            "simple:42"
+        );
         anyhow::Ok(())
     })
     .await
@@ -111,18 +120,31 @@ async fn test_display_delegation() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_format_strings() {
     run_once(&REGISTRATION, || async {
-        let v1: Vc<NamedFields> = NamedFields {
-            name: "foo".into(),
-            count: 7,
-        }
-        .cell();
-        assert_eq!(&*v1.to_string().await?, "item foo (count: 7)");
+        let v1: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
+            NamedFields {
+                name: "foo".into(),
+                count: 7,
+            }
+            .resolved_cell(),
+        );
+        assert_eq!(
+            &*to_string_operation(v1).read_strongly_consistent().await?,
+            "item foo (count: 7)"
+        );
 
-        let v2: Vc<TupleStruct> = TupleStruct(99).cell();
-        assert_eq!(&*v2.to_string().await?, "wrapped(99)");
+        let v2: ResolvedVc<Box<dyn ValueToString>> =
+            ResolvedVc::upcast(TupleStruct(99).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v2).read_strongly_consistent().await?,
+            "wrapped(99)"
+        );
 
-        let v3: Vc<ConstantString> = ConstantString.cell();
-        assert_eq!(&*v3.to_string().await?, "constant-value");
+        let v3: ResolvedVc<Box<dyn ValueToString>> =
+            ResolvedVc::upcast(ConstantString.resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v3).read_strongly_consistent().await?,
+            "constant-value"
+        );
 
         anyhow::Ok(())
     })
@@ -134,12 +156,17 @@ async fn test_struct_format_strings() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_direct_expr() {
     run_once(&REGISTRATION, || async {
-        let v: Vc<DirectExpr> = DirectExpr {
-            name: "hello".into(),
-            other: 42,
-        }
-        .cell();
-        assert_eq!(&*v.to_string().await?, "hello");
+        let v: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
+            DirectExpr {
+                name: "hello".into(),
+                other: 42,
+            }
+            .resolved_cell(),
+        );
+        assert_eq!(
+            &*to_string_operation(v).read_strongly_consistent().await?,
+            "hello"
+        );
         anyhow::Ok(())
     })
     .await
@@ -150,20 +177,29 @@ async fn test_struct_direct_expr() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_format_exprs() {
     run_once(&REGISTRATION, || async {
-        let v1: Vc<FormatExprs> = FormatExprs {
-            name: "test".into(),
-            count: 5,
-        }
-        .cell();
-        assert_eq!(&*v1.to_string().await?, "prefix(test) suffix(5)");
+        let v1: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
+            FormatExprs {
+                name: "test".into(),
+                count: 5,
+            }
+            .resolved_cell(),
+        );
+        assert_eq!(
+            &*to_string_operation(v1).read_strongly_consistent().await?,
+            "prefix(test) suffix(5)"
+        );
 
         let inner = NamedFields {
             name: "bar".into(),
             count: 3,
         }
         .resolved_cell();
-        let v2: Vc<VcExprDelegate> = VcExprDelegate { inner }.cell();
-        assert_eq!(&*v2.to_string().await?, "inner: item bar (count: 3)");
+        let v2: ResolvedVc<Box<dyn ValueToString>> =
+            ResolvedVc::upcast(VcExprDelegate { inner }.resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v2).read_strongly_consistent().await?,
+            "inner: item bar (count: 3)"
+        );
 
         anyhow::Ok(())
     })
@@ -176,24 +212,45 @@ async fn test_struct_format_exprs() {
 async fn test_enum_variants() {
     run_once(&REGISTRATION, || async {
         // Per-variant attributes
-        assert_eq!(&*Kind::Module.cell().to_string().await?, "module");
         assert_eq!(
-            &*Kind::Asset("main.js".into()).cell().to_string().await?,
+            &*to_string_operation(ResolvedVc::upcast(Kind::Module.resolved_cell()))
+                .read_strongly_consistent()
+                .await?,
+            "module"
+        );
+        assert_eq!(
+            &*to_string_operation(ResolvedVc::upcast(
+                Kind::Asset("main.js".into()).resolved_cell()
+            ))
+            .read_strongly_consistent()
+            .await?,
             "asset(main.js)"
         );
         assert_eq!(
-            &*(Kind::Entry {
-                name: "index".into()
-            })
-            .cell()
-            .to_string()
+            &*to_string_operation(ResolvedVc::upcast(
+                Kind::Entry {
+                    name: "index".into(),
+                }
+                .resolved_cell(),
+            ))
+            .read_strongly_consistent()
             .await?,
             "entry index"
         );
 
         // Default variant names (no attribute)
-        assert_eq!(&*DefaultNames::Alpha.cell().to_string().await?, "Alpha");
-        assert_eq!(&*DefaultNames::Beta.cell().to_string().await?, "Beta");
+        assert_eq!(
+            &*to_string_operation(ResolvedVc::upcast(DefaultNames::Alpha.resolved_cell()))
+                .read_strongly_consistent()
+                .await?,
+            "Alpha"
+        );
+        assert_eq!(
+            &*to_string_operation(ResolvedVc::upcast(DefaultNames::Beta.resolved_cell()))
+                .read_strongly_consistent()
+                .await?,
+            "Beta"
+        );
 
         anyhow::Ok(())
     })
@@ -205,17 +262,31 @@ async fn test_enum_variants() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_mixed_enum() {
     run_once(&REGISTRATION, || async {
-        assert_eq!(&*MixedEnum::Literal.cell().to_string().await?, "literal");
+        assert_eq!(
+            &*to_string_operation(ResolvedVc::upcast(MixedEnum::Literal.resolved_cell()))
+                .read_strongly_consistent()
+                .await?,
+            "literal"
+        );
 
         let inner = ConstantString.resolved_cell();
-        let v2: Vc<MixedEnum> = MixedEnum::Delegate(inner).cell();
-        assert_eq!(&*v2.to_string().await?, "constant-value");
+        let v2: ResolvedVc<Box<dyn ValueToString>> =
+            ResolvedVc::upcast(MixedEnum::Delegate(inner).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v2).read_strongly_consistent().await?,
+            "constant-value"
+        );
 
-        let v3: Vc<MixedEnum> = (MixedEnum::ExprNamed {
-            name: "world".into(),
-        })
-        .cell();
-        assert_eq!(&*v3.to_string().await?, "wrapped(world)");
+        let v3: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
+            (MixedEnum::ExprNamed {
+                name: "world".into(),
+            })
+            .resolved_cell(),
+        );
+        assert_eq!(
+            &*to_string_operation(v3).read_strongly_consistent().await?,
+            "wrapped(world)"
+        );
 
         anyhow::Ok(())
     })

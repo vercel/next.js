@@ -118,6 +118,7 @@ describe('required server files i18n', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         PORT: `${appPort}`,
       },
       undefined,
