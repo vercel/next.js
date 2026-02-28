@@ -32,6 +32,11 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .boolean('dry')
   .boolean('print-tests')
   .describe('print-tests', 'Prints the test files that will be run')
+  .boolean('require-timings')
+  .describe(
+    'require-timings',
+    'Require test-timings.json from disk; fail if missing instead of falling back to KV or round-robin'
+  )
   .boolean('local')
   .alias('c', 'concurrency').argv
 
@@ -233,6 +238,7 @@ async function main() {
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
+    requireTimings: argv.requireTimings ?? false,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
     printTests: argv.printTests ?? false,
@@ -322,13 +328,21 @@ async function main() {
       prevTimings = JSON.parse(await fsp.readFile(timingsFile, 'utf8'))
       console.log('Loaded test timings from disk successfully')
     } catch (_) {
+      if (options.requireTimings) {
+        console.error(
+          'ERROR: --require-timings is set but test-timings.json could not be loaded from disk:',
+          _
+        )
+        await cleanUpAndExit(1)
+        return
+      }
       console.error(
         'Failed to load test timings from disk. Proceeding to fetch from KV store. Original error: ',
         _
       )
     }
 
-    if (!prevTimings) {
+    if (!prevTimings && !options.requireTimings) {
       try {
         prevTimings = await getTestTimings()
         if (prevTimings) {
@@ -412,6 +426,15 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
+      if (options.requireTimings) {
+        console.error(
+          'ERROR: --require-timings is set but no timing data is available for sharding. ' +
+            'Ensure test-timings.json is provided.'
+        )
+        await cleanUpAndExit(1)
+        return
+      }
+
       // assign every nth test "round-robin" to the group, so that similar slow
       // tests tend not to get clustered together
       tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)

@@ -76,6 +76,31 @@ jobs:
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
 
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Fetch test timings
+        run: node run-tests.js --timings --write-timings -g 1/1
+        continue-on-error: true
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+
+      - name: Ensure test timings file exists
+        run: |
+          if [ ! -f test-timings.json ]; then
+            echo "No timings fetched, creating empty timings file"
+            echo '{}' > test-timings.json
+          fi
+
+      - name: Upload test timings
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-timings
+          path: test-timings.json
+          retention-days: 1
+          if-no-files-found: error
+
   test-deploy-webpack:
     name: Run Deploy Tests (Webpack)
     needs: setup
@@ -97,7 +122,8 @@ jobs:
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
-        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+      testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-webpack-${{ matrix.group }}'
@@ -140,7 +166,8 @@ jobs:
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
-        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+      testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-turbopack-${{ matrix.group }}'
@@ -182,7 +209,8 @@ jobs:
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
-        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+      testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-deploy-${{ matrix.group }}'
