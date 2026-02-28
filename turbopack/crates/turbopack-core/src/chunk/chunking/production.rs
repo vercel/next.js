@@ -1,12 +1,12 @@
-use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::take};
+use std::hash::BuildHasherDefault;
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHasher;
-use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
 use turbo_prehash::BuildHasherExt;
-use turbo_tasks::{FxIndexMap, FxIndexSet, MappedReadRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, MappedReadRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 
+use super::merge::{GroupInput, MergeConfig, merge_grouped_chunks};
 use crate::{
     chunk::{
         ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
@@ -30,7 +30,6 @@ pub async fn make_production_chunks(
         "make production chunks",
         chunk_items = chunk_items.len(),
         chunks_before_limits = Empty,
-        merge_iterations = Empty,
         chunks = Empty,
         total_size = Empty
     );
@@ -138,514 +137,87 @@ pub async fn make_production_chunks(
                 .await?;
             }
         } else {
-            let mut heap = grouped_chunk_items
-                .into_iter()
-                .map(
-                    |(
-                        key,
-                        GroupedChunkItems {
-                            chunk_items,
-                            batch_group,
-                        },
-                    )| {
-                        let size = chunk_items
-                            .iter()
-                            .map(|chunk_item| chunk_item.size())
-                            .sum::<usize>();
-                        ChunkCandidate {
-                            size,
-                            chunk_items,
-                            batch_groups: batch_group.into_iter().collect(),
-                            chunk_groups: key.map(Cow::Borrowed),
-                        }
-                    },
-                )
-                .collect::<BinaryHeap<_>>();
+            // Collect the grouped chunk items into parallel arrays:
+            // - groups_data: the chunk_items and batch_group for each group (indexed by group
+            //   index)
+            // - group_inputs: the GroupInput for the merge algorithm (size + bitmap)
+            let mut groups_data: Vec<GroupedChunkItems<'_>> = Vec::new();
+            let mut batch_group_map: Vec<Option<ResolvedVc<ChunkItemBatchGroup>>> = Vec::new();
+            let mut group_inputs: Vec<GroupInput> = Vec::new();
 
-            span.record("chunks_before_limits", heap.len());
+            for (
+                prehashed_key,
+                GroupedChunkItems {
+                    chunk_items,
+                    batch_group,
+                },
+            ) in grouped_chunk_items.into_iter()
+            {
+                let size = chunk_items
+                    .iter()
+                    .map(|chunk_item| chunk_item.size())
+                    .sum::<usize>();
 
-            if min_chunk_size != 0 || max_chunk_count_per_group != 0 {
-                let mut chunks_to_merge = BinaryHeap::new();
-                let mut chunks_to_merge_size = 0;
-
-                // Determine chunk to merge
-                loop {
-                    if let Some(smallest) = heap.peek() {
-                        let chunk_over_limit =
-                            max_merge_chunk_size != 0 && smallest.size > max_merge_chunk_size;
-                        if chunk_over_limit {
-                            break;
-                        }
-                        let merge_threshold = if min_chunk_size != 0 {
-                            min_chunk_size
-                        } else {
-                            smallest.size
-                        };
-                        let too_many_chunks = max_chunk_count_per_group != 0
-                            && heap.len() + chunks_to_merge_size / merge_threshold + 1
-                                > max_chunk_count_per_group;
-                        let too_small_chunk = min_chunk_size != 0 && smallest.size < min_chunk_size;
-                        if too_many_chunks || too_small_chunk {
-                            let ChunkCandidate {
-                                size,
-                                chunk_items,
-                                batch_groups,
-                                chunk_groups,
-                            } = heap.pop().unwrap();
-                            chunks_to_merge_size += size;
-                            chunks_to_merge.push(MergeCandidate {
-                                size,
-                                chunk_items,
-                                batch_groups,
-                                chunk_groups,
-                            });
-                            continue;
-                        }
-                    }
-                    break;
-                }
-
-                let merge_threshold = if min_chunk_size != 0 {
-                    min_chunk_size
-                } else if let Some(smallest) = heap.peek() {
-                    smallest.size
-                } else if let Some(merge_threshold) =
-                    chunks_to_merge_size.checked_div(max_chunk_count_per_group)
-                {
-                    merge_threshold
+                let batch_group_id = if batch_group.is_some() {
+                    Some(groups_data.len())
                 } else {
-                    unreachable!();
+                    None
                 };
 
-                let mut iterations = 0;
-                while chunks_to_merge.len() > 1 {
-                    // Find best candidate
-                    let mut selection: Vec<MergeCandidate<'_>> = Vec::new();
-                    let mut best_combination = None;
-                    while let Some(candidate) = chunks_to_merge.pop() {
-                        // Exist early when no better overlaps are possible
-                        if let Some((_, _, best_overlap, _)) = best_combination.as_ref() {
-                            let candidate_best_possible_value = candidate.chunk_groups_len();
+                // Extract the inner Option<&RoaringBitmapWrapper> from PreHashed, then
+                // clone the RoaringBitmap (via Deref) to produce
+                // Option<Cow<'static, RoaringBitmap>>
+                let (_hash, bitmap_ref) = prehashed_key.into_parts();
+                let chunk_groups: Option<std::borrow::Cow<'static, roaring::RoaringBitmap>> =
+                    bitmap_ref.map(|bm| std::borrow::Cow::Owned((**bm).clone()));
 
-                            /// Limit combinational complexity
-                            /// When we found a good merge combination we don't want to continue
-                            /// searching forever since the combinational complexity would be
-                            /// O(N^3). This limit makes it O(N * M * M) where M is the max
-                            /// combinational complexity. With a small and constant M this is
-                            /// effectively O(N).
-                            const MAX_COMBINATIONAL_COMPLEXITY: usize = 32;
-
-                            if *best_overlap > candidate_best_possible_value
-                                || selection.len() > MAX_COMBINATIONAL_COMPLEXITY
-                            {
-                                chunks_to_merge.push(candidate);
-                                break;
-                            }
-                        }
-
-                        let is_big_candidate = candidate.size > merge_threshold;
-
-                        // Check all combination with the new candidate
-                        for (i, other) in selection.iter().enumerate() {
-                            iterations += 1;
-                            let overlap = overlap(&candidate.chunk_groups, &other.chunk_groups);
-                            // It need to have at least two chunk groups in common
-                            if overlap <= 1 {
-                                continue;
-                            }
-                            // If the candidate is already big enough, avoid shrinking the sharing
-                            if is_big_candidate && overlap != candidate.chunk_groups_len() {
-                                continue;
-                            }
-                            if other.size > merge_threshold && overlap != other.chunk_groups_len() {
-                                continue;
-                            }
-                            let a_groups = candidate.chunk_groups_len() as i64;
-                            let a_size = candidate.size as i64;
-                            let b_groups = other.chunk_groups_len() as i64;
-                            let b_size = other.size as i64;
-                            let o_groups = overlap as i64;
-                            let groups = a_groups.max(b_groups);
-                            let a_rem = a_groups - o_groups;
-                            let b_rem = b_groups - o_groups;
-
-                            /*
-                                UNMERGED CASE
-
-                                from the total of `groups` chunk groups
-                                - `a_groups` chunk groups request a `a_size` chunk
-                                - `b_groups` chunk groups request a `b_size` chunk
-                                but there is an overlapy of `o_groups` between them, which request both chunks.
-
-                                MERGED CASE
-
-                                from the total of `groups` chunk groups
-                                - `a_rem` chunk groups request a `a_size` chunk
-                                - `b_rem` chunk groups request a `b_size` chunk
-                                - `o_groups` chunk groups request the merged chunk of size `(a_size + b_size)`
-                            */
-
-                            /*
-                                For our calculations we assume that there is a probability of 2/3 that we request exactly 1 chunk group (`N = 1`)
-                                and a probability of 2/3 that we request 2 chunk groups (`N = 2`).
-                                This is a simplification, but it should be good enough for our purposes.
-
-                                We want to compute the expected request count `e_req` and the expected total requested size `e_size` for the unmerged and merged case.
-
-                                To compute that we compute the two cases `N = 1` and `N = 2` and combine them
-                                e_size = 2/3 * e_size(N = 1) + 1/3 * e_size(N = 2)
-                                e_req = 2/3 * e_req(N = 1) + 1/3 * e_req(N = 2)
-
-                                We combine `e_size` with `e_req` using this formula:
-                                e_cost = e_req * c_req + e_size
-
-                                The constant `c_req` is the cost of a single request in transferred bytes. We have to choose a good value for that since there is no real value of that.
-                                This way we can compute a cost for both cases (`e_cost_unmerged` and `e_cost_merged`).
-
-                                With both costs we can compute the cost benefit `d` of merging the two chunks:
-                                d = e_cost_unmerged - e_cost_merged
-
-                                We can also split the formula into two parts:
-                                d = d_req * c_req + d_size
-                                d_size = e_size_unmerged - e_size_merged
-                                d_req = e_req_unmerged - e_req_merged
-
-                                And we can split it further for every N:
-                                d_size = 2/3 * d_size(N = 1) + 1/3 * d_size(N = 2)
-                                d_req = 2/3 * d_req(N = 1) + 1/3 * d_req(N = 2)
-                            */
-
-                            /*
-                                To compute `e_size` and `e_req` we need to determine all cases and there probabilities.
-
-                                UNMERGED CASE (N = 1):
-
-                                case X (p = a_rem/groups): size = b_size, requests = 1
-                                case Y (p = r_rem/groups): size = a_size, requests = 1
-                                case Z (p = o_groups/groups): size = a_size + b_size, requests = 2
-
-                                MERGED CASE (N = 1):
-
-                                case X (p = a_rem/groups): size = b_size, requests = 1
-                                case Y (p = r_rem/groups): size = a_size, requests = 1
-                                case Z (p = o_groups/groups): size = a_size + b_size, requests = 1
-                            */
-
-                            /*
-                                There is no difference in the sizes at all, so that means:
-
-                                d_size(N = 1) = 0
-
-                                The only difference is in case Z in the request count. That case has `p = o_groups/groups`:
-
-                                d_req(N = 1) = o_groups / groups * (2 - 1)
-                                d_req(N = 1) = o_groups / groups
-
-                                d(N = 1) = d_req(N = 1) * c_req + d_size(N = 1)
-                                         = o_groups / groups * c_req
-                            */
-
-                            /*
-                                The N = 2 case is more complicated, since we have to consider all possible combinations of the cases X, Y and Z for the two chunk groups:
-
-                                p_x = a_rem/groups
-                                p_y = r_rem/groups
-                                p_z = o_groups/groups
-
-                                The chunk groups remaining after the first one has been picked
-                                rem_g = groups - 1
-
-                                UNMERGED CASE (N = 2):
-                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
-                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
-                                case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = a_size + b_size, requests = 2
-                                case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
-                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
-                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + b_size, requests = 2
-
-                                MERGED CASE (N = 2):
-                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
-                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
-                                case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = (a_size + b_size), requests = 1
-                                case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
-                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = b_size + (a_size + b_size), requests = 3
-                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + (a_size + b_size), requests = 3
-
-                                Request count is different in these cases: Z + Z (better), X + Z (worse), Y + Z (worse)
-                                Requests size is different (worse) in these cases: X + Z, Y + Z
-
-                                d_req_z_z = ((o_groups/groups) * (o_groups - 1)/rem_g) * (2 - 1)
-                                          = o_groups * (o_groups - 1) / (groups * rem_g)
-                                d_req_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (2 - 3)
-                                          = -2 * o_groups * a_rem / (groups * rem_g)
-                                d_req_y_z = ((b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)) * (2 - 3)
-                                          = -2 * o_groups * b_rem / (groups * rem_g)
-
-                                d_req(N = 2) = o_groups * (o_groups - 1 - 2 * a_rem - 2 * b_rem) / (groups * rem_g)
-                                             = o_groups * (o_groups - 1 - 2 * (a_groups - o_groups) - 2 * (b_groups - o_groups)) / (groups * rem_g)
-                                             = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)
-
-                                d_size_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (a_size + b_size - (b_size + (a_size + b_size)))
-                                           = (2 * a_rem * o_groups / groups / rem_g)) * (-b_size)
-                                           = -2 * a_rem * b_size * o_groups / (groups * rem_g)
-                                d_size_y_z = -2 * b_rem * a_size * o_groups / (groups * rem_g)
-
-                                d_size(N = 2) = -2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
-
-
-                                d(N = 2) = d_req(N = 2) * c_req + d_size(N = 2)
-                                         = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g) * c_req + 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
-                                         = ((o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups)) / (groups * rem_g)
-                            */
-
-                            /*
-                                d  = 2/3 * d(N = 1) + 1/3 * d(N = 2)
-                                3d = 2 * o_groups / groups * c_req + (o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
-                                   = c_req * (2 * o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
-                                   = c_req * (o_groups / groups) * (2 + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
-
-                                We pull out some factors:
-                                3d = (c_req * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) - 2 * (a_rem * b_size + b_rem * a_size)) * o_groups / (rem_g * groups)
-                            */
-
-                            /*
-                               Note that d_size < 0. So we can make a quick check if d_req is positive.
-
-                               c_req * (o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) > 0
-                               o_groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g > 0
-                               o_groups + o_groups * 5 * o_groups / rem_g - o_groups * (2 * a_groups + 2 * b_groups + 1) / rem_g > 0
-                               o_groups * rem_g + o_groups * 5 * o_groups - o_groups * (2 * a_groups + 2 * b_groups + 1) > 0
-                               o_groups * rem_g + o_groups * 5 * o_groups > o_groups * (2 * a_groups + 2 * b_groups + 1)
-                               rem_g + 5 * o_groups > 2 * a_groups + 2 * b_groups + 1
-                               rem_g + 5 * o_groups > 2 * (a_rem + o_groups) + 2 * (b_rem + o_groups) + 1
-                               rem_g + 5 * o_groups > 2 * a_rem + 2 * b_rem + 4 * o_groups + 1
-                               rem_g + o_groups > 2 * a_rem + 2 * b_rem + 1
-                               rem_g + o_groups > 2 * (a_rem + b_rem) + 1
-                               groups - 1 + o_groups > 2 * (a_rem + b_rem) + 1
-                               groups + o_groups > 2 * (a_rem + b_rem) + 2
-                            */
-
-                            // It need to have some request count benefit
-                            if groups + o_groups <= 2 * (a_rem + b_rem) + 2 {
-                                continue;
-                            }
-                            let rem_g = groups - 1;
-                            let c_req = 200000;
-                            // d3 = 3 * d
-                            let pre_d3 = c_req
-                                * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1))
-                                - 2 * (a_rem * b_size + b_rem * a_size);
-                            // It need to have some runtime benefit of merging the chunks
-                            if pre_d3 < 0 {
-                                continue;
-                            }
-                            let d3 = pre_d3 * o_groups / (rem_g * groups);
-                            let value = d3;
-
-                            if let Some((best_i1, best_i2, best_overlap, best_value)) =
-                                best_combination.as_mut()
-                            {
-                                if (overlap.cmp(best_overlap)).then_with(|| value.cmp(best_value))
-                                    == std::cmp::Ordering::Greater
-                                {
-                                    *best_i1 = i;
-                                    *best_i2 = selection.len();
-                                    *best_overlap = overlap;
-                                    *best_value = value;
-                                }
-                            } else {
-                                best_combination = Some((i, selection.len(), overlap, value));
-                            }
-                        }
-                        selection.push(candidate);
-                    }
-
-                    let best_overlap = if let Some((best_i1, best_i2, best_overlap, _)) =
-                        best_combination.as_ref()
-                    {
-                        let other = selection.swap_remove(*best_i2);
-                        let mut candidate = selection.swap_remove(*best_i1);
-                        // Merge other into candidate
-                        let MergeCandidate {
-                            size,
-                            chunk_items,
-                            mut batch_groups,
-                            chunk_groups,
-                        } = other;
-                        candidate.size += size;
-                        candidate.chunk_items.extend(chunk_items);
-                        if batch_groups.len() + candidate.batch_groups.len() > 16 {
-                            let mut set = take(&mut candidate.batch_groups)
-                                .into_iter()
-                                .collect::<FxIndexSet<_>>();
-                            set.extend(batch_groups);
-                            candidate.batch_groups = set.into_iter().collect();
-                        } else {
-                            batch_groups.retain(|batch_group| {
-                                !candidate.batch_groups.contains(batch_group)
-                            });
-                            candidate.batch_groups.extend(batch_groups);
-                        }
-                        candidate.chunk_groups =
-                            merge_chunk_groups(&candidate.chunk_groups, &chunk_groups);
-
-                        // Merged candidate is pushed back into the queue
-                        chunks_to_merge.push(candidate);
-
-                        *best_overlap
-                    } else {
-                        u64::MAX
-                    };
-                    for unused in selection {
-                        // Candidates from selection that are already big enough move into the
-                        // heap again when no more merges are expected.
-                        // Since we can only merge into big enough candates when overlap ==
-                        // chunk_groups_len we can use that as condition.
-                        if unused.size > merge_threshold && unused.chunk_groups_len() > best_overlap
-                        {
-                            heap.push(ChunkCandidate {
-                                size: unused.size,
-                                chunk_items: unused.chunk_items,
-                                batch_groups: unused.batch_groups,
-                                chunk_groups: unused.chunk_groups,
-                            });
-                        } else {
-                            chunks_to_merge.push(unused);
-                        }
-                    }
-                    if best_combination.is_none() {
-                        // No merges possible
-                        break;
-                    }
-                }
-                span.record("merge_iterations", iterations);
-
-                let mut small_remaining = Vec::new();
-                for MergeCandidate {
+                group_inputs.push(GroupInput {
                     size,
-                    chunk_items,
-                    batch_groups,
                     chunk_groups,
-                } in chunks_to_merge.into_iter()
-                {
-                    if size > merge_threshold {
-                        heap.push(ChunkCandidate {
-                            size,
-                            chunk_items,
-                            batch_groups,
-                            chunk_groups,
-                        });
-                    } else {
-                        small_remaining.push(MergeCandidate {
-                            size,
-                            chunk_items,
-                            batch_groups,
-                            chunk_groups,
-                        });
-                    }
-                }
+                    batch_group_id,
+                });
 
-                // Absorption pass: try to absorb small remaining candidates into existing
-                // heap chunks. This prevents tiny modules with slightly different bitmaps
-                // from creating near-duplicate chunks.
-                if !small_remaining.is_empty() && !heap.is_empty() {
-                    let mut heap_chunks: Vec<ChunkCandidate<'_>> = heap.into_iter().collect();
-                    let max_size = if max_merge_chunk_size == 0 {
-                        usize::MAX
-                    } else {
-                        max_merge_chunk_size
-                    };
-
-                    let mut unabsorbed = Vec::new();
-                    for small in small_remaining {
-                        let small_groups_len = small.chunk_groups_len();
-                        if small_groups_len == 0 {
-                            unabsorbed.push(small);
-                            continue;
-                        }
-
-                        // Find the best heap chunk to absorb this small item
-                        let mut best_idx = None;
-                        let mut best_overlap_val = 0u64;
-                        for (i, hc) in heap_chunks.iter().enumerate() {
-                            let ov = overlap(&small.chunk_groups, &hc.chunk_groups);
-                            if ov > best_overlap_val {
-                                best_overlap_val = ov;
-                                best_idx = Some(i);
-                            }
-                        }
-
-                        if let Some(idx) = best_idx {
-                            let hc_groups_len = heap_chunks[idx]
-                                .chunk_groups
-                                .as_ref()
-                                .map_or(0, |cg| cg.len());
-
-                            let should_absorb = if best_overlap_val == hc_groups_len {
-                                // Heap chunk's bitmap is a subset of small's - always
-                                // absorb
-                                true
-                            } else if best_overlap_val >= 2 {
-                                // Cost check: duplication vs extra download
-                                let extra_groups = hc_groups_len.saturating_sub(best_overlap_val);
-                                let extra_download = small.size as u64 * extra_groups;
-                                let duplication = small.size as u64 * best_overlap_val;
-                                duplication > extra_download
-                            } else {
-                                false
-                            };
-
-                            if should_absorb && heap_chunks[idx].size + small.size <= max_size {
-                                let hc = &mut heap_chunks[idx];
-                                hc.size += small.size;
-                                hc.chunk_items.extend(small.chunk_items);
-                                // Keep the heap chunk's bitmap unchanged
-                                continue;
-                            }
-                        }
-
-                        unabsorbed.push(small);
-                    }
-
-                    heap = heap_chunks.into_iter().collect();
-                    small_remaining = unabsorbed;
-                }
-
-                // Left-over chunks are merged together forming the remained chunk, which
-                // includes all modules that are not sharable
-                let mut remained_size = 0;
-                let mut remained_chunk_items = Vec::new();
-                let mut remained_batch_groups = FxIndexSet::default();
-                for small in small_remaining {
-                    remained_size += small.size;
-                    remained_chunk_items.extend(small.chunk_items);
-                    remained_batch_groups.extend(small.batch_groups);
-                }
-
-                if !remained_chunk_items.is_empty() {
-                    heap.push(ChunkCandidate {
-                        size: remained_size,
-                        chunk_items: remained_chunk_items,
-                        batch_groups: remained_batch_groups.into_iter().collect(),
-                        chunk_groups: None,
-                    });
-                }
+                batch_group_map.push(batch_group);
+                groups_data.push(GroupedChunkItems {
+                    chunk_items,
+                    batch_group: None, // moved to batch_group_map
+                });
             }
 
-            span.record("chunks", heap.len());
+            span.record("chunks_before_limits", group_inputs.len());
+
+            let config = MergeConfig {
+                min_chunk_size,
+                max_chunk_count_per_group,
+                max_merge_chunk_size,
+            };
+
+            let merged = merge_grouped_chunks(group_inputs, &config);
+
+            span.record("chunks", merged.len());
 
             let mut total_size = 0;
-            for ChunkCandidate {
-                chunk_items,
-                batch_groups,
-                size,
-                ..
-            } in heap.into_iter()
-            {
-                total_size += size;
+            for merged_group in merged {
+                total_size += merged_group.total_size;
+
+                // Collect chunk items from all merged groups
+                let mut chunk_items_out: Vec<&ChunkItemOrBatchWithInfo> = Vec::new();
+                let mut batch_groups_out: Vec<ResolvedVc<ChunkItemBatchGroup>> = Vec::new();
+
+                for &group_idx in &merged_group.group_indices {
+                    chunk_items_out.extend(groups_data[group_idx].chunk_items.iter());
+                }
+
+                // Collect batch groups from the merged group's batch_group_ids
+                for &bg_id in &merged_group.batch_group_ids {
+                    if let Some(bg) = batch_group_map[bg_id] {
+                        batch_groups_out.push(bg);
+                    }
+                }
+
                 make_chunk(
-                    chunk_items,
-                    batch_groups.into_vec(),
+                    chunk_items_out,
+                    batch_groups_out,
                     &mut String::new(),
                     &mut split_context,
                 )
@@ -658,92 +230,4 @@ pub async fn make_production_chunks(
     }
     .instrument(span_outer)
     .await
-}
-
-struct ChunkCandidate<'l> {
-    size: usize,
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
-    batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
-    chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
-}
-
-impl Ord for ChunkCandidate<'_> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.size.cmp(&other.size).reverse()
-    }
-}
-
-impl PartialOrd for ChunkCandidate<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Eq for ChunkCandidate<'_> {}
-
-impl PartialEq for ChunkCandidate<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.size == other.size
-    }
-}
-
-struct MergeCandidate<'l> {
-    size: usize,
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
-    batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
-    chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
-}
-
-impl MergeCandidate<'_> {
-    fn chunk_groups_len(&self) -> u64 {
-        self.chunk_groups
-            .as_ref()
-            .map_or(0, |chunk_groups| chunk_groups.len())
-    }
-}
-
-impl Ord for MergeCandidate<'_> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.chunk_groups_len()
-            .cmp(&other.chunk_groups_len())
-            .then_with(|| self.size.cmp(&other.size).reverse())
-    }
-}
-
-impl PartialOrd for MergeCandidate<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Eq for MergeCandidate<'_> {}
-
-impl PartialEq for MergeCandidate<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.size == other.size
-    }
-}
-
-fn overlap(
-    chunk_groups: &Option<Cow<'_, RoaringBitmapWrapper>>,
-    chunk_groups2: &Option<Cow<'_, RoaringBitmapWrapper>>,
-) -> u64 {
-    if let (Some(chunk_groups), Some(chunk_groups2)) = (chunk_groups, chunk_groups2) {
-        chunk_groups.intersection_len(chunk_groups2)
-    } else {
-        0
-    }
-}
-
-fn merge_chunk_groups<'l>(
-    chunk_groups: &Option<Cow<'l, RoaringBitmapWrapper>>,
-    chunk_groups2: &Option<Cow<'l, RoaringBitmapWrapper>>,
-) -> Option<Cow<'l, RoaringBitmapWrapper>> {
-    if let (Some(chunk_groups), Some(chunk_groups2)) = (chunk_groups, chunk_groups2) {
-        let l = &**chunk_groups.as_ref();
-        let r = &**chunk_groups2.as_ref();
-        Some(Cow::Owned(RoaringBitmapWrapper(l & r)))
-    } else {
-        None
-    }
 }

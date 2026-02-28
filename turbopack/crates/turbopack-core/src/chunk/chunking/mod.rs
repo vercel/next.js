@@ -29,7 +29,6 @@ use crate::{
 };
 
 mod dev;
-#[allow(dead_code)]
 pub(crate) mod merge;
 mod production;
 mod style_production;

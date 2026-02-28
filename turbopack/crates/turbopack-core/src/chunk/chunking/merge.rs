@@ -5,7 +5,8 @@ use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 
 /// A chunk item with its estimated size and chunk group membership.
-/// This is a Vc-free representation used by the pure merge algorithm.
+/// This is a Vc-free representation used by the pure merge algorithm's test wrapper.
+#[cfg(test)]
 pub struct ChunkItemForMerging {
     /// Estimated size in bytes.
     pub size: usize,
@@ -20,7 +21,33 @@ pub struct MergeConfig {
     pub max_merge_chunk_size: usize,
 }
 
-/// Result: which items ended up in each output chunk.
+/// A pre-grouped set of items ready for the merge algorithm.
+/// This is what production.rs produces after its own grouping phase.
+pub struct GroupInput {
+    /// Total size of all items in this group.
+    pub size: usize,
+    /// The chunk groups bitmap for this group.
+    pub chunk_groups: Option<Cow<'static, RoaringBitmap>>,
+    /// Index of an associated batch group, if any.
+    pub batch_group_id: Option<usize>,
+}
+
+/// Result: which input groups ended up merged together in each output chunk.
+#[derive(Debug)]
+pub struct MergedGroupInfo {
+    /// Indices into the original groups array.
+    pub group_indices: Vec<usize>,
+    /// Total size of all groups in this chunk.
+    pub total_size: usize,
+    /// The resulting chunk groups bitmap.
+    #[allow(dead_code)]
+    pub chunk_groups: Option<RoaringBitmap>,
+    /// Collected batch group IDs from all merged groups.
+    pub batch_group_ids: SmallVec<[usize; 1]>,
+}
+
+/// Result: which items ended up in each output chunk (used by `merge_chunks`).
+#[cfg(test)]
 #[derive(Debug)]
 pub struct MergedChunkInfo {
     /// Indices into the original items array.
@@ -31,10 +58,6 @@ pub struct MergedChunkInfo {
     pub chunk_groups: Option<RoaringBitmap>,
 }
 
-/// An opaque identifier for a batch group. Used to track batch group deduplication
-/// during merging without depending on Vc types.
-pub type BatchGroupId = usize;
-
 /// Groups items by bitmap + merges small groups per the production heuristics.
 ///
 /// Returns a list of merged chunk infos. Each info contains the indices of items
@@ -42,58 +65,91 @@ pub type BatchGroupId = usize;
 ///
 /// When `min_chunk_size == 0 && max_chunk_count_per_group == 0`, each distinct
 /// bitmap group becomes its own chunk (no merging).
+#[cfg(test)]
 pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<MergedChunkInfo> {
-    let MergeConfig {
-        min_chunk_size,
-        max_chunk_count_per_group,
-        max_merge_chunk_size,
-    } = *config;
-
     // Group items by their chunk groups bitmap.
-    // Items with the same bitmap (hashed) go into the same group.
-    let mut grouped: Vec<GroupedItems> = Vec::new();
+    let mut groups: Vec<GroupInput> = Vec::new();
+    let mut item_indices_per_group: Vec<Vec<usize>> = Vec::new();
     let mut bitmap_map: std::collections::HashMap<u64, usize> =
         std::collections::HashMap::default();
 
     for (idx, item) in items.iter().enumerate() {
         let hash = hash_bitmap(&item.chunk_groups);
         let group_idx = *bitmap_map.entry(hash).or_insert_with(|| {
-            grouped.push(GroupedItems {
-                indices: Vec::new(),
+            groups.push(GroupInput {
                 size: 0,
-                chunk_groups: item.chunk_groups.as_ref().map(Cow::Borrowed),
+                chunk_groups: item.chunk_groups.as_ref().map(|bm| Cow::Owned(bm.clone())),
+                batch_group_id: None,
             });
-            grouped.len() - 1
+            item_indices_per_group.push(Vec::new());
+            groups.len() - 1
         });
-        grouped[group_idx].indices.push(idx);
-        grouped[group_idx].size += item.size;
+        groups[group_idx].size += item.size;
+        item_indices_per_group[group_idx].push(idx);
     }
+
+    let merged = merge_grouped_chunks(groups, config);
+
+    // Map group indices back to item indices
+    merged
+        .into_iter()
+        .map(|mg| {
+            let item_indices: Vec<usize> = mg
+                .group_indices
+                .iter()
+                .flat_map(|&gi| item_indices_per_group[gi].iter().copied())
+                .collect();
+            MergedChunkInfo {
+                item_indices,
+                total_size: mg.total_size,
+                chunk_groups: mg.chunk_groups,
+            }
+        })
+        .collect()
+}
+
+/// Merges pre-grouped chunks using the production heuristics.
+///
+/// This is the core merge algorithm. It takes groups that have already been
+/// grouped by their chunk-groups bitmap (as production.rs does via prehash)
+/// and merges small groups together based on bitmap overlap and cost analysis.
+///
+/// Each `GroupInput` represents one bitmap group with its aggregate size.
+/// Returns `MergedGroupInfo` items indicating which input groups were merged.
+pub fn merge_grouped_chunks(groups: Vec<GroupInput>, config: &MergeConfig) -> Vec<MergedGroupInfo> {
+    let MergeConfig {
+        min_chunk_size,
+        max_chunk_count_per_group,
+        max_merge_chunk_size,
+    } = *config;
 
     // Early exit: no merging needed
     if min_chunk_size == 0 && max_chunk_count_per_group == 0 {
-        return grouped
+        return groups
             .into_iter()
-            .map(|g| MergedChunkInfo {
-                item_indices: g.indices,
+            .enumerate()
+            .map(|(i, g)| MergedGroupInfo {
+                group_indices: vec![i],
                 total_size: g.size,
                 chunk_groups: g.chunk_groups.map(|c| c.into_owned()),
+                batch_group_ids: g.batch_group_id.into_iter().collect(),
             })
             .collect();
     }
 
     // Build a min-heap (smallest first) of chunk candidates
-    let mut heap: BinaryHeap<ChunkCandidate> = grouped
+    let mut heap: BinaryHeap<ChunkCandidate> = groups
         .into_iter()
-        .map(|g| ChunkCandidate {
+        .enumerate()
+        .map(|(i, g)| ChunkCandidate {
             size: g.size,
-            indices: g.indices,
-            batch_groups: SmallVec::new(),
-            chunk_groups: g.chunk_groups.map(|c| Cow::Owned(c.into_owned())),
+            group_indices: vec![i],
+            batch_group_ids: g.batch_group_id.into_iter().collect(),
+            chunk_groups: g.chunk_groups,
         })
         .collect();
 
     if min_chunk_size == 0 && max_chunk_count_per_group == 0 {
-        // Already handled above, but keep for clarity
         return heap_to_output(heap);
     }
 
@@ -122,8 +178,8 @@ pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<
                 chunks_to_merge_size += c.size;
                 chunks_to_merge.push(MergeCandidate {
                     size: c.size,
-                    indices: c.indices,
-                    batch_groups: c.batch_groups,
+                    group_indices: c.group_indices,
+                    batch_group_ids: c.batch_group_ids,
                     chunk_groups: c.chunk_groups,
                 });
                 continue;
@@ -219,31 +275,31 @@ pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<
             selection.push(candidate);
         }
 
-        let best_overlap_val =
-            if let Some((best_i1, best_i2, best_overlap_val, _)) = best_combination.as_ref() {
-                let other = selection.swap_remove(*best_i2);
-                let mut candidate = selection.swap_remove(*best_i1);
-                // Merge other into candidate
-                candidate.size += other.size;
-                candidate.indices.extend(other.indices);
-                if other.batch_groups.len() + candidate.batch_groups.len() > 16 {
-                    let mut set: FxHashSet<BatchGroupId> =
-                        candidate.batch_groups.iter().copied().collect();
-                    set.extend(other.batch_groups.iter().copied());
-                    candidate.batch_groups = set.into_iter().collect();
-                } else {
-                    let mut bg = other.batch_groups;
-                    bg.retain(|b| !candidate.batch_groups.contains(b));
-                    candidate.batch_groups.extend(bg);
-                }
-                candidate.chunk_groups =
-                    merge_chunk_groups(&candidate.chunk_groups, &other.chunk_groups);
-
-                chunks_to_merge.push(candidate);
-                *best_overlap_val
+        let best_overlap_val = if let Some((best_i1, best_i2, best_overlap_val, _)) =
+            best_combination.as_ref()
+        {
+            let other = selection.swap_remove(*best_i2);
+            let mut candidate = selection.swap_remove(*best_i1);
+            // Merge other into candidate
+            candidate.size += other.size;
+            candidate.group_indices.extend(other.group_indices);
+            if other.batch_group_ids.len() + candidate.batch_group_ids.len() > 16 {
+                let mut set: FxHashSet<usize> = candidate.batch_group_ids.iter().copied().collect();
+                set.extend(other.batch_group_ids.iter().copied());
+                candidate.batch_group_ids = set.into_iter().collect();
             } else {
-                u64::MAX
-            };
+                let mut bg = other.batch_group_ids;
+                bg.retain(|b| !candidate.batch_group_ids.contains(b));
+                candidate.batch_group_ids.extend(bg);
+            }
+            candidate.chunk_groups =
+                merge_chunk_groups(&candidate.chunk_groups, &other.chunk_groups);
+
+            chunks_to_merge.push(candidate);
+            *best_overlap_val
+        } else {
+            u64::MAX
+        };
 
         for unused in selection {
             // Candidates that are already big enough move back into the heap
@@ -251,8 +307,8 @@ pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<
             if unused.size > merge_threshold && unused.chunk_groups_len() > best_overlap_val {
                 heap.push(ChunkCandidate {
                     size: unused.size,
-                    indices: unused.indices,
-                    batch_groups: unused.batch_groups,
+                    group_indices: unused.group_indices,
+                    batch_group_ids: unused.batch_group_ids,
                     chunk_groups: unused.chunk_groups,
                 });
             } else {
@@ -270,8 +326,8 @@ pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<
         if mc.size > merge_threshold {
             heap.push(ChunkCandidate {
                 size: mc.size,
-                indices: mc.indices,
-                batch_groups: mc.batch_groups,
+                group_indices: mc.group_indices,
+                batch_group_ids: mc.batch_group_ids,
                 chunk_groups: mc.chunk_groups,
             });
         } else {
@@ -285,6 +341,11 @@ pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<
     // chunk (e.g. 60KB) with bitmap {0,1} rather than creating a separate near-identical chunk.
     if !small_remaining.is_empty() && !heap.is_empty() {
         let mut heap_chunks: Vec<ChunkCandidate> = heap.into_iter().collect();
+        let max_size = if max_merge_chunk_size == 0 {
+            usize::MAX
+        } else {
+            max_merge_chunk_size
+        };
 
         let mut unabsorbed: Vec<MergeCandidate> = Vec::new();
         for small in small_remaining {
@@ -295,62 +356,42 @@ pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<
             }
 
             // Find the best heap chunk to absorb this small item.
-            // "Best" = highest overlap with the small item's bitmap, as a fraction of the
-            // heap chunk's bitmap. We want to absorb into a chunk that shares most of its
-            // groups with the small item, so the small item gets downloaded alongside
-            // modules it's already grouped with.
+            // "Best" = highest overlap with the small item's bitmap.
             let mut best_idx = None;
             let mut best_overlap_val = 0u64;
             for (i, hc) in heap_chunks.iter().enumerate() {
-                let ov = overlap_candidate_chunk(&small.chunk_groups, &hc.chunk_groups);
+                let ov = overlap(&small.chunk_groups, &hc.chunk_groups);
                 if ov > best_overlap_val {
                     best_overlap_val = ov;
                     best_idx = Some(i);
                 }
             }
 
-            // Absorb if the heap chunk's bitmap is a subset of the small item's bitmap
-            // (overlap == heap chunk's bitmap length), OR if the overlap covers most of
-            // the small item's bitmap and the absorption cost is small relative to the
-            // chunk size.
             if let Some(idx) = best_idx {
-                let hc = &heap_chunks[idx];
-                let hc_groups_len = hc.chunk_groups.as_ref().map_or(0, |cg| cg.len());
+                let hc_groups_len = heap_chunks[idx]
+                    .chunk_groups
+                    .as_ref()
+                    .map_or(0, |cg| cg.len());
 
                 // Absorb if:
-                // 1. The heap chunk's bitmap is entirely contained in the small item's bitmap (the
-                //    small item is relevant to all groups the chunk serves), OR
-                // 2. The overlap covers the heap chunk's full bitmap and the small item just adds
-                //    extra groups (e.g. heap={0,1}, small={0,1,2}), OR
-                // 3. The duplication cost of NOT absorbing exceeds the extra-download cost.
-                //    Duplication cost = small.size * (overlap_groups - 1) (downloaded by overlap
-                //    groups as part of both chunks). Extra download cost = small.size *
-                //    extra_groups (groups that don't need the small item download it anyway as part
-                //    of the merged chunk).
+                // 1. The heap chunk's bitmap is entirely contained in the small item's bitmap, OR
+                // 2. The duplication cost of NOT absorbing exceeds the extra-download cost.
                 let should_absorb = if best_overlap_val == hc_groups_len {
-                    // Heap chunk's bitmap is a subset of small's bitmap - always absorb
                     true
                 } else if best_overlap_val >= 2 {
-                    // Check cost: duplication cost vs extra download cost
                     let extra_groups = hc_groups_len.saturating_sub(best_overlap_val);
                     let extra_download = small.size as u64 * extra_groups;
-                    // Duplication: without absorption, the small item ends up in a separate
-                    // chunk that overlap groups must also download
                     let duplication = small.size as u64 * best_overlap_val;
                     duplication > extra_download
                 } else {
                     false
                 };
 
-                if should_absorb
-                    && heap_chunks[idx].size + small.size
-                        <= max_merge_chunk_size_or_max(max_merge_chunk_size)
-                {
+                if should_absorb && heap_chunks[idx].size + small.size <= max_size {
                     let hc = &mut heap_chunks[idx];
                     hc.size += small.size;
-                    hc.indices.extend(small.indices);
-                    // Keep the heap chunk's bitmap (don't narrow it via intersection)
-                    // since the small item is being absorbed into this chunk.
+                    hc.group_indices.extend(small.group_indices);
+                    // Keep the heap chunk's bitmap unchanged
                     continue;
                 }
             }
@@ -361,25 +402,23 @@ pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<
         // Rebuild the heap
         heap = heap_chunks.into_iter().collect();
         small_remaining = unabsorbed;
-    } else {
-        // No absorption needed
     }
 
     // Remainder chunk from anything still unabsorbed
     let mut remained_size = 0;
-    let mut remained_indices = Vec::new();
-    let mut remained_batch_groups: FxHashSet<BatchGroupId> = FxHashSet::default();
+    let mut remained_group_indices = Vec::new();
+    let mut remained_batch_group_ids: FxHashSet<usize> = FxHashSet::default();
     for mc in small_remaining {
         remained_size += mc.size;
-        remained_indices.extend(mc.indices);
-        remained_batch_groups.extend(mc.batch_groups);
+        remained_group_indices.extend(mc.group_indices);
+        remained_batch_group_ids.extend(mc.batch_group_ids);
     }
 
-    if !remained_indices.is_empty() {
+    if !remained_group_indices.is_empty() {
         heap.push(ChunkCandidate {
             size: remained_size,
-            indices: remained_indices,
-            batch_groups: remained_batch_groups.into_iter().collect(),
+            group_indices: remained_group_indices,
+            batch_group_ids: remained_batch_group_ids.into_iter().collect(),
             chunk_groups: None,
         });
     }
@@ -389,16 +428,10 @@ pub fn merge_chunks(items: &[ChunkItemForMerging], config: &MergeConfig) -> Vec<
 
 // --- Internal types and helpers ---
 
-struct GroupedItems<'a> {
-    indices: Vec<usize>,
-    size: usize,
-    chunk_groups: Option<Cow<'a, RoaringBitmap>>,
-}
-
 struct ChunkCandidate {
     size: usize,
-    indices: Vec<usize>,
-    batch_groups: SmallVec<[BatchGroupId; 1]>,
+    group_indices: Vec<usize>,
+    batch_group_ids: SmallVec<[usize; 1]>,
     chunk_groups: Option<Cow<'static, RoaringBitmap>>,
 }
 
@@ -425,8 +458,8 @@ impl PartialEq for ChunkCandidate {
 
 struct MergeCandidate {
     size: usize,
-    indices: Vec<usize>,
-    batch_groups: SmallVec<[BatchGroupId; 1]>,
+    group_indices: Vec<usize>,
+    batch_group_ids: SmallVec<[usize; 1]>,
     chunk_groups: Option<Cow<'static, RoaringBitmap>>,
 }
 
@@ -466,25 +499,6 @@ fn overlap(a: &Option<Cow<'_, RoaringBitmap>>, b: &Option<Cow<'_, RoaringBitmap>
     }
 }
 
-fn overlap_candidate_chunk(
-    small: &Option<Cow<'_, RoaringBitmap>>,
-    big: &Option<Cow<'_, RoaringBitmap>>,
-) -> u64 {
-    if let (Some(a), Some(b)) = (small, big) {
-        a.intersection_len(b)
-    } else {
-        0
-    }
-}
-
-fn max_merge_chunk_size_or_max(max_merge_chunk_size: usize) -> usize {
-    if max_merge_chunk_size == 0 {
-        usize::MAX
-    } else {
-        max_merge_chunk_size
-    }
-}
-
 fn merge_chunk_groups(
     a: &Option<Cow<'_, RoaringBitmap>>,
     b: &Option<Cow<'_, RoaringBitmap>>,
@@ -496,6 +510,7 @@ fn merge_chunk_groups(
     }
 }
 
+#[cfg(test)]
 fn hash_bitmap(bitmap: &Option<RoaringBitmap>) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut hasher = rustc_hash::FxHasher::default();
@@ -513,19 +528,19 @@ fn hash_bitmap(bitmap: &Option<RoaringBitmap>) -> u64 {
                     Ok(())
                 }
             }
-            // Use the same serialization-based hashing as RoaringBitmapWrapper
             let _ = bm.serialize_into(HasherWriter(&mut hasher));
         }
     }
     hasher.finish()
 }
 
-fn heap_to_output(heap: BinaryHeap<ChunkCandidate>) -> Vec<MergedChunkInfo> {
+fn heap_to_output(heap: BinaryHeap<ChunkCandidate>) -> Vec<MergedGroupInfo> {
     heap.into_iter()
-        .map(|c| MergedChunkInfo {
-            item_indices: c.indices,
+        .map(|c| MergedGroupInfo {
+            group_indices: c.group_indices,
             total_size: c.size,
             chunk_groups: c.chunk_groups.map(|c| c.into_owned()),
+            batch_group_ids: c.batch_group_ids,
         })
         .collect()
 }
