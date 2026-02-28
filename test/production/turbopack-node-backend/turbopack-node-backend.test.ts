@@ -6,18 +6,16 @@ describe.each([
 ] as const)(
   'turbopack-node-backend (%s)',
   (turbopackPluginRuntimeStrategy, expectSamePid) => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       env: {
         TEST_TURBOPACK_PLUGIN_RUNTIME_STRATEGY: turbopackPluginRuntimeStrategy,
       },
     })
 
-    if (skipped || !isTurbopack) {
-      return
-    }
+    const itOnlyTurbopack = isTurbopack ? it : it.skip
 
-    it('should match expected loader pid behavior', async () => {
+    itOnlyTurbopack('should match expected loader pid behavior', async () => {
       const response = await next.fetch('/api/pid')
       expect(response.status).toBe(200)
 
