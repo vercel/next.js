@@ -40,7 +40,7 @@ use turbopack_dev_server::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use self::web_entry_source::create_web_entry_source;
@@ -298,8 +298,13 @@ async fn source(
     )
     .build();
 
-    let execution_context =
-        ExecutionContext::new(root_path.clone(), Vc::upcast(build_chunking_context), env);
+    let node_backend = child_process_backend();
+    let execution_context = ExecutionContext::new(
+        root_path.clone(),
+        Vc::upcast(build_chunking_context),
+        env,
+        node_backend,
+    );
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let server_root = server_fs.root().owned().await?;

@@ -24,13 +24,14 @@ use tokio::{
     sync::Semaphore,
     time::{sleep, timeout},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 use crate::{
     AssetsForSourceMapping,
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
@@ -594,6 +595,56 @@ impl ChildProcessPool {
             assets_root,
             project_dir,
         )
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub(crate) struct ChildProcessesBackend;
+
+#[turbo_tasks::value_impl]
+impl NodeBackend for ChildProcessesBackend {
+    fn runtime_module_path(&self) -> RcStr {
+        rcstr!("child_process/evaluate.ts")
+    }
+
+    fn globals_module_path(&self) -> RcStr {
+        rcstr!("child_process/globals.ts")
+    }
+
+    fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
+        Box::pin(async move {
+            let CreatePoolOptions {
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                concurrency,
+                debug,
+            } = options;
+
+            Ok(ChildProcessPool::create(
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                concurrency,
+                debug,
+            ))
+        })
+    }
+
+    fn scale_down(&self) -> Result<()> {
+        ChildProcessPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        ChildProcessPool::scale_zero();
+        Ok(())
     }
 }
 

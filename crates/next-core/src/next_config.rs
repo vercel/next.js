@@ -920,6 +920,16 @@ pub enum ModuleIds {
 #[turbo_tasks::value(transparent)]
 pub struct OptionModuleIds(pub Option<ModuleIds>);
 
+#[turbo_tasks::value(operation)]
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TurbopackPluginRuntimeStrategy {
+    #[cfg(feature = "worker_pool")]
+    WorkerThreads,
+    #[cfg(feature = "process_pool")]
+    ChildProcesses,
+}
+
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -1150,6 +1160,7 @@ pub struct ExperimentalConfig {
 
     turbopack_minify: Option<bool>,
     turbopack_module_ids: Option<ModuleIds>,
+    turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -2044,6 +2055,19 @@ impl NextConfig {
                 .turbopack_infer_module_side_effects
                 .unwrap_or(true),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
+        #[cfg(feature = "worker_pool")]
+        let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
+        #[cfg(all(not(feature = "worker_pool"), feature = "process_pool"))]
+        let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
+
+        self.experimental
+            .turbopack_plugin_runtime_strategy
+            .unwrap_or(default)
+            .cell()
     }
 
     #[turbo_tasks::function]

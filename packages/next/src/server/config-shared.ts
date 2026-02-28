@@ -498,6 +498,11 @@ export interface ExperimentalConfig {
   turbopackMemoryLimit?: number
 
   /**
+   * Selects the runtime backend used by Turbopack for Node.js evaluation.
+   */
+  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+
+  /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   turbopackMinify?: boolean
@@ -1717,6 +1722,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
+    turbopackPluginRuntimeStrategy: 'workerThreads',
     devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,

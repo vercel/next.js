@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef,
-    ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
+    Completion, Effects, FxIndexMap, IntoTraitRef, NonLocalValue, OperationVc, PrettyPrintError,
+    ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -35,13 +35,14 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 
-#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-use crate::process_pool::ChildProcessPool;
-#[cfg(feature = "worker_pool")]
-use crate::worker_pool::WorkerThreadPool;
 use crate::{
-    AssetsForSourceMapping, embed_js::embed_file_path, emit, emit_package_json,
-    format::FormattingMode, internal_assets_for_source_mapping, pool_stats::PoolStatsSnapshot,
+    AssetsForSourceMapping,
+    backend::{CreatePoolOptions, NodeBackend},
+    embed_js::embed_file_path,
+    emit, emit_package_json,
+    format::FormattingMode,
+    internal_assets_for_source_mapping,
+    pool_stats::PoolStatsSnapshot,
     source_map::StructuredError,
 };
 
@@ -98,7 +99,6 @@ impl EvaluatePool {
         self.pool.stats()
     }
 
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
     pub fn pre_warm(&self) {
         self.pool.pre_warm()
     }
@@ -108,7 +108,11 @@ impl EvaluatePool {
 pub trait EvaluateOperation: Send + Sync {
     async fn operation(&self) -> Result<Box<dyn Operation>>;
     fn stats(&self) -> PoolStatsSnapshot;
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+    /// Eagerly spawn a Node.js worker so it's ready when the first [`Self::operation`] is called.
+    /// The worker should go into the idle queue.
+    ///
+    /// If a worker request comes in while this is still initializing, it should wait on the bootup
+    /// semaphore and will resume when the worker is ready.
     fn pre_warm(&self);
 }
 
@@ -209,6 +213,7 @@ pub async fn get_evaluate_pool(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
     additional_invalidation: ResolvedVc<Completion>,
@@ -253,31 +258,19 @@ pub async fn get_evaluate_pool(
         }
     };
 
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-    #[allow(unused_variables)]
-    let pool = ChildProcessPool::create(
-        cwd.clone(),
-        entrypoint.clone(),
-        env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
-        assets_for_source_mapping,
-        output_root.clone(),
-        chunking_context.root_path().owned().await?,
-        available_parallelism().map_or(1, |v| v.get()),
-        debug,
-    );
-    #[cfg(feature = "worker_pool")]
-    let pool = WorkerThreadPool::create(
-        cwd,
-        entrypoint,
-        env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
-        assets_for_source_mapping,
-        output_root.clone(),
-        chunking_context.root_path().owned().await?,
-        available_parallelism().map_or(1, |v| v.get()),
-        debug,
-    )
-    .await;
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+    let node_backend = node_backend.into_trait_ref().await?;
+    let pool = node_backend
+        .create_pool(CreatePoolOptions {
+            cwd,
+            entrypoint,
+            env: env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+            assets_for_source_mapping,
+            assets_root: output_root.clone(),
+            project_dir: chunking_context.root_path().owned().await?,
+            concurrency: available_parallelism().map_or(1, |v| v.get()),
+            debug,
+        })
+        .await?;
     pool.pre_warm();
     additional_invalidation.await?;
     Ok(pool.cell())
@@ -430,13 +423,11 @@ impl EvaluateEntries {
 pub async fn get_evaluate_entries(
     module_asset: ResolvedVc<Box<dyn Module>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EvaluateEntries>> {
-    let runtime_module_path = if cfg!(all(feature = "process_pool", not(feature = "worker_pool"))) {
-        rcstr!("child_process/evaluate.ts")
-    } else {
-        rcstr!("worker_thread/evaluate.ts")
-    };
+    let node_backend = node_backend.into_trait_ref().await?;
+    let runtime_module_path = node_backend.runtime_module_path();
 
     let runtime_asset = asset_context
         .process(
@@ -471,12 +462,7 @@ pub async fn get_evaluate_entries(
 
     let runtime_entries = {
         let mut entries = vec![];
-        let global_module_path =
-            if cfg!(all(feature = "process_pool", not(feature = "worker_pool"))) {
-                rcstr!("child_process/globals.ts")
-            } else {
-                rcstr!("worker_thread/globals.ts")
-            };
+        let global_module_path = node_backend.globals_module_path();
 
         let globals_module = asset_context
             .process(
@@ -521,6 +507,7 @@ pub async fn evaluate(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
@@ -532,6 +519,7 @@ pub async fn evaluate(
         entries,
         cwd,
         env,
+        node_backend,
         context_source_for_issue,
         chunking_context,
         module_graph,
@@ -606,6 +594,7 @@ struct BasicEvaluateContext {
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
@@ -625,6 +614,7 @@ impl EvaluateContext for BasicEvaluateContext {
             self.entries,
             self.cwd.clone(),
             self.env,
+            self.node_backend,
             self.chunking_context,
             self.module_graph,
             self.additional_invalidation,
@@ -729,27 +719,5 @@ impl Issue for EvaluationIssue {
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
         Vc::cell(Some(self.source))
-    }
-}
-
-pub fn scale_down() {
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-    {
-        ChildProcessPool::scale_down();
-    }
-    #[cfg(feature = "worker_pool")]
-    {
-        WorkerThreadPool::scale_down();
-    }
-}
-
-pub fn scale_zero() {
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-    {
-        ChildProcessPool::scale_zero();
-    }
-    #[cfg(feature = "worker_pool")]
-    {
-        WorkerThreadPool::scale_zero();
     }
 }
