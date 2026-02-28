@@ -19,9 +19,9 @@ Analyze PR status including CI failures and review comments.
    node scripts/pr-status.js $ARGUMENTS --wait
    ```
 
-   Use the `run_in_background` Bash parameter. The script writes a partial report immediately with currently available results, then blocks on `gh run watch` until CI completes, and finally re-runs the full analysis to produce the final report. Remember the background task ID for step 10.
+   Use the `run_in_background` Bash parameter with a `timeout` of 60000 (1 minute). The script writes a partial report immediately with currently available results, then blocks on `gh run watch` until CI completes, and finally re-runs the full analysis to produce the final report. Remember the background task ID for step 10.
 
-2. Poll the background task output using `TaskOutput` with `block=false` until it contains `Output written to` (this means the initial report is ready). Then read the generated index file:
+2. Poll the background task output using `TaskOutput` with `block=true` and `timeout` of 20000 (20 seconds). Check if the output contains `Output written to` (this means the initial report is ready). If not yet, poll again. Then read the generated index file:
 
    ```bash
    # Read scripts/pr-status/index.md
