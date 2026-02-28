@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ValueToString, Vc, turbobail, turbofmt};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -16,16 +16,29 @@ struct FmtTest {
     count: u32,
 }
 
+#[turbo_tasks::function(operation)]
+async fn turbofmt_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<RcStr>> {
+    let s: RcStr = turbofmt!("prefix {} vc {}", 42u32, value).await?;
+    Ok(Vc::cell(s))
+}
+
+#[turbo_tasks::function(operation)]
+async fn turbobail_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<RcStr>> {
+    turbobail!("error: {} with {}", 42u32, value)
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_turbofmt() {
     run_once(&REGISTRATION, || async {
-        let v: Vc<FmtTest> = FmtTest {
+        let v = FmtTest {
             name: "foo".into(),
             count: 7,
         }
-        .cell();
-        let s: RcStr = turbofmt!("prefix {} vc {}", 42u32, v).await?;
-        assert_eq!(&*s, "prefix 42 vc item foo (count: 7)");
+        .resolved_cell();
+        assert_eq!(
+            &*turbofmt_operation(v).read_strongly_consistent().await?,
+            "prefix 42 vc item foo (count: 7)"
+        );
         anyhow::Ok(())
     })
     .await
@@ -35,19 +48,17 @@ async fn test_turbofmt() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_turbobail() {
     run_once(&REGISTRATION, || async {
-        let v: Vc<FmtTest> = FmtTest {
+        let v = FmtTest {
             name: "bar".into(),
             count: 3,
         }
-        .cell();
+        .resolved_cell();
 
-        let result: anyhow::Result<()> = async { turbobail!("error: {} with {}", 42u32, v) }.await;
+        let result = turbobail_operation(v).read_strongly_consistent().await;
 
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "error: 42 with item bar (count: 3)"
-        );
+        let err = result.unwrap_err();
+        let root = err.root_cause().to_string();
+        assert_eq!(root, "error: 42 with item bar (count: 3)");
         anyhow::Ok(())
     })
     .await

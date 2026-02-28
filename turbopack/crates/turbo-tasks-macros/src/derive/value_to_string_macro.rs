@@ -69,6 +69,8 @@ impl Field {
 ///
 /// For enums, each variant can have its own attribute. Variants without one
 /// default to their name.
+///
+/// Also generates `ValueToStringRef` for efficient non-Vc formatting.
 #[doc = include_str!("../../../turbo-tasks/FORMATTING.md")]
 pub fn derive_value_to_string(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
@@ -96,26 +98,27 @@ pub fn derive_value_to_string(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Wrap a function body in the `#[turbo_tasks::value_impl] impl ValueToString` boilerplate.
-fn wrap_impl(ident: &syn::Ident, is_async: bool, body: TokenStream2) -> TokenStream {
-    let async_kw = if is_async {
-        quote! { async }
-    } else {
-        quote! {}
-    };
-    let ret_ty = if is_async {
-        quote! { anyhow::Result<turbo_tasks::Vc<turbo_rcstr::RcStr>> }
-    } else {
-        quote! { turbo_tasks::Vc<turbo_rcstr::RcStr> }
-    };
+/// Wrap a `ValueToStringRef` body and `ValueToString` impl for the given ident.
+///
+/// The `ref_body` should produce `Result<RcStr>`. The `ValueToString` impl
+/// delegates to `ValueToStringRef::to_string_ref()`.
+fn wrap_impl(ident: &syn::Ident, ref_body: TokenStream2) -> TokenStream {
     quote! {
+        impl turbo_tasks::ValueToStringRef for #ident {
+            async fn to_string_ref(&self) -> anyhow::Result<turbo_rcstr::RcStr> {
+                #[allow(unused_imports)]
+                use turbo_tasks::display::macro_helpers::ValueToStringify as _;
+                #ref_body
+            }
+        }
+
         #[turbo_tasks::value_impl]
         impl turbo_tasks::ValueToString for #ident {
             #[turbo_tasks::function]
-            #async_kw fn to_string(&self) -> #ret_ty {
-                #[allow(unused_imports)]
-                use turbo_tasks::display::ValueToStringify as _;
-                #body
+            async fn to_string(&self) -> anyhow::Result<turbo_tasks::Vc<turbo_rcstr::RcStr>> {
+                Ok(turbo_tasks::Vc::cell(
+                    turbo_tasks::ValueToStringRef::to_string_ref(self).await?
+                ))
             }
         }
     }
@@ -241,34 +244,29 @@ fn generate_struct_impl(
     _fields: &Fields,
     attr: Option<AttrForm>,
 ) -> TokenStream {
-    let (is_async, body) = match attr {
-        None => (
-            false,
-            quote! { turbo_tasks::Vc::cell(turbo_rcstr::RcStr::from(self.to_string())) },
-        ),
-        Some(AttrForm::FormatAutoFields(fmt)) => struct_format_auto_fields_body(&fmt),
-        Some(AttrForm::FormatExprs(fmt, exprs)) => struct_format_exprs_body(&fmt, &exprs),
-        Some(AttrForm::DirectExpr(expr)) => (
-            true,
+    let ref_body = match attr {
+        None => {
+            quote! { Ok(turbo_rcstr::RcStr::from(std::string::ToString::to_string(self))) }
+        }
+        Some(AttrForm::FormatAutoFields(fmt)) => struct_format_auto_fields_ref_body(&fmt),
+        Some(AttrForm::FormatExprs(fmt, exprs)) => struct_format_exprs_ref_body(&fmt, &exprs),
+        Some(AttrForm::DirectExpr(expr)) => {
             quote! {
                 turbo_tasks::__turbo_stringify!(__val, &(#expr));
-                Ok(turbo_tasks::Vc::cell(turbo_rcstr::RcStr::from(__val)))
-            },
-        ),
+                Ok(turbo_rcstr::RcStr::from(__val))
+            }
+        }
     };
-    wrap_impl(ident, is_async, body)
+    wrap_impl(ident, ref_body)
 }
 
-fn struct_format_auto_fields_body(fmt: &str) -> (bool, TokenStream2) {
+fn struct_format_auto_fields_ref_body(fmt: &str) -> TokenStream2 {
     let (transformed_fmt, field_refs) = parse_format_fields(fmt);
 
     if field_refs.is_empty() {
         // No fields to resolve — unescape `{{`/`}}` at compile time and use rcstr!
         let unescaped = transformed_fmt.replace("{{", "{").replace("}}", "}");
-        return (
-            false,
-            quote! { turbo_tasks::Vc::cell(turbo_rcstr::rcstr!(#unescaped)) },
-        );
+        return quote! { Ok(turbo_rcstr::rcstr!(#unescaped)) };
     }
 
     let resolves: Vec<TokenStream2> = field_refs
@@ -279,30 +277,21 @@ fn struct_format_auto_fields_body(fmt: &str) -> (bool, TokenStream2) {
         })
         .collect();
 
-    (
-        true,
-        quote! {
-            #(#resolves)*
-            Ok(turbo_tasks::Vc::cell(turbo_rcstr::RcStr::from(format!(#transformed_fmt))))
-        },
-    )
+    quote! {
+        #(#resolves)*
+        Ok(turbo_rcstr::RcStr::from(format!(#transformed_fmt)))
+    }
 }
 
-/// Generate the body for `#[value_to_string("fmt {}", expr1, expr2)]` on structs.
-///
-/// Uses the shared `generate_resolve_stmts`/`generate_arg_vars` from `turbofmt_macro`
-/// so that format expression resolution shares a single codepath with `turbofmt!`.
-fn struct_format_exprs_body(fmt: &str, exprs: &[Expr]) -> (bool, TokenStream2) {
+/// Generate the ref body for `#[value_to_string("fmt {}", expr1, expr2)]` on structs.
+fn struct_format_exprs_ref_body(fmt: &str, exprs: &[Expr]) -> TokenStream2 {
     let resolve_stmts = generate_resolve_stmts(exprs);
     let vars = generate_arg_vars(exprs.len());
 
-    (
-        true,
-        quote! {
-            #(#resolve_stmts)*
-            Ok(turbo_tasks::Vc::cell(turbo_rcstr::RcStr::from(format!(#fmt, #(#vars),*))))
-        },
-    )
+    quote! {
+        #(#resolve_stmts)*
+        Ok(turbo_rcstr::RcStr::from(format!(#fmt, #(#vars),*)))
+    }
 }
 
 fn generate_enum_impl(
@@ -358,19 +347,15 @@ fn generate_enum_impl(
         }
     }
 
-    let result_expr = if needs_async {
-        quote! { Ok(turbo_tasks::Vc::cell(s.into())) }
-    } else {
-        quote! { turbo_tasks::Vc::cell(s.into()) }
-    };
-
-    let body = quote! {
-        let s = match self {
+    // Enum: match arms produce RcStr, wrap_impl handles the rest
+    let _ = needs_async; // ref body is always async
+    let ref_body = quote! {
+        let s: turbo_rcstr::RcStr = match self {
             #(#match_arms)*
         };
-        #result_expr
+        Ok(s)
     };
-    wrap_impl(ident, needs_async, body)
+    wrap_impl(ident, ref_body)
 }
 
 fn generate_enum_format_auto_fields(

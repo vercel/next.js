@@ -1364,8 +1364,7 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, ValueToString)]
-#[value_to_string("[{fs}]/{path}")]
+#[derive(Debug, Clone, Hash, TaskInput)]
 #[turbo_tasks::value(shared)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
@@ -1375,7 +1374,7 @@ pub struct FileSystemPath {
 impl FileSystemPath {
     /// Mimics `ValueToString::to_string`.
     pub fn value_to_string(&self) -> Vc<RcStr> {
-        value_to_string(self.clone())
+        <FileSystemPath as ValueToString>::to_string(self.clone().cell())
     }
 }
 
@@ -1389,9 +1388,12 @@ impl ValueToStringRef for FileSystemPath {
     }
 }
 
-#[turbo_tasks::function]
-async fn value_to_string(path: FileSystemPath) -> Result<Vc<RcStr>> {
-    Ok(Vc::cell(path.to_string_ref().await?))
+#[turbo_tasks::value_impl]
+impl ValueToString for FileSystemPath {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.to_string_ref().await?))
+    }
 }
 
 impl FileSystemPath {
