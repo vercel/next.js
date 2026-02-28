@@ -520,9 +520,7 @@ pub async fn make_production_chunks(
                 }
                 span.record("merge_iterations", iterations);
 
-                let mut remained_size = 0;
-                let mut remained_chunk_items = Vec::new();
-                let mut remained_batch_groups = FxIndexSet::default();
+                let mut small_remaining = Vec::new();
                 for MergeCandidate {
                     size,
                     chunk_items,
@@ -538,14 +536,92 @@ pub async fn make_production_chunks(
                             chunk_groups,
                         });
                     } else {
-                        remained_size += size;
-                        remained_chunk_items.extend(chunk_items);
-                        remained_batch_groups.extend(batch_groups);
+                        small_remaining.push(MergeCandidate {
+                            size,
+                            chunk_items,
+                            batch_groups,
+                            chunk_groups,
+                        });
                     }
                 }
 
-                // Left-over chunks are merged together forming the remained chunk, which includes
-                // all modules that are not sharable
+                // Absorption pass: try to absorb small remaining candidates into existing
+                // heap chunks. This prevents tiny modules with slightly different bitmaps
+                // from creating near-duplicate chunks.
+                if !small_remaining.is_empty() && !heap.is_empty() {
+                    let mut heap_chunks: Vec<ChunkCandidate<'_>> = heap.into_iter().collect();
+                    let max_size = if max_merge_chunk_size == 0 {
+                        usize::MAX
+                    } else {
+                        max_merge_chunk_size
+                    };
+
+                    let mut unabsorbed = Vec::new();
+                    for small in small_remaining {
+                        let small_groups_len = small.chunk_groups_len();
+                        if small_groups_len == 0 {
+                            unabsorbed.push(small);
+                            continue;
+                        }
+
+                        // Find the best heap chunk to absorb this small item
+                        let mut best_idx = None;
+                        let mut best_overlap_val = 0u64;
+                        for (i, hc) in heap_chunks.iter().enumerate() {
+                            let ov = overlap(&small.chunk_groups, &hc.chunk_groups);
+                            if ov > best_overlap_val {
+                                best_overlap_val = ov;
+                                best_idx = Some(i);
+                            }
+                        }
+
+                        if let Some(idx) = best_idx {
+                            let hc_groups_len = heap_chunks[idx]
+                                .chunk_groups
+                                .as_ref()
+                                .map_or(0, |cg| cg.len());
+
+                            let should_absorb = if best_overlap_val == hc_groups_len {
+                                // Heap chunk's bitmap is a subset of small's - always
+                                // absorb
+                                true
+                            } else if best_overlap_val >= 2 {
+                                // Cost check: duplication vs extra download
+                                let extra_groups = hc_groups_len.saturating_sub(best_overlap_val);
+                                let extra_download = small.size as u64 * extra_groups;
+                                let duplication = small.size as u64 * best_overlap_val;
+                                duplication > extra_download
+                            } else {
+                                false
+                            };
+
+                            if should_absorb && heap_chunks[idx].size + small.size <= max_size {
+                                let hc = &mut heap_chunks[idx];
+                                hc.size += small.size;
+                                hc.chunk_items.extend(small.chunk_items);
+                                // Keep the heap chunk's bitmap unchanged
+                                continue;
+                            }
+                        }
+
+                        unabsorbed.push(small);
+                    }
+
+                    heap = heap_chunks.into_iter().collect();
+                    small_remaining = unabsorbed;
+                }
+
+                // Left-over chunks are merged together forming the remained chunk, which
+                // includes all modules that are not sharable
+                let mut remained_size = 0;
+                let mut remained_chunk_items = Vec::new();
+                let mut remained_batch_groups = FxIndexSet::default();
+                for small in small_remaining {
+                    remained_size += small.size;
+                    remained_chunk_items.extend(small.chunk_items);
+                    remained_batch_groups.extend(small.batch_groups);
+                }
+
                 if !remained_chunk_items.is_empty() {
                     heap.push(ChunkCandidate {
                         size: remained_size,
