@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
     turbopackFileSystemCacheForDev: true,
     // Enable filesystem caching for `next build`
     turbopackFileSystemCacheForBuild: true,
+    // Optional: cap filesystem cache size (bytes)
+    turbopackFileSystemCacheMaxSize: 12 * 1024 * 1024 * 1024, // 12GB
   },
 }
 
@@ -33,11 +35,15 @@ const nextConfig = {
     turbopackFileSystemCacheForDev: true,
     // Enable filesystem caching for `next build`
     turbopackFileSystemCacheForBuild: true,
+    // Optional: cap filesystem cache size (bytes)
+    turbopackFileSystemCacheMaxSize: 12 * 1024 * 1024 * 1024, // 12GB
   },
 }
 
 module.exports = nextConfig
 ```
+
+When `experimental.turbopackFileSystemCacheMaxSize` is set and the cache grows beyond this limit, Next.js invalidates and cleans the Turbopack filesystem cache during startup before continuing.
 
 ## Version Changes
 

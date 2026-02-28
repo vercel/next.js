@@ -24,8 +24,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{
     BackendOptions, DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, StartupCacheState,
-    TurboTasksBackend, db_invalidation::invalidation_reasons, default_backing_storage,
-    noop_backing_storage,
+    TurboTasksBackend, db_invalidation::invalidation_reasons,
+    default_backing_storage_with_max_cache_size, noop_backing_storage,
 };
 
 pub type NextTurboTasks =
@@ -206,6 +206,7 @@ pub fn create_turbo_tasks(
     dependency_tracking: bool,
     is_ci: bool,
     is_short_session: bool,
+    max_cache_size: Option<u64>,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         let version_info = GitVersionInfo {
@@ -213,11 +214,12 @@ pub fn create_turbo_tasks(
             dirty: option_env!("CI").is_none_or(|value| value.is_empty())
                 && env!("VERGEN_GIT_DIRTY") == "true",
         };
-        let (backing_storage, cache_state) = default_backing_storage(
+        let (backing_storage, cache_state) = default_backing_storage_with_max_cache_size(
             &output_path.join("cache/turbopack"),
             &version_info,
             is_ci,
             is_short_session,
+            max_cache_size,
         )?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
@@ -270,6 +272,10 @@ impl CompilationEvent for StartupCacheInvalidationEvent {
                 " because we previously detected an internal error in Turbopack"
             }
             Some(invalidation_reasons::USER_REQUEST) => " as the result of a user request",
+            Some(invalidation_reasons::CACHE_SIZE_LIMIT) => {
+                " because the cache size exceeded the configured limit \
+                 (experimental.turbopackFileSystemCacheMaxSize)"
+            }
             _ => "", // ignore unknown reasons
         };
         format!(

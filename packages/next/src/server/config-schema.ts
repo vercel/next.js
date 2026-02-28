@@ -327,6 +327,7 @@ export const experimentalSchema = {
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses'])
     .optional(),
+  turbopackFileSystemCacheMaxSize: z.number().int().positive().optional(),
   turbopackMinify: z.boolean().optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),

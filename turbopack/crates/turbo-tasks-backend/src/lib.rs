@@ -50,6 +50,17 @@ pub fn lmdb_backing_storage(
     version_info: &GitVersionInfo,
     is_ci: bool,
 ) -> Result<(LmdbBackingStorage, StartupCacheState)> {
+    lmdb_backing_storage_with_max_cache_size(base_path, version_info, is_ci, None)
+}
+
+/// Same as [`lmdb_backing_storage`] with an optional cache size limit in bytes.
+#[cfg(feature = "lmdb")]
+pub fn lmdb_backing_storage_with_max_cache_size(
+    base_path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+    max_cache_size: Option<u64>,
+) -> Result<(LmdbBackingStorage, StartupCacheState)> {
     use crate::database::{
         fresh_db_optimization::{FreshDbOptimization, is_fresh},
         read_transaction_cache::ReadTransactionCache,
@@ -60,6 +71,7 @@ pub fn lmdb_backing_storage(
         base_path.to_owned(),
         version_info,
         is_ci,
+        max_cache_size,
         |versioned_path| {
             let fresh_db = is_fresh(&versioned_path);
             let database = crate::database::lmdb::LmbdKeyValueDatabase::new(&versioned_path)?;
@@ -85,10 +97,28 @@ pub fn turbo_backing_storage(
     is_ci: bool,
     is_short_session: bool,
 ) -> Result<(TurboBackingStorage, StartupCacheState)> {
+    turbo_backing_storage_with_max_cache_size(
+        base_path,
+        version_info,
+        is_ci,
+        is_short_session,
+        None,
+    )
+}
+
+/// Same as [`turbo_backing_storage`] with an optional cache size limit in bytes.
+pub fn turbo_backing_storage_with_max_cache_size(
+    base_path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+    is_short_session: bool,
+    max_cache_size: Option<u64>,
+) -> Result<(TurboBackingStorage, StartupCacheState)> {
     KeyValueDatabaseBackingStorage::open_versioned_on_disk(
         base_path.to_owned(),
         version_info,
         is_ci,
+        max_cache_size,
         |path| TurboKeyValueDatabase::new(path, is_ci, is_short_session),
     )
 }
@@ -114,12 +144,29 @@ pub fn default_backing_storage(
     is_ci: bool,
     is_short_session: bool,
 ) -> Result<(DefaultBackingStorage, StartupCacheState)> {
+    default_backing_storage_with_max_cache_size(path, version_info, is_ci, is_short_session, None)
+}
+
+/// Same as [`default_backing_storage`] with an optional cache size limit in bytes.
+pub fn default_backing_storage_with_max_cache_size(
+    path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+    is_short_session: bool,
+    max_cache_size: Option<u64>,
+) -> Result<(DefaultBackingStorage, StartupCacheState)> {
     #[cfg(feature = "lmdb")]
     {
-        lmdb_backing_storage(path, version_info, is_ci)
+        lmdb_backing_storage_with_max_cache_size(path, version_info, is_ci, max_cache_size)
     }
     #[cfg(not(feature = "lmdb"))]
     {
-        turbo_backing_storage(path, version_info, is_ci, is_short_session)
+        turbo_backing_storage_with_max_cache_size(
+            path,
+            version_info,
+            is_ci,
+            is_short_session,
+            max_cache_size,
+        )
     }
 }

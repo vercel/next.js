@@ -192,4 +192,32 @@ describe('loadConfig', () => {
       expect(result.experimental.externalProxyRewritesResolve).toBe(true)
     })
   })
+
+  describe('turbopackFileSystemCacheMaxSize config', () => {
+    it('accepts a positive integer number of bytes', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            turbopackFileSystemCacheMaxSize: 1024,
+          },
+        },
+      })
+
+      expect(result.experimental.turbopackFileSystemCacheMaxSize).toBe(1024)
+    })
+
+    it('rejects non-number values', async () => {
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: {
+              turbopackFileSystemCacheMaxSize: '1024',
+            },
+          },
+        })
+      ).rejects.toThrow(
+        /experimental\.turbopackFileSystemCacheMaxSize must be a finite positive integer number of bytes/
+      )
+    })
+  })
 })

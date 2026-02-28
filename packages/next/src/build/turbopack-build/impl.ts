@@ -111,6 +111,7 @@ export async function turbopackBuild(): Promise<{
 
   const sharedTurboOptions = {
     memoryLimit: config.experimental?.turbopackMemoryLimit,
+    maxCacheSize: config.experimental?.turbopackFileSystemCacheMaxSize,
     dependencyTracking: persistentCaching || hasDeferredEntries,
     isCi: isCI,
     isShortSession: true,
