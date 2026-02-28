@@ -158,9 +158,11 @@ pub fn render_code_frame(
 
     // Compute a generous end line for the windowed scan. We don't know the
     // total line count yet, but we need an upper bound for the window.
+    // Clamp to at least start_line_idx so that degenerate locations
+    // (end.line < start.line) don't shrink the window below the start.
     let max_end_line = location
         .end
-        .map(|e| e.line.saturating_sub(1))
+        .map(|e| e.line.saturating_sub(1).max(start_line_idx))
         .unwrap_or(start_line_idx);
 
     // Build a windowed line index that only stores offsets for the visible
