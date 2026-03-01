@@ -2,16 +2,27 @@ import { useMemo } from 'react'
 import React from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-call-stack/error-overlay-call-stack'
-import type { ReadyErrorCause } from '../../utils/get-error-by-type'
+import { useFrames } from '../../utils/get-error-by-type'
 
-type ErrorCauseProps = {
-  cause: ReadyErrorCause
+interface ErrorCauseProps {
+  error: Error
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
+  depth: number
+  maxDepth: number
 }
 
-export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
-  const frames = React.use(cause.frames())
-  const trimmedMessage = cause.error.message.trim()
+export function ErrorCause({
+  error,
+  dialogResizerRef,
+  depth,
+  maxDepth,
+}: ErrorCauseProps) {
+  const frames = useFrames(
+    error,
+    // TODO: Where did this come from? Do we need this for causes?
+    true
+  )
+  const trimmedMessage = error.message.trim()
 
   const firstFrame = useMemo(() => {
     const index = frames.findIndex(
@@ -23,11 +34,13 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
     return frames[index] ?? null
   }, [frames])
 
+  const cause = error.cause
+
   return (
     <div data-nextjs-error-cause>
       <div className="error-cause-header">
         <span className="error-cause-label">
-          Caused by: {cause.error.name || 'Error'}
+          Caused by: {error.name || 'Error'}
         </span>
       </div>
       {trimmedMessage ? (
@@ -48,8 +61,13 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
         />
       )}
 
-      {cause.cause && (
-        <ErrorCause cause={cause.cause} dialogResizerRef={dialogResizerRef} />
+      {cause instanceof Error && depth < maxDepth && (
+        <ErrorCause
+          error={cause}
+          dialogResizerRef={dialogResizerRef}
+          depth={depth + 1}
+          maxDepth={maxDepth}
+        />
       )}
     </div>
   )

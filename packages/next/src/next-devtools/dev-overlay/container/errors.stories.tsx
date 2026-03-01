@@ -56,7 +56,6 @@ export const WithHydrationWarning: Story = {
     runtimeErrors: [
       {
         id: 1,
-        runtime: true,
         error: Object.assign(new Error('Hydration error'), {
           details: {
             warning: [
@@ -71,24 +70,24 @@ export const WithHydrationWarning: Story = {
 +     <div> hello world and welcome to my amazing website with lots of content hello world and welcome to my amazing website with lots of content </div>`,
           },
         }),
-        frames: () =>
-          Promise.resolve([
-            {
-              error: true,
-              reason: 'First error message',
-              external: false,
-              ignored: false,
-              originalStackFrame: null,
-              originalCodeFrame: null,
-              sourceStackFrame: {
-                file: 'app/page.tsx',
-                methodName: 'Home',
-                arguments: [],
-                line1: 10,
-                column1: 5,
-              },
-            },
-          ]),
+        // frames: () =>
+        //   Promise.resolve([
+        //     {
+        //       error: true,
+        //       reason: 'First error message',
+        //       external: false,
+        //       ignored: false,
+        //       originalStackFrame: null,
+        //       originalCodeFrame: null,
+        //       sourceStackFrame: {
+        //         file: 'app/page.tsx',
+        //         methodName: 'Home',
+        //         arguments: [],
+        //         line1: 10,
+        //         column1: 5,
+        //       },
+        //     },
+        //   ]),
         type: 'runtime',
       },
     ],

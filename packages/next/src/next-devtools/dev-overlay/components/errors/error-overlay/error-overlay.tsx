@@ -7,8 +7,8 @@ import {
 import { Activity } from 'react'
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
+import type { SupportedErrorEvent } from '../../../container/runtime-error/render-error'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
-import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 import type { HydrationErrorState } from '../../../../shared/hydration-error'
 
 const transitionDurationMs = 200
@@ -31,7 +31,7 @@ export function ErrorOverlay({
   state: OverlayState
   dispatch: OverlayDispatch
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
-  runtimeErrors: ReadyRuntimeError[]
+  runtimeErrors: readonly SupportedErrorEvent[]
   errorCount: number
 }) {
   const isTurbopack = !!process.env.TURBOPACK

@@ -338,12 +338,9 @@ export function useErrorOverlayReducer(
     id: number,
     error: Error
   ): readonly SupportedErrorEvent[] {
-    const ownerStack = getOwnerStack(error)
-    const frames = parseStack((error.stack || '') + (ownerStack || ''))
     const pendingEvent: SupportedErrorEvent = {
       id,
       error,
-      frames,
       type: isRecoverableError(error)
         ? 'recoverable'
         : isConsoleError(error)
