@@ -34,28 +34,10 @@ export type OriginalStackFrame =
 function getOriginalStackFrame(
   source: StackFrame,
   response: OriginalStackFrameResponseResult
-): Promise<OriginalStackFrame> {
-  async function _getOriginalStackFrame(): Promise<ResolvedOriginalStackFrame> {
-    if (response.status === 'rejected') {
-      throw new Error(response.reason)
-    }
-
-    const body: OriginalStackFrameResponse = response.value
-
-    return {
-      error: false,
-      reason: null,
-      external: false,
-      sourceStackFrame: source,
-      originalStackFrame: body.originalStackFrame,
-      originalCodeFrame: body.originalCodeFrame || null,
-      ignored: body.originalStackFrame?.ignored || false,
-    }
-  }
-
+): OriginalStackFrame {
   // TODO: merge this section into ignoredList handling
   if (source.file === 'file://' || source.file?.match(/https?:\/\//)) {
-    return Promise.resolve({
+    return {
       error: false,
       reason: null,
       external: true,
@@ -63,20 +45,33 @@ function getOriginalStackFrame(
       originalStackFrame: null,
       originalCodeFrame: null,
       ignored: true,
-    })
+    }
   }
 
-  return _getOriginalStackFrame().catch(
-    (err: Error): RejectedOriginalStackFrame => ({
+  if (response.status === 'rejected') {
+    const rejectedFrame: RejectedOriginalStackFrame = {
       error: true,
-      reason: err?.message ?? err?.toString() ?? 'Unknown Error',
+      reason: String(response.reason),
       external: false,
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
       ignored: false,
-    })
-  )
+    }
+    return rejectedFrame
+  }
+
+  const body: OriginalStackFrameResponse = response.value
+
+  return {
+    error: false,
+    reason: null,
+    external: false,
+    sourceStackFrame: source,
+    originalStackFrame: body.originalStackFrame,
+    originalCodeFrame: body.originalCodeFrame || null,
+    ignored: body.originalStackFrame?.ignored || false,
+  }
 }
 
 export async function getOriginalStackFrames(
@@ -107,21 +102,19 @@ export async function getOriginalStackFrames(
   // that the error overlay can render.
   if (res && res.ok && res.status !== 204) {
     const data = await res.json()
-    return Promise.all(
-      frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
+    return frames.map((frame, index) =>
+      getOriginalStackFrame(frame, data[index])
     )
   } else {
     if (res) {
       reason = await res.text()
     }
   }
-  return Promise.all(
-    frames.map((frame) =>
-      getOriginalStackFrame(frame, {
-        status: 'rejected',
-        reason: `Failed to fetch the original stack frames ${reason ? `: ${reason}` : ''}`,
-      })
-    )
+  return frames.map((frame) =>
+    getOriginalStackFrame(frame, {
+      status: 'rejected',
+      reason: `Failed to fetch the original stack frames ${reason ? `: ${reason}` : ''}`,
+    })
   )
 }
 
