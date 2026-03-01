@@ -1985,7 +1985,6 @@ async function renderToHTMLOrFlightImpl(
         case 'cache':
         case 'private-cache':
           return true
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'unstable-cache':
