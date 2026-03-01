@@ -4,9 +4,17 @@
 // the callback will actually be called, which could stall the promise returned
 // from displayContent.
 //
+// Additionally, requestAnimationFrame is heavily throttled (or not called at
+// all) in background tabs, which would delay hydration until the tab becomes
+// visible. We fall back to setTimeout in that case.
+//
 // See: https://www.vector-logic.com/blog/posts/on-request-animation-frame-and-embedded-iframes
 const safeCallbackQueue = (callback: () => void) => {
-  if (window.requestAnimationFrame && window.self === window.top) {
+  if (
+    window.requestAnimationFrame &&
+    window.self === window.top &&
+    !document.hidden
+  ) {
     window.requestAnimationFrame(callback)
   } else {
     window.setTimeout(callback)
@@ -23,7 +31,6 @@ export function displayContent(): Promise<void> {
         var x = document.querySelectorAll('[data-next-hide-fouc]'),
           i = x.length;
         i--;
-
       ) {
         x[i].parentNode!.removeChild(x[i])
       }
