@@ -86,7 +86,6 @@ Jenkinsfile
 
 # TypeScript build metadata
 *.tsbuildinfo
-.tsbuildinfo
 
 # Sensitive or unnecessary configuration files
 *.pem
