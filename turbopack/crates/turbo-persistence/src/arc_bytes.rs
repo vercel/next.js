@@ -78,6 +78,8 @@ impl Debug for ArcBytes {
 
 impl Eq for ArcBytes {}
 
+/// Reading from an `ArcBytes` advances its internal data pointer, so it acts as a cursor.
+/// After a `read()` call, `Deref` returns only the unconsumed (remaining) portion of the slice.
 impl Read for ArcBytes {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let available = &**self;
