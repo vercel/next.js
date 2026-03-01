@@ -104,17 +104,23 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         }
     }
 
-    /// Returns the thread local state for the current thread.
-    #[allow(clippy::mut_from_ref)]
-    fn thread_local_state(&self) -> &mut ThreadLocalState<K, FAMILIES> {
+    /// Runs a closure with exclusive access to the current thread's local state.
+    ///
+    /// The closure-based API ensures that only one `&mut` reference to the
+    /// thread-local state exists at a time, preventing accidental aliasing.
+    fn with_thread_local_state<R>(
+        &self,
+        f: impl FnOnce(&mut ThreadLocalState<K, FAMILIES>) -> R,
+    ) -> R {
         let cell = self.thread_locals.get_or(|| {
             SyncUnsafeCell::new(ThreadLocalState {
                 collectors: [const { None }; FAMILIES],
                 new_blob_files: Vec::new(),
             })
         });
-        // Safety: We know that the cell is only accessed from the current thread.
-        unsafe { &mut *cell.get() }
+        // Safety: ThreadLocal guarantees this cell belongs to the current thread.
+        // The closure-based API ensures only one &mut reference exists at a time.
+        f(unsafe { &mut *cell.get() })
     }
 
     /// Returns the collector for a family for the current thread.
@@ -204,24 +210,27 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
 
     /// Puts a key-value pair into the write batch.
     pub fn put(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
-        let state = self.thread_local_state();
-        let collector = self.thread_local_collector_mut(state, family)?;
-        if value.len() <= MAX_MEDIUM_VALUE_SIZE {
-            collector.put(key, value);
-        } else {
-            let (blob, file) = self.create_blob(&value)?;
-            collector.put_blob(key, blob);
-            state.new_blob_files.push((blob, file));
-        }
-        Ok(())
+        self.with_thread_local_state(|state| {
+            let collector = self.thread_local_collector_mut(state, family)?;
+            if value.len() <= MAX_MEDIUM_VALUE_SIZE {
+                collector.put(key, value);
+            } else {
+                let (blob, file) = self.create_blob(&value)?;
+                collector.put_blob(key, blob);
+                // NLL: collector borrow ends here (last use above)
+                state.new_blob_files.push((blob, file));
+            }
+            Ok(())
+        })
     }
 
     /// Puts a delete operation into the write batch.
     pub fn delete(&self, family: u32, key: K) -> Result<()> {
-        let state = self.thread_local_state();
-        let collector = self.thread_local_collector_mut(state, family)?;
-        collector.delete(key);
-        Ok(())
+        self.with_thread_local_state(|state| {
+            let collector = self.thread_local_collector_mut(state, family)?;
+            collector.delete(key);
+            Ok(())
+        })
     }
 
     /// Flushes a family of the write batch, reducing the amount of buffered memory used.
