@@ -1,35 +1,23 @@
 import useTranslation from "next-translate/useTranslation";
+import i18n from "../i18n.json";
+import { redirect } from "next/navigation";
 import "./style.css";
 
 export const metadata = {
   title: "Next.js",
 };
 
-export default function Layout(props) {
-  const { t, lang } = useTranslation();
+export default function RootLayout({ children }) {
+  const { lang } = useTranslation("common");
+
+  // Redirect to default locale if lang is not supported. /second-page -> /en/second-page
+  if (!i18n.locales.includes(lang)) redirect(`/${i18n.defaultLocale}/${lang}`);
 
   return (
     <html lang={lang}>
+      <head />
       <body className="container">
-        {props.children}
-        <footer>
-          <span>{t("common:powered")} </span>
-          <a
-            href="https://vercel.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            ▲ Vercel
-          </a>
-          <span>&amp;</span>
-          <a
-            href="https://github.com/vinissimus/next-translate"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            next-translate
-          </a>
-        </footer>
+        {children}
       </body>
     </html>
   );

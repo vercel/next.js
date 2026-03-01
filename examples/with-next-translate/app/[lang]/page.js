@@ -3,7 +3,7 @@ import Trans from "next-translate/Trans";
 import useTranslation from "next-translate/useTranslation";
 
 export default function Home() {
-  const { t, lang } = useTranslation();
+  const { t, lang } = useTranslation("home");
   const isRTL = lang === "ar" || lang === "he";
   const arrow = isRTL ? String.fromCharCode(8592) : String.fromCharCode(8594);
 
@@ -12,8 +12,8 @@ export default function Home() {
       <Trans
         i18nKey="home:title"
         components={[
-          <h1 className="title" />,
-          <a href="https://nextjs.org">Next.js!</a>,
+          <h1 className="title" key="title" />,
+          <a href="https://nextjs.org" key="link">Next.js!</a>,
         ]}
       />
 
