@@ -2,6 +2,8 @@ import type {
   TreePrefetch,
   RootTreePrefetch,
   SegmentPrefetch,
+  InlinedPrefetchResponse,
+  InlinedSegmentPrefetch,
 } from '../../../server/app-render/collect-segment-data'
 import type {
   CacheNodeSeedData,
@@ -1981,6 +1983,176 @@ export async function fetchSegmentOnCacheMiss(
     // decoding the response.
     rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
     return null
+  }
+}
+
+// TODO: The inlined prefetch flow below is temporary. Eventually, inlining
+// will be the default behavior controlled by a size heuristic rather than a
+// boolean flag. At that point, the per-segment and inlined fetch paths will
+// merge, and these separate functions will be removed.
+//
+// The call site in the scheduler is guarded by
+// process.env.__NEXT_PREFETCH_INLINING, so these functions are
+// dead-code-eliminated from the client bundle when the feature is disabled.
+
+export async function fetchInlinedSegmentsOnCacheMiss(
+  route: FulfilledRouteCacheEntry,
+  routeKey: RouteCacheKey,
+  tree: RouteTree,
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
+): Promise<PrefetchSubtaskResult<null> | null> {
+  // When prefetch inlining is enabled, all segment data for a route is bundled
+  // into a single /_inlined response instead of individual per-segment
+  // requests. This function fetches that response and walks the tree to fill
+  // all segment cache entries at once.
+  const url = new URL(route.canonicalUrl, location.origin)
+  const nextUrl = routeKey.nextUrl
+
+  const headers: RequestHeaders = {
+    [RSC_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/_inlined',
+  }
+  if (nextUrl !== null) {
+    headers[NEXT_URL] = nextUrl
+  }
+  addInstantPrefetchHeaderIfLocked(headers)
+
+  try {
+    const response = await fetchPrefetchResponse(url, headers)
+    if (
+      !response ||
+      !response.ok ||
+      response.status === 204 ||
+      (response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' &&
+        !isOutputExportMode) ||
+      !response.body
+    ) {
+      rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+      return null
+    }
+
+    const closed = createPromiseWithResolvers<void>()
+
+    const prefetchStream = createPrefetchResponseStream(
+      response.body,
+      closed.resolve,
+      function onResponseSizeUpdate() {
+        // For inlined responses, size tracking per segment is approximate.
+        // We don't track individual sizes since they're all in one response.
+      }
+    )
+    const serverData =
+      await createFromNextReadableStream<InlinedPrefetchResponse>(
+        prefetchStream,
+        headers,
+        { allowPartialStream: true }
+      )
+
+    if (
+      (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+        serverData.tree.segment.buildId) !== getNavigationBuildId()
+    ) {
+      rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+      return null
+    }
+
+    const now = Date.now()
+
+    // Walk the inlined tree in parallel with the RouteTree and fill
+    // segment cache entries.
+    fillInlinedSegmentEntries(now, route, tree, serverData.tree, spawnedEntries)
+
+    // Fill the head entry.
+    const headStaleAt = now + getStaleTimeMs(serverData.head.staleTime)
+    const headKey = route.metadata.requestKey
+    const ownedHeadEntry = spawnedEntries.get(headKey)
+    if (ownedHeadEntry !== undefined) {
+      fulfillSegmentCacheEntry(
+        ownedHeadEntry,
+        serverData.head.rsc,
+        headStaleAt,
+        serverData.head.isPartial
+      )
+    } else {
+      // The head was already cached. Try to upsert if the entry is empty.
+      const existingEntry = readOrCreateSegmentCacheEntry(
+        now,
+        FetchStrategy.PPR,
+        route.metadata
+      )
+      if (existingEntry.status === EntryStatus.Empty) {
+        fulfillSegmentCacheEntry(
+          upgradeToPendingSegment(existingEntry, FetchStrategy.PPR),
+          serverData.head.rsc,
+          headStaleAt,
+          serverData.head.isPartial
+        )
+      }
+    }
+
+    // Reject any remaining entries that were not fulfilled by the response.
+    rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+
+    return { value: null, closed: closed.promise }
+  } catch (error) {
+    rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+    return null
+  }
+}
+
+function fillInlinedSegmentEntries(
+  now: number,
+  route: FulfilledRouteCacheEntry,
+  tree: RouteTree,
+  inlinedNode: InlinedSegmentPrefetch,
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
+): void {
+  // Check if the spawned entries map has an entry for this segment's key.
+  const segment = inlinedNode.segment
+  const staleAt = now + getStaleTimeMs(segment.staleTime)
+  const ownedEntry = spawnedEntries.get(tree.requestKey)
+  if (ownedEntry !== undefined) {
+    // We own this entry. Fulfill it directly.
+    fulfillSegmentCacheEntry(
+      ownedEntry,
+      segment.rsc,
+      staleAt,
+      segment.isPartial
+    )
+  } else {
+    // Not owned by us — this is extra data from the inlined response for a
+    // segment that was already cached. Try to upsert if the entry is empty.
+    const existingEntry = readOrCreateSegmentCacheEntry(
+      now,
+      FetchStrategy.PPR,
+      tree
+    )
+    if (existingEntry.status === EntryStatus.Empty) {
+      fulfillSegmentCacheEntry(
+        upgradeToPendingSegment(existingEntry, FetchStrategy.PPR),
+        segment.rsc,
+        staleAt,
+        segment.isPartial
+      )
+    }
+  }
+
+  // Recurse into children.
+  if (tree.slots !== null && inlinedNode.slots !== null) {
+    for (const parallelRouteKey in tree.slots) {
+      const childTree = tree.slots[parallelRouteKey]
+      const childInlinedNode = inlinedNode.slots[parallelRouteKey]
+      if (childInlinedNode !== undefined) {
+        fillInlinedSegmentEntries(
+          now,
+          route,
+          childTree,
+          childInlinedNode,
+          spawnedEntries
+        )
+      }
+    }
   }
 }
 

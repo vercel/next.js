@@ -160,6 +160,7 @@ export interface RenderOptsPartial {
     dynamicOnHover: boolean
     optimisticRouting: boolean
     inlineCss: boolean
+    prefetchInlining: boolean
     authInterrupts: boolean
 
     /**
