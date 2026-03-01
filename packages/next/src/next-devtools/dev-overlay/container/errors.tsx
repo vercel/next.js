@@ -15,7 +15,6 @@ import {
   NEXTJS_HYDRATION_ERROR_LINK,
 } from '../../shared/react-19-hydration-error'
 import type { ReadyRuntimeError } from '../utils/get-error-by-type'
-import { useFrames } from '../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
@@ -605,21 +604,7 @@ export function Errors({
     setActiveIndex,
   } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
 
-  // Get parsed frames data
-  const frames = useFrames(activeError)
-
-  const firstFrame = useMemo(() => {
-    const firstFirstPartyFrameIndex = frames.findIndex(
-      (entry) =>
-        !entry.ignored &&
-        Boolean(entry.originalCodeFrame) &&
-        Boolean(entry.originalStackFrame)
-    )
-
-    return frames[firstFirstPartyFrameIndex] ?? null
-  }, [frames])
-
-  const generateErrorInfo = useCallback(() => {
+  const generateErrorInfo = useCallback(async () => {
     if (!activeError) return ''
 
     const parts: string[] = []
@@ -641,37 +626,58 @@ export function Errors({
     if (message) {
       parts.push(`## Error Message\n${message}`)
     }
-    // Append call stack
-    if (frames.length > 0) {
-      const visibleFrames = frames.filter((frame) => !frame.ignored)
-      if (visibleFrames.length > 0) {
-        const stackLines = visibleFrames
-          .map((frame) => {
-            if (frame.originalStackFrame) {
-              const { methodName, file, line1, column1 } =
-                frame.originalStackFrame
-              return `    at ${methodName} (${file}:${line1}:${column1})`
-            } else if (frame.sourceStackFrame) {
-              const { methodName, file, line1, column1 } =
-                frame.sourceStackFrame
-              return `    at ${methodName} (${file}:${line1}:${column1})`
-            }
-            return ''
-          })
-          .filter(Boolean)
 
-        if (stackLines.length > 0) {
-          parts.push(`\n${stackLines.join('\n')}`)
+    const frames = await Promise.race([
+      activeError.frames(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+    ])
+
+    // Append call stack
+    if (frames === null) {
+      parts.push(
+        'Unable to retrieve stack frames for this error. Falling back to unsourcemapped stack\n\n' +
+          error.stack
+      )
+    } else {
+      if (frames.length > 0) {
+        const visibleFrames = frames.filter((frame) => !frame.ignored)
+        if (visibleFrames.length > 0) {
+          const stackLines = visibleFrames
+            .map((frame) => {
+              if (frame.originalStackFrame) {
+                const { methodName, file, line1, column1 } =
+                  frame.originalStackFrame
+                return `    at ${methodName} (${file}:${line1}:${column1})`
+              } else if (frame.sourceStackFrame) {
+                const { methodName, file, line1, column1 } =
+                  frame.sourceStackFrame
+                return `    at ${methodName} (${file}:${line1}:${column1})`
+              }
+              return ''
+            })
+            .filter(Boolean)
+
+          if (stackLines.length > 0) {
+            parts.push(`\n${stackLines.join('\n')}`)
+          }
         }
       }
-    }
 
-    // 3. Code Frame (decoded)
-    if (firstFrame?.originalCodeFrame) {
-      const decodedCodeFrame = stripAnsi(
-        formatCodeFrame(firstFrame.originalCodeFrame)
+      // 3. Code Frame (decoded)
+      const firstFirstPartyFrameIndex = frames.findIndex(
+        (entry) =>
+          !entry.ignored &&
+          Boolean(entry.originalCodeFrame) &&
+          Boolean(entry.originalStackFrame)
       )
-      parts.push(`## Code Frame\n${decodedCodeFrame}`)
+
+      const firstFrame = frames[firstFirstPartyFrameIndex] ?? null
+      if (firstFrame?.originalCodeFrame) {
+        const decodedCodeFrame = stripAnsi(
+          formatCodeFrame(firstFrame.originalCodeFrame)
+        )
+        parts.push(`## Code Frame\n${decodedCodeFrame}`)
+      }
     }
 
     // Format as markdown error info
@@ -680,7 +686,7 @@ export function Errors({
 Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
 
     return errorInfo
-  }, [activeError, errorType, firstFrame, frames, props.versionInfo])
+  }, [activeError, errorType, props.versionInfo])
 
   if (isLoading) {
     // TODO: better loading state
