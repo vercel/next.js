@@ -592,13 +592,22 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType } = splitEntryKey(key)
-    // Server HMR only applies to App Router.
-    // Pages Router uses Node's require(), root entries (middleware/instrumentation)
-    // use the edge runtime.
+    const { type: entryType, page: entryPage } = splitEntryKey(key)
+    const isAppPage =
+      entryType === 'app' &&
+      currentEntrypoints.app.get(entryPage)?.type === 'app-page'
+
+    // Server HMR only applies to app router pages since these use the Turbopack runtime.
+    // Currently, this is only app router pages.
+    //
+    // This excludes:
+    //   - Pages Router pages
+    //   - Edge routes
+    //   - Middleware
+    //   - App Router route handlers (route.ts)
     const usesServerHmr =
       experimentalServerFastRefresh &&
-      entryType === 'app' &&
+      isAppPage &&
       writtenEndpoint.type !== 'edge'
 
     for (const file of serverPaths) {

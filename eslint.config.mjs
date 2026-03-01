@@ -308,6 +308,7 @@ export default defineConfig([
             'itCI',
             'itHeaded',
             'itTurbopackDev',
+            'itOnlyTurbopack',
           ],
         },
       ],
