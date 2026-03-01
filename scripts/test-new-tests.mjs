@@ -85,15 +85,14 @@ async function main() {
   }
 
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
-  const PR_NUMBER = process.env.GH_PR_NUMBER
   // Only override the test version for deploy tests, as they need to run against
   // the artifacts for the pull request. Otherwise, we don't need to specify this property,
-  // as tests will run against the local version of Next.js
+  // as tests will run against the local version of Next.js.
+  // Always use the commit SHA endpoint to avoid GitHub API rate limits on the
+  // PR number endpoint (which resolves the PR to a SHA on every request).
   const nextTestVersion =
     testMode === 'deploy'
-      ? PR_NUMBER
-        ? `https://vercel-packages.vercel.app/next/prs/${PR_NUMBER}/next`
-        : `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
+      ? `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
       : undefined
 
   if (nextTestVersion) {
