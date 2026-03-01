@@ -2868,9 +2868,6 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
-                const isRoutePPREnabled: boolean =
-                  !!appConfig && isAppCacheComponentsEnabled
-
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip
                   // rendering the route. This is because we don't support
@@ -2895,7 +2892,6 @@ export default async function build(
                     _fallbackRouteParams: route.fallbackRouteParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
-                    _isRoutePPREnabled: isRoutePPREnabled,
                     _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
                   }
                 })

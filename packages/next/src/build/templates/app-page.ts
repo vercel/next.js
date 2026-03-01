@@ -706,7 +706,6 @@ export async function handler(
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
           experimental: {
-            isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),

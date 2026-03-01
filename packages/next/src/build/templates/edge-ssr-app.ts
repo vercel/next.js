@@ -157,7 +157,6 @@ async function requestHandler(
         Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
-        isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
