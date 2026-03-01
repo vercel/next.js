@@ -518,6 +518,66 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
   })
 }
 
+/**
+ * Creates a transform stream that injects an inline script as the first
+ * element inside <head>. Used during instant navigation testing to set
+ * self.__next_instant_test before any async bootstrap scripts execute.
+ */
+export function createInstantTestScriptInsertionTransformStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
+  const INSTANT_TEST_SCRIPT = '<script>self.__next_instant_test=1</script>'
+
+  let didAlreadyInsert = false
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (didAlreadyInsert) {
+        // Already inserted the script into the head. Pass through.
+        controller.enqueue(chunk)
+        return
+      }
+
+      // Find the opening <head tag (may have attributes like <head class="...">)
+      const headOpenIndex = indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HEAD)
+
+      if (headOpenIndex === -1) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      // Find the closing > of the <head ...> tag
+      const headCloseAngle = chunk.indexOf(
+        62, // '>'
+        headOpenIndex + ENCODED_TAGS.OPENING.HEAD.length
+      )
+      if (headCloseAngle === -1) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
+      const insertionPoint = headCloseAngle + 1
+      // e.g.
+      // chunk = <!DOCTYPE html><html><head><meta charset="utf-8">...
+      // insertion = <script>self.__next_instant_test=1</script>
+      // output = <!DOCTYPE html><html><head> [ <script>...</script> ] <meta charset="utf-8">...
+      const insertedHeadContent = new Uint8Array(
+        chunk.length + encodedInsertion.length
+      )
+      insertedHeadContent.set(chunk.slice(0, insertionPoint))
+      insertedHeadContent.set(encodedInsertion, insertionPoint)
+      insertedHeadContent.set(
+        chunk.slice(insertionPoint),
+        insertionPoint + encodedInsertion.length
+      )
+
+      controller.enqueue(insertedHeadContent)
+      didAlreadyInsert = true
+    },
+  })
+}
+
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
 function createDeferredSuffixStream(
