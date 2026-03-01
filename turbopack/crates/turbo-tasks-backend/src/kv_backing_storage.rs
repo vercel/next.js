@@ -283,16 +283,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 {
                     let _span = tracing::trace_span!("update task data").entered();
                     process_task_data(snapshots, Some(batch))?;
-                    let span = tracing::trace_span!("flush task data").entered();
-                    parallel::try_for_each(
-                        &[KeySpace::TaskMeta, KeySpace::TaskData],
-                        |&key_space| {
-                            let _span = span.clone().entered();
-                            // Safety: We already finished all processing of the task data and task
-                            // meta
-                            unsafe { batch.flush(key_space) }
-                        },
-                    )?;
+                    let _span = tracing::trace_span!("flush task data").entered();
+                    // Flush sequentially: flush() accesses per-thread state covering all
+                    // families, so concurrent flushes of different key spaces would be UB.
+                    for &key_space in &[KeySpace::TaskMeta, KeySpace::TaskData] {
+                        // Safety: process_task_data has completed; no concurrent put/delete
+                        // on any key space.
+                        unsafe { batch.flush(key_space) }?;
+                    }
                 }
 
                 let mut next_task_id = get_next_free_task_id::<

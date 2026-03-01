@@ -238,8 +238,9 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
     ///
     /// # Safety
     ///
-    /// Caller must ensure that no concurrent put or delete operation is happening on the flushed
-    /// family.
+    /// Caller must ensure that no concurrent `put` or `delete` operation is happening on *any*
+    /// family (not just the flushed one), because the implementation accesses thread-local state
+    /// that spans all families. Concurrent flushes of different families are also not allowed.
     #[tracing::instrument(level = "trace", skip(self))]
     pub unsafe fn flush(&self, family: u32) -> Result<()> {
         // Flush the thread local collectors to the global collector.

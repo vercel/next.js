@@ -75,8 +75,11 @@ pub trait ConcurrentWriteBatch<'a>: BaseWriteBatch<'a> + Sync + Send {
     /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
     /// Does not commit any data persistently.
     ///
-    /// Safety: Caller must ensure that no concurrent put or delete operation is happening on the
-    /// flushed key space.
+    /// # Safety
+    ///
+    /// Caller must ensure that no concurrent `put` or `delete` operation is happening on *any*
+    /// key space (not just the flushed one), because implementations may access shared state
+    /// spanning all key spaces. Concurrent flushes of different key spaces are also not allowed.
     unsafe fn flush(&self, key_space: KeySpace) -> Result<()>;
 }
 
