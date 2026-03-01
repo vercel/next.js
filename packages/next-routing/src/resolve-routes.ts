@@ -202,12 +202,37 @@ function matchDynamicRoute(
 }
 
 /**
- * Applies headers from onMatch routes
+ * Applies headers from onMatch routes that match the given URL
  */
-function applyOnMatchHeaders(routes: Route[], headers: Headers): Headers {
+function applyOnMatchHeaders(
+  routes: Route[],
+  url: URL,
+  headers: Headers
+): Headers {
   const newHeaders = new Headers(headers)
 
   for (const route of routes) {
+    // Check sourceRegex
+    const regex = new RegExp(route.sourceRegex)
+    if (!regex.test(url.pathname)) {
+      continue
+    }
+
+    // Check has/missing conditions
+    const hasResult = checkHasConditions(route.has, url, newHeaders)
+    if (!hasResult.matched) {
+      continue
+    }
+
+    const missingMatched = checkMissingConditions(
+      route.missing,
+      url,
+      newHeaders
+    )
+    if (!missingMatched) {
+      continue
+    }
+
     if (route.headers) {
       for (const [key, value] of Object.entries(route.headers)) {
         newHeaders.set(key, value)
@@ -260,7 +285,11 @@ function checkDynamicRoutes(
         const pathnameToCheck = match.destinationPathname || checkUrl.pathname
         const matchedPath = matchesPathname(pathnameToCheck, pathnames)
         if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(onMatchRoutes, headers)
+          const finalHeaders = applyOnMatchHeaders(
+            onMatchRoutes,
+            checkUrl,
+            headers
+          )
           return {
             matched: true,
             result: {
@@ -542,6 +571,7 @@ export async function resolveRoutes(
         if (hasResult.matched && missingMatched) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
+            currentUrl,
             currentHeaders
           )
           return {
@@ -555,7 +585,11 @@ export async function resolveRoutes(
     }
 
     // No dynamic route matched, return without route matches
-    const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
+    const finalHeaders = applyOnMatchHeaders(
+      routes.onMatch,
+      currentUrl,
+      currentHeaders
+    )
     return {
       matchedPathname: matchedPath,
       resolvedHeaders: finalHeaders,
@@ -660,6 +694,7 @@ export async function resolveRoutes(
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
+            currentUrl,
             currentHeaders
           )
           return {
@@ -697,6 +732,7 @@ export async function resolveRoutes(
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
+            currentUrl,
             currentHeaders
           )
           return {
@@ -802,6 +838,7 @@ export async function resolveRoutes(
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
+            currentUrl,
             currentHeaders
           )
           return {

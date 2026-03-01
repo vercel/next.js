@@ -803,4 +803,148 @@ describe('resolveRoutes - dynamic routes', () => {
     expect(result.matchedPathname).toBe('/api/[resource]')
     expect(result.resolvedHeaders?.get('x-matched')).toBe('true')
   })
+
+  it('should not apply onMatch headers when sourceRegex does not match', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/api/users'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/api/(?<resource>[^/]+?)(?:/)?$',
+            destination: '/api/[resource]?resource=$resource',
+          },
+        ],
+        onMatch: [
+          {
+            sourceRegex: '^/blog',
+            headers: {
+              'x-blog-only': 'true',
+            },
+          },
+        ],
+        fallback: [],
+      },
+      pathnames: ['/api/[resource]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/api/[resource]')
+    expect(result.resolvedHeaders?.get('x-blog-only')).toBeNull()
+  })
+
+  it('should not apply onMatch headers when has condition fails', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/api/users'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/api/(?<resource>[^/]+?)(?:/)?$',
+            destination: '/api/[resource]?resource=$resource',
+          },
+        ],
+        onMatch: [
+          {
+            sourceRegex: '.*',
+            has: [{ type: 'query', key: 'admin', value: 'true' }],
+            headers: {
+              'x-admin': 'true',
+            },
+          },
+        ],
+        fallback: [],
+      },
+      pathnames: ['/api/[resource]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/api/[resource]')
+    expect(result.resolvedHeaders?.get('x-admin')).toBeNull()
+  })
+
+  it('should not apply onMatch headers when missing condition fails', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/api/users?debug=true'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/api/(?<resource>[^/]+?)(?:/)?$',
+            destination: '/api/[resource]?resource=$resource',
+          },
+        ],
+        onMatch: [
+          {
+            sourceRegex: '.*',
+            missing: [{ type: 'query', key: 'debug' }],
+            headers: {
+              'x-no-debug': 'true',
+            },
+          },
+        ],
+        fallback: [],
+      },
+      pathnames: ['/api/[resource]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/api/[resource]')
+    expect(result.resolvedHeaders?.get('x-no-debug')).toBeNull()
+  })
+
+  it('should apply only matching onMatch headers when multiple routes exist', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/api/users'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/api/(?<resource>[^/]+?)(?:/)?$',
+            destination: '/api/[resource]?resource=$resource',
+          },
+        ],
+        onMatch: [
+          {
+            sourceRegex: '^/api',
+            headers: {
+              'x-api': 'true',
+            },
+          },
+          {
+            sourceRegex: '^/blog',
+            headers: {
+              'x-blog': 'true',
+            },
+          },
+          {
+            sourceRegex: '.*',
+            headers: {
+              'x-all': 'true',
+            },
+          },
+        ],
+        fallback: [],
+      },
+      pathnames: ['/api/[resource]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/api/[resource]')
+    expect(result.resolvedHeaders?.get('x-api')).toBe('true')
+    expect(result.resolvedHeaders?.get('x-blog')).toBeNull()
+    expect(result.resolvedHeaders?.get('x-all')).toBe('true')
+  })
 })
