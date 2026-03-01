@@ -512,12 +512,6 @@ export default function LinkComponent(
   const formattedHref = formatStringOrUrl(resolvedHref)
 
   if (process.env.NODE_ENV !== 'production') {
-    if (transitionTypes && typeof React.addTransitionType !== 'function') {
-      warnOnce(
-        '`transitionTypes` are passed to a <Link>, but `React.addTransitionType` is not available. ' +
-          'You need to enable `experimental.viewTransition` or `experimental.gestureTransition` to use Transition types.'
-      )
-    }
     if (props.locale) {
       warnOnce(
         'The `locale` prop is not supported in `next/link` while using the `app` router. Read more about app router internalization: https://nextjs.org/docs/app/building-your-application/routing/internationalization'
