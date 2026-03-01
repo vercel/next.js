@@ -335,6 +335,10 @@ export interface NextAdapter {
     config: NextConfigComplete,
     ctx: {
       phase: PHASE_TYPE
+      /**
+       * nextVersion is the current version of Next.js being used
+       */
+      nextVersion: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
