@@ -31,8 +31,9 @@ impl Version for EcmascriptDevChunkListVersion {
             let mut by_path = self
                 .by_path
                 .iter()
+                .map(|(path, version)| (path, TraitRef::cell(version.clone())))
                 .map(|(path, version)| async move {
-                    let id = TraitRef::cell(version.clone()).id().owned().await?;
+                    let id = version.id().owned().await?;
                     Ok((path, id))
                 })
                 .try_join()
@@ -44,9 +45,7 @@ impl Version for EcmascriptDevChunkListVersion {
             let mut by_merger = self
                 .by_merger
                 .iter()
-                .map(|(_merger, version)| async move {
-                    TraitRef::cell(version.clone()).id().owned().await
-                })
+                .map(|(_merger, version)| TraitRef::cell(version.clone()).id().owned())
                 .try_join()
                 .await?;
             by_merger.sort();
