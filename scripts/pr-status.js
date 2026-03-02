@@ -413,7 +413,7 @@ function resolveThread(threadId) {
   const mutation = `
     mutation($threadId: ID!) {
       resolveReviewThread(input: {
-        pullRequestReviewThreadId: $threadId
+        threadId: $threadId
       }) {
         thread {
           id
