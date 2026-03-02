@@ -34,9 +34,9 @@ turbobail!("asset {} is not in path {}", asset.ident(), base_path);
 
 ## `#[derive(ValueToString)]`
 
-Generates an async `to_string()` method returning `Vc<RcStr>`. Fields are
-resolved asynchronously, so `Vc<T>` and `ResolvedVc<T>` fields work directly
-in format strings.
+Generates both `ValueToStringRef` (returning `RcStr`) and `ValueToString`
+(returning `Vc<RcStr>`) impls. Fields are resolved asynchronously, so `Vc<T>`
+and `ResolvedVc<T>` fields work directly in format strings.
 
 **No attribute** — delegates to `Display::to_string()`:
 
@@ -99,13 +99,16 @@ pub trait ValueToString {
 When a value is used in `turbofmt!` or `turbobail!`, it is resolved using the
 first matching rule (highest priority first):
 
-| Priority | Type                       | Resolution                                 |
-| -------- | -------------------------- | ------------------------------------------ |
-| 1        | `ValueToString` impl       | Derive-generated async body                |
-| 2        | `ValueToStringRef` impl    | Awaits `ValueToStringRef::to_string_ref()` |
-| 3        | Owned value with `Display` | Synchronous `Display::to_string()`         |
+| Priority | Type                      | Resolution                                 |
+| -------- | ------------------------- | ------------------------------------------ |
+| 1        | `ValueToStringRef` impl   | Awaits `ValueToStringRef::to_string_ref()` |
+| 2        | `Vc<T>` / `ResolvedVc<T>` | Awaits `ValueToString::to_string()`        |
+| 3        | `Display` impl            | Synchronous `Display::to_string()`         |
 
-This means `#[derive(ValueToString)]` takes priority over `Display` for owned
-values. A type can implement `Display` for a short synchronous representation
-while `ValueToString` provides a richer async format. `Display` is still used
-in synchronous contexts like `format!()`.
+`#[derive(ValueToString)]` generates both `ValueToStringRef` and
+`ValueToString` impls, so derived types resolve at priority 1 when used as
+owned values and at priority 2 when used behind `Vc`/`ResolvedVc`.
+
+A type may implement `Display` for a short synchronous representation while
+`ValueToStringRef` provides a richer async format, but this is strongly discouraged
+and causes confusion. In general, only the sync _XOR_ async formatting functions should be implemented.
