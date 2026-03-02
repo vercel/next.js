@@ -337,6 +337,8 @@ Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will auto
   height="768"
 />
 
+> **Good to know**: `loading.js` does not wrap the layout itself. If the layout is dynamic (e.g. uses `cookies()` or `headers()`), the navigation will block until the layout finishes rendering and `loading.js` will not be shown. Move dynamic work to `page.js` or wrap it in its own [`<Suspense>`](#with-suspense) boundary. See [`loading.js`](/docs/app/api-reference/file-conventions/loading) for details.
+
 This approach works well for route segments (layouts and pages), but for more granular streaming, you can use `<Suspense>`.
 
 ### With `<Suspense>`

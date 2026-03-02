@@ -83,6 +83,10 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
   height="768"
 />
 
+> **Good to know**: `loading.js` wraps `page.js` and any `children` below, but it does **not** wrap the `layout.js` in the same segment. If the layout itself performs dynamic work (e.g. calling `cookies()`, `headers()`, or making uncached data requests), the navigation will block until the layout finishes rendering — and `loading.js` will not be shown.
+>
+> To ensure instant navigation, move dynamic data fetching from `layout.js` into `page.js`, or wrap async parts of your layout in their own `<Suspense>` boundary. See [Interaction with `loading.js`](/docs/app/api-reference/file-conventions/layout#interaction-with-loadingjs) for more details.
+
 ### SEO
 
 - For bots that only scrape static HTML, and cannot execute JavaScript like a full browser, such as Twitterbot, Next.js resolves [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) before streaming UI, and metadata is placed in the `<head>` of the initial HTML.
