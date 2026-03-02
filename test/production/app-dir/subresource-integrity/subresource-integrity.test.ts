@@ -183,7 +183,13 @@ describe('Subresource Integrity', () => {
             (clientModule) =>
               clientModule.chunks
                 .filter((c) => c.includes('.js'))
-                .map((c) => clientReferenceManifest.moduleLoading.prefix + c)
+                .map(
+                  (c) =>
+                    new URL(
+                      clientReferenceManifest.moduleLoading.prefix + c,
+                      'http://localhost'
+                    ).pathname
+                )
           )
         )
 

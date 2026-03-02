@@ -1,20 +1,23 @@
 'use client'
 
-import React, { type JSX } from 'react'
+import React, { startTransition, type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { HandleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
+import {
+  AppRouterContext,
+  type AppRouterInstance,
+} from '../../shared/lib/app-router-context.shared-runtime'
 
 const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
-  // global-error, there's no `reset` function;
-  // regular error boundary, there's a `reset` function.
-  reset?: () => void
+  reset: () => void
+  unstable_retry: () => void
 }>
 
 export interface ErrorBoundaryProps {
@@ -38,9 +41,15 @@ export class ErrorBoundaryHandler extends React.Component<
   ErrorBoundaryHandlerProps,
   ErrorBoundaryHandlerState
 > {
+  static contextType = AppRouterContext
+  declare context: AppRouterInstance | null
+
   constructor(props: ErrorBoundaryHandlerProps) {
     super(props)
-    this.state = { error: null, previousPathname: this.props.pathname }
+    this.state = {
+      error: null,
+      previousPathname: this.props.pathname,
+    }
   }
 
   static getDerivedStateFromError(error: Error) {
@@ -95,6 +104,13 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
+  unstable_retry = () => {
+    startTransition(() => {
+      this.context?.refresh()
+      this.reset()
+    })
+  }
+
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
     //When it's bot request, segment level error boundary will keep rendering the children,
@@ -108,6 +124,7 @@ export class ErrorBoundaryHandler extends React.Component<
           <this.props.errorComponent
             error={this.state.error}
             reset={this.reset}
+            unstable_retry={this.unstable_retry}
           />
         </>
       )

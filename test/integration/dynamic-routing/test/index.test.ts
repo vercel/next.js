@@ -1582,8 +1582,6 @@ function runTests({ dev }) {
   }
 }
 
-const nextConfig = join(appDir, 'next.config.js')
-
 describe('Dynamic Routing', () => {
   if (process.env.__MIDDLEWARE_TEST) {
     const middlewarePath = join(__dirname, '../middleware.js')
@@ -1606,8 +1604,6 @@ describe('Dynamic Routing', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(nextConfig)
-
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
         buildId = 'development'
@@ -1621,13 +1617,15 @@ describe('Dynamic Routing', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(nextConfig)
-
-        await nextBuild(appDir)
+        await nextBuild(appDir, undefined, {
+          disableAutoSkewProtection: true,
+        })
         buildId = await fs.readFile(buildIdPath, 'utf8')
 
         appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+        app = await nextStart(appDir, appPort, {
+          disableAutoSkewProtection: true,
+        })
       })
       afterAll(() => killApp(app))
 

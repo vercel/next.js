@@ -5,7 +5,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
-use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
+use crate::{GLOBAL_ENV_LOCK, ProcessEnv, TransientEnvMap, sorted_env_vars};
 
 /// Load the environment variables defined via a dotenv file, with an
 /// optional prior state that we can lookup already defined variables
@@ -24,15 +24,18 @@ impl DotenvProcessEnv {
     }
 
     #[turbo_tasks::function]
-    pub fn read_prior(&self) -> Vc<EnvMap> {
+    pub fn read_prior(&self) -> Vc<TransientEnvMap> {
         match self.prior {
-            None => EnvMap::empty(),
+            None => TransientEnvMap::empty(),
             Some(p) => p.read_all(),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn read_all_with_prior(&self, prior: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
+    pub async fn read_all_with_prior(
+        &self,
+        prior: Vc<TransientEnvMap>,
+    ) -> Result<Vc<TransientEnvMap>> {
         let prior = prior.await?;
 
         let file = self.path.read().await?;
@@ -77,7 +80,7 @@ impl DotenvProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for DotenvProcessEnv {
     #[turbo_tasks::function]
-    fn read_all(self: Vc<Self>) -> Vc<EnvMap> {
+    fn read_all(self: Vc<Self>) -> Vc<TransientEnvMap> {
         let prior = self.read_prior();
         self.read_all_with_prior(prior)
     }

@@ -5,7 +5,7 @@ module.exports = 'turbopack';
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)", ((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/vercel.fad5a703.cjs");}),
+__turbopack_context__.q("/static/vercel.216e8e39.cjs");}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
 
 __turbopack_context__.v(function(Ctor, opts) {
@@ -14,7 +14,7 @@ __turbopack_context__.v(function(Ctor, opts) {
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)", ((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/ignore-worker.4e0cf842.cjs");}),
+__turbopack_context__.q("/static/ignore-worker.ce2a21fa.cjs");}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

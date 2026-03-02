@@ -1,6 +1,7 @@
+/* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
 'use client'
 
-import type { ReactNode } from 'react'
+import { createContext, type ReactNode } from 'react'
 import { INSTANT_VALIDATION_BOUNDARY_NAME } from './boundary-constants'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
@@ -55,7 +56,46 @@ const NameSpace = {
   },
 }
 
-export const InstantValidationBoundary =
+type BoundaryPlacement =
+  | null // do not place here
+  | string // boundaryId -- place here
+
+export const InstantValidationBoundaryContext =
+  createContext<BoundaryPlacement>(null)
+
+export function PlaceValidationBoundaryBelowThisLevel({
+  id,
+  children,
+}: {
+  id: string
+  children: ReactNode
+}) {
+  return (
+    // OuterLayoutRouter will see this and render a `RenderValidationBoundaryAtThisLevel`.
+    <InstantValidationBoundaryContext value={id}>
+      {children}
+    </InstantValidationBoundaryContext>
+  )
+}
+
+export function RenderValidationBoundaryAtThisLevel({
+  id,
+  children,
+}: {
+  id: string
+  children: ReactNode
+}) {
+  // We got a boundaryId from the context. Clear the context so that the children don't render another boundary.
+  return (
+    <InstantValidationBoundary id={id}>
+      <InstantValidationBoundaryContext value={null}>
+        {children}
+      </InstantValidationBoundaryContext>
+    </InstantValidationBoundary>
+  )
+}
+
+const InstantValidationBoundary =
   // We use slice(0) to trick the bundler into not inlining/minifying the function
   // so it retains the name inferred from the namespace object
   NameSpace[

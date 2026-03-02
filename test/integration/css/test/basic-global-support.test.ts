@@ -564,8 +564,8 @@ module.exports = {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
-             .red-text{color:red;background-image:url(../media/dark.656fe8ee.svg),url(../media/dark2.656fe8ee.svg)}
-             .blue-text{color:orange;background-image:url(../media/light.750c956a.svg);font-weight:bolder}
+             .red-text{color:red;background-image:url(../media/dark.3ca0d560.svg),url(../media/dark2.3ca0d560.svg)}
+             .blue-text{color:orange;background-image:url(../media/light.c5f50e38.svg);font-weight:bolder}
              .blue-text{color:#00f}",
              ]
             `)
@@ -573,8 +573,8 @@ module.exports = {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
-             .red-text{color:red;background-image:url(../media/dark.656fe8ee.svg),url(../media/dark2.656fe8ee.svg)}
-             .blue-text{color:orange;background-image:url(../media/light.750c956a.svg);font-weight:bolder}
+             .red-text{color:red;background-image:url(../media/dark.3ca0d560.svg),url(../media/dark2.3ca0d560.svg)}
+             .blue-text{color:orange;background-image:url(../media/light.c5f50e38.svg);font-weight:bolder}
              .blue-text{color:#00f}",
              ]
             `)
@@ -640,8 +640,8 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
           expect(cssContent).toMatchInlineSnapshot(`
            [
              "/_next/static/chunks/HASH.css:
-           .red-text{color:red;background-image:url(../media/dark.656fe8ee.svg) url(../media/dark2.656fe8ee.svg)}
-           .blue-text{color:orange;background-image:url(../media/light.750c956a.svg);font-weight:bolder}
+           .red-text{color:red;background-image:url(../media/dark.3ca0d560.svg) url(../media/dark2.3ca0d560.svg)}
+           .blue-text{color:orange;background-image:url(../media/light.c5f50e38.svg);font-weight:bolder}
            .blue-text{color:#00f}",
            ]
           `)
@@ -692,8 +692,8 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
           expect(cssContent).toMatchInlineSnapshot(`
            [
              "/_next/static/chunks/HASH.css:
-           .red-text{color:red;background-image:url(../media/dark.656fe8ee.svg) url(../media/dark2.656fe8ee.svg)}
-           .blue-text{color:orange;background-image:url(../media/light.750c956a.svg);font-weight:bolder}
+           .red-text{color:red;background-image:url(../media/dark.3ca0d560.svg) url(../media/dark2.3ca0d560.svg)}
+           .blue-text{color:orange;background-image:url(../media/light.c5f50e38.svg);font-weight:bolder}
            .blue-text{color:#00f}",
            ]
           `)
@@ -718,12 +718,13 @@ async function getStylesheetContents($, appPort, items) {
     const res = await fetchViaHTTP(appPort, href)
     if (res.status !== 200)
       throw new Error(`Failed to load stylesheet: ${href}`)
+    const pathname = new URL(href, `http://localhost:${appPort}`).pathname
     const text = await res.text()
     results.push(
-      `${href.replace(
-        /[0-9a-f]{8,}/g,
-        'HASH'
-      )}:\n${text.replace(/\/\*.*?\*\/\n?/g, '').trim()}`
+      `${pathname.replace(/[0-9a-f]{8,}/g, 'HASH')}:\n${text
+        .replace(/\/\*.*?\*\/\n?/g, '')
+        .replace(/(\?dpl=[^)"']+)/g, '')
+        .trim()}`
     )
   }
   return results
