@@ -50,6 +50,8 @@ export default defineConfig([
         ...globals.commonjs,
         ...globals.node,
         ...globals.jest,
+        __turbopack_emit__: true,
+        __turbopack_collect__: true,
       },
       parser: babelParser,
       ecmaVersion: 2020,

@@ -41,6 +41,18 @@ fn traced_reference_ty() -> RcStr {
     rcstr!("traced reference")
 }
 
+fn per_entry_reference_ty() -> RcStr {
+    rcstr!("per entry reference")
+}
+
+fn emitted_reference_ty() -> RcStr {
+    rcstr!("emitted reference")
+}
+
+fn collected_reference_ty() -> RcStr {
+    rcstr!("collected reference")
+}
+
 #[turbo_tasks::function]
 pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> {
     Ok(match &*content.await? {
@@ -82,6 +94,9 @@ pub async fn children_from_module_references(
             Some(ChunkingType::Isolated { .. }) => isolated_reference_ty(),
             Some(ChunkingType::Shared { .. }) => shared_reference_ty(),
             Some(ChunkingType::Traced { .. }) => traced_reference_ty(),
+            Some(ChunkingType::Emitted { .. }) => emitted_reference_ty(),
+            Some(ChunkingType::Collected { .. }) => collected_reference_ty(),
+            Some(ChunkingType::PerEntry) => per_entry_reference_ty(),
         };
 
         for &module in reference
