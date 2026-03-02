@@ -25,6 +25,9 @@ const bfcacheMap: CacheMap<BFCacheEntry> = createCacheMap()
 let currentBfCacheVersion = 0
 
 export function invalidateBfCache(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
   currentBfCacheVersion++
 }
 
@@ -36,6 +39,10 @@ export function writeToBFCache(
   head: React.ReactNode,
   prefetchHead: React.ReactNode
 ): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
   const entry: BFCacheEntry = {
     rsc,
     prefetchRsc,
@@ -75,6 +82,9 @@ export function writeHeadToBFCache(
 export function readFromBFCache(
   varyPath: SegmentVaryPath
 ): BFCacheEntry | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
   const isRevalidation = false
   return getFromCacheMap(
     // During a back/forward navigation, it doesn't matter how stale the data
@@ -92,6 +102,9 @@ export function readFromBFCacheDuringRegularNavigation(
   now: number,
   varyPath: SegmentVaryPath
 ): BFCacheEntry | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
   const isRevalidation = false
   return getFromCacheMap(
     now,
