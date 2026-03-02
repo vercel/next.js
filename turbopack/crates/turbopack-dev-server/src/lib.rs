@@ -32,7 +32,7 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, apply_effects,
+    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, get_effects,
     run_once_with_reason, trace::TraceRawVcs, util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
@@ -209,9 +209,20 @@ impl DevServerBuilder {
                             let uri = request.uri();
                             let path = uri.path().to_string();
                             let source_op = source_provider.get_source();
+                            #[turbo_tasks::function(operation)]
+                            async fn get_effects_operation(
+                                source_op: OperationVc<Box<dyn ContentSource>>,
+                            ) -> Result<Vc<Effects>> {
+                                let _ = source_op.read_trait_strongly_consistent().await?;
+                                Ok(get_effects(source_op).await?.cell())
+                            }
                             // HACK: Resolve `source` now so that we can get any issues on it
                             let _ = source_op.resolve_strongly_consistent().await?;
-                            apply_effects(source_op).await?;
+                            get_effects_operation(source_op)
+                                .read_strongly_consistent()
+                                .await?
+                                .apply()
+                                .await?;
                             handle_issues(
                                 source_op,
                                 issue_reporter,
