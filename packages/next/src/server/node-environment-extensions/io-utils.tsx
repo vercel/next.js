@@ -1,6 +1,9 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
+import {
+  abortOnSynchronousPlatformIOAccess,
+  abortAndThrowOnSynchronousPlatformIOAccess,
+} from '../app-render/dynamic-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -145,7 +148,45 @@ export function io(expression: string, type: ApiType) {
         }
       }
       break
-    case 'validation-client':
+    case 'validation-client': {
+      // In static shell validation, sync IO in Client Components should abort
+      // and throw to interrupt the render. The throw ensures React calls onError
+      // so the error is tracked via trackDynamicHoleInNavigation.
+      // In regular instant validation, sync IO is allowed because prefetches
+      // won't render the Client Components.
+      if (workUnitStore.isStaticShellValidation) {
+        const prerenderSignal = workUnitStore.controller.signal
+
+        if (prerenderSignal.aborted === false) {
+          // If the prerender signal is already aborted we don't need to construct
+          // any stacks because something else actually terminated the prerender.
+          let message: string
+          switch (type) {
+            case 'time':
+              message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client`
+              break
+            case 'random':
+              message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-random-client`
+              break
+            case 'crypto':
+              message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto-client`
+              break
+            default:
+              throw new InvariantError(
+                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
+              )
+          }
+
+          abortAndThrowOnSynchronousPlatformIOAccess(
+            workStore.route,
+            expression,
+            applyOwnerStack(new Error(message)),
+            workUnitStore
+          )
+        }
+      }
+      break
+    }
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':

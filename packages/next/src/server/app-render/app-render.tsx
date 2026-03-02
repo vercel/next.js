@@ -3883,61 +3883,68 @@ async function spawnStaticShellValidationInDevImpl(
     ctx
   )
 
-  debug?.(`Starting static shell validation...`)
-
-  const runtimeResult = await validateStagedShell(
-    runtimeChunks,
-    dynamicChunks,
-    debugChunks,
-    runtimeStageEndTime,
-    rootParams,
-    fallbackRouteParams,
-    allowEmptyStaticShell,
-    ctx,
-    hmrRefreshHash,
-    trackDynamicHoleInRuntimeShell
-  )
-
-  if (runtimeResult.length > 0) {
-    debug?.(`❌ Failed - ${runtimeResult.length} errors from runtime stage`)
-    // We have something to report from the runtime validation
-    // We can skip the rest
-    return logMessagesAndSendErrorsToBrowser(runtimeResult, ctx)
-  }
-
-  const staticResult = await validateStagedShell(
-    staticChunks,
-    dynamicChunks,
-    debugChunks,
-    staticStageEndTime,
-    rootParams,
-    fallbackRouteParams,
-    allowEmptyStaticShell,
-    ctx,
-    hmrRefreshHash,
-    trackDynamicHoleInStaticShell
-  )
-
-  if (staticResult.length > 0) {
-    debug?.(`❌ Failed - ${staticResult.length} errors from static stage`)
-    // We have something to report from the static validation
-    // We can skip the rest
-    return logMessagesAndSendErrorsToBrowser(staticResult, ctx)
-  }
-  debug?.(`✅ Passed`)
-
   if (needsInstantValidation) {
+    // When instant validation is active, static shell validation can also
+    // be handled within this process as simulating the navigation from a
+    // `null` parent.
     const instantConfigsResult = await validateInstantConfigs(
       accumulatedChunks,
       debugChunks,
       startTime,
       rootParams,
       ctx,
-      hmrRefreshHash
+      hmrRefreshHash,
+      fallbackRouteParams,
+      allowEmptyStaticShell
     )
     if (instantConfigsResult.length > 0) {
       return logMessagesAndSendErrorsToBrowser(instantConfigsResult, ctx)
     }
+  } else {
+    // Static shell validation path is still used when instant validation
+    // infrastructure isn't available.
+    debug?.(`Starting static shell validation...`)
+
+    const runtimeResult = await validateStagedShell(
+      runtimeChunks,
+      dynamicChunks,
+      debugChunks,
+      runtimeStageEndTime,
+      rootParams,
+      fallbackRouteParams,
+      allowEmptyStaticShell,
+      ctx,
+      hmrRefreshHash,
+      trackDynamicHoleInRuntimeShell
+    )
+
+    if (runtimeResult.length > 0) {
+      debug?.(`❌ Failed - ${runtimeResult.length} errors from runtime stage`)
+      // We have something to report from the runtime validation
+      // We can skip the rest
+      return logMessagesAndSendErrorsToBrowser(runtimeResult, ctx)
+    }
+
+    const staticResult = await validateStagedShell(
+      staticChunks,
+      dynamicChunks,
+      debugChunks,
+      staticStageEndTime,
+      rootParams,
+      fallbackRouteParams,
+      allowEmptyStaticShell,
+      ctx,
+      hmrRefreshHash,
+      trackDynamicHoleInStaticShell
+    )
+
+    if (staticResult.length > 0) {
+      debug?.(`❌ Failed - ${staticResult.length} errors from static stage`)
+      // We have something to report from the static validation
+      // We can skip the rest
+      return logMessagesAndSendErrorsToBrowser(staticResult, ctx)
+    }
+    debug?.(`✅ Passed`)
   }
 }
 
@@ -4011,6 +4018,10 @@ async function warmupClientModulesForStagedValidationInDev(
       varyParamsAccumulator: null,
       // We're not rendering any validation boundaries yet.
       boundaryState: null,
+      // We're not validating any static shell yet.
+      isStaticShellValidation: false,
+      fallbackRouteParams: null,
+      allowEmptyStaticShell: false,
     }
     initialClientPrerenderStore = store
   }
@@ -4279,7 +4290,9 @@ async function validateInstantConfigs(
   startTime: number,
   rootParams: Params,
   ctx: AppRenderContext,
-  hmrRefreshHash: string | undefined
+  hmrRefreshHash: string | undefined,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  allowEmptyStaticShell: boolean
 ): Promise<Array<unknown>> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -4339,6 +4352,63 @@ async function validateInstantConfigs(
   const getCreateInstantStackForSegment = (
     segmentPath: InstantValidation.SegmentPath
   ) => treeNodes.get(segmentPath)?.module?.createInstantStack ?? null
+
+  // Static shell validation inside instant validation: validate the static shell
+  // as a navigation with null parent.
+  debug?.('Starting static shell validation inside instant validation...')
+  const shellStaticResult = await validateInstantConfigNavigation(
+    initialRscPayload,
+    cache,
+    startTime,
+    stageEndTimes,
+    rootParams,
+    ctx,
+    hmrRefreshHash,
+    validationRouteTree,
+    null, // navigationParent = null (entire tree is new)
+    false, // useRuntimeStageForPartialSegments
+    null, // createInstantStack
+    {
+      isStaticShellValidation: true,
+      fallbackRouteParams,
+      allowEmptyStaticShell,
+    }
+  )
+  if (shellStaticResult.errors.length > 0) {
+    if (shellStaticResult.dynamicHoleKind !== DynamicHoleKind.Dynamic) {
+      // Retry with runtime stage to discriminate runtime vs dynamic holes
+      debug?.('Retrying static shell validation to gather more info...')
+      const shellRuntimeResult = await validateInstantConfigNavigation(
+        initialRscPayload,
+        cache,
+        startTime,
+        stageEndTimes,
+        rootParams,
+        ctx,
+        hmrRefreshHash,
+        validationRouteTree,
+        null,
+        true, // useRuntimeStageForPartialSegments
+        null,
+        {
+          isStaticShellValidation: true,
+          fallbackRouteParams,
+          allowEmptyStaticShell,
+        }
+      )
+      if (shellRuntimeResult.errors.length > 0) {
+        debug?.(
+          `❌ Static shell validation inside instant validation failed after runtime retry (${shellRuntimeResult.errors.length} errors)`
+        )
+        return shellRuntimeResult.errors
+      }
+    }
+    debug?.(
+      `❌ Static shell validation inside instant validation failed (${shellStaticResult.errors.length} errors)`
+    )
+    return shellStaticResult.errors
+  }
+  debug?.('✅ Static shell validation inside instant validation passed')
 
   for (const { parents, target } of validationTasks) {
     const createInstantStack = getCreateInstantStackForSegment(target)
@@ -4412,9 +4482,14 @@ async function validateInstantConfigNavigation(
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined,
   routeTree: InstantValidation.RouteTree,
-  navigationParent: InstantValidation.SegmentPath,
+  navigationParent: InstantValidation.SegmentPath | null,
   useRuntimeStageForPartialSegments: boolean,
-  createInstantStack: (() => Error) | null
+  createInstantStack: (() => Error) | null,
+  staticShellValidationOptions?: {
+    isStaticShellValidation: boolean
+    fallbackRouteParams: OpaqueFallbackRouteParams | null
+    allowEmptyStaticShell: boolean
+  }
 ): Promise<{ dynamicHoleKind: DynamicHoleKind; errors: Array<unknown> }> {
   const { implicitTags, nonce, workStore } = ctx
   const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
@@ -4430,7 +4505,14 @@ async function validateInstantConfigNavigation(
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
-  const dynamicValidation = createInstantValidationState(createInstantStack)
+  const isStaticShellValidation =
+    staticShellValidationOptions?.isStaticShellValidation ?? false
+  const dynamicValidation = createInstantValidationState({
+    createInstantStack,
+    isStaticShellValidation,
+    allowEmptyStaticShell:
+      staticShellValidationOptions?.allowEmptyStaticShell ?? false,
+  })
   const boundaryState = createValidationBoundaryTracking()
 
   const finalClientPrerenderStore: PrerenderStore = {
@@ -4454,6 +4536,11 @@ async function validateInstantConfigNavigation(
     // We don't need to track vary params during validation.
     varyParamsAccumulator: null,
     boundaryState,
+    isStaticShellValidation,
+    fallbackRouteParams:
+      staticShellValidationOptions?.fallbackRouteParams ?? null,
+    allowEmptyStaticShell:
+      staticShellValidationOptions?.allowEmptyStaticShell ?? false,
   }
 
   const clientReferenceManifest = getClientReferenceManifest()
@@ -4472,7 +4559,8 @@ async function validateInstantConfigNavigation(
           clientReferenceManifest,
           stageEndTimes,
           useRuntimeStageForPartialSegments,
-          usedSegmentKinds
+          usedSegmentKinds,
+          isStaticShellValidation
         ),
       clientReactController.signal, // release chunks before the abort
       clientReferenceManifest,

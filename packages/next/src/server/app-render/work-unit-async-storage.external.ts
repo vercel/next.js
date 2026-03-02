@@ -149,6 +149,10 @@ export interface PrerenderStoreModernClient
 export interface ValidationStoreClient extends PrerenderStoreModernCommon {
   readonly type: 'validation-client'
   readonly boundaryState: ValidationBoundaryTracking | null
+  // When true, this validation store is used for static shell validation via instant validation.
+  readonly isStaticShellValidation: boolean
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
+  readonly allowEmptyStaticShell: boolean
   // When we implement build validation, the store will contain e.g. cookies
   // and other values derived from samples.
 }
