@@ -53,7 +53,7 @@ export function useActionQueue(
   // of the router state that represents the eventual target if/when the gesture
   // completes. Otherwise it returns the canonical state.
   const [state, setGesture] = useOptimistic(canonicalState)
-  if (typeof window === 'undefined') {
+  if (typeof window !== 'undefined') {
     setGestureRouterState = setGesture
   }
 
@@ -82,7 +82,7 @@ export function useActionQueue(
       actionQueue.dispatch(action, setState)
   }
 
-  if (typeof window === 'undefined') {
+  if (typeof window !== 'undefined') {
     dispatch = nextDispatch
   }
 
