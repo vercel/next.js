@@ -122,12 +122,12 @@ async function runTest(
 
   // First build
   next.env['NEXT_DEPLOYMENT_ID'] = 'foo-dpl-id'
-  await next.build()
+  expect((await next.build()).exitCode).toBe(0)
   let run1 = await readFiles(next)
 
   // Second build
   next.env['NEXT_DEPLOYMENT_ID'] = 'bar-dpl-id'
-  await next.build()
+  expect((await next.build()).exitCode).toBe(0)
   let run2 = await readFiles(next)
 
   // First, compare file names
