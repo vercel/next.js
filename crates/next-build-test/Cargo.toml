@@ -27,4 +27,4 @@ turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 turbopack-trace-utils = { workspace = true }
-
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}

@@ -876,7 +876,7 @@ fn test_debug_instant_stack(input: PathBuf) {
 
     test_fixture(
         syntax(),
-        &|_| debug_instant_stack(),
+        &|_| debug_instant_stack("app/page.js".to_string()),
         &input,
         &output,
         FixtureTestConfig {

@@ -85,6 +85,7 @@ async function requestHandler(
     interceptionRoutePatterns,
     routerServerContext,
     deploymentId,
+    clientAssetToken,
   } = prepareResult
 
   // Initialize the cache handlers interface.
@@ -107,6 +108,7 @@ async function requestHandler(
     sharedContext: {
       buildId,
       deploymentId,
+      clientAssetToken,
     },
     fallbackRouteParams: null,
 
@@ -161,6 +163,7 @@ async function requestHandler(
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),

@@ -509,6 +509,7 @@ async function exportAppImpl(
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
+      prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
@@ -704,6 +705,9 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
+            clientAssetToken:
+              nextConfig.experimental.immutableAssetToken ||
+              nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
