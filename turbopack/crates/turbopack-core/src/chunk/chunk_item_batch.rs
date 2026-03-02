@@ -11,7 +11,10 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{
+        ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext,
+        chunking_context::ChunkingContextExt,
+    },
     module_graph::{
         ModuleGraph,
         async_module_info::AsyncModulesInfo,
@@ -37,8 +40,8 @@ pub async fn attach_async_info_to_chunkable_module(
     } else {
         None
     };
-    let chunk_item = module
-        .as_chunk_item(module_graph, chunking_context)
+    let chunk_item = chunking_context
+        .chunk_item(Vc::upcast(*module), module_graph)
         .to_resolved()
         .await?;
     Ok(ChunkItemWithAsyncModuleInfo {

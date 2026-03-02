@@ -8,7 +8,7 @@ use tracing::Level;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString};
 
 use crate::chunk::{
-    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+    ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
     chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
 };
 

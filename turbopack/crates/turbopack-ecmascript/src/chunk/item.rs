@@ -11,7 +11,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+        AsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkedItem, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder},
@@ -206,7 +206,7 @@ pub struct EcmascriptChunkItemWithAsyncInfo {
 }
 
 impl EcmascriptChunkItemWithAsyncInfo {
-    pub fn from_chunk_item(
+    pub async fn from_chunk_item(
         chunk_item: &ChunkItemWithAsyncModuleInfo,
     ) -> Result<EcmascriptChunkItemWithAsyncInfo> {
         let ChunkItemWithAsyncModuleInfo {
@@ -214,8 +214,8 @@ impl EcmascriptChunkItemWithAsyncInfo {
             module: _,
             async_info,
         } = chunk_item;
-        let Some(chunk_item) =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
+        let inner: ResolvedVc<Box<dyn ChunkedItem>> = *chunk_item.await?;
+        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(inner)
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
@@ -227,7 +227,7 @@ impl EcmascriptChunkItemWithAsyncInfo {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
+pub trait EcmascriptChunkItem: ChunkedItem + OutputAssetsReference {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
 
@@ -316,19 +316,17 @@ pub fn ecmascript_chunk_item(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-) -> Vc<Box<dyn ChunkItem>> {
-    Vc::upcast(
-        EcmascriptModuleChunkItem {
-            module,
-            chunking_context,
-            module_graph,
-        }
-        .cell(),
-    )
+) -> Vc<EcmascriptModuleChunkItem> {
+    EcmascriptModuleChunkItem {
+        module,
+        chunking_context,
+        module_graph,
+    }
+    .cell()
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for EcmascriptModuleChunkItem {
+impl ChunkedItem for EcmascriptModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()

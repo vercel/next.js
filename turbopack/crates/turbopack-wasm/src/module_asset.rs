@@ -3,9 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, chunk_group::references_to_output_assets,
-    },
+    chunk::{AsyncModuleInfo, ChunkingContext, chunk_group::references_to_output_assets},
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects, OptionModule},
@@ -17,10 +15,7 @@ use turbopack_core::{
     source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
-    chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
-    },
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports},
     references::async_module::OptionAsyncModule,
 };
 
@@ -152,17 +147,7 @@ impl Module for WebAssemblyModuleAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for WebAssemblyModuleAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(WebAssemblyModuleAsset, ecmascript);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {

@@ -8,8 +8,8 @@ use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
-        ChunkingType, ChunkingTypeOption,
+        AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule, ChunkedItem,
+        ChunkingContext, ChunkingContextExt, ChunkingType, ChunkingTypeOption,
     },
     code_builder::CodeBuilder,
     context::AssetContext,
@@ -256,22 +256,21 @@ impl ChunkableModule for EcmascriptClientReferenceModule {
         self: ResolvedVc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        let item = self
-            .proxy_module()
-            .as_chunk_item(module_graph, *chunking_context);
-        let ecmascript_item =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(item.to_resolved().await?)
-                .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
+    ) -> Result<Vc<ChunkItem>> {
+        let item = chunking_context.chunk_item(Vc::upcast(self.proxy_module()), module_graph);
+        let inner: ResolvedVc<Box<dyn ChunkedItem>> = *item.await?;
+        let ecmascript_item = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(inner)
+            .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
-        Ok(Vc::upcast(
+        let chunked: Vc<Box<dyn ChunkedItem>> = Vc::upcast(
             EcmascriptClientReferenceProxyChunkItem {
                 inner_module: self,
                 inner_chunk_item: ecmascript_item,
                 chunking_context,
             }
             .cell(),
-        ))
+        );
+        Ok(ChunkItem::from_trait(chunked))
     }
 }
 
@@ -309,7 +308,7 @@ struct EcmascriptClientReferenceProxyChunkItem {
 impl OutputAssetsReference for EcmascriptClientReferenceProxyChunkItem {}
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for EcmascriptClientReferenceProxyChunkItem {
+impl ChunkedItem for EcmascriptClientReferenceProxyChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.inner_module.ident()

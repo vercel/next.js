@@ -4,7 +4,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{AsyncModuleInfo, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -12,10 +12,7 @@ use turbopack_core::{
     source::OptionSource,
 };
 use turbopack_ecmascript::{
-    chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
-    },
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports},
     references::esm::EsmExports,
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
@@ -71,17 +68,7 @@ impl Module for NextServerUtilityModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModule for NextServerUtilityModule {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
+turbopack_core::chunk_item!(NextServerUtilityModule, ecmascript);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for NextServerUtilityModule {

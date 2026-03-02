@@ -29,7 +29,7 @@ pub struct ModuleIdStrategy {
 }
 
 impl ModuleIdStrategy {
-    pub async fn get_id(&self, chunk_item: Vc<Box<dyn ChunkItem>>) -> Result<ModuleId> {
+    pub async fn get_id(&self, chunk_item: Vc<ChunkItem>) -> Result<ModuleId> {
         let ident = chunk_item.asset_ident();
         self.get_id_from_ident(ident).await
     }

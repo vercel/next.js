@@ -3,7 +3,9 @@ use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -428,7 +430,7 @@ pub trait ChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
-    ) -> Vc<Box<dyn ChunkItem>>;
+    ) -> Vc<ChunkItem>;
     #[turbo_tasks::function]
     fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn ChunkableModule>>)
     -> Vc<AssetIdent>;
@@ -578,6 +580,15 @@ pub trait ChunkingContextExt {
     fn relative_path_from_chunk_root_to_project_root(self: Vc<Self>) -> Vc<RcStr>
     where
         Self: Send;
+
+    /// Creates a chunk item from a module. The module must implement `ChunkableModule`.
+    fn chunk_item(
+        self: Vc<Self>,
+        module: Vc<Box<dyn Module>>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Vc<ChunkItem>
+    where
+        Self: Send;
 }
 
 impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingContextExt for T {
@@ -696,6 +707,30 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn relative_path_from_chunk_root_to_project_root(self: Vc<Self>) -> Vc<RcStr> {
         relative_path_from_chunk_root_to_project_root(Vc::upcast_non_strict(self))
     }
+
+    fn chunk_item(
+        self: Vc<Self>,
+        module: Vc<Box<dyn Module>>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Vc<ChunkItem> {
+        chunk_item(Vc::upcast_non_strict(self), module, module_graph)
+    }
+}
+
+#[turbo_tasks::function]
+async fn chunk_item(
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: Vc<Box<dyn Module>>,
+    module_graph: Vc<ModuleGraph>,
+) -> Result<Vc<ChunkItem>> {
+    let module = module.to_resolved().await?;
+    let Some(chunkable) = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module) else {
+        bail!(
+            "Module {} is not chunkable",
+            module.ident().to_string().await?
+        );
+    };
+    Ok(chunkable.as_chunk_item(module_graph, chunking_context))
 }
 
 #[turbo_tasks::function]

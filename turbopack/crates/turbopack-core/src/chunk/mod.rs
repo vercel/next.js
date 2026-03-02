@@ -43,7 +43,7 @@ use crate::{
         ModuleGraph,
         module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
     },
-    output::{OutputAssets, OutputAssetsReference},
+    output::{OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 /// A module id, which can be a number or string
@@ -85,7 +85,45 @@ pub trait ChunkableModule: Module {
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn ChunkItem>>;
+    ) -> Vc<ChunkItem>;
+}
+
+/// Implements `ChunkableModule` for a type that implements `EcmascriptChunkPlaceable`.
+///
+/// Usage:
+///   turbopack_core::chunk_item!(MyModule, ecmascript);
+///
+/// When called from within `turbopack-ecmascript` itself, use the explicit path form:
+///   turbopack_core::chunk_item!(MyModule, crate::chunk::item::ecmascript_chunk_item);
+///
+/// This generates the standard `impl ChunkableModule` that delegates to
+/// `ecmascript_chunk_item()`.
+#[macro_export]
+macro_rules! chunk_item {
+    ($ty:ty, ecmascript) => {
+        turbopack_core::chunk_item!($ty, turbopack_ecmascript::chunk::ecmascript_chunk_item);
+    };
+    ($ty:ty, $chunk_item_fn:path) => {
+        #[turbo_tasks::value_impl]
+        impl turbopack_core::chunk::ChunkableModule for $ty {
+            #[turbo_tasks::function]
+            fn as_chunk_item(
+                self: turbo_tasks::ResolvedVc<Self>,
+                module_graph: turbo_tasks::ResolvedVc<turbopack_core::module_graph::ModuleGraph>,
+                chunking_context: turbo_tasks::ResolvedVc<
+                    Box<dyn turbopack_core::chunk::ChunkingContext>,
+                >,
+            ) -> turbo_tasks::Vc<turbopack_core::chunk::ChunkItem> {
+                turbopack_core::chunk::ChunkItem::from_trait(turbo_tasks::Vc::upcast(
+                    $chunk_item_fn(
+                        turbo_tasks::ResolvedVc::upcast(self),
+                        module_graph,
+                        chunking_context,
+                    ),
+                ))
+            }
+        }
+    };
 }
 
 #[turbo_tasks::value(transparent)]
@@ -389,7 +427,7 @@ pub struct ChunkGroupContent {
 }
 
 #[turbo_tasks::value_trait]
-pub trait ChunkItem: OutputAssetsReference {
+pub trait ChunkedItem: OutputAssetsReference {
     /// The [AssetIdent] of the [Module] that this [ChunkItem] was created from.
     /// For most chunk types this must uniquely identify the chunk item at
     /// runtime as it's the source of the module id used at runtime.
@@ -437,7 +475,7 @@ pub trait ChunkType: ValueToString {
     fn chunk_item_size(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
+        chunk_item: Vc<ChunkItem>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<usize>;
 }
@@ -448,7 +486,60 @@ pub fn round_chunk_item_size(size: usize) -> usize {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
+pub struct ChunkItems(pub Vec<ResolvedVc<ChunkItem>>);
+
+/// A wrapper around a `ResolvedVc<ChunkItem>` that provides direct method access
+/// without needing the `ChunkedItem` trait in scope.
+#[turbo_tasks::value(transparent)]
+pub struct ChunkItem(pub ResolvedVc<Box<dyn ChunkedItem>>);
+
+#[turbo_tasks::value_impl]
+impl ChunkItem {
+    #[turbo_tasks::function]
+    pub async fn from_trait(chunked_item: ResolvedVc<Box<dyn ChunkedItem>>) -> Vc<ChunkItem> {
+        ChunkItem(chunked_item).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        self.0.ty()
+    }
+
+    #[turbo_tasks::function]
+    pub fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.0.asset_ident()
+    }
+
+    #[turbo_tasks::function]
+    pub fn content_ident(&self) -> Vc<AssetIdent> {
+        self.0.content_ident()
+    }
+
+    #[turbo_tasks::function]
+    pub fn module(&self) -> Vc<Box<dyn Module>> {
+        self.0.module()
+    }
+
+    #[turbo_tasks::function]
+    pub fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        self.0.chunking_context()
+    }
+}
+
+impl ChunkItem {
+    pub async fn id(self: Vc<Self>) -> Result<ModuleId> {
+        let this = self.await?;
+        this.id().await
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        self.0.references()
+    }
+}
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
@@ -470,13 +561,13 @@ impl AsyncModuleInfo {
     Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub struct ChunkItemWithAsyncModuleInfo {
-    pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    pub chunk_item: ResolvedVc<ChunkItem>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
+pub struct ChunkedItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt {
     /// Returns the module id of this chunk item.
@@ -485,12 +576,13 @@ pub trait ChunkItemExt {
 
 impl<T> ChunkItemExt for T
 where
-    T: Upcast<Box<dyn ChunkItem>> + Send,
+    T: Upcast<Box<dyn ChunkedItem>> + Send,
 {
     /// Returns the module id of this chunk item.
     async fn id(self: Vc<Self>) -> Result<ModuleId> {
-        let chunk_item = Vc::upcast_non_strict(self);
-        chunk_item
+        let chunked_item: Vc<Box<dyn ChunkedItem>> = Vc::upcast_non_strict(self);
+        let chunk_item = ChunkItem(chunked_item.to_resolved().await?).cell();
+        chunked_item
             .chunking_context()
             .chunk_item_id_strategy()
             .await?

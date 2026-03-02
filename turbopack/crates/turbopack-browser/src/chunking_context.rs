@@ -12,9 +12,9 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -907,7 +907,7 @@ impl ChunkingContext for BrowserChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+    ) -> Result<Vc<ChunkItem>> {
         let chunking_context = ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self);
         Ok(if self.await?.manifest_chunks {
             let manifest_asset = ManifestAsyncModule::new(
@@ -917,10 +917,10 @@ impl ChunkingContext for BrowserChunkingContext {
                 availability_info,
             );
             let loader_module = ManifestLoaderModule::new(manifest_asset);
-            loader_module.as_chunk_item(module_graph, *chunking_context)
+            chunking_context.chunk_item(Vc::upcast(loader_module), module_graph)
         } else {
             let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);
-            module.as_chunk_item(module_graph, *chunking_context)
+            chunking_context.chunk_item(Vc::upcast(module), module_graph)
         })
     }
 
