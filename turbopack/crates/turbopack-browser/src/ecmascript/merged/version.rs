@@ -24,7 +24,8 @@ impl Version for EcmascriptBrowserMergedChunkVersion {
             let mut sorted_ids = self
                 .versions
                 .iter()
-                .map(|version| async move { ReadRef::cell(version.clone()).id().await })
+                // This ReadRef::cell call is important, as it means that `.id()` is cached.
+                .map(|version| ReadRef::cell(version.clone()).id())
                 .try_join()
                 .await?;
             sorted_ids.sort();
