@@ -1511,12 +1511,14 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn server_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
+        let next_mode = this.mode.await?;
         Ok(get_server_compile_time_info(
             // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
             self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
+            next_mode.is_development(),
         ))
     }
 
