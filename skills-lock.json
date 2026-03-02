@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "spaa": {
+      "source": "andrewimm/spaa",
+      "sourceType": "github",
+      "computedHash": "a276e030b292ccd9833ab58003e3010ccc33800d9af286a19c336b71f01479b2"
+    }
+  }
+}

@@ -53,29 +53,35 @@ export function useActionQueue(
   // of the router state that represents the eventual target if/when the gesture
   // completes. Otherwise it returns the canonical state.
   const [state, setGesture] = useOptimistic(canonicalState)
-  setGestureRouterState = setGesture
+  if (typeof window !== 'undefined') {
+    setGestureRouterState = setGesture
 
-  // Because of a known issue that requires to decode Flight streams inside the
-  // render phase, we have to be a bit clever and assign the dispatch method to
-  // a module-level variable upon initialization. The useState hook in this
-  // module only exists to synchronize state that lives outside of React.
-  // Ideally, what we'd do instead is pass the state as a prop to root.render;
-  // this is conceptually how we're modeling the app router state, despite the
-  // weird implementation details.
-  if (process.env.NODE_ENV !== 'production') {
-    const { useAppDevRenderingIndicator } =
-      require('../../next-devtools/userspace/use-app-dev-rendering-indicator') as typeof import('../../next-devtools/userspace/use-app-dev-rendering-indicator')
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const appDevRenderingIndicator = useAppDevRenderingIndicator()
+    // Because of a known issue that requires to decode Flight streams inside the
+    // render phase, we have to be a bit clever and assign the dispatch method to
+    // a module-level variable upon initialization. The useState hook in this
+    // module only exists to synchronize state that lives outside of React.
+    // Ideally, what we'd do instead is pass the state as a prop to root.render;
+    // this is conceptually how we're modeling the app router state, despite the
+    // weird implementation details.
+    let nextDispatch: Dispatch<ReducerActions>
 
-    dispatch = (action: ReducerActions) => {
-      appDevRenderingIndicator(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      const { useAppDevRenderingIndicator } =
+        require('../../next-devtools/userspace/use-app-dev-rendering-indicator') as typeof import('../../next-devtools/userspace/use-app-dev-rendering-indicator')
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const appDevRenderingIndicator = useAppDevRenderingIndicator()
+
+      nextDispatch = (action: ReducerActions) => {
+        appDevRenderingIndicator(() => {
+          actionQueue.dispatch(action, setState)
+        })
+      }
+    } else {
+      nextDispatch = (action: ReducerActions) =>
         actionQueue.dispatch(action, setState)
-      })
     }
-  } else {
-    dispatch = (action: ReducerActions) =>
-      actionQueue.dispatch(action, setState)
+
+    dispatch = nextDispatch
   }
 
   // When navigating to a non-prefetched route, then App Router state will be
