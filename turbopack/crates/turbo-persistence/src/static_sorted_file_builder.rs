@@ -38,6 +38,9 @@ const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 20;
 /// The aimed false positive rate for the AMQF
 const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
 /// Assumed average small value size for pre-allocation estimates.
+/// Intentionally conservative (small values range from MAX_INLINE_VALUE_SIZE+1 to
+/// MAX_SMALL_VALUE_SIZE = 4096): a low estimate over-counts value blocks, which is
+/// preferable to under-allocating vectors.
 const AVG_SMALL_VALUE_SIZE: usize = 64;
 
 /// Safety margin for block index capacity estimation in
@@ -404,11 +407,13 @@ impl<E: Entry> StreamingSstWriter<E> {
             file: Some(file),
             compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE),
             block_offsets: Vec::with_capacity(estimated_total_blocks),
-            pending_keys: VecDeque::new(),
+            pending_keys: VecDeque::with_capacity(entries_per_value_block),
             first_pending_small_index: 0,
             #[cfg(debug_assertions)]
             current_small_block_id: 0,
-            pending_small_value_block: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE),
+            pending_small_value_block: Vec::with_capacity(
+                MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
+            ),
             key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
             filter: Some(filter),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
@@ -834,6 +839,16 @@ impl<E: Entry> StreamingSstWriter<E> {
         if self.pending_keys.is_empty() {
             return Ok(());
         }
+
+        // After flush_small_value_block() in close(), no PendingSmall entries should remain.
+        // first_pending_small_index may be non-zero (when all entries are medium/inline/etc
+        // and advance_boundary_to was never called), but it must equal pending_keys.len(),
+        // meaning no entries after the boundary exist.
+        debug_assert_eq!(
+            self.first_pending_small_index,
+            self.pending_keys.len(),
+            "expected no unresolved PendingSmall entries after flush_small_value_block"
+        );
 
         let total = self.pending_keys.len();
         let mut block_start = 0;
