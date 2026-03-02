@@ -20,6 +20,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const ROOT = join(__dirname, '..')
 
 const SCAN_DIRS = [join(ROOT, 'turbopack/crates'), join(ROOT, 'crates')]
+const EXCLUDE_DIRS = ['turbo-tasks-macros-tests']
 
 // ---------------------------------------------------------------------------
 // Phase 0: Discover all .rs files
@@ -36,6 +37,8 @@ async function discoverRsFiles(dirs) {
     }
     for (const entry of entries) {
       if (entry.endsWith('.rs')) {
+        const parts = entry.split('/')
+        if (parts.some((p) => EXCLUDE_DIRS.includes(p))) continue
         files.push(join(dir, entry))
       }
     }
