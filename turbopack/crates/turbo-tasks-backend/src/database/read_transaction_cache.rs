@@ -31,9 +31,17 @@ impl<T: KeyValueDatabase> ThreadLocalReadTransactionsContainer<T> {
 // Safety: It's safe to send RoTransaction between threads, but the types don't allow that.
 unsafe impl<T: KeyValueDatabase> Send for ThreadLocalReadTransactionsContainer<T> {}
 
+/// Caches read transactions in thread-local storage to avoid creating new ones for every operation.
+///
+/// # Safety invariant (field ordering)
+///
+/// `read_transactions_cache` must be declared before `database` so that Rust's field drop order
+/// (declaration order) drops the cached transactions before the database. The cached transactions
+/// store `T::ReadTransaction<'static>` where the `'static` is a transmuted lie — the true
+/// lifetime is tied to `database`. Dropping the cache first ensures all transactions are released
+/// before the database they borrow from.
 pub struct ReadTransactionCache<T: KeyValueDatabase + 'static> {
-    // Safety: `read_transactions_cache` need to be dropped before `database` since it will end the
-    // transactions.
+    // Safety: Must be declared before `database` — see struct-level safety invariant above.
     read_transactions_cache: ArcSwap<ThreadLocal<ThreadLocalReadTransactionsContainer<T>>>,
     database: T,
 }
@@ -120,10 +128,11 @@ impl<T: KeyValueDatabase> Drop for CachedReadTransaction<'_, T> {
         let container = self
             .thread_locals
             .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
-        // Safety: We cast it to 'static lifetime, but it will be casted back to 'env when
-        // taken. It's safe since this will not outlive the environment. We need to
-        // be careful with Drop, but `read_transactions_cache` is before `env` in the
-        // LmdbBackingStorage struct, so it's fine.
+        // Safety: We cast to 'static because the thread-local cache stores transactions
+        // with an erased lifetime. The transaction will be cast back to the database's
+        // actual lifetime when popped in `begin_read_transaction`. This is sound because
+        // `ReadTransactionCache` declares `read_transactions_cache` before `database`,
+        // so Rust drops the cache (releasing all stored transactions) before the database.
         let tx = unsafe {
             transmute::<T::ReadTransaction<'_>, T::ReadTransaction<'static>>(
                 self.tx.take().unwrap(),
