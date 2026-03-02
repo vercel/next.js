@@ -1472,10 +1472,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Create a single ExecuteContext for both lookup and connect_child
         let mut ctx = self.execute_context(turbo_tasks);
 
-        // Look up task from backing storage (handles hash-based lookup and verification)
-        let found_task_id = ctx.task_by_type(&task_type);
-
-        let (task_id, task_type) = if let Some(task_id) = found_task_id {
+        let mut is_new = false;
+        let (task_id, task_type) = if let Some(task_id) = ctx.task_by_type(&task_type) {
             // Task exists in backing storage
             // So we only need to insert it into the in-memory cache
             self.track_cache_hit(&task_type);
@@ -1507,6 +1505,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     e.insert(task_type.clone(), task_id);
                     // insert() consumes e, releasing the lock
                     self.track_cache_miss(&task_type);
+                    is_new = true;
                     if let Some(log) = &self.persisted_task_cache_log {
                         log.lock(task_id).push((task_type.clone(), task_id));
                     }
@@ -1515,7 +1514,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             (task_id, task_type)
         };
-
+        if is_new && is_root {
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: u32::MAX,
+                    distance: None,
+                },
+                &mut ctx,
+            );
+        }
         // Reuse the same ExecuteContext for connect_child
         operation::ConnectChildOperation::run(parent_task, task_id, Some(task_type), ctx);
 
