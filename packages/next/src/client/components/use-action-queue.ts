@@ -82,7 +82,7 @@ export function useActionQueue(
       actionQueue.dispatch(action, setState)
   }
 
-  if (!isServer) {
+  if (typeof window === 'undefined') {
     dispatch = nextDispatch
   }
 
