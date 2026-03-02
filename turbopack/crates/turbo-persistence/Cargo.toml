@@ -20,7 +20,7 @@ byteorder = { workspace = true }
 dashmap = { workspace = true}
 either = { workspace = true }
 jiff = "0.2.10"
-lzzzz = "1.1.0"
+lzzzz = { workspace = true }
 memmap2 = "0.9.5"
 nohash-hasher = { workspace = true }
 parking_lot = { workspace = true }

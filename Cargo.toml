@@ -407,6 +407,7 @@ lightningcss = { version = "1.0.0-alpha.70", features = [
 lightningcss-napi = { version = "0.4.6", default-features = false, features = [
   "visitor",
 ] }
+lzzzz = "2.0.0"
 markdown = "1.0.0-alpha.18"
 mime = "0.3.16"
 napi = { version = "2", default-features = false, features = [
