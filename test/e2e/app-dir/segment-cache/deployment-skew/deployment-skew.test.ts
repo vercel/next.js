@@ -1,7 +1,7 @@
 import type * as Playwright from 'playwright'
 import webdriver from 'next-webdriver'
 import { createRouterAct } from 'router-act'
-import { findPort } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import { isNextDeploy, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { build, start } from './servers.mjs'
 
@@ -159,7 +159,28 @@ function runTests(getPort: () => number) {
       // target is served by a different deployment (different build ID), the
       // client falls back to an MPA navigation instead of attempting to apply
       // the foreign RSC payload.
-      const browser = await webdriver(getPort(), '/action-redirect')
+      const browser = await webdriver(getPort(), '/')
+      await browser.eval('window.next.router.push("/action-redirect")')
+      await browser.waitForElementByCss('#action-page')
+      let sawActionRequest = false
+      let actionResponseDeploymentId: string | undefined
+      browser.on('request', (request: Playwright.Request) => {
+        const headers = request.headers()
+        if (request.method() === 'POST' && headers['next-action']) {
+          sawActionRequest = true
+        }
+      })
+      browser.on('response', async (response: Playwright.Response) => {
+        const request = response.request()
+        if (request.method() !== 'POST') {
+          return
+        }
+
+        const headers = response.headers()
+        if (headers['x-action-redirect']) {
+          actionResponseDeploymentId = headers['x-nextjs-deployment-id']
+        }
+      })
 
       // Verify we're on the action redirect page
       const heading = await browser.elementById('action-page')
@@ -170,8 +191,17 @@ function runTests(getPort: () => number) {
       // foreign x-nextjs-deployment-id header, simulating a deployment
       // skew scenario where the server response comes from a different
       // deployment than the client.
-      const button = await browser.elementById('redirect-action-button')
-      await button.click()
+      await retry(async () => {
+        if (!sawActionRequest) {
+          const button = await browser.elementById('redirect-action-button')
+          await button.click()
+        }
+        expect(sawActionRequest).toBe(true)
+      }, 10_000)
+
+      await retry(async () => {
+        expect(actionResponseDeploymentId).toBe('foreign-deployment')
+      })
 
       // Wait for the navigation to complete.
       // The client detects the deployment ID mismatch in the response
