@@ -1525,6 +1525,22 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        // Resolve next/error to the ESM dist/api/error entry point so
+        // the bundler can tree-shake the error-boundary dependency chain
+        // from Pages Router client bundles that only use the default Error
+        // component (not unstable_catchError).
+        ...(isClient
+          ? [
+              {
+                resolve: {
+                  alias: {
+                    [path.join(NEXT_PROJECT_ROOT, 'error') + '.js']:
+                      'next/dist/api/error',
+                  },
+                },
+              },
+            ]
+          : []),
         ...(hasAppDir && !isClient
           ? [
               {
@@ -1913,6 +1929,13 @@ export default async function getBaseWebpackConfig(
           // Mark `image-response.js` as side-effects free to make sure we can
           // tree-shake it if not used.
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
+          sideEffects: false,
+        },
+        {
+          // Mark `dist/api/error.js` as side-effects free so webpack can
+          // tree-shake unused re-exports (e.g. unstable_catchError in Pages
+          // Router apps that only use the default Error component).
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?api[\\/]error\.js/,
           sideEffects: false,
         },
         // Mark the action-client-wrapper module as side-effects free to make sure

@@ -71,7 +71,16 @@ pub async fn get_next_client_import_map(
     .await?;
 
     match &ty {
-        ClientContextType::Pages { .. } => {}
+        ClientContextType::Pages { .. } => {
+            // Resolve next/error to the ESM entry point so the bundler can
+            // tree-shake the error-boundary dependency chain from Pages
+            // Router bundles that only use the default Error component.
+            insert_exact_alias_or_js(
+                &mut import_map,
+                rcstr!("next/error"),
+                request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/error")),
+            );
+        }
         ClientContextType::App { app_dir } => {
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
             let taint = *next_config.enable_taint().await?;
