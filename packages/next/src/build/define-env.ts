@@ -238,6 +238,9 @@ export function getDefineEnv({
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
+    'process.env.__NEXT_PREFETCH_INLINING': Boolean(
+      config.experimental.prefetchInlining
+    ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':

@@ -1442,6 +1442,7 @@ async function applyModifyConfig(
 
       config = await adapterMod.modifyConfig(config, {
         phase,
+        nextVersion: process.env.__NEXT_VERSION as string,
       })
     }
   }
