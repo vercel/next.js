@@ -597,7 +597,7 @@ fn compute_task_type_hash(
     task_type: &CachedTaskType,
     scratch_buffer: &mut TurboBincodeBuffer,
 ) -> u64 {
-    // TODO: use a custom encoder that can directly
+    // TODO: use a custom encoder that can directly hash without filling a buffer
     // This should not fail for valid task types - the encoding is deterministic
     turbo_bincode_encode_into(task_type, scratch_buffer)
         .expect("CachedTaskType encoding should not fail");
