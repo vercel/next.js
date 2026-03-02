@@ -13,6 +13,7 @@ rule:
         - pattern: ResolvedVc::cell($_X)
         - pattern: Vc::cell($_X)
         - pattern: ReadRef::cell($_X)
+        - pattern: TraitRef::cell($_X)
     - inside:
         stopBy: end
         all:
