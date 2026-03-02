@@ -1660,8 +1660,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         // Medium value is large enough to get its own value block, which will be compressed
         let value = vec![0xCD; 8192];
-        let mut entries = vec![TestEntry::medium(b"mkey", &value)];
-        sort_entries(&mut entries);
+        let entries = vec![TestEntry::medium(b"mkey", &value)];
 
         let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default()).unwrap();
 
@@ -1675,8 +1674,7 @@ mod tests {
     fn checksum_detects_corrupted_uncompressed_block() {
         let dir = tempfile::tempdir().unwrap();
         // Single inline entry - the key block will be small and likely stored uncompressed
-        let mut entries = vec![TestEntry::inline(b"key1", b"val1")];
-        sort_entries(&mut entries);
+        let entries = vec![TestEntry::inline(b"key1", b"val1")];
 
         let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default()).unwrap();
 

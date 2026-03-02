@@ -92,7 +92,7 @@ Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header disting
 
 #### Block Checksum
 
-Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **uncompressed** block data. On read, the checksum is verified after decompression (or directly for uncompressed blocks). A checksum mismatch returns an error indicating cache corruption.
+Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **uncompressed** block data. On read, the checksum is verified after decompression (or directly for uncompressed blocks). A checksum mismatch returns an error indicating that the cached data is damaged.
 
 #### Index Block
 

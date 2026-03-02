@@ -398,8 +398,8 @@ impl StaticSortedFile {
         let actual = checksum_block(data);
         if actual != expected {
             bail!(
-                "Cache corruption detected: checksum mismatch in block {} of SST file seq:{} \
-                 (expected {:08x}, got {:08x})",
+                "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
+                 {:08x}, got {:08x})",
                 block_index,
                 self.meta.sequence_number,
                 expected,
