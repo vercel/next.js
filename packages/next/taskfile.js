@@ -508,60 +508,6 @@ export async function ncc_watchpack(task, opts) {
     .target('src/compiled/watchpack')
 }
 
-externals['jest-worker'] = 'next/dist/compiled/jest-worker'
-export async function ncc_jest_worker(task, opts) {
-  await rmrf(join(__dirname, 'src/compiled/jest-worker'))
-  await fs.mkdir(join(__dirname, 'src/compiled/jest-worker/workers'), {
-    recursive: true,
-  })
-
-  const workers = ['processChild.js', 'threadChild.js']
-
-  await task
-    .source(relative(__dirname, require.resolve('jest-worker')))
-    .ncc({ packageName: 'jest-worker', externals })
-    .target('src/compiled/jest-worker')
-
-  for (const worker of workers) {
-    const content = await fs.readFile(
-      join(
-        dirname(require.resolve('jest-worker/package.json')),
-        'build/workers',
-        worker
-      ),
-      'utf8'
-    )
-    await fs.writeFile(
-      join(
-        dirname(require.resolve('jest-worker/package.json')),
-        'build/workers',
-        worker + '.tmp.js'
-      ),
-      content.replace(/require\(file\)/g, '__non_webpack_require__(file)')
-    )
-    await task
-      .source(
-        relative(
-          __dirname,
-          join(
-            dirname(require.resolve('jest-worker/package.json')),
-            'build/workers',
-            worker + '.tmp.js'
-          )
-        )
-      )
-      .ncc({ externals })
-      .target('src/compiled/jest-worker/out')
-
-    await fs.rename(
-      join(__dirname, 'src/compiled/jest-worker/out', worker + '.tmp.js'),
-      join(__dirname, 'src/compiled/jest-worker', worker)
-    )
-  }
-  await rmrf(join(__dirname, 'src/compiled/jest-worker/workers'))
-  await rmrf(join(__dirname, 'src/compiled/jest-worker/out'))
-}
-
 export async function ncc_react_refresh_utils(task, opts) {
   await rmrf(join(__dirname, 'dist/compiled/react-refresh'))
   await fs.cp(
@@ -2351,7 +2297,6 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_vendor_react',
       'ncc_sass_loader',
-      'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime_ponyfill',
