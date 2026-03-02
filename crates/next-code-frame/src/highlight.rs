@@ -561,7 +561,13 @@ const TOKEN_RULES: &[(TokenKind, &str)] = &[
         TokenKind::String,
         r#""(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?"#,
     ),
-    (TokenKind::Template, r"`(?:[^`\\]|\\.)*`?"),
+    // Match only the opening backtick of a template literal. The rest
+    // of the template (quasis, expressions, closing backtick) is handled
+    // by `scan_template` which manually walks the content, recursing into
+    // `scan()` for `${...}` expressions. This avoids the regex trying to
+    // match across expression boundaries where backticks in nested
+    // templates, comments, or strings would confuse it.
+    (TokenKind::Template, r"`"),
     (TokenKind::LineComment, r"//[^\n]*"),
     (TokenKind::BlockComment, r"(?s)/\*.*?\*/"),
     (
@@ -606,55 +612,96 @@ static REGEX_LITERAL_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 impl Scanner<'_> {
-    /// Scan a template literal's content (between backticks), emitting String
-    /// markers for quasis and recursively tokenizing `${...}` expressions.
-    fn scan_template_content(&mut self, tpl_start: usize, tpl_end: usize) {
+    /// Scan a template literal starting at the opening backtick.
+    ///
+    /// Walks the source byte-by-byte from `tpl_start` (the `` ` ``), emitting
+    /// `String` spans for quasi segments and recursively calling `scan()` for
+    /// `${...}` expression holes. This correctly handles backticks that appear
+    /// inside expressions (in nested templates, strings, or comments) because
+    /// the recursive `scan()` call tokenizes the expression content — including
+    /// any inner template literals — before we resume scanning the outer
+    /// template.
+    ///
+    /// Returns the byte position just past the closing backtick (or `scan_end`
+    /// if the template is unterminated).
+    fn scan_template(&mut self, tpl_start: usize, scan_end: usize) -> usize {
         let bytes = self.source.as_bytes();
-        // Start after the opening backtick
-        let mut i = tpl_start + 1;
-        let content_end = if tpl_end > tpl_start && bytes.get(tpl_end - 1) == Some(&b'`') {
-            tpl_end - 1
-        } else {
-            tpl_end
-        };
+        let search_start = tpl_start + 1;
 
-        // Track start of current string segment (includes the backtick/closing brace)
+        // Track start of current string segment (includes the backtick or
+        // closing `}` of the previous expression)
         let mut seg_start = tpl_start;
 
-        while i < content_end {
-            if bytes[i] == b'\\' {
-                // Skip escape sequence
-                i += 2;
+        // Current position — may jump forward past `${...}` expressions.
+        let mut i = search_start;
+
+        // Use a persistent Memchr2 iterator for `` ` `` and `$` over the full
+        // template range. This avoids reinitializing the SIMD searcher on each
+        // call. When `i` jumps forward (after a `${...}` expression), we skip
+        // any stale positions the iterator yields before `i`.
+        //
+        // Escapes (`\`) are handled by advancing `i` past the escaped byte
+        // when a match at `pos` is preceded by an odd number of backslashes.
+        let mut iter = memchr::Memchr2::new(b'`', b'$', &bytes[search_start..scan_end]);
+        while let Some(found) = iter.next() {
+            let pos = search_start + found;
+            // Skip positions we've already moved past (after expression scan)
+            if pos < i {
                 continue;
             }
-            if bytes[i] == b'$' && i + 1 < content_end && bytes[i + 1] == b'{' {
-                // End the current string segment at the `$`
-                if i > seg_start {
-                    self.add_span(seg_start, i, TokenType::String);
+
+            // Count consecutive preceding backslashes to detect escapes.
+            // An odd count means this byte is escaped.
+            let mut backslashes = 0;
+            while pos > search_start + backslashes && bytes[pos - 1 - backslashes] == b'\\' {
+                backslashes += 1;
+            }
+            if backslashes % 2 != 0 {
+                i = pos + 1;
+                continue;
+            }
+
+            let b = bytes[pos];
+            if b == b'`' {
+                // Closing backtick — emit the final quasi (including the backtick)
+                self.add_span(seg_start, pos + 1, TokenType::String);
+                return pos + 1;
+            }
+            // b == b'$'
+            debug_assert_eq!(b, b'$');
+            if pos + 1 < scan_end && bytes[pos + 1] == b'{' {
+                // End the current quasi segment just before the `${`
+                if pos > seg_start {
+                    self.add_span(seg_start, pos, TokenType::String);
                 }
 
-                // Tokenize the expression with brace_depth=1. Returns the
-                // position after the matching `}`.
-                let expr_start = i + 2;
-                let expr_end = self.scan(expr_start, content_end, Some(1));
+                // Tokenize the expression with brace_depth=1. The recursive
+                // scan handles all tokens inside the expression — including
+                // nested template literals, strings with backticks, comments
+                // with backticks, etc. It returns the byte position just past
+                // the matching `}`.
+                let expr_start = pos + 2;
+                let expr_end = self.scan(expr_start, scan_end, Some(1));
 
-                // The next string segment starts at the closing `}`
-                if expr_end > expr_start && expr_end <= content_end && bytes[expr_end - 1] == b'}' {
+                // The next quasi segment starts at the closing `}`
+                if expr_end > expr_start && bytes.get(expr_end - 1) == Some(&b'}') {
                     seg_start = expr_end - 1;
                 } else {
-                    // Unclosed expression — no more string segments
+                    // Unclosed expression — no more quasi segments
                     seg_start = expr_end;
                 }
                 i = expr_end;
                 continue;
             }
-            i += 1;
+            // Lone `$` not followed by `{` — skip it
+            i = pos + 1;
         }
 
-        // Emit the final string segment (includes the closing backtick)
-        if tpl_end > seg_start {
-            self.add_span(seg_start, tpl_end, TokenType::String);
+        // Unterminated template — emit whatever quasi content we have
+        if scan_end > seg_start {
+            self.add_span(seg_start, scan_end, TokenType::String);
         }
+        scan_end
     }
 
     /// Core tokenizer loop. Scans `source[start_pos..scan_end]` and appends
@@ -690,11 +737,14 @@ impl Scanner<'_> {
                     last_token = LastToken::Value;
                 }
                 TokenKind::Template => {
-                    // Split template literal into string parts and expression
-                    // holes. Quasis are marked as String; expression contents
-                    // are recursively tokenized.
-                    self.scan_template_content(start, end);
+                    // The regex only matched the opening backtick. Walk the
+                    // full template literal (quasis + expression holes)
+                    // manually, recursing into scan() for each ${...}.
+                    let tpl_end = self.scan_template(start, scan_end);
                     last_token = LastToken::Value;
+                    pos = tpl_end;
+                    // we already updated pos so just continue
+                    continue;
                 }
                 TokenKind::LineComment | TokenKind::BlockComment => {
                     self.add_span(start, end, TokenType::Comment);
@@ -1213,6 +1263,139 @@ pub mod tests {
             string_spans.len() >= 2,
             "Empty expression should still split into two string segments, got {:?}",
             string_spans
+        );
+    }
+
+    #[test]
+    fn test_template_nested_backtick_in_expression() {
+        // `some${`template`}literal` — nested template inside expression
+        let source = r#"const x = `some${`template`}literal`;"#;
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        assert!(!highlights.is_empty());
+
+        // "literal" should be part of a string span (the outer template quasi)
+        let literal_offset = source.rfind("literal").unwrap();
+        let literal_is_string = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::String && s.start <= literal_offset && s.end > literal_offset
+        });
+        assert!(
+            literal_is_string,
+            "'literal' should be marked as string (outer template quasi), spans: {:?}",
+            highlights[0]
+        );
+
+        // "template" should also be string (inner template literal)
+        let template_offset = source.find("template").unwrap();
+        let template_is_string = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::String
+                && s.start <= template_offset
+                && s.end > template_offset
+        });
+        assert!(
+            template_is_string,
+            "'template' should be marked as string (inner template), spans: {:?}",
+            highlights[0]
+        );
+    }
+
+    #[test]
+    fn test_template_block_comment_with_backtick_in_expression() {
+        // `some${ /* ` */ ""}literal` — block comment containing backtick inside expression
+        let source = r#"const x = `some${ /* ` */ ""}literal`;"#;
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        assert!(!highlights.is_empty());
+
+        // The /* ` */ should be a comment, not end the template
+        let comment_offset = source.find("/* ` */").unwrap();
+        let comment_is_comment = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::Comment
+                && s.start <= comment_offset
+                && s.end > comment_offset
+        });
+        assert!(
+            comment_is_comment,
+            "'/* ` */' should be marked as comment, spans: {:?}",
+            highlights[0]
+        );
+
+        // "literal" should be string (outer template quasi after expression closes)
+        let literal_offset = source.rfind("literal").unwrap();
+        let literal_is_string = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::String && s.start <= literal_offset && s.end > literal_offset
+        });
+        assert!(
+            literal_is_string,
+            "'literal' should be marked as string, spans: {:?}",
+            highlights[0]
+        );
+    }
+
+    #[test]
+    fn test_template_line_comment_with_backtick_in_expression() {
+        // `some${ // `
+        // }literal`
+        // Line comment containing backtick inside expression
+        let source = "const x = `some${ // `\n}literal`;";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        assert!(highlights.len() >= 2, "Should have at least 2 lines");
+
+        // The // ` should be a comment on line 1
+        let line1 = "const x = `some${ // `";
+        let comment_offset = line1.find("// `").unwrap();
+        let comment_is_comment = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::Comment
+                && s.start <= comment_offset
+                && s.end > comment_offset
+        });
+        assert!(
+            comment_is_comment,
+            "'// `' should be marked as comment, spans: {:?}",
+            highlights[0]
+        );
+
+        // "literal" on line 2 should be string (outer template quasi)
+        // Line 2 is "}literal`;" — "literal" starts at byte 1 (line-relative)
+        let line2 = "}literal`;";
+        let literal_offset = line2.find("literal").unwrap();
+        let literal_is_string = highlights[1].iter().any(|s| {
+            s.token_type == TokenType::String && s.start <= literal_offset && s.end > literal_offset
+        });
+        assert!(
+            literal_is_string,
+            "'literal' should be marked as string, spans: {:?}",
+            highlights[1]
+        );
+    }
+
+    #[test]
+    fn test_template_string_with_backtick_in_expression() {
+        // `some${"`"}literal` — string containing backtick inside expression
+        let source = r#"const x = `some${"`"}literal`;"#;
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        assert!(!highlights.is_empty());
+
+        // The "`" should be a string span
+        let inner_str_offset = source.find(r#""`""#).unwrap();
+        let inner_is_string = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::String
+                && s.start <= inner_str_offset
+                && s.end > inner_str_offset
+        });
+        assert!(
+            inner_is_string,
+            r#"'"`"' should be marked as string, spans: {:?}"#,
+            highlights[0]
+        );
+
+        // "literal" should be string (outer template quasi)
+        let literal_offset = source.rfind("literal").unwrap();
+        let literal_is_string = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::String && s.start <= literal_offset && s.end > literal_offset
+        });
+        assert!(
+            literal_is_string,
+            "'literal' should be marked as string, spans: {:?}",
+            highlights[0]
         );
     }
 

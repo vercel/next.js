@@ -48,7 +48,7 @@ fn generate_small_file() -> String {
 }
 
 /// Generate a large bundled JS file (~30k lines) mimicking react-dom.development.js.
-fn generate_large_file() -> String {
+fn generate_large_file(minified: bool) -> String {
     let mut lines = Vec::with_capacity(30_000);
 
     lines.push("/**");
@@ -102,7 +102,7 @@ fn generate_large_file() -> String {
     }
 
     lines.push("})));");
-    lines.join("\n")
+    lines.join(if minified { " " } else { "\n" })
 }
 
 fn bench_small_file(c: &mut Criterion) {
@@ -135,7 +135,7 @@ fn bench_small_file(c: &mut Criterion) {
 }
 
 fn bench_large_file(c: &mut Criterion) {
-    let source = generate_large_file();
+    let source = generate_large_file(false);
     let line_count = source.lines().count();
     let mid = line_count / 2;
 
@@ -163,5 +163,45 @@ fn bench_large_file(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_small_file, bench_large_file);
+fn bench_minified_file(c: &mut Criterion) {
+    // Take the large file and collapse lines by stripping whitespace after `;`
+    // to simulate a minified bundle with very long lines.
+    let source = generate_large_file(true);
+    let line_count = source.lines().count();
+    // Point at a column somewhere in the middle of the long line
+    let mid_col = source.lines().next().map_or(100, |l| l.len() / 2);
+
+    let location = CodeFrameLocation {
+        start: Location {
+            line: 1,
+            column: Some(mid_col),
+        },
+        end: None,
+    };
+
+    let options = CodeFrameOptions {
+        highlight_code: true,
+        color: true,
+        max_width: 100,
+        language: Language::JavaScript,
+        ..Default::default()
+    };
+
+    c.bench_function(
+        &format!("rust: minified file ({line_count} lines, ~{mid_col} col)"),
+        |b| {
+            b.iter(|| {
+                let result = render_code_frame(black_box(&source), black_box(&location), &options);
+                black_box(result).unwrap();
+            });
+        },
+    );
+}
+
+criterion_group!(
+    benches,
+    bench_small_file,
+    bench_large_file,
+    bench_minified_file
+);
 criterion_main!(benches);

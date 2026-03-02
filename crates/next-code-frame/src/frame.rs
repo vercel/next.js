@@ -7,8 +7,8 @@ use crate::highlight::{ColorScheme, Language, Lines, apply_line_highlights, extr
 
 /// A source location with line and column.
 ///
-/// Both `line` and `column` are **1-indexed**. A `line` value of 0 is treated
-/// as line 1 (via `saturating_sub`).
+/// Both `line` and `column` are **1-indexed**. A value of 0 for either is
+/// considered a caller bug and will produce an error.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Location {
@@ -128,10 +128,6 @@ pub fn render_code_frame(
     location: &CodeFrameLocation,
     options: &CodeFrameOptions,
 ) -> Result<Option<String>> {
-    if source.is_empty() {
-        return Ok(None);
-    }
-
     // ── Validate and normalize the location ──────────────────────────────
     //
     // All line/column values are 1-indexed on input. We convert to
@@ -140,18 +136,28 @@ pub fn render_code_frame(
     // than erroring — the source may have changed since the error was
     // captured (e.g., a racing file edit).
 
-    // Columns must be >0 (1-indexed). A column of 0 is a caller bug.
+    // Lines and columns must be >0 (1-indexed). A value of 0 is a caller bug.
+    if location.start.line == 0 {
+        bail!("start.line must be 1-indexed (got 0)");
+    }
     if let Some(0) = location.start.column {
         bail!("start.column must be 1-indexed (got 0)");
     }
-    if let Some(end) = location.end
-        && let Some(0) = end.column
-    {
-        bail!("end.column must be 1-indexed (got 0)");
+    if let Some(end) = location.end {
+        if end.line == 0 {
+            bail!("end.line must be 1-indexed (got 0)");
+        }
+        if let Some(0) = end.column {
+            bail!("end.column must be 1-indexed (got 0)");
+        }
     }
 
-    // Convert 1-indexed line to 0-indexed. line==0 is treated as line 1.
-    let start_line_idx = location.start.line.saturating_sub(1);
+    if source.is_empty() {
+        return Ok(None);
+    }
+
+    // Convert 1-indexed line to 0-indexed.
+    let start_line_idx = location.start.line - 1;
 
     // Start column (None = no column highlighting, just the line)
     let start_column = location.start.column;
@@ -162,7 +168,7 @@ pub fn render_code_frame(
     // (end.line < start.line) don't shrink the window below the start.
     let max_end_line = location
         .end
-        .map(|e| e.line.saturating_sub(1).max(start_line_idx))
+        .map(|e| (e.line - 1).max(start_line_idx))
         .unwrap_or(start_line_idx);
 
     // Build a windowed line index that only stores offsets for the visible
@@ -183,7 +189,7 @@ pub fn render_code_frame(
     // a single-point marker at the start position.
     let (end_line_idx, end_column) = match location.end {
         Some(end) => {
-            let end_line = end.line.saturating_sub(1).min(line_count - 1);
+            let end_line = (end.line - 1).min(line_count - 1);
             let end_col = end.column.or(start_column.map(|c| c + 1));
 
             let end_before_start = end_line < start_line_idx
