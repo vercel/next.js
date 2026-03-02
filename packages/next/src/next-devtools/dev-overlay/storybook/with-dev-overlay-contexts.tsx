@@ -7,12 +7,12 @@ import { RenderErrorContext } from '../dev-overlay'
 import { PanelRouterContext, type PanelStateKind } from '../menu/context'
 import { INITIAL_OVERLAY_STATE } from '../shared'
 import type { OverlayState, DispatcherEvent } from '../shared'
-import type { ReadyRuntimeError } from '../utils/get-error-by-type'
+import type { SupportedErrorEvent } from '../container/runtime-error/render-error'
 
 interface WithDevOverlayContextsOptions {
   state?: Partial<OverlayState>
   dispatch?: (action: DispatcherEvent) => void
-  runtimeErrors?: ReadyRuntimeError[]
+  runtimeErrors?: SupportedErrorEvent[]
   totalErrorCount?: number
   panel?: PanelStateKind | null
   setPanel?: Dispatch<SetStateAction<PanelStateKind | null>>
@@ -53,6 +53,7 @@ export const withDevOverlayContexts =
         value={{
           state: defaultState,
           dispatch: defaultDispatch,
+          getOwnerStack: parentContext?.getOwnerStack || (() => null),
           getSquashedHydrationErrorDetails: () => null,
           shadowRoot,
         }}

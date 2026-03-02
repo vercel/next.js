@@ -26,6 +26,8 @@ const getErrorTextFromBuildErrorMessage = (multiLineMessage: string) => {
   )
 }
 
+const emptyArray = [] as const
+
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
   ...props
@@ -37,7 +39,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     [message]
   )
 
-  const generateErrorInfo = useCallback(() => {
+  const generateErrorInfo = useCallback(async () => {
     const parts: string[] = []
 
     // 1. Error Type
@@ -69,6 +71,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       onClose={noop}
       error={error}
       generateErrorInfo={generateErrorInfo}
+      runtimeErrors={emptyArray}
       {...props}
     >
       <Terminal content={message} />

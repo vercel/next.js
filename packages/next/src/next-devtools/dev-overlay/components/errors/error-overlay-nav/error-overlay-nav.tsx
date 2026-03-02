@@ -1,11 +1,11 @@
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
+import type { SupportedErrorEvent } from '../../../container/runtime-error/render-error'
 
 import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'
 import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
-import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 
 type ErrorOverlayNavProps = {
-  runtimeErrors?: ReadyRuntimeError[]
+  runtimeErrors: readonly SupportedErrorEvent[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   versionInfo?: VersionInfo
@@ -26,9 +26,8 @@ export function ErrorOverlayNav({
   return (
     <div data-nextjs-error-overlay-nav>
       <Notch side="left">
-        {/* TODO: better passing data instead of nullish coalescing */}
         <ErrorOverlayPagination
-          runtimeErrors={runtimeErrors ?? []}
+          runtimeErrors={runtimeErrors}
           activeIdx={activeIdx ?? 0}
           onActiveIndexChange={setActiveIndex ?? (() => {})}
         />

@@ -1,84 +1,76 @@
-import type { SupportedErrorEvent } from '../container/runtime-error/render-error'
-import { getOriginalStackFrames } from '../../shared/stack-frame'
+import { getOriginalStackFrames as getOriginalStackFramesUncached } from '../../shared/stack-frame'
 import type { OriginalStackFrame } from '../../shared/stack-frame'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import { parseStack } from '../../../server/lib/parse-stack'
-import React from 'react'
+import { use } from 'react'
+import { useDevOverlayContext } from '../../dev-overlay.browser'
 
-export type ReadyErrorCause = {
-  error: Error
-  frames: () => Promise<readonly OriginalStackFrame[]>
-  cause?: ReadyErrorCause
-}
+export const MAX_CAUSE_DEPTH = 5
 
-export type ReadyRuntimeError = {
-  id: number
-  runtime: true
-  error: Error & { environmentName?: string }
-  frames: () => Promise<readonly OriginalStackFrame[]>
-  type: 'runtime' | 'console' | 'recoverable'
-  cause?: ReadyErrorCause
-}
-
-export const useFrames = (
-  error: ReadyRuntimeError | null
-): readonly OriginalStackFrame[] => {
-  if (!error) return []
-
-  const frames = error.frames
-  return React.use(frames())
-}
-
-export function getErrorByType(
-  event: SupportedErrorEvent,
-  isAppDir: boolean
-): ReadyRuntimeError {
-  const readyRuntimeError: ReadyRuntimeError = {
-    id: event.id,
-    runtime: true,
-    error: event.error,
-    type: event.type,
-    // createMemoizedPromise dedups calls to getOriginalStackFrames
-    frames: createMemoizedPromise(async () => {
-      return await getOriginalStackFrames(
-        event.frames,
-        getErrorSource(event.error),
-        isAppDir
-      )
-    }),
-    cause: getCauseChain(event.error, isAppDir),
-  }
-  return readyRuntimeError
-}
-
-function getCauseChain(
+export function useFrames(
   error: Error,
-  isAppDir: boolean,
-  depth: number = 0
-): ReadyErrorCause | undefined {
-  if (depth >= 5) return undefined
-  const cause = error.cause
-  if (!(cause instanceof Error)) return undefined
+  isAppDir: boolean
+): readonly OriginalStackFrame[] {
+  const { getOwnerStack } = useDevOverlayContext()
 
-  const frames = parseStack(cause.stack || '')
-  return {
-    error: cause,
-    frames: createMemoizedPromise(async () => {
-      return await getOriginalStackFrames(
-        frames,
-        getErrorSource(cause),
-        isAppDir
-      )
-    }),
-    cause: getCauseChain(cause, isAppDir, depth + 1),
+  // Kick of sourcemapping of causes to avoid a waterfall.
+  preloadOriginalStackFramesDeeply(error, getOwnerStack, isAppDir)
+
+  return use(getOriginalStackFrames(error, getOwnerStack, isAppDir))
+}
+
+const originalStackFrames = new WeakMap<
+  Error,
+  Promise<readonly OriginalStackFrame[]>
+>()
+
+export function getOriginalStackFrames(
+  error: Error,
+  getOwnerStack: (error: Error) => string | null | undefined,
+  isAppDir: boolean
+): Promise<readonly OriginalStackFrame[]> {
+  if (originalStackFrames.has(error)) {
+    return originalStackFrames.get(error)!
+  }
+  const ownerStack = getOwnerStack(error)
+  const frames = parseStack((error.stack || '') + (ownerStack || ''))
+  const promise = getOriginalStackFramesUncached(
+    frames,
+    getErrorSource(error),
+    isAppDir
+  )
+
+  originalStackFrames.set(error, promise)
+  return promise
+}
+
+function preloadOriginalStackFramesDeeply(
+  error: Error,
+  getOwnerStack: (error: Error) => string | null | undefined,
+  isAppDir: boolean
+) {
+  if (!originalStackFrames.has(error)) {
+    // swallow errors since this is just a preload
+    void getOriginalStackFrames(error, getOwnerStack, isAppDir).catch(() => {})
+    preloadCausalChain(error, getOwnerStack, isAppDir)
   }
 }
 
-function createMemoizedPromise<T>(
-  promiseFactory: () => Promise<T>
-): () => Promise<T> {
-  const cachedPromise = promiseFactory()
-  return function (): Promise<T> {
-    return cachedPromise
+function preloadCausalChain(
+  error: Error,
+  getOwnerStack: (error: Error) => string | null | undefined,
+  isAppDir: boolean
+): void {
+  let cause = error.cause
+  let depth = 0
+  while (cause instanceof Error) {
+    if (depth >= MAX_CAUSE_DEPTH) {
+      break
+    }
+
+    getOriginalStackFrames(cause, getOwnerStack, isAppDir).catch(() => {})
+
+    cause = cause.cause
+    depth++
   }
 }

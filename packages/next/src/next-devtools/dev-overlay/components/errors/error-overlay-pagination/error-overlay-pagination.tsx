@@ -7,10 +7,10 @@ import {
 } from 'react'
 import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
-import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
+import type { SupportedErrorEvent } from '../../../container/runtime-error/render-error'
 
 type ErrorPaginationProps = {
-  runtimeErrors: ReadyRuntimeError[]
+  runtimeErrors: readonly SupportedErrorEvent[]
   activeIdx: number
   onActiveIndexChange: (index: number) => void
 }

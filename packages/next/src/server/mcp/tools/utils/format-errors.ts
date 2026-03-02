@@ -1,6 +1,7 @@
 import type { OverlayState } from '../../../../next-devtools/dev-overlay/shared'
 import type { SupportedErrorEvent } from '../../../../next-devtools/dev-overlay/container/runtime-error/render-error'
 import { getErrorSource } from '../../../../shared/lib/error-source'
+import { parseStack } from '../../../lib/parse-stack'
 import type {
   OriginalStackFramesRequest,
   OriginalStackFramesResponse,
@@ -124,14 +125,16 @@ async function formatRuntimeErrorsToObjects(
 ): Promise<FormattedRuntimeError[]> {
   const formattedErrors: FormattedRuntimeError[] = []
 
-  for (const error of errors) {
-    const errorName = error.error?.name || 'Error'
-    const errorMsg = error.error?.message || 'Unknown error'
+  for (const errorEvent of errors) {
+    const error = errorEvent.error
+    const errorName = error?.name || 'Error'
+    const errorMsg = error?.message || 'Unknown error'
 
     let stack: StackFrame[] = []
-    if (error.frames?.length) {
-      const errorSource = getErrorSource(error.error)
-      stack = await resolveErrorFrames(error.frames, {
+    const frames = parseStack(error?.stack || '')
+    if (frames.length) {
+      const errorSource = getErrorSource(error)
+      stack = await resolveErrorFrames(frames, {
         isServer: errorSource === 'server',
         isEdgeServer: errorSource === 'edge-server',
         isAppDirectory,
@@ -139,7 +142,7 @@ async function formatRuntimeErrorsToObjects(
     }
 
     formattedErrors.push({
-      type: error.type,
+      type: errorEvent.type,
       errorName,
       message: errorMsg,
       stack,

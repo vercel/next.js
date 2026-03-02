@@ -2,16 +2,18 @@ import { createContext, useContext, useRef, useState } from 'react'
 import { ShadowPortal } from './components/shadow-portal'
 import { ComponentStyles } from './styles/component-styles'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
-import { RenderError } from './container/runtime-error/render-error'
+import {
+  RenderError,
+  type SupportedErrorEvent,
+} from './container/runtime-error/render-error'
 import { ScaleUpdater } from './styles/scale-updater'
-import type { ReadyRuntimeError } from './utils/get-error-by-type'
 import { DevToolsIndicator } from './components/devtools-indicator/devtools-indicator'
 import { PanelRouter } from './menu/panel-router'
 import { PanelRouterContext, type PanelStateKind } from './menu/context'
 import { useDevOverlayContext } from '../dev-overlay.browser'
 
 export const RenderErrorContext = createContext<{
-  runtimeErrors: ReadyRuntimeError[]
+  runtimeErrors: readonly SupportedErrorEvent[]
   totalErrorCount: number
 }>(null!)
 
@@ -29,7 +31,7 @@ export function DevOverlay() {
       <ScaleUpdater />
       <ComponentStyles />
 
-      <RenderError state={state} isAppDir={true}>
+      <RenderError state={state}>
         {({ runtimeErrors, totalErrorCount }) => {
           return (
             <>

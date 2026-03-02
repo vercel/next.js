@@ -1,26 +1,17 @@
 import type { OverlayState } from '../../shared'
-import type { StackFrame } from '../../../shared/stack-frame'
-
-import { useMemo, useState, useEffect } from 'react'
-import {
-  getErrorByType,
-  type ReadyRuntimeError,
-} from '../../utils/get-error-by-type'
 
 export type SupportedErrorEvent = {
   id: number
-  error: Error
-  frames: readonly StackFrame[]
+  error: Error & { environmentName?: string }
   type: 'runtime' | 'recoverable' | 'console'
 }
 
-type Props = {
+interface Props {
   children: (params: {
-    runtimeErrors: ReadyRuntimeError[]
+    runtimeErrors: readonly SupportedErrorEvent[]
     totalErrorCount: number
   }) => React.ReactNode
   state: OverlayState
-  isAppDir: boolean
 }
 
 export const RenderError = (props: Props) => {
@@ -34,48 +25,10 @@ export const RenderError = (props: Props) => {
   }
 }
 
-const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
+const RenderRuntimeError = ({ children, state }: Props) => {
   const { errors } = state
 
-  const [lookups, setLookups] = useState<{
-    [eventId: string]: ReadyRuntimeError
-  }>({})
-
-  const [runtimeErrors, nextError] = useMemo<
-    [ReadyRuntimeError[], SupportedErrorEvent | null]
-  >(() => {
-    let ready: ReadyRuntimeError[] = []
-    let next: SupportedErrorEvent | null = null
-
-    // Ensure errors are displayed in the order they occurred in:
-    for (let idx = 0; idx < errors.length; ++idx) {
-      const e = errors[idx]
-      const { id } = e
-      if (id in lookups) {
-        ready.push(lookups[id])
-        continue
-      }
-
-      next = e
-      break
-    }
-
-    return [ready, next]
-  }, [errors, lookups])
-
-  useEffect(() => {
-    if (nextError == null) {
-      return
-    }
-
-    const resolved = getErrorByType(nextError, isAppDir)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO: fetch-while-rendering
-    setLookups((m) => ({ ...m, [resolved.id]: resolved }))
-  }, [nextError, isAppDir])
-
-  const totalErrorCount = errors.length
-
-  return children({ runtimeErrors, totalErrorCount })
+  return children({ runtimeErrors: errors, totalErrorCount: errors.length })
 }
 
 const RenderBuildError = ({ children }: Props) => {

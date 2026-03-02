@@ -93,15 +93,15 @@ export function getSerializedOverlayState(): OverlayStateWithRouter | null {
 
   return {
     ...currentOverlayState,
-    errors: currentOverlayState.errors.map((errorEvent: any) => ({
+    errors: currentOverlayState.errors.map((errorEvent) => ({
       ...errorEvent,
       error: errorEvent.error
-        ? {
+        ? ({
             name: errorEvent.error.name,
             message: errorEvent.error.message,
             stack: errorEvent.error.stack,
-          }
-        : null,
+          } as Error)
+        : null!,
     })),
   }
 }
@@ -305,6 +305,7 @@ function DevOverlayRoot({
       <DevOverlayContext
         value={{
           dispatch,
+          getOwnerStack,
           getSquashedHydrationErrorDetails,
           shadowRoot,
           state,
@@ -322,6 +323,7 @@ export const DevOverlayContext = createContext<{
   }
   dispatch: ActionDispatch<[action: DispatcherEvent]>
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+  getOwnerStack: (error: Error) => string | null | undefined
 }>(null!)
 export const useDevOverlayContext = () => useContext(DevOverlayContext)
 

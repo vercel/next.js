@@ -1,5 +1,6 @@
 import * as React from 'react'
 import type { DebugInfo } from '../../../../shared/types'
+import type { SupportedErrorEvent } from '../../../container/runtime-error/render-error'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
@@ -31,7 +32,6 @@ import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
-import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 import { useFocusTrap } from '../dev-tools-indicator/utils'
 import { Fader } from '../../fader'
@@ -43,16 +43,16 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorType: ErrorType
   children?: React.ReactNode
   errorCode?: string
-  error: ReadyRuntimeError['error']
+  error: SupportedErrorEvent['error']
   debugInfo?: DebugInfo
   isBuildError?: boolean
   onClose?: () => void
   // TODO: better handle receiving
-  runtimeErrors?: ReadyRuntimeError[]
+  runtimeErrors: readonly SupportedErrorEvent[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
-  generateErrorInfo: () => string
+  generateErrorInfo: () => Promise<string>
 }
 
 export function ErrorOverlayLayout({
