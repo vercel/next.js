@@ -2299,7 +2299,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       headVaryParams,
       staleAt,
       route,
-      spawnedEntries
+      spawnedEntries,
+      false // overrideHeadAsNonPartial
     )
 
     // Return a promise that resolves when the network connection closes, so
@@ -2404,7 +2405,8 @@ function writeDynamicTreeResponseIntoCache(
     headVaryParams,
     getStaleAtFromHeader(now, response),
     fulfilledEntry,
-    null
+    null,
+    false // overrideHeadAsNonPartial
   )
 }
 
@@ -2436,7 +2438,8 @@ export function writeDynamicRenderResponseIntoCache(
   headVaryParams: VaryParams | null,
   staleAt: number,
   route: FulfilledRouteCacheEntry,
-  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
+  overrideHeadAsNonPartial: boolean
 ): Array<FulfilledSegmentCacheEntry> | null {
   if (buildId && buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
@@ -2493,11 +2496,11 @@ export function writeDynamicRenderResponseIntoCache(
     if (head !== null) {
       // The server conservatively marks the head as partial whenever Cache
       // Components is enabled, even for fully static pages where the head is
-      // actually complete. When the response is non-partial, we can safely
-      // override this since the server confirmed no dynamic content exists.
-      const isHeadPartial = isResponsePartial
-        ? flightDataEntry.isHeadPartial
-        : false
+      // actually complete. The caller can override this when it knows the
+      // response is from a fully static prerender.
+      const isHeadPartial = overrideHeadAsNonPartial
+        ? false
+        : flightDataEntry.isHeadPartial
 
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
@@ -2938,7 +2941,8 @@ export function writeStaticStageResponseIntoCache(
     headVaryParams,
     staleAt,
     route,
-    null // spawnedEntries — no pre-created entries; will create or upsert
+    null, // spawnedEntries — no pre-created entries; will create or upsert
+    !isResponsePartial // overrideHeadAsNonPartial
   )
 }
 
