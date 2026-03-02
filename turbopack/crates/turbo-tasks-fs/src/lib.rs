@@ -1380,11 +1380,7 @@ impl FileSystemPath {
 
 impl ValueToStringRef for FileSystemPath {
     async fn to_string_ref(&self) -> Result<RcStr> {
-        if ResolvedVc::try_downcast_type::<DiskFileSystem>(self.fs).is_some() {
-            Ok(self.path.clone())
-        } else {
-            turbofmt!("[{}]/{}", self.fs, self.path).await
-        }
+        turbofmt!("[{}]/{}", self.fs, self.path).await
     }
 }
 
