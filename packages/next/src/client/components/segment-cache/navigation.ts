@@ -204,8 +204,7 @@ export function navigateToKnownRoute(
     navigationSeed.data,
     navigationSeed.head,
     isSamePageNavigation,
-    accumulation,
-    routeCacheEntry?.isFullyStatic ?? false
+    accumulation
   )
   if (task !== null) {
     if (freshnessPolicy !== FreshnessPolicy.Gesture) {
@@ -410,10 +409,6 @@ async function navigateToUnknownRoute(
     if (staticStageData !== null) {
       const { response: staticStageResponse, isFullyStatic } = staticStageData
 
-      // Store whether the response is fully static on the route entry. This is
-      // checked at navigation read time to skip the dynamic follow-up request.
-      fulfilledRoute.isFullyStatic = isFullyStatic
-
       // Write the static stage of the response into the segment cache so that
       // subsequent navigations can serve cached static segments instantly.
       getStaleAt(now, staticStageResponse.s)
@@ -428,7 +423,8 @@ async function navigateToUnknownRoute(
             buildId,
             staticStageResponse.h,
             staleAt,
-            fulfilledRoute
+            fulfilledRoute,
+            !isFullyStatic
           )
         })
         .catch(() => {

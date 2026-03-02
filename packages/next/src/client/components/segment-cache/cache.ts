@@ -104,7 +104,10 @@ import {
   STATIC_STALETIME_MS,
 } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
-import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCacheDuringRegularNavigation } from './bfcache'
@@ -226,16 +229,6 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   tree: RouteTree
   metadata: RouteTree
   supportsPerSegmentPrefetching: boolean
-  // When true, the server marked this route as fully static (marker byte
-  // '#', ResponseCompletenessMarker.Static). Segment cache entries from
-  // writeStaticStageResponseIntoCache may be marked as partial, but at
-  // navigation read time we can skip the dynamic follow-up request because
-  // the prerendered response contains all the data.
-  //
-  // Runtime prefetches use a separate marker ('*',
-  // ResponseCompletenessMarker.Complete) for complete responses that are NOT
-  // fully static — those do not set this flag.
-  isFullyStatic: boolean
   // When true, this entry should not be used as a template for route
   // prediction. Set when we discover that the URL was rewritten by middleware
   // to a different route structure (e.g., /foo was rewritten to /bar). Since
@@ -677,7 +670,6 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
-    isFullyStatic: routeWithNoSearchParams.isFullyStatic,
     hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
 
     // Override the rendered search with the optimistic value.
@@ -1092,7 +1084,6 @@ export function fulfillRouteCacheEntry(
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.supportsPerSegmentPrefetching = supportsPerSegmentPrefetching
-  fulfilledEntry.isFullyStatic = false
   fulfilledEntry.hasDynamicRewrite = false
   pingBlockedTasks(entry)
   return fulfilledEntry
@@ -2288,13 +2279,6 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const staleAt = await getStaleAt(now, serverData.s, response)
     const completenessMarker = cacheData?.completenessMarker ?? null
 
-    // Update the route entry based on the server's completeness marker.
-    // Only '#' (Static) means the route is fully static — '*' (Complete)
-    // means the included segments are complete but the route may have other
-    // segments not included in this response.
-    route.isFullyStatic =
-      completenessMarker === ResponseCompletenessMarker.Static
-
     // PPRRuntime prefetches are partial when the server marks the response
     // as '~' (Partial). Full/LoadingBoundary prefetches are always complete.
     const isResponsePartial =
@@ -2509,11 +2493,11 @@ export function writeDynamicRenderResponseIntoCache(
     if (head !== null) {
       // The server conservatively marks the head as partial whenever Cache
       // Components is enabled, even for fully static pages where the head is
-      // actually complete. When the route is fully static, we can safely
+      // actually complete. When the response is non-partial, we can safely
       // override this since the server confirmed no dynamic content exists.
-      const isHeadPartial = route.isFullyStatic
-        ? false
-        : flightDataEntry.isHeadPartial
+      const isHeadPartial = isResponsePartial
+        ? flightDataEntry.isHeadPartial
+        : false
 
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
@@ -2593,6 +2577,30 @@ function writeSeedDataIntoCache(
       const childSeedData: CacheNodeSeedData | null | void =
         seedDataChildren[parallelRouteKey]
       if (childSeedData !== null && childSeedData !== undefined) {
+        // When the response is non-partial (fully static), skip writing default
+        // page segments. Default pages are fallback content for parallel route
+        // slots that don't have a matching page. Writing them as non-partial
+        // creates a cache entry whose key collides with the reused active
+        // segment's lookup during refresh. The refresh then uses the cached
+        // default content instead of fetching fresh data, replacing the
+        // previously active dynamic slot content with the static default page.
+        //
+        // We check two cases:
+        // 1. The child segment is directly "__DEFAULT__" (the `children`
+        //    parallel route of a layout that has no matching page).
+        // 2. The child is a "(slot)" virtual wrapper whose `children` slot is
+        //    "__DEFAULT__" (named parallel route slots like @navbar). The
+        //    "(slot)" wrapper is always exactly one level deep — it's inserted
+        //    by next-app-loader to process slot-level files before the actual
+        //    content segment.
+        if (
+          !isResponsePartial &&
+          (childTree.segment === DEFAULT_SEGMENT_KEY ||
+            childTree.slots?.['children']?.segment === DEFAULT_SEGMENT_KEY)
+        ) {
+          continue
+        }
+
         writeSeedDataIntoCache(
           now,
           fetchStrategy,
@@ -2897,8 +2905,11 @@ export async function getStaleAt(
 }
 
 /**
- * Writes flight data into the segment cache as partial entries. The route-level
- * `isFullyStatic` flag handles skipping the dynamic follow-up at read time.
+ * Writes the static stage of a navigation response into the segment cache.
+ * When `isFullyStatic` is true, segments are written as non-partial with
+ * `FetchStrategy.Full` so no dynamic follow-up is needed. Default segments
+ * are skipped (by `writeSeedDataIntoCache`) to avoid caching fallback content
+ * that would block refreshes from overwriting with dynamic data.
  */
 export function writeStaticStageResponseIntoCache(
   now: number,
@@ -2906,15 +2917,12 @@ export function writeStaticStageResponseIntoCache(
   buildId: string | undefined,
   headVaryParamsThenable: VaryParamsThenable | null,
   staleAt: number,
-  route: FulfilledRouteCacheEntry
+  route: FulfilledRouteCacheEntry,
+  isResponsePartial: boolean
 ): void {
-  // Always write segments as partial, even for fully static routes. Writing as
-  // non-partial would prevent refreshes and shared parallel route slots from
-  // being overwritten on subsequent navigations. Instead, the route-level
-  // `isFullyStatic` flag is checked at read time (in
-  // `createCacheNodeForSegment`) to skip the dynamic follow-up request.
-  const isResponsePartial = true
-  const fetchStrategy = FetchStrategy.PPR
+  const fetchStrategy = isResponsePartial
+    ? FetchStrategy.PPR
+    : FetchStrategy.Full
 
   const headVaryParams =
     headVaryParamsThenable !== null
@@ -2927,36 +2935,6 @@ export function writeStaticStageResponseIntoCache(
     flightData,
     buildId,
     isResponsePartial,
-    headVaryParams,
-    staleAt,
-    route,
-    null // spawnedEntries — no pre-created entries; will create or upsert
-  )
-}
-
-/**
- * Writes flight data from the initial HTML into the segment cache as complete
- * entries. Used for fully static pages where all segments are present and no
- * dynamic follow-up is needed.
- */
-export function writeInitialFullyStaticResponseIntoCache(
-  now: number,
-  flightData: FlightData,
-  headVaryParamsThenable: VaryParamsThenable | null,
-  staleAt: number,
-  route: FulfilledRouteCacheEntry
-): void {
-  const headVaryParams =
-    headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
-      : null
-
-  writeDynamicRenderResponseIntoCache(
-    now,
-    FetchStrategy.Full,
-    flightData,
-    undefined, // buildId — not applicable for initial HTML
-    false, // isResponsePartial — fully static, all segments are complete
     headVaryParams,
     staleAt,
     route,

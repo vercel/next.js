@@ -10,7 +10,7 @@ import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
   convertRootFlightRouterStateToRouteTree,
   getStaleAt,
-  writeInitialFullyStaticResponseIntoCache,
+  writeStaticStageResponseIntoCache,
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -99,18 +99,19 @@ export function createInitialRouterState({
     // navigations to the initial page can serve cached segments instantly.
     if (initialSeedData !== null && initialStaleTime !== undefined) {
       // Currently only fully static pages include initialStaleTime.
-      route.isFullyStatic = true
-
+      const isResponsePartial = false
       const now = Date.now()
 
       getStaleAt(now, initialStaleTime)
         .then((staleAt) => {
-          writeInitialFullyStaticResponseIntoCache(
+          writeStaticStageResponseIntoCache(
             now,
             initialFlightData,
+            undefined, // buildId — not applicable for initial HTML
             initialHeadVaryParams,
             staleAt,
-            route
+            route,
+            isResponsePartial
           )
         })
         .catch(() => {
