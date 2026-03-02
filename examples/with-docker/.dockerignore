@@ -82,6 +82,14 @@ Jenkinsfile
 .stylelintcache
 .turbo/
 .tmp/
+# Cache directories and temporary data
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.swc/
+.turbo/
+.tmp/
 .temp/
 
 # TypeScript build metadata
