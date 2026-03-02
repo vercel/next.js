@@ -350,7 +350,7 @@ fn line_bounds(line_starts: &[usize], source_len: usize, line_idx: usize) -> (us
 /// Tokenizer state that scans source code and collects syntax-highlight spans.
 ///
 /// The scanner always tokenizes from a given `start_pos` to `scan_end` within
-/// the full `source`, but only *emits* spans that overlap with `output_range`.
+/// the full `source`, but only *emits* spans that overlap with `output_ranges`.
 /// This lets callers scan from byte 0 (to maintain correct tokenizer state
 /// across multiline comments/strings) while only producing output for the
 /// visible window of lines.
@@ -358,8 +358,9 @@ struct Scanner<'a> {
     markers: Vec<StyleSpan>,
     line_starts: &'a [usize],
     source: &'a str,
-    /// Byte range of lines we're producing highlights for (filters output spans).
-    output_range: (usize, usize),
+    /// Sorted, non-overlapping byte ranges we're producing highlights for.
+    /// Spans outside these ranges are skipped.
+    output_ranges: Vec<(usize, usize)>,
     language: Language,
 }
 
@@ -367,30 +368,50 @@ impl<'a> Scanner<'a> {
     fn new(
         line_starts: &'a [usize],
         source: &'a str,
-        output_range: (usize, usize),
+        output_ranges: Vec<(usize, usize)>,
         language: Language,
     ) -> Self {
         Self {
             markers: Vec::new(),
             line_starts,
             source,
-            output_range,
+            output_ranges,
             language,
         }
+    }
+
+    /// Returns the end of the last output range, or 0 if empty.
+    fn output_end(&self) -> usize {
+        self.output_ranges.last().map_or(0, |r| r.1)
+    }
+
+    /// Check whether a byte range `[start, end)` overlaps any output range.
+    #[inline]
+    fn overlaps_output(&self, start: usize, end: usize) -> bool {
+        // Ranges are sorted and there are typically ≤6, so linear scan
+        // is faster than binary search for the common case.
+        for &(rs, re) in &self.output_ranges {
+            if rs >= end {
+                return false;
+            }
+            if re > start {
+                return true;
+            }
+        }
+        false
     }
 
     /// Push a style span for a byte range.
     ///
     /// When a token spans multiple lines, it is split into one span per line
     /// so that each line's spans are self-contained. Spans outside
-    /// `output_range` are skipped.
+    /// `output_ranges` are skipped.
     fn add_span(&mut self, start: usize, end: usize, token_type: TokenType) {
         if start >= end {
             return;
         }
 
-        let (range_start, range_end) = self.output_range;
-        if end <= range_start || start >= range_end {
+        if !self.overlaps_output(start, end) {
             return;
         }
 
@@ -404,7 +425,7 @@ impl<'a> Scanner<'a> {
                 let (line_start, line_end) = line_bounds(self.line_starts, source_len, line_idx);
                 let span_start = start.max(line_start);
                 let span_end = end.min(line_end);
-                if span_start < span_end && !(span_end <= range_start || span_start >= range_end) {
+                if span_start < span_end && self.overlaps_output(span_start, span_end) {
                     self.markers.push(StyleSpan {
                         start: span_start,
                         end: span_end,
@@ -432,39 +453,59 @@ impl<'a> Scanner<'a> {
 const MAX_BACKSCAN_LINES: usize = 200;
 
 /// Find a safe byte offset to start the tokenizer scan from, close to
-/// `target_line` (0-indexed). This avoids scanning the entire file from
-/// byte 0 when the visible window is in the middle of a large file.
+/// `target_line` (0-indexed) and ideally near `visible_start` (the
+/// absolute byte offset where the visible window begins). This avoids
+/// scanning the entire file from byte 0 when the visible window is in
+/// the middle of a large file.
 ///
-/// Walks backwards from `target_line` looking for a blank line. A blank
-/// line is a reliable restart point for single-line constructs (strings,
-/// regex literals, line comments). It could theoretically land inside a
-/// multiline block comment or template literal that spans the blank line,
-/// but this is vanishingly rare in practice and the consequence is just
-/// slightly wrong highlighting colors — never a crash or missing output.
-fn find_scan_start(lines: &Lines<'_>, target_line: usize) -> usize {
-    if target_line == 0 {
-        return 0;
+/// Two-phase heuristic:
+/// 1. **Line-level**: Walk backwards from `target_line` looking for a blank line — a reliable
+///    restart point outside strings/comments.
+/// 2. **Byte-level**: If `visible_start` is far (>200 bytes) from the line-level result (common for
+///    minified files with one huge line), scan backwards from `visible_start` for a `;` statement
+///    boundary. This can technically land inside a string containing `;`, but in practice minified
+///    code has frequent semicolons between statements and the consequence is at most slightly wrong
+///    highlighting.
+///
+/// Phase 1 is always safe. Phase 2 trades perfect accuracy for
+/// dramatically better performance on minified files (~100x).
+fn find_scan_start(lines: &Lines<'_>, target_line: usize, visible_start: usize) -> usize {
+    let mut result = 0;
+
+    // Phase 1: line-level backscan for a blank line
+    if target_line > 0 {
+        let first = lines.first_line();
+        let search_start = target_line.saturating_sub(MAX_BACKSCAN_LINES).max(first);
+
+        result = 'line: {
+            for line_idx in (search_start..target_line).rev() {
+                if lines.content(line_idx).trim().is_empty() {
+                    let (start, _) = lines.byte_bounds(line_idx);
+                    break 'line start;
+                }
+            }
+            if search_start > first {
+                0
+            } else {
+                let (start, _) = lines.byte_bounds(search_start);
+                start
+            }
+        };
     }
 
-    let first = lines.first_line();
-    let search_start = target_line.saturating_sub(MAX_BACKSCAN_LINES).max(first);
-
-    for line_idx in (search_start..target_line).rev() {
-        if lines.content(line_idx).trim().is_empty() {
-            let (start, _) = lines.byte_bounds(line_idx);
-            return start;
+    // Phase 2: if the visible window starts far into the line, scan
+    // backwards for a `;` which typically marks a statement boundary
+    // in minified code.
+    const MIN_SKIP_DISTANCE: usize = 200;
+    if visible_start > result + MIN_SKIP_DISTANCE {
+        let search_from = result;
+        let window = &lines.source().as_bytes()[search_from..visible_start];
+        if let Some(pos) = window.iter().rposition(|&b| b == b';') {
+            result = search_from + pos + 1;
         }
     }
 
-    // No blank line found in the backscan window — fall back to byte 0
-    // if we didn't search all the way to the start, otherwise start at
-    // the beginning of the search window.
-    if search_start > first {
-        0
-    } else {
-        let (start, _) = lines.byte_bounds(search_start);
-        start
-    }
+    result
 }
 
 // ---------------------------------------------------------------------------
@@ -483,42 +524,54 @@ fn find_scan_start(lines: &Lines<'_>, target_line: usize) -> usize {
 /// - `line_range`: Range of line indices (0-indexed, start inclusive, end exclusive). Style markers
 ///   are only produced for lines within this range. Pass `0..usize::MAX` to produce markers for all
 ///   lines.
+/// - `visible_window`: Optional `(truncation_offset, available_width)` hint. When provided, the
+///   scanner's output range is narrowed to only the visible byte window within each line, avoiding
+///   tokenization of content that will be truncated away. This dramatically improves performance on
+///   minified files with very long lines.
 pub fn extract_highlights(
     lines: &Lines<'_>,
     line_range: Range<usize>,
     language: Language,
+    visible_window: Option<(usize, usize)>,
 ) -> Vec<Vec<StyleSpan>> {
     let line_starts = lines.starts();
     let first_line = lines.first_line();
     let source = lines.source();
     let local_count = line_starts.len();
 
-    let byte_range = {
-        let local_start = line_range.start - first_line;
-        let start_byte = if local_start < local_count {
-            line_starts[local_start]
-        } else {
-            usize::MAX
-        };
+    let local_start = line_range.start - first_line;
+    let local_end = line_range.end - first_line;
 
-        let local_end = line_range.end - first_line;
-        let end_byte = if local_end < local_count {
-            line_bounds(line_starts, source.len(), local_end).0
-        } else {
-            source.len()
-        };
+    // Build per-line visible byte ranges. When a visible_window is
+    // provided, each range covers only the truncated portion of the
+    // line; otherwise it covers the full line.
+    let output_ranges: Vec<(usize, usize)> = (local_start..local_end.min(local_count))
+        .filter_map(|local_idx| {
+            let ls = line_starts[local_idx];
+            let line_end = line_starts
+                .get(local_idx + 1)
+                .copied()
+                .unwrap_or(source.len());
+            let (rs, re) = if let Some((trunc_offset, avail_width)) = visible_window {
+                (
+                    (ls + trunc_offset).min(line_end),
+                    (ls + trunc_offset + avail_width).min(line_end),
+                )
+            } else {
+                (ls, line_end)
+            };
+            if rs < re { Some((rs, re)) } else { None }
+        })
+        .collect();
 
-        (start_byte, end_byte)
-    };
+    // Find a safe byte offset to start the tokenizer scan from, close to
+    // the visible window. Uses line-level and byte-level heuristics.
+    let visible_start = output_ranges.first().map_or(0, |r| r.0);
+    let scan_start = find_scan_start(lines, line_range.start, visible_start);
 
-    // Instead of scanning from byte 0 (which is O(file_size)), find a safe
-    // restart position close to the visible window. We walk backwards
-    // looking for a blank line (which cannot be inside a single-line string
-    // or regex).
-    let scan_start = find_scan_start(lines, line_range.start);
-
-    let mut scanner = Scanner::new(line_starts, source, byte_range, language);
-    scanner.scan(scan_start, source.len(), None);
+    let scan_end = output_ranges.last().map_or(source.len(), |r| r.1);
+    let mut scanner = Scanner::new(line_starts, source, output_ranges, language);
+    scanner.scan(scan_start, scan_end, None);
     let all_spans = scanner.markers;
 
     debug_assert!(
@@ -723,8 +776,8 @@ impl Scanner<'_> {
             let start = m.start();
             let raw_end = m.end();
 
-            // Once we're past the output range, no future tokens can be visible.
-            if start >= self.output_range.1 {
+            // Once we're past the last output range, no future tokens can be visible.
+            if start >= self.output_end() {
                 break;
             }
 
@@ -1005,7 +1058,7 @@ pub mod tests {
     #[test]
     fn test_apply_line_highlights_basic() {
         let source = "const Foo = 123";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         let color_scheme = ColorScheme::colored();
 
         let result = apply_line_highlights(source, &highlights[0], &color_scheme, 0, 0);
@@ -1019,7 +1072,7 @@ pub mod tests {
     #[test]
     fn test_apply_line_highlights_plain() {
         let source = "const foo = 123";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         let color_scheme = ColorScheme::plain();
 
         let result = apply_line_highlights(source, &highlights[0], &color_scheme, 0, 0);
@@ -1029,7 +1082,7 @@ pub mod tests {
     #[test]
     fn test_only_capitalized_identifiers_highlighted() {
         let source = "const foo = Bar";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         let has_identifier = highlights[0]
             .iter()
@@ -1058,7 +1111,7 @@ pub mod tests {
     #[test]
     fn test_apply_line_highlights_with_truncation() {
         let source = "const Foo = 123";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         let color_scheme = ColorScheme::colored();
 
         // Truncate to show "Foo = 123" (offset 6, length 9, no prefix)
@@ -1079,7 +1132,7 @@ pub mod tests {
         // Truncating at offset 15 lands inside the string ("o world";)
         let source = r#"const x = "hello world";"#;
         let truncation_offset = 15;
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         let color_scheme = ColorScheme::colored();
 
         let visible = &source[truncation_offset..];
@@ -1099,7 +1152,7 @@ pub mod tests {
     #[test]
     fn test_comments_and_numbers() {
         let source = "const x = 42; // comment\nobj.foo = 10;";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         assert_eq!(highlights.len(), 2);
 
@@ -1121,7 +1174,7 @@ pub mod tests {
     #[test]
     fn test_multiline_comment() {
         let source = "const x = 1;\n/* multi\n   line */\nconst y = 2;";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         assert_eq!(highlights.len(), 4);
 
@@ -1139,7 +1192,7 @@ pub mod tests {
     #[test]
     fn test_multiline_template_literal() {
         let source = "const x = `line1\nline2\nline3`;";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         assert_eq!(highlights.len(), 3);
 
@@ -1158,7 +1211,7 @@ pub mod tests {
         // `hello ${name}!` should mark `hello ` and `!` as string,
         // but NOT mark `name` as string.
         let source = "const x = `hello ${name}!`;";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         let string_spans: Vec<(usize, usize)> = highlights[0]
             .iter()
@@ -1189,7 +1242,7 @@ pub mod tests {
     fn test_template_literal_nested() {
         // Nested template literal: `a ${`b ${c}`} d`
         let source = r#"const x = `a ${`b ${c}`} d`;"#;
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         // Should not panic and should produce some markers
         assert!(!highlights.is_empty());
@@ -1208,7 +1261,7 @@ pub mod tests {
         // `hello ${name` — the `${` is never closed with `}`
         // Should not panic; the string part before `${` should still be marked.
         let source = "const x = `hello ${name";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         assert!(!highlights.is_empty(), "Should produce highlights");
 
         // Should have at least one string marker for the "`hello " part
@@ -1232,7 +1285,7 @@ pub mod tests {
     fn test_template_brace_in_string_inside_expression() {
         // `${ "}" }` — the `}` inside the string should not close the expression
         let source = r#"const x = `${  "}" } end`;"#;
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         assert!(!highlights.is_empty());
 
         // The " end" part after the real closing } should be marked as string
@@ -1250,7 +1303,7 @@ pub mod tests {
     fn test_template_empty_expression() {
         // `hello ${}world` — empty expression hole
         let source = "const x = `hello ${}world`;";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         assert!(!highlights.is_empty());
 
         // Both "hello " and "world" parts should be string-marked
@@ -1270,7 +1323,7 @@ pub mod tests {
     fn test_template_nested_backtick_in_expression() {
         // `some${`template`}literal` — nested template inside expression
         let source = r#"const x = `some${`template`}literal`;"#;
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         assert!(!highlights.is_empty());
 
         // "literal" should be part of a string span (the outer template quasi)
@@ -1302,7 +1355,7 @@ pub mod tests {
     fn test_template_block_comment_with_backtick_in_expression() {
         // `some${ /* ` */ ""}literal` — block comment containing backtick inside expression
         let source = r#"const x = `some${ /* ` */ ""}literal`;"#;
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         assert!(!highlights.is_empty());
 
         // The /* ` */ should be a comment, not end the template
@@ -1336,7 +1389,7 @@ pub mod tests {
         // }literal`
         // Line comment containing backtick inside expression
         let source = "const x = `some${ // `\n}literal`;";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         assert!(highlights.len() >= 2, "Should have at least 2 lines");
 
         // The // ` should be a comment on line 1
@@ -1371,7 +1424,7 @@ pub mod tests {
     fn test_template_string_with_backtick_in_expression() {
         // `some${"`"}literal` — string containing backtick inside expression
         let source = r#"const x = `some${"`"}literal`;"#;
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
         assert!(!highlights.is_empty());
 
         // The "`" should be a string span
@@ -1403,7 +1456,7 @@ pub mod tests {
     fn test_line_range_filtering() {
         let source = "const a = 1;\nconst b = 2;\nconst c = 3;\nconst d = 4;\nconst e = 5;";
 
-        let highlights = extract_highlights(&Lines::new(source), 1..4, JS);
+        let highlights = extract_highlights(&Lines::new(source), 1..4, JS, None);
 
         assert_eq!(highlights.len(), 3);
         assert!(highlights.iter().all(|h| !h.is_empty()));
@@ -1416,7 +1469,7 @@ pub mod tests {
     #[test]
     fn test_regex_after_equals() {
         let source = "const re = /foo/gi;";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         let has_regex = highlights[0]
             .iter()
@@ -1428,7 +1481,7 @@ pub mod tests {
     fn test_division_not_regex() {
         // After an identifier, `/` is division not regex
         let source = "const x = a / b / c;";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         let has_regex = highlights[0]
             .iter()
@@ -1443,7 +1496,7 @@ pub mod tests {
     #[test]
     fn test_js_keywords_highlighted() {
         let source = "const foo = function() { return true; }";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
 
         let keyword_starts: Vec<usize> = highlights[0]
             .iter()
@@ -1473,7 +1526,8 @@ pub mod tests {
     #[test]
     fn test_css_no_keywords() {
         let source = "const foo = function() { return true; }";
-        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, Language::Css);
+        let highlights =
+            extract_highlights(&Lines::new(source), 0..usize::MAX, Language::Css, None);
 
         let has_keyword = highlights[0]
             .iter()
@@ -1514,7 +1568,7 @@ pub mod tests {
         // Target the `*/` line — should be Comment but won't be.
         let closer_line_idx = lines.len().get() - 3;
 
-        let highlights = extract_highlights(&lines, closer_line_idx..closer_line_idx + 1, JS);
+        let highlights = extract_highlights(&lines, closer_line_idx..closer_line_idx + 1, JS, None);
         assert_eq!(highlights.len(), 1);
 
         // With correct full-file scanning, `*/` would be highlighted as a

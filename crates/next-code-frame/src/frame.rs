@@ -226,16 +226,6 @@ pub fn render_code_frame(
         return Ok(None);
     }
 
-    let line_highlights = if options.color && options.highlight_code {
-        Some(extract_highlights(
-            &lines,
-            first_line_idx..last_line_idx,
-            options.language,
-        ))
-    } else {
-        None
-    };
-
     let truncation_offset = calculate_truncation_offset(
         &lines,
         first_line_idx..last_line_idx,
@@ -243,6 +233,17 @@ pub fn render_code_frame(
         end_column.unwrap_or(0),
         available_code_width,
     );
+
+    let line_highlights = if options.color && options.highlight_code {
+        Some(extract_highlights(
+            &lines,
+            first_line_idx..last_line_idx,
+            options.language,
+            Some((truncation_offset, available_code_width)),
+        ))
+    } else {
+        None
+    };
 
     let color_scheme = if options.color {
         ColorScheme::colored()
