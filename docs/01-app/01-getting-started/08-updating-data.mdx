@@ -236,57 +236,43 @@ export async function createPost(formData) {
 
 ### Event Handlers
 
-You can invoke a Server Function in a Client Component by using event handlers such as `onClick`.
+You can invoke a Server Function from event handlers like `onClick`. While calling a
+Server Function directly works, wrapping the call in a React transition integrates it
+with React’s rendering cycle—giving you access to pending states and ensuring consistent
+UI updates.
 
 ```tsx filename="app/like-button.tsx" switcher
 'use client'
 
 import { incrementLike } from './actions'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 
 export default function LikeButton({ initialLikes }: { initialLikes: number }) {
   const [likes, setLikes] = useState(initialLikes)
+  const [isPending, startTransition] = useTransition()
 
   return (
     <>
       <p>Total Likes: {likes}</p>
       <button
-        onClick={async () => {
-          const updatedLikes = await incrementLike()
-          setLikes(updatedLikes)
+        onClick={() => {
+          startTransition(async () => {
+            const updatedLikes = await incrementLike()
+            setLikes(updatedLikes)
+          })
         }}
       >
-        Like
+        {isPending ? 'Updating...' : 'Like'}
       </button>
     </>
   )
 }
 ```
 
-```jsx filename="app/like-button.js" switcher
-'use client'
-
-import { incrementLike } from './actions'
-import { useState } from 'react'
-
-export default function LikeButton({ initialLikes }) {
-  const [likes, setLikes] = useState(initialLikes)
-
-  return (
-    <>
-      <p>Total Likes: {likes}</p>
-      <button
-        onClick={async () => {
-          const updatedLikes = await incrementLike()
-          setLikes(updatedLikes)
-        }}
-      >
-        Like
-      </button>
-    </>
-  )
-}
-```
+> **Note**: After an `await` inside `startTransition`, React does not preserve the
+> transition context. The `isPending` flag still reflects the async work, but state
+> updates after the `await` are not part of the transition.
+> See the React documentation for details.
 
 ## Examples
 
@@ -474,7 +460,11 @@ export async function exampleAction() {
 
 ### useEffect
 
-You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. This is useful for mutations that depend on global events or need to be triggered automatically. For example, `onKeyDown` for app shortcuts, an intersection observer hook for infinite scrolling, or when the component mounts to update a view count:
+You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. This is useful for mutations that depend on global events or need to be triggered automatically. For example, `onKeyDown` for app shortcuts, an intersection observer hook for infinite scrolling, or when the component mounts to update a view count.
+
+When invoking a Server Function from `useEffect`, wrapping the call in a React
+transition integrates the update with React’s rendering cycle and allows you to
+track pending state during the async work.
 
 ```tsx filename="app/view-count.tsx" switcher
 'use client'
@@ -497,6 +487,10 @@ export default function ViewCount({ initialViews }: { initialViews: number }) {
   return <p>Total Views: {views}</p>
 }
 ```
+
+> **Note**: After an `await` inside `startTransition`, React does not preserve the
+> transition context. The pending state still reflects the async work, but state
+> updates after the `await` are not part of the transition.
 
 ```jsx filename="app/view-count.js" switcher
 'use client'
