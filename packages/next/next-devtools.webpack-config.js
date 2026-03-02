@@ -74,6 +74,9 @@ module.exports = ({ dev, ...rest }) => {
           exclude: [/node_modules/],
           loader: 'builtin:swc-loader',
           options: {
+            env: {
+              targets: MODERN_BROWSERSLIST_TARGET,
+            },
             jsc: {
               parser: {
                 syntax: 'typescript',
