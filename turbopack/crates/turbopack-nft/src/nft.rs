@@ -155,7 +155,7 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> 
         for _ in 0..depth {
             indent.push_str("  ");
         }
-        let path = asset.path();
+        let path = &asset.path().await?.path;
         if visited.insert(asset) {
             if depth < max_depth {
                 for &asset in references.iter().rev() {
