@@ -1,4 +1,4 @@
-name: build-and-test
+name: build-android v1
 
 on:
   push:
