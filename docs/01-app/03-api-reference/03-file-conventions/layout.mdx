@@ -313,9 +313,14 @@ export default function Layout({ children }) {
 
 ### Interaction with `loading.js`
 
-A [`loading.js`](/docs/app/api-reference/file-conventions/loading) file in the same segment wraps `page.js` and its children inside a `<Suspense>` boundary, but it does **not** wrap the layout itself. This means that if the layout performs dynamic work — such as calling [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or making uncached data requests — the navigation will block until the layout finishes rendering, and the `loading.js` fallback will not be shown.
+A [`loading.js`](/docs/app/api-reference/file-conventions/loading) file in the same segment wraps `page.js` and its children inside a `<Suspense>` boundary, but it does **not** wrap the layout itself. This means that if the layout performs dynamic work — such as calling [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or making uncached data requests — `loading.js` will not show a fallback for that work.
 
-To avoid blocking navigation:
+The impact depends on whether [Cache Components](/docs/app/getting-started/cache-components) is enabled:
+
+- **Without Cache Components:** The navigation will block until the layout finishes rendering, and the `loading.js` fallback will not be shown.
+- **With Cache Components:** `loading.js` is treated as a regular `<Suspense>` boundary rather than a special prefetch marker. Dynamic work in the layout must be explicitly wrapped in its own `<Suspense>` boundary — otherwise Next.js will show a build error. The static shell streams immediately, and dynamic content fills in as it resolves.
+
+In both cases, to ensure instant navigation:
 
 - Move dynamic data fetching from `layout.js` into `page.js` where `loading.js` can show a fallback.
 - Wrap async parts of your layout in their own `<Suspense>` boundary with a fallback.

@@ -83,9 +83,12 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
   height="768"
 />
 
-> **Good to know**: `loading.js` wraps `page.js` and any `children` below, but it does **not** wrap the `layout.js` in the same segment. If the layout itself performs dynamic work (e.g. calling `cookies()`, `headers()`, or making uncached data requests), the navigation will block until the layout finishes rendering — and `loading.js` will not be shown.
+> **Good to know**: `loading.js` wraps `page.js` and any `children` below, but it does **not** wrap the `layout.js` in the same segment. If the layout itself performs dynamic work (e.g. calling `cookies()`, `headers()`, or making uncached data requests), `loading.js` will not show a fallback for that work.
 >
-> To ensure instant navigation, move dynamic data fetching from `layout.js` into `page.js`, or wrap async parts of your layout in their own `<Suspense>` boundary. See [Interaction with `loading.js`](/docs/app/api-reference/file-conventions/layout#interaction-with-loadingjs) for more details.
+> - **Without [Cache Components](/docs/app/getting-started/cache-components):** The navigation will block until the layout finishes rendering, and `loading.js` will not be shown.
+> - **With [Cache Components](/docs/app/getting-started/cache-components):** `loading.js` is treated as a regular `<Suspense>` boundary. Dynamic work in the layout must be explicitly wrapped in its own `<Suspense>` boundary — otherwise Next.js will show a build error. The static shell streams first, and dynamic content fills in as it resolves.
+>
+> In both cases, to ensure instant navigation, move dynamic data fetching from `layout.js` into `page.js`, or wrap async parts of your layout in their own `<Suspense>` boundary. See [Interaction with `loading.js`](/docs/app/api-reference/file-conventions/layout#interaction-with-loadingjs) for more details.
 
 ### SEO
 
