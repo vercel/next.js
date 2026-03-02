@@ -32,6 +32,7 @@ use crate::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
         binding_usage_info::BindingUsageInfo,
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
+        collect::{CollectedModules, collect},
         merged_modules::{MergedModuleInfo, compute_merged_modules},
         module_batches::{ModuleBatchesGraph, compute_module_batches},
         style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
@@ -44,6 +45,7 @@ use crate::{
 pub mod async_module_info;
 pub mod binding_usage_info;
 pub mod chunk_group_info;
+pub mod collect;
 pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
@@ -741,6 +743,11 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub async fn merged_modules(self: Vc<Self>) -> Result<Vc<MergedModuleInfo>> {
         compute_merged_modules(self).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn collect(self: Vc<Self>) -> Result<Vc<CollectedModules>> {
+        collect(self).await
     }
 
     #[turbo_tasks::function]

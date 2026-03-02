@@ -84,6 +84,10 @@ pub enum EcmaScriptModulesReferenceSubType {
         rename_as: Option<RcStr>,
         module_type: Option<RcStr>,
     },
+    /// Import with `turbopackCollect` attribute
+    ImportWithTurbopackCollect {
+        namespace: RcStr,
+    },
     DynamicImport,
     Custom(u8),
     #[default]
@@ -335,6 +339,9 @@ impl Display for ReferenceType {
                 EcmaScriptModulesReferenceSubType::ImportPart(_) => "EcmaScript Modules (part)",
                 EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse { .. } => {
                     "EcmaScript Modules (turbopackUse)"
+                }
+                EcmaScriptModulesReferenceSubType::ImportWithTurbopackCollect { .. } => {
+                    "EcmaScript Modules (turbopackCollect)"
                 }
                 _ => "EcmaScript Modules",
             },

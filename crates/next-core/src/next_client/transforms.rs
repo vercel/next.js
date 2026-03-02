@@ -9,7 +9,7 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_shared::transforms::{
-        debug_fn_name::get_debug_fn_name_rule, get_next_dynamic_transform_rule,
+        debug_fn_name::get_debug_fn_name_rule, get_collect_rule, get_next_dynamic_transform_rule,
         get_next_font_transform_rule, get_next_image_rule, get_next_lint_transform_rule,
         get_next_modularize_imports_rule, get_next_pages_transforms_rule,
         get_server_actions_transform_rule, next_cjs_optimizer::get_next_cjs_optimizer_rule,
@@ -117,6 +117,7 @@ pub async fn get_next_client_transforms_rules(
         );
 
         rules.push(get_next_image_rule().await?);
+        rules.push(get_collect_rule().await?);
     }
 
     Ok(rules)

@@ -4,6 +4,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
+pub mod collect_module;
 pub mod evaluate_context;
 pub mod global_module_ids;
 pub mod module_options;

@@ -6,12 +6,15 @@ use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath, to_sys_path};
 use turbopack_core::{
+    asset::AssetContent,
+    ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
+        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, ResolveResult,
+        ResolveResultItem, SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
@@ -19,6 +22,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
+    virtual_source::VirtualSource,
 };
 use turbopack_node::execution_context::ExecutionContext;
 
@@ -1060,6 +1064,22 @@ async fn insert_next_shared_aliases(
         import_map,
         &format!("{VIRTUAL_PACKAGE_NAME}/"),
         package_root,
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact(rcstr!("@turbopack/collect")),
+        ImportMapping::Direct(
+            ResolveResult::primary(ResolveResultItem::Source(ResolvedVc::upcast(
+                VirtualSource::new_with_ident(
+                    AssetIdent::from_path(project_path.join("turbopack-collect")?),
+                    AssetContent::File(FileContent::Content(File::from("")).resolved_cell()).cell(),
+                )
+                .to_resolved()
+                .await?,
+            )))
+            .resolved_cell(),
+        )
+        .resolved_cell(),
     );
 
     // NOTE: `@next/font/local` has moved to a BeforeResolve Plugin, so it does not

@@ -41,6 +41,10 @@ pub struct ImportAnnotations {
     turbopack_rename_as: Option<RcStr>,
     turbopack_module_type: Option<RcStr>,
     chunking_type: Option<SpecifiedChunkingType>,
+
+    turbopack_emit: Option<RcStr>,
+    turbopack_emit_data: Option<RcStr>,
+    turbopack_collect: Option<RcStr>,
 }
 
 /// Enables a specified transition for the annotated import
@@ -61,6 +65,9 @@ impl ImportAnnotations {
         let mut turbopack_rename_as: Option<RcStr> = None;
         let mut turbopack_module_type: Option<RcStr> = None;
         let mut chunking_type: Option<SpecifiedChunkingType> = None;
+        let mut turbopack_emit: Option<RcStr> = None;
+        let mut turbopack_emit_data: Option<RcStr> = None;
+        let mut turbopack_collect: Option<RcStr> = None;
 
         for prop in &with.props {
             let Some(kv) = prop.as_prop().and_then(|p| p.as_key_value()) else {
@@ -110,6 +117,23 @@ impl ImportAnnotations {
                         );
                     }
                 }
+                "turbopackEmit" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        turbopack_emit = Some(RcStr::from(s.value.to_string_lossy().into_owned()));
+                    }
+                }
+                "turbopackEmitData" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        turbopack_emit_data =
+                            Some(RcStr::from(s.value.to_string_lossy().into_owned()));
+                    }
+                }
+                "turbopackCollect" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        turbopack_collect =
+                            Some(RcStr::from(s.value.to_string_lossy().into_owned()));
+                    }
+                }
                 _ => {
                     // For all other keys, only accept string values (per spec)
                     if let Some(Lit::Str(str)) = kv.value.as_lit() {
@@ -134,6 +158,9 @@ impl ImportAnnotations {
             || turbopack_rename_as.is_some()
             || turbopack_module_type.is_some()
             || chunking_type.is_some()
+            || turbopack_emit.is_some()
+            || turbopack_emit_data.is_some()
+            || turbopack_collect.is_some()
         {
             Some(ImportAnnotations {
                 map,
@@ -141,6 +168,9 @@ impl ImportAnnotations {
                 turbopack_rename_as,
                 turbopack_module_type,
                 chunking_type,
+                turbopack_emit,
+                turbopack_emit_data,
+                turbopack_collect,
             })
         } else {
             None
@@ -179,6 +209,9 @@ impl ImportAnnotations {
                 turbopack_rename_as: None,
                 turbopack_module_type: None,
                 chunking_type: None,
+                turbopack_emit: None,
+                turbopack_emit_data: None,
+                turbopack_collect: None,
             })
         } else {
             None
@@ -219,6 +252,21 @@ impl ImportAnnotations {
     /// Returns true if a turbopack loader is configured
     pub fn has_turbopack_loader(&self) -> bool {
         self.turbopack_loader.is_some()
+    }
+
+    /// Returns the turbopackEmit configuration, if present
+    pub fn turbopack_emit(&self) -> Option<&RcStr> {
+        self.turbopack_emit.as_ref()
+    }
+
+    /// Returns the turbopackEmitData configuration, if present
+    pub fn turbopack_emit_data(&self) -> Option<&RcStr> {
+        self.turbopack_emit_data.as_ref()
+    }
+
+    /// Returns the turbopackCollect configuration, if present
+    pub fn turbopack_collect(&self) -> Option<&RcStr> {
+        self.turbopack_collect.as_ref()
     }
 
     pub fn get(&self, key: &Wtf8Atom) -> Option<&Wtf8Atom> {
