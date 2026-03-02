@@ -102,7 +102,11 @@ module.exports = ({ dev, ...rest }) => {
                 /**
                  * @type {import('babel-plugin-react-compiler').PluginOptions}
                  */
-                ({}),
+                ({
+                  environment: {
+                    enableNameAnonymousFunctions: dev,
+                  },
+                }),
               ],
               ['@babel/plugin-syntax-typescript', { isTSX: true }],
             ],
