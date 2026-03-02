@@ -28,10 +28,7 @@ impl EcmascriptBrowserMergedChunkContent {
             versions: self
                 .contents
                 .iter()
-                .map(async |content| {
-                    let version = content.own_version();
-                    Ok((version.await?, version.id().owned().await?))
-                })
+                .map(|content| async move { content.own_version().await })
                 .try_join()
                 .await?,
         }

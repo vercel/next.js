@@ -49,13 +49,14 @@ impl Version for EcmascriptBrowserChunkVersion {
     fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
-
-        let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
-        hashes.sort_unstable();
-        for hash in hashes {
+        let sorted_hashes = {
+            let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
+            hashes.sort();
+            hashes
+        };
+        for hash in sorted_hashes {
             hasher.write_value(hash);
         }
-
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
         Vc::cell(hex_hash.into())
