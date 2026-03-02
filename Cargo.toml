@@ -436,7 +436,7 @@ proc-macro2 = "1.0.79"
 qstring = "0.7.2"
 quick_cache = { version = "0.6.14" }
 quote = "1.0.23"
-rand = "0.9.0"
+rand = "0.10.0"
 rayon = "1.10.0"
 regex = "1.10.6"
 regress = "0.10.4"
