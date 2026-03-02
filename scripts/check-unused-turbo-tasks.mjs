@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Scans the Rust codebase to find all #[turbo_tasks::function] definitions
- * and reports which ones appear to be unused.
+ * Scans the Rust codebase to find unused turbo-tasks items:
+ *   - #[turbo_tasks::function] definitions
+ *   - #[turbo_tasks::value] struct/enum definitions
+ *   - #[turbo_tasks::value_trait] trait definitions
  *
- * Exit code 0: no unused functions found
- * Exit code 1: unused functions found
+ * Exit code 0: no unused items found
+ * Exit code 1: unused items found
  *
- * Usage: node scripts/check-unused-turbo-tasks-functions.mjs
+ * Usage: node scripts/check-unused-turbo-tasks.mjs
  */
 
 import { readdir, readFile } from 'node:fs/promises'
@@ -42,12 +44,13 @@ async function discoverRsFiles(dirs) {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 1: Extract all turbo-tasks function definitions
+// Phase 1: Extract all turbo-tasks definitions (functions, values, traits)
 // ---------------------------------------------------------------------------
 
 /**
  * @typedef {{
  *   name: string,
+ *   kind: 'function' | 'value' | 'value_trait',
  *   filePath: string,
  *   line: number,
  *   context: 'free' | 'inherent_impl' | 'trait_impl' | 'trait_def',
@@ -58,12 +61,17 @@ async function discoverRsFiles(dirs) {
 
 const FN_NAME_RE = /\bfn\s+([a-zA-Z_][a-zA-Z0-9_]*)/
 const VALUE_IMPL_RE = /^#\[turbo_tasks::value_impl/
-const VALUE_TRAIT_RE = /^#\[turbo_tasks::value_trait/
+const VALUE_TRAIT_ATTR_RE = /^#\[turbo_tasks::value_trait/
 const TT_FUNCTION_RE = /^#\[turbo_tasks::function/
+// #[turbo_tasks::value...] but NOT value_impl or value_trait
+const TT_VALUE_RE = /^#\[turbo_tasks::value(?![_a-zA-Z0-9])/
 const IMPL_HEADER_RE =
   /^\s*impl\s*(?:<[^>]*>\s*)?([A-Za-z_][A-Za-z0-9_:]*(?:<[^>]*>)?)\s+for\s+([A-Za-z_][A-Za-z0-9_:]*)/
 const IMPL_INHERENT_RE = /^\s*impl\s*(?:<[^>]*>\s*)?([A-Za-z_][A-Za-z0-9_:]*)/
 const TRAIT_HEADER_RE = /^\s*(?:pub\s+)?trait\s+([A-Za-z_][A-Za-z0-9_]*)/
+// Match struct or enum name (possibly preceded by pub, derive attrs, etc.)
+const STRUCT_ENUM_NAME_RE =
+  /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/
 
 /**
  * Count unbalanced braces on a line, ignoring string literals and comments.
@@ -123,7 +131,7 @@ function countBraces(line) {
 }
 
 /**
- * Parse a single file for turbo-tasks function definitions.
+ * Parse a single file for turbo-tasks definitions (functions, values, traits).
  */
 function parseDefinitions(filePath, content) {
   const lines = content.split('\n')
@@ -141,6 +149,8 @@ function parseDefinitions(filePath, content) {
 
   let pendingBlockType = null // 'value_impl' | 'value_trait' – waiting for header
   let pendingFnAnnotationLine = -1 // line number of #[turbo_tasks::function]
+  let pendingValueLine = -1 // line number of #[turbo_tasks::value]
+  let pendingValueTraitLine = -1 // line number of #[turbo_tasks::value_trait]
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -156,13 +166,53 @@ function parseDefinitions(filePath, content) {
       }
 
       // Detect #[turbo_tasks::value_trait]
-      if (VALUE_TRAIT_RE.test(trimmed)) {
+      if (VALUE_TRAIT_ATTR_RE.test(trimmed)) {
         pendingBlockType = 'value_trait'
+        pendingValueTraitLine = i
+      }
+
+      // Detect #[turbo_tasks::value] (not value_impl or value_trait)
+      if (TT_VALUE_RE.test(trimmed)) {
+        pendingValueLine = i
       }
 
       // Detect #[turbo_tasks::function...]
       if (TT_FUNCTION_RE.test(trimmed)) {
         pendingFnAnnotationLine = i
+      }
+
+      // Try to extract struct/enum name for #[turbo_tasks::value]
+      if (pendingValueLine >= 0) {
+        const seMatch = STRUCT_ENUM_NAME_RE.exec(trimmed)
+        if (seMatch) {
+          definitions.push({
+            name: seMatch[1],
+            kind: 'value',
+            filePath,
+            line: i + 1,
+            context: 'free',
+          })
+          pendingValueLine = -1
+        } else if (i - pendingValueLine > 10) {
+          pendingValueLine = -1
+        }
+      }
+
+      // Try to extract trait name for #[turbo_tasks::value_trait]
+      if (pendingValueTraitLine >= 0) {
+        const traitMatch = TRAIT_HEADER_RE.exec(trimmed)
+        if (traitMatch) {
+          definitions.push({
+            name: traitMatch[1],
+            kind: 'value_trait',
+            filePath,
+            line: i + 1,
+            context: 'free',
+          })
+          pendingValueTraitLine = -1
+        } else if (i - pendingValueTraitLine > 10) {
+          pendingValueTraitLine = -1
+        }
       }
 
       // Try to extract fn name if we have a pending annotation
@@ -193,6 +243,7 @@ function parseDefinitions(filePath, content) {
 
           definitions.push({
             name: fnName,
+            kind: 'function',
             filePath,
             line: i + 1, // 1-based
             context,
@@ -272,19 +323,19 @@ function parseDefinitions(filePath, content) {
 // ---------------------------------------------------------------------------
 
 /**
- * Build a set of function names that have at least one reference outside
+ * Build a set of names that have at least one reference outside
  * their definition sites.
  *
  * @param {Map<string, string>} fileContents - filePath → content
- * @param {Set<string>} functionNames - all unique function names to check
+ * @param {Set<string>} names - all unique names to check
  * @param {Map<string, Set<string>>} definitionLocations - name → Set<"filePath:line">
  * @returns {Set<string>} names that have external usage
  */
-function findUsedNames(fileContents, functionNames, definitionLocations) {
+function findUsedNames(fileContents, names, definitionLocations) {
   const hasExternalUsage = new Set()
 
   // Pre-build a regex that matches any word-boundary identifier
-  // We'll check each match against the functionNames set
+  // We'll check each match against the names set
   const IDENT_RE = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g
 
   for (const [filePath, content] of fileContents) {
@@ -302,9 +353,9 @@ function findUsedNames(fileContents, functionNames, definitionLocations) {
       while ((match = IDENT_RE.exec(line)) !== null) {
         const name = match[1]
 
-        // Fast path: already known used or not a function name
+        // Fast path: already known used or not a tracked name
         if (hasExternalUsage.has(name)) continue
-        if (!functionNames.has(name)) continue
+        if (!names.has(name)) continue
 
         // Check if this is a definition site
         const locKey = `${filePath}:${i + 1}`
@@ -315,7 +366,7 @@ function findUsedNames(fileContents, functionNames, definitionLocations) {
         hasExternalUsage.add(name)
 
         // Early exit: if all names are found, we can stop entirely
-        if (hasExternalUsage.size === functionNames.size) {
+        if (hasExternalUsage.size === names.size) {
           return hasExternalUsage
         }
       }
@@ -356,7 +407,7 @@ async function main() {
   }
 
   // Step 4: Build indexes
-  const functionNames = new Set(allDefinitions.map((d) => d.name))
+  const allNames = new Set(allDefinitions.map((d) => d.name))
 
   /** @type {Map<string, Set<string>>} */
   const definitionLocations = new Map()
@@ -369,11 +420,7 @@ async function main() {
   }
 
   // Step 5: Find which names have external usage
-  const usedNames = findUsedNames(
-    fileContents,
-    functionNames,
-    definitionLocations
-  )
+  const usedNames = findUsedNames(fileContents, allNames, definitionLocations)
 
   // Step 6: Collect unused definitions
   const unused = allDefinitions.filter((d) => !usedNames.has(d.name))
@@ -388,37 +435,44 @@ async function main() {
   // Step 7: Report
   if (unused.length === 0) {
     console.log(
-      `No unused turbo-tasks functions found (${allDefinitions.length} total checked).`
+      `No unused turbo-tasks items found (${allDefinitions.length} total checked).`
     )
     process.exit(0)
   }
 
-  console.log('Unused turbo-tasks functions:\n')
+  console.log('Unused turbo-tasks items:\n')
   for (const def of unused) {
     const relPath = relative(ROOT, def.filePath)
-    let contextStr = ''
-    switch (def.context) {
-      case 'free':
-        contextStr = 'free function'
-        break
-      case 'inherent_impl':
-        contextStr = `method on ${def.typeName}`
-        break
-      case 'trait_impl':
-        contextStr = `impl ${def.traitName} for ${def.typeName}`
-        break
-      case 'trait_def':
-        contextStr = `trait ${def.traitName} default method`
-        break
-      default:
-        contextStr = def.context
-        break
+
+    if (def.kind === 'value') {
+      console.log(`  ${relPath}:${def.line} - value ${def.name}`)
+    } else if (def.kind === 'value_trait') {
+      console.log(`  ${relPath}:${def.line} - value_trait ${def.name}`)
+    } else {
+      let contextStr = ''
+      switch (def.context) {
+        case 'free':
+          contextStr = 'free function'
+          break
+        case 'inherent_impl':
+          contextStr = `method on ${def.typeName}`
+          break
+        case 'trait_impl':
+          contextStr = `impl ${def.traitName} for ${def.typeName}`
+          break
+        case 'trait_def':
+          contextStr = `trait ${def.traitName} default method`
+          break
+        default:
+          contextStr = def.context
+          break
+      }
+      console.log(`  ${relPath}:${def.line} - fn ${def.name} (${contextStr})`)
     }
-    console.log(`  ${relPath}:${def.line} - fn ${def.name} (${contextStr})`)
   }
 
   console.log(
-    `\nFound ${unused.length} unused turbo-tasks function(s) out of ${allDefinitions.length} total.`
+    `\nFound ${unused.length} unused turbo-tasks item(s) out of ${allDefinitions.length} total.`
   )
   process.exit(1)
 }
