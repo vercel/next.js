@@ -12,7 +12,7 @@ use turbo_bincode::turbo_bincode_encode;
 
 use crate::{
     compression::compress_into_buffer,
-    constants::{MAX_INLINE_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH,
@@ -402,7 +402,7 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         Ok(Self {
             file: Some(file),
-            compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE),
+            compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE),
             block_offsets: Vec::with_capacity(estimated_total_blocks),
             pending_keys: VecDeque::new(),
             first_pending_small_index: 0,
