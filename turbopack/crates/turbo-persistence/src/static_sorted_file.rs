@@ -18,6 +18,7 @@ use crate::{
     compression::{checksum_block, decompress_into_arc},
     constants::MAX_INLINE_VALUE_SIZE,
     lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
+    static_sorted_file_builder::BLOCK_HEADER_SIZE,
 };
 
 /// The block header for an index block.
@@ -392,7 +393,23 @@ impl StaticSortedFile {
         self.read_block(block_index)
     }
 
-    /// Reads a block from the file.
+    /// Verifies the CRC32 checksum of uncompressed block data. Returns an error on mismatch.
+    fn verify_checksum(&self, data: &[u8], expected: u32, block_index: u16) -> Result<()> {
+        let actual = checksum_block(data);
+        if actual != expected {
+            bail!(
+                "Cache corruption detected: checksum mismatch in block {} of SST file seq:{} \
+                 (expected {:08x}, got {:08x})",
+                block_index,
+                self.meta.sequence_number,
+                expected,
+                actual
+            );
+        }
+        Ok(())
+    }
+
+    /// Reads a block from the file, decompressing if needed, and verifies its checksum.
     #[tracing::instrument(level = "info", name = "reading database block", skip_all)]
     fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
         let (uncompressed_length, expected_checksum, block) =
@@ -400,17 +417,7 @@ impl StaticSortedFile {
 
         // 0 means the block was not compressed, return the mmap-backed ArcBytes directly
         if uncompressed_length == 0 {
-            let actual = checksum_block(block);
-            if actual != expected_checksum {
-                bail!(
-                    "Cache corruption detected: checksum mismatch in block {} of SST file seq:{} \
-                     (expected {:08x}, got {:08x})",
-                    block_index,
-                    self.meta.sequence_number,
-                    expected_checksum,
-                    actual
-                );
-            }
+            self.verify_checksum(block, expected_checksum, block_index)?;
             return Ok(self.mmap_slice_to_arc_bytes(block));
         }
 
@@ -426,17 +433,7 @@ impl StaticSortedFile {
         );
 
         let buffer = decompress_into_arc(uncompressed_length, block)?;
-        let actual = checksum_block(&buffer);
-        if actual != expected_checksum {
-            bail!(
-                "Cache corruption detected: checksum mismatch in block {} of SST file seq:{} \
-                 (expected {:08x}, got {:08x})",
-                block_index,
-                self.meta.sequence_number,
-                expected_checksum,
-                actual
-            );
-        }
+        self.verify_checksum(&buffer, expected_checksum, block_index)?;
         Ok(ArcBytes::from(buffer))
     }
 
@@ -505,7 +502,7 @@ impl StaticSortedFile {
         let uncompressed_length =
             u32::from_be_bytes(self.mmap[block_start..block_start + 4].try_into()?);
         let checksum = u32::from_be_bytes(self.mmap[block_start + 4..block_start + 8].try_into()?);
-        let block = &self.mmap[block_start + 8..block_end];
+        let block = &self.mmap[block_start + BLOCK_HEADER_SIZE..block_end];
         Ok((uncompressed_length, checksum, block))
     }
 }

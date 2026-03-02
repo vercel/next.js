@@ -21,13 +21,13 @@ use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
-use turbo_persistence::meta_file::MetaFile;
 // Import shared constants from the crate
 use turbo_persistence::static_sorted_file::{
     BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH, KEY_BLOCK_ENTRY_TYPE_BLOB,
     KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
     KEY_BLOCK_ENTRY_TYPE_SMALL,
 };
+use turbo_persistence::{BLOCK_HEADER_SIZE, meta_file::MetaFile};
 
 /// Block size information
 #[derive(Default, Debug, Clone)]
@@ -252,10 +252,10 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         };
         let block_end = blocks_start + (&mmap[offset..offset + 4]).read_u32::<BE>()? as usize;
 
-        // Read uncompressed length, checksum, and compressed data
+        // Read block header (uncompressed length + checksum) and block data
         let uncompressed_length = (&mmap[block_start..block_start + 4]).read_u32::<BE>()?;
         let _checksum = (&mmap[block_start + 4..block_start + 8]).read_u32::<BE>()?;
-        let compressed_data = &mmap[block_start + 8..block_end];
+        let compressed_data = &mmap[block_start + BLOCK_HEADER_SIZE..block_end];
         let compressed_size = compressed_data.len() as u64;
 
         // Determine if block was compressed (uncompressed_length > 0 means it was compressed)

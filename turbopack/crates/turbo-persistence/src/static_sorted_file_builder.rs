@@ -21,6 +21,9 @@ use crate::{
     },
 };
 
+/// Size of the per-block header on disk: 4 bytes uncompressed_size + 4 bytes CRC32 checksum.
+pub const BLOCK_HEADER_SIZE: usize = 8;
+
 /// The maximum number of entries that should go into a single key block
 const MAX_KEY_BLOCK_ENTRIES: usize = MAX_KEY_BLOCK_SIZE / KEY_BLOCK_ENTRY_META_OVERHEAD;
 /// The maximum bytes that should go into a single key block
@@ -220,7 +223,7 @@ fn write_raw_block_to_file(
         .try_into()
         .expect("Block index overflow");
 
-    let len: u32 = (block.len() + 8).try_into().unwrap();
+    let len: u32 = (block.len() + BLOCK_HEADER_SIZE).try_into().unwrap();
     let offset = block_offsets
         .last()
         .copied()
@@ -777,8 +780,8 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         let mut file = self.file.take().unwrap();
 
-        // Write index block to file (index blocks are never compressed).
-        // Buffer the index block first to compute its checksum.
+        // Write index block (never compressed). Buffer into a Vec first so we can
+        // compute the checksum, then write via the standard block helper.
         let index_entry_count: u16 = (self.key_block_boundaries.len() - 1)
             .try_into()
             .expect("Index entries count overflow");
@@ -793,24 +796,14 @@ impl<E: Entry> StreamingSstWriter<E> {
             }
         }
         let index_checksum = checksum_block(&index_buf);
-        // Register block offset (uncompressed_size header + checksum + data).
-        {
-            let block_len: u32 = (index_buf.len() + 8).try_into().unwrap(); // +4 uncompressed_size + 4 checksum
-            let offset = self
-                .block_offsets
-                .last()
-                .copied()
-                .unwrap_or_default()
-                .checked_add(block_len)
-                .expect("Block offset overflow");
-            self.block_offsets.push(offset);
-        }
-        file.write_u32::<BE>(0)
-            .context("Failed to write index block header")?;
-        file.write_u32::<BE>(index_checksum)
-            .context("Failed to write index block checksum")?;
-        file.write_all(&index_buf)
-            .context("Failed to write index block data")?;
+        write_raw_block_to_file(
+            &mut file,
+            &mut self.block_offsets,
+            0,
+            index_checksum,
+            &index_buf,
+        )
+        .context("Failed to write index block")?;
 
         // Write block offset table
         for offset in &self.block_offsets {
@@ -1624,33 +1617,30 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn checksum_detects_corrupted_compressed_block() {
+    /// Flip a single byte in an SST file at the given position.
+    fn corrupt_sst_byte(dir: &Path, seq: u32, pos: u64) {
         use std::io::{Seek, SeekFrom, Write as _};
 
-        let dir = tempfile::tempdir().unwrap();
-        // Medium value is large enough to get its own value block, which will be compressed
-        let value = vec![0xCD; 8192];
-        let mut entries = vec![TestEntry::medium(b"mkey", &value)];
-        sort_entries(&mut entries);
-
-        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default()).unwrap();
-
-        // Corrupt the stored checksum of the first block (bytes 4..8)
-        // This guarantees a mismatch regardless of whether LZ4 decompression succeeds.
-        let sst_path = dir.path().join("00000001.sst");
+        let sst_path = dir.join(format!("{seq:08}.sst"));
         let file_bytes = std::fs::read(&sst_path).unwrap();
-        let original_checksum_byte = file_bytes[4];
+        let original = file_bytes[pos as usize];
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .open(&sst_path)
             .unwrap();
-        file.seek(SeekFrom::Start(4)).unwrap();
-        file.write_all(&[original_checksum_byte ^ 0xFF]).unwrap();
+        file.seek(SeekFrom::Start(pos)).unwrap();
+        file.write_all(&[original ^ 0xFF]).unwrap();
         file.sync_all().unwrap();
-        drop(file);
+    }
 
-        let sst = open_sst(dir.path(), 1, &meta).unwrap();
+    /// Assert that looking up the first entry in a corrupted SST returns a corruption error.
+    fn assert_corruption_detected(
+        dir: &Path,
+        seq: u32,
+        meta: &StaticSortedFileBuilderMeta<'_>,
+        entries: &[TestEntry],
+    ) {
+        let sst = open_sst(dir, seq, meta).unwrap();
         let kc = make_cache();
         let vc = make_cache();
         match sst.lookup(entries[0].hash, &entries[0].key, &kc, &vc) {
@@ -1666,9 +1656,23 @@ mod tests {
     }
 
     #[test]
-    fn checksum_detects_corrupted_uncompressed_block() {
-        use std::io::{Seek, SeekFrom, Write as _};
+    fn checksum_detects_corrupted_compressed_block() {
+        let dir = tempfile::tempdir().unwrap();
+        // Medium value is large enough to get its own value block, which will be compressed
+        let value = vec![0xCD; 8192];
+        let mut entries = vec![TestEntry::medium(b"mkey", &value)];
+        sort_entries(&mut entries);
 
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default()).unwrap();
+
+        // Corrupt the stored checksum of the first block (bytes 4..8).
+        // This guarantees a mismatch regardless of whether LZ4 decompression succeeds.
+        corrupt_sst_byte(dir.path(), 1, 4);
+        assert_corruption_detected(dir.path(), 1, &meta, &entries);
+    }
+
+    #[test]
+    fn checksum_detects_corrupted_uncompressed_block() {
         let dir = tempfile::tempdir().unwrap();
         // Single inline entry - the key block will be small and likely stored uncompressed
         let mut entries = vec![TestEntry::inline(b"key1", b"val1")];
@@ -1676,35 +1680,8 @@ mod tests {
 
         let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default()).unwrap();
 
-        // Corrupt a byte in the first block's data region
-        let sst_path = dir.path().join("00000001.sst");
-        let file_bytes = std::fs::read(&sst_path).unwrap();
-
-        // Get start of the first block's data (after 8-byte header)
-        let corrupt_pos: u64 = 8 + 1; // 1 byte into block data
-        let original_byte = file_bytes[corrupt_pos as usize];
-
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .open(&sst_path)
-            .unwrap();
-        file.seek(SeekFrom::Start(corrupt_pos)).unwrap();
-        file.write_all(&[original_byte ^ 0xFF]).unwrap(); // flip bits
-        file.sync_all().unwrap();
-        drop(file);
-
-        let sst = open_sst(dir.path(), 1, &meta).unwrap();
-        let kc = make_cache();
-        let vc = make_cache();
-        match sst.lookup(entries[0].hash, &entries[0].key, &kc, &vc) {
-            Err(err) => {
-                let msg = format!("{err}");
-                assert!(
-                    msg.contains("corruption"),
-                    "Expected corruption error, got: {msg}"
-                );
-            }
-            Ok(_) => panic!("Expected checksum error, but lookup succeeded"),
-        }
+        // Corrupt a byte in the first block's data (after the 8-byte header)
+        corrupt_sst_byte(dir.path(), 1, BLOCK_HEADER_SIZE as u64 + 1);
+        assert_corruption_detected(dir.path(), 1, &meta, &entries);
     }
 }

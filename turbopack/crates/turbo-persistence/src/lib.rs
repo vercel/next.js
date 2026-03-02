@@ -34,7 +34,7 @@ pub use static_sorted_file::{
     BlockCache, BlockWeighter, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
 };
 pub use static_sorted_file_builder::{
-    Entry, EntryValue, StreamingSstWriter, write_static_stored_file,
+    BLOCK_HEADER_SIZE, Entry, EntryValue, StreamingSstWriter, write_static_stored_file,
 };
 pub use value_buf::ValueBuffer;
 pub use write_batch::WriteBatch;
