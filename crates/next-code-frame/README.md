@@ -60,6 +60,19 @@ This is a deliberate tradeoff — blank lines inside block comments or template
 literals that span the window boundary are vanishingly rare in practice, and
 the consequence is only slightly wrong highlighting, never a failure or missing output.
 
+### Byte-level skip for long lines
+
+When the visible window starts far into a long line (>200 bytes from the
+line-level scan start), the heuristic additionally scans backwards from the
+visible start for a `;` and restarts the tokenizer there. This is critical for
+minified files where the entire source may be a single line — without it the
+scanner would tokenize hundreds of kilobytes of invisible content.
+
+**Known limitation:** The `;` can land inside a string literal, causing an
+unbalanced quote that cascades incorrect highlighting across the visible window.
+In practice minified code has frequent `;` between statements so this rarely
+triggers, and the consequence is only wrong colors, never a failure.
+
 ## Features
 
 - Caller-provided output width (no terminal detection — sans-io)
