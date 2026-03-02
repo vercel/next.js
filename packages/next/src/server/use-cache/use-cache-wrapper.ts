@@ -352,6 +352,15 @@ function propagateCacheLifeAndTagsToRevalidateStore(
   }
 }
 
+function propagateCacheStaleTimeToRequestStore(
+  requestStore: RequestStore,
+  entry: CacheEntry
+): void {
+  if (requestStore.stale !== undefined && requestStore.stale > entry.stale) {
+    requestStore.stale = entry.stale
+  }
+}
+
 function propagateCacheLifeAndTags(
   cacheContext: CacheContext,
   entry: CacheEntry
@@ -366,6 +375,11 @@ function propagateCacheLifeAndTags(
         )
         break
       case 'request':
+        propagateCacheStaleTimeToRequestStore(
+          cacheContext.outerWorkUnitStore,
+          entry
+        )
+        break
       case undefined:
         break
       default:
@@ -385,6 +399,11 @@ function propagateCacheLifeAndTags(
         )
         break
       case 'request':
+        propagateCacheStaleTimeToRequestStore(
+          cacheContext.outerWorkUnitStore,
+          entry
+        )
+        break
       case 'unstable-cache':
       case undefined:
         break
@@ -1139,7 +1158,7 @@ export async function cache(
               // using a hanging promise for search params. For cached pages
               // that do access them, which is an invalid dynamic usage, we
               // need to ensure that an error is shown.
-              makeErroringSearchParamsForUseCache(workStore),
+              makeErroringSearchParamsForUseCache(),
           },
           ...otherInnerArgs,
         ]),

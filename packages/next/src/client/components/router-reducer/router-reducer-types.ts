@@ -127,6 +127,7 @@ export interface ServerPatchAction {
   nextUrl: string | null
   seed: NavigationSeed | null
   mpa: boolean
+  navigateType: 'push' | 'replace'
 }
 
 /**

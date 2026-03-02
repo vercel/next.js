@@ -2,7 +2,7 @@ import { promises } from 'fs'
 import * as Log from '../build/output/log'
 import findUp from 'next/dist/compiled/find-up'
 // @ts-ignore no-json types
-import nextPkgJson from 'next/package.json'
+import { optionalDependencies as nextOptionalDeps } from 'next/package.json'
 import type { UnwrapPromise } from './coalesced-function'
 import { isCI } from '../server/ci-info'
 import { getRegistry } from './helpers/get-registry'
@@ -19,7 +19,7 @@ async function fetchPkgInfo(pkg: string) {
     )
   }
   const data = await res.json()
-  const versionData = data.versions[nextPkgJson.version]
+  const versionData = data.versions[process.env.__NEXT_VERSION as string]
 
   return {
     os: versionData.os,
@@ -56,16 +56,16 @@ export async function patchIncorrectLockfile(dir: string) {
 
   const lockfileParsed = JSON.parse(content)
   const lockfileVersion = parseInt(lockfileParsed?.lockfileVersion, 10)
-  const expectedSwcPkgs = Object.keys(
-    nextPkgJson['optionalDependencies'] || {}
-  ).filter((pkg) => pkg.startsWith('@next/swc-'))
+  const expectedSwcPkgs = Object.keys(nextOptionalDeps || {}).filter((pkg) =>
+    pkg.startsWith('@next/swc-')
+  )
 
   const patchDependency = (
     pkg: string,
     pkgData: UnwrapPromise<ReturnType<typeof fetchPkgInfo>>
   ) => {
     lockfileParsed.dependencies[pkg] = {
-      version: nextPkgJson.version,
+      version: process.env.__NEXT_VERSION as string,
       resolved: pkgData.tarball,
       integrity: pkgData.integrity,
       optional: true,
@@ -77,7 +77,7 @@ export async function patchIncorrectLockfile(dir: string) {
     pkgData: UnwrapPromise<ReturnType<typeof fetchPkgInfo>>
   ) => {
     lockfileParsed.packages[pkg] = {
-      version: nextPkgJson.version,
+      version: process.env.__NEXT_VERSION as string,
       resolved: pkgData.tarball,
       integrity: pkgData.integrity,
       cpu: pkgData.cpu,

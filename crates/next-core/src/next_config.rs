@@ -920,6 +920,16 @@ pub enum ModuleIds {
 #[turbo_tasks::value(transparent)]
 pub struct OptionModuleIds(pub Option<ModuleIds>);
 
+#[turbo_tasks::value(operation)]
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TurbopackPluginRuntimeStrategy {
+    #[cfg(feature = "worker_pool")]
+    WorkerThreads,
+    #[cfg(feature = "process_pool")]
+    ChildProcesses,
+}
+
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -1090,6 +1100,7 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     root_params: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
+    immutable_asset_token: Option<RcStr>,
 
     // ---
     // UNSUPPORTED
@@ -1116,7 +1127,7 @@ pub struct ExperimentalConfig {
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
 
-    pub inline_css: Option<bool>,
+    inline_css: Option<bool>,
     instrumentation_hook: Option<bool>,
     client_trace_metadata: Option<Vec<String>>,
     large_page_data_bytes: Option<f64>,
@@ -1149,6 +1160,7 @@ pub struct ExperimentalConfig {
 
     turbopack_minify: Option<bool>,
     turbopack_module_ids: Option<ModuleIds>,
+    turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -1820,11 +1832,10 @@ impl NextConfig {
         Vc::cell(self.experimental.swc_plugins.clone().unwrap_or_default())
     }
 
-    // TODO not implemented yet
-    // #[turbo_tasks::function]
-    // pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
-    //     Vc::cell(self.experimental.sri.clone())
-    // }
+    #[turbo_tasks::function]
+    pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
+        Vc::cell(self.experimental.sri.clone())
+    }
 
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_babel(&self) -> Vc<Option<bool>> {
@@ -1890,13 +1901,21 @@ impl NextConfig {
 
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
-    pub async fn asset_suffix_path(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
-        let this = self.await?;
+    pub fn asset_suffix_path(&self) -> Vc<Option<RcStr>> {
+        let id = self
+            .experimental
+            .immutable_asset_token
+            .as_ref()
+            .or(self.deployment_id.as_ref());
 
-        match &this.deployment_id {
-            Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={deployment_id}").into()))),
-            None => Ok(Vc::cell(None)),
-        }
+        Vc::cell(id.as_ref().map(|id| format!("?dpl={id}").into()))
+    }
+
+    /// Whether to enable immutable assets, which uses a different asset suffix, and writes a
+    /// .next/immutable-static-hashes.json manifest.
+    #[turbo_tasks::function]
+    pub fn enable_immutable_assets(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.immutable_asset_token.is_some())
     }
 
     #[turbo_tasks::function]
@@ -2036,6 +2055,19 @@ impl NextConfig {
                 .turbopack_infer_module_side_effects
                 .unwrap_or(true),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
+        #[cfg(feature = "process_pool")]
+        let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
+        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
+        let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
+
+        self.experimental
+            .turbopack_plugin_runtime_strategy
+            .unwrap_or(default)
+            .cell()
     }
 
     #[turbo_tasks::function]

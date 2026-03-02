@@ -28,7 +28,7 @@ describe('type-module', () => {
     const server = await initNextServerScript(
       serverFile,
       /- Local:/,
-      { ...process.env, PORT: appPort.toString() },
+      { ...process.env, ...next.env, PORT: appPort.toString() },
       undefined,
       { cwd: next.testDir }
     )

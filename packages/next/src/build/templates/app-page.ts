@@ -63,6 +63,7 @@ import {
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
+import { createInstantTestScriptInsertionTransformStream } from '../../server/stream-utils/node-web-streams-helper'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
@@ -184,6 +185,7 @@ export async function handler(
     parsedUrl,
     interceptionRoutePatterns,
     deploymentId,
+    clientAssetToken,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -527,6 +529,9 @@ export async function handler(
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
+  const isWrappedByNextServer = Boolean(
+    routerServerContext?.isWrappedByNextServer
+  )
 
   const render404 = async () => {
     // TODO: should route-module itself handle rendering the 404
@@ -640,6 +645,7 @@ export async function handler(
         sharedContext: {
           buildId,
           deploymentId,
+          clientAssetToken,
         },
         serverComponentsHmrCache: getRequestMeta(
           req,
@@ -721,6 +727,7 @@ export async function handler(
               nextConfig.experimental.optimisticRouting
             ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
+            prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
@@ -923,9 +930,10 @@ export async function handler(
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
                 )
-              : // Otherwise, if we're debugging the fallback shell, then we
-                // have to manually generate the fallback route params.
-                isDebugFallbackShell
+              : // Otherwise, if we're debugging the fallback shell or the
+                // static shell, then we have to manually generate the
+                // fallback route params.
+                isDebugFallbackShell || isDebugStaticShell
                 ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
 
@@ -1087,11 +1095,32 @@ export async function handler(
         prerenderInfo?.fallbackRouteParams &&
         getRequestMeta(req, 'renderFallbackShell')
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : // Otherwise, if we're debugging the fallback shell, then we have to
-            // manually generate the fallback route params.
-            isDebugFallbackShell
+          : // Otherwise, if we're debugging the fallback shell or the static
+            // shell, then we have to manually generate the fallback route
+            // params.
+            isDebugFallbackShell || isDebugStaticShell
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
+
+      // For staged dynamic rendering (cached navigations), pass the fallback
+      // params via request meta so the RequestStore knows which params to defer
+      // to the runtime stage. We don't pass them as fallbackRouteParams because
+      // that would replace actual param values with opaque placeholders during
+      // segment resolution.
+      if (
+        isProduction &&
+        nextConfig.cacheComponents &&
+        !isPrerendered &&
+        prerenderInfo?.fallbackRouteParams
+      ) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
 
       // Perform the render.
       return doRender({
@@ -1428,6 +1457,21 @@ export async function handler(
       // This is a request for HTML data.
       const body = cachedData.html
 
+      // When serving a static shell for instant navigation testing, inject
+      // self.__next_instant_test=1 as the first thing inside <head> so the
+      // client can detect the static shell. This must be before any async
+      // bootstrap scripts — otherwise a cached async script can execute
+      // before the global is set.
+      //
+      // TODO: Currently the client skips hydration entirely during
+      // instant navigation testing. Ideally we would still hydrate but
+      // without the dynamic data — the static shell is valid HTML that
+      // could be hydrated. This is just an implementation gap; the
+      // page gets reloaded when the instant scope ends anyway.
+      if (isInstantNavigationTest && isDebugStaticShell) {
+        body.pipeThrough(createInstantTestScriptInsertionTransformStream())
+      }
+
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
@@ -1462,16 +1506,22 @@ export async function handler(
       // HTML will be the static shell so all the Dynamic API's will be used
       // during static generation.
       if (isDebugStaticShell || isDebugDynamicAccesses) {
-        // Since we're not resuming the render, we need to at least add the
-        // closing body and html tags to create valid HTML.
-        body.push(
-          new ReadableStream({
-            start(controller) {
-              controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
-              controller.close()
-            },
-          })
-        )
+        if (!isInstantNavigationTest) {
+          // Since we're not resuming the render, we need to at least add the
+          // closing body and html tags to create valid HTML.
+          body.push(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+                controller.close()
+              },
+            })
+          )
+        }
+        // When in instant navigation testing mode, we intentionally omit
+        // the closing </body></html> tags so the client interprets the
+        // response as a partial stream rather than a complete document
+        // with incoherent content.
 
         return sendRenderResult({
           req,
@@ -1544,22 +1594,26 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
-      return await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      return await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          handleResponse
-        )
+            handleResponse
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {
