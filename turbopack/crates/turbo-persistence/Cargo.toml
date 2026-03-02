@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 bincode = { workspace = true }
 bitfield = { workspace = true }
 byteorder = { workspace = true }
+crc32fast = { workspace = true }
 dashmap = { workspace = true}
 either = { workspace = true }
 jiff = "0.2.10"

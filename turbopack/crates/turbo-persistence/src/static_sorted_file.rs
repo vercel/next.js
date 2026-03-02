@@ -15,7 +15,7 @@ use rustc_hash::FxHasher;
 use crate::{
     QueryKey,
     arc_bytes::ArcBytes,
-    compression::decompress_into_arc,
+    compression::{checksum_block, decompress_into_arc},
     constants::MAX_INLINE_VALUE_SIZE,
     lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
 };
@@ -395,10 +395,22 @@ impl StaticSortedFile {
     /// Reads a block from the file.
     #[tracing::instrument(level = "info", name = "reading database block", skip_all)]
     fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
-        let (uncompressed_length, block) = self.get_raw_block_slice(block_index)?;
+        let (uncompressed_length, expected_checksum, block) =
+            self.get_raw_block_slice(block_index)?;
 
         // 0 means the block was not compressed, return the mmap-backed ArcBytes directly
         if uncompressed_length == 0 {
+            let actual = checksum_block(block);
+            if actual != expected_checksum {
+                bail!(
+                    "Cache corruption detected: checksum mismatch in block {} of SST file seq:{} \
+                     (expected {:08x}, got {:08x})",
+                    block_index,
+                    self.meta.sequence_number,
+                    expected_checksum,
+                    actual
+                );
+            }
             return Ok(self.mmap_slice_to_arc_bytes(block));
         }
 
@@ -414,15 +426,30 @@ impl StaticSortedFile {
         );
 
         let buffer = decompress_into_arc(uncompressed_length, block)?;
+        let actual = checksum_block(&buffer);
+        if actual != expected_checksum {
+            bail!(
+                "Cache corruption detected: checksum mismatch in block {} of SST file seq:{} \
+                 (expected {:08x}, got {:08x})",
+                block_index,
+                self.meta.sequence_number,
+                expected_checksum,
+                actual
+            );
+        }
         Ok(ArcBytes::from(buffer))
     }
 
     /// Returns `(uncompressed_length, block_data)` as an owned `ArcBytes` backed by
     /// the mmap. Only use this when the block data needs to outlive the current borrow
     /// (e.g. medium values stored in `LookupEntry`).
-    fn get_raw_block(&self, block_index: u16) -> Result<(u32, ArcBytes)> {
-        let (uncompressed_length, block) = self.get_raw_block_slice(block_index)?;
-        Ok((uncompressed_length, self.mmap_slice_to_arc_bytes(block)))
+    fn get_raw_block(&self, block_index: u16) -> Result<(u32, u32, ArcBytes)> {
+        let (uncompressed_length, checksum, block) = self.get_raw_block_slice(block_index)?;
+        Ok((
+            uncompressed_length,
+            checksum,
+            self.mmap_slice_to_arc_bytes(block),
+        ))
     }
 
     /// Promotes a mmap subslice to an owned `ArcBytes`. This clones the `Arc<Mmap>`.
@@ -433,7 +460,7 @@ impl StaticSortedFile {
 
     /// Gets the raw block slice directly from the memory mapped file, without
     /// cloning the `Arc<Mmap>`. The returned slice borrows from the mmap.
-    fn get_raw_block_slice(&self, block_index: u16) -> Result<(u32, &[u8])> {
+    fn get_raw_block_slice(&self, block_index: u16) -> Result<(u32, u32, &[u8])> {
         #[cfg(feature = "strict_checks")]
         if block_index >= self.meta.block_count {
             bail!(
@@ -477,8 +504,9 @@ impl StaticSortedFile {
         }
         let uncompressed_length =
             u32::from_be_bytes(self.mmap[block_start..block_start + 4].try_into()?);
-        let block = &self.mmap[block_start + 4..block_end];
-        Ok((uncompressed_length, block))
+        let checksum = u32::from_be_bytes(self.mmap[block_start + 4..block_start + 8].try_into()?);
+        let block = &self.mmap[block_start + 8..block_end];
+        Ok((uncompressed_length, checksum, block))
     }
 }
 
@@ -577,9 +605,10 @@ impl StaticSortedFileIter {
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
                     let mut val = val;
                     let block = val.read_u16::<BE>()?;
-                    let (uncompressed_size, block) = self.this.get_raw_block(block)?;
+                    let (uncompressed_size, checksum, block) = self.this.get_raw_block(block)?;
                     LazyLookupValue::Medium {
                         uncompressed_size,
+                        checksum,
                         block,
                     }
                 } else {

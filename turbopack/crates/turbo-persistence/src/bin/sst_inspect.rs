@@ -252,9 +252,10 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         };
         let block_end = blocks_start + (&mmap[offset..offset + 4]).read_u32::<BE>()? as usize;
 
-        // Read uncompressed length and compressed data
+        // Read uncompressed length, checksum, and compressed data
         let uncompressed_length = (&mmap[block_start..block_start + 4]).read_u32::<BE>()?;
-        let compressed_data = &mmap[block_start + 4..block_end];
+        let _checksum = (&mmap[block_start + 4..block_start + 8]).read_u32::<BE>()?;
+        let compressed_data = &mmap[block_start + 8..block_end];
         let compressed_size = compressed_data.len() as u64;
 
         // Determine if block was compressed (uncompressed_length > 0 means it was compressed)

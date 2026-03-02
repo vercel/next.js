@@ -78,6 +78,7 @@ The SST file contains only data without any header.
 
 - foreach block
   - 4 bytes block header (uncompressed length or sentinel)
+  - 4 bytes checksum (CRC32 of uncompressed block data)
   - block data (compressed or uncompressed)
 - foreach block
   - 4 bytes end of block offset relative to start of all blocks
@@ -88,6 +89,10 @@ Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header disting
 
 - **Header > 0**: Block is LZ4 compressed. Header value is the uncompressed length.
 - **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
+
+#### Block Checksum
+
+Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **uncompressed** block data. On read, the checksum is verified after decompression (or directly for uncompressed blocks). A checksum mismatch returns an error indicating cache corruption.
 
 #### Index Block
 

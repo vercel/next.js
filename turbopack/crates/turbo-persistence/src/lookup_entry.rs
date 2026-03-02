@@ -23,6 +23,7 @@ pub enum LazyLookupValue {
     /// A medium sized value that is still compressed.
     Medium {
         uncompressed_size: u32,
+        checksum: u32,
         block: ArcBytes,
     },
 }
@@ -37,6 +38,7 @@ impl LazyLookupValue {
             LazyLookupValue::Medium {
                 uncompressed_size,
                 block,
+                ..
             } => {
                 if *uncompressed_size == 0 {
                     block.len()
@@ -113,9 +115,11 @@ impl Entry for LookupEntry {
             },
             LazyLookupValue::Medium {
                 uncompressed_size,
+                checksum,
                 block,
             } => EntryValue::MediumRaw {
                 uncompressed_size: *uncompressed_size,
+                checksum: *checksum,
                 block: block.as_ref(),
             },
         }

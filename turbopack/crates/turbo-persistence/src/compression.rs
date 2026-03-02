@@ -29,6 +29,11 @@ pub fn decompress_into_arc(uncompressed_length: u32, block: &[u8]) -> Result<Arc
     Ok(buffer)
 }
 
+/// Computes a CRC32 checksum of a byte slice.
+pub fn checksum_block(data: &[u8]) -> u32 {
+    crc32fast::hash(data)
+}
+
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compress_into_buffer(block: &[u8], buffer: &mut Vec<u8>) -> Result<()> {
     lz4::compress_to_vec(block, buffer, lz4::ACC_LEVEL_DEFAULT).context("Compression failed")?;
