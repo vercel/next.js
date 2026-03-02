@@ -117,6 +117,9 @@ async function runTest(
   next: NextInstance,
   readFiles: (next: NextInstance) => Promise<Map<string, Map<string, string>>>
 ) {
+  // Same for both builds
+  next.env['__NEXT_IMMUTABLE_ASSET_TOKEN'] = 'imm-token'
+
   // First build
   next.env['NEXT_DEPLOYMENT_ID'] = 'foo-dpl-id'
   await next.build()
