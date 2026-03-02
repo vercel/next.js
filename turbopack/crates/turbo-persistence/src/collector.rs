@@ -110,61 +110,43 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.entries.push(entry);
     }
 
-    /// Sorts the entries, deduplicates same-key entries based on family semantics, and returns
-    /// them along with the total key size.
+    /// Sorts entries by key. Tombstones are placed last within each key group.
+    /// This method does not deduplicate entries.
     ///
-    /// Uses a stable sort so insertion order is preserved for equal keys — the last entry for a
-    /// given key is the newest.
-    ///
-    /// Dedup rules:
-    /// - SingleValue: keep only the newest (last) entry per key.
-    /// - MultiValue: keep entries from the last tombstone onward (the tombstone shadows all older
-    ///   entries for that key). If there is no tombstone, all entries are kept.
+    /// In debug builds, asserts that SingleValue families have no duplicate keys.
     pub fn sorted(&mut self, family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
-        self.entries.sort_by(|a, b| a.key.cmp(&b.key));
+        // Sort by (hash, key) with tombstones placed last within each key group.
+        // We can use unstable sort because the relative order of equal elements
+        // doesn't matter — duplicates are either disallowed (SingleValue) or
+        // allowed without deduplication (MultiValue).
+        self.entries.sort_unstable_by(|a, b| {
+            a.key
+                .cmp(&b.key)
+                .then_with(|| a.value.is_deleted().cmp(&b.value.is_deleted()))
+        });
 
-        // Deduplicate in-place using a write pointer. We scan forward to find runs of same-key
-        // entries, then decide which entries from each run to keep.
-        let mut write = 0;
-        let mut read = 0;
-        let len = self.entries.len();
-        while read < len {
-            // Find the end of the run of entries with the same key
-            let run = &self.entries[read..];
-            let run_len = 1 + run[1..].iter().take_while(|e| e.key == run[0].key).count();
-            let run_end = read + run_len;
-
-            let keep_start = match family_kind {
-                FamilyKind::SingleValue => {
-                    // Keep only the last (newest) entry
-                    run_end - 1
+        #[cfg(debug_assertions)]
+        if family_kind == FamilyKind::SingleValue {
+            // WriteBatch callers must not insert duplicate keys for SingleValue families.
+            for w in self.entries.windows(2) {
+                if w[0].key == w[1].key {
+                    let mut key_buf = Vec::new();
+                    w[0].key.data.write_to(&mut key_buf);
+                    panic!(
+                        "WriteBatch invariant violation: SingleValue family has duplicate key \
+                         (hash={:#018x}, key={})",
+                        w[0].key.hash,
+                        key_buf
+                            .iter()
+                            .map(|b| format!("{b:02x}"))
+                            .collect::<String>(),
+                    );
                 }
-                FamilyKind::MultiValue => {
-                    // Find the last tombstone in the run; keep from there onward
-                    let last_tombstone = self.entries[read..run_end]
-                        .iter()
-                        .rposition(|e| matches!(e.value, CollectorEntryValue::Deleted));
-                    last_tombstone.map_or(read, |p| read + p)
-                }
-            };
-
-            // Subtract sizes of dropped entries
-            for e in &self.entries[read..keep_start] {
-                self.total_key_size -= e.key.len();
-                self.total_value_size -= e.value.len();
             }
-
-            // Move kept entries into place
-            for i in keep_start..run_end {
-                if i != write {
-                    self.entries.swap(write, i);
-                }
-                write += 1;
-            }
-
-            read = run_end;
         }
-        self.entries.truncate(write);
+
+        // Suppress unused variable warning in release builds
+        let _ = family_kind;
 
         (&self.entries, self.total_key_size)
     }

@@ -132,19 +132,23 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Simple",
         |batch| {
+            // Use family 1 to avoid collision with "Many SST files" which uses family 0.
+            // Note: "Families" test case also writes to family 1 (key [1]), but we only
+            // write keys 10..100 here, so no key collision.
             for i in 10..100u8 {
-                batch.put(0, vec![i], vec![i].into())?;
+                batch.put(1, vec![i], vec![i].into())?;
             }
             Ok(())
         },
         |db| {
-            let Some(value) = db.get(0, &[42u8])? else {
+            let Some(value) = db.get(1, &[42u8])? else {
                 panic!("Value not found");
             };
             assert_eq!(&*value, &[42]);
-            assert_eq!(db.get(0, &[42u8, 42])?, None);
-            assert_eq!(db.get(0, &[1u8])?, None);
-            assert_eq!(db.get(0, &[255u8])?, None);
+            assert_eq!(db.get(1, &[42u8, 42])?, None);
+            // Note: don't check for key [1u8] here because "Families" test writes that
+            assert_eq!(db.get(1, &[5u8])?, None); // 5 is not in 10..100
+            assert_eq!(db.get(1, &[255u8])?, None);
             Ok(())
         },
     );
@@ -153,6 +157,7 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Many SST files",
         |batch| {
+            // Use family 0 with keys 10..100 (different family from "Simple")
             for i in 10..100u8 {
                 batch.put(0, vec![i], vec![i].into())?;
                 unsafe { batch.flush(0)? };
@@ -196,14 +201,15 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Medium keys and values",
         |batch| {
+            // Use family 4 to avoid collision with other test cases
             for i in 0..200u8 {
-                batch.put(0, vec![i; 10 * 1024], vec![i; 100 * 1024].into())?;
+                batch.put(4, vec![i; 10 * 1024], vec![i; 100 * 1024].into())?;
             }
             Ok(())
         },
         |db| {
             for i in 0..200u8 {
-                let Some(value) = db.get(0, &vec![i; 10 * 1024])? else {
+                let Some(value) = db.get(4, &vec![i; 10 * 1024])? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &vec![i; 100 * 1024]);
@@ -221,15 +227,16 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Large keys and values (blob files)",
         |batch| {
+            // Use family 5 to avoid collision with other test cases
             for i in 0..2u8 {
-                batch.put(0, vec![i; BLOB_SIZE], vec![i; BLOB_SIZE].into())?;
+                batch.put(5, vec![i; BLOB_SIZE], vec![i; BLOB_SIZE].into())?;
             }
             Ok(())
         },
         |db| {
             for i in 0..2u8 {
                 let key_and_value = vec![i; BLOB_SIZE];
-                let Some(value) = db.get(0, &key_and_value)? else {
+                let Some(value) = db.get(5, &key_and_value)? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &key_and_value);
@@ -245,14 +252,15 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Different sizes keys and values",
         |batch| {
+            // Use family 6 to avoid collision with other test cases
             for i in different_sizes_range() {
-                batch.put(0, vec![i; i as usize], vec![i; i as usize].into())?;
+                batch.put(6, vec![i; i as usize], vec![i; i as usize].into())?;
             }
             Ok(())
         },
         |db| {
             for i in different_sizes_range() {
-                let Some(value) = db.get(0, &vec![i; i as usize])? else {
+                let Some(value) = db.get(6, &vec![i; i as usize])? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &vec![i; i as usize]);
@@ -265,15 +273,16 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Many items (1% read)",
         |batch| {
+            // Use family 2 to avoid collision with "Many items (multi-threaded)"
             for i in 0..1000 * 1024u32 {
-                batch.put(0, i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())?;
+                batch.put(2, i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())?;
             }
             Ok(())
         },
         |db| {
             for i in 0..10 * 1024u32 {
                 let i = i * 100;
-                let Some(value) = db.get(0, &i.to_be_bytes())? else {
+                let Some(value) = db.get(2, &i.to_be_bytes())? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &i.to_be_bytes());
@@ -286,9 +295,10 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Many items (1% read, multi-threaded)",
         |batch| {
+            // Use family 3 to avoid collision with other test cases
             (0..10 * 1024 * 1024u32).into_par_iter().for_each(|i| {
                 batch
-                    .put(0, i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())
+                    .put(3, i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())
                     .unwrap();
             });
             Ok(())
@@ -296,7 +306,7 @@ fn full_cycle() -> Result<()> {
         |db| {
             (0..100 * 1024u32).into_par_iter().for_each(|i| {
                 let i = i * 100;
-                let Some(value) = db.get(0, &i.to_be_bytes()).unwrap() else {
+                let Some(value) = db.get(3, &i.to_be_bytes()).unwrap() else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &i.to_be_bytes());
@@ -1835,79 +1845,41 @@ fn multi_value_delete_with_compaction_interleaved() -> Result<()> {
     Ok(())
 }
 
+// Tests for the new WriteBatch semantics:
+// - SingleValue: duplicate keys in the same batch is a user error (panics in debug builds)
+// - MultiValue: tombstone only shadows entries from older SSTs, not entries in the same batch
+
 #[test]
-fn single_value_dedup_same_key_same_batch() -> Result<()> {
-    let tempdir = tempfile::tempdir()?;
+#[cfg(debug_assertions)]
+#[should_panic(expected = "WriteBatch invariant violation: SingleValue family has duplicate key")]
+fn single_value_duplicate_key_panics() {
+    let tempdir = tempfile::tempdir().unwrap();
     let path = tempdir.path();
 
-    // For SingleValue, writing the same key twice in one batch should keep only the last value.
+    // For SingleValue, writing the same key twice in one batch should panic in debug builds.
     let key = vec![1u8];
 
-    {
-        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )
+    .unwrap();
 
-        let batch = db.write_batch()?;
-        batch.put(0, key.clone(), vec![10u8].into())?;
-        batch.put(0, key.clone(), vec![20u8].into())?; // should override
-        db.commit_write_batch(batch)?;
-
-        let result = db.get(0, &key.as_slice())?;
-        assert_eq!(
-            result.as_deref(),
-            Some(&[20u8][..]),
-            "SingleValue should keep only the last put in a batch"
-        );
-
-        db.shutdown()?;
-    }
-
-    Ok(())
+    let batch = db.write_batch().unwrap();
+    batch.put(0, key.clone(), vec![10u8].into()).unwrap();
+    batch.put(0, key.clone(), vec![20u8].into()).unwrap(); // should panic
+    db.commit_write_batch(batch).unwrap(); // panics during commit
 }
 
 #[test]
-fn single_value_delete_within_batch() -> Result<()> {
-    let tempdir = tempfile::tempdir()?;
-    let path = tempdir.path();
-
-    // For SingleValue, put then delete in the same batch should result in None.
-    let key = vec![2u8];
-
-    {
-        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
-
-        let batch = db.write_batch()?;
-        batch.put(0, key.clone(), vec![10u8].into())?;
-        batch.delete(0, key.clone())?;
-        db.commit_write_batch(batch)?;
-
-        let result = db.get(0, &key.as_slice())?;
-        assert_eq!(
-            result, None,
-            "SingleValue put+delete in same batch should return None"
-        );
-
-        db.shutdown()?;
-    }
-
-    Ok(())
-}
-
-#[test]
-fn multi_value_delete_within_batch() -> Result<()> {
+fn multi_value_tombstone_only_shadows_older_ssts() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
     let config = multi_value_config();
 
-    // For MultiValue, a tombstone in a batch shadows all entries before it
-    // (in insertion order) for that key, including entries from older SSTs.
-    // Entries after the tombstone in the same batch are preserved.
+    // For MultiValue, a tombstone only shadows entries from older SSTs.
+    // Entries in the same batch are NOT shadowed by the tombstone.
     let key = vec![3u8];
 
     {
@@ -1923,8 +1895,9 @@ fn multi_value_delete_within_batch() -> Result<()> {
         db.commit_write_batch(batch)?;
 
         // Now in a single batch: put(A), delete, put(B)
-        // The tombstone shadows A (10) and the older SST (99).
-        // Only B (20) survives (it comes after the tombstone).
+        // With the new semantics:
+        // - The tombstone shadows the older SST (99)
+        // - Entries in the same batch (A=10 and B=20) are preserved
         let batch = db.write_batch()?;
         batch.put(0, key.clone(), vec![10u8].into())?;
         batch.delete(0, key.clone())?;
@@ -1932,12 +1905,14 @@ fn multi_value_delete_within_batch() -> Result<()> {
         db.commit_write_batch(batch)?;
 
         let results = db.get_multiple(0, &key.as_slice())?;
+        // Should have both values from the same batch (10 and 20), but not 99
+        // The tombstone shadows the older SST but not the same-batch entries
         assert_eq!(
             results.len(),
-            1,
-            "Should have 1 value (only entries after tombstone survive)"
+            2,
+            "Should have 2 values (both from same batch), got {:?}",
+            results
         );
-        assert_eq!(results[0].as_ref(), &[20u8]);
 
         db.shutdown()?;
     }
@@ -1946,14 +1921,13 @@ fn multi_value_delete_within_batch() -> Result<()> {
 }
 
 #[test]
-fn multi_value_put_delete_at_end_of_batch() -> Result<()> {
+fn multi_value_tombstone_shadows_older_sst_only() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
     let config = multi_value_config();
 
-    // For MultiValue, put(A), put(B), delete in the same batch: the tombstone
-    // is last so it shadows everything (A, B, and older SSTs).
+    // For MultiValue, tombstone in a batch shadows only entries from older SSTs.
     let key = vec![4u8];
 
     {
@@ -1969,18 +1943,19 @@ fn multi_value_put_delete_at_end_of_batch() -> Result<()> {
         db.commit_write_batch(batch)?;
 
         // Now in a single batch: put(A), put(B), delete
-        // Tombstone is last, so it shadows everything.
+        // The tombstone shadows the older SST (99), but A (10) and B (20) are preserved.
         let batch = db.write_batch()?;
         batch.put(0, key.clone(), vec![10u8].into())?;
         batch.put(0, key.clone(), vec![20u8].into())?;
         batch.delete(0, key.clone())?;
         db.commit_write_batch(batch)?;
 
-        // All values are shadowed by the tombstone.
         let results = db.get_multiple(0, &key.as_slice())?;
-        assert!(
-            results.is_empty(),
-            "Should have 0 values (tombstone at end shadows everything), got {:?}",
+        // Should have both values from the same batch (10 and 20), but not 99
+        assert_eq!(
+            results.len(),
+            2,
+            "Should have 2 values (both from same batch, tombstone shadows older SST), got {:?}",
             results
         );
 

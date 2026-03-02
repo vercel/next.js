@@ -420,13 +420,21 @@ impl MetaFile {
                         // Return immediately with the first result
                         return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(values)));
                     }
-                    // Accumulate results
+                    // Check for tombstone — stops search across older SSTs within this meta file.
+                    // Since tombstones sort last within a key group, if the last value is Deleted,
+                    // we have a tombstone.
+                    let has_tombstone = values.last().is_some_and(|v| *v == LookupValue::Deleted);
                     all_results.extend(values);
+                    if has_tombstone {
+                        return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
+                            all_results,
+                        )));
+                    }
                 }
             }
         }
 
-        if !all_results.is_empty() {
+        if FIND_ALL && !all_results.is_empty() {
             return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
                 all_results,
             )));

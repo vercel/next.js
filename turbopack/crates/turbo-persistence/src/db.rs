@@ -1079,6 +1079,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 flags: MetaEntryFlags,
                                 new_sst_files:
                                     Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                                /// Hash of the last key added. Used to ensure we only split
+                                /// SST files at key boundaries (not mid-key-group for MultiValue).
+                                last_hash: Option<u64>,
                             }
                             impl Collector {
                                 fn new(flags: MetaEntryFlags) -> Self {
@@ -1086,6 +1089,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         writer: None,
                                         flags,
                                         new_sst_files: Vec::new(),
+                                        last_hash: None,
                                     }
                                 }
 
@@ -1124,8 +1128,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     Ok(())
                                 }
 
-                                /// Adds an entry to the collector. Writes the entry first,
-                                /// then checks if the file is full and closes it if so.
+                                /// Adds an entry to the collector. Only splits the SST file at
+                                /// key boundaries to avoid breaking key groups for MultiValue
+                                /// families.
                                 fn add_entry(
                                     &mut self,
                                     entry: LookupEntry,
@@ -1133,17 +1138,21 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     sequence_number: &AtomicU32,
                                     keys_written: &mut u64,
                                 ) -> Result<()> {
-                                    let writer = self.ensure_writer(path, sequence_number)?;
-                                    writer.add(entry)?;
-
-                                    // Check fullness after adding -- the writer tracks sizes
-                                    // and block counts internally.
-                                    if writer.is_full(
-                                        MAX_ENTRIES_PER_COMPACTED_FILE,
-                                        DATA_THRESHOLD_PER_COMPACTED_FILE,
-                                    ) {
+                                    let key_changed = self.last_hash != Some(entry.hash);
+                                    // Only check fullness at key boundaries to avoid splitting
+                                    // a key group across two SST files.
+                                    if key_changed
+                                        && let Some((_, ref writer)) = self.writer
+                                        && writer.is_full(
+                                            MAX_ENTRIES_PER_COMPACTED_FILE,
+                                            DATA_THRESHOLD_PER_COMPACTED_FILE,
+                                        )
+                                    {
                                         self.close_sst_file(keys_written)?;
                                     }
+                                    self.last_hash = Some(entry.hash);
+                                    let writer = self.ensure_writer(path, sequence_number)?;
+                                    writer.add(entry)?;
                                     Ok(())
                                 }
                             }
@@ -1163,10 +1172,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             let mut current_key: Option<ArcBytes> = None;
                             let mut keys_written = 0;
 
-                            // MergeIter yields entries newest-first. Use a skip flag to handle:
+                            // MergeIter yields entries from newer SSTs first (by SST sequence
+                            // number). Within each SST, tombstones sort last within key groups.
+                            // Use a skip flag to handle:
                             // - SingleValue: skip all older entries after writing the first
-                            //   (newest)
                             // - MultiValue: skip all older entries after encountering a tombstone
+                            //   (which signals deletion of all prior values for this key)
                             let mut skip_remaining_for_this_key = false;
                             let family_config = &self.config.family_configs[family as usize];
 
@@ -1455,10 +1466,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             found_in_sst = true;
                         }
                         inner.accessed_key_hashes[family].insert(hash);
-                        // A tombstone in an SST stops the search across
-                        // older SSTs but non-tombstone values in the same
-                        // SST and from newer layers are kept.
-                        let mut found_tombstone = false;
+                        // Process values. Tombstones sort last within a key group,
+                        // so when we see a tombstone, we can return immediately.
                         for value in values {
                             match value {
                                 LookupValue::Deleted => {
@@ -1468,7 +1477,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         span.record("result_size", "deleted");
                                         return Ok(SmallVec::new());
                                     }
-                                    found_tombstone = true;
+                                    // Tombstone is last in key group. Return accumulated
+                                    // values (from this SST and newer layers). Stop
+                                    // searching older SSTs.
+                                    if output.is_empty() {
+                                        span.record("result_size", "deleted");
+                                    } else {
+                                        span.record("result_size", size);
+                                    }
+                                    return Ok(output);
                                 }
                                 LookupValue::Slice { value } => {
                                     #[cfg(feature = "stats")]
@@ -1492,17 +1509,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     output.push(blob);
                                 }
                             }
-                        }
-                        if found_tombstone {
-                            // Tombstone stops the search across older
-                            // SSTs but we keep non-tombstone values from
-                            // this SST and from newer layers.
-                            if size == 0 {
-                                span.record("result_size", "deleted");
-                            } else {
-                                span.record("result_size", size);
-                            }
-                            return Ok(output);
                         }
                     }
                     SstLookupResult::NotFound => {

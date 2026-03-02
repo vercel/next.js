@@ -62,15 +62,9 @@ impl CollectorEntryValue {
         }
     }
 
-    /// Returns the byte slice for byte-content values, or None for Large/Deleted.
-    #[cfg(feature = "verify_sst_content")]
-    pub fn as_bytes(&self) -> Option<&[u8]> {
-        match self {
-            CollectorEntryValue::Tiny { value, len } => Some(&value[..*len as usize]),
-            CollectorEntryValue::Small { value } => Some(value),
-            CollectorEntryValue::Medium { value } => Some(value),
-            CollectorEntryValue::Large { .. } | CollectorEntryValue::Deleted => None,
-        }
+    /// Returns true if this value is a deletion tombstone.
+    pub fn is_deleted(&self) -> bool {
+        matches!(self, CollectorEntryValue::Deleted)
     }
 }
 

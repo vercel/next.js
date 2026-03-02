@@ -321,18 +321,13 @@ impl StaticSortedFile {
                         let result = self.handle_key_match(ty, val, &block, value_block_cache)?;
                         return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
                     }
-                    // FIND_ALL (MultiValue) mode: collect all values for
-                    // this key. Entries are insertion order
-                    //
-                    // Scan backwards, stopping at Deleted (nothing before
-                    // it matters). Then scan forwards (Deleted cannot
-                    // appear after a non-Deleted in sort order).
-                    //
-                    // If a Deleted is present it is always the first
-                    // element in the returned results, signalling to the
-                    // caller that older layers should not be searched.
+                    // FIND_ALL (MultiValue) mode: collect all values for this key.
+                    // Tombstones (Deleted) sort last within each key group, so we
+                    // scan backward to find the start of the key group, then forward
+                    // to collect all entries. The tombstone, if present, will be the
+                    // last entry in the results.
                     let mut results = SmallVec::new();
-                    // Backward scan: collect values before `m`, stop at Deleted
+                    // Backward scan: collect all entries before `m` with the same key
                     for i in (0..m).rev() {
                         let GetKeyEntryResult {
                             hash,
@@ -344,10 +339,6 @@ impl StaticSortedFile {
                             break;
                         }
                         results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
-                        // Deleted sorts first, so this is the start of the key group
-                        if ty == KEY_BLOCK_ENTRY_TYPE_DELETED {
-                            break;
-                        }
                     }
                     results.reverse();
                     // Add the entry at `m`
