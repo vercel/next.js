@@ -1583,7 +1583,7 @@ async function fetchMissingDynamicData(
     }
 
     if (routeCacheEntry !== null && result.staticStageData !== null) {
-      const { response: staticStageResponse, isFullyStatic } =
+      const { response: staticStageResponse, completeness } =
         result.staticStageData
 
       const now = Date.now()
@@ -1601,7 +1601,7 @@ async function fetchMissingDynamicData(
             staticStageResponse.h,
             staleAt,
             routeCacheEntry,
-            !isFullyStatic
+            completeness
           )
         })
         .catch(() => {

@@ -29,6 +29,7 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
+  ResponseCompleteness,
   type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
@@ -2279,19 +2280,20 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const staleAt = await getStaleAt(now, serverData.s, response)
     const completenessMarker = cacheData?.completenessMarker ?? null
 
-    // PPRRuntime prefetches are partial when the server marks the response
-    // as '~' (Partial). Full/LoadingBoundary prefetches are always complete.
-    const isResponsePartial =
-      fetchStrategy === FetchStrategy.PPRRuntime &&
-      completenessMarker === ResponseCompletenessMarker.Partial
-
-    // A runtime prefetch may receive a statically generated response (with the
-    // Static completeness marker) for a fully static page. In that case the
-    // head is complete despite the server conservatively marking it as partial,
-    // so we override it.
-    const overrideHeadAsNonPartial =
-      fetchStrategy === FetchStrategy.PPRRuntime &&
-      completenessMarker === ResponseCompletenessMarker.Static
+    // Derive the completeness level from the fetch strategy and the server's
+    // completeness marker. For PPRRuntime prefetches, the marker distinguishes
+    // partial (~), complete (*), and fully static (#) responses. For
+    // Full/LoadingBoundary prefetches, segments are always complete but the
+    // head may still be partial (e.g. dynamic metadata behind a loading
+    // boundary), so we use Complete rather than FullyStatic.
+    const completeness: ResponseCompleteness =
+      fetchStrategy === FetchStrategy.PPRRuntime
+        ? completenessMarker === ResponseCompletenessMarker.Static
+          ? ResponseCompleteness.Static
+          : completenessMarker === ResponseCompletenessMarker.Partial
+            ? ResponseCompleteness.Partial
+            : ResponseCompleteness.Complete
+        : ResponseCompleteness.Complete
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
@@ -2303,12 +2305,11 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       fetchStrategy,
       serverData.f,
       buildId,
-      isResponsePartial,
+      completeness,
       headVaryParams,
       staleAt,
       route,
-      spawnedEntries,
-      overrideHeadAsNonPartial
+      spawnedEntries
     )
 
     // Return a promise that resolves when the network connection closes, so
@@ -2357,11 +2358,13 @@ function writeDynamicTreeResponseIntoCache(
 
   const flightRouterState = flightData.tree
   // If the response contains dynamic holes, then we must conservatively assume
-  // that any individual segment might contain dynamic holes, and also the
-  // head. If it did not contain dynamic holes, then we can assume every segment
-  // and the head is completely static.
-  const isResponsePartial =
+  // that any individual segment might contain dynamic holes, and also the head.
+  // If it did not contain dynamic holes, then we can assume every included
+  // segment and the head is completely static.
+  const completeness =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
+      ? ResponseCompleteness.Partial
+      : ResponseCompleteness.Complete
 
   // Convert the server-sent data into the RouteTree format used by the
   // client cache.
@@ -2409,12 +2412,11 @@ function writeDynamicTreeResponseIntoCache(
     fetchStrategy,
     serverData.f,
     buildId,
-    isResponsePartial,
+    completeness,
     headVaryParams,
     getStaleAtFromHeader(now, response),
     fulfilledEntry,
-    null,
-    false // overrideHeadAsNonPartial
+    null
   )
 }
 
@@ -2442,12 +2444,11 @@ export function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.Full,
   flightData: FlightData,
   buildId: string | undefined,
-  isResponsePartial: boolean,
+  completeness: ResponseCompleteness,
   headVaryParams: VaryParams | null,
   staleAt: number,
   route: FulfilledRouteCacheEntry,
-  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
-  overrideHeadAsNonPartial: boolean
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
   if (buildId && buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
@@ -2495,7 +2496,7 @@ export function writeDynamicRenderResponseIntoCache(
         tree,
         staleAt,
         seedData,
-        isResponsePartial,
+        completeness === ResponseCompleteness.Partial,
         spawnedEntries
       )
     }
@@ -2504,11 +2505,12 @@ export function writeDynamicRenderResponseIntoCache(
     if (head !== null) {
       // The server conservatively marks the head as partial whenever Cache
       // Components is enabled, even for fully static pages where the head is
-      // actually complete. The caller can override this when it knows the
-      // response is from a fully static prerender.
-      const isHeadPartial = overrideHeadAsNonPartial
-        ? false
-        : flightDataEntry.isHeadPartial
+      // actually complete. When the response is fully static, we can safely
+      // overrule this since the server confirmed no dynamic content exists.
+      const isHeadPartial =
+        completeness === ResponseCompleteness.Static
+          ? false
+          : flightDataEntry.isHeadPartial
 
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
@@ -2917,7 +2919,7 @@ export async function getStaleAt(
 
 /**
  * Writes the static stage of a navigation response into the segment cache.
- * When `isFullyStatic` is true, segments are written as non-partial with
+ * When `completeness` is `Static`, segments are written as non-partial with
  * `FetchStrategy.Full` so no dynamic follow-up is needed. Default segments
  * are skipped (by `writeSeedDataIntoCache`) to avoid caching fallback content
  * that would block refreshes from overwriting with dynamic data.
@@ -2929,11 +2931,12 @@ export function writeStaticStageResponseIntoCache(
   headVaryParamsThenable: VaryParamsThenable | null,
   staleAt: number,
   route: FulfilledRouteCacheEntry,
-  isResponsePartial: boolean
+  completeness: ResponseCompleteness
 ): void {
-  const fetchStrategy = isResponsePartial
-    ? FetchStrategy.PPR
-    : FetchStrategy.Full
+  const fetchStrategy =
+    completeness === ResponseCompleteness.Static
+      ? FetchStrategy.Full
+      : FetchStrategy.PPR
 
   const headVaryParams =
     headVaryParamsThenable !== null
@@ -2945,12 +2948,11 @@ export function writeStaticStageResponseIntoCache(
     fetchStrategy,
     flightData,
     buildId,
-    isResponsePartial,
+    completeness,
     headVaryParams,
     staleAt,
     route,
-    null, // spawnedEntries — no pre-created entries; will create or upsert
-    !isResponsePartial // overrideHeadAsNonPartial
+    null // spawnedEntries — no pre-created entries; will create or upsert
   )
 }
 

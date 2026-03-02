@@ -14,6 +14,7 @@ import {
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
+import { ResponseCompleteness } from './fetch-server-response'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
@@ -99,7 +100,6 @@ export function createInitialRouterState({
     // navigations to the initial page can serve cached segments instantly.
     if (initialSeedData !== null && initialStaleTime !== undefined) {
       // Currently only fully static pages include initialStaleTime.
-      const isResponsePartial = false
       const now = Date.now()
 
       getStaleAt(now, initialStaleTime)
@@ -111,7 +111,7 @@ export function createInitialRouterState({
             initialHeadVaryParams,
             staleAt,
             route,
-            isResponsePartial
+            ResponseCompleteness.Static
           )
         })
         .catch(() => {

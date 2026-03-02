@@ -65,9 +65,28 @@ export interface FetchServerResponseOptions {
   readonly isHmrRefresh?: boolean
 }
 
+/**
+ * Describes how complete a response is, affecting how segments and the head are
+ * written into the cache.
+ *
+ * - Partial: segments have dynamic holes that need a follow-up request.
+ * - Complete: all included segments are complete, but the response may not
+ *   include all segments for the route (based on the router state tree
+ *   sent with the request), and the head may still be partial (e.g.
+ *   LoadingBoundary prefetches, or runtime prefetches that completed for
+ *   a non-fully-static page).
+ * - Static: the server confirmed the entire response is fully static. Both
+ *   segments and the head are complete.
+ */
+export const enum ResponseCompleteness {
+  Partial,
+  Complete,
+  Static,
+}
+
 export type StaticStageData = {
   readonly response: NavigationFlightResponse
-  readonly isFullyStatic: boolean
+  readonly completeness: ResponseCompleteness
 }
 
 type SpaFetchServerResponseResult = {
@@ -391,13 +410,19 @@ async function resolveStaticStageData(
   headers: RequestHeaders
 ): Promise<StaticStageData | null> {
   const { completenessMarker, responseBodyClone } = cacheData
-  const isFullyStatic = completenessMarker === ResponseCompletenessMarker.Static
 
-  if (isFullyStatic) {
+  const completeness =
+    completenessMarker === ResponseCompletenessMarker.Static
+      ? ResponseCompleteness.Static
+      : completenessMarker === ResponseCompletenessMarker.Complete
+        ? ResponseCompleteness.Complete
+        : ResponseCompleteness.Partial
+
+  if (completeness === ResponseCompleteness.Static) {
     // Fully static — cache the entire decoded response as-is.
     responseBodyClone.cancel()
 
-    return { response: flightResponse, isFullyStatic }
+    return { response: flightResponse, completeness }
   }
 
   if (flightResponse.l !== undefined) {
@@ -416,7 +441,7 @@ async function resolveStaticStageData(
         { allowPartialStream: true }
       )
 
-    return { response, isFullyStatic }
+    return { response, completeness }
   }
 
   // No caching — cancel the unused clone.
