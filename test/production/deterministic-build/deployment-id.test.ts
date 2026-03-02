@@ -235,7 +235,7 @@ const FILES = {
           ...FILES[test],
         },
         dependencies: {
-          vercel: '>=50.13.2',
+          vercel: 'latest',
         },
         packageJson: {
           scripts: {
