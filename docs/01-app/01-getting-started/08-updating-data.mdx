@@ -311,6 +311,8 @@ export function Button() {
   )
 }
 ```
+> **Good to know:** When you use the useActionState hook (or useFormState) to handle form submission state, the corresponding Server Action function MUST be defined to accept two arguments: the prevState and the formData. This ensures proper state management and avoids TypeScript errors (No overload matches this call).
+
 
 ```jsx filename="app/ui/button.js" switcher
 'use client'
