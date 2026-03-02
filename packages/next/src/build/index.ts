@@ -166,7 +166,6 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import {
@@ -549,12 +548,10 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
-    deploymentId,
   }: {
     buildId: string
     distDir: string
     locales: readonly string[] | undefined
-    deploymentId: string
   }
 ) {
   const ssgPages = new Set<string>(
@@ -571,12 +568,11 @@ async function writeClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
-  // When skew protection is enabled, we instead just rely on the deployment id query string to
-  // load the correct manifests, to avoid the build id.
-  let ssgManifestPath = deploymentId
-    ? path.join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
-    : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
-
+  let ssgManifestPath = path.join(
+    CLIENT_STATIC_FILES_PATH,
+    buildId,
+    '_ssgManifest.js'
+  )
   await writeFileUtf8(
     path.join(distDir, ssgManifestPath),
     clientSsgManifestContent
@@ -858,9 +854,10 @@ export function createStaticWorker(
             }
           : undefined),
         // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
-        __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX: config.deploymentId
-          ? `?dpl=${config.deploymentId}`
-          : '',
+        __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX:
+          config.experimental.immutableAssetToken || config.deploymentId
+            ? `?dpl=${config.experimental.immutableAssetToken || config.deploymentId}`
+            : '',
       },
     },
   }) as StaticWorker
@@ -979,6 +976,7 @@ export default async function build(
                     ({ key: a }, { key: b }) => a.localeCompare(b)
                   )
                 },
+                bundler,
               }),
             turborepoAccessTraceResult
           )
@@ -2063,7 +2061,8 @@ export default async function build(
               pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
-              deploymentId: config.deploymentId,
+              clientAssetToken:
+                config.experimental.immutableAssetToken || config.deploymentId,
               sriEnabled,
               cacheMaxMemorySize: config.cacheMaxMemorySize,
             })
@@ -2289,7 +2288,9 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
-                            deploymentId: config.deploymentId,
+                            clientAssetToken:
+                              config.experimental.immutableAssetToken ||
+                              config.deploymentId,
                             sriEnabled,
                           })
                         }
@@ -2592,16 +2593,11 @@ export default async function build(
               2
             )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
 
-            let clientMiddlewareManifestPath = config.deploymentId
-              ? path.join(
-                  CLIENT_STATIC_FILES_PATH,
-                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-                )
-              : path.join(
-                  CLIENT_STATIC_FILES_PATH,
-                  buildId,
-                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-                )
+            let clientMiddlewareManifestPath = path.join(
+              CLIENT_STATIC_FILES_PATH,
+              buildId,
+              TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+            )
 
             await writeFileUtf8(
               path.join(distDir, clientMiddlewareManifestPath),
@@ -2624,6 +2620,8 @@ export default async function build(
         buildTracesPromise = nextBuildSpan
           .traceChild('collect-build-traces')
           .traceAsyncFn(() => {
+            const { collectBuildTraces } =
+              require('./collect-build-traces') as typeof import('./collect-build-traces')
             return collectBuildTraces({
               dir,
               config,
@@ -3958,7 +3956,6 @@ export default async function build(
           distDir,
           buildId,
           locales: config.i18n?.locales,
-          deploymentId: config.deploymentId,
         })
       } else {
         await writePrerenderManifest(distDir, {

@@ -4,152 +4,207 @@
 
 use std::sync::Mutex;
 
-use turbo_tasks::{ResolvedVc, Vc, debug::ValueDebug};
+use turbo_tasks::{
+    ResolvedVc, Vc,
+    debug::{ValueDebug, ValueDebugString},
+};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn primitive_debug() {
-    run_once(&REGISTRATION, || async {
-        let a: Vc<u32> = Vc::cell(42);
-        assert_eq!(format!("{:?}", a.dbg().await?), "42");
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
+#[turbo_tasks::function(operation)]
+fn dbg_operation(value: ResolvedVc<Box<dyn ValueDebug>>) -> Vc<ValueDebugString> {
+    value.dbg()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn transparent_debug() {
-    run_once(&REGISTRATION, || async {
-        let a: Vc<Transparent> = Transparent(42).cell();
-        assert_eq!(format!("{:?}", a.dbg().await?), "42");
-
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn enum_none_debug() {
-    run_once(&REGISTRATION, || async {
-        let a: Vc<Enum> = Enum::None.cell();
-        assert_eq!(format!("{:?}", a.dbg().await?), "Enum :: None");
-
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn enum_transparent_debug() {
-    run_once(&REGISTRATION, || async {
-        let a: Vc<Enum> = Enum::Transparent(Transparent(42).resolved_cell()).cell();
+async fn test_primitive_debug() {
+    run_once(&REGISTRATION, move || async move {
+        let a = ResolvedVc::<u32>::cell(42);
         assert_eq!(
-            format!("{:?}", a.dbg().await?),
-            r#"Enum :: Transparent(
-    42,
-)"#
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "42",
         );
-        anyhow::Ok(())
+        Ok(())
     })
     .await
     .unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn enum_inner_vc_debug() {
-    run_once(&REGISTRATION, || async {
-        let a: Vc<Enum> = Enum::Enum(Enum::None.resolved_cell()).cell();
+async fn test_transparent_debug() {
+    run_once(&REGISTRATION, move || async move {
+        let a = Transparent(42).resolved_cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await?),
-            r#"Enum :: Enum(
-    Enum :: None,
-)"#
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "42",
         );
-        anyhow::Ok(())
+        Ok(())
     })
     .await
     .unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn struct_unit_debug() {
-    run_once(&REGISTRATION, || async {
-        let a: Vc<StructUnit> = StructUnit.cell();
-        assert_eq!(format!("{:?}", a.dbg().await?), "StructUnit");
-        anyhow::Ok(())
+async fn test_enum_none_debug() {
+    run_once(&REGISTRATION, move || async move {
+        let a = Enum::None.resolved_cell();
+        assert_eq!(
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "Enum :: None",
+        );
+        Ok(())
     })
     .await
     .unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn struct_transparent_debug() {
-    run_once(&REGISTRATION, || async {
-        let a: Vc<StructWithTransparent> = StructWithTransparent {
+async fn test_enum_transparent_debug() {
+    run_once(&REGISTRATION, move || async move {
+        let a = Enum::Transparent(Transparent(42).resolved_cell()).resolved_cell();
+        assert_eq!(
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "Enum :: Transparent(\n    42,\n)",
+        );
+        Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_enum_inner_vc_debug() {
+    run_once(&REGISTRATION, move || async move {
+        let a = Enum::Enum(Enum::None.resolved_cell()).resolved_cell();
+        assert_eq!(
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "Enum :: Enum(\n    Enum :: None,\n)",
+        );
+        Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_struct_unit_debug() {
+    run_once(&REGISTRATION, move || async move {
+        let a = StructUnit.resolved_cell();
+        assert_eq!(
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "StructUnit",
+        );
+        Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_struct_transparent_debug() {
+    run_once(&REGISTRATION, move || async move {
+        let a = StructWithTransparent {
             transparent: Transparent(42).resolved_cell(),
         }
-        .cell();
+        .resolved_cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await?),
-            r#"StructWithTransparent {
-    transparent: 42,
-}"#
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "StructWithTransparent {\n    transparent: 42,\n}",
         );
-        anyhow::Ok(())
+        Ok(())
     })
     .await
     .unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn struct_vec_debug() {
+async fn test_struct_vec_debug() {
     run_once(&REGISTRATION, || async {
-        let a: Vc<StructWithVec> = StructWithVec { vec: vec![] }.cell();
+        let a = StructWithVec { vec: Vec::new() }.resolved_cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await?),
-            r#"StructWithVec {
-    vec: [],
-}"#
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "StructWithVec {\n    vec: [],\n}"
         );
 
-        let b: Vc<StructWithVec> = StructWithVec {
+        let b = StructWithVec {
             vec: vec![Transparent(42).resolved_cell()],
         }
-        .cell();
+        .resolved_cell();
         assert_eq!(
-            format!("{:?}", b.dbg().await?),
-            r#"StructWithVec {
-    vec: [
-        42,
-    ],
-}"#
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(b))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "StructWithVec {\n    vec: [\n        42,\n    ],\n}",
         );
-        anyhow::Ok(())
+
+        Ok(())
     })
     .await
     .unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn struct_ignore_debug() {
+async fn test_struct_ignore_debug() {
     run_once(&REGISTRATION, || async {
-        let a: Vc<StructWithIgnore> = StructWithIgnore {
+        let a = StructWithIgnore {
             dont_ignore: 42,
             ignore: Mutex::new(()),
         }
-        .cell();
+        .resolved_cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await?),
-            r#"StructWithIgnore {
-    dont_ignore: 42,
-}"#
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "StructWithIgnore {\n    dont_ignore: 42,\n}",
         );
-        anyhow::Ok(())
+        Ok(())
     })
     .await
     .unwrap()

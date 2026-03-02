@@ -86,6 +86,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1080",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -151,6 +152,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1084",
              "description": "Data that blocks navigation was accessed outside of <Suspense>
 
            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -289,6 +291,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1080",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -379,6 +382,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1077",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -444,6 +448,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1077",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -529,6 +534,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
+               "code": "E1084",
                "description": "Data that blocks navigation was accessed outside of <Suspense>
 
            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -554,6 +560,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
+               "code": "E1084",
                "description": "Data that blocks navigation was accessed outside of <Suspense>
 
            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -792,6 +799,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-random-with-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -903,6 +911,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-random-without-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -1124,7 +1133,6 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "code": "E394",
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
@@ -1137,7 +1145,6 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
-                   "code": "E394",
                    "description": "(0 , next_headers__rspack_import_1.cookies)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
@@ -1306,7 +1313,6 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "code": "E394",
                    "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
@@ -1319,7 +1325,6 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
-                   "code": "E394",
                    "description": "(0 , next_headers__rspack_import_1.cookies)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
@@ -1462,7 +1467,6 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "code": "E394",
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
@@ -1475,7 +1479,6 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
-                   "code": "E394",
                    "description": "(0 , next_headers__rspack_import_1.headers)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
@@ -1644,7 +1647,6 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "code": "E394",
                    "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
@@ -1657,7 +1659,6 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
-                   "code": "E394",
                    "description": "(0 , next_headers__rspack_import_1.headers)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
@@ -1721,20 +1722,20 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(`${pathname}/test`)
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E394",
-                 "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                 "environmentLabel": null,
-                 "label": "Console Error",
-                 "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
-               > 20 |       <span id="param">{String(params.slug)}</span>
-                    |                                       ^",
-                 "stack": [
-                   "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
-                   "Page app/sync-client-params/[slug]/page.tsx (11:7)",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": null,
+               "label": "Console Error",
+               "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
+             > 20 |       <span id="param">{String(params.slug)}</span>
+                  |                                       ^",
+               "stack": [
+                 "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
+                 "Page app/sync-client-params/[slug]/page.tsx (11:7)",
+               ],
+             }
+            `)
           })
         }
       })
@@ -1814,6 +1815,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -1925,6 +1927,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
              This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -2083,6 +2086,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -2191,19 +2195,19 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             await expect(browser).toDisplayRedbox(`
-               {
-                 "code": "E394",
-                 "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
-               > 22 |     await cookies()
-                    |                  ^",
-                 "stack": [
-                   "CookiesReadingComponent app/use-cache-cookies/page.tsx (22:18)",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
+             > 22 |     await cookies()
+                  |                  ^",
+               "stack": [
+                 "CookiesReadingComponent app/use-cache-cookies/page.tsx (22:18)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2297,19 +2301,19 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             await expect(browser).toDisplayRedbox(`
-               {
-                 "code": "E394",
-                 "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
-               > 20 |     ;(await draftMode()).enable()
-                    |                          ^",
-                 "stack": [
-                   "DraftModeEnablingComponent app/use-cache-draft-mode/page.tsx (20:26)",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
+             > 20 |     ;(await draftMode()).enable()
+                  |                          ^",
+               "stack": [
+                 "DraftModeEnablingComponent app/use-cache-draft-mode/page.tsx (20:26)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2402,19 +2406,19 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             await expect(browser).toDisplayRedbox(`
-               {
-                 "code": "E394",
-                 "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
-               > 21 |     await headers()
-                    |                  ^",
-                 "stack": [
-                   "HeadersReadingComponent app/use-cache-headers/page.tsx (21:18)",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
+             > 21 |     await headers()
+                  |                  ^",
+               "stack": [
+                 "HeadersReadingComponent app/use-cache-headers/page.tsx (21:18)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2508,6 +2512,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
                This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -2642,6 +2647,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
                This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -2881,6 +2887,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
                This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -3015,6 +3022,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
                This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -3255,6 +3263,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
              This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -3661,20 +3670,20 @@ describe('Cache Components Errors', () => {
             )
 
             await expect(browser).toDisplayRedbox(`
-               {
-                 "code": "E394",
-                 "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
-               > 15 | async function Private() {
-                    | ^",
-                 "stack": [
-                   "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
-                   "stringify <anonymous>",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
+             > 15 | async function Private() {
+                  | ^",
+               "stack": [
+                 "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                 "stringify <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -3795,6 +3804,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
              This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -3927,7 +3937,6 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E394",
                  "description": "Route /use-cache-private-connection used \`connection()\` inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3972,6 +3981,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-current-time/date" used \`Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4076,6 +4086,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-current-time/date-now" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4180,6 +4191,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-current-time/new-date" used \`new Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4284,6 +4296,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-random/math-random" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4388,6 +4401,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-web-crypto/get-random-value" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4495,6 +4509,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-web-crypto/random-uuid" used \`crypto.randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4600,6 +4615,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-key-pair-sync" used \`require('node:crypto').generateKeyPairSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4615,6 +4631,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-key-pair-sync" used \`require('node:crypto').generateKeyPairSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4724,6 +4741,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-key-sync" used \`require('node:crypto').generateKeySync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4739,6 +4757,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-key-sync" used \`require('node:crypto').generateKeySync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4848,6 +4867,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-prime-sync" used \`require('node:crypto').generatePrimeSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4863,6 +4883,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-prime-sync" used \`require('node:crypto').generatePrimeSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4972,6 +4993,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/get-random-values" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4987,6 +5009,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/get-random-values" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5096,6 +5119,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-bytes" used \`require('node:crypto').randomBytes(size)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5111,6 +5135,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-bytes" used \`require('node:crypto').randomBytes(size)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5220,6 +5245,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-fill-sync" used \`require('node:crypto').randomFillSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5235,6 +5261,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-fill-sync" used \`require('node:crypto').randomFillSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5344,6 +5371,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-int-between" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5359,6 +5387,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-int-between" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5468,6 +5497,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5483,6 +5513,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5592,6 +5623,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-uuid" used \`require('node:crypto').randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5607,6 +5639,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-uuid" used \`require('node:crypto').randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5715,6 +5748,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1084",
              "description": "Data that blocks navigation was accessed outside of <Suspense>
 
            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -5861,7 +5895,6 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E394",
                "description": "BOOM",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -5871,7 +5904,6 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E394",
                "description": "⨯ "unhandledRejection:" "BOOM"",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -5881,7 +5913,6 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E394",
                "description": "⨯ "unhandledRejection: " "BOOM"",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -5891,7 +5922,6 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E394",
                "description": "BAM",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5901,7 +5931,6 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E394",
                "description": "⨯ "unhandledRejection:" "BAM"",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5911,7 +5940,6 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E394",
                "description": "⨯ "unhandledRejection: " "BAM"",
                "environmentLabel": "Server",
                "label": "Console Error",

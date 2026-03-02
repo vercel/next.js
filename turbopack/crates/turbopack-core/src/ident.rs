@@ -445,7 +445,8 @@ fn clean_additional_extensions(s: &str) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use turbo_rcstr::rcstr;
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
 
@@ -458,13 +459,19 @@ pub mod tests {
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
-            let root = fs.root().owned().await?;
+            #[turbo_tasks::function(operation)]
+            async fn output_name_operation() -> anyhow::Result<Vc<RcStr>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().owned().await?;
 
-            let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?);
-            let output_name = asset_ident
-                .output_name(root.clone(), Some(rcstr!("prefix")), rcstr!(".js"))
-                .await?;
+                let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?);
+                let output_name = asset_ident
+                    .output_name(root, Some(rcstr!("prefix")), rcstr!(".js"))
+                    .await?;
+                Ok(Vc::cell((*output_name).clone()))
+            }
+
+            let output_name = output_name_operation().read_strongly_consistent().await?;
             assert_eq!(&*output_name, "prefix-a_b_c_d.js");
 
             Ok(())

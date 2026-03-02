@@ -51,14 +51,15 @@ use turbopack_resolve::{
 
 use crate::{
     AssetsForSourceMapping,
+    backend::NodeBackend,
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluationIssue, custom_evaluate,
-        get_evaluate_entries, get_evaluate_pool,
+        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluatePool, EvaluationIssue,
+        custom_evaluate, get_evaluate_entries, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
-    pool::{FormattingMode, NodeJsPool},
+    format::FormattingMode,
     source_map::{StackFrame, StructuredError},
     transforms::util::{EmittedAsset, emitted_assets_to_virtual_sources},
 };
@@ -209,6 +210,7 @@ impl WebpackLoadersProcessedAsset {
                 project_path,
                 chunking_context,
                 env,
+                node_backend,
             } = &*transform.execution_context.await?;
             let source_content = self.source.content();
             let AssetContent::File(file) = *source_content.await? else {
@@ -240,9 +242,14 @@ impl WebpackLoadersProcessedAsset {
 
             let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
 
-            let entries = get_evaluate_entries(webpack_loaders_executor, *evaluate_context, None)
-                .to_resolved()
-                .await?;
+            let entries = get_evaluate_entries(
+                webpack_loaders_executor,
+                *evaluate_context,
+                **node_backend,
+                None,
+            )
+            .to_resolved()
+            .await?;
 
             let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
                 entries.graph_entries().to_resolved().await?,
@@ -264,6 +271,7 @@ impl WebpackLoadersProcessedAsset {
                 entries,
                 cwd: project_path.clone(),
                 env: *env,
+                node_backend: *node_backend,
                 context_source_for_issue: self.source,
                 chunking_context: *chunking_context,
                 module_graph,
@@ -434,6 +442,7 @@ pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -448,11 +457,12 @@ impl EvaluateContext for WebpackLoaderContext {
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
+    fn pool(&self) -> OperationVc<EvaluatePool> {
         get_evaluate_pool(
             self.entries,
             self.cwd.clone(),
             self.env,
+            self.node_backend,
             self.chunking_context,
             self.module_graph,
             self.additional_invalidation,
@@ -476,7 +486,7 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
-    async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
+    async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
             source: IssueSource::from_source_only(self.context_source_for_issue),
@@ -493,7 +503,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         state: &mut Self::State,
         data: Self::InfoMessage,
-        pool: &NodeJsPool,
+        pool: &EvaluatePool,
     ) -> Result<()> {
         match data {
             InfoMessage::Dependencies {
@@ -569,7 +579,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         _state: &mut Self::State,
         data: Self::RequestMessage,
-        _pool: &NodeJsPool,
+        _pool: &EvaluatePool,
     ) -> Result<Self::ResponseMessage> {
         match data {
             RequestMessage::Resolve {
@@ -623,7 +633,7 @@ impl EvaluateContext for WebpackLoaderContext {
         }
     }
 
-    async fn finish(&self, state: Self::State, pool: &NodeJsPool) -> Result<()> {
+    async fn finish(&self, state: Self::State, pool: &EvaluatePool) -> Result<()> {
         let has_errors = state.iter().any(|log| log.log_type == LogType::Error);
         let has_warnings = state.iter().any(|log| log.log_type == LogType::Warn);
         if has_errors || has_warnings {

@@ -1,6 +1,4 @@
 use std::{
-    cmp::max,
-    fmt::{Debug, Display},
     future::Future,
     mem::take,
     path::{Path, PathBuf},
@@ -12,10 +10,9 @@ use std::{
 use anyhow::{Context, Result, bail};
 use futures::join;
 use once_cell::sync::Lazy;
-use owo_colors::{OwoColorize, Style};
+use owo_colors::OwoColorize;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
-use serde::{Serialize, de::DeserializeOwned};
 use tokio::{
     io::{
         AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, Stderr,
@@ -24,48 +21,25 @@ use tokio::{
     net::{TcpListener, TcpStream},
     process::{Child, ChildStderr, ChildStdout, Command},
     select,
-    sync::{OwnedSemaphorePermit, Semaphore},
+    sync::Semaphore,
     time::{sleep, timeout},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
-use turbo_tasks_fs::{FileSystemPath, json::parse_json_with_source_context};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{AssetsForSourceMapping, heap_queue::HeapQueue, source_map::apply_source_mapping};
+use crate::{
+    AssetsForSourceMapping,
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
+    evaluate::{EvaluateOperation, EvaluatePool, Operation},
+    format::FormattingMode,
+    pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
+    source_map::apply_source_mapping,
+};
 
-#[derive(Clone, Copy)]
-pub enum FormattingMode {
-    /// No formatting, just print the output
-    Plain,
-    /// Use ansi colors to format the output
-    AnsiColors,
-}
-
-impl FormattingMode {
-    pub fn magic_identifier<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
-        match self {
-            FormattingMode::Plain => format!("{{{content}}}"),
-            FormattingMode::AnsiColors => format!("{{{content}}}").italic().to_string(),
-        }
-    }
-
-    pub fn lowlight<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
-        match self {
-            FormattingMode::Plain => Style::new(),
-            FormattingMode::AnsiColors => Style::new().dimmed(),
-        }
-        .style(content)
-    }
-
-    pub fn highlight<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
-        match self {
-            FormattingMode::Plain => Style::new(),
-            FormattingMode::AnsiColors => Style::new().bold().underline(),
-        }
-        .style(content)
-    }
-}
+mod heap_queue;
+use heap_queue::HeapQueue;
 
 struct NodeJsPoolProcess {
     child: Option<Child>,
@@ -509,172 +483,45 @@ impl NodeJsPoolProcess {
     }
 }
 
-#[derive(Default)]
-struct NodeJsPoolStats {
-    pub total_bootup_time: Duration,
-    pub bootup_count: u32,
-    pub total_cold_process_time: Duration,
-    pub cold_process_count: u32,
-    pub total_warm_process_time: Duration,
-    pub warm_process_count: u32,
-    pub workers: u32,
-    pub booting_workers: u32,
-    pub queued_tasks: u32,
-}
-
-impl NodeJsPoolStats {
-    fn add_bootup_time(&mut self, time: Duration) {
-        self.total_bootup_time += time;
-        self.bootup_count += 1;
-    }
-
-    fn add_booting_worker(&mut self) {
-        self.booting_workers += 1;
-        self.workers += 1;
-    }
-
-    fn finished_booting_worker(&mut self) {
-        self.booting_workers -= 1;
-    }
-
-    fn remove_worker(&mut self) {
-        self.workers -= 1;
-    }
-
-    fn add_queued_task(&mut self) {
-        self.queued_tasks += 1;
-    }
-
-    fn add_cold_process_time(&mut self, time: Duration) {
-        self.total_cold_process_time += time;
-        self.cold_process_count += 1;
-        self.queued_tasks -= 1;
-    }
-
-    fn add_warm_process_time(&mut self, time: Duration) {
-        self.total_warm_process_time += time;
-        self.warm_process_count += 1;
-        self.queued_tasks -= 1;
-    }
-
-    fn estimated_bootup_time(&self) -> Duration {
-        if self.bootup_count == 0 {
-            Duration::from_millis(200)
-        } else {
-            self.total_bootup_time / self.bootup_count
-        }
-    }
-
-    fn estimated_warm_process_time(&self) -> Duration {
-        if self.warm_process_count == 0 {
-            self.estimated_cold_process_time()
-        } else {
-            self.total_warm_process_time / self.warm_process_count
-        }
-    }
-
-    fn estimated_cold_process_time(&self) -> Duration {
-        if self.cold_process_count == 0 {
-            // We assume cold processing is half of bootup time
-            self.estimated_bootup_time() / 2
-        } else {
-            self.total_cold_process_time / self.cold_process_count
-        }
-    }
-    fn wait_time_before_bootup(&self) -> Duration {
-        if self.workers == 0 {
-            return Duration::ZERO;
-        }
-        let booting_workers = self.booting_workers;
-        let workers = self.workers;
-        let warm_process_time = self.estimated_warm_process_time();
-        let expected_completion = self.expected_completion(workers, booting_workers);
-
-        let new_process_duration =
-            self.estimated_bootup_time() + self.estimated_cold_process_time();
-        if expected_completion + warm_process_time < new_process_duration {
-            // Running the task with the existing warm pool is faster
-            return (expected_completion + warm_process_time + new_process_duration) / 2;
-        }
-
-        let expected_completion_with_additional_worker = max(
-            new_process_duration,
-            self.expected_completion(workers + 1, booting_workers + 1),
-        );
-        if expected_completion > expected_completion_with_additional_worker {
-            // Scaling up the pool would help to complete work faster
-            return Duration::ZERO;
-        }
-
-        // It's expected to be faster if we queue the task
-        (expected_completion + expected_completion_with_additional_worker) / 2
-    }
-
-    fn expected_completion(&self, workers: u32, booting_workers: u32) -> Duration {
-        if workers == 0 {
-            return Duration::MAX;
-        }
-        let bootup_time = self.estimated_bootup_time();
-        let cold_process_time = self.estimated_cold_process_time();
-        let warm_process_time = self.estimated_warm_process_time();
-        let expected_full_workers_in = booting_workers * (bootup_time / 2 + cold_process_time);
-        let expected_completed_task_until_full_workers = {
-            let millis = max(1, warm_process_time.as_millis());
-            let ready_workers = workers - booting_workers;
-            (expected_full_workers_in.as_millis() / millis) as u32 * ready_workers
-        };
-        let remaining_tasks = self
-            .queued_tasks
-            .saturating_sub(expected_completed_task_until_full_workers);
-        if remaining_tasks > 0 {
-            expected_full_workers_in + warm_process_time * remaining_tasks / workers
-        } else {
-            warm_process_time * self.queued_tasks / workers
-        }
-    }
-}
-
-impl Debug for NodeJsPoolStats {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeJsPoolStats")
-            .field("queued_tasks", &self.queued_tasks)
-            .field("workers", &self.workers)
-            .field("booting_workers", &self.booting_workers)
-            .field(
-                "expected_completion",
-                &self.expected_completion(self.workers, self.booting_workers),
-            )
-            .field("bootup_time", &self.estimated_bootup_time())
-            .field("cold_process_time", &self.estimated_cold_process_time())
-            .field("warm_process_time", &self.estimated_warm_process_time())
-            .field("bootup_count", &self.bootup_count)
-            .field("cold_process_count", &self.cold_process_count)
-            .field("warm_process_count", &self.warm_process_count)
-            .finish()
-    }
-}
-
-enum AcquiredPermits {
-    Idle {
-        // This is used for drop
-        #[allow(dead_code)]
-        concurrency_permit: OwnedSemaphorePermit,
-    },
-    Fresh {
-        // This is used for drop
-        #[allow(dead_code)]
-        concurrency_permit: OwnedSemaphorePermit,
-        // This is used for drop
-        #[allow(dead_code)]
-        bootup_permit: OwnedSemaphorePermit,
-    },
-}
-
 type IdleProcessQueues = Mutex<Vec<Arc<HeapQueue<NodeJsPoolProcess>>>>;
 
 /// All non-empty `IdleProcessQueues`s of the whole application.
 /// This is used to scale down processes globally.
 static ACTIVE_POOLS: Lazy<IdleProcessQueues> = Lazy::new(Default::default);
+
+/// Arguments needed to spawn a new Node.js process. Extracted so that
+/// `pre_warm` can clone them once instead of cloning each pool field
+/// individually.
+struct ProcessArgs {
+    cwd: PathBuf,
+    env: FxHashMap<RcStr, RcStr>,
+    entrypoint: PathBuf,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
+    shared_stdout: SharedOutputSet,
+    shared_stderr: SharedOutputSet,
+    debug: bool,
+}
+
+impl ProcessArgs {
+    async fn create_process(self) -> Result<(NodeJsPoolProcess, Duration)> {
+        let start = Instant::now();
+        let process = NodeJsPoolProcess::new(
+            &self.cwd,
+            &self.env,
+            &self.entrypoint,
+            self.assets_for_source_mapping,
+            self.assets_root,
+            self.project_dir,
+            self.shared_stdout,
+            self.shared_stderr,
+            self.debug,
+        )
+        .await?;
+        Ok((process, start.elapsed()))
+    }
+}
 
 /// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
 /// [env].
@@ -686,7 +533,7 @@ static ACTIVE_POOLS: Lazy<IdleProcessQueues> = Lazy::new(Default::default);
 /// The worker will *not* use the env of the parent process by default. All env
 /// vars need to be provided to make the execution as pure as possible.
 #[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
-pub struct NodeJsPool {
+pub struct ChildProcessPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: FxHashMap<RcStr, RcStr>,
@@ -711,10 +558,10 @@ pub struct NodeJsPool {
     stats: Arc<Mutex<NodeJsPoolStats>>,
 }
 
-impl NodeJsPool {
+impl ChildProcessPool {
     /// * debug: Whether to automatically enable Node's `--inspect-brk` when spawning it. Note:
     ///   automatically overrides concurrency to 1.
-    pub(super) fn new(
+    pub fn create(
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: FxHashMap<RcStr, RcStr>,
@@ -723,24 +570,148 @@ impl NodeJsPool {
         project_dir: FileSystemPath,
         concurrency: usize,
         debug: bool,
-    ) -> Self {
-        Self {
-            cwd,
-            entrypoint,
-            env,
+    ) -> EvaluatePool {
+        EvaluatePool::new(
+            Box::new(Self {
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root: assets_root.clone(),
+                project_dir: project_dir.clone(),
+                concurrency_semaphore: Arc::new(Semaphore::new(if debug {
+                    1
+                } else {
+                    concurrency
+                })),
+                bootup_semaphore: Arc::new(Semaphore::new(1)),
+                idle_processes: Arc::new(HeapQueue::new()),
+                shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
+                shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
+                debug,
+                stats: Default::default(),
+            }),
             assets_for_source_mapping,
             assets_root,
             project_dir,
-            concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
-            bootup_semaphore: Arc::new(Semaphore::new(1)),
-            idle_processes: Arc::new(HeapQueue::new()),
-            shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
-            shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
-            debug,
-            stats: Default::default(),
-        }
+        )
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub(crate) struct ChildProcessesBackend;
+
+#[turbo_tasks::value_impl]
+impl NodeBackend for ChildProcessesBackend {
+    fn runtime_module_path(&self) -> RcStr {
+        rcstr!("child_process/evaluate.ts")
     }
 
+    fn globals_module_path(&self) -> RcStr {
+        rcstr!("child_process/globals.ts")
+    }
+
+    fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
+        Box::pin(async move {
+            let CreatePoolOptions {
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                concurrency,
+                debug,
+            } = options;
+
+            Ok(ChildProcessPool::create(
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                concurrency,
+                debug,
+            ))
+        })
+    }
+
+    fn scale_down(&self) -> Result<()> {
+        ChildProcessPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        ChildProcessPool::scale_zero();
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl EvaluateOperation for ChildProcessPool {
+    async fn operation(&self) -> Result<Box<dyn Operation>> {
+        // Acquire a running process (handles concurrency limits, boots up the process)
+
+        let operation = {
+            let _guard = duration_span!("Node.js operation");
+            let (process, permits) = self.acquire_process().await?;
+            ChildProcessOperation {
+                process: Some(process),
+                permits,
+                idle_processes: self.idle_processes.clone(),
+                start: Instant::now(),
+                stats: self.stats.clone(),
+                allow_process_reuse: true,
+            }
+        };
+
+        Ok(Box::new(operation))
+    }
+
+    /// Returns a snapshot of the pool's internal statistics.
+    fn stats(&self) -> PoolStatsSnapshot {
+        self.stats.lock().snapshot()
+    }
+
+    /// Eagerly spawn a Node.js process so it's ready when the first
+    /// `operation()` is called. The process goes into the idle queue.
+    /// If a node request comes in while this is still initializing, it waits
+    /// on the bootup semaphore and will resume when the process is ready.
+    fn pre_warm(&self) {
+        let args = self.process_args();
+        let bootup_semaphore = self.bootup_semaphore.clone();
+        let idle_processes = self.idle_processes.clone();
+        let stats = self.stats.clone();
+
+        tokio::spawn(async move {
+            let Ok(bootup_permit) = bootup_semaphore.clone().acquire_owned().await else {
+                return;
+            };
+            {
+                stats.lock().add_booting_worker();
+            }
+            match args.create_process().await {
+                Ok((process, bootup_time)) => {
+                    {
+                        let mut s = stats.lock();
+                        s.add_bootup_time(bootup_time);
+                        s.finished_booting_worker();
+                    }
+                    drop(bootup_permit);
+                    idle_processes.push(process, &ACTIVE_POOLS);
+                }
+                Err(_e) => {
+                    let mut s = stats.lock();
+                    s.finished_booting_worker();
+                    s.remove_worker();
+                }
+            }
+        });
+    }
+}
+
+impl ChildProcessPool {
     async fn acquire_process(&self) -> Result<(NodeJsPoolProcess, AcquiredPermits)> {
         {
             self.stats.lock().add_queued_task();
@@ -758,7 +729,7 @@ impl NodeJsPool {
         select! {
             idle_process_result = self.idle_processes.pop(&ACTIVE_POOLS) => {
                 let process = idle_process_result.context("acquiring idle process permit")?;
-                Ok((process, AcquiredPermits::Idle { concurrency_permit }))
+                Ok((process, AcquiredPermits::Idle { _concurrency_permit: concurrency_permit }))
             },
             bootup_permit = bootup => {
                 let bootup_permit = bootup_permit.context("acquiring bootup permit")?;
@@ -774,41 +745,30 @@ impl NodeJsPool {
                 }
                 // Increase the allowed booting up processes
                 self.bootup_semaphore.add_permits(1);
-                Ok((process, AcquiredPermits::Fresh { concurrency_permit, bootup_permit }))
+                Ok((process, AcquiredPermits::Fresh { _concurrency_permit: concurrency_permit, _bootup_permit: bootup_permit }))
             }
         }
     }
 
-    async fn create_process(&self) -> Result<(NodeJsPoolProcess, Duration), anyhow::Error> {
-        let start = Instant::now();
-        let process = NodeJsPoolProcess::new(
-            self.cwd.as_path(),
-            &self.env,
-            self.entrypoint.as_path(),
-            self.assets_for_source_mapping,
-            self.assets_root.clone(),
-            self.project_dir.clone(),
-            self.shared_stdout.clone(),
-            self.shared_stderr.clone(),
-            self.debug,
-        )
-        .await
-        .context("creating new process")?;
-        Ok((process, start.elapsed()))
+    fn process_args(&self) -> ProcessArgs {
+        ProcessArgs {
+            cwd: self.cwd.clone(),
+            env: self.env.clone(),
+            entrypoint: self.entrypoint.clone(),
+            assets_for_source_mapping: self.assets_for_source_mapping,
+            assets_root: self.assets_root.clone(),
+            project_dir: self.project_dir.clone(),
+            shared_stdout: self.shared_stdout.clone(),
+            shared_stderr: self.shared_stderr.clone(),
+            debug: self.debug,
+        }
     }
 
-    pub async fn operation(&self) -> Result<NodeJsOperation> {
-        // Acquire a running process (handles concurrency limits, boots up the process)
-        let (process, permits) = self.acquire_process().await?;
-
-        Ok(NodeJsOperation {
-            process: Some(process),
-            permits,
-            idle_processes: self.idle_processes.clone(),
-            start: Instant::now(),
-            stats: self.stats.clone(),
-            allow_process_reuse: true,
-        })
+    async fn create_process(&self) -> Result<(NodeJsPoolProcess, Duration), anyhow::Error> {
+        self.process_args()
+            .create_process()
+            .await
+            .context("creating new process")
     }
 
     pub fn scale_down() {
@@ -826,7 +786,7 @@ impl NodeJsPool {
     }
 }
 
-pub struct NodeJsOperation {
+pub struct ChildProcessOperation {
     process: Option<NodeJsPoolProcess>,
     // This is used for drop
     #[allow(dead_code)]
@@ -837,46 +797,18 @@ pub struct NodeJsOperation {
     allow_process_reuse: bool,
 }
 
-impl NodeJsOperation {
-    async fn with_process<'a, F: Future<Output = Result<T>> + Send + 'a, T>(
-        &'a mut self,
-        f: impl FnOnce(&'a mut NodeJsPoolProcess) -> F,
-    ) -> Result<T> {
-        let process = self
-            .process
-            .as_mut()
-            .context("Node.js operation already finished")?;
-
-        if !self.allow_process_reuse {
-            bail!("Node.js process is no longer usable");
-        }
-
-        let result = f(process).await;
-        if result.is_err() && self.allow_process_reuse {
-            self.stats.lock().remove_worker();
-            self.allow_process_reuse = false;
-        }
-        result
-    }
-
-    pub async fn recv<M>(&mut self) -> Result<M>
-    where
-        M: DeserializeOwned,
-    {
-        let message = self
+#[async_trait::async_trait]
+impl Operation for ChildProcessOperation {
+    async fn recv(&mut self) -> Result<Vec<u8>> {
+        let vec = self
             .with_process(|process| async move {
                 process.recv().await.context("failed to receive message")
             })
             .await?;
-        let message = std::str::from_utf8(&message).context("message is not valid UTF-8")?;
-        parse_json_with_source_context(message).context("failed to deserialize message")
+        Ok(vec)
     }
 
-    pub async fn send<M>(&mut self, message: M) -> Result<()>
-    where
-        M: Serialize,
-    {
-        let message = serde_json::to_vec(&message).context("failed to serialize message")?;
+    async fn send(&mut self, message: Vec<u8>) -> Result<()> {
         self.with_process(|process| async move {
             timeout(Duration::from_secs(30), process.send(message))
                 .await
@@ -887,7 +819,7 @@ impl NodeJsOperation {
         .await
     }
 
-    pub async fn wait_or_kill(mut self) -> Result<ExitStatus> {
+    async fn wait_or_kill(&mut self) -> Result<ExitStatus> {
         let mut process = self
             .process
             .take()
@@ -912,7 +844,7 @@ impl NodeJsOperation {
         Ok(status)
     }
 
-    pub fn disallow_reuse(&mut self) {
+    fn disallow_reuse(&mut self) {
         if self.allow_process_reuse {
             self.stats.lock().remove_worker();
             self.allow_process_reuse = false;
@@ -920,7 +852,30 @@ impl NodeJsOperation {
     }
 }
 
-impl Drop for NodeJsOperation {
+impl ChildProcessOperation {
+    async fn with_process<'a, F: Future<Output = Result<T>> + Send + 'a, T>(
+        &'a mut self,
+        f: impl FnOnce(&'a mut NodeJsPoolProcess) -> F,
+    ) -> Result<T> {
+        let process = self
+            .process
+            .as_mut()
+            .context("Node.js operation already finished")?;
+
+        if !self.allow_process_reuse {
+            bail!("Node.js process is no longer usable");
+        }
+
+        let result = f(process).await;
+        if result.is_err() && self.allow_process_reuse {
+            self.stats.lock().remove_worker();
+            self.allow_process_reuse = false;
+        }
+        result
+    }
+}
+
+impl Drop for ChildProcessOperation {
     fn drop(&mut self) {
         if let Some(mut process) = self.process.take() {
             let elapsed = self.start.elapsed();

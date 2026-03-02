@@ -8,7 +8,9 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use indoc::indoc;
-use turbo_tasks::{PrettyPrintError, Vc};
+use turbo_tasks::{
+    PrettyPrintError, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -21,6 +23,7 @@ async fn assert_error<T: Debug>(
     future: impl IntoFuture<Output = Result<T>>,
     expected: &'static str,
 ) -> Result<()> {
+    unmark_top_level_task_may_leak_eventually_consistent_state();
     let error = future.into_future().await.unwrap_err();
     assert_eq!(
         &PrettyPrintError(&error).to_string(),
