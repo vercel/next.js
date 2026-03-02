@@ -2285,6 +2285,14 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       fetchStrategy === FetchStrategy.PPRRuntime &&
       completenessMarker === ResponseCompletenessMarker.Partial
 
+    // A runtime prefetch may receive a statically generated response (with the
+    // Static completeness marker) for a fully static page. In that case the
+    // head is complete despite the server conservatively marking it as partial,
+    // so we override it.
+    const overrideHeadAsNonPartial =
+      fetchStrategy === FetchStrategy.PPRRuntime &&
+      completenessMarker === ResponseCompletenessMarker.Static
+
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
     // in the LRU as more data comes in.
@@ -2300,7 +2308,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       staleAt,
       route,
       spawnedEntries,
-      false // overrideHeadAsNonPartial
+      overrideHeadAsNonPartial
     )
 
     // Return a promise that resolves when the network connection closes, so
