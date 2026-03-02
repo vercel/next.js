@@ -23,7 +23,7 @@ use crate::{
     QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
-    compression::decompress_into_arc,
+    compression::{checksum_block, decompress_into_arc},
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -387,10 +387,21 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         mmap.advise(memmap2::Advice::DontFork)?;
         #[cfg(target_os = "linux")]
         mmap.advise(memmap2::Advice::Unmergeable)?;
-        let mut compressed = &mmap[..];
-        let uncompressed_length = compressed.read_u32::<BE>()?;
+        let mut reader = &mmap[..];
+        let uncompressed_length = reader.read_u32::<BE>()?;
+        let expected_checksum = reader.read_u32::<BE>()?;
 
-        let buffer = decompress_into_arc(uncompressed_length, compressed)?;
+        let buffer = decompress_into_arc(uncompressed_length, reader)?;
+        let actual_checksum = checksum_block(&buffer);
+        if actual_checksum != expected_checksum {
+            bail!(
+                "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
+                 {:08x}, got {:08x})",
+                seq,
+                expected_checksum,
+                actual_checksum
+            );
+        }
         Ok(ArcBytes::from(buffer))
     }
 

@@ -18,7 +18,7 @@ use crate::{
     ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
-    compression::compress_into_buffer,
+    compression::{checksum_block, compress_into_buffer},
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
     meta_file::MetaEntryFlags,
@@ -414,6 +414,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut buffer = Vec::new();
         buffer.write_u32::<BE>(value.len() as u32)?;
+        buffer.write_u32::<BE>(checksum_block(value))?;
         compress_into_buffer(value, &mut buffer)
             .context("Compression of value for blob file failed")?;
 
