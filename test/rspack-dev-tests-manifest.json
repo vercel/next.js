@@ -164,7 +164,6 @@
     "passed": [
       "Error recovery app can recover from a event handler error",
       "Error recovery app client component can recover from a component error",
-      "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
       "Error recovery app server component can recover from a component error",
@@ -173,7 +172,8 @@
       "Error recovery app syntax > runtime error"
     ],
     "failed": [
-      "Error recovery app can recover from a syntax error without losing state"
+      "Error recovery app can recover from a syntax error without losing state",
+      "Error recovery app client component can recover from syntax error"
     ],
     "pending": [],
     "flakey": [],
@@ -367,7 +367,7 @@
       "ReactRefreshLogBox logbox: anchors links in error messages",
       "ReactRefreshLogBox module init error not shown",
       "ReactRefreshLogBox non-Error errors are handled properly",
-      "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
+      "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace by default",
       "ReactRefreshLogBox should show anonymous frames from stack trace",
       "ReactRefreshLogBox should strip whitespace correctly with newline",
       "ReactRefreshLogBox unterminated JSX"
@@ -426,12 +426,12 @@
     "passed": [
       "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a event handler error",
-      "pages/ error recovery render error not shown right after syntax error",
       "pages/ error recovery stuck error",
       "pages/ error recovery syntax > runtime error"
     ],
     "failed": [
-      "pages/ error recovery logbox: can recover from a syntax error without losing state"
+      "pages/ error recovery logbox: can recover from a syntax error without losing state",
+      "pages/ error recovery render error not shown right after syntax error"
     ],
     "pending": [],
     "flakey": [],
@@ -570,14 +570,13 @@
   },
   "test/development/app-dir/cache-components-dev-errors/cache-components-dev-errors.test.ts": {
     "passed": [
+      "Cache Components Dev Errors should clear segment errors after correcting them",
       "Cache Components Dev Errors should display error when component accessed data without suspense boundary",
       "Cache Components Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
       "Cache Components Dev Errors should not show a red box error on client navigations",
       "Cache Components Dev Errors should show a red box error on the SSR render"
     ],
-    "failed": [
-      "Cache Components Dev Errors should clear segment errors after correcting them"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1153,12 +1152,15 @@
     "runtimeError": false
   },
   "test/development/app-dir/server-hmr/server-hmr.test.ts": {
-    "passed": [],
+    "passed": [
+      "server-hmr route handler hmr reflects route handler changes on fetch/refresh"
+    ],
     "failed": [],
     "pending": [
       "server-hmr child module accept allows child modules to accept hot updates using module.hot.accept",
       "server-hmr module preservation does not re-evaluate an unmodified module when page module changes",
-      "server-hmr module preservation re-evaluates a module when the module itself changes"
+      "server-hmr module preservation re-evaluates a module when the module itself changes",
+      "server-hmr source maps stack frames from eval'd HMR modules point to original source locations"
     ],
     "flakey": [],
     "runtimeError": false
@@ -2216,10 +2218,7 @@
       "middleware - development errors when middleware contains an unhandled rejection logs the error correctly",
       "middleware - development errors when middleware throws synchronously logs the error correctly",
       "middleware - development errors when middleware throws synchronously renders the error correctly and recovers",
-      "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers"
-    ],
-    "failed": [
-      "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
+      "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error after boot logs the error correctly",
       "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error from boot logs the error correctly",
@@ -2228,12 +2227,15 @@
       "middleware - development errors when there is an unhandled rejection while loading a dependency logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading the module logs the error correctly",
-      "middleware - development errors when throwing while loading the module logs the error correctly",
       "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
+    ],
+    "failed": [
+      "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
+      "middleware - development errors when throwing while loading the module logs the error correctly"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/middleware-warnings/index.test.ts": {
     "passed": [
@@ -4341,10 +4343,10 @@
   },
   "test/e2e/app-dir/cache-components-allow-otel-spans/cache-components-allow-otel-spans.test.ts": {
     "passed": [
-      "hello-world should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - with prerendering the page",
-      "hello-world should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - without prerendering the page",
-      "hello-world should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - with prerendering the page",
-      "hello-world should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - without prerendering the page"
+      "cache-components OTEL spans should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - with prerendering the page",
+      "cache-components OTEL spans should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - without prerendering the page",
+      "cache-components OTEL spans should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - with prerendering the page",
+      "cache-components OTEL spans should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - without prerendering the page"
     ],
     "failed": [],
     "pending": [],
@@ -5464,7 +5466,9 @@
       "app-dir - errors error component should trigger error component when an error happens during server components rendering",
       "app-dir - errors error component should trigger error component when null is thrown during server components rendering",
       "app-dir - errors error component should trigger error component when undefined is thrown during server components rendering",
-      "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified"
+      "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified",
+      "app-dir - errors error component unstable_retry should recover Client Component error after unstable_retry",
+      "app-dir - errors error component unstable_retry should recover Server Component error after unstable_retry"
     ],
     "failed": [],
     "pending": [],
@@ -5824,6 +5828,8 @@
   },
   "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
     "passed": [
+      "instant-navigation-testing-api clears cookie after instant scope exits",
+      "instant-navigation-testing-api clears cookie even when callback throws",
       "instant-navigation-testing-api does not leak runtime data from hover prefetch into instant shell",
       "instant-navigation-testing-api logs an error when attempting to nest instant scopes",
       "instant-navigation-testing-api reload followed by MPA navigation, both block dynamic data",
@@ -5838,8 +5844,10 @@
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include dynamic param values in instant shell during page load",
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during client navigation",
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during page load",
+      "instant-navigation-testing-api sets cookie before first navigation when using baseURL",
       "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
-      "instant-navigation-testing-api successive MPA navigations within instant scope"
+      "instant-navigation-testing-api successive MPA navigations within instant scope",
+      "instant-navigation-testing-api throws descriptive error on fresh page without baseURL"
     ],
     "failed": [],
     "pending": [],
@@ -5849,6 +5857,7 @@
   "test/e2e/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
     "passed": [
       "instant validation causes aliased export - export { instant as unstable_instant }",
+      "instant validation causes does not add an instant stack for random unstable_instant exports",
       "instant validation causes indirect export - const instant = _instant; export { instant as unstable_instant }",
       "instant validation causes named export - export { unstable_instant }",
       "instant validation causes re-export - export { unstable_instant } from \"./config\""
@@ -9608,6 +9617,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
+    "passed": ["prefetch inlining disabled in development"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
     "passed": [
       "layout sharing in non-static prefetches disabled in development"
@@ -10012,20 +10028,20 @@
   },
   "test/e2e/app-dir/typed-routes-validator/typed-routes-validator.test.ts": {
     "passed": [
-      "typed-routes-validator should generate route validation correctly"
-    ],
-    "failed": [
+      "typed-routes-validator should generate route validation correctly",
       "typed-routes-validator should have passing tsc after the server generated types"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
     "passed": [
+      "typed-links should generate types for next/link",
       "typed-links should include handler route from app/api-test/route.ts in generated link route definitions"
     ],
-    "failed": ["typed-links should generate types for next/link"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12677,6 +12693,15 @@
       "next test should pass args to test runner",
       "next test test runner validation should validate configured/specified test runner"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/node-cli-args/node-cli-args.test.ts": {
+    "passed": [
+      "node-cli-args should start server with --experimental-network-inspection"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
