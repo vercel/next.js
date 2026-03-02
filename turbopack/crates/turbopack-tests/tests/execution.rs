@@ -26,9 +26,10 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
+    collect_module::CollectModuleType,
     module_options::{
-        EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
-        side_effect_free_packages_glob,
+        EcmascriptOptionsContext, ModuleOptionsContext, ModuleRule, ModuleRuleEffect, ModuleType,
+        RuleCondition, TypescriptTransformOptions, side_effect_free_packages_glob,
     },
 };
 use turbopack_core::{
@@ -44,7 +45,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
     },
-    reference_type::{InnerAssets, ReferenceType},
+    reference_type::{InnerAssets, ReferenceType, ReferenceTypeCondition},
     resolve::{
         ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
@@ -276,6 +277,8 @@ struct TestOptions {
     remove_unused_exports: bool,
     #[serde(default = "default_true")]
     scope_hoisting: bool,
+    #[serde(default = "default_true")]
+    infer_module_side_effects: bool,
     #[serde(default)]
     cjs_tree_shaking: bool,
     #[serde(default = "default_true")]
@@ -307,6 +310,7 @@ impl Default for TestOptions {
             cjs_tree_shaking: false,
             cjs_scope_hoisting: false,
             cross_module_constants: true,
+            infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
             side_effect_free_packages: Vec::new(),
@@ -469,10 +473,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_import_as_bytes: true,
                 import_externals: true,
                 enable_exports_info_inlining: true,
-                infer_module_side_effects: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
+                infer_module_side_effects: options.infer_module_side_effects,
                 ..Default::default()
             },
             environment: Some(env),
@@ -488,6 +492,12 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                     ..Default::default()
                 }
                 .resolved_cell(),
+            )],
+            module_rules: vec![ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Collect),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
+                    ResolvedVc::upcast(CollectModuleType::new().to_resolved().await?),
+                ))],
             )],
             ..Default::default()
         }

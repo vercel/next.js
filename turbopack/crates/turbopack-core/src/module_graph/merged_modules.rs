@@ -170,7 +170,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 .collect::<Result<Vec<_>>>()?,
             &mut (),
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
-             node: ResolvedVc<Box<dyn Module>>,
+             module: ResolvedVc<Box<dyn Module>>,
+             _,
              _|
              -> Result<GraphTraversalAction> {
                 // On the down traversal, establish which edges are mergeable and set the list
@@ -185,63 +186,70 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             },
                         )
                     });
-                let module = node;
 
-                Ok(if parent_module.is_some_and(|p| p == module) {
-                    // A self-reference
-                    GraphTraversalAction::Skip
-                } else if hoisted
-                    && let Some(parent_module) = parent_module
-                    && mergeable.contains(&parent_module)
-                    && mergeable.contains(&module)
-                    && !async_modules.contains(&parent_module)
-                    && !async_modules.contains(&module)
-                {
-                    // ^ TODO technically we could merge a sync child into an async parent
-
-                    // A hoisted reference from a mergeable module to a non-async mergeable
-                    // module, inherit bitmaps from parent.
-                    module_merged_groups.entry(node).or_default();
-                    let [Some(parent_merged_groups), Some(current_merged_groups)] =
-                        module_merged_groups.get_disjoint_mut([&parent_module, &node])
-                    else {
-                        // All modules are inserted in the previous iteration
-                        bail!("unreachable except for eventual consistency");
-                    };
-
-                    if current_merged_groups.is_empty() {
-                        // Initial visit, clone instead of merging
-                        *current_merged_groups = parent_merged_groups.clone();
-                        GraphTraversalAction::Continue
-                    } else if parent_merged_groups.is_proper_superset(current_merged_groups) {
-                        // Add bits from parent, and continue traversal because changed
-                        **current_merged_groups |= &**parent_merged_groups;
-                        GraphTraversalAction::Continue
-                    } else {
-                        // Unchanged, no need to forward to children
-                        GraphTraversalAction::Skip
-                    }
-                } else {
-                    // Either a non-hoisted reference or an incompatible parent or child module
-
-                    if entry_modules.insert(module) {
-                        // Not assigned a new group before, create a new one.
-                        let idx = next_index;
-                        next_index += 1;
-
-                        if module_merged_groups.entry(module).or_default().insert(idx) {
-                            // Mark and continue traversal because modified (or first visit)
-                            GraphTraversalAction::Continue
-                        } else {
-                            // Unchanged, no need to forward to children
+                Ok(
+                    if hoisted
+                        && let Some(parent_module) = parent_module
+                        && mergeable.contains(&parent_module)
+                        && mergeable.contains(&module)
+                        && !async_modules.contains(&parent_module)
+                        && !async_modules.contains(&module)
+                    {
+                        // ^ TODO technically we could merge a sync child into an async parent
+                        if parent_module == module {
+                            // A hoisted self-reference, no need to update bitmaps and don't recurse
                             GraphTraversalAction::Skip
+                        } else {
+                            // A hoisted reference from a mergeable module to a non-async mergeable
+                            // module, inherit bitmaps from parent.
+                            module_merged_groups.entry(module).or_default();
+                            let [Some(parent_merged_groups), Some(current_merged_groups)] =
+                                module_merged_groups.get_disjoint_mut([&parent_module, &module])
+                            else {
+                                // All modules are inserted in the previous iteration
+                                bail!("unreachable except for eventual consistency");
+                            };
+
+                            if current_merged_groups.is_empty() {
+                                // Initial visit, clone instead of merging
+                                *current_merged_groups = parent_merged_groups.clone();
+                                GraphTraversalAction::Continue
+                            } else if parent_merged_groups.is_proper_superset(current_merged_groups)
+                            {
+                                // Add bits from parent, and continue traversal because changed
+                                **current_merged_groups |= &**parent_merged_groups;
+                                GraphTraversalAction::Continue
+                            } else {
+                                // Unchanged, no need to forward to children
+                                GraphTraversalAction::Skip
+                            }
                         }
                     } else {
-                        // Already visited and assigned a new group, no need to forward to
-                        // children.
-                        GraphTraversalAction::Skip
-                    }
-                })
+                        // Either a non-hoisted reference or an incompatible parent or child module
+                        if entry_modules.insert(module) {
+                            // Not assigned a new group before, create a new one.
+                            let idx = next_index;
+                            next_index += 1;
+
+                            if module_merged_groups.entry(module).or_default().insert(idx) {
+                                if parent_module.is_some_and(|p| p == module) {
+                                    // A hoisted self-reference, don't recurse
+                                    GraphTraversalAction::Skip
+                                } else {
+                                    // Mark and continue traversal because modified (or first visit)
+                                    GraphTraversalAction::Continue
+                                }
+                            } else {
+                                // Unchanged, no need to forward to children
+                                GraphTraversalAction::Skip
+                            }
+                        } else {
+                            // Already visited and assigned a new group, no need to forward to
+                            // children.
+                            GraphTraversalAction::Skip
+                        }
+                    },
+                )
             },
             |successor, _| {
                 // Invert the ordering here. High priority values get visited first, and we want to

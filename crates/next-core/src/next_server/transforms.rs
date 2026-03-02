@@ -12,7 +12,7 @@ use crate::{
     next_config::NextConfig,
     next_server::context::ServerContextType,
     next_shared::transforms::{
-        get_next_debug_instant_stack_rule, get_next_dynamic_transform_rule,
+        get_collect_rule, get_next_debug_instant_stack_rule, get_next_dynamic_transform_rule,
         get_next_empty_gsp_rule, get_next_font_transform_rule, get_next_image_rule,
         get_next_lint_transform_rule, get_next_modularize_imports_rule,
         get_next_pages_transforms_rule, get_next_track_dynamic_imports_transform_rule,
@@ -179,6 +179,7 @@ pub async fn get_next_server_transforms_rules(
         // optimize_use_state))
 
         rules.push(get_next_image_rule().await?);
+        rules.push(get_collect_rule().await?);
     }
 
     if let NextRuntime::Edge = next_runtime {
