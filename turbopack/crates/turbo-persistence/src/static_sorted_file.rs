@@ -340,7 +340,12 @@ impl StaticSortedFile {
                         }
                         results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
                     }
-                    results.reverse();
+                    // Technically we could `.reverse()` the items collected by the backwards scan,
+                    // but the only ordering constraint we need to maintain for single sst
+                    // multivalue reads is that a deleted token, if it exists comes last.  Because
+                    // all the backwards scan items are strictly before the found item we know they
+                    // don't contain the _last_ item. So we don't care about their order
+
                     // Add the entry at `m`
                     results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
                     // Forward scan: collect remaining entries with the same key
