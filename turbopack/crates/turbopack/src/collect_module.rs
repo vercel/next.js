@@ -6,13 +6,10 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     self,
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingContextExt, ChunkingTypeMergeTag,
-    },
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingTypeMergeTag},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::OutputAssetsWithReferenced,
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::ReferenceType,
     source::{OptionSource, Source},
@@ -205,29 +202,5 @@ impl EcmascriptChunkPlaceable for CollectModule {
             ..Default::default()
         }
         .cell())
-    }
-
-    #[turbo_tasks::function]
-    async fn chunk_item_output_assets(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_graph: Vc<ModuleGraph>,
-    ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
-        let collect = module_graph.collect().await?;
-        let entries = collect
-            .get(&this.merge_tag())
-            .into_iter()
-            .flatten()
-            .map(|(module, _)| *module)
-            .collect::<Vec<_>>();
-
-        let chunk_group = ChunkGroup::IsolatedMerged {
-            entries,
-            merge_tag: this.merge_tag(),
-            // TODO
-            parent: None,
-        };
-        Ok(chunking_context.root_chunk_group_assets(self.ident(), chunk_group, module_graph))
     }
 }
