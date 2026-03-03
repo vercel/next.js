@@ -15,6 +15,14 @@ import React from 'react'
 
 export interface NavigateOptions {
   scroll?: boolean
+  /**
+   * Transition types to apply when navigating. These types are passed to
+   * [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType)
+   * inside the navigation transition, enabling
+   * [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) components
+   * to apply different animations based on the type of navigation.
+   */
+  transitionTypes?: string[]
 }
 
 export interface PrefetchOptions {
