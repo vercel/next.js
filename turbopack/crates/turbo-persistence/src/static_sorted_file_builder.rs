@@ -11,7 +11,7 @@ use byteorder::{BE, ByteOrder, WriteBytesExt};
 use turbo_bincode::turbo_bincode_encode;
 
 use crate::{
-    compression::compress_into_buffer,
+    compression::{checksum_block, compress_into_buffer},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
@@ -20,6 +20,9 @@ use crate::{
         KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
+
+/// Size of the per-block header on disk: 4 bytes uncompressed_size + 4 bytes CRC32 checksum.
+pub const BLOCK_HEADER_SIZE: usize = 8;
 
 /// The maximum number of entries that should go into a single key block
 const MAX_KEY_BLOCK_ENTRIES: usize = MAX_KEY_BLOCK_SIZE / KEY_BLOCK_ENTRY_META_OVERHEAD;
@@ -153,6 +156,8 @@ pub enum EntryValue<'l> {
         /// The uncompressed size of the block data. `0` means the block is stored uncompressed
         /// (and thus the size is the `len` of the block)
         uncompressed_size: u32,
+        /// CRC32 checksum of the on-disk block data (after compression).
+        checksum: u32,
         block: &'l [u8],
     },
     /// Large-sized value. They are stored in a blob file.
@@ -210,6 +215,7 @@ fn write_raw_block_to_file(
     file: &mut BufWriter<File>,
     block_offsets: &mut Vec<u32>,
     uncompressed_size: u32,
+    checksum: u32,
     block: &[u8],
 ) -> Result<u16> {
     let block_index: u16 = block_offsets
@@ -217,7 +223,7 @@ fn write_raw_block_to_file(
         .try_into()
         .expect("Block index overflow");
 
-    let len: u32 = (block.len() + 4).try_into().unwrap();
+    let len: u32 = (block.len() + BLOCK_HEADER_SIZE).try_into().unwrap();
     let offset = block_offsets
         .last()
         .copied()
@@ -228,6 +234,8 @@ fn write_raw_block_to_file(
 
     file.write_u32::<BE>(uncompressed_size)
         .context("Failed to write uncompressed size")?;
+    file.write_u32::<BE>(checksum)
+        .context("Failed to write checksum")?;
     file.write_all(block)
         .context("Failed to write block data")?;
     Ok(block_index)
@@ -253,7 +261,16 @@ fn write_block_to_file(
         (0, block)
     };
 
-    let result = write_raw_block_to_file(file, block_offsets, uncompressed_size, data_to_write);
+    // Checksum is computed on the on-disk data (after compression).
+    let checksum = checksum_block(data_to_write);
+
+    let result = write_raw_block_to_file(
+        file,
+        block_offsets,
+        uncompressed_size,
+        checksum,
+        data_to_write,
+    );
     compress_buffer.clear();
     result
 }
@@ -500,6 +517,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             }
             EntryValue::MediumRaw {
                 uncompressed_size,
+                checksum,
                 block,
             } => {
                 // Note: tracks compressed block size (not uncompressed) unlike EntryValue::Medium.
@@ -509,6 +527,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                     self.file.as_mut().unwrap(),
                     &mut self.block_offsets,
                     uncompressed_size,
+                    checksum,
                     block,
                 )
                 .context("Failed to write compressed value block")?;
@@ -761,33 +780,30 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         let mut file = self.file.take().unwrap();
 
-        // Write index block directly to file (index blocks are never compressed).
+        // Write index block (never compressed). Buffer into a Vec first so we can
+        // compute the checksum, then write via the standard block helper.
         let index_entry_count: u16 = (self.key_block_boundaries.len() - 1)
             .try_into()
             .expect("Index entries count overflow");
-        let index_block_size: u32 = (INDEX_BLOCK_HEADER_SIZE
-            + index_entry_count as usize * INDEX_BLOCK_ENTRY_SIZE)
-            .try_into()
-            .unwrap();
-        // Register block offset (uncompressed_size = 0 since we store raw).
+        let index_block_size: usize =
+            INDEX_BLOCK_HEADER_SIZE + index_entry_count as usize * INDEX_BLOCK_ENTRY_SIZE;
+        let mut index_buf = Vec::with_capacity(index_block_size);
         {
-            let block_len = index_block_size + 4; // +4 for the uncompressed_size header
-            let offset = self
-                .block_offsets
-                .last()
-                .copied()
-                .unwrap_or_default()
-                .checked_add(block_len)
-                .expect("Block offset overflow");
-            self.block_offsets.push(offset);
+            let first_block = self.key_block_boundaries[0].1;
+            let mut index_block = IndexBlockBuilder::new(&mut index_buf, first_block);
+            for &(hash, block) in &self.key_block_boundaries[1..] {
+                index_block.put(hash, block);
+            }
         }
-        file.write_u32::<BE>(0)
-            .context("Failed to write index block header")?;
-        let first_block = self.key_block_boundaries[0].1;
-        let mut index_block = IndexBlockBuilder::new(&mut file, first_block);
-        for &(hash, block) in &self.key_block_boundaries[1..] {
-            index_block.put(hash, block);
-        }
+        let index_checksum = checksum_block(&index_buf);
+        write_raw_block_to_file(
+            &mut file,
+            &mut self.block_offsets,
+            0,
+            index_checksum,
+            &index_buf,
+        )
+        .context("Failed to write index block")?;
 
         // Write block offset table
         for offset in &self.block_offsets {
@@ -1155,6 +1171,7 @@ mod tests {
                 TestValueKind::MediumRaw(v) => EntryValue::MediumRaw {
                     // uncompressed_size = 0 means the block is stored as-is (no compression).
                     uncompressed_size: 0,
+                    checksum: checksum_block(v),
                     block: v,
                 },
                 TestValueKind::Blob(id) => EntryValue::Large { blob: *id },
@@ -1613,5 +1630,71 @@ mod tests {
         let vc = make_cache();
         assert_lookup(&sst, &entries[0], &kc, &vc)?;
         Ok(())
+    }
+
+    /// Flip a single byte in an SST file at the given position.
+    fn corrupt_sst_byte(dir: &Path, seq: u32, pos: u64) {
+        use std::io::{Seek, SeekFrom, Write as _};
+
+        let sst_path = dir.join(format!("{seq:08}.sst"));
+        let file_bytes = std::fs::read(&sst_path).unwrap();
+        let original = file_bytes[pos as usize];
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&sst_path)
+            .unwrap();
+        file.seek(SeekFrom::Start(pos)).unwrap();
+        file.write_all(&[original ^ 0xFF]).unwrap();
+        file.sync_all().unwrap();
+    }
+
+    /// Assert that looking up the first entry in a corrupted SST returns a corruption error.
+    fn assert_corruption_detected(
+        dir: &Path,
+        seq: u32,
+        meta: &StaticSortedFileBuilderMeta<'_>,
+        entries: &[TestEntry],
+    ) {
+        let sst = open_sst(dir, seq, meta).unwrap();
+        let kc = make_cache();
+        let vc = make_cache();
+        match sst.lookup(entries[0].hash, &entries[0].key, &kc, &vc) {
+            Err(err) => {
+                let msg = format!("{err}");
+                assert!(
+                    msg.contains("corruption"),
+                    "Expected corruption error, got: {msg}"
+                );
+            }
+            Ok(_) => panic!("Expected checksum error, but lookup succeeded"),
+        }
+    }
+
+    #[test]
+    fn checksum_detects_corrupted_compressed_block() {
+        let dir = tempfile::tempdir().unwrap();
+        // Medium value is large enough to get its own value block, which will be compressed
+        let value = vec![0xCD; 8192];
+        let entries = vec![TestEntry::medium(b"mkey", &value)];
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default()).unwrap();
+
+        // Corrupt the stored checksum of the first block (bytes 4..8).
+        // This guarantees a mismatch regardless of whether LZ4 decompression succeeds.
+        corrupt_sst_byte(dir.path(), 1, 4);
+        assert_corruption_detected(dir.path(), 1, &meta, &entries);
+    }
+
+    #[test]
+    fn checksum_detects_corrupted_uncompressed_block() {
+        let dir = tempfile::tempdir().unwrap();
+        // Single inline entry - the key block will be small and likely stored uncompressed
+        let entries = vec![TestEntry::inline(b"key1", b"val1")];
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default()).unwrap();
+
+        // Corrupt a byte in the first block's data (after the 8-byte header)
+        corrupt_sst_byte(dir.path(), 1, BLOCK_HEADER_SIZE as u64 + 1);
+        assert_corruption_detected(dir.path(), 1, &meta, &entries);
     }
 }

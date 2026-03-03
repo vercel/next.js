@@ -9431,6 +9431,7 @@ dependencies = [
  "bitfield",
  "byteorder",
  "codspeed-criterion-compat",
+ "crc32fast",
  "dashmap 6.1.0",
  "either",
  "jiff",
