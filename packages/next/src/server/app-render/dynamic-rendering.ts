@@ -298,28 +298,6 @@ export function abortOnSynchronousPlatformIOAccess(
 }
 
 /**
- * Like abortOnSynchronousPlatformIOAccess but also throws to interrupt the
- * current component render. Used in static shell validation where we need
- * React to call onError so the error is tracked via trackDynamicHoleInNavigation.
- */
-export function abortAndThrowOnSynchronousPlatformIOAccess(
-  route: string,
-  expression: string,
-  errorWithStack: Error,
-  prerenderStore: PrerenderStoreModern
-): never {
-  abortOnSynchronousPlatformIOAccess(
-    route,
-    expression,
-    errorWithStack,
-    prerenderStore
-  )
-  throw createPrerenderInterruptedError(
-    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
-  )
-}
-
-/**
  * use this function when prerendering with cacheComponents. If we are doing a
  * prospective prerender we don't actually abort because we want to discover
  * all caches for the shell. If this is the actual prerender we do abort.
@@ -858,6 +836,38 @@ export function trackDynamicHoleInNavigation(
   // so there's no concept of shared parent vs new segment. All dynamic access
   // is evaluated against Suspense boundaries only, not validation boundaries.
   if (dynamicValidation.isStaticShellValidation) {
+    if (hasOutletRegex.test(componentStack)) {
+      // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
+      return
+    }
+    if (hasMetadataRegex.test(componentStack)) {
+      const usageDescription =
+        kind === DynamicHoleKind.Runtime
+          ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments.`
+          : `Uncached data or \`connection()\` was accessed inside \`generateMetadata\`.`
+      const message = `Route "${workStore.route}": ${usageDescription} Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+      const error = addErrorContext(
+        new Error(message),
+        componentStack,
+        dynamicValidation.createInstantStack
+      )
+      dynamicValidation.dynamicMetadata = error
+      return
+    }
+    if (hasViewportRegex.test(componentStack)) {
+      const usageDescription =
+        kind === DynamicHoleKind.Runtime
+          ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`.`
+          : `Uncached data or \`connection()\` was accessed inside \`generateViewport\`.`
+      const message = `Route "${workStore.route}": ${usageDescription} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+      const error = addErrorContext(
+        new Error(message),
+        componentStack,
+        dynamicValidation.createInstantStack
+      )
+      dynamicValidation.dynamicErrors.push(error)
+      return
+    }
     if (
       hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
         componentStack

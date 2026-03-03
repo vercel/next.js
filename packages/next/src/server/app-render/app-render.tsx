@@ -4684,12 +4684,26 @@ async function validateInstantConfigNavigation(
   } catch (thrownValue) {
     // Even if the root errors we still want to report any cache components errors
     // that were discovered before the root errored.
-    let errors: Array<unknown> = getNavigationDisallowedDynamicReasons(
-      workStore,
-      PreludeState.Errored,
-      dynamicValidation,
-      boundaryState
-    )
+    let errors: Array<unknown> = dynamicValidation.isStaticShellValidation
+      ? getStaticShellDisallowedDynamicReasons(
+          workStore,
+          PreludeState.Errored,
+          {
+            hasSuspenseAboveBody: dynamicValidation.hasSuspenseAboveBody,
+            hasDynamicMetadata: dynamicValidation.hasDynamicMetadata,
+            dynamicMetadata: dynamicValidation.dynamicMetadata,
+            hasDynamicViewport: dynamicValidation.hasDynamicViewport,
+            hasAllowedDynamic: dynamicValidation.hasAllowedDynamic,
+            dynamicErrors: dynamicValidation.dynamicErrors,
+          } satisfies DynamicValidationState,
+          dynamicValidation.allowEmptyStaticShell
+        )
+      : getNavigationDisallowedDynamicReasons(
+          workStore,
+          PreludeState.Errored,
+          dynamicValidation,
+          boundaryState
+        )
 
     if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
       errors.unshift(
