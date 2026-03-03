@@ -83,7 +83,7 @@ export const errorStyles = {
     lineHeight: '18px',
     fontWeight: 400,
     margin: '0',
-    color: 'var(--next-error-message)',
+    color: 'var(--next-error-digest)',
   },
 } as const
 
@@ -93,6 +93,7 @@ export const errorThemeCss = `
   --next-error-text: #171717;
   --next-error-title: #171717;
   --next-error-message: #171717;
+  --next-error-digest: #666666;
   --next-error-btn-text: #fff;
   --next-error-btn-bg: #171717;
   --next-error-btn-border: none;
@@ -106,6 +107,7 @@ export const errorThemeCss = `
     --next-error-text: #ededed;
     --next-error-title: #ededed;
     --next-error-message: #ededed;
+    --next-error-digest: #a0a0a0;
     --next-error-btn-text: #0a0a0a;
     --next-error-btn-bg: #ededed;
     --next-error-btn-border: none;
