@@ -1863,7 +1863,10 @@ export function getNextConfigRuntime(
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        adapterPath: ex.adapterPath,
+        // The full adapterPath might be non-deterministic across builds and doesn't actually matter
+        // at runtime, as it's only used to determine whether the adapter was used or not, not to
+        // execute it again. So replace it with a placeholder if it's set.
+        adapterPath: ex.adapterPath ? '<ommited but set>' : undefined,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,

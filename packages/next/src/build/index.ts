@@ -196,7 +196,6 @@ import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
 import { turbopackBuild } from './turbopack-build'
-import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
@@ -1002,6 +1001,11 @@ export default async function build(
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
+
+      // Set up code frame renderer for error formatting
+      const { installCodeFrameSupport } =
+        require('../server/lib/install-code-frame') as typeof import('../server/lib/install-code-frame')
+      installCodeFrameSupport()
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
@@ -2694,7 +2698,9 @@ export default async function build(
         },
         {
           featureName: 'turbopackFileSystemCache',
-          invocationCount: isFileSystemCacheEnabledForBuild(config) ? 1 : 0,
+          invocationCount: config.experimental?.turbopackFileSystemCacheForBuild
+            ? 1
+            : 0,
         },
       ]
       telemetry.record(
