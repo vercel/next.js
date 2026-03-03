@@ -7,7 +7,10 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
-import { shouldUseReactServerCondition, isWebpackAppPagesLayer } from '../utils'
+import {
+  shouldUseReactServerCondition,
+  isWebpackAppPagesLayer,
+} from '../webpack-layer'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
 const nextDirname = path.dirname(require.resolve('next/package.json'))
