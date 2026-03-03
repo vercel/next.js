@@ -168,7 +168,15 @@ impl StaticSortedFile {
         meta: StaticSortedFileMetaData,
         sequential: bool,
     ) -> Result<Self> {
-        let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
+        let file = File::open(&path)
+            .with_context(|| format!("Failed to open SST file {}", path.display()))?;
+        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+            format!(
+                "Failed to mmap SST file {} ({} bytes)",
+                path.display(),
+                file.metadata().map(|m| m.len()).unwrap_or(0)
+            )
+        })?;
         #[cfg(unix)]
         if sequential {
             mmap.advise(memmap2::Advice::Sequential)?;
@@ -465,7 +473,12 @@ impl StaticSortedFile {
     #[tracing::instrument(level = "info", name = "reading database block", skip_all)]
     fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
         let (uncompressed_length, expected_checksum, block) =
-            self.get_raw_block_slice(block_index)?;
+            self.get_raw_block_slice(block_index).with_context(|| {
+                format!(
+                    "Failed to read raw block {} from {:08}.sst",
+                    block_index, self.meta.sequence_number
+                )
+            })?;
 
         // Verify checksum on the raw on-disk data before decompression.
         self.verify_checksum(block, expected_checksum, block_index)?;
@@ -486,7 +499,12 @@ impl StaticSortedFile {
             block.len(),
         );
 
-        let buffer = decompress_into_arc(uncompressed_length, block)?;
+        let buffer = decompress_into_arc(uncompressed_length, block).with_context(|| {
+            format!(
+                "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
+                block_index, self.meta.sequence_number, uncompressed_length
+            )
+        })?;
         Ok(ArcBytes::from(buffer))
     }
 
@@ -537,9 +555,23 @@ impl StaticSortedFile {
         let block_start = if block_index == 0 {
             0
         } else {
-            (&self.mmap[offset - 4..offset]).read_u32::<BE>()? as usize
+            (&self.mmap[offset - 4..offset])
+                .read_u32::<BE>()
+                .with_context(|| {
+                    format!(
+                        "Failed to read block_start offset for block {} in {:08}.sst",
+                        block_index, self.meta.sequence_number
+                    )
+                })? as usize
         };
-        let block_end = (&self.mmap[offset..offset + 4]).read_u32::<BE>()? as usize;
+        let block_end = (&self.mmap[offset..offset + 4])
+            .read_u32::<BE>()
+            .with_context(|| {
+                format!(
+                    "Failed to read block_end offset for block {} in {:08}.sst",
+                    block_index, self.meta.sequence_number
+                )
+            })? as usize;
         #[cfg(feature = "strict_checks")]
         if block_end > self.mmap.len() || block_start > self.mmap.len() {
             bail!(
@@ -552,9 +584,26 @@ impl StaticSortedFile {
                 self.meta.block_offsets_start(self.mmap.len()),
             );
         }
-        let uncompressed_length =
-            u32::from_be_bytes(self.mmap[block_start..block_start + 4].try_into()?);
-        let checksum = u32::from_be_bytes(self.mmap[block_start + 4..block_start + 8].try_into()?);
+        let uncompressed_length = u32::from_be_bytes(
+            self.mmap[block_start..block_start + 4]
+                .try_into()
+                .with_context(|| {
+                    format!(
+                        "Failed to read uncompressed_length from block {} header in {:08}.sst",
+                        block_index, self.meta.sequence_number
+                    )
+                })?,
+        );
+        let checksum = u32::from_be_bytes(
+            self.mmap[block_start + 4..block_start + 8]
+                .try_into()
+                .with_context(|| {
+                    format!(
+                        "Failed to read checksum from block {} header in {:08}.sst",
+                        block_index, self.meta.sequence_number
+                    )
+                })?,
+        );
         let block = &self.mmap[block_start + BLOCK_HEADER_SIZE..block_end];
         Ok((uncompressed_length, checksum, block))
     }
