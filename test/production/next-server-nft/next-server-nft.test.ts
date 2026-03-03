@@ -167,7 +167,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/@napi-rs/triples/index.js",
            "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
            "/node_modules/next/dist/compiled/async-retry/index.js",
-           "/node_modules/next/dist/compiled/async-sema/index.js",
            "/node_modules/next/dist/compiled/busboy/index.js",
            "/node_modules/next/dist/compiled/bytes/index.js",
            "/node_modules/next/dist/compiled/ci-info/index.js",
