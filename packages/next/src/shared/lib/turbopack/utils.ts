@@ -315,9 +315,3 @@ export function isFileSystemCacheEnabledForDev(
 ): boolean {
   return config.experimental?.turbopackFileSystemCacheForDev || false
 }
-
-export function isFileSystemCacheEnabledForBuild(
-  config: NextConfigComplete
-): boolean {
-  return config.experimental?.turbopackFileSystemCacheForBuild || false
-}

@@ -100,7 +100,8 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
+import { getSupportedBrowsers } from '../../build/get-supported-browsers'
+import { printBuildErrors } from '../../build/print-build-errors'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,

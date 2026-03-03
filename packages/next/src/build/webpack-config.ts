@@ -65,7 +65,7 @@ import loadJsConfig, {
 } from './load-jsconfig'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
-import { getSupportedBrowsers } from './utils'
+import { getSupportedBrowsers } from './get-supported-browsers'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
