@@ -22148,9 +22148,11 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "deterministic build - changing deployment id .next folder should produce identical build outputs even when changing deployment id",
-      "deterministic build - changing deployment id build output API - adapter should produce identical build outputs even when changing deployment id",
-      "deterministic build - changing deployment id build output API - builder should produce identical build outputs even when changing deployment id"
+      "deterministic build - changing deployment id build output API - cacheComponents adapter should produce identical build outputs even when changing deployment id",
+      "deterministic build - changing deployment id build output API - cacheComponents builder should produce identical build outputs even when changing deployment id",
+      "deterministic build - changing deployment id build output API - standard adapter should produce identical build outputs even when changing deployment id",
+      "deterministic build - changing deployment id build output API - standard builder should produce identical build outputs even when changing deployment id",
+      "deterministic build - changing deployment id standard - .next folder should produce identical build outputs even when changing deployment id"
     ],
     "flakey": [],
     "runtimeError": false
