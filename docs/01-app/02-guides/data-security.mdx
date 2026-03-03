@@ -206,7 +206,7 @@ On the initial load, both Server and Client Components run on the server to gene
 
 **Client Components:**
 
-- Run on the server during pre-rendering, but must follow the same security assumptions as code running in the browser.
+- Run on the server during prerendering, but must follow the same security assumptions as code running in the browser.
 - Must not access privileged data or server-only modules.
 
 This ensures the app is secure by default, but it's possible to accidentally expose private data through how data is fetched or passed to components.
