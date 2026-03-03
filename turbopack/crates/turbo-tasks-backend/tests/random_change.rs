@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::{Result, bail};
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 

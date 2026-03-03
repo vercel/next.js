@@ -7,7 +7,7 @@ use criterion::{
 };
 use parking_lot::Mutex;
 use quick_cache::sync::GuardResult;
-use rand::{Rng, SeedableRng, rngs::SmallRng, seq::SliceRandom};
+use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::TempDir;
 use turbo_persistence::{
     ArcBytes, BlockCache, CompactConfig, Entry, EntryValue, MetaEntryFlags, SerialScheduler,

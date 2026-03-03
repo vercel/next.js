@@ -3017,7 +3017,7 @@ mod tests {
             io::Write,
         };
 
-        use rand::{Rng, SeedableRng};
+        use rand::{RngExt, SeedableRng};
         use turbo_rcstr::{RcStr, rcstr};
         use turbo_tasks::{OperationVc, ResolvedVc, Vc, apply_effects};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};

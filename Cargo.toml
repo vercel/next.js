@@ -371,7 +371,7 @@ allsorts = { version = "0.14.0", default-features = false, features = [
 anyhow = "1.0.100"
 async-trait = "0.1.64"
 bincode = { version = "2.0.1", features = ["serde"] }
-bitfield = "0.18.0"
+bitfield = "0.19.4"
 byteorder = "1.5.0"
 bytes = "1.1.0"
 bytes-str = "0.2.7"
@@ -386,7 +386,7 @@ dashmap = "6.1.0"
 data-encoding = "2.3.3"
 dhat = { version = "0.3.2" }
 dunce = "1.0.3"
-either = "1.9.0"
+either = "1.15.0"
 erased-serde = "0.4.5"
 flate2 = "1.0.28"
 futures = "0.3.31"
@@ -394,7 +394,7 @@ futures-retry = "0.6.0"
 futures-util = "0.3.31"
 hashbrown = "0.14.5"
 image = { version = "0.25.8", default-features = false }
-indexmap = "2.7.1"
+indexmap = "2.13.0"
 indoc = "2.0.0"
 inventory = "0.3.21"
 itertools = "0.10.5"
@@ -407,6 +407,7 @@ lightningcss = { version = "1.0.0-alpha.70", features = [
 lightningcss-napi = { version = "0.4.6", default-features = false, features = [
   "visitor",
 ] }
+lzzzz = "2.0.0"
 markdown = "1.0.0-alpha.18"
 mime = "0.3.16"
 napi = { version = "2", default-features = false, features = [
@@ -423,7 +424,7 @@ napi-derive = "2"
 napi-build = "2"
 nohash-hasher = "0.2.0"
 notify = "8.1.0"
-once_cell = "1.17.1"
+once_cell = "1.21.3"
 owo-colors = "4.2.2"
 parcel_selectors = "0.28.2"
 parking_lot = "0.12.1"
@@ -435,12 +436,12 @@ proc-macro2 = "1.0.79"
 qstring = "0.7.2"
 quick_cache = { version = "0.6.14" }
 quote = "1.0.23"
-rand = "0.9.0"
+rand = "0.10.0"
 rayon = "1.10.0"
 regex = "1.10.6"
 regress = "0.10.4"
 reqwest = { version = "0.13.1", default-features = false }
-ringmap = "0.1.3"
+ringmap = "0.2.3"
 roaring = "0.10.10"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"

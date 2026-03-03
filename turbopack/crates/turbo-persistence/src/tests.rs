@@ -1331,7 +1331,7 @@ fn batch_get_after_restore() -> Result<()> {
 /// Reproduces a CI benchmark failure with key_4/value_512/entries_1.98Mi/compacted.
 #[test]
 fn many_small_values_compaction() -> Result<()> {
-    use rand::{Rng, SeedableRng, rngs::SmallRng};
+    use rand::{RngExt, SeedableRng, rngs::SmallRng};
 
     use crate::parallel_scheduler::SerialScheduler;
 
@@ -1372,7 +1372,7 @@ fn many_small_values_compaction() -> Result<()> {
 /// Worst case for small value blocks: fewest entries per block.
 #[test]
 fn many_max_small_values_compaction() -> Result<()> {
-    use rand::{Rng, SeedableRng, rngs::SmallRng};
+    use rand::{RngExt, SeedableRng, rngs::SmallRng};
 
     use crate::{constants::MAX_SMALL_VALUE_SIZE, parallel_scheduler::SerialScheduler};
 
@@ -1412,7 +1412,7 @@ fn many_max_small_values_compaction() -> Result<()> {
 /// Each medium value gets its own dedicated block, so this is the worst case for block count.
 #[test]
 fn many_medium_values_compaction() -> Result<()> {
-    use rand::{Rng, SeedableRng, rngs::SmallRng};
+    use rand::{RngExt, SeedableRng, rngs::SmallRng};
 
     use crate::{constants::MAX_SMALL_VALUE_SIZE, parallel_scheduler::SerialScheduler};
 

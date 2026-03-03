@@ -35,7 +35,7 @@ lmdb = ["dep:lmdb-rkv"]
 [dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
-arc-swap = { version = "1.7.1" }
+arc-swap = { version = "1.8.2" }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
 byteorder = { workspace = true }
@@ -44,7 +44,7 @@ either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
 lmdb-rkv = { version = "0.14.0", optional = true }
-lzzzz = { version = "1.1.0", optional = true }
+lzzzz = { workspace = true, optional = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }

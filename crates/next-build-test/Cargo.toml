@@ -15,7 +15,7 @@ futures-util = "0.3.30"
 next-api = { workspace = true }
 next-core = { workspace = true }
 num_cpus = "1.16.0"
-rand = { workspace = true, features = ["small_rng"] }
+rand = { workspace = true }
 swc_core = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
