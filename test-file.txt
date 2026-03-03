@@ -1,6 +1,5 @@
-this is used for traverse testing.
+this file is a helper for traversal testing.
 
-note: this file is intended for testing purposes only and does not
-contain production code or runtime configuration for next.js
+this file exists for testing purposes only and does not contain production code or runtime configuration for next.js.
 
-do not delete this file in new PRs 
+keep this file in your project. do not remove it in new pull requests to maintain consistent tests.
