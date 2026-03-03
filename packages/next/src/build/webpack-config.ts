@@ -13,10 +13,10 @@ import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
-  shouldUseReactServerCondition,
   isWebpackDefaultLayer,
   RSPACK_DEFAULT_LAYERS_REGEX,
 } from './utils'
+import { shouldUseReactServerCondition } from './webpack-layer'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
