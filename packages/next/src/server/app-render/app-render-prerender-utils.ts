@@ -29,15 +29,29 @@ export class ReactServerResult {
       this._stream = tee[0]
       return tee[1]
     }
-    // Node.js Readable: pipe to two PassThrough streams
-    const { PassThrough } =
-      require('node:stream') as typeof import('node:stream')
-    const pt1 = new PassThrough()
-    const pt2 = new PassThrough()
-    this._stream.pipe(pt1)
-    this._stream.pipe(pt2)
-    this._stream = pt1
-    return pt2
+
+    if (process.env.TURBOPACK) {
+      // Node.js Readable: pipe to two PassThrough streams
+      const { PassThrough } =
+        require('node:stream') as typeof import('node:stream')
+      const pt1 = new PassThrough()
+      const pt2 = new PassThrough()
+      this._stream.pipe(pt1)
+      this._stream.pipe(pt2)
+      this._stream = pt1
+      return pt2
+    } else {
+      // Node.js Readable: pipe to two PassThrough streams
+      const { PassThrough } = __non_webpack_require__(
+        'node:stream'
+      ) as typeof import('node:stream')
+      const pt1 = new PassThrough()
+      const pt2 = new PassThrough()
+      this._stream.pipe(pt1)
+      this._stream.pipe(pt2)
+      this._stream = pt1
+      return pt2
+    }
   }
 
   consume(): StreamLike {
