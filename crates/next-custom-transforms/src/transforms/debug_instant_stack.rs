@@ -4,7 +4,7 @@ use swc_core::{
     common::{Span, Spanned},
     ecma::{
         ast::*,
-        visit::{Fold, fold_pass},
+        visit::{VisitMut, visit_mut_pass},
     },
     quote,
 };
@@ -14,7 +14,7 @@ static PAGE_OR_LAYOUT_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"[\\/](page|layout|default)\.(ts|js)x?$").unwrap());
 
 pub fn debug_instant_stack(filepath: String) -> impl Pass {
-    fold_pass(DebugInstantStack {
+    visit_mut_pass(DebugInstantStack {
         filepath,
         instant_export_span: None,
     })
@@ -71,13 +71,13 @@ fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
     None
 }
 
-impl Fold for DebugInstantStack {
-    fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
+impl VisitMut for DebugInstantStack {
+    fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
         if !PAGE_OR_LAYOUT_RE.is_match(&self.filepath) {
-            return items;
+            return;
         }
 
-        for item in &items {
+        for item in items.iter() {
             match item {
                 // `export const unstable_instant = ...`
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
@@ -104,7 +104,7 @@ impl Fold for DebugInstantStack {
                             } else {
                                 // Local named export: try to find the variable's initializer
                                 let local_name = &orig.sym;
-                                if let Some(init_span) = find_var_init_span(&items, local_name) {
+                                if let Some(init_span) = find_var_init_span(items, local_name) {
                                     self.instant_export_span = Some(init_span);
                                 } else {
                                     // Fallback to the export specifier span
@@ -119,8 +119,6 @@ impl Fold for DebugInstantStack {
         }
 
         if let Some(source_span) = self.instant_export_span {
-            let mut new_items = items;
-
             // TODO: Change React to deserialize errors with a zero-length message
             // instead of using a fallback message ("no message was provided").
             // We're working around this by using a message that is empty
@@ -152,10 +150,7 @@ impl Fold for DebugInstantStack {
                 cons: Expr = cons,
             );
 
-            new_items.push(export);
-            new_items
-        } else {
-            items
+            items.push(export);
         }
     }
 }

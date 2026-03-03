@@ -637,12 +637,12 @@ export class TurbopackManifestLoader {
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
 
-    let buildManifestPath = join(
+    let buildManifestPath = posix.join(
       CLIENT_STATIC_FILES_PATH,
       this.buildId,
       '_buildManifest.js'
     )
-    let ssgManifestPath = join(
+    let ssgManifestPath = posix.join(
       CLIENT_STATIC_FILES_PATH,
       this.buildId,
       '_ssgManifest.js'
@@ -837,7 +837,7 @@ export class TurbopackManifestLoader {
   private writeMiddlewareManifest(): {
     clientMiddlewareManifestPath: string
   } {
-    let clientMiddlewareManifestPath = join(
+    let clientMiddlewareManifestPath = posix.join(
       CLIENT_STATIC_FILES_PATH,
       this.buildId,
       TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
