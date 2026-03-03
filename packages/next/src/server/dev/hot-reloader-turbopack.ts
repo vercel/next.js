@@ -85,8 +85,8 @@ import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
+import { formatIssue } from '../../shared/lib/turbopack/format-issue'
 import {
-  formatIssue,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
   processIssues,

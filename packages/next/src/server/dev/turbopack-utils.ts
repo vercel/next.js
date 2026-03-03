@@ -28,8 +28,10 @@ import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import {
   formatIssue,
-  getIssueKey,
   isRelevantWarning,
+} from '../../shared/lib/turbopack/format-issue'
+import {
+  getIssueKey,
   processIssues,
   renderStyledStringToErrorAnsi,
   type EntryIssuesMap,
