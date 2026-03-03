@@ -64,7 +64,8 @@ export function navigate(
   // nextUrl to maintain interception context during refresh/revalidation.
   if (
     url.pathname === currentUrl.pathname &&
-    url.search === currentUrl.search
+    url.search === currentUrl.search &&
+    url.hash === currentUrl.hash
   ) {
     nextUrl = null
   }
