@@ -17,10 +17,11 @@ use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
 use smallvec::SmallVec;
+use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
-    QueryKey,
+    DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::decompress_into_arc,
@@ -29,7 +30,7 @@ use crate::{
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
-    lookup_entry::{LookupEntry, LookupValue},
+    lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
@@ -121,6 +122,8 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
     value_block_cache: BlockCache,
+    /// Per-family configuration for file limits.
+    config: DbConfig<FAMILIES>,
     /// Statistics for the database.
     #[cfg(feature = "stats")]
     stats: TrackedStats,
@@ -157,15 +160,25 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
         Self::open_with_parallel_scheduler(path, Default::default())
     }
 
+    /// Open a TurboPersistence database at the given path with custom per-family configuration.
+    pub fn open_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
+        Self::open_with_config_and_parallel_scheduler(path, config, Default::default())
+    }
+
     /// Open a TurboPersistence database at the given path in read only mode.
     /// This will read the directory. No Cleanup is performed.
-    pub fn open_read_only(path: PathBuf) -> Result<Self> {
-        Self::open_read_only_with_parallel_scheduler(path, Default::default())
+    pub fn open_read_only_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
+        Self::open_read_only_with_parallel_scheduler(path, config, Default::default())
     }
 }
 
 impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> {
-    fn new(path: PathBuf, read_only: bool, parallel_scheduler: S) -> Self {
+    fn new(
+        path: PathBuf,
+        read_only: bool,
+        parallel_scheduler: S,
+        config: DbConfig<FAMILIES>,
+    ) -> Self {
         Self {
             parallel_scheduler,
             path,
@@ -191,6 +204,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 Default::default(),
                 Default::default(),
             ),
+            config,
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
         }
@@ -201,18 +215,28 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// properly. Cleanup only requires to read a few bytes from a few files and to delete
     /// files, so it's fast.
     pub fn open_with_parallel_scheduler(path: PathBuf, parallel_scheduler: S) -> Result<Self> {
-        let mut db = Self::new(path, false, parallel_scheduler);
+        Self::open_with_config_and_parallel_scheduler(path, DbConfig::default(), parallel_scheduler)
+    }
+
+    /// Open a TurboPersistence database at the given path with custom per-family configuration.
+    pub fn open_with_config_and_parallel_scheduler(
+        path: PathBuf,
+        config: DbConfig<FAMILIES>,
+        parallel_scheduler: S,
+    ) -> Result<Self> {
+        let mut db = Self::new(path, false, parallel_scheduler, config);
         db.open_directory(false)?;
         Ok(db)
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
     /// This will read the directory. No Cleanup is performed.
-    pub fn open_read_only_with_parallel_scheduler(
+    fn open_read_only_with_parallel_scheduler(
         path: PathBuf,
+        config: DbConfig<FAMILIES>,
         parallel_scheduler: S,
     ) -> Result<Self> {
-        let mut db = Self::new(path, true, parallel_scheduler);
+        let mut db = Self::new(path, true, parallel_scheduler, config);
         db.open_directory(false)?;
         Ok(db)
     }
@@ -422,6 +446,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             self.path.clone(),
             current,
             self.parallel_scheduler.clone(),
+            self.config.family_configs,
         ))
     }
 
@@ -986,7 +1011,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
                             blob_seq_numbers_to_delete: Vec<u32>,
                             keys_written: u64,
-                            indicies: SmallVec<[usize; 1]>,
+                            indices: SmallVec<[usize; 1]>,
                         },
                         Move {
                             seq: u32,
@@ -995,185 +1020,175 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     }
                     let merge_result = self
                         .parallel_scheduler
-                        .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(
-                            merge_jobs,
-                            |indicies| {
-                                let _span = span.clone().entered();
-                                if indicies.len() == 1 {
-                                    // If we only have one file, we can just move it
-                                    let index = indicies[0];
+                        .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
+                            let _span = span.clone().entered();
+                            if indices.len() == 1 {
+                                // If we only have one file, we can just move it
+                                let index = indices[0];
+                                let meta_index = ssts_with_ranges[index].meta_index;
+                                let index_in_meta = ssts_with_ranges[index].index_in_meta;
+                                let meta_file = &meta_files[meta_index];
+                                let entry = meta_file.entry(index_in_meta);
+                                let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
+                                let meta = StaticSortedFileBuilderMeta {
+                                    min_hash: entry.min_hash(),
+                                    max_hash: entry.max_hash(),
+                                    amqf,
+                                    block_count: entry.block_count(),
+                                    size: entry.size(),
+                                    flags: entry.flags(),
+                                    entries: 0,
+                                };
+                                return Ok(PartialMergeResult::Move {
+                                    seq: entry.sequence_number(),
+                                    meta,
+                                });
+                            }
+
+                            // Open SST files independently for compaction.
+                            // Uses MADV_SEQUENTIAL for better OS page management
+                            // and avoids caching mmaps on MetaEntry's OnceLock.
+                            let iters = indices
+                                .iter()
+                                .map(|&index| {
                                     let meta_index = ssts_with_ranges[index].meta_index;
                                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
-                                    let meta_file = &meta_files[meta_index];
-                                    let entry = meta_file.entry(index_in_meta);
-                                    let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
-                                    let meta = StaticSortedFileBuilderMeta {
-                                        min_hash: entry.min_hash(),
-                                        max_hash: entry.max_hash(),
-                                        amqf,
-                                        block_count: entry.block_count(),
-                                        size: entry.size(),
-                                        flags: entry.flags(),
-                                        entries: 0,
-                                    };
-                                    return Ok(PartialMergeResult::Move {
-                                        seq: entry.sequence_number(),
-                                        meta,
-                                    });
+                                    let entry = meta_files[meta_index].entry(index_in_meta);
+                                    StaticSortedFile::open_for_compaction(
+                                        path,
+                                        entry.sst_metadata(),
+                                    )?
+                                    .try_into_iter()
+                                })
+                                .collect::<Result<Vec<_>>>()?;
+
+                            let iter = MergeIter::new(iters.into_iter())?;
+
+                            // TODO figure out how to delete blobs when they are no longer
+                            // referenced
+                            let blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
+
+                            struct Collector {
+                                /// The active writer and its sequence number. `None` if no
+                                /// entries have been added since the last flush. We defer
+                                /// allocation to avoid creating empty SST files for collectors
+                                /// that receive no entries (e.g., the unused_collector when
+                                /// all keys are in the
+                                /// used set).
+                                writer: Option<(u32, StreamingSstWriter<LookupEntry>)>,
+                                flags: MetaEntryFlags,
+                                new_sst_files:
+                                    Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                                /// Hash of the last key added. Used to ensure we only split
+                                /// SST files at key boundaries (not mid-key-group for MultiValue).
+                                last_hash: Option<u64>,
+                            }
+                            impl Collector {
+                                fn new(flags: MetaEntryFlags) -> Self {
+                                    Self {
+                                        writer: None,
+                                        flags,
+                                        new_sst_files: Vec::new(),
+                                        last_hash: None,
+                                    }
                                 }
 
-                                // Open SST files independently for compaction.
-                                // Uses MADV_SEQUENTIAL for better OS page management
-                                // and avoids caching mmaps on MetaEntry's OnceLock.
-                                let iters = indicies
-                                    .iter()
-                                    .map(|&index| {
-                                        let meta_index = ssts_with_ranges[index].meta_index;
-                                        let index_in_meta = ssts_with_ranges[index].index_in_meta;
-                                        let entry = meta_files[meta_index].entry(index_in_meta);
-                                        StaticSortedFile::open_for_compaction(
-                                            path,
-                                            entry.sst_metadata(),
-                                        )?
-                                        .try_into_iter()
-                                    })
-                                    .collect::<Result<Vec<_>>>()?;
-
-                                let iter = MergeIter::new(iters.into_iter())?;
-
-                                // TODO figure out how to delete blobs when they are no longer
-                                // referenced
-                                let blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
-
-                                let mut keys_written = 0;
-
-                                let mut current: Option<LookupEntry> = None;
-
-                                struct Collector {
-                                    /// The active writer and its sequence number. `None` if no
-                                    /// entries have been added since the last flush. We defer
-                                    /// allocation to avoid creating empty SST files for collectors
-                                    /// that receive no entries (e.g., the unused_collector when
-                                    /// all keys are in the
-                                    /// used set).
-                                    writer: Option<(u32, StreamingSstWriter<LookupEntry>)>,
-                                    flags: MetaEntryFlags,
-                                    new_sst_files:
-                                        Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                                /// Ensures a writer is open, creating one if needed.
+                                fn ensure_writer(
+                                    &mut self,
+                                    path: &Path,
+                                    sequence_number: &AtomicU32,
+                                ) -> Result<&mut StreamingSstWriter<LookupEntry>>
+                                {
+                                    if self.writer.is_none() {
+                                        let seq =
+                                            sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                                        let sst_path = path.join(format!("{seq:08}.sst"));
+                                        let writer = StreamingSstWriter::new(
+                                            &sst_path,
+                                            self.flags,
+                                            MAX_ENTRIES_PER_COMPACTED_FILE as u64,
+                                        )?;
+                                        self.writer = Some((seq, writer));
+                                    }
+                                    Ok(&mut self.writer.as_mut().unwrap().1)
                                 }
-                                impl Collector {
-                                    fn new(flags: MetaEntryFlags) -> Self {
-                                        Self {
-                                            writer: None,
-                                            flags,
-                                            new_sst_files: Vec::new(),
-                                        }
+
+                                /// Closes the current SST file (flushing remaining blocks and
+                                /// writing the index) and records it in the completed files
+                                /// list.
+                                fn close_sst_file(&mut self, keys_written: &mut u64) -> Result<()> {
+                                    if let Some((seq, writer)) = self.writer.take() {
+                                        let _span =
+                                            tracing::trace_span!("close merged sst file").entered();
+                                        let (meta, file) = writer.close()?;
+                                        *keys_written += meta.entries;
+                                        self.new_sst_files.push((seq, file, meta));
                                     }
+                                    Ok(())
+                                }
 
-                                    /// Ensures a writer is open, creating one if needed.
-                                    fn ensure_writer(
-                                        &mut self,
-                                        path: &Path,
-                                        sequence_number: &AtomicU32,
-                                    ) -> Result<&mut StreamingSstWriter<LookupEntry>>
-                                    {
-                                        if self.writer.is_none() {
-                                            let seq =
-                                                sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                                            let sst_path = path.join(format!("{seq:08}.sst"));
-                                            let writer = StreamingSstWriter::new(
-                                                &sst_path,
-                                                self.flags,
-                                                MAX_ENTRIES_PER_COMPACTED_FILE as u64,
-                                            )?;
-                                            self.writer = Some((seq, writer));
-                                        }
-                                        Ok(&mut self.writer.as_mut().unwrap().1)
-                                    }
-
-                                    /// Closes the current SST file (flushing remaining blocks and
-                                    /// writing the index) and records it in the completed files
-                                    /// list.
-                                    fn close_sst_file(
-                                        &mut self,
-                                        keys_written: &mut u64,
-                                    ) -> Result<()> {
-                                        if let Some((seq, writer)) = self.writer.take() {
-                                            let _span =
-                                                tracing::trace_span!("close merged sst file")
-                                                    .entered();
-                                            let (meta, file) = writer.close()?;
-                                            *keys_written += meta.entries;
-                                            self.new_sst_files.push((seq, file, meta));
-                                        }
-                                        Ok(())
-                                    }
-
-                                    /// Adds an entry to the collector. Writes the entry first,
-                                    /// then checks if the file is full and closes it if so.
-                                    fn add_entry(
-                                        &mut self,
-                                        entry: LookupEntry,
-                                        path: &Path,
-                                        sequence_number: &AtomicU32,
-                                        keys_written: &mut u64,
-                                    ) -> Result<()> {
-                                        let writer = self.ensure_writer(path, sequence_number)?;
-                                        writer.add(entry)?;
-
-                                        // Check fullness after adding -- the writer tracks sizes
-                                        // and block counts internally.
-                                        if writer.is_full(
+                                /// Adds an entry to the collector. Only splits the SST file at
+                                /// key boundaries to avoid breaking key groups for MultiValue
+                                /// families.
+                                fn add_entry(
+                                    &mut self,
+                                    entry: LookupEntry,
+                                    path: &Path,
+                                    sequence_number: &AtomicU32,
+                                    keys_written: &mut u64,
+                                ) -> Result<()> {
+                                    let key_changed = self.last_hash != Some(entry.hash);
+                                    // Only check fullness at key boundaries to avoid splitting
+                                    // a key group across two SST files.
+                                    if key_changed
+                                        && let Some((_, ref writer)) = self.writer
+                                        && writer.is_full(
                                             MAX_ENTRIES_PER_COMPACTED_FILE,
                                             DATA_THRESHOLD_PER_COMPACTED_FILE,
-                                        ) {
-                                            self.close_sst_file(keys_written)?;
-                                        }
-                                        Ok(())
+                                        )
+                                    {
+                                        self.close_sst_file(keys_written)?;
+                                    }
+                                    self.last_hash = Some(entry.hash);
+                                    let writer = self.ensure_writer(path, sequence_number)?;
+                                    writer.add(entry)?;
+                                    Ok(())
+                                }
+                            }
+                            #[cfg(debug_assertions)]
+                            impl Drop for Collector {
+                                fn drop(&mut self) {
+                                    if !std::thread::panicking() {
+                                        assert!(
+                                            self.writer.is_none(),
+                                            "Collector dropped with an open writer"
+                                        );
                                     }
                                 }
-                                #[cfg(debug_assertions)]
-                                impl Drop for Collector {
-                                    fn drop(&mut self) {
-                                        if !std::thread::panicking() {
-                                            assert!(
-                                                self.writer.is_none(),
-                                                "Collector dropped with an open writer"
-                                            );
-                                        }
-                                    }
-                                }
-                                let mut used_collector = Collector::new(MetaEntryFlags::WARM);
-                                let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
-                                for entry in iter {
-                                    let entry = entry?;
+                            }
+                            let mut used_collector = Collector::new(MetaEntryFlags::WARM);
+                            let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
+                            let mut current_key: Option<ArcBytes> = None;
+                            let mut keys_written = 0;
 
-                                    // Remove duplicates
-                                    if let Some(current) = current.take() {
-                                        if current.key != entry.key {
-                                            let is_used =
-                                                used_key_hashes.as_ref().is_some_and(|amqf| {
-                                                    amqf.contains_fingerprint(current.hash)
-                                                });
-                                            let collector = if is_used {
-                                                &mut used_collector
-                                            } else {
-                                                &mut unused_collector
-                                            };
-                                            collector.add_entry(
-                                                current,
-                                                path,
-                                                sequence_number,
-                                                &mut keys_written,
-                                            )?;
-                                        } else {
-                                            // Override value
-                                            // TODO delete blob file
-                                        }
-                                    }
-                                    current = Some(entry);
+                            // MergeIter yields entries from newer SSTs first (by SST sequence
+                            // number). Within each SST, tombstones sort last within key groups.
+                            // Use a skip flag to handle:
+                            // - SingleValue: skip all older entries after writing the first
+                            // - MultiValue: skip all older entries after encountering a tombstone
+                            //   (which signals deletion of all prior values for this key)
+                            let mut skip_remaining_for_this_key = false;
+                            let family_config = &self.config.family_configs[family as usize];
+
+                            for entry in iter {
+                                let entry = entry?;
+                                if current_key.as_ref() != Some(&entry.key) {
+                                    // we changed keys so undo this flag
+                                    skip_remaining_for_this_key = false;
+                                    current_key = Some(entry.key.clone());
                                 }
-                                if let Some(entry) = current {
+                                if !skip_remaining_for_this_key {
                                     let is_used = used_key_hashes
                                         .as_ref()
                                         .is_some_and(|amqf| amqf.contains_fingerprint(entry.hash));
@@ -1182,6 +1197,23 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     } else {
                                         &mut unused_collector
                                     };
+                                    match family_config.kind {
+                                        FamilyKind::MultiValue => {
+                                            // For MultiValue families we only skip remaining if we
+                                            // see a tombstone
+                                            if matches!(
+                                                entry.value,
+                                                LazyLookupValue::Eager(LookupValue::Deleted)
+                                            ) {
+                                                skip_remaining_for_this_key = true;
+                                            }
+                                        }
+                                        FamilyKind::SingleValue => {
+                                            // Since MergeItr is in newest to oldest order anything
+                                            // else that comes out must be skipped
+                                            skip_remaining_for_this_key = true;
+                                        }
+                                    }
                                     collector.add_entry(
                                         entry,
                                         path,
@@ -1189,21 +1221,21 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         &mut keys_written,
                                     )?;
                                 }
+                            }
 
-                                // Close remaining writers
-                                used_collector.close_sst_file(&mut keys_written)?;
-                                unused_collector.close_sst_file(&mut keys_written)?;
+                            // Close remaining writers
+                            used_collector.close_sst_file(&mut keys_written)?;
+                            unused_collector.close_sst_file(&mut keys_written)?;
 
-                                let mut new_sst_files = take(&mut unused_collector.new_sst_files);
-                                new_sst_files.append(&mut used_collector.new_sst_files);
-                                Ok(PartialMergeResult::Merged {
-                                    new_sst_files,
-                                    blob_seq_numbers_to_delete,
-                                    keys_written,
-                                    indicies,
-                                })
-                            },
-                        )
+                            let mut new_sst_files = take(&mut unused_collector.new_sst_files);
+                            new_sst_files.append(&mut used_collector.new_sst_files);
+                            Ok(PartialMergeResult::Merged {
+                                new_sst_files,
+                                blob_seq_numbers_to_delete,
+                                keys_written,
+                                indices,
+                            })
+                        })
                         .with_context(|| {
                             format!("Failed to merge database files for family {family}")
                         })?;
@@ -1214,7 +1246,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             if let PartialMergeResult::Merged {
                                 new_sst_files,
                                 blob_seq_numbers_to_delete,
-                                indicies: _,
+                                indices: _,
                                 keys_written: _,
                             } = r
                             {
@@ -1245,14 +1277,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     new_sst_files: merged_new_sst_files,
                                     blob_seq_numbers_to_delete: merged_blob_seq_numbers_to_delete,
                                     keys_written: merged_keys_written,
-                                    indicies,
+                                    indices,
                                 } => {
                                     writeln!(
                                         log,
                                         "{family:3} | {meta_seq:08} | MERGE \
                                          ({merged_keys_written} keys):"
                                     )?;
-                                    for i in indicies.iter() {
+                                    for i in indices.iter() {
                                         let seq = ssts_with_ranges[*i].seq;
                                         let (min, max) = ssts_with_ranges[*i].range().into_inner();
                                         writeln!(
@@ -1340,16 +1372,75 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// might hold onto a block of the database and it should not be hold long-term.
     pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
+        if self.config.family_configs[family].kind != FamilyKind::SingleValue {
+            // This is an error in our caller so just panic
+            panic!(
+                "only single valued tables can be queried with `get', call `get_multiple` instead"
+            )
+        }
         let span = tracing::trace_span!(
             "database read",
             name = family,
             result_size = tracing::field::Empty
         )
         .entered();
+        let results = self.get_impl::<K, false>(family, key, &span)?;
+        debug_assert!(results.len() <= 1, "get() should return at most one result");
+        Ok(results.into_iter().next())
+    }
+
+    /// Looks up a key and returns all matching values.
+    ///
+    /// This is useful for keyspaces where keys are not unique and multiple mappings are possible.
+    /// Unlike `get`, which returns only the first match, this method returns all
+    /// entries with the same key from all SST files.  By default however we assume these
+    /// collections are small and thus optimize for there being exactly 0 or 1 results.
+    ///
+    /// The order of returned values is undefined and duplicates are preserved. Callers must not
+    /// rely on any particular ordering (neither insertion order nor byte order).
+    pub fn get_multiple<K: QueryKey>(
+        &self,
+        family: usize,
+        key: &K,
+    ) -> Result<SmallVec<[ArcBytes; 1]>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        if self.config.family_configs[family].kind != FamilyKind::MultiValue {
+            // This is an error in our caller so just panic
+            panic!("only multi-valued tables can be queried with `get_multiple`")
+        }
+        let span = tracing::trace_span!(
+            "database read multiple",
+            name = family,
+            result_count = tracing::field::Empty,
+            result_size = tracing::field::Empty
+        )
+        .entered();
+        let results = self.get_impl::<K, true>(family, key, &span)?;
+        Ok(results)
+    }
+
+    /// Shared implementation for `get` and `get_multiple`.
+    ///
+    /// If `FIND_ALL` is false, stops after finding the first match.
+    /// If `FIND_ALL` is true, continues to find all matches across all meta files.
+    fn get_impl<K: QueryKey, const FIND_ALL: bool>(
+        &self,
+        family: usize,
+        key: &K,
+        span: &EnteredSpan,
+    ) -> Result<SmallVec<[ArcBytes; 1]>> {
         let hash = hash_key(key);
         let inner = self.inner.read();
+        let mut output: SmallVec<[ArcBytes; 1]> = SmallVec::new();
+        // Track whether we found the key in any SST (even if deleted).
+        // Used for miss_global stat: only fires if key was never found anywhere.
+        #[cfg(feature = "stats")]
+        let mut found_in_sst = false;
+
+        let mut size = 0;
+
         for meta in inner.meta_files.iter().rev() {
-            match meta.lookup(
+            match meta.lookup::<K, FIND_ALL>(
                 family as u32,
                 hash,
                 key,
@@ -1369,27 +1460,54 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     self.stats.miss_amqf.fetch_add(1, Ordering::Relaxed);
                 }
                 MetaLookupResult::SstLookup(result) => match result {
-                    SstLookupResult::Found(result) => {
+                    SstLookupResult::Found(values) => {
+                        #[cfg(feature = "stats")]
+                        {
+                            found_in_sst = true;
+                        }
                         inner.accessed_key_hashes[family].insert(hash);
-                        match result {
-                            LookupValue::Deleted => {
-                                #[cfg(feature = "stats")]
-                                self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                                span.record("result_size", "deleted");
-                                return Ok(None);
-                            }
-                            LookupValue::Slice { value } => {
-                                #[cfg(feature = "stats")]
-                                self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
-                                span.record("result_size", value.len());
-                                return Ok(Some(value));
-                            }
-                            LookupValue::Blob { sequence_number } => {
-                                #[cfg(feature = "stats")]
-                                self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
-                                let blob = self.read_blob(sequence_number)?;
-                                span.record("result_size", blob.len());
-                                return Ok(Some(blob));
+                        // Process values. Tombstones sort last within a key group,
+                        // so when we see a tombstone, we can return immediately.
+                        for value in values {
+                            match value {
+                                LookupValue::Deleted => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                                    if !FIND_ALL {
+                                        span.record("result_size", "deleted");
+                                        return Ok(SmallVec::new());
+                                    }
+                                    // Tombstone is last in key group. Return accumulated
+                                    // values (from this SST and newer layers). Stop
+                                    // searching older SSTs.
+                                    if output.is_empty() {
+                                        span.record("result_size", "deleted");
+                                    } else {
+                                        span.record("result_size", size);
+                                    }
+                                    return Ok(output);
+                                }
+                                LookupValue::Slice { value } => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                                    if !FIND_ALL {
+                                        span.record("result_size", value.len());
+                                        return Ok(SmallVec::from_buf([value]));
+                                    }
+                                    size += value.len();
+                                    output.push(value);
+                                }
+                                LookupValue::Blob { sequence_number } => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                                    let blob = self.read_blob(sequence_number)?;
+                                    if !FIND_ALL {
+                                        span.record("result_size", blob.len());
+                                        return Ok(SmallVec::from_buf([blob]));
+                                    }
+                                    size += blob.len();
+                                    output.push(blob);
+                                }
                             }
                         }
                     }
@@ -1400,10 +1518,21 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 },
             }
         }
+
         #[cfg(feature = "stats")]
-        self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
-        span.record("result_size", "not found");
-        Ok(None)
+        if !found_in_sst {
+            self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+        }
+
+        if FIND_ALL {
+            span.record("result_count", output.len());
+        }
+        if output.is_empty() {
+            span.record("result_size", "not_found");
+        } else {
+            span.record("result_size", size);
+        }
+        Ok(output)
     }
 
     pub fn batch_get<K: QueryKey>(
@@ -1412,6 +1541,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         keys: &[K],
     ) -> Result<Vec<Option<ArcBytes>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
+        if self.config.family_configs[family].kind != FamilyKind::SingleValue {
+            // This is an error in our caller so just panic
+            panic!("only single valued tables can be queried with `batch_get'")
+        }
         let span = tracing::trace_span!(
             "database batch read",
             name = family,
