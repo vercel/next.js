@@ -99,6 +99,7 @@ enum RSCErrorKind {
     NextRscErrDeprecatedApi((String, String, Span)),
     NextSsrDynamicFalseNotAllowed(Span),
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
+    NextRscErrRequiresRouteSegmentConfig(Span, String, NextConfigProperty),
     NextRscErrTaintWithoutConfig((String, Span)),
 }
 
@@ -121,6 +122,7 @@ enum InvalidExportKind {
     General,
     Metadata,
     RouteSegmentConfig(NextConfigProperty),
+    RequiresRouteSegmentConfig(NextConfigProperty),
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -357,6 +359,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
             format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
+            vec![span],
+        ),
+        RSCErrorKind::NextRscErrRequiresRouteSegmentConfig(span, segment, property) => (
+            format!("Route segment config \"{segment}\" requires `nextConfig.{property}` to be enabled."),
             vec![span],
         ),
         RSCErrorKind::NextRscErrTaintWithoutConfig((api_name, span)) => (
@@ -937,6 +943,19 @@ impl ReactServerComponentValidator {
                             );
                         }
                     }
+                    "unstable_instant" => {
+                        if !self.cache_components_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (
+                                    InvalidExportKind::RequiresRouteSegmentConfig(
+                                        NextConfigProperty::CacheComponents,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        }
+                    }
                     _ => (),
                 };
 
@@ -973,6 +992,17 @@ impl ReactServerComponentValidator {
                             &self.app_dir,
                             &self.filepath,
                             RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(
+                                *span,
+                                export_name.to_string(),
+                                *property,
+                            ),
+                        );
+                    }
+                    InvalidExportKind::RequiresRouteSegmentConfig(property) => {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrRequiresRouteSegmentConfig(
                                 *span,
                                 export_name.to_string(),
                                 *property,
