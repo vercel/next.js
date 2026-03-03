@@ -549,6 +549,7 @@ export async function handler(
       interceptionRoutePatterns
     )
     res.setHeader('Vary', varyHeader)
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (
       span: Span | undefined,
       context: AppPageRouteHandlerContext
@@ -592,6 +593,12 @@ export async function handler(
             'next.span_name': name,
           })
           span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists (e.g.
+          // a platform-created HTTP span in adapter deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+          }
         } else {
           span.updateName(`${method} ${srcPage}`)
         }
@@ -1597,6 +1604,7 @@ export async function handler(
     if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
+      parentSpan = tracer.getActiveScopeSpan()
       return await tracer.withPropagatedContext(
         req.headers,
         () =>

@@ -236,6 +236,7 @@ export const getHandler = ({
         query: hasStaticProps ? {} : originalQuery,
       })
 
+      let parentSpan: Span | undefined
       const handleResponse = async (span?: Span) => {
         const responseGenerator: ResponseGenerator = async ({
           previousCacheEntry,
@@ -422,6 +423,13 @@ export const getHandler = ({
                       'next.span_name': name,
                     })
                     span.updateName(name)
+
+                    // Propagate http.route to the parent span if one exists
+                    // (e.g. a platform-created HTTP span in adapter
+                    // deployments).
+                    if (parentSpan && parentSpan !== span) {
+                      parentSpan.setAttribute('http.route', route)
+                    }
                   } else {
                     span.updateName(`${method} ${srcPage}`)
                   }
@@ -755,6 +763,7 @@ export const getHandler = ({
       if (activeSpan) {
         await handleResponse()
       } else {
+        parentSpan = tracer.getActiveScopeSpan()
         await tracer.withPropagatedContext(req.headers, () =>
           tracer.trace(
             BaseServerSpan.handleRequest,
