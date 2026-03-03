@@ -114,6 +114,24 @@ describe('interception-dynamic-single-segment', () => {
     })
   })
 
+  it('should not re-intercept when pushing the same intercepted route', async () => {
+    const browser = await next.browser('/groups/123')
+
+    // Navigate to /groups/123/new — triggers interception, modal appears
+    await browser.elementById('new-link').click()
+    await retry(async () => {
+      const modalText = await browser.elementById('modal').text()
+      expect(modalText).toContain('Modal: New item for group 123')
+    })
+
+    // Push same route again — should NOT re-intercept
+    await browser.eval('window.next.router.push("/groups/123/new")')
+    await retry(async () => {
+      const modalText = await browser.elementById('modal').text()
+      expect(modalText).not.toContain('Modal:')
+    })
+  })
+
   it('should intercept from nested route with query parameters', async () => {
     // Test that interception works when the source route has query parameters
     // The query params should not interfere with route matching
