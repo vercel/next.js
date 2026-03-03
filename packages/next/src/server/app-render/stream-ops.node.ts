@@ -402,21 +402,16 @@ export function pipeRuntimePrefetchTransform(
 // ---------------------------------------------------------------------------
 
 export async function processPrelude(unprocessedPrelude: AnyStream) {
-  const readable = webToReadable(unprocessedPrelude)
-  const pt1 = new PassThrough()
-  const pt2 = new PassThrough()
-  readable.pipe(pt1)
-  readable.pipe(pt2)
+  const [prelude, peek] = readableToWeb(unprocessedPrelude).tee()
 
-  const firstChunk = await new Promise<Buffer | null>((resolve) => {
-    pt2.once('data', (chunk: Buffer) => {
-      pt2.destroy()
-      resolve(chunk)
-    })
-    pt2.once('end', () => resolve(null))
-  })
+  const reader = peek.getReader()
+  const firstResult = await reader.read()
+  reader.cancel()
 
-  return { prelude: pt1 as AnyStream, preludeIsEmpty: firstChunk === null }
+  return {
+    prelude: webToReadable(prelude) as AnyStream,
+    preludeIsEmpty: firstResult.done === true,
+  }
 }
 
 export function getServerPrerender(ComponentMod: {
@@ -429,12 +424,8 @@ export const getClientPrerender: typeof import('react-dom/static').prerender =
   prerender
 
 export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
-  const readable = webToReadable(stream)
-  const pt1 = new PassThrough()
-  const pt2 = new PassThrough()
-  readable.pipe(pt1)
-  readable.pipe(pt2)
-  return [pt1, pt2]
+  const [s1, s2] = readableToWeb(stream).tee()
+  return [webToReadable(s1), webToReadable(s2)]
 }
 
 export function toReadableStream(

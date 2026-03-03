@@ -31,26 +31,28 @@ export class ReactServerResult {
     }
 
     if (process.env.TURBOPACK) {
-      // Node.js Readable: pipe to two PassThrough streams
-      const { PassThrough } =
+      const { Readable } =
         require('node:stream') as typeof import('node:stream')
-      const pt1 = new PassThrough()
-      const pt2 = new PassThrough()
-      this._stream.pipe(pt1)
-      this._stream.pipe(pt2)
-      this._stream = pt1
-      return pt2
+      const webStream = Readable.toWeb(
+        this._stream
+      ) as ReadableStream<Uint8Array>
+      const tee = webStream.tee()
+      this._stream = Readable.fromWeb(
+        tee[0] as import('stream/web').ReadableStream
+      )
+      return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
     } else {
-      // Node.js Readable: pipe to two PassThrough streams
-      const { PassThrough } = __non_webpack_require__(
+      const { Readable } = __non_webpack_require__(
         'node:stream'
       ) as typeof import('node:stream')
-      const pt1 = new PassThrough()
-      const pt2 = new PassThrough()
-      this._stream.pipe(pt1)
-      this._stream.pipe(pt2)
-      this._stream = pt1
-      return pt2
+      const webStream = Readable.toWeb(
+        this._stream
+      ) as ReadableStream<Uint8Array>
+      const tee = webStream.tee()
+      this._stream = Readable.fromWeb(
+        tee[0] as import('stream/web').ReadableStream
+      )
+      return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
     }
   }
 
