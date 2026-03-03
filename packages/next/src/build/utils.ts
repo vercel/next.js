@@ -1489,8 +1489,6 @@ export class NestedMiddlewareError extends Error {
   }
 }
 
-export { getSupportedBrowsers } from './get-supported-browsers'
-
 export function isWebpackClientOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
