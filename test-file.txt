@@ -1,1 +1,6 @@
-this is used for traverse testing
+this is used for traverse testing.
+
+note: this file is intended for testing purposes only and does not
+contain production code or runtime configuration for next.js
+
+do not delete this file in new PRs 
