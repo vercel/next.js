@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
-use turbo_persistence::{MetaFileEntryInfo, SerialScheduler, TurboPersistence};
+use turbo_persistence::{DbConfig, MetaFileEntryInfo, SerialScheduler, TurboPersistence};
 
 fn main() -> Result<()> {
     // Get CLI argument
@@ -16,7 +16,8 @@ fn main() -> Result<()> {
         bail!("The provided path does not exist: {}", path.display());
     }
 
-    let db: TurboPersistence<SerialScheduler, 0> = TurboPersistence::open_read_only(path)?;
+    let db: TurboPersistence<SerialScheduler, 0> =
+        TurboPersistence::open_read_only_with_config(path, DbConfig::default())?;
     let meta_info = db
         .meta_info()
         .context("Failed to retrieve meta information")?;

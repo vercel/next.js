@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use rustc_hash::FxHashSet;
 use turbo_bincode::{
     TurboBincodeBuffer, new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode,
     turbo_bincode_encode_into,
@@ -311,6 +312,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         |updates| {
                             let _span = _span.clone().entered();
                             let mut max_task_id = 0;
+                            let mut seen = FxHashSet::default();
 
                             // Re-use the same buffer across every `serialize_task_type` call in
                             // this chunk. `ConcurrentWriteBatch::put` will copy the data out of
@@ -318,6 +320,9 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                             let mut task_type_bytes =
                                 TurboBincodeBuffer::with_capacity(INITIAL_ENCODE_BUFFER_CAPACITY);
                             for (task_type, task_id) in updates {
+                                if !seen.insert(task_id) {
+                                    continue;
+                                }
                                 task_type_bytes.clear();
                                 encode_task_type(&task_type, &mut task_type_bytes, Some(task_id))?;
                                 let task_id: u32 = *task_id;
@@ -401,7 +406,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                     // smaller exact-sized vecs.
                     let mut task_type_bytes =
                         TurboBincodeBuffer::with_capacity(INITIAL_ENCODE_BUFFER_CAPACITY);
+                    let mut seen = FxHashSet::default();
                     for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
+                        if !seen.insert(task_id) {
+                            continue;
+                        }
                         encode_task_type(&task_type, &mut task_type_bytes, Some(task_id))?;
                         let task_id = *task_id;
 

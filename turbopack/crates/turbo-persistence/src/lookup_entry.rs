@@ -5,6 +5,7 @@ use crate::{
 };
 
 /// A value from a SST file lookup.
+#[derive(PartialEq)]
 pub enum LookupValue {
     /// The value was deleted.
     Deleted,

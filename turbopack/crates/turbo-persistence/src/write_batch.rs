@@ -15,7 +15,7 @@ use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::{
-    ValueBuffer,
+    FamilyConfig, ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
     compression::compress_into_buffer,
@@ -71,6 +71,9 @@ pub struct WriteBatch<K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: 
     parallel_scheduler: S,
     /// The database path
     db_path: PathBuf,
+    /// Per-family configuration (kind: SingleValue/MultiValue).
+    #[cfg_attr(not(feature = "verify_sst_content"), allow(dead_code))]
+    family_configs: [FamilyConfig; FAMILIES],
     /// The current sequence number counter. Increased for every new SST file or blob file.
     current_sequence_number: AtomicU32,
     /// The thread local state.
@@ -87,14 +90,20 @@ pub struct WriteBatch<K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: 
 impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
     WriteBatch<K, S, FAMILIES>
 {
-    /// Creates a new write batch for a database.
-    pub(crate) fn new(path: PathBuf, current: u32, parallel_scheduler: S) -> Self {
+    /// Creates a new write batch for a database with per-family configuration.
+    pub(crate) fn new(
+        path: PathBuf,
+        current: u32,
+        parallel_scheduler: S,
+        family_configs: [FamilyConfig; FAMILIES],
+    ) -> Self {
         const {
             assert!(FAMILIES <= usize_from_u32(u32::MAX));
         };
         Self {
             parallel_scheduler,
             db_path: path,
+            family_configs,
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
             collectors: [(); FAMILIES]
@@ -195,7 +204,10 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         // driving the work to slow down task submission in this case.
         for mut global_collector in full_collectors {
             // When the global collector is full, we create a new SST file.
-            let sst = self.create_sst_file(family, global_collector.sorted())?;
+            let sst = self.create_sst_file(
+                family,
+                global_collector.sorted(self.family_configs[usize_from_u32(family)].kind),
+            )?;
             self.new_sst_files.lock().push(sst);
             drop(global_collector);
         }
@@ -256,7 +268,10 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         match &mut *collector_state {
             GlobalCollectorState::Unsharded(collector) => {
                 if !collector.is_empty() {
-                    let sst = self.create_sst_file(family, collector.sorted())?;
+                    let sst = self.create_sst_file(
+                        family,
+                        collector.sorted(self.family_configs[usize_from_u32(family)].kind),
+                    )?;
                     collector.clear();
                     self.new_sst_files.lock().push(sst);
                 }
@@ -271,7 +286,10 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 self.parallel_scheduler
                     .try_parallel_for_each_mut(&mut shards, |collector| {
                         if !collector.is_empty() {
-                            let sst = self.create_sst_file(family, collector.sorted())?;
+                            let sst = self.create_sst_file(
+                                family,
+                                collector.sorted(self.family_configs[usize_from_u32(family)].kind),
+                            )?;
                             collector.clear();
                             self.new_sst_files.lock().push(sst);
                             collector.drop_contents();
@@ -356,7 +374,10 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
             |(family, mut collector)| {
                 let family = family as u32;
                 if !collector.is_empty() {
-                    let sst = self.create_sst_file(family, collector.sorted())?;
+                    let sst = self.create_sst_file(
+                        family,
+                        collector.sorted(self.family_configs[usize_from_u32(family)].kind),
+                    )?;
                     collector.clear();
                     drop(collector);
                     shared_new_sst_files.lock().push(sst);
@@ -479,25 +500,52 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 Default::default(),
             );
             let mut key_buf = Vec::new();
+            let family_config = self.family_configs[usize_from_u32(family)].kind;
             for entry in entries {
                 entry.write_key_to(&mut key_buf);
                 let result = sst
-                    .lookup(hash_key(&key_buf), &key_buf, &cache2, &cache3)
+                    .lookup::<_, true>(hash_key(&key_buf), &key_buf, &cache2, &cache3)
                     .expect("key found");
                 key_buf.clear();
                 match result {
-                    SstLookupResult::Found(LookupValue::Deleted) => {}
-                    SstLookupResult::Found(LookupValue::Slice {
-                        value: lookup_value,
-                    }) => {
-                        let expected_value_slice = match &entry.value {
-                            CollectorEntryValue::Small { value } => &**value,
-                            CollectorEntryValue::Medium { value } => &**value,
-                            _ => panic!("Unexpected value"),
-                        };
-                        assert_eq!(*lookup_value, *expected_value_slice);
+                    SstLookupResult::Found(values) => {
+                        if values.len() > 1 {
+                            use crate::FamilyKind;
+
+                            assert!(
+                                values.len() == 1 || family_config == FamilyKind::MultiValue,
+                                "only multi-value tables can have more than one value, got {} \
+                                 values",
+                                values.len()
+                            )
+                        }
+                        match &entry.value {
+                            CollectorEntryValue::Large { blob } => {
+                                assert!(
+                                    values.contains(&LookupValue::Blob {
+                                        sequence_number: *blob
+                                    }),
+                                    "we wrote a blob but did not read it"
+                                );
+                            }
+                            CollectorEntryValue::Deleted => assert!(
+                                values.first() == Some(&LookupValue::Deleted),
+                                "we wrote a deleted tombstone but it was not first in results"
+                            ),
+                            v => {
+                                assert!(
+                                    values.into_iter().any(|lv| {
+                                        if let LookupValue::Slice { value } = lv {
+                                            &*value == v.as_bytes().unwrap()
+                                        } else {
+                                            false
+                                        }
+                                    }),
+                                    "we wrote a slice of bytes but did not read it"
+                                )
+                            }
+                        }
                     }
-                    SstLookupResult::Found(LookupValue::Blob { sequence_number: _ }) => {}
                     SstLookupResult::NotFound => panic!("All keys must exist"),
                 }
             }

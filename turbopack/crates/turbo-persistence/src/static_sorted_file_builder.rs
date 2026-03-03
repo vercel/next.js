@@ -1206,9 +1206,14 @@ mod tests {
         kc: &TestBlockCache,
         vc: &TestBlockCache,
     ) -> Result<()> {
-        let result = sst.lookup(entry.hash, &entry.key, kc, vc)?;
+        let result = sst.lookup::<_, false>(entry.hash, &entry.key, kc, vc)?;
         match (&entry.value_kind, result) {
-            (_, SstLookupResult::Found(LookupValue::Slice { value })) => {
+            (_, SstLookupResult::Found(values))
+                if values.len() == 1 && matches!(values[0], LookupValue::Slice { .. }) =>
+            {
+                let LookupValue::Slice { value } = &values[0] else {
+                    unreachable!()
+                };
                 let expected = entry
                     .expected_value()
                     .expect("Got Slice but entry has no value");
@@ -1219,13 +1224,16 @@ mod tests {
                     std::str::from_utf8(&entry.key)
                 );
             }
-            (
-                TestValueKind::Blob(expected_id),
-                SstLookupResult::Found(LookupValue::Blob { sequence_number }),
-            ) => {
-                assert_eq!(sequence_number, *expected_id);
+            (TestValueKind::Blob(expected_id), SstLookupResult::Found(values))
+                if values.len() == 1 && matches!(values[0], LookupValue::Blob { .. }) =>
+            {
+                let LookupValue::Blob { sequence_number } = &values[0] else {
+                    unreachable!()
+                };
+                assert_eq!(*sequence_number, *expected_id);
             }
-            (TestValueKind::Deleted, SstLookupResult::Found(LookupValue::Deleted)) => {}
+            (TestValueKind::Deleted, SstLookupResult::Found(values))
+                if values.len() == 1 && matches!(values[0], LookupValue::Deleted) => {}
             _ => {
                 panic!(
                     "Unexpected lookup result for key {:?}",
@@ -1507,33 +1515,40 @@ mod tests {
         let vc = make_cache();
 
         for entry in &entries {
-            let r1 = sst1.lookup(entry.hash, &entry.key, &kc, &vc)?;
-            let r2 = sst2.lookup(entry.hash, &entry.key, &kc, &vc)?;
-            match (r1, r2) {
-                (
-                    SstLookupResult::Found(LookupValue::Slice { value: v1 }),
-                    SstLookupResult::Found(LookupValue::Slice { value: v2 }),
-                ) => {
-                    assert_eq!(
-                        v1.as_ref(),
-                        v2.as_ref(),
-                        "Value mismatch for key {:?}",
-                        std::str::from_utf8(&entry.key)
-                    );
-                }
-                (
-                    SstLookupResult::Found(LookupValue::Deleted),
-                    SstLookupResult::Found(LookupValue::Deleted),
-                ) => {}
-                (
-                    SstLookupResult::Found(LookupValue::Blob {
-                        sequence_number: s1,
-                    }),
-                    SstLookupResult::Found(LookupValue::Blob {
-                        sequence_number: s2,
-                    }),
-                ) => {
-                    assert_eq!(s1, s2);
+            let r1 = sst1.lookup::<_, false>(entry.hash, &entry.key, &kc, &vc)?;
+            let r2 = sst2.lookup::<_, false>(entry.hash, &entry.key, &kc, &vc)?;
+            match (&r1, &r2) {
+                (SstLookupResult::Found(v1), SstLookupResult::Found(v2))
+                    if v1.len() == 1 && v2.len() == 1 =>
+                {
+                    match (&v1[0], &v2[0]) {
+                        (
+                            LookupValue::Slice { value: val1 },
+                            LookupValue::Slice { value: val2 },
+                        ) => {
+                            assert_eq!(
+                                val1.as_ref(),
+                                val2.as_ref(),
+                                "Value mismatch for key {:?}",
+                                std::str::from_utf8(&entry.key)
+                            );
+                        }
+                        (LookupValue::Deleted, LookupValue::Deleted) => {}
+                        (
+                            LookupValue::Blob {
+                                sequence_number: s1,
+                            },
+                            LookupValue::Blob {
+                                sequence_number: s2,
+                            },
+                        ) => {
+                            assert_eq!(s1, s2);
+                        }
+                        _ => panic!(
+                            "Mismatched results for key {:?}",
+                            std::str::from_utf8(&entry.key)
+                        ),
+                    }
                 }
                 _ => panic!(
                     "Mismatched results for key {:?}",

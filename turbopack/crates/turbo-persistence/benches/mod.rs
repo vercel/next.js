@@ -10,9 +10,9 @@ use quick_cache::sync::GuardResult;
 use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::TempDir;
 use turbo_persistence::{
-    ArcBytes, BlockCache, CompactConfig, Entry, EntryValue, MetaEntryFlags, SerialScheduler,
-    StaticSortedFile, StaticSortedFileMetaData, TurboPersistence, hash_key,
-    write_static_stored_file,
+    ArcBytes, BlockCache, CompactConfig, DbConfig as TpDbConfig, Entry, EntryValue, FamilyConfig,
+    FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile, StaticSortedFileMetaData,
+    TurboPersistence, hash_key, write_static_stored_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -552,6 +552,240 @@ fn bench_read_batch_get(c: &mut Criterion) {
 }
 
 // =============================================================================
+// Read Benchmarks - Get Multiple
+// =============================================================================
+
+/// Configuration for prefilling a multi-value database
+#[derive(Clone, Copy, Debug)]
+struct MultiValueDbConfig {
+    key_size: usize,
+    value_size: usize,
+    /// Total number of entries (key-value pairs) written
+    entry_count: usize,
+    /// Number of distinct keys. Must be <= entry_count.
+    /// When < entry_count, some keys will have multiple values.
+    distinct_key_count: usize,
+    commit_count: usize,
+    compacted: bool,
+}
+
+/// Prefill a multi-value database and return the distinct keys
+fn prefill_multi_value_database(
+    path: &Path,
+    config: &MultiValueDbConfig,
+) -> Result<Vec<Box<[u8]>>> {
+    let db_config = TpDbConfig {
+        family_configs: [FamilyConfig {
+            kind: FamilyKind::MultiValue,
+        }],
+    };
+    let db =
+        TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config)?;
+    let mut rng = SmallRng::seed_from_u64(42);
+
+    // Generate all distinct keys up front
+    let max_stored_keys = config
+        .distinct_key_count
+        .min(MAX_KEY_MEMORY / (config.key_size + size_of::<Box<[u8]>>()));
+    let mut keys: Vec<Box<[u8]>> = (0..max_stored_keys)
+        .map(|_| random_key(&mut rng, config.key_size))
+        .collect();
+
+    let entries_per_commit = config.entry_count / config.commit_count;
+
+    for commit_idx in 0..config.commit_count {
+        let batch = db.write_batch()?;
+        let start = commit_idx * entries_per_commit;
+        let end = if commit_idx == config.commit_count - 1 {
+            config.entry_count
+        } else {
+            start + entries_per_commit
+        };
+
+        for i in start..end {
+            // Cycle through keys to create duplicates
+            let key = &keys[i % keys.len()];
+            let value = random_value(&mut rng, config.value_size);
+            batch.put(0, key.clone(), value.into())?;
+        }
+        db.commit_write_batch(batch)?;
+    }
+
+    if config.compacted {
+        for _ in 0..3 {
+            db.full_compact()?;
+        }
+    }
+
+    db.shutdown()?;
+    keys.shuffle(&mut rng);
+    Ok(keys)
+}
+
+/// Create a temporary directory with a prefilled multi-value database
+fn setup_prefilled_multi_value_db(
+    config: &MultiValueDbConfig,
+    id: &str,
+) -> Result<(TempDir, Vec<Box<[u8]>>)> {
+    let tempdir = tempfile::tempdir()?;
+    let keys = prefill_multi_value_database(tempdir.path(), config)?;
+    let db_size = tempdir
+        .path()
+        .read_dir()?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| entry.metadata().ok())
+        .map(|metadata| metadata.len())
+        .sum::<u64>();
+    println!(
+        "\n{id} db size: {}B = {}B per item = {}% of original size",
+        format_number(db_size as usize),
+        format_number(db_size as usize / config.entry_count),
+        (db_size as usize * 100 / (config.entry_count * (config.key_size + config.value_size)))
+    );
+    Ok((tempdir, keys))
+}
+
+fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
+    let db_config = TpDbConfig {
+        family_configs: [FamilyConfig {
+            kind: FamilyKind::MultiValue,
+        }],
+    };
+    TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config).unwrap()
+}
+
+fn bench_read_get_multiple(c: &mut Criterion) {
+    let mut group = c.benchmark_group("read/get_multiple");
+    group.measurement_time(Duration::from_secs(10));
+
+    // Configuration parameters: (key_size, value_size)
+    let entry_sizes = [(8, 4), (4, 32 * 1024), (32 * 1024, 4)];
+    // Configuration parameters: (database_size, values_per_key, commit_count, compacted)
+    let db_configs: &[(usize, usize, usize, bool)] = &[
+        // 1 value per key (similar to SingleValue, baseline)
+        (128 * 1024 * 1024, 1, 1, true),
+        (128 * 1024 * 1024, 1, 1, false),
+        // Multiple values per key
+        (128 * 1024 * 1024, 4, 1, true),
+        (128 * 1024 * 1024, 4, 1, false),
+        (128 * 1024 * 1024, 4, 20, false),
+    ];
+
+    for &(key_size, value_size) in &entry_sizes {
+        for &(database_size, values_per_key, commit_count, compacted) in db_configs {
+            let entry_count = database_size / (key_size + value_size);
+            let distinct_key_count = entry_count / values_per_key;
+            let config = MultiValueDbConfig {
+                key_size,
+                value_size,
+                entry_count,
+                distinct_key_count,
+                commit_count,
+                compacted,
+            };
+
+            let compacted_str = if compacted {
+                "compacted"
+            } else {
+                "uncompacted"
+            };
+            let id = format!(
+                "key_{}/value_{}/entries_{}/vpk_{}/commits_{}/{}",
+                format_number(key_size),
+                format_number(value_size),
+                format_number(entry_count),
+                values_per_key,
+                commit_count,
+                compacted_str,
+            );
+
+            let db = LazyLock::new(|| {
+                let (tempdir, keys) = setup_prefilled_multi_value_db(&config, &id).unwrap();
+                let db = open_multi_value_db(tempdir.path());
+                let rng = Mutex::new(SmallRng::seed_from_u64(123));
+                (tempdir, db, keys, rng)
+            });
+
+            group.bench_function(format!("{id}/hit/uncached"), |b| {
+                let (_, db, keys, rng) = &*db;
+                let mut rng = rng.lock();
+                iter_batched_with_init(
+                    b,
+                    |_| prepare_db_for_benchmarking(db),
+                    |_| {
+                        let idx = rng.random_range(0..keys.len());
+                        &keys[idx]
+                    },
+                    |key| {
+                        let result = db.get_multiple(0, key).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::PerIteration,
+                );
+            });
+
+            group.bench_function(format!("{id}/hit/cached"), |b| {
+                let (_, db, keys, _) = &*db;
+                iter_batched_with_init(
+                    b,
+                    |_| prepare_db_for_benchmarking(db),
+                    |i| &keys[i as usize % keys.len()],
+                    |key| {
+                        let result = db.get_multiple(0, key).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::NumBatches(1),
+                );
+            });
+
+            group.bench_function(format!("{id}/miss/uncached"), |b| {
+                let (_, db, _, rng) = &*db;
+                let mut rng = rng.lock();
+                iter_batched_with_init(
+                    b,
+                    |_| prepare_db_for_benchmarking(db),
+                    |_| random_key(&mut rng, key_size),
+                    |key| {
+                        let result = db.get_multiple(0, &key).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::PerIteration,
+                );
+            });
+
+            group.bench_function(format!("{id}/miss/cached"), |b| {
+                let (_, db, _, rng) = &*db;
+                let mut rng = rng.lock();
+                let miss_keys = UnsafeCell::new(Vec::new());
+                iter_batched_with_init(
+                    b,
+                    |batch_size| {
+                        prepare_db_for_benchmarking(db);
+                        // SAFETY: We are the only ones mutating miss_keys during this
+                        // initialization phase
+                        let miss_keys = unsafe { &mut *miss_keys.get() };
+                        while miss_keys.len() < batch_size as usize {
+                            miss_keys.push(random_key(&mut rng, key_size));
+                        }
+                    },
+                    |i| {
+                        let miss_keys = unsafe { &*miss_keys.get() };
+                        &miss_keys[i as usize]
+                    },
+                    |key| {
+                        let result = db.get_multiple(0, key).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::NumBatches(1),
+                );
+            });
+        }
+    }
+
+    group.finish();
+}
+
+// =============================================================================
 // Compaction Benchmarks
 // =============================================================================
 
@@ -630,6 +864,136 @@ fn bench_compaction(c: &mut Criterion) {
                 );
             });
         }
+    }
+
+    group.finish();
+}
+
+// =============================================================================
+// Write Benchmarks - Multi-Value
+// =============================================================================
+
+fn bench_write_multi_value(c: &mut Criterion) {
+    let mut group = c.benchmark_group("write/multi_value");
+    group.sample_size(10);
+    group.sampling_mode(SamplingMode::Flat);
+
+    // Key-value sizes to test
+    let entry_sizes = [(8, 4), (4, 32 * 1024)];
+    // (database_size, values_per_key)
+    let configs: &[(usize, usize)] = &[
+        (10 * 1024 * 1024, 1), // Baseline: 1 value per key
+        (10 * 1024 * 1024, 4), // 4 values per key
+    ];
+
+    for &(key_size, value_size) in &entry_sizes {
+        for &(database_size, values_per_key) in configs {
+            let entry_count = database_size / (key_size + value_size);
+            let distinct_key_count = entry_count / values_per_key;
+
+            let id = format!(
+                "key_{}/value_{}/entries_{}/vpk_{}",
+                format_number(key_size),
+                format_number(value_size),
+                format_number(entry_count),
+                values_per_key,
+            );
+            group.bench_function(&id, |b| {
+                b.iter_batched(
+                    || {
+                        let tempdir = tempfile::tempdir().unwrap();
+                        let mut rng = SmallRng::seed_from_u64(42);
+                        // Generate distinct keys
+                        let keys: Vec<Box<[u8]>> = (0..distinct_key_count)
+                            .map(|_| random_key(&mut rng, key_size))
+                            .collect();
+                        let mut random_data = vec![0u8; entry_count * value_size];
+                        rng.fill(&mut random_data[..]);
+                        (tempdir, keys, random_data)
+                    },
+                    |(tempdir, keys, random_data)| {
+                        let db_config = TpDbConfig {
+                            family_configs: [FamilyConfig {
+                                kind: FamilyKind::MultiValue,
+                            }],
+                        };
+                        let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
+                            tempdir.path().to_path_buf(),
+                            db_config,
+                        )
+                        .unwrap();
+                        let batch = db.write_batch().unwrap();
+                        for i in 0..entry_count {
+                            let key = &keys[i % distinct_key_count];
+                            let value = &random_data[i * value_size..(i + 1) * value_size];
+                            batch.put(0, &**key, value.into()).unwrap();
+                        }
+                        db.commit_write_batch(batch).unwrap();
+                        db.shutdown().unwrap();
+                        tempdir
+                    },
+                    BatchSize::PerIteration,
+                );
+            });
+        }
+    }
+
+    group.finish();
+}
+
+// =============================================================================
+// Compaction Benchmarks - Multi-Value
+// =============================================================================
+
+fn bench_compaction_multi_value(c: &mut Criterion) {
+    let mut group = c.benchmark_group("compaction/multi_value");
+    group.sample_size(10);
+    group.sampling_mode(SamplingMode::Flat);
+
+    // (entry_count, values_per_key, commit_count)
+    let configs = [
+        (1024 * 1024 * 4, 1, 8),  // Baseline: 1 value/key
+        (1024 * 1024 * 4, 4, 8),  // 4 values/key
+        (1024 * 1024 * 4, 4, 32), // 4 values/key, more commits
+    ];
+
+    let key_size = 8;
+    let value_size = 4;
+
+    for &(entry_count, values_per_key, commit_count) in &configs {
+        let distinct_key_count = entry_count / values_per_key;
+        let config = MultiValueDbConfig {
+            key_size,
+            value_size,
+            entry_count,
+            distinct_key_count,
+            commit_count,
+            compacted: false,
+        };
+
+        let id = format!(
+            "entries_{}/vpk_{}/commits_{}",
+            format_number(entry_count),
+            values_per_key,
+            commit_count,
+        );
+
+        let setup = || {
+            let (tempdir, _keys) = setup_prefilled_multi_value_db(&config, &id).unwrap();
+            let db = open_multi_value_db(tempdir.path());
+            (tempdir, db)
+        };
+
+        group.bench_function(format!("{id}/full"), |b| {
+            b.iter_batched(
+                setup,
+                |(_tempdir, db)| {
+                    db.full_compact().unwrap();
+                    black_box(db)
+                },
+                BatchSize::PerIteration,
+            );
+        });
     }
 
     group.finish();
@@ -839,7 +1203,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup(hash, &key, key_block_cache, value_block_cache)
+                        .lookup::<_, false>(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -858,7 +1222,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 |i| keys[i as usize % keys.len()],
                 |(key, hash)| {
                     let result = sst
-                        .lookup(hash, &key, key_block_cache, value_block_cache)
+                        .lookup::<_, false>(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -884,7 +1248,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup(hash, &key, key_block_cache, value_block_cache)
+                        .lookup::<_, false>(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -917,7 +1281,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup(*hash, &key, key_block_cache, value_block_cache)
+                        .lookup::<_, false>(*hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -1069,6 +1433,6 @@ fn bench_block_cache(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_read_get, bench_read_batch_get, bench_compaction, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
+    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);
