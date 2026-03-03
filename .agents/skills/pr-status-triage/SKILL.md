@@ -19,6 +19,7 @@ Use this skill when the user asks about PR status, CI failures, or review commen
 3. Prioritize blocking jobs first: build, lint, types, then test jobs.
 4. Treat failures as real until disproven; check the "Known Flaky Tests" section before calling anything flaky.
 5. Reproduce locally with the same mode and env vars as CI.
+6. After addressing review comments, reply to the thread describing what was done, then resolve it. See `thread-N.md` files for ready-to-use commands.
 
 ## Quick Commands
 

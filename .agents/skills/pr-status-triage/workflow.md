@@ -25,3 +25,20 @@
 - test failures:
   - Run the exact failing test file locally
   - Match dev vs start mode to the CI job
+
+## Resolving Review Threads
+
+After addressing a review comment (e.g., making the requested code change):
+
+1. Reply to the thread describing what action was taken:
+   ```bash
+   node scripts/pr-status.js reply-thread <threadNodeId> "Done -- <description of changes>"
+   ```
+2. Then resolve the thread:
+   ```bash
+   node scripts/pr-status.js resolve-thread <threadNodeId>
+   ```
+
+The ready-to-use commands with the correct thread IDs are at the bottom of each `thread-N.md` file in `scripts/pr-status/`.
+
+**Important:** Always reply with a description of the actions taken before resolving. This gives the reviewer context about what changed.

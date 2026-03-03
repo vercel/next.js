@@ -1,4 +1,4 @@
-const { execSync, spawn } = require('child_process')
+const { execSync, execFileSync, spawn } = require('child_process')
 const fs = require('fs/promises')
 const path = require('path')
 
@@ -325,6 +325,7 @@ function getPRReviewThreads(prNumber) {
         pullRequest(number:${prNumber}) {
           reviewThreads(first:100) {
             nodes {
+              id
               isResolved
               path
               line
@@ -363,6 +364,87 @@ function getPRComments(prNumber) {
     return comments.filter((c) => !isBot(c.user))
   } catch {
     return []
+  }
+}
+
+// ============================================================================
+// Thread Interaction Functions
+// ============================================================================
+
+function replyToThread(threadId, body) {
+  const mutation = `
+    mutation($threadId: ID!, $body: String!) {
+      addPullRequestReviewThreadReply(input: {
+        pullRequestReviewThreadId: $threadId,
+        body: $body
+      }) {
+        comment {
+          id
+          url
+        }
+      }
+    }
+  `
+  try {
+    const output = execFileSync(
+      'gh',
+      [
+        'api',
+        'graphql',
+        '-f',
+        `query=${mutation}`,
+        '-f',
+        `threadId=${threadId}`,
+        '-f',
+        `body=${body}`,
+      ],
+      { encoding: 'utf8' }
+    ).trim()
+    const data = JSON.parse(output)
+    const comment = data.data.addPullRequestReviewThreadReply.comment
+    console.log(`Reply posted: ${comment.url}`)
+  } catch (error) {
+    console.error('Failed to reply to thread:', error.stderr || error.message)
+    process.exit(1)
+  }
+}
+
+function resolveThread(threadId) {
+  const mutation = `
+    mutation($threadId: ID!) {
+      resolveReviewThread(input: {
+        threadId: $threadId
+      }) {
+        thread {
+          id
+          isResolved
+        }
+      }
+    }
+  `
+  try {
+    const output = execFileSync(
+      'gh',
+      [
+        'api',
+        'graphql',
+        '-f',
+        `query=${mutation}`,
+        '-f',
+        `threadId=${threadId}`,
+      ],
+      { encoding: 'utf8' }
+    ).trim()
+    const data = JSON.parse(output)
+    const thread = data.data.resolveReviewThread.thread
+    if (thread.isResolved) {
+      console.log(`Thread ${threadId} resolved successfully.`)
+    } else {
+      console.log('Warning: Thread may not have been resolved.')
+    }
+  } catch (error) {
+    console.error('Failed to resolve thread:', error.stderr || error.message)
+    process.exit(1)
   }
 }
 
@@ -953,6 +1035,27 @@ function generateThreadMd(thread, index) {
     lines.push(`[View on GitHub](${comment.url})`, '', '---', '')
   }
 
+  // Add commands section
+  if (thread.id) {
+    lines.push('## Commands', '')
+    lines.push(
+      'Reply to this thread:',
+      '```',
+      `node scripts/pr-status.js reply-thread ${thread.id} "Your reply here"`,
+      '```',
+      ''
+    )
+    if (!thread.isResolved) {
+      lines.push(
+        'Resolve this thread:',
+        '```',
+        `node scripts/pr-status.js resolve-thread ${thread.id}`,
+        '```',
+        ''
+      )
+    }
+  }
+
   return lines.join('\n')
 }
 
@@ -1102,8 +1205,36 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
 // ============================================================================
 
 async function main() {
+  // Dispatch subcommands
+  const subcommand = process.argv[2]
+
+  if (subcommand === 'reply-thread') {
+    const threadId = process.argv[3]
+    const body = process.argv[4]
+    if (!threadId || !body) {
+      console.error(
+        'Usage: node scripts/pr-status.js reply-thread <threadNodeId> <body>'
+      )
+      process.exit(1)
+    }
+    replyToThread(threadId, body)
+    return
+  }
+
+  if (subcommand === 'resolve-thread') {
+    const threadId = process.argv[3]
+    if (!threadId) {
+      console.error(
+        'Usage: node scripts/pr-status.js resolve-thread <threadNodeId>'
+      )
+      process.exit(1)
+    }
+    resolveThread(threadId)
+    return
+  }
+
   // Parse CLI argument for PR number
-  const prNumberArg = process.argv[2]
+  const prNumberArg = subcommand
 
   // Step 1: Delete and recreate output directory
   console.log('Cleaning output directory...')
