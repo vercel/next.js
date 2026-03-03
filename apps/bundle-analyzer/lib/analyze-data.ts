@@ -518,11 +518,16 @@ export function mergeAnalyzeData(
     // Synthetic label directory, child of the base root
     { path: `[${label}]/`, parent_source_index: baseRootIdx },
     // Extra sources with remapped parent indices.
+    // Root sources (parent_source_index === null) keep null so that
+    // getFullSourcePath() returns the original path (e.g. "[root]/path/moment.js")
+    // matching what modulesData stores, so import-chain lookups work correctly.
+    // They still appear under the synthetic label dir via source_children edges,
+    // which are built separately and do not derive from parent_source_index.
     ...extraHeader.sources.map((s) => ({
       path: s.path,
       parent_source_index:
         s.parent_source_index === null
-          ? syntheticDirIdx
+          ? null
           : s.parent_source_index + extraSourceOffset,
     })),
   ]
