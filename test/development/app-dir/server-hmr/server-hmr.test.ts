@@ -1,3 +1,4 @@
+import type { Response } from 'node-fetch'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
@@ -153,5 +154,29 @@ describe('server-hmr', () => {
         expect(outputAfterHmr).toMatch(/page\.tsx:4:9/)
       }
     )
+  })
+
+  describe('route handler hmr', () => {
+    function getText(res: Response) {
+      return res.ok
+        ? res.text()
+        : Promise.reject(
+            new Error('Failed to fetch route handler: ' + res.status)
+          )
+    }
+
+    it('reflects route handler changes on fetch/refresh', async () => {
+      const initial = await next.fetch('/api/hello').then(getText)
+      expect(initial).toBe('version: 0')
+
+      await next.patchFile('app/api/hello/route.ts', (content) =>
+        content.replace('version: 0', 'version: 1')
+      )
+
+      await retry(async () => {
+        const updated = await next.fetch('/api/hello').then(getText)
+        expect(updated).toBe('version: 1')
+      })
+    })
   })
 })

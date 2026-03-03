@@ -6,10 +6,19 @@ describe.each([
   ['NEXT_DEPLOYMENT_ID', ''],
   ['CUSTOM_DEPLOYMENT_ID', ''],
   ['NEXT_DEPLOYMENT_ID', ' and runtimeServerDeploymentId'],
+  ['IMMUTABLE_ASSET_TOKEN', ''],
 ])(
   'deployment-id-handling enabled with %s%s',
   (envKey, runtimeServerDeploymentId) => {
+    if (envKey === 'IMMUTABLE_ASSET_TOKEN' && !process.env.IS_TURBOPACK_TEST) {
+      it.skip('skip for webpack', () => {})
+      return
+    }
+
     const deploymentId = Date.now() + ''
+    const immutableAssetToken =
+      envKey === 'IMMUTABLE_ASSET_TOKEN' ? `imm-${deploymentId}` : deploymentId
+
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       env: {
@@ -20,6 +29,18 @@ describe.each([
       },
       disableAutoSkewProtection: true,
     })
+
+    const tokenForRequest = (url) => {
+      return url.includes('_next/static/chunks') ||
+        url.includes('_next/static/media')
+        ? // Turbopack-emitted chunks
+          immutableAssetToken
+        : // e.g. _next/static/build-id/_ssgManifest.js
+          deploymentId
+    }
+    const validateTokenForRequest = (url) => {
+      expect(url).toContain('dpl=' + tokenForRequest(url))
+    }
 
     it.each([
       { urlPath: '/' },
@@ -39,7 +60,7 @@ describe.each([
 
         for (const script of scripts) {
           if (script.attribs.src) {
-            expect(script.attribs.src).toContain('dpl=' + deploymentId)
+            validateTokenForRequest(script.attribs.src)
           }
         }
 
@@ -48,7 +69,7 @@ describe.each([
 
         for (const link of links) {
           if (link.attribs.href && link.attribs.rel !== 'expect') {
-            expect(link.attribs.href).toContain('dpl=' + deploymentId)
+            validateTokenForRequest(link.attribs.href)
           }
         }
 
@@ -59,6 +80,7 @@ describe.each([
         const browser = await next.browser(urlPath, {
           beforePageLoad(page) {
             page.on('request', async (req) => {
+              // TODO this currently exclude _next/image
               if (req.url().includes('/_next/static')) {
                 clientRequests.push(req.url())
               }
@@ -76,11 +98,9 @@ describe.each([
         await retry(() => expect(dynamicImportRequests).not.toBeEmpty())
 
         try {
-          expect(
-            dynamicImportRequests.every((item) =>
-              item.includes('dpl=' + deploymentId)
-            )
-          ).toBe(true)
+          expect(dynamicImportRequests).toSatisfyAll((item) =>
+            item.includes('dpl=' + tokenForRequest(item))
+          )
         } finally {
           require('console').error(
             'dynamicImportRequests',
@@ -89,9 +109,9 @@ describe.each([
         }
 
         try {
-          expect(
-            clientRequests.every((item) => item.includes('dpl=' + deploymentId))
-          ).toBe(true)
+          expect(clientRequests).toSatisfyAll((item) =>
+            item.includes('dpl=' + tokenForRequest(item))
+          )
         } finally {
           require('console').error('clientRequests', clientRequests)
         }
@@ -114,7 +134,7 @@ describe.each([
       const browser = await next.browser('/', {
         beforePageLoad(page) {
           page.on('request', async (req) => {
-            const headers = await req.allHeaders()
+            const headers = req.headers()
             if (headers['x-nextjs-data']) {
               dataHeaders.push(headers)
             }
@@ -142,7 +162,7 @@ describe.each([
       const browser = await next.browser('/from-app', {
         beforePageLoad(page) {
           page.on('request', async (req) => {
-            const headers = await req.allHeaders()
+            const headers = req.headers()
             if (headers['rsc']) {
               rscHeaders.push(headers)
             }
@@ -158,11 +178,9 @@ describe.each([
         expect(rscHeaders.length).toBeGreaterThan(0)
       })
 
-      expect(
-        rscHeaders.every(
-          (headers) => headers['x-deployment-id'] === deploymentId
-        )
-      ).toBe(true)
+      expect(rscHeaders).toSatisfyAll(
+        (headers) => headers['x-deployment-id'] === deploymentId
+      )
     })
   }
 )
@@ -215,9 +233,9 @@ describe('deployment-id-handling disabled', () => {
       await retry(() => expect(requests).not.toBeEmpty())
 
       try {
-        expect(
-          requests.every((item) => !item.includes('dpl=' + deploymentId))
-        ).toBe(true)
+        expect(requests).toSatisfyAll(
+          (item) => !item.includes('dpl=' + deploymentId)
+        )
       } finally {
         require('console').error('requests', requests)
       }

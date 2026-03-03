@@ -1,7 +1,7 @@
 import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
-import { promises as fs } from 'fs'
+import { readFileSync } from 'fs'
 import { relative } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
 import {
@@ -427,9 +427,9 @@ function validateMiddlewareProxyExports({
   }
 }
 
-async function tryToReadFile(filePath: string, shouldThrow: boolean) {
+function tryToReadFile(filePath: string, shouldThrow: boolean) {
   try {
-    return await fs.readFile(filePath, {
+    return readFileSync(filePath, {
       encoding: 'utf8',
     })
   } catch (error: any) {
@@ -615,7 +615,7 @@ export async function getAppPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<AppPageStaticInfo> {
-  const content = await tryToReadFile(pageFilePath, !isDev)
+  const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.APP,
@@ -718,7 +718,7 @@ export async function getPagesPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<PagesPageStaticInfo> {
-  const content = await tryToReadFile(pageFilePath, !isDev)
+  const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.PAGES,

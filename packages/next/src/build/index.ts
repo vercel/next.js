@@ -196,7 +196,6 @@ import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
 import { turbopackBuild } from './turbopack-build'
-import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
@@ -854,9 +853,10 @@ export function createStaticWorker(
             }
           : undefined),
         // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
-        __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX: config.deploymentId
-          ? `?dpl=${config.deploymentId}`
-          : '',
+        __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX:
+          config.experimental.immutableAssetToken || config.deploymentId
+            ? `?dpl=${config.experimental.immutableAssetToken || config.deploymentId}`
+            : '',
       },
     },
   }) as StaticWorker
@@ -2060,7 +2060,8 @@ export default async function build(
               pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
-              deploymentId: config.deploymentId,
+              clientAssetToken:
+                config.experimental.immutableAssetToken || config.deploymentId,
               sriEnabled,
               cacheMaxMemorySize: config.cacheMaxMemorySize,
             })
@@ -2286,7 +2287,9 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
-                            deploymentId: config.deploymentId,
+                            clientAssetToken:
+                              config.experimental.immutableAssetToken ||
+                              config.deploymentId,
                             sriEnabled,
                           })
                         }
@@ -2690,7 +2693,9 @@ export default async function build(
         },
         {
           featureName: 'turbopackFileSystemCache',
-          invocationCount: isFileSystemCacheEnabledForBuild(config) ? 1 : 0,
+          invocationCount: config.experimental?.turbopackFileSystemCacheForBuild
+            ? 1
+            : 0,
         },
       ]
       telemetry.record(

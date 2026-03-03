@@ -267,6 +267,7 @@ export type GenerateFlight = typeof generateDynamicFlightRenderResult
 export type AppSharedContext = {
   buildId: string
   deploymentId: string
+  clientAssetToken: string
 }
 
 export type AppRenderContext = {
@@ -722,7 +723,9 @@ async function generateDynamicFlightRenderResult(
     options
   )
 
-  const flightStream = renderToFlightStream(
+  const flightStream = workUnitAsyncStorage.run(
+    requestStore,
+    renderToFlightStream,
     ctx.componentMod,
     rscPayload,
     clientModules,
@@ -731,8 +734,7 @@ async function generateDynamicFlightRenderResult(
       temporaryReferences: options?.temporaryReferences,
       filterStackFrame,
       debugChannel: debugChannel?.serverSide,
-    },
-    (fn) => workUnitAsyncStorage.run(requestStore, fn)
+    }
   )
 
   return new FlightRenderResult(
@@ -901,15 +903,16 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   return await runInSequentialTasks(
     () => {
       stageController.advanceStage(RenderStage.Static)
-      return renderToFlightStream(
+      return workUnitAsyncStorage.run(
+        requestStore,
+        renderToFlightStream,
         ctx.componentMod,
         rscPayload,
         clientModules,
         {
           ...options,
           environmentName,
-        },
-        (fn) => workUnitAsyncStorage.run(requestStore, fn)
+        }
       )
     },
     () => {
@@ -2674,8 +2677,10 @@ async function renderToStream(
 
   // In development mode, set the request ID as a global variable, before the
   // bootstrap script is executed, which depends on it during hydration.
+  // For MPA navigations (page reload, direct URL entry), the request ID
+  // header is not present, so we generate a random one.
   const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
-    ? `self.__next_r=${JSON.stringify(requestId)}`
+    ? `self.__next_r=${JSON.stringify(requestId ?? crypto.randomUUID())}`
     : undefined
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.
@@ -2905,7 +2910,9 @@ async function renderToStream(
         }
 
         reactServerResult = new ReactServerResult(
-          renderToFlightStream(
+          workUnitAsyncStorage.run(
+            requestStore,
+            renderToFlightStream,
             ctx.componentMod,
             RSCPayload,
             clientModules,
@@ -2913,8 +2920,7 @@ async function renderToStream(
               filterStackFrame,
               onError: serverComponentsErrorHandler,
               debugChannel: debugChannel?.serverSide,
-            },
-            (fn) => workUnitAsyncStorage.run(requestStore, fn)
+            }
           )
         )
       }
@@ -2965,12 +2971,14 @@ async function renderToStream(
             tracingMetadata: tracingMetadata,
           })
 
-          const { stream: htmlStream, allReady } = await resumeToFizzStream(
-            resumeAppElement,
-            postponed,
-            { onError: htmlRendererErrorHandler, nonce },
-            (fn) => workUnitAsyncStorage.run(requestStore, fn)
-          )
+          const { stream: htmlStream, allReady } =
+            await workUnitAsyncStorage.run(
+              requestStore,
+              resumeToFizzStream,
+              resumeAppElement,
+              postponed,
+              { onError: htmlRendererErrorHandler, nonce }
+            )
 
           // End the render span only after React completed rendering (including anything inside Suspense boundaries)
           allReady.finally(() => {
@@ -3030,10 +3038,11 @@ async function renderToStream(
         formState,
       }
 
-      const { stream: htmlStream, allReady } = await renderToFizzStream(
+      const { stream: htmlStream, allReady } = await workUnitAsyncStorage.run(
+        requestStore,
+        renderToFizzStream,
         appElement,
-        fizzOptions,
-        (fn) => workUnitAsyncStorage.run(requestStore, fn)
+        fizzOptions
       )
 
       // End the render span only after React completed rendering (including anything inside Suspense boundaries)
@@ -3135,15 +3144,16 @@ async function renderToStream(
           errorType
         )
 
-        errorServerStream = renderToFlightStream(
+        errorServerStream = workUnitAsyncStorage.run(
+          requestStore,
+          renderToFlightStream,
           ctx.componentMod,
           errorRSCPayload,
           clientModules,
           {
             filterStackFrame,
             onError: serverComponentsErrorHandler,
-          },
-          (fn) => workUnitAsyncStorage.run(requestStore, fn)
+          }
         )
 
         if (reactServerResult === null) {
@@ -3162,7 +3172,9 @@ async function renderToStream(
           supportsDynamicResponse !== true || !!shouldWaitOnAllReady
 
         const { stream: errorHtmlStream, allReady: errorAllReady } =
-          await renderToFizzStream(
+          await workUnitAsyncStorage.run(
+            requestStore,
+            renderToFizzStream,
             <ErrorApp
               reactServerStream={errorServerStream}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3175,8 +3187,7 @@ async function renderToStream(
               bootstrapScriptContent,
               bootstrapScripts: [errorBootstrapScript],
               formState,
-            },
-            (fn) => workUnitAsyncStorage.run(requestStore, fn)
+            }
           )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
@@ -3309,20 +3320,23 @@ async function renderWithRestartOnCacheMissInDev(
       initialStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = renderToFlightStream(
-        ComponentMod,
-        initialRscPayload,
-        clientModules,
-        {
-          onError,
-          environmentName,
-          startTime,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-          signal: initialReactController.signal,
-        },
-        (fn) => workUnitAsyncStorage.run(requestStore, fn)
-      ).tee()
+      const streamPair = workUnitAsyncStorage
+        .run(
+          requestStore,
+          renderToFlightStream,
+          ComponentMod,
+          initialRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+            signal: initialReactController.signal,
+          }
+        )
+        .tee()
 
       // If we abort the render, we want to reject the stage-dependent promises as well.
       // Note that we want to install this listener after the render is started
@@ -3456,19 +3470,22 @@ async function renderWithRestartOnCacheMissInDev(
       finalStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = renderToFlightStream(
-        ComponentMod,
-        finalRscPayload,
-        clientModules,
-        {
-          onError,
-          environmentName,
-          startTime,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-        },
-        (fn) => workUnitAsyncStorage.run(requestStore, fn)
-      ).tee()
+      const streamPair = workUnitAsyncStorage
+        .run(
+          requestStore,
+          renderToFlightStream,
+          ComponentMod,
+          finalRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+          }
+        )
+        .tee()
 
       return {
         stream: streamPair[0],
@@ -5781,7 +5798,9 @@ async function prerenderToStream(
           )
         )
 
-      const { stream: htmlStream } = await renderToFizzStream(
+      const { stream: htmlStream } = await workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        renderToFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
@@ -5796,8 +5815,7 @@ async function prerenderToStream(
           onError: htmlRendererErrorHandler,
           nonce,
           bootstrapScripts: [bootstrapScript],
-        },
-        (fn) => workUnitAsyncStorage.run(prerenderLegacyStore, fn)
+        }
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
@@ -5935,24 +5953,22 @@ async function prerenderToStream(
       errorType
     )
 
-    // Keep prerender-legacy async storage stable across node stream event
-    // callbacks and pipeable renderer hooks.
-    const runInLegacyContext = <T,>(fn: () => T): T =>
-      workUnitAsyncStorage.run(prerenderLegacyStore, fn)
-
-    const errorServerStream = renderToFlightStream(
+    const errorServerStream = workUnitAsyncStorage.run(
+      prerenderLegacyStore,
+      renderToFlightStream,
       ComponentMod,
       errorRSCPayload,
       clientModules,
       {
         filterStackFrame,
         onError: serverComponentsErrorHandler,
-      },
-      runInLegacyContext
+      }
     )
 
     try {
-      const { stream: errorHtmlStream } = await renderToFizzStream(
+      const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        renderToFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <ErrorApp
           reactServerStream={errorServerStream}
@@ -5965,8 +5981,7 @@ async function prerenderToStream(
           nonce,
           bootstrapScripts: [errorBootstrapScript],
           formState,
-        },
-        runInLegacyContext
+        }
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
@@ -6135,7 +6150,8 @@ async function collectSegmentData(
     fullPageDataBuffer,
     staleTime,
     clientModules,
-    serverConsumerManifest
+    serverConsumerManifest,
+    renderOpts.experimental.prefetchInlining
   )
 }
 

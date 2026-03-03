@@ -36,34 +36,6 @@ impl AttachedFileSystem {
         .cell())
     }
 
-    /// Converts the given [FileSystemPath] to a path in this [FileSystem].
-    ///
-    /// The given path has to be inside of the root [FileSystem], the child
-    /// [FileSystem] or this [AttachedFileSystem].
-    #[turbo_tasks::function]
-    pub async fn convert_path(
-        self: ResolvedVc<Self>,
-        contained_path: FileSystemPath,
-    ) -> Result<Vc<FileSystemPath>> {
-        let self_fs: ResolvedVc<Box<dyn FileSystem>> = ResolvedVc::upcast(self);
-        let this = self.await?;
-
-        match contained_path.fs {
-            // already on this filesystem
-            fs if fs == self_fs => Ok(contained_path.cell()),
-            // in the root filesystem, just need to rebase on this filesystem
-            fs if fs == this.root_fs => Ok(self.root().await?.join(&contained_path.path)?.cell()),
-            // in the child filesystem, so we expand to the full path by appending to child_path
-            fs if fs == this.child_fs => {
-                Ok(self.child_path().await?.join(&contained_path.path)?.cell())
-            }
-            _ => bail!(
-                "path {} not part of self, the root fs or the child fs",
-                contained_path.value_to_string().await?
-            ),
-        }
-    }
-
     /// Constructs a [FileSystemPath] of the attachment point referencing
     /// this [AttachedFileSystem]
     #[turbo_tasks::function]

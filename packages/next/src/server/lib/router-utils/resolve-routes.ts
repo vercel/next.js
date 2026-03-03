@@ -57,6 +57,18 @@ export function getResolveRoutes(
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
   ensureMiddleware?: (url?: string) => Promise<void>
 ) {
+  let clientHashes: Record<string, string> | undefined = undefined
+  if (process.env.__NEXT_TEST_MODE && process.env.IS_TURBOPACK_TEST) {
+    try {
+      clientHashes = JSON.parse(
+        (require('fs') as typeof import('fs')).readFileSync(
+          path.join(opts.dir, config.distDir, 'immutable-static-hashes.json'),
+          'utf8'
+        )
+      )
+    } catch {}
+  }
+
   type Route = {
     /**
      * The path matcher to check if this route applies to this request.
@@ -481,7 +493,13 @@ export function getResolveRoutes(
                 output.type === 'nextStaticFolder' &&
                 config.deploymentId
               ) {
-                const expectedToken = config.deploymentId
+                let useImmutableToken =
+                  config.experimental.immutableAssetToken &&
+                  clientHashes![`static${decodeURI(output.itemPath)}`]
+
+                const expectedToken = useImmutableToken
+                  ? config.experimental.immutableAssetToken
+                  : config.deploymentId
                 if (parsedUrl.query.dpl !== expectedToken) {
                   console.error(
                     `Invalid dpl query param: ${req.url}, expected: ${expectedToken}`

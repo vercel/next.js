@@ -40,7 +40,7 @@ use next_core::{
     },
 };
 use once_cell::sync::Lazy;
-use rand::Rng;
+use rand::RngExt;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
 use tracing::Instrument;

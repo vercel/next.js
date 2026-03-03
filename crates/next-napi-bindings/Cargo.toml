@@ -110,7 +110,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-unix-path = { workspace = true }
-next-api = { workspace = true }
+next-api = { workspace = true, features = ["worker_pool"] }
 next-build = { workspace = true }
 next-core = { workspace = true }
 

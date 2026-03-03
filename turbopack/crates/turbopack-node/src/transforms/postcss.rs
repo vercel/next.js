@@ -461,6 +461,7 @@ impl PostCssTransformedAsset {
             project_path,
             chunking_context,
             env,
+            node_backend,
         } = &*self.execution_context.await?;
 
         // For this postcss transform, there is no guarantee that looking up for the
@@ -508,9 +509,10 @@ impl PostCssTransformedAsset {
         let postcss_executor =
             postcss_executor(*evaluate_context, project_path.clone(), config_path).module();
 
-        let entries = get_evaluate_entries(postcss_executor, *evaluate_context, None)
-            .to_resolved()
-            .await?;
+        let entries =
+            get_evaluate_entries(postcss_executor, *evaluate_context, **node_backend, None)
+                .to_resolved()
+                .await?;
 
         let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
             entries.graph_entries().to_resolved().await?,
@@ -537,6 +539,7 @@ impl PostCssTransformedAsset {
             entries,
             cwd: project_path.clone(),
             env: *env,
+            node_backend: *node_backend,
             context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             module_graph,
