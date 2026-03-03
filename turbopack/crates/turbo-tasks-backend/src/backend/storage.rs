@@ -130,8 +130,7 @@ impl Storage {
         let guard = Arc::new(SnapshotGuard { storage: self });
 
         // The number of shards is much larger than the number of threads, so the effect of the
-        // locks held is negligible. We do the peek in parallel to avoid sequential overhead
-        // when checking if shards are empty.
+        // locks held is negligible.
         parallel::map_collect::<_, _, Vec<_>>(self.modified.shards(), |shard| {
             let mut direct_snapshots: Vec<(TaskId, Box<TaskStorage>)> = Vec::new();
             let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
