@@ -533,15 +533,43 @@ export function getResolveRoutes(
             /* non-fatal we can't decode so can't match it */
           }
 
+          // When basePath is set, the middleware matcher regex is compiled as
+          // `<basePath>/<pattern>`. A request to the application root has
+          // pathname equal to the basePath (e.g. "/test") without a trailing
+          // slash, so the `/<pattern>` portion of the regex never gets a
+          // chance to match. By also trying with a trailing slash we allow
+          // the root path to match, consistent with non-basePath behavior
+          // where "/" matches the leading "/" of the pattern.
+          const matchPathname = parsedUrl.pathname || '/'
+          const matchPathnameWithSlash =
+            config.basePath &&
+            matchPathname === config.basePath
+              ? matchPathname + '/'
+              : null
+          const decodedWithSlash =
+            matchPathnameWithSlash !== null
+              ? decodeURIComponent(matchPathnameWithSlash)
+              : null
+
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query) ||
+            match?.(matchPathname, req, parsedUrl.query) ||
             match?.(
               maybeDecodedPathname,
               // @ts-expect-error BaseNextRequest stuff
               req,
               parsedUrl.query
-            )
+            ) ||
+            (matchPathnameWithSlash !== null &&
+              // @ts-expect-error BaseNextRequest stuff
+              match?.(matchPathnameWithSlash, req, parsedUrl.query)) ||
+            (decodedWithSlash !== null &&
+              match?.(
+                decodedWithSlash,
+                // @ts-expect-error BaseNextRequest stuff
+                req,
+                parsedUrl.query
+              ))
           ) {
             if (ensureMiddleware) {
               await ensureMiddleware(req.url)

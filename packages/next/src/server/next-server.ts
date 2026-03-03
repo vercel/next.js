@@ -1820,10 +1820,33 @@ export default class NextNodeServer extends BaseServer<
       /* non-fatal we can't decode so can't match it */
     }
 
+    // When basePath is set, the middleware matcher regex is compiled as
+    // `<basePath>/<pattern>`. A request to the application root has
+    // pathname equal to the basePath (e.g. "/test") without a trailing
+    // slash, so the `/<pattern>` portion never matches. By also trying
+    // with a trailing slash we allow the root path to match.
+    const basePath = this.nextConfig.basePath
+    const pathnameWithSlash =
+      basePath && normalizedPathname === basePath
+        ? normalizedPathname + '/'
+        : null
+    let decodedWithSlash: string | null = null
+    if (pathnameWithSlash !== null) {
+      try {
+        decodedWithSlash = decodeURIComponent(pathnameWithSlash)
+      } catch {
+        /* non-fatal */
+      }
+    }
+
     if (
       !(
         middleware.match(normalizedPathname, req, parsedUrl.query) ||
-        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+        middleware.match(maybeDecodedPathname, req, parsedUrl.query) ||
+        (pathnameWithSlash !== null &&
+          middleware.match(pathnameWithSlash, req, parsedUrl.query)) ||
+        (decodedWithSlash !== null &&
+          middleware.match(decodedWithSlash, req, parsedUrl.query))
       )
     ) {
       return handleFinished()

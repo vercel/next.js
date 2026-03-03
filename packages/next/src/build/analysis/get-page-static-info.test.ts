@@ -41,5 +41,42 @@ describe('get-page-static-infos', () => {
       expect(regex.test('/apple')).toBe(true)
       expect(regex.test('/apple.json')).toBe(true)
     })
+
+    it('prepends basePath to the compiled regex', () => {
+      const matchers = [
+        '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+      ]
+      const result = getMiddlewareMatchers(matchers, {
+        basePath: '/test',
+        i18n: undefined,
+      })[0].regexp
+      const regex = new RegExp(result)
+      // Regular subpaths should match
+      expect(regex.test('/test/foo')).toBe(true)
+      expect(regex.test('/test/bar')).toBe(true)
+      // Excluded paths should not match
+      expect(regex.test('/test/api')).toBe(false)
+      expect(regex.test('/test/_next/static')).toBe(false)
+    })
+
+    it('basePath root does not match the negative-lookahead matcher without trailing slash', () => {
+      // This documents the root cause of #73786: when basePath is set,
+      // the compiled regex requires a "/" after the basePath, so the
+      // bare basePath (root path) does not match. The fix is applied
+      // at the matching call-site in resolve-routes.ts by also trying
+      // with a trailing slash.
+      const matchers = [
+        '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+      ]
+      const result = getMiddlewareMatchers(matchers, {
+        basePath: '/test',
+        i18n: undefined,
+      })[0].regexp
+      const regex = new RegExp(result)
+      // Without trailing slash, the root path does NOT match the regex
+      expect(regex.test('/test')).toBe(false)
+      // With trailing slash, it matches
+      expect(regex.test('/test/')).toBe(true)
+    })
   })
 })
