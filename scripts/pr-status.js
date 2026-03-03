@@ -1204,38 +1204,11 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
 // Main Function
 // ============================================================================
 
-async function main() {
-  // Dispatch subcommands
-  const subcommand = process.argv[2]
-
-  if (subcommand === 'reply-thread') {
-    const threadId = process.argv[3]
-    const body = process.argv[4]
-    if (!threadId || !body) {
-      console.error(
-        'Usage: node scripts/pr-status.js reply-thread <threadNodeId> <body>'
-      )
-      process.exit(1)
-    }
-    replyToThread(threadId, body)
-    return
-  }
-
-  if (subcommand === 'resolve-thread') {
-    const threadId = process.argv[3]
-    if (!threadId) {
-      console.error(
-        'Usage: node scripts/pr-status.js resolve-thread <threadNodeId>'
-      )
-      process.exit(1)
-    }
-    resolveThread(threadId)
-    return
-  }
-
-  // Parse CLI argument for PR number
-  const prNumberArg = subcommand
-
+/**
+ * Runs the full PR status analysis and writes output files.
+ * Returns { runId, isRunInProgress } so the caller can decide whether to wait.
+ */
+async function runAnalysis(prNumberArg, skipFlakyCheck) {
   // Step 1: Delete and recreate output directory
   console.log('Cleaning output directory...')
   await fs.rm(OUTPUT_DIR, { recursive: true, force: true })
@@ -1254,7 +1227,7 @@ async function main() {
 
   if (runs.length === 0) {
     console.log('No workflow runs found for this branch.')
-    process.exit(0)
+    return { runId: null, isRunInProgress: false }
   }
 
   // Find the most recent run (first in list)
@@ -1366,7 +1339,7 @@ async function main() {
         {}
       )
     )
-    process.exit(0)
+    return { runId: latestRun.id, isRunInProgress: false }
   }
 
   if (hasNoFailedJobs && hasInProgressOrQueued) {
@@ -1475,7 +1448,7 @@ async function main() {
 
   // Step 8: Check for known flaky tests across branches (skip with --skip-flaky-check)
   let flakyTests = new Set()
-  if (!process.argv.includes('--skip-flaky-check')) {
+  if (!skipFlakyCheck) {
     flakyTests = await getFlakyTests(branchInfo.branchName, 5)
     if (flakyTests.size > 0) {
       await fs.writeFile(
@@ -1505,6 +1478,68 @@ async function main() {
   await fs.writeFile(path.join(OUTPUT_DIR, 'index.md'), indexMd)
 
   console.log(`\nDone! Output written to ${OUTPUT_DIR}/index.md`)
+  return { runId: latestRun.id, isRunInProgress }
+}
+
+async function main() {
+  // Dispatch subcommands
+  const subcommand = process.argv[2]
+
+  if (subcommand === 'reply-thread') {
+    const threadId = process.argv[3]
+    const body = process.argv[4]
+    if (!threadId || !body) {
+      console.error(
+        'Usage: node scripts/pr-status.js reply-thread <threadNodeId> <body>'
+      )
+      process.exit(1)
+    }
+    replyToThread(threadId, body)
+    return
+  }
+
+  if (subcommand === 'resolve-thread') {
+    const threadId = process.argv[3]
+    if (!threadId) {
+      console.error(
+        'Usage: node scripts/pr-status.js resolve-thread <threadNodeId>'
+      )
+      process.exit(1)
+    }
+    resolveThread(threadId)
+    return
+  }
+
+  // Parse CLI arguments
+  const args = process.argv.slice(2)
+  const waitFlag = args.includes('--wait')
+  const skipFlakyCheck = args.includes('--skip-flaky-check')
+  const prNumberArg = args.find((a) => !a.startsWith('--'))
+
+  // Run the initial analysis
+  const { runId, isRunInProgress } = await runAnalysis(
+    prNumberArg,
+    skipFlakyCheck
+  )
+
+  if (!runId) {
+    process.exit(0)
+  }
+
+  // If --wait and CI is still running, wait for completion then re-run
+  if (waitFlag && isRunInProgress) {
+    console.log('\nWaiting for CI to complete (gh run watch)...')
+    try {
+      execSync(`gh run watch ${runId} --compact -R vercel/next.js`, {
+        stdio: 'inherit',
+      })
+    } catch {
+      // gh run watch exits non-zero when the run fails, which is expected
+    }
+
+    console.log('\nCI completed. Re-running analysis...')
+    await runAnalysis(prNumberArg, skipFlakyCheck)
+  }
 }
 
 main().catch((err) => {
