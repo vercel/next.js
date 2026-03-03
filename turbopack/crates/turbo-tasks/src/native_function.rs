@@ -40,6 +40,8 @@ pub struct ArgMeta {
 }
 
 impl ArgMeta {
+    /// Equivalent to `new`, but with type inference from a function.
+    #[doc(hidden)]
     pub const fn new_from<T>(_t: &T) -> Self
     where
         T: TaskFnInputs,
@@ -47,6 +49,8 @@ impl ArgMeta {
         Self::new::<T::INPUTS>()
     }
 
+    /// Equivalent to `with_filter_trait_call`, but with type inference from a function.
+    #[doc(hidden)]
     pub const fn with_filter_trait_call_from<T>(
         _t: &T,
         filter_owned: FilterOwnedArgsFunctor,

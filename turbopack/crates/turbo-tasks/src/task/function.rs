@@ -34,6 +34,7 @@ pub trait TaskFn: Send + Sync + 'static {
     fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
 }
 
+/// A trait for `TaskFn` implementations that allows task inputs to be extracted as a type.
 pub trait TaskFnInputs: TaskFn {
     type INPUTS: TaskInput + TaskInputs;
 }
