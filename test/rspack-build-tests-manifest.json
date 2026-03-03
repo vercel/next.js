@@ -1854,9 +1854,9 @@
   },
   "test/e2e/app-dir/cache-components-allow-otel-spans/cache-components-allow-otel-spans.test.ts": {
     "passed": [
-      "hello-world should allow creating Spans during prerendering at runtime - inside a Cache Components",
-      "hello-world should allow creating Spans during prerendering during the build - inside a Cache Components",
-      "hello-world should allow creating Spans during resuming a fallback - inside a Cache Component"
+      "cache-components OTEL spans should allow creating Spans during prerendering at runtime - inside a Cache Components",
+      "cache-components OTEL spans should allow creating Spans during prerendering during the build - inside a Cache Components",
+      "cache-components OTEL spans should allow creating Spans during resuming a fallback - inside a Cache Component"
     ],
     "failed": [],
     "pending": [],
@@ -3051,7 +3051,9 @@
       "app-dir - errors error component should trigger error component when an error happens during server components rendering",
       "app-dir - errors error component should trigger error component when null is thrown during server components rendering",
       "app-dir - errors error component should trigger error component when undefined is thrown during server components rendering",
-      "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified"
+      "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified",
+      "app-dir - errors error component unstable_retry should recover Client Component error after unstable_retry",
+      "app-dir - errors error component unstable_retry should recover Server Component error after unstable_retry"
     ],
     "failed": [],
     "pending": [],
@@ -3416,6 +3418,8 @@
   },
   "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
     "passed": [
+      "instant-navigation-testing-api clears cookie after instant scope exits",
+      "instant-navigation-testing-api clears cookie even when callback throws",
       "instant-navigation-testing-api does not leak runtime data from hover prefetch into instant shell",
       "instant-navigation-testing-api logs an error when attempting to nest instant scopes",
       "instant-navigation-testing-api reload followed by MPA navigation, both block dynamic data",
@@ -3430,8 +3434,10 @@
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include dynamic param values in instant shell during page load",
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during client navigation",
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during page load",
+      "instant-navigation-testing-api sets cookie before first navigation when using baseURL",
       "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
-      "instant-navigation-testing-api successive MPA navigations within instant scope"
+      "instant-navigation-testing-api successive MPA navigations within instant scope",
+      "instant-navigation-testing-api throws descriptive error on fresh page without baseURL"
     ],
     "failed": [],
     "pending": [],
@@ -7282,6 +7288,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
+    "passed": [
+      "prefetch inlining bundles all segment data into a single request per route",
+      "prefetch inlining deduplicates inlined prefetch requests for the same route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
     "passed": [
       "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
@@ -10448,6 +10464,15 @@
       "next test should pass args to test runner",
       "next test test runner validation should validate configured/specified test runner"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/node-cli-args/node-cli-args.test.ts": {
+    "passed": [
+      "node-cli-args should start server with --experimental-network-inspection"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -19715,8 +19740,7 @@
     "runtimeError": false
   },
   "test/integration/node-fetch-keep-alive/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "node-fetch-keep-alive dev should send keep-alive for getServerSideProps",
       "node-fetch-keep-alive dev should send keep-alive for getStaticPaths",
       "node-fetch-keep-alive dev should send keep-alive for getStaticProps",
@@ -19726,9 +19750,10 @@
       "node-fetch-keep-alive production mode should send keep-alive for getStaticProps",
       "node-fetch-keep-alive production mode should send keep-alive for json API"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/integration/non-next-dist-exclude/test/index.test.ts": {
     "passed": [
@@ -22113,7 +22138,9 @@
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "deployment-id-handling enabled with IMMUTABLE_ASSET_TOKEN skip for webpack"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -23077,6 +23104,16 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/turbopack-node-backend/turbopack-node-backend.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "turbopack-node-backend (childProcesses) should match expected loader pid behavior",
+      "turbopack-node-backend (workerThreads) should match expected loader pid behavior"
+    ],
     "flakey": [],
     "runtimeError": false
   },
