@@ -29,6 +29,7 @@ export default function Page({ params, searchParams }) {
 - A `page` is always the **leaf** of the route subtree.
 - A `page` file is required to make a route segment **publicly accessible**.
 - Pages are [Server Components](https://react.dev/reference/rsc/server-components) by default, but can be set to a [Client Component](https://react.dev/reference/rsc/use-client).
+- In the [component hierarchy](/docs/app/getting-started/project-structure#component-hierarchy), `page.js` is the innermost file convention. It is wrapped by `loading.js` (Suspense boundary), `error.js` (error boundary), `template.js`, and `layout.js` in the same segment.
 
 ## Reference
 
