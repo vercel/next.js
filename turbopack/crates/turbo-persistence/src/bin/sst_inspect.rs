@@ -267,19 +267,8 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
             uncompressed_length as u64
         };
 
-        let decompressed = match decompress_block(compressed_data, uncompressed_length) {
-            Ok(data) => data,
-            Err(e) => {
-                eprintln!(
-                    "Warning: Failed to decompress block {} in {:08}.sst: {}",
-                    block_index, info.sequence_number, e
-                );
-                continue;
-            }
-        };
-
-        // Verify checksum on decompressed data
-        let actual_checksum = checksum_block(&decompressed);
+        // Verify checksum on the raw on-disk data before decompression.
+        let actual_checksum = checksum_block(compressed_data);
         if actual_checksum != expected_checksum {
             bail!(
                 "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
@@ -290,6 +279,17 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
                 actual_checksum
             );
         }
+
+        let decompressed = match decompress_block(compressed_data, uncompressed_length) {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!(
+                    "Warning: Failed to decompress block {} in {:08}.sst: {}",
+                    block_index, info.sequence_number, e
+                );
+                continue;
+            }
+        };
 
         let block = &decompressed[..];
         if block.is_empty() {

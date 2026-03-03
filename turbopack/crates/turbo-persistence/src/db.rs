@@ -391,8 +391,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let uncompressed_length = reader.read_u32::<BE>()?;
         let expected_checksum = reader.read_u32::<BE>()?;
 
-        let buffer = decompress_into_arc(uncompressed_length, reader)?;
-        let actual_checksum = checksum_block(&buffer);
+        // Verify checksum on the compressed on-disk data before decompression.
+        let actual_checksum = checksum_block(reader);
         if actual_checksum != expected_checksum {
             bail!(
                 "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
@@ -402,6 +402,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 actual_checksum
             );
         }
+
+        let buffer = decompress_into_arc(uncompressed_length, reader)?;
         Ok(ArcBytes::from(buffer))
     }
 

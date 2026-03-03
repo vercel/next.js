@@ -393,7 +393,7 @@ impl StaticSortedFile {
         self.read_block(block_index)
     }
 
-    /// Verifies the CRC32 checksum of uncompressed block data. Returns an error on mismatch.
+    /// Verifies the CRC32 checksum of on-disk block data. Returns an error on mismatch.
     fn verify_checksum(&self, data: &[u8], expected: u32, block_index: u16) -> Result<()> {
         let actual = checksum_block(data);
         if actual != expected {
@@ -410,14 +410,19 @@ impl StaticSortedFile {
     }
 
     /// Reads a block from the file, decompressing if needed, and verifies its checksum.
+    ///
+    /// The checksum is verified on the raw on-disk data **before** decompression, so
+    /// corruption is caught before passing data to LZ4.
     #[tracing::instrument(level = "info", name = "reading database block", skip_all)]
     fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
         let (uncompressed_length, expected_checksum, block) =
             self.get_raw_block_slice(block_index)?;
 
+        // Verify checksum on the raw on-disk data before decompression.
+        self.verify_checksum(block, expected_checksum, block_index)?;
+
         // 0 means the block was not compressed, return the mmap-backed ArcBytes directly
         if uncompressed_length == 0 {
-            self.verify_checksum(block, expected_checksum, block_index)?;
             return Ok(self.mmap_slice_to_arc_bytes(block));
         }
 
@@ -433,7 +438,6 @@ impl StaticSortedFile {
         );
 
         let buffer = decompress_into_arc(uncompressed_length, block)?;
-        self.verify_checksum(&buffer, expected_checksum, block_index)?;
         Ok(ArcBytes::from(buffer))
     }
 

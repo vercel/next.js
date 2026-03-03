@@ -156,7 +156,7 @@ pub enum EntryValue<'l> {
         /// The uncompressed size of the block data. `0` means the block is stored uncompressed
         /// (and thus the size is the `len` of the block)
         uncompressed_size: u32,
-        /// CRC32 checksum of the uncompressed block data.
+        /// CRC32 checksum of the on-disk block data (after compression).
         checksum: u32,
         block: &'l [u8],
     },
@@ -249,9 +249,6 @@ fn write_block_to_file(
     block: &[u8],
     try_compress: bool,
 ) -> Result<u16> {
-    // Checksum is always computed on the uncompressed data.
-    let checksum = checksum_block(block);
-
     let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
         compress_into_buffer(block, compress_buffer)?;
         // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
@@ -263,6 +260,9 @@ fn write_block_to_file(
     } else {
         (0, block)
     };
+
+    // Checksum is computed on the on-disk data (after compression).
+    let checksum = checksum_block(data_to_write);
 
     let result = write_raw_block_to_file(
         file,

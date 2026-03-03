@@ -92,7 +92,7 @@ Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header disting
 
 #### Block Checksum
 
-Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **uncompressed** block data. On read, the checksum is verified after decompression (or directly for uncompressed blocks). A checksum mismatch returns an error indicating that the cached data is damaged.
+Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression so that on-disk damage is caught before passing data to LZ4. A checksum mismatch returns an error indicating that the cached data is damaged.
 
 #### Index Block
 
@@ -170,10 +170,10 @@ Future:
 The plain value compressed with dynamic compression. Each blob file has an 8-byte header:
 
 - 4 bytes: uncompressed length (u32 big-endian)
-- 4 bytes: CRC32 checksum of uncompressed data (u32 big-endian)
+- 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
 - remaining bytes: LZ4-compressed value data
 
-The checksum is verified after decompression when the blob is read.
+The checksum is verified on the compressed data **before** decompression when the blob is read.
 
 ## Reading
 
