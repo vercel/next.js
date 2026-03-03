@@ -275,6 +275,8 @@ pub struct NapiDefineEnv {
 pub struct NapiTurboEngineOptions {
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
+    /// Maximum size in bytes for Turbopack filesystem cache directories.
+    pub max_cache_size: Option<f64>,
     /// Track dependencies between tasks. If false, any change during build will error.
     pub dependency_tracking: Option<bool>,
     /// Whether the project is running in a CI environment.
@@ -531,6 +533,21 @@ pub fn project_new(
                 .memory_limit
                 .map(|m| m as usize)
                 .unwrap_or(usize::MAX);
+            let max_cache_size = turbo_engine_options
+                .max_cache_size
+                .map(|size| {
+                    if !size.is_finite() || size <= 0.0 || size.fract() != 0.0 {
+                        bail!(
+                            "turbopackFileSystemCacheMaxSize must be a finite positive integer \
+                             number of bytes"
+                        );
+                    }
+                    if size > u64::MAX as f64 {
+                        bail!("turbopackFileSystemCacheMaxSize exceeds supported range");
+                    }
+                    Ok(size as u64)
+                })
+                .transpose()?;
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
             let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
             let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
@@ -541,6 +558,7 @@ pub fn project_new(
                 dependency_tracking,
                 is_ci,
                 is_short_session,
+                max_cache_size,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 

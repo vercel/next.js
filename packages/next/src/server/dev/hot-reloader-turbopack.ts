@@ -416,6 +416,8 @@ export async function createHotReloaderTurbopack(
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
+      maxCacheSize:
+        opts.nextConfig.experimental?.turbopackFileSystemCacheMaxSize,
       isShortSession: false,
     }
   )

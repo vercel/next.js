@@ -93,6 +93,7 @@ export async function turbopackAnalyze(
     },
     {
       memoryLimit: config.experimental?.turbopackMemoryLimit,
+      maxCacheSize: config.experimental?.turbopackFileSystemCacheMaxSize,
       dependencyTracking: persistentCaching,
       isCi: isCI,
       isShortSession: true,

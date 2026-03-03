@@ -915,6 +915,24 @@ function assignDefaultsAndValidate(
     result.experimental.proxyClientMaxBodySize = normalizedValue
   }
 
+  // Validate experimental.turbopackFileSystemCacheMaxSize
+  if (
+    typeof result.experimental?.turbopackFileSystemCacheMaxSize !== 'undefined'
+  ) {
+    const maxCacheSize = result.experimental.turbopackFileSystemCacheMaxSize
+
+    if (
+      typeof maxCacheSize !== 'number' ||
+      !Number.isFinite(maxCacheSize) ||
+      !Number.isInteger(maxCacheSize) ||
+      maxCacheSize < 1
+    ) {
+      throw new Error(
+        'experimental.turbopackFileSystemCacheMaxSize must be a finite positive integer number of bytes'
+      )
+    }
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'transpilePackages',

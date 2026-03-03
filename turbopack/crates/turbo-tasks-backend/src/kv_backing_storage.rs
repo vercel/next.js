@@ -1,7 +1,7 @@
 use std::{
     borrow::Borrow,
-    env,
-    path::PathBuf,
+    env, fs,
+    path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
 };
 
@@ -23,7 +23,9 @@ use crate::{
     backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
     backing_storage::{BackingStorage, BackingStorageSealed},
     database::{
-        db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
+        db_invalidation::{
+            StartupCacheState, check_db_invalidation_and_cleanup, cleanup_db, invalidate_db,
+        },
         db_versioning::handle_db_versioning,
         key_value_database::{KeySpace, KeyValueDatabase},
         write_batch::{
@@ -123,13 +125,35 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
         base_path: PathBuf,
         version_info: &GitVersionInfo,
         is_ci: bool,
+        max_cache_size: Option<u64>,
         database: impl FnOnce(PathBuf) -> Result<T>,
     ) -> Result<(Self, StartupCacheState)>
     where
         T: Send + Sync + 'static,
     {
-        let startup_cache_state = check_db_invalidation_and_cleanup(&base_path)
+        let mut startup_cache_state = check_db_invalidation_and_cleanup(&base_path)
             .context("Failed to check database invalidation and cleanup")?;
+
+        // Check the configured filesystem cache size limit. If the total cache directory (all
+        // versions) exceeds the configured limit, invalidate and clean up before opening the
+        // database. This prevents unbounded disk growth from LMDB/TurboDB's append-only storage.
+        if let Some(max_size) = max_cache_size {
+            if base_path.exists() {
+                if dir_size_exceeds(&base_path, max_size)? {
+                    tracing::warn!(
+                        "Turbopack cache at {:?} exceeds size limit ({} bytes), cleaning up...",
+                        base_path,
+                        max_size
+                    );
+                    invalidate_db(&base_path, invalidation_reasons::CACHE_SIZE_LIMIT)?;
+                    cleanup_db(&base_path)?;
+                    startup_cache_state = StartupCacheState::Invalidated {
+                        reason_code: Some(invalidation_reasons::CACHE_SIZE_LIMIT.to_string()),
+                    };
+                }
+            }
+        }
+
         let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)
             .context("Failed to handle database versioning")?;
         let database = (database)(versioned_path).context("Failed to open database")?;
@@ -750,6 +774,36 @@ fn print_task_type_cache_stats(stats: std::collections::HashMap<&'static str, Ta
         );
     }
 }
+
+/// Recursively compute directory size, returning `true` as soon as the total exceeds `limit`.
+/// This early-exit avoids scanning the entire directory tree (which can be 30GB+).
+fn dir_size_exceeds(path: &Path, limit: u64) -> Result<bool> {
+    fn walk(dir: &Path, total: &mut u64, limit: u64) -> Result<bool> {
+        let entries = match fs::read_dir(dir) {
+            Ok(entries) => entries,
+            Err(_) => return Ok(false),
+        };
+        for entry in entries {
+            let entry = entry?;
+            let metadata = entry.metadata()?;
+            if metadata.is_dir() {
+                if walk(&entry.path(), total, limit)? {
+                    return Ok(true);
+                }
+            } else {
+                *total += metadata.len();
+                if *total >= limit {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    let mut total = 0u64;
+    walk(path, &mut total, limit)
+}
+
 fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, I>(
     tasks: Vec<I>,
     batch: Option<&B>,
@@ -796,4 +850,79 @@ where
 
         Ok(result)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+
+    use super::*;
+    use crate::database::noop_kv::NoopKvDb;
+
+    #[test]
+    fn dir_size_exceeds_empty_dir() {
+        let tmp = TempDir::new().unwrap();
+        assert_eq!(dir_size_exceeds(tmp.path(), 100).unwrap(), false);
+    }
+
+    #[test]
+    fn dir_size_exceeds_under_limit() {
+        let tmp = TempDir::new().unwrap();
+        // Write 100 bytes
+        fs::write(tmp.path().join("a.txt"), &[0u8; 100]).unwrap();
+        assert_eq!(dir_size_exceeds(tmp.path(), 200).unwrap(), false);
+    }
+
+    #[test]
+    fn dir_size_exceeds_over_limit() {
+        let tmp = TempDir::new().unwrap();
+        // Write 200 bytes across two files (also tests subdirectory traversal)
+        fs::write(tmp.path().join("a.txt"), &[0u8; 100]).unwrap();
+        let sub = tmp.path().join("subdir");
+        fs::create_dir(&sub).unwrap();
+        fs::write(sub.join("b.txt"), &[0u8; 100]).unwrap();
+        assert_eq!(dir_size_exceeds(tmp.path(), 150).unwrap(), true);
+    }
+
+    #[test]
+    fn dir_size_exceeds_nonexistent_path() {
+        let tmp = TempDir::new().unwrap();
+        let nonexistent = tmp.path().join("does_not_exist");
+        // Should return false for nonexistent path (read_dir fails gracefully)
+        assert_eq!(dir_size_exceeds(&nonexistent, 1).unwrap(), false);
+    }
+
+    #[test]
+    fn open_versioned_on_disk_invalidates_when_cache_size_exceeds_limit() {
+        let tmp = TempDir::new().unwrap();
+        let base_path = tmp.path().join("cache");
+        let stale_dir = base_path.join("stale-version");
+        fs::create_dir_all(&stale_dir).unwrap();
+        fs::write(stale_dir.join("data.bin"), vec![0u8; 256]).unwrap();
+
+        let version_info = GitVersionInfo {
+            describe: "test-version",
+            dirty: false,
+        };
+
+        let (_storage, startup_state) =
+            KeyValueDatabaseBackingStorage::<NoopKvDb>::open_versioned_on_disk(
+                base_path.clone(),
+                &version_info,
+                false,
+                Some(128),
+                |_| Ok(NoopKvDb),
+            )
+            .unwrap();
+
+        assert!(matches!(
+            startup_state,
+            StartupCacheState::Invalidated {
+                reason_code: Some(reason_code)
+            } if reason_code == invalidation_reasons::CACHE_SIZE_LIMIT
+        ));
+        assert!(!stale_dir.join("data.bin").exists());
+    }
 }

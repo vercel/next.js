@@ -62,6 +62,8 @@ pub mod invalidation_reasons {
     /// Indicates that the user explicitly clicked a button or ran a command that invalidates the
     /// cache.
     pub const USER_REQUEST: &str = concat!(module_path!(), "::USER_REQUEST");
+    /// Indicates that the cache exceeded a configured size limit.
+    pub const CACHE_SIZE_LIMIT: &str = concat!(module_path!(), "::CACHE_SIZE_LIMIT");
 }
 
 /// Atomically create an invalidation marker.

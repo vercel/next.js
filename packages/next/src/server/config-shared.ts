@@ -504,6 +504,13 @@ export interface ExperimentalConfig {
   turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
 
   /**
+   * Maximum size in bytes for Turbopack filesystem cache directories.
+   *
+   * When exceeded at startup, the cache is invalidated and cleaned up.
+   */
+  turbopackFileSystemCacheMaxSize?: number
+
+  /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   turbopackMinify?: boolean

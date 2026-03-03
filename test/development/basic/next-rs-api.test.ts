@@ -13,6 +13,7 @@ import type {
 } from 'next/dist/build/swc/types'
 import loadConfig from 'next/dist/server/config'
 import path, { join } from 'path'
+import { mkdir, writeFile } from 'fs/promises'
 import { spawnSync } from 'child_process'
 
 function normalizePath(path: string) {
@@ -837,4 +838,133 @@ describe('next.rs api', () => {
       }
     }
   }, 300000)
+})
+
+describe('next.rs api startup cache invalidation', () => {
+  it('emits startup cache invalidation event when cache size limit is exceeded', async () => {
+    const next = await createNext({
+      skipStart: true,
+      files: {
+        'pages/index.js': `export default function Page() { return <p>hello world</p> }`,
+      },
+    })
+
+    try {
+      const nextConfig = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        next.testDir,
+        {
+          customConfig: {
+            experimental: {
+              turbopackFileSystemCacheForDev: true,
+              turbopackFileSystemCacheMaxSize: 1,
+            },
+          },
+        }
+      )
+
+      const bindings = await loadBindings()
+      const rootPath = process.env.NEXT_SKIP_ISOLATE
+        ? path.resolve(__dirname, '../../..')
+        : next.testDir
+      const distDir = '.next'
+      const projectPath = path.relative(rootPath, next.testDir) || '.'
+      const distDirPath = join(next.testDir, distDir)
+
+      await mkdir(join(distDirPath, 'cache', 'turbopack'), {
+        recursive: true,
+      })
+      await writeFile(
+        join(distDirPath, 'cache', 'turbopack', 'oversized-cache.bin'),
+        Buffer.alloc(1024)
+      )
+
+      const project = await bindings.turbo.createProject(
+        {
+          env: {},
+          nextConfig,
+          rootPath,
+          projectPath,
+          distDir,
+          watch: {
+            enable: true,
+          },
+          dev: true,
+          defineEnv: createDefineEnv({
+            projectPath: next.testDir,
+            isTurbopack: true,
+            clientRouterFilters: undefined,
+            config: nextConfig,
+            dev: true,
+            distDir: join(rootPath, distDir),
+            fetchCacheKeyPrefix: undefined,
+            hasRewrites: false,
+            middlewareMatchers: undefined,
+            rewrites: {
+              beforeFiles: [],
+              afterFiles: [],
+              fallback: [],
+            },
+          }),
+          buildId: 'development',
+          encryptionKey: '12345',
+          previewProps: {
+            previewModeId: 'development',
+            previewModeEncryptionKey: '12345',
+            previewModeSigningKey: '12345',
+          },
+          browserslistQuery: 'last 2 versions',
+          noMangling: false,
+          writeRoutesHashesManifest: false,
+          currentNodeJsVersion: process.versions.node,
+          isPersistentCachingEnabled: true,
+          nextVersion: '0.0.0',
+        },
+        {
+          maxCacheSize: nextConfig.experimental.turbopackFileSystemCacheMaxSize,
+          isShortSession: false,
+        }
+      )
+
+      try {
+        const subscription = project.compilationEventsSubscribe([
+          'StartupCacheInvalidationEvent',
+        ])
+        let timeout: ReturnType<typeof setTimeout> | undefined
+        try {
+          const event = await Promise.race([
+            subscription.next().then((result) => result.value),
+            new Promise<never>((_, reject) => {
+              timeout = setTimeout(
+                () =>
+                  reject(
+                    new Error(
+                      'Timed out waiting for StartupCacheInvalidationEvent'
+                    )
+                  ),
+                10_000
+              )
+            }),
+          ])
+
+          expect(event.typeName).toBe('StartupCacheInvalidationEvent')
+          expect(event.message).toContain(
+            'cache size exceeded the configured limit'
+          )
+          expect(event.message).toContain(
+            'experimental.turbopackFileSystemCacheMaxSize'
+          )
+        } finally {
+          if (timeout) {
+            clearTimeout(timeout)
+          }
+          await subscription.return?.()
+        }
+      } finally {
+        await project.onExit()
+      }
+    } finally {
+      await next.destroy()
+    }
+  })
 })
