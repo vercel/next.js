@@ -687,11 +687,6 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn is_hot_module_replacement_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_hot_module_replacement)
-    }
-
-    #[turbo_tasks::function]
     fn chunking_configs(&self) -> Result<Vc<ChunkingConfigs>> {
         Ok(Vc::cell(self.chunking_configs.iter().cloned().collect()))
     }

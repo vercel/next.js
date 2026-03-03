@@ -63,33 +63,6 @@ impl AssetGraphContentSource {
         })
     }
 
-    /// Serves all assets references by all root_assets.
-    #[turbo_tasks::function]
-    pub fn new_eager_multiple(
-        root_path: FileSystemPath,
-        root_assets: ResolvedVc<OutputAssetsSet>,
-    ) -> Vc<Self> {
-        Self::cell(AssetGraphContentSource {
-            root_path,
-            root_assets,
-            expanded: None,
-        })
-    }
-
-    /// Serves all assets references by all root_assets. Only serve references
-    /// of an asset when it has served its content before.
-    #[turbo_tasks::function]
-    pub fn new_lazy_multiple(
-        root_path: FileSystemPath,
-        root_assets: ResolvedVc<OutputAssetsSet>,
-    ) -> Vc<Self> {
-        Self::cell(AssetGraphContentSource {
-            root_path,
-            root_assets,
-            expanded: Some(State::new(FxHashSet::default())),
-        })
-    }
-
     #[turbo_tasks::function]
     async fn all_assets_map(&self) -> Result<Vc<OutputAssetsMap>> {
         Ok(Vc::cell(
