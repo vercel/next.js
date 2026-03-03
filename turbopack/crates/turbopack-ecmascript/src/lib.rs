@@ -96,7 +96,7 @@ use turbopack_core::{
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
-        FindContextFileResult, ModulePart, find_context_file, origin::ResolveOrigin, package_json,
+        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
         parse::Request,
     },
     source::Source,
