@@ -3,17 +3,13 @@ use std::{any::Any, fmt::Debug, hash::Hash, pin::Pin};
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use futures::Future;
-use once_cell::sync::Lazy;
 use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
     magic_any::{MagicAny, any_as_encode},
-    task::{
-        IntoTaskFn, TaskFn,
-        function::{IntoTaskFnWithThis, NativeTaskFuture},
-    },
+    task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
 
 type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn MagicAny>>> + Send + 'a>>;
@@ -21,8 +17,8 @@ type ResolveFunctor = for<'a> fn(&'a dyn MagicAny) -> ResolveFuture<'a>;
 
 type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
 
-type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
-type FilterAndResolveFunctor = ResolveFunctor;
+pub type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
+pub type FilterAndResolveFunctor = ResolveFunctor;
 
 pub struct ArgMeta {
     // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
@@ -42,7 +38,25 @@ pub struct ArgMeta {
 }
 
 impl ArgMeta {
-    pub fn new<T>() -> Self
+    pub const fn new_from<T>(_t: &T) -> Self
+    where
+        T: TaskFnInputs,
+    {
+        Self::new::<T::INPUTS>()
+    }
+
+    pub const fn with_filter_trait_call_from<T>(
+        _t: &T,
+        filter_owned: FilterOwnedArgsFunctor,
+        filter_and_resolve: FilterAndResolveFunctor,
+    ) -> Self
+    where
+        T: TaskFnInputs,
+    {
+        Self::with_filter_trait_call::<T::INPUTS>(filter_owned, filter_and_resolve)
+    }
+
+    pub const fn new<T>() -> Self
     where
         T: TaskInput + Encode + Decode<()> + 'static,
     {
@@ -52,7 +66,7 @@ impl ArgMeta {
         Self::with_filter_trait_call::<T>(noop_filter_args, resolve_functor_impl::<T>)
     }
 
-    pub fn with_filter_trait_call<T>(
+    pub const fn with_filter_trait_call<T>(
         filter_owned: FilterOwnedArgsFunctor,
         filter_and_resolve: FilterAndResolveFunctor,
     ) -> Self
@@ -153,9 +167,9 @@ pub struct NativeFunction {
 
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
-    pub(crate) implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+    pub(crate) implementation: &'static dyn TaskFn,
 
-    // The globally unique name for this function, used when persisting
+    // The globally unique name for this function, used when persisting.
     pub(crate) global_name: &'static str,
 
     /// Whether this function's tasks should be treated as root nodes in the aggregation graph.
@@ -173,69 +187,50 @@ impl Debug for NativeFunction {
 }
 
 impl NativeFunction {
-    pub fn new_function<Mode, Inputs>(
+    pub const fn new_function(
         name: &'static str,
         global_name: &'static str,
-        implementation: impl IntoTaskFn<Mode, Inputs>,
+        arg_meta: ArgMeta,
+        implementation: &'static dyn TaskFn,
         is_root: bool,
-    ) -> Self
-    where
-        Inputs: TaskInput + Encode + Decode<()> + 'static,
-    {
+    ) -> Self {
         Self {
             name,
             global_name,
-            arg_meta: ArgMeta::new::<Inputs>(),
-            implementation: Box::new(implementation.into_task_fn()),
+            arg_meta,
+            implementation,
             is_root,
         }
     }
 
-    pub fn new_method_without_this<Mode, Inputs, I>(
+    pub const fn new_method_without_this(
         name: &'static str,
         global_name: &'static str,
-        arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
-        implementation: I,
+        arg_meta: ArgMeta,
+        implementation: &'static dyn TaskFn,
         is_root: bool,
-    ) -> Self
-    where
-        Inputs: TaskInput + Encode + Decode<()> + 'static,
-        I: IntoTaskFn<Mode, Inputs>,
-    {
+    ) -> Self {
         Self {
             name,
             global_name,
-            arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
-                ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
-            } else {
-                ArgMeta::new::<Inputs>()
-            },
-            implementation: Box::new(implementation.into_task_fn()),
+            arg_meta,
+            implementation,
             is_root,
         }
     }
 
-    pub fn new_method<Mode, This, Inputs, I>(
+    pub const fn new_method(
         name: &'static str,
         global_name: &'static str,
-        arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
-        implementation: I,
+        arg_meta: ArgMeta,
+        implementation: &'static dyn TaskFn,
         is_root: bool,
-    ) -> Self
-    where
-        This: Sync + Send + 'static,
-        Inputs: TaskInput + Encode + Decode<()> + 'static,
-        I: IntoTaskFnWithThis<Mode, This, Inputs>,
-    {
+    ) -> Self {
         Self {
             name,
             global_name,
-            arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
-                ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
-            } else {
-                ArgMeta::new::<Inputs>()
-            },
-            implementation: Box::new(implementation.into_task_fn_with_this()),
+            arg_meta,
+            implementation,
             is_root,
         }
     }
@@ -299,6 +294,6 @@ impl Ord for &'static NativeFunction {
     }
 }
 
-pub struct CollectableFunction(pub &'static Lazy<NativeFunction>);
+pub struct CollectableFunction(pub &'static NativeFunction);
 
 inventory::collect! {CollectableFunction}
