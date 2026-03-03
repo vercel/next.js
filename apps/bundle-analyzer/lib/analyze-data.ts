@@ -532,12 +532,22 @@ export function mergeAnalyzeData(
     ...extraHeader.output_files,
   ]
 
+  const routeRoot = baseRoots[0] ?? 0
   const mergedSourceChildren: number[][] = new Array(
     sourceOffset + appSourceCount
   )
+
+  // Graft _app roots onto the route root so the treemap (which starts at a
+  // single root and traverses source_children) can reach them. Their
+  // parent_source_index stays null, so getFullSourcePath() returns the
+  // original path, keeping import-chain lookups working.
   for (let i = 0; i < sourceOffset; i++) {
-    mergedSourceChildren[i] = routeData.sourceChildren(i)
+    mergedSourceChildren[i] =
+      i === routeRoot
+        ? [...routeData.sourceChildren(i), ...extraRoots]
+        : routeData.sourceChildren(i)
   }
+
   for (let i = 0; i < appSourceCount; i++) {
     mergedSourceChildren[sourceOffset + i] = appData
       .sourceChildren(i)
@@ -564,37 +574,6 @@ export function mergeAnalyzeData(
     mergedOutputFileChunkParts.push(
       appData.outputFileChunkParts(i).map((j) => j + chunkPartOffset)
     )
-  }
-
-  // Re-encode edges data back into the binary format expected by AnalyzeData
-  function encodeEdges(allEdges: number[][]): Uint8Array {
-    const n = allEdges.length
-    if (n === 0) return new Uint8Array(0)
-
-    const totalEdges = allEdges.reduce((sum, e) => sum + e.length, 0)
-    const byteLength = 4 + n * 4 + totalEdges * 4
-    const buf = new ArrayBuffer(byteLength)
-    const view = new DataView(buf)
-    let pos = 0
-
-    view.setUint32(pos, n, false)
-    pos += 4
-
-    let cumulative = 0
-    for (const edgeList of allEdges) {
-      cumulative += edgeList.length
-      view.setUint32(pos, cumulative, false)
-      pos += 4
-    }
-
-    for (const edgeList of allEdges) {
-      for (const edge of edgeList) {
-        view.setUint32(pos, edge, false)
-        pos += 4
-      }
-    }
-
-    return new Uint8Array(buf)
   }
 
   const sourceChildrenBytes = encodeEdges(mergedSourceChildren)
@@ -629,7 +608,7 @@ export function mergeAnalyzeData(
     output_file_chunk_parts: outputFileChunkPartsRef,
     source_chunk_parts: sourceChunkPartsRef,
     source_children: sourceChildrenRef,
-    source_roots: [...baseRoots, ...extraRoots],
+    source_roots: [...baseRoots],
   }
 
   const headerBytes = new TextEncoder().encode(JSON.stringify(mergedHeader))
@@ -653,4 +632,35 @@ export function mergeAnalyzeData(
   )
 
   return new AnalyzeData(finalBuffer)
+}
+
+// Re-encode edges data back into the binary format expected by AnalyzeData
+function encodeEdges(allEdges: number[][]): Uint8Array {
+  const n = allEdges.length
+  if (n === 0) return new Uint8Array(0)
+
+  const totalEdges = allEdges.reduce((sum, e) => sum + e.length, 0)
+  const byteLength = 4 + n * 4 + totalEdges * 4
+  const buf = new ArrayBuffer(byteLength)
+  const view = new DataView(buf)
+  let pos = 0
+
+  view.setUint32(pos, n, false)
+  pos += 4
+
+  let cumulative = 0
+  for (const edgeList of allEdges) {
+    cumulative += edgeList.length
+    view.setUint32(pos, cumulative, false)
+    pos += 4
+  }
+
+  for (const edgeList of allEdges) {
+    for (const edge of edgeList) {
+      view.setUint32(pos, edge, false)
+      pos += 4
+    }
+  }
+
+  return new Uint8Array(buf)
 }
