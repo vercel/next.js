@@ -246,10 +246,14 @@ export async function continueFizzStream(
       ? readableToWeb(opts.inlinedDataStream)
       : undefined,
   }
-  const webResult = await webContinueFizzStream(
-    readableToWeb(renderStream) as ReactDOMServerReadableStream,
-    webOpts
-  )
+  // The web continueFizzStream reads renderStream.allReady from the stream
+  // object itself (ReactDOMServerReadableStream). A plain ReadableStream from
+  // readableToWeb() won't have that property, so we attach it from opts.
+  const webStream = readableToWeb(renderStream)
+  const fizzLike = Object.assign(webStream, {
+    allReady: opts.allReady ?? Promise.resolve(),
+  }) as ReactDOMServerReadableStream
+  const webResult = await webContinueFizzStream(fizzLike, webOpts)
   return webToReadable(webResult)
 }
 
