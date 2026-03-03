@@ -223,7 +223,7 @@ pub fn create_turbo_tasks(
             BackendOptions {
                 storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
                     turbo_tasks_backend::StorageMode::ReadOnly
-                } else if is_ci {
+                } else if is_ci || is_short_session {
                     turbo_tasks_backend::StorageMode::ReadWriteOnShutdown
                 } else {
                     turbo_tasks_backend::StorageMode::ReadWrite
