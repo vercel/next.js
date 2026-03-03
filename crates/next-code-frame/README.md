@@ -71,7 +71,7 @@ scanner would tokenize hundreds of kilobytes of invisible content.
 **Known limitation:** The `;` can land inside a string literal, causing an
 unbalanced quote that cascades incorrect highlighting across the visible window.
 In practice minified code has frequent `;` between statements so this rarely
-triggers, and the consequence is only wrong colors, never a failure.
+triggers, and the consequence is only incorrect highlighting, never a failure.
 
 ## Features
 

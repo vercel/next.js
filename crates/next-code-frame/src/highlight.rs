@@ -695,8 +695,8 @@ impl Scanner<'_> {
         //
         // Escapes (`\`) are handled by advancing `i` past the escaped byte
         // when a match at `pos` is preceded by an odd number of backslashes.
-        let mut iter = memchr::Memchr2::new(b'`', b'$', &bytes[search_start..scan_end]);
-        while let Some(found) = iter.next() {
+        let iter = memchr::Memchr2::new(b'`', b'$', &bytes[search_start..scan_end]);
+        for found in iter {
             let pos = search_start + found;
             // Skip positions we've already moved past (after expression scan)
             if pos < i {
