@@ -20,15 +20,20 @@ use turbo_tasks::{
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, File, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
     json::parse_json_with_source_context,
 };
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
+    collect_module::CollectModuleType,
+    module_options::{
+        EcmascriptOptionsContext, ModuleOptionsContext, ModuleRule, ModuleRuleEffect, ModuleType,
+        RuleCondition, TypescriptTransformOptions,
+    },
 };
 use turbopack_core::{
+    asset::AssetContent,
     chunk::{ChunkingConfig, MangleType, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -36,16 +41,17 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
-    ident::Layer,
+    ident::{AssetIdent, Layer},
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
         ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
     },
-    reference_type::{InnerAssets, ReferenceType},
+    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
-        ExternalTraced, ExternalType,
+        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem,
         options::{ImportMap, ImportMapping},
     },
+    virtual_source::VirtualSource,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
@@ -273,6 +279,8 @@ struct TestOptions {
     remove_unused_exports: bool,
     #[serde(default = "default_true")]
     scope_hoisting: bool,
+    #[serde(default = "default_true")]
+    infer_module_side_effects: bool,
     #[serde(default)]
     minify: bool,
     #[serde(default)]
@@ -294,6 +302,7 @@ impl Default for TestOptions {
             remove_unused_exports: default_true(),
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
+            infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
         }
@@ -423,6 +432,22 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .resolved_cell(),
     );
 
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/collect"),
+        ImportMapping::Direct(
+            ResolveResult::primary(ResolveResultItem::Source(ResolvedVc::upcast(
+                VirtualSource::new_with_ident(
+                    AssetIdent::from_path(project_path.join("turbopack-collect")?),
+                    AssetContent::File(FileContent::Content(File::from("")).resolved_cell()).cell(),
+                )
+                .to_resolved()
+                .await?,
+            )))
+            .resolved_cell(),
+        )
+        .resolved_cell(),
+    );
+
     let mut fallback_import_map = ImportMap::empty();
     fallback_import_map.insert_exact_alias(
         rcstr!("fallback"),
@@ -445,7 +470,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_import_as_bytes: true,
                 import_externals: true,
                 enable_exports_info_inlining: true,
-                infer_module_side_effects: true,
+                infer_module_side_effects: options.infer_module_side_effects,
                 ..Default::default()
             },
             environment: Some(env),
@@ -457,6 +482,18 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                     ..Default::default()
                 }
                 .resolved_cell(),
+            )],
+            module_rules: vec![ModuleRule::new(
+                RuleCondition::All(vec![
+                    // TODO
+                    RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Undefined,
+                    )),
+                    RuleCondition::ResourcePathEndsWith("turbopack-collect".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
+                    ResolvedVc::upcast(CollectModuleType::new().to_resolved().await?),
+                ))],
             )],
             ..Default::default()
         }
