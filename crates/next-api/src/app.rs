@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
@@ -1820,12 +1820,6 @@ impl AppEndpoint {
                     .concatenate(chunk_group2_assets)
             }
             NextRuntime::NodeJs => {
-                let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
-                    bail!("rsc_entry must be evaluatable");
-                };
-
-                let evaluatable_assets = Vc::cell(vec![rsc_entry]);
-
                 async {
                     let mut current_chunk_group = ChunkGroupResult::empty_resolved();
 
@@ -1925,7 +1919,7 @@ impl AppEndpoint {
                                             "app{original_name}.js",
                                             original_name = app_entry.original_name
                                         ))?,
-                                        evaluatable_assets,
+                                        ChunkGroup::Entry(vec![app_entry.rsc_entry]),
                                         module_graph,
                                         *current_chunks,
                                         current_referenced_assets,
