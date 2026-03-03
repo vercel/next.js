@@ -227,7 +227,7 @@ export async function resumeAndAbort(
     opts
   )
   pipeable.pipe(pt)
-  pipeable.abort()
+  pipeable.abort(opts?.signal?.reason)
   return pt
 }
 

@@ -6545,7 +6545,9 @@ async function prerenderToStream(
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
           const foreverStream = createPendingStream()
-          const resumePrelude = await resumeAndAbort(
+          const resumePrelude = await workUnitAsyncStorage.run(
+            finalServerPrerenderStore,
+            resumeAndAbort,
             // eslint-disable-next-line @next/internal/no-ambiguous-jsx
             <App
               reactServerStream={foreverStream}
