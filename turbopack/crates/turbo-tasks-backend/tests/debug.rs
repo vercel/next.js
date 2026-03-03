@@ -231,11 +231,6 @@ struct StructWithTransparent {
 }
 
 #[turbo_tasks::value(shared)]
-struct StructWithOption {
-    option: Option<ResolvedVc<Transparent>>,
-}
-
-#[turbo_tasks::value(shared)]
 struct StructWithVec {
     vec: Vec<ResolvedVc<Transparent>>,
 }

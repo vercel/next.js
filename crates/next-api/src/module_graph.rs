@@ -766,11 +766,6 @@ impl Issue for CssGlobalImportIssue {
     // TODO(PACK-4879): compute the source information by following the module references
 }
 
-type FxModuleNameMap = FxIndexMap<ResolvedVc<Box<dyn Module>>, RcStr>;
-
-#[turbo_tasks::value(transparent)]
-struct ModuleNameMap(#[bincode(with = "turbo_bincode::indexmap")] pub FxModuleNameMap);
-
 #[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
 #[turbo_tasks::function]
 async fn validate_pages_css_imports_individual(

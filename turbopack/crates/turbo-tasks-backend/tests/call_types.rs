@@ -186,14 +186,6 @@ trait ValueTrait {
     #[turbo_tasks::function]
     async fn async_static_trait_method() -> Result<Vc<u32>>;
     #[turbo_tasks::function]
-    fn default_static_trait_method() -> Vc<u32> {
-        Vc::cell(42)
-    }
-    #[turbo_tasks::function]
-    fn default_async_static_trait_method() -> Result<Vc<u32>> {
-        Ok(Vc::cell(42))
-    }
-    #[turbo_tasks::function]
     fn trait_method(&self) -> Vc<u32>;
     #[turbo_tasks::function]
     fn async_trait_method(&self) -> Result<Vc<u32>>;
