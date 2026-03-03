@@ -50,7 +50,7 @@ The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches
 
 ### Data-level caching
 
-To cache an asynchronous functions that fetches data, add the `use cache` directive at the top of the function body:
+To cache an asynchronous function that fetches data, add the `use cache` directive at the top of the function body:
 
 ```tsx filename="app/lib/data.ts" highlight={3,4,5}
 import { cacheLife } from 'next/cache'
