@@ -222,9 +222,10 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
  * Returns { unsupported, path? } if the value contains unsupported nodes.
  */
 export function extractExportedConstValue(
-  module: Module,
+  module: Module | null,
   exportedName: string
 ): ExtractValueResult | null {
+  if (!module) return null
   for (const moduleItem of module.body) {
     if (!isExportDeclaration(moduleItem)) {
       continue
