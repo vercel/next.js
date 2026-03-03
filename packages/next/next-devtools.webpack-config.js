@@ -73,7 +73,11 @@ module.exports = ({ dev, ...rest }) => {
           test: /\.(ts|tsx)$/,
           exclude: [/node_modules/],
           loader: 'builtin:swc-loader',
+          /** @type {import('@rspack/core').SwcLoaderOptions} */
           options: {
+            env: {
+              targets: MODERN_BROWSERSLIST_TARGET,
+            },
             jsc: {
               parser: {
                 syntax: 'typescript',
