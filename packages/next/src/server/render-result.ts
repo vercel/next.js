@@ -1,5 +1,5 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { Readable } from 'node:stream'
+import type { Readable } from 'stream'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 import type { PrefetchHints } from '../shared/lib/app-router-types'
@@ -248,9 +248,16 @@ export default class RenderResult<
     }
 
     if (isNodeReadable(this.response)) {
-      const { Readable: NodeReadable } =
-        require(/* webpackIgnore: true */ 'node:stream') as typeof import('node:stream')
-      return NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>
+      if (process.env.TURBOPACK) {
+        const { Readable: NodeReadable } =
+          require('stream') as typeof import('stream')
+        return NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>
+      } else {
+        const { Readable: NodeReadable } = __non_webpack_require__(
+          'stream'
+        ) as typeof import('stream')
+        return NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>
+      }
     }
 
     return this.response
@@ -276,9 +283,16 @@ export default class RenderResult<
     } else if (Buffer.isBuffer(this.response)) {
       return [streamFromBuffer(this.response)]
     } else if (isNodeReadable(this.response)) {
-      const { Readable: NodeReadable } =
-        require(/* webpackIgnore: true */ 'node:stream') as typeof import('node:stream')
-      return [NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>]
+      if (process.env.TURBOPACK) {
+        const { Readable: NodeReadable } =
+          require('stream') as typeof import('stream')
+        return [NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>]
+      } else {
+        const { Readable: NodeReadable } = __non_webpack_require__(
+          'stream'
+        ) as typeof import('stream')
+        return [NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>]
+      }
     } else {
       return [this.response]
     }
