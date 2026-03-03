@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use rustc_hash::FxHashSet;
+use smallvec::SmallVec;
 use turbo_bincode::{
     TurboBincodeBuffer, new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode,
     turbo_bincode_encode_into,
@@ -274,10 +274,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         // From measuring a large application the largest TaskType was ~365b, so this should be big
         // enough to trigger no resizes in the loop.
         const INITIAL_ENCODE_BUFFER_CAPACITY: usize = 512;
-        #[cfg(feature = "print_cache_item_size")]
-        let all_stats: std::sync::Mutex<
-            std::collections::HashMap<&'static str, TaskTypeCacheStats>,
-        > = std::sync::Mutex::new(std::collections::HashMap::new());
         // Start organizing the updates in parallel
         match &mut batch {
             &mut WriteBatch::Concurrent(ref batch, _) => {
@@ -312,25 +308,20 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         |updates| {
                             let _span = _span.clone().entered();
                             let mut max_task_id = 0;
-                            let mut seen = FxHashSet::default();
 
-                            // Re-use the same buffer across every `serialize_task_type` call in
+                            // Re-use the same buffer across every `compute_task_type_hash` call in
                             // this chunk. `ConcurrentWriteBatch::put` will copy the data out of
                             // this buffer into smaller exact-sized vecs.
                             let mut task_type_bytes =
                                 TurboBincodeBuffer::with_capacity(INITIAL_ENCODE_BUFFER_CAPACITY);
                             for (task_type, task_id) in updates {
-                                if !seen.insert(task_id) {
-                                    continue;
-                                }
-                                task_type_bytes.clear();
-                                encode_task_type(&task_type, &mut task_type_bytes, Some(task_id))?;
+                                let hash = compute_task_type_hash(&task_type, &mut task_type_bytes);
                                 let task_id: u32 = *task_id;
 
                                 batch
                                     .put(
                                         KeySpace::TaskCache,
-                                        WriteBuffer::Borrowed(&task_type_bytes),
+                                        WriteBuffer::Borrowed(&hash.to_le_bytes()),
                                         WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                                     )
                                     .with_context(|| {
@@ -338,13 +329,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                             "Unable to write task cache {task_type:?} => {task_id}"
                                         )
                                     })?;
-                                #[cfg(feature = "print_cache_item_size")]
-                                all_stats
-                                    .lock()
-                                    .unwrap()
-                                    .entry(task_type.get_name())
-                                    .or_default()
-                                    .add(&task_type_bytes);
                                 max_task_id = max_task_id.max(task_id);
                             }
 
@@ -406,30 +390,19 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                     // smaller exact-sized vecs.
                     let mut task_type_bytes =
                         TurboBincodeBuffer::with_capacity(INITIAL_ENCODE_BUFFER_CAPACITY);
-                    let mut seen = FxHashSet::default();
                     for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
-                        if !seen.insert(task_id) {
-                            continue;
-                        }
-                        encode_task_type(&task_type, &mut task_type_bytes, Some(task_id))?;
+                        let hash = compute_task_type_hash(&task_type, &mut task_type_bytes);
                         let task_id = *task_id;
 
                         batch
                             .put(
                                 KeySpace::TaskCache,
-                                WriteBuffer::Borrowed(&task_type_bytes),
+                                WriteBuffer::Borrowed(&hash.to_le_bytes()),
                                 WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                             )
                             .with_context(|| {
                                 format!("Unable to write task cache {task_type:?} => {task_id}")
                             })?;
-                        #[cfg(feature = "print_cache_item_size")]
-                        all_stats
-                            .lock()
-                            .unwrap()
-                            .entry(task_type.get_name())
-                            .or_default()
-                            .add(&task_type_bytes);
                         next_task_id = next_task_id.max(task_id + 1);
                     }
                 }
@@ -441,8 +414,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 )?;
             }
         }
-        #[cfg(feature = "print_cache_item_size")]
-        print_task_type_cache_stats(all_stats.into_inner().unwrap());
 
         {
             let _span = tracing::trace_span!("commit").entered();
@@ -455,30 +426,32 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         self.inner.database.begin_read_transaction().ok()
     }
 
-    unsafe fn forward_lookup_task_cache(
+    unsafe fn lookup_task_candidates(
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_type: &CachedTaskType,
-    ) -> Result<Option<TaskId>> {
+    ) -> Result<SmallVec<[TaskId; 1]>> {
         let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
             task_type: &CachedTaskType,
-        ) -> Result<Option<TaskId>> {
-            let mut task_type_bytes = TurboBincodeBuffer::new();
-            encode_task_type(task_type, &mut task_type_bytes, None)?;
-            let Some(bytes) = database.get(tx, KeySpace::TaskCache, &task_type_bytes)? else {
-                return Ok(None);
-            };
-            let bytes = bytes.borrow().try_into()?;
-            let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
-            Ok(Some(id))
+        ) -> Result<SmallVec<[TaskId; 1]>> {
+            let hash = compute_task_type_hash(task_type, &mut TurboBincodeBuffer::new());
+            let buffers = database.get_multiple(tx, KeySpace::TaskCache, &hash.to_le_bytes())?;
+
+            let mut task_ids = SmallVec::with_capacity(buffers.len());
+            for bytes in buffers {
+                let bytes = bytes.borrow().try_into()?;
+                let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
+                task_ids.push(id);
+            }
+            Ok(task_ids)
         }
         if inner.database.is_empty() {
             // Checking if the database is empty is a performance optimization
-            // to avoid serializing the task type.
-            return Ok(None);
+            // to avoid computing the hash.
+            return Ok(SmallVec::new());
         }
         inner
             .with_tx(tx, |tx| lookup(&self.inner.database, tx, task_type))
@@ -615,70 +588,34 @@ where
     Ok(())
 }
 
-fn encode_task_type(
+/// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
+///
+/// This uses the existing TurboBincodeEncode implementation which is deterministic
+/// (function IDs from registry, bincode argument encoding), then hashes the result
+/// with XxHash64.
+fn compute_task_type_hash(
     task_type: &CachedTaskType,
-    buffer: &mut TurboBincodeBuffer,
-    task_id: Option<TaskId>,
-) -> Result<()> {
-    fn encode_once_into(
-        task_type: &CachedTaskType,
-        buffer: &mut TurboBincodeBuffer,
-        task_id: Option<TaskId>,
-    ) -> Result<()> {
-        turbo_bincode_encode_into(task_type, buffer).with_context(|| {
-            if let Some(task_id) = task_id {
-                format!("Unable to serialize task {task_id} cache key {task_type:?}")
-            } else {
-                format!("Unable to serialize task cache key {task_type:?}")
-            }
-        })
-    }
-
-    debug_assert!(buffer.is_empty());
-    encode_once_into(task_type, buffer, task_id)?;
+    scratch_buffer: &mut TurboBincodeBuffer,
+) -> u64 {
+    // TODO: use a custom encoder that can directly hash without filling a buffer
+    // This should not fail for valid task types - the encoding is deterministic
+    turbo_bincode_encode_into(task_type, scratch_buffer)
+        .expect("CachedTaskType encoding should not fail");
+    let hash = turbo_persistence::hash_key(&scratch_buffer.as_slice());
+    scratch_buffer.clear();
 
     if cfg!(feature = "verify_serialization") {
-        macro_rules! println_and_panic {
-            ($($tt:tt)*) => {
-                println!($($tt)*);
-                panic!($($tt)*);
-            };
-        }
-        let deserialize: Result<CachedTaskType, _> = turbo_bincode_decode(buffer);
-        match deserialize {
-            Err(err) => {
-                println_and_panic!("Task type would not be deserializable:\n{err:?}");
-            }
-            Ok(task_type2) => {
-                if &task_type2 != task_type {
-                    println_and_panic!(
-                        "Task type would not round-trip {task_id:?}:\noriginal: \
-                         {task_type:#?}\nround-tripped: {task_type2:#?}"
-                    );
-                }
-                let mut buffer2 = TurboBincodeBuffer::new();
-                match encode_once_into(&task_type2, &mut buffer2, task_id) {
-                    Err(err) => {
-                        println_and_panic!(
-                            "Task type would not be serializable the second time:\n{err:?}"
-                        );
-                    }
-                    Ok(()) => {
-                        if buffer2 != *buffer {
-                            println_and_panic!(
-                                "Task type would not serialize to the same bytes the second time \
-                                 {task_id:?}:\noriginal: {:x?}\nsecond: {:x?}\n{task_type2:#?}",
-                                buffer,
-                                buffer2
-                            );
-                        }
-                    }
-                }
-            }
-        }
+        turbo_bincode_encode_into(task_type, scratch_buffer)
+            .expect("CachedTaskType encoding should not fail");
+        let hash2 = turbo_persistence::hash_key(&scratch_buffer.as_slice());
+        scratch_buffer.clear();
+        assert_eq!(
+            hash, hash2,
+            "Encoding TaskType twice was non-deterministic: \n{:?}\ngot hashes {} != {}",
+            task_type, hash, hash2
+        );
     }
-
-    Ok(())
+    hash
 }
 
 type SerializedTasks = Vec<
@@ -689,67 +626,6 @@ type SerializedTasks = Vec<
     )>,
 >;
 
-#[cfg(feature = "print_cache_item_size")]
-#[derive(Default)]
-struct TaskTypeCacheStats {
-    key_size: usize,
-    key_size_compressed: usize,
-    count: usize,
-}
-
-#[cfg(feature = "print_cache_item_size")]
-impl TaskTypeCacheStats {
-    fn compressed_size(data: &[u8]) -> Result<usize> {
-        Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
-            data,
-            &mut Vec::new(),
-            lzzzz::lz4::ACC_LEVEL_DEFAULT,
-        )?)
-    }
-    fn add(&mut self, key_bytes: &[u8]) {
-        self.key_size += key_bytes.len();
-        self.key_size_compressed += Self::compressed_size(key_bytes).unwrap_or(0);
-        self.count += 1;
-    }
-}
-
-#[cfg(feature = "print_cache_item_size")]
-fn print_task_type_cache_stats(stats: std::collections::HashMap<&'static str, TaskTypeCacheStats>) {
-    use turbo_tasks::util::FormatBytes;
-
-    let mut stats: Vec<_> = stats.into_iter().collect();
-    if stats.is_empty() {
-        return;
-    }
-    stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
-        (stats_b.key_size_compressed, *key_b).cmp(&(stats_a.key_size_compressed, *key_a))
-    });
-    println!(
-        "Task type cache stats: {} ({})",
-        FormatBytes(
-            stats
-                .iter()
-                .map(|(_, s)| s.key_size_compressed)
-                .sum::<usize>()
-        ),
-        FormatBytes(stats.iter().map(|(_, s)| s.key_size).sum::<usize>())
-    );
-    for (fn_name, stats) in stats {
-        println!(
-            "  {} ({}) {fn_name}  x {} avg {} ({})",
-            FormatBytes(stats.key_size_compressed),
-            FormatBytes(stats.key_size),
-            stats.count,
-            FormatBytes(
-                stats
-                    .key_size_compressed
-                    .checked_div(stats.count)
-                    .unwrap_or(0)
-            ),
-            FormatBytes(stats.key_size.checked_div(stats.count).unwrap_or(0)),
-        );
-    }
-}
 fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, I>(
     tasks: Vec<I>,
     batch: Option<&B>,
@@ -796,4 +672,91 @@ where
 
         Ok(result)
     })
+}
+#[cfg(test)]
+mod tests {
+    use std::borrow::Borrow;
+
+    use turbo_tasks::TaskId;
+
+    use super::*;
+    use crate::database::{
+        key_value_database::KeyValueDatabase,
+        turbo::TurboKeyValueDatabase,
+        write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
+    };
+
+    /// Helper to write to the database using the concurrent batch API.
+    fn write_task_cache_entry(
+        db: &TurboKeyValueDatabase,
+        hash: u64,
+        task_id: TaskId,
+    ) -> Result<()> {
+        let batch = db.write_batch()?;
+        match batch {
+            WriteBatch::Concurrent(concurrent, _) => {
+                concurrent.put(
+                    KeySpace::TaskCache,
+                    WriteBuffer::Borrowed(&hash.to_le_bytes()),
+                    WriteBuffer::Borrowed(&(*task_id).to_le_bytes()),
+                )?;
+                concurrent.commit()?;
+            }
+            WriteBatch::Serial(_) => {
+                panic!("Expected concurrent batch");
+            }
+        }
+        Ok(())
+    }
+
+    /// Tests that `get_multiple` correctly returns multiple TaskIds when the same hash key
+    /// is used (simulating a hash collision scenario).
+    ///
+    /// This is a lower-level test that verifies the database layer correctly handles
+    /// the case where multiple task IDs are stored under the same hash key.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_hash_collision_returns_multiple_candidates() -> Result<()> {
+        let tempdir = tempfile::tempdir()?;
+        let path = tempdir.path();
+
+        // Use is_short_session=true to disable background compaction (which requires turbo-tasks
+        // context)
+        let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true)?;
+
+        // Simulate a hash collision by writing multiple TaskIds with the same hash key
+        let collision_hash: u64 = 0xDEADBEEF;
+        let task_id_1 = TaskId::try_from(100u32).unwrap();
+        let task_id_2 = TaskId::try_from(200u32).unwrap();
+        let task_id_3 = TaskId::try_from(300u32).unwrap();
+
+        // Write three task IDs under the same hash key (simulating collision)
+        // Each write creates a new SST file, so all three will be returned by get_multiple
+        write_task_cache_entry(&db, collision_hash, task_id_1)?;
+        write_task_cache_entry(&db, collision_hash, task_id_2)?;
+        write_task_cache_entry(&db, collision_hash, task_id_3)?;
+
+        // Now query using get_multiple - should return all three TaskIds
+        let results = db.get_multiple(&(), KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
+
+        assert_eq!(
+            results.len(),
+            3,
+            "Should return all 3 task IDs for the colliding hash"
+        );
+
+        // Convert results to TaskIds and verify all three are present
+        let mut found_ids: Vec<TaskId> = results
+            .iter()
+            .map(|bytes| {
+                let bytes: [u8; 4] = Borrow::<[u8]>::borrow(bytes).try_into().unwrap();
+                TaskId::try_from(u32::from_le_bytes(bytes)).unwrap()
+            })
+            .collect();
+        found_ids.sort_by_key(|id| **id);
+
+        assert_eq!(found_ids, vec![task_id_1, task_id_2, task_id_3]);
+
+        db.shutdown()?;
+        Ok(())
+    }
 }
