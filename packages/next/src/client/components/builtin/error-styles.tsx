@@ -5,14 +5,13 @@ export const errorStyles = {
     fontFamily:
       'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
-    maxWidth: '325px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   card: {
     marginTop: '-32px',
-    maxWidth: '420px',
+    maxWidth: '325px',
     padding: '32px 28px',
     textAlign: 'left' as const,
   },
