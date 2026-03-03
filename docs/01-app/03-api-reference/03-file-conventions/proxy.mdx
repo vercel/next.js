@@ -26,10 +26,10 @@ If you’ve customized [`pageExtensions`](/docs/app/api-reference/config/next-co
 
 ```tsx filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
-import type { NextProxy } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 // This function can be marked `async` if using `await` inside
-export const proxy: NextProxy = (request) => {
+export function proxy(request: NextRequest) {
   return NextResponse.redirect(new URL('/home', request.url))
 }
 
@@ -42,7 +42,7 @@ export const config = {
 import { NextResponse } from 'next/server'
 
 // This function can be marked `async` if using `await` inside
-export const proxy = (request) => {
+export function proxy(request) {
   return NextResponse.redirect(new URL('/home', request.url))
 }
 
@@ -59,7 +59,7 @@ The file must export a single function, either as a default export or named `pro
 
 ```js filename="proxy.js"
 // Example of default export
-const proxy = (request) => {
+function proxy(request) {
   // Proxy logic
 }
 export default proxy
@@ -140,16 +140,27 @@ Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp
 When defining Proxy, the default export function accepts a single parameter, `request`. This parameter is an instance of `NextRequest`, which represents the incoming HTTP request.
 
 ```tsx filename="proxy.ts" switcher
-import type { NextProxy } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export const proxy: NextProxy = (request) => {
+export function proxy(request: NextRequest) {
   // Proxy logic goes here
 }
 ```
 
 ```js filename="proxy.js" switcher
-export const proxy = (request) => {
+export function proxy(request) {
   // Proxy logic goes here
+}
+```
+
+If you prefer a shorthand, you can use the `NextProxy` type. It infers the parameter types for both `request` (`NextRequest`) and `event` (`NextFetchEvent`) automatically:
+
+```tsx filename="proxy.ts"
+import type { NextProxy } from 'next/server'
+
+export const proxy: NextProxy = (request, event) => {
+  event.waitUntil(Promise.resolve())
+  return Response.json({ pathname: request.nextUrl.pathname })
 }
 ```
 
@@ -264,9 +275,9 @@ export default async function proxy(req) {
 
 ```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
-import type { NextProxy } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export const proxy: NextProxy = (request) => {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/about')) {
     return NextResponse.rewrite(new URL('/about-2', request.url))
   }
@@ -280,7 +291,7 @@ export const proxy: NextProxy = (request) => {
 ```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 
-export const proxy = (request) => {
+export function proxy(request) {
   if (request.nextUrl.pathname.startsWith('/about')) {
     return NextResponse.rewrite(new URL('/about-2', request.url))
   }
@@ -300,9 +311,9 @@ Cookies are regular headers. On a `Request`, they are stored in the `Cookie` hea
 
 ```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
-import type { NextProxy } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export const proxy: NextProxy = (request) => {
+export function proxy(request: NextRequest) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
   let cookie = request.cookies.get('nextjs')
@@ -333,7 +344,7 @@ export const proxy: NextProxy = (request) => {
 ```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 
-export const proxy = (request) => {
+export function proxy(request) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
   let cookie = request.cookies.get('nextjs')
@@ -367,9 +378,9 @@ You can set request and response headers using the `NextResponse` API (setting _
 
 ```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
-import type { NextProxy } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export const proxy: NextProxy = (request) => {
+export function proxy(request: NextRequest) {
   // Clone the request headers and set a new header `x-hello-from-proxy1`
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-hello-from-proxy1', 'hello')
@@ -391,7 +402,7 @@ export const proxy: NextProxy = (request) => {
 ```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 
-export const proxy = (request) => {
+export function proxy(request) {
   // Clone the request headers and set a new header `x-hello-from-proxy1`
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-hello-from-proxy1', 'hello')
@@ -425,7 +436,7 @@ You can set CORS headers in Proxy to allow cross-origin requests, including [sim
 
 ```tsx filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
-import type { NextProxy } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 const allowedOrigins = ['https://acme.com', 'https://my-app.org']
 
@@ -434,7 +445,7 @@ const corsOptions = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
 
-export const proxy: NextProxy = (request) => {
+export function proxy(request: NextRequest) {
   // Check the origin from the request
   const origin = request.headers.get('origin') ?? ''
   const isAllowedOrigin = allowedOrigins.includes(origin)
@@ -479,7 +490,7 @@ const corsOptions = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
 
-export const proxy = (request) => {
+export function proxy(request) {
   // Check the origin from the request
   const origin = request.headers.get('origin') ?? ''
   const isAllowedOrigin = allowedOrigins.includes(origin)
@@ -525,7 +536,7 @@ export const config = {
 You can respond from Proxy directly by returning a `Response` or `NextResponse` instance. (This is available since [Next.js v13.1.0](https://nextjs.org/blog/next-13-1#nextjs-advanced-proxy))
 
 ```ts filename="proxy.ts" switcher
-import type { NextProxy } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { isAuthenticated } from '@lib/auth'
 
 // Limit the proxy to paths starting with `/api/`
@@ -533,7 +544,7 @@ export const config = {
   matcher: '/api/:function*',
 }
 
-export const proxy: NextProxy = (request) => {
+export function proxy(request: NextRequest) {
   // Call our authentication function to check the request
   if (!isAuthenticated(request)) {
     // Respond with JSON indicating an error message
@@ -553,7 +564,7 @@ export const config = {
   matcher: '/api/:function*',
 }
 
-export const proxy = (request) => {
+export function proxy(request) {
   // Call our authentication function to check the request
   if (!isAuthenticated(request)) {
     // Respond with JSON indicating an error message
@@ -645,9 +656,9 @@ The `waitUntil()` method takes a promise as an argument, and extends the lifetim
 
 ```ts filename="proxy.ts"
 import { NextResponse } from 'next/server'
-import type { NextProxy } from 'next/server'
+import type { NextFetchEvent, NextRequest } from 'next/server'
 
-export const proxy: NextProxy = (req, event) => {
+export function proxy(req: NextRequest, event: NextFetchEvent) {
   event.waitUntil(
     fetch('https://my-analytics-platform.com', {
       method: 'POST',
