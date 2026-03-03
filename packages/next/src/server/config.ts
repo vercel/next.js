@@ -2046,7 +2046,7 @@ function setExperimentalFeatureForDebugPrerender<
   }
 }
 
-function cloneObject(obj: any): any {
+function cloneObject(obj: any, seen: WeakSet<object> = new WeakSet()): any {
   // Primitives & null
   if (obj === null || typeof obj !== 'object') {
     return obj
@@ -2062,9 +2062,15 @@ function cloneObject(obj: any): any {
     return obj
   }
 
+  // Circular reference guard → return the original reference to break the cycle
+  if (seen.has(obj)) {
+    return obj
+  }
+  seen.add(obj)
+
   // Arrays → map each element
   if (Array.isArray(obj)) {
-    return obj.map(cloneObject)
+    return obj.map((item) => cloneObject(item, seen))
   }
 
   // Detect non‑plain objects (class instances)
@@ -2088,7 +2094,7 @@ function cloneObject(obj: any): any {
       Object.defineProperty(result, key, descriptor)
     } else {
       // Data property → clone the value
-      result[key] = cloneObject(obj[key])
+      result[key] = cloneObject(obj[key], seen)
     }
   }
 
