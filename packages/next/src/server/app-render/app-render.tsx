@@ -12,7 +12,6 @@ import type {
   InitialRSCPayload,
   FlightDataPath,
 } from '../../shared/lib/app-router-types'
-import { ResponseCompletenessMarker } from '../../shared/lib/app-router-types'
 import type { Readable } from 'node:stream'
 import {
   workAsyncStorage,
@@ -1314,14 +1313,20 @@ async function prospectiveRuntimeServerPrerender(
   }
 }
 
-function prependCompletenessMarker(
+/**
+ * Prepends a single ASCII byte to the stream indicating whether the response
+ * is partial (contains dynamic holes): '~' (0x7e) for partial, '#' (0x23)
+ * for complete.
+ */
+function prependIsPartialByte(
   stream: ReadableStream<Uint8Array>,
-  completenessMarker: ResponseCompletenessMarker
+  isPartial: boolean
 ): ReadableStream<Uint8Array> {
+  const byte = new Uint8Array([isPartial ? 0x7e : 0x23])
   return stream.pipeThrough(
     new TransformStream({
       start(controller) {
-        controller.enqueue(new Uint8Array([completenessMarker]))
+        controller.enqueue(byte)
       },
     })
   )
@@ -1451,12 +1456,7 @@ async function finalRuntimeServerPrerender(
     }
   )
 
-  result.prelude = prependCompletenessMarker(
-    result.prelude,
-    serverIsDynamic
-      ? ResponseCompletenessMarker.Partial
-      : ResponseCompletenessMarker.Complete
-  )
+  result.prelude = prependIsPartialByte(result.prelude, serverIsDynamic)
 
   return {
     result,
@@ -5371,12 +5371,7 @@ async function prerenderToStream(
       })
 
       metadata.flightData = await streamToBuffer(
-        prependCompletenessMarker(
-          reactServerResult.asStream(),
-          serverIsDynamic
-            ? ResponseCompletenessMarker.Partial
-            : ResponseCompletenessMarker.Static
-        )
+        prependIsPartialByte(reactServerResult.asStream(), serverIsDynamic)
       )
 
       // collectSegmentData needs the raw flight data without the marker byte.

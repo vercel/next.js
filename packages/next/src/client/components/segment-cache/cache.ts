@@ -29,7 +29,6 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
-  ResponseCompleteness,
   type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
@@ -95,7 +94,6 @@ import type {
   FlightRouterState,
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
-import { ResponseCompletenessMarker } from '../../../shared/lib/app-router-types'
 import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
@@ -2278,22 +2276,11 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 
     const now = Date.now()
     const staleAt = await getStaleAt(now, serverData.s, response)
-    const completenessMarker = cacheData?.completenessMarker ?? null
-
-    // Derive the completeness level from the fetch strategy and the server's
-    // completeness marker. For PPRRuntime prefetches, the marker distinguishes
-    // partial (~), complete (*), and fully static (#) responses. For
-    // Full/LoadingBoundary prefetches, segments are always complete but the
-    // head may still be partial (e.g. dynamic metadata behind a loading
-    // boundary), so we use Complete rather than FullyStatic.
-    const completeness: ResponseCompleteness =
-      fetchStrategy === FetchStrategy.PPRRuntime
-        ? completenessMarker === ResponseCompletenessMarker.Static
-          ? ResponseCompleteness.Static
-          : completenessMarker === ResponseCompletenessMarker.Partial
-            ? ResponseCompleteness.Partial
-            : ResponseCompleteness.Complete
-        : ResponseCompleteness.Complete
+    // PPRRuntime prefetches are partial when the server marks the response
+    // as '~' (Partial). Full/LoadingBoundary prefetches are always complete.
+    const isResponsePartial =
+      fetchStrategy === FetchStrategy.PPRRuntime &&
+      (cacheData?.isResponsePartial ?? false)
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
@@ -2305,7 +2292,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       fetchStrategy,
       serverData.f,
       buildId,
-      completeness,
+      isResponsePartial,
       headVaryParams,
       staleAt,
       route,
@@ -2357,14 +2344,11 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const flightRouterState = flightData.tree
-  // If the response contains dynamic holes, then we must conservatively assume
-  // that any individual segment might contain dynamic holes, and also the head.
-  // If it did not contain dynamic holes, then we can assume every included
-  // segment and the head is completely static.
-  const completeness =
+  // If the response was postponed, segments may contain dynamic holes.
+  // The head has its own partiality flag (flightDataEntry.isHeadPartial)
+  // which is handled separately in writeDynamicRenderResponseIntoCache.
+  const isResponsePartial =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
-      ? ResponseCompleteness.Partial
-      : ResponseCompleteness.Complete
 
   // Convert the server-sent data into the RouteTree format used by the
   // client cache.
@@ -2412,7 +2396,7 @@ function writeDynamicTreeResponseIntoCache(
     fetchStrategy,
     serverData.f,
     buildId,
-    completeness,
+    isResponsePartial,
     headVaryParams,
     getStaleAtFromHeader(now, response),
     fulfilledEntry,
@@ -2444,7 +2428,7 @@ export function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.Full,
   flightData: FlightData,
   buildId: string | undefined,
-  completeness: ResponseCompleteness,
+  isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
   staleAt: number,
   route: FulfilledRouteCacheEntry,
@@ -2496,19 +2480,23 @@ export function writeDynamicRenderResponseIntoCache(
         tree,
         staleAt,
         seedData,
-        completeness === ResponseCompleteness.Partial,
+        isResponsePartial,
         spawnedEntries
       )
     }
 
     const head = flightDataEntry.head
     if (head !== null) {
-      // The server conservatively marks the head as partial whenever Cache
-      // Components is enabled, even for fully static pages where the head is
-      // actually complete. When the response is fully static, we can safely
-      // overrule this since the server confirmed no dynamic content exists.
+      // When Cache Components is enabled, the server conservatively marks
+      // the head as partial during static generation (isPossiblyPartialHead
+      // in app-render.tsx), even for fully static pages where the head is
+      // actually complete. When the response is non-partial, we override
+      // this since the server confirmed no dynamic content exists.
+      //
+      // Without Cache Components, the server always sends the correct
+      // isHeadPartial value, so no override is needed.
       const isHeadPartial =
-        completeness === ResponseCompleteness.Static
+        !isResponsePartial && process.env.__NEXT_CACHE_COMPONENTS
           ? false
           : flightDataEntry.isHeadPartial
 
@@ -2919,7 +2907,7 @@ export async function getStaleAt(
 
 /**
  * Writes the static stage of a navigation response into the segment cache.
- * When `completeness` is `Static`, segments are written as non-partial with
+ * When `isResponsePartial` is false, segments are written as non-partial with
  * `FetchStrategy.Full` so no dynamic follow-up is needed. Default segments
  * are skipped (by `writeSeedDataIntoCache`) to avoid caching fallback content
  * that would block refreshes from overwriting with dynamic data.
@@ -2931,12 +2919,11 @@ export function writeStaticStageResponseIntoCache(
   headVaryParamsThenable: VaryParamsThenable | null,
   staleAt: number,
   route: FulfilledRouteCacheEntry,
-  completeness: ResponseCompleteness
+  isResponsePartial: boolean
 ): void {
-  const fetchStrategy =
-    completeness === ResponseCompleteness.Static
-      ? FetchStrategy.Full
-      : FetchStrategy.PPR
+  const fetchStrategy = isResponsePartial
+    ? FetchStrategy.PPR
+    : FetchStrategy.Full
 
   const headVaryParams =
     headVaryParamsThenable !== null
@@ -2948,7 +2935,7 @@ export function writeStaticStageResponseIntoCache(
     fetchStrategy,
     flightData,
     buildId,
-    completeness,
+    isResponsePartial,
     headVaryParams,
     staleAt,
     route,
@@ -2957,54 +2944,42 @@ export function writeStaticStageResponseIntoCache(
 }
 
 /**
- * Strips the leading completeness marker byte from an RSC response stream.
+ * Strips the leading isPartial byte from an RSC response stream.
  *
- * The server prepends one of three marker bytes:
- * - '#' (0x23) = fully static prerender — all segments present.
- * - '*' (0x2a) = complete runtime prefetch — included segments are complete,
- *   but the response may not include all segments for the route.
- * - '~' (0x7e) = partial — contains dynamic holes that need a follow-up.
+ * The server prepends a single byte: '~' (0x7e) for partial, '#' (0x23) for
+ * complete. These bytes cannot appear as the first byte of a valid RSC Flight
+ * response (Flight rows start with a hex digit or ':').
  *
  * If the first byte is not a recognized marker, the stream is returned intact
  * and the response is conservatively treated as partial.
- *
- * These marker bytes cannot appear as the first byte of a valid RSC Flight
- * response. Flight rows start with either a row ID (a hex character) or
- * ':' (0x3a) for hint and debug chunks. Neither overlaps with the markers.
  */
-export async function stripCompletenessMarker(
+export async function stripIsPartialByte(
   stream: ReadableStream<Uint8Array>
-): Promise<{
-  stream: ReadableStream<Uint8Array>
-  completenessMarker: ResponseCompletenessMarker | null
-}> {
+): Promise<{ stream: ReadableStream<Uint8Array>; isPartial: boolean }> {
   const reader = stream.getReader()
   const { done, value } = await reader.read()
   if (done || !value || value.byteLength === 0) {
     return {
       stream: new ReadableStream({ start: (c) => c.close() }),
-      completenessMarker: null,
+      isPartial: true,
     }
   }
 
   const firstByte = value[0]
+  // '#' (0x23) = complete, '~' (0x7e) = partial.
+  // Only '#' explicitly means non-partial. Everything else (including
+  // unrecognized bytes) is conservatively treated as partial.
+  const hasMarker = firstByte === 0x23 || firstByte === 0x7e
+  const isPartial = firstByte !== 0x23
 
-  const completenessMarker: ResponseCompletenessMarker | null =
-    firstByte === ResponseCompletenessMarker.Static ||
-    firstByte === ResponseCompletenessMarker.Complete ||
-    firstByte === ResponseCompletenessMarker.Partial
-      ? firstByte
+  const remainder = hasMarker
+    ? value.byteLength > 1
+      ? value.subarray(1)
       : null
-
-  const remainder =
-    completenessMarker !== null
-      ? value.byteLength > 1
-        ? value.subarray(1)
-        : null
-      : value
+    : value
 
   return {
-    completenessMarker,
+    isPartial,
     stream: new ReadableStream<Uint8Array>({
       start(controller) {
         if (remainder) {

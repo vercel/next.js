@@ -169,25 +169,6 @@ export const enum PrefetchHint {
 }
 
 /**
- * Completeness markers prepended to RSC Flight streams/buffers by the server
- * and stripped by the client before Flight decoding.
- *
- * These byte values cannot appear as the first byte of a valid RSC Flight
- * response. Flight rows start with either a row ID (a hex character) or
- * ':' (0x3a) for hint and debug chunks. Neither overlaps with the markers.
- */
-export const enum ResponseCompletenessMarker {
-  /** '#' — fully static prerender. All segments present; safe to skip
-   *  dynamic follow-up entirely. */
-  Static = 0x23,
-  /** '*' — complete runtime prefetch. Included segments are complete, but
-   *  the response may not include all segments for the route. */
-  Complete = 0x2a,
-  /** '~' — partial. Contains dynamic holes that need a follow-up. */
-  Partial = 0x7e,
-}
-
-/**
  * Individual Flight response path
  */
 export type FlightSegmentPath =

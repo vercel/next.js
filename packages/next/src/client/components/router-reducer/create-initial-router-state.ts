@@ -14,7 +14,6 @@ import {
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
-import { ResponseCompleteness } from './fetch-server-response'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
@@ -111,7 +110,7 @@ export function createInitialRouterState({
             initialHeadVaryParams,
             staleAt,
             route,
-            ResponseCompleteness.Static
+            false // isResponsePartial
           )
         })
         .catch(() => {

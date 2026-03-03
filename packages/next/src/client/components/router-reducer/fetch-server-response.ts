@@ -41,8 +41,7 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import { stripCompletenessMarker } from '../segment-cache/cache'
-import { ResponseCompletenessMarker } from '../../../shared/lib/app-router-types'
+import { stripIsPartialByte } from '../segment-cache/cache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -65,28 +64,9 @@ export interface FetchServerResponseOptions {
   readonly isHmrRefresh?: boolean
 }
 
-/**
- * Describes how complete a response is, affecting how segments and the head are
- * written into the cache.
- *
- * - Partial: segments have dynamic holes that need a follow-up request.
- * - Complete: all included segments are complete, but the response may not
- *   include all segments for the route (based on the router state tree
- *   sent with the request), and the head may still be partial (e.g.
- *   LoadingBoundary prefetches, or runtime prefetches that completed for
- *   a non-fully-static page).
- * - Static: the server confirmed the entire response is fully static. Both
- *   segments and the head are complete.
- */
-export const enum ResponseCompleteness {
-  Partial,
-  Complete,
-  Static,
-}
-
 export type StaticStageData = {
   readonly response: NavigationFlightResponse
-  readonly completeness: ResponseCompleteness
+  readonly isResponsePartial: boolean
 }
 
 type SpaFetchServerResponseResult = {
@@ -340,18 +320,18 @@ export type RSCResponse<T> = {
 }
 
 type FetchResponseCacheData = {
-  completenessMarker: ResponseCompletenessMarker | null
+  isResponsePartial: boolean
   responseBodyClone: ReadableStream<Uint8Array>
 }
 
 /**
- * Strips the leading completeness marker byte from an RSC navigation response
- * and clones the body for segment cache extraction.
+ * Strips the leading isPartial byte from an RSC navigation response and
+ * clones the body for segment cache extraction.
  *
- * When cache components is enabled, the server prepends a completeness marker
- * byte (see {@link ResponseCompletenessMarker}). This must be stripped before
- * Flight decoding because it's not valid RSC data. The body is cloned before
- * Flight can consume it so the clone is available for later use.
+ * When cache components is enabled, the server prepends a single byte:
+ * '~' (0x7e) for partial, '#' (0x23) for complete. This must be stripped
+ * before Flight decoding because it's not valid RSC data. The body is
+ * cloned before Flight can consume it so the clone is available for later use.
  *
  * When cache components is disabled, returns the original response with
  * cacheData: null.
@@ -367,9 +347,7 @@ export async function processFetch(response: Response): Promise<{
       )
     }
 
-    const { stream, completenessMarker } = await stripCompletenessMarker(
-      response.body
-    )
+    const { stream, isPartial } = await stripIsPartialByte(response.body)
     const [stream1, stream2] = stream.tee()
 
     const strippedResponse = new Response(stream1, {
@@ -388,7 +366,7 @@ export async function processFetch(response: Response): Promise<{
 
     return {
       response: strippedResponse,
-      cacheData: { completenessMarker, responseBodyClone: stream2 },
+      cacheData: { isResponsePartial: isPartial, responseBodyClone: stream2 },
     }
   }
 
@@ -409,20 +387,13 @@ async function resolveStaticStageData(
   flightResponse: NavigationFlightResponse,
   headers: RequestHeaders
 ): Promise<StaticStageData | null> {
-  const { completenessMarker, responseBodyClone } = cacheData
+  const { isResponsePartial, responseBodyClone } = cacheData
 
-  const completeness =
-    completenessMarker === ResponseCompletenessMarker.Static
-      ? ResponseCompleteness.Static
-      : completenessMarker === ResponseCompletenessMarker.Complete
-        ? ResponseCompleteness.Complete
-        : ResponseCompleteness.Partial
-
-  if (completeness === ResponseCompleteness.Static) {
+  if (!isResponsePartial) {
     // Fully static — cache the entire decoded response as-is.
     responseBodyClone.cancel()
 
-    return { response: flightResponse, completeness }
+    return { response: flightResponse, isResponsePartial: false }
   }
 
   if (flightResponse.l !== undefined) {
@@ -441,7 +412,7 @@ async function resolveStaticStageData(
         { allowPartialStream: true }
       )
 
-    return { response, completeness }
+    return { response, isResponsePartial: true }
   }
 
   // No caching — cancel the unused clone.

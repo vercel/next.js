@@ -407,7 +407,8 @@ async function navigateToUnknownRoute(
     )
 
     if (staticStageData !== null) {
-      const { response: staticStageResponse, completeness } = staticStageData
+      const { response: staticStageResponse, isResponsePartial } =
+        staticStageData
 
       // Write the static stage of the response into the segment cache so that
       // subsequent navigations can serve cached static segments instantly.
@@ -424,7 +425,7 @@ async function navigateToUnknownRoute(
             staticStageResponse.h,
             staleAt,
             fulfilledRoute,
-            completeness
+            isResponsePartial
           )
         })
         .catch(() => {
