@@ -7,14 +7,14 @@ function AppError() {
   return (
     <html id="__next_error__">
       <head>
-        <title>500: This page couldn&apos;t load</title>
+        <title>500: This page couldn&#x2019;t load</title>
         <style dangerouslySetInnerHTML={{ __html: errorThemeCss }} />
       </head>
       <body>
         <div style={errorStyles.container}>
           <div style={errorStyles.card}>
             <WarningIcon />
-            <h1 style={errorStyles.title}>This page couldn&apos;t load</h1>
+            <h1 style={errorStyles.title}>This page couldn&#x2019;t load</h1>
             <p style={errorStyles.message}>
               A server error occurred. Reload to try again.
             </p>

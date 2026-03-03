@@ -38,7 +38,7 @@ describe('app dir - default error page UI', () => {
 
     // Check the error title
     const title = await browser.elementByCss('h1')
-    expect(await title.text()).toBe("This page couldn't load")
+    expect(await title.text()).toBe('This page couldn\u2019t load')
 
     // Check the error message - client errors show "Reload to try again, or go back."
     const message = await browser.elementByCss('p')
@@ -129,8 +129,8 @@ describe('app dir - default error page UI', () => {
     // In production mode, verify the server error page
     const html = await browser.eval('document.documentElement.innerHTML')
 
-    // Server errors show "This page couldn't load"
-    expect(html).toContain("This page couldn't load")
+    // Server errors show "This page couldn\u2019t load"
+    expect(html).toContain('This page couldn\u2019t load')
 
     // Server errors show "There was a server error"
     expect(html).toContain('There was a server error')

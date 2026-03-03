@@ -28,7 +28,7 @@ function DefaultGlobalError({ error }: { error: any }) {
         <div style={errorStyles.container}>
           <div style={errorStyles.card}>
             <WarningIcon />
-            <h1 style={errorStyles.title}>This page couldn&apos;t load</h1>
+            <h1 style={errorStyles.title}>This page couldn&#x2019;t load</h1>
             <p style={errorStyles.message}>{message}</p>
             <div style={errorStyles.buttonGroup}>
               <form style={errorStyles.form}>

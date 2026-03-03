@@ -32,8 +32,8 @@ describe('graceful-degrade - non bot', () => {
     expect(await body.getAttribute('class')).not.toBe('body-cls')
 
     const bodyText = await body.text()
-    // Client errors show "This page couldn't load"
-    expect(bodyText).toMatch(/This page couldn't load/)
+    // Client errors show "This page couldn\u2019t load"
+    expect(bodyText).toMatch(/This page couldn\u2019t load/)
   })
 
   it('should show error boundary when browser errors when error boundary is defined', async () => {
