@@ -5,6 +5,7 @@ export const errorStyles = {
     fontFamily:
       'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
+    maxWidth: '325px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -21,7 +22,7 @@ export const errorStyles = {
   title: {
     fontSize: '24px',
     fontWeight: 500,
-    letterSpacing: '-0.04em',
+    letterSpacing: '-0.02em',
     lineHeight: '32px',
     margin: '0 0 12px 0',
     color: 'var(--next-error-title)',
