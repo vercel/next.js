@@ -263,6 +263,7 @@ export async function handler(
   )
 
   try {
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (span?: Span) => {
       return routeModule.handle(nextReq, context).finally(() => {
         if (!span) return
@@ -300,6 +301,12 @@ export async function handler(
             'next.span_name': name,
           })
           span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists (e.g.
+          // a platform-created HTTP span in adapter deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+          }
         } else {
           span.updateName(`${method} ${srcPage}`)
         }
@@ -497,6 +504,7 @@ export async function handler(
     if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
+      parentSpan = tracer.getActiveScopeSpan()
       await tracer.withPropagatedContext(
         req.headers,
         () =>
