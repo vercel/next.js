@@ -466,12 +466,12 @@ mod tests {
         }
         */
 
-        let _task_fn = into_task_fn(no_args);
-        accepts_task_fn(into_task_fn(no_args));
-        let _task_fn = into_task_fn(one_arg);
-        accepts_task_fn(into_task_fn(one_arg));
-        let _task_fn = into_task_fn(async_one_arg);
-        accepts_task_fn(into_task_fn(async_one_arg));
+        let task_fn = into_task_fn(no_args);
+        accepts_task_fn(task_fn);
+        let task_fn = into_task_fn(one_arg);
+        accepts_task_fn(task_fn);
+        let task_fn = into_task_fn(async_one_arg);
+        accepts_task_fn(task_fn);
         let task_fn = into_task_fn_with_this(with_recv);
         accepts_task_fn(task_fn);
         let task_fn = into_task_fn_with_this(async_with_recv);
