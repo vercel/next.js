@@ -1658,7 +1658,7 @@ mod tests {
         let sst = open_sst(dir, seq, meta).unwrap();
         let kc = make_cache();
         let vc = make_cache();
-        match sst.lookup(entries[0].hash, &entries[0].key, &kc, &vc) {
+        match sst.lookup::<_, false>(entries[0].hash, &entries[0].key, &kc, &vc) {
             Err(err) => {
                 let msg = format!("{err}");
                 assert!(
