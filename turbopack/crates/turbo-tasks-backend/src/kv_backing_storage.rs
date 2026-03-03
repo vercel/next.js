@@ -601,9 +601,21 @@ fn compute_task_type_hash(
     // This should not fail for valid task types - the encoding is deterministic
     turbo_bincode_encode_into(task_type, scratch_buffer)
         .expect("CachedTaskType encoding should not fail");
-    let r = turbo_persistence::hash_key(&scratch_buffer.as_slice());
+    let hash = turbo_persistence::hash_key(&scratch_buffer.as_slice());
     scratch_buffer.clear();
-    r
+
+    if cfg!(feature = "verify_serialization") {
+        turbo_bincode_encode_into(task_type, scratch_buffer)
+            .expect("CachedTaskType encoding should not fail");
+        let hash2 = turbo_persistence::hash_key(&scratch_buffer.as_slice());
+        scratch_buffer.clear();
+        assert_eq!(
+            hash, hash2,
+            "Encoding TaskType twice was non-deterministic: \n{:?}\ngot hashes {} != {}",
+            task_type, hash, hash2
+        );
+    }
+    hash
 }
 
 type SerializedTasks = Vec<
