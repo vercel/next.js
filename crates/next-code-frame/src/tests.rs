@@ -190,16 +190,13 @@ fn test_multiline_error_with_message() {
 
 #[test]
 fn test_with_message() {
-    let source = "const x = 1;";
+    let source = "const x = 1";
     let location = CodeFrameLocation {
         start: Location {
             line: 1,
-            column: Some(11),
+            column: Some(7),
         },
-        end: Some(Location {
-            line: 1,
-            column: Some(12),
-        }),
+        end: None,
     };
     let options = CodeFrameOptions {
         color: false,
@@ -212,15 +209,16 @@ fn test_with_message() {
         .unwrap()
         .unwrap();
     assert_snapshot!(result, @r"
-    > 1 | const x = 1;
-        |           ^ Expected semicolon
+    > 1 | const x = 1
+        |       ^ Expected semicolon
     ");
 }
 
 #[test]
 fn test_long_line_single_error() {
     // Create a very long line with error in the middle
-    let long_line = "a".repeat(500);
+    let mut long_line = "a".repeat(500);
+    long_line.replace_range(249..250, "x"); // Mark error location (column 250)
     let source = format!("short\n{}\nshort", long_line);
 
     let location = CodeFrameLocation {
@@ -242,7 +240,7 @@ fn test_long_line_single_error() {
         .unwrap();
     assert_snapshot!(result, @r"
       1 | ...
-    > 2 | ...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...
+    > 2 | ...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaxaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...
         |                                                ^
       3 | ...
     ");
@@ -251,7 +249,8 @@ fn test_long_line_single_error() {
 #[test]
 fn test_long_line_at_start() {
     // Error at the beginning of a long line
-    let long_line = "a".repeat(500);
+    let mut long_line = "a".repeat(500);
+    long_line.replace_range(4..5, "x"); // Mark error location (column 5)
     let source = long_line.clone();
 
     let location = CodeFrameLocation {
@@ -272,7 +271,7 @@ fn test_long_line_at_start() {
         .unwrap()
         .unwrap();
     assert_snapshot!(result, @r"
-    > 1 | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...
+    > 1 | aaaaxaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...
         |     ^
     ");
 }
@@ -311,7 +310,8 @@ fn test_long_line_at_end() {
 fn test_long_line_multiline_aligned() {
     // Multiple long lines should all be truncated at the same offset
     let long_line1 = "b".repeat(500);
-    let long_line2 = "c".repeat(500);
+    let mut long_line2 = "c".repeat(500);
+    long_line2.replace_range(249..250, "x"); // Mark error location (column 250)
     let long_line3 = "d".repeat(500);
     let source = format!("{}\n{}\n{}", long_line1, long_line2, long_line3);
 
@@ -336,7 +336,7 @@ fn test_long_line_multiline_aligned() {
         .unwrap();
     assert_snapshot!(result, @r"
       1 | ...bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...
-    > 2 | ...cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc...
+    > 2 | ...ccccccccccccccccccccccccccccccccccccccccccccxccccccccccccccccccccccccccccccccccccccccccc...
         |                                                ^
       3 | ...dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd...
     ");
