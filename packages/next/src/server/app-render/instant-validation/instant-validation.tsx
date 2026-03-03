@@ -789,18 +789,27 @@ export async function createCombinedPayload(
   isStaticShellValidation: boolean
 ): Promise<InitialRSCPayload> {
   const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
-  const combinedSeedData = await createValidationSeedData(
-    cache,
-    validationRouteTree,
-    navigationParent,
-    releaseSignal,
-    boundaryState,
-    clientReferenceManifest,
-    stageEndTimes,
-    useRuntimeStageForPartialSegments,
-    usedSegmentKinds,
-    isStaticShellValidation
-  )
+  const combinedSeedData = isStaticShellValidation
+    ? await createStaticShellValidationSeedData(
+        cache,
+        validationRouteTree,
+        releaseSignal,
+        clientReferenceManifest,
+        stageEndTimes,
+        useRuntimeStageForPartialSegments,
+        usedSegmentKinds
+      )
+    : await createValidationSeedData(
+        cache,
+        validationRouteTree,
+        navigationParent,
+        releaseSignal,
+        boundaryState,
+        clientReferenceManifest,
+        stageEndTimes,
+        useRuntimeStageForPartialSegments,
+        usedSegmentKinds
+      )
 
   // If we did a runtime prefetch for this navigation, then we'd get a runtime-stage head.
   // Otherwise, we'd only have the `/_head` segment prefetch which is static.
@@ -857,8 +866,7 @@ function createValidationSeedData(
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean,
-  usedSegmentKinds: Set<SegmentStage>,
-  isStaticShellValidation: boolean
+  usedSegmentKinds: Set<SegmentStage>
 ): Promise<CacheNodeSeedData> {
   type TraversalState =
     | { kind: 'shared-tree' }
@@ -866,8 +874,7 @@ function createValidationSeedData(
 
   async function createSeedDataFromValidationTreeImpl(
     routeTree: RouteTree,
-    state: TraversalState,
-    isRootNode?: boolean
+    state: TraversalState
   ) {
     const { path, slots } = routeTree
 
@@ -885,18 +892,7 @@ function createValidationSeedData(
         break
       }
       case 'new-tree': {
-        if (isStaticShellValidation) {
-          // Static shell validation checks what the initial page load looks like,
-          // before any prefetches have happened. Per-segment `prefetch: 'runtime'`
-          // configs don't apply here — all segments use the same stage uniformly.
-          //
-          // If the initial validation failed, we retry the render and use the runtime stage
-          // for static segments. This lets us discriminate runtime and dynamic holes.
-          stage = useRuntimeStageForPartialSegments
-            ? RenderStage.Runtime
-            : RenderStage.Static
-          nextState = state
-        } else if (!state.isInsideRuntimePrefetch) {
+        if (!state.isInsideRuntimePrefetch) {
           // We're not already inside a runtime prefetch, so by default we prefetch statically.
           // Check if we need to switch to runtime prefetching instead.
           const prefetchConfig = routeTree.module?.instantConfig
@@ -961,20 +957,13 @@ function createValidationSeedData(
         : { startTime: undefined, endTime: stageEndTimes[stage] }
     )
 
-    // We place the validation boundary right below the shared parent segment.
+    // We place the validation boundary right below the shared parent segment
     // This means that a dynamic hole is accepted as long as it has a Suspense boundary
     // in the new subtree (i.e. it wouldn't block the navigation).
     const isInnermostSharedParent =
       state.kind === 'shared-tree' && nextState.kind === 'new-tree'
 
-    // navigationParent === null means the entire tree is "new" (static shell
-    // validation). isRootNode limits the boundary to the root segment only.
-    const isStaticShellValidationRoot = navigationParent === null && isRootNode
-
-    const shouldPlaceBoundary =
-      isInnermostSharedParent || isStaticShellValidationRoot
-
-    if (shouldPlaceBoundary) {
+    if (isInnermostSharedParent) {
       debug?.(
         `    ['${path}' is the innermost shared parent, adding validation boundary below it]`
       )
@@ -1012,17 +1001,63 @@ function createValidationSeedData(
 
   return createSeedDataFromValidationTreeImpl(
     rootRouteTree,
-    navigationParent === null
-      ? // This is for static shell validation, so consider the entire tree as new, including the root layout.
-        { kind: 'new-tree', isInsideRuntimePrefetch: false }
-      : // Root layouts are always shared. Navigating to a new root layout is an MPA navigation.
-        { kind: 'shared-tree' },
-    // Ensures the validation boundary is placed only at the root.
-    // navigationParent is constant for the entire tree traversal, so without
-    // this flag, `navigationParent === null` in shouldPlaceBoundary would
-    // match every node, placing redundant boundaries throughout the tree.
-    true // isRootNode
+    // Root layouts are always shared. Navigating to a new root layout is an MPA navigation.
+    { kind: 'shared-tree' }
   )
+}
+
+function createStaticShellValidationSeedData(
+  cache: SegmentCache,
+  rootRouteTree: RouteTree,
+  releaseSignal: AbortSignal,
+  clientReferenceManifest: ClientReferenceManifest,
+  stageEndTimes: StageEndTimes,
+  useRuntimeStageForPartialSegments: boolean,
+  usedSegmentKinds: Set<SegmentStage>
+): Promise<CacheNodeSeedData> {
+  async function createSeedDataFromValidationTreeImpl(routeTree: RouteTree) {
+    const { path, slots } = routeTree
+
+    // Static shell validation checks what the initial page load looks like,
+    // before any prefetches have happened. Per-segment `prefetch: 'runtime'`
+    // configs don't apply here — all segments use the same stage uniformly.
+    //
+    // If the initial validation failed, we retry the render and use the runtime stage
+    // for static segments. This lets us discriminate runtime and dynamic holes.
+    const stage: SegmentStage = useRuntimeStageForPartialSegments
+      ? RenderStage.Runtime
+      : RenderStage.Static
+
+    debug?.(`    ${path || '/'} - ${RenderStage[stage]}`)
+    const segmentCacheItem = cache.segments.get(path)
+    if (!segmentCacheItem) {
+      throw new InvariantError(`Missing segment data: ${path}`)
+    }
+
+    // TODO: for runtime-only validations, empty segments can throw this off
+    // and make us retry even though there's no *real* static segments in the tree
+    usedSegmentKinds.add(stage)
+
+    let segmentData = await deserializeFromChunks<SegmentData>(
+      segmentCacheItem.chunks[stage],
+      segmentCacheItem.chunks[RenderStage.Dynamic],
+      segmentCacheItem.debugChunks,
+      releaseSignal,
+      clientReferenceManifest,
+      { startTime: undefined, endTime: stageEndTimes[stage] }
+    )
+
+    const slotsSeedData: CacheNodeSeedDataSlots = {}
+    if (slots) {
+      for (const parallelRouteKey in slots) {
+        slotsSeedData[parallelRouteKey] =
+          await createSeedDataFromValidationTreeImpl(slots[parallelRouteKey])
+      }
+    }
+    return getCacheNodeSeedDataFromSegment(segmentData, slotsSeedData)
+  }
+
+  return createSeedDataFromValidationTreeImpl(rootRouteTree)
 }
 
 async function createValidationHead(

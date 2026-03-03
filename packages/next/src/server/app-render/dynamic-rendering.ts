@@ -1303,25 +1303,6 @@ export function getNavigationDisallowedDynamicReasons(
   dynamicValidation: InstantValidationState,
   boundaryState: ValidationBoundaryTracking
 ): Array<Error> {
-  // Static shell validation inside Instant validation
-  if (dynamicValidation.isStaticShellValidation) {
-    const staticShellValidationState: DynamicValidationState = {
-      hasSuspenseAboveBody: dynamicValidation.hasSuspenseAboveBody,
-      hasDynamicMetadata: dynamicValidation.hasDynamicMetadata,
-      dynamicMetadata: dynamicValidation.dynamicMetadata,
-      hasDynamicViewport: dynamicValidation.hasDynamicViewport,
-      hasAllowedDynamic: dynamicValidation.hasAllowedDynamic,
-      dynamicErrors: dynamicValidation.dynamicErrors,
-    }
-
-    return getStaticShellDisallowedDynamicReasons(
-      workStore,
-      prelude,
-      staticShellValidationState,
-      dynamicValidation.allowEmptyStaticShell
-    )
-  }
-
   const { validationPreventingErrors } = dynamicValidation
   if (validationPreventingErrors.length > 0) {
     return validationPreventingErrors

@@ -154,6 +154,7 @@ import {
   DynamicHoleKind,
   trackThrownErrorInNavigation,
   createInstantValidationState,
+  type DynamicValidationState,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -4516,7 +4517,8 @@ async function validateInstantConfigNavigation(
   const boundaryState = createValidationBoundaryTracking()
 
   const finalClientPrerenderStore: PrerenderStore = {
-    type: 'validation-client',
+    // if SSV, prerender-client else validation-client
+    type: isStaticShellValidation ? 'prerender-client' : 'validation-client',
     phase: 'render',
     rootParams,
     implicitTags,
@@ -4657,12 +4659,26 @@ async function validateInstantConfigNavigation(
 
     const { preludeIsEmpty } = await processPreludeOp(unprocessedPrelude)
 
-    const reasons = getNavigationDisallowedDynamicReasons(
-      workStore,
-      preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
-      dynamicValidation,
-      boundaryState
-    )
+    const reasons = dynamicValidation.isStaticShellValidation
+      ? getStaticShellDisallowedDynamicReasons(
+          workStore,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+          {
+            hasSuspenseAboveBody: dynamicValidation.hasSuspenseAboveBody,
+            hasDynamicMetadata: dynamicValidation.hasDynamicMetadata,
+            dynamicMetadata: dynamicValidation.dynamicMetadata,
+            hasDynamicViewport: dynamicValidation.hasDynamicViewport,
+            hasAllowedDynamic: dynamicValidation.hasAllowedDynamic,
+            dynamicErrors: dynamicValidation.dynamicErrors,
+          } satisfies DynamicValidationState,
+          dynamicValidation.allowEmptyStaticShell
+        )
+      : getNavigationDisallowedDynamicReasons(
+          workStore,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+          dynamicValidation,
+          boundaryState
+        )
 
     return { dynamicHoleKind, errors: reasons }
   } catch (thrownValue) {
