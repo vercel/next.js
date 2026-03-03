@@ -483,3 +483,193 @@ export class AnalyzeData {
     return this.analyzeHeader
   }
 }
+
+/**
+ * Merges `extra` analyze data into `base`, nesting extra's modules under a
+ * synthetic `[${label}]/` directory that is added as a child of the base root.
+ * All source/chunk-part/output-file indices are remapped so the returned
+ * AnalyzeData is self-consistent and can be used directly for visualization.
+ */
+export function mergeAnalyzeData(
+  base: AnalyzeData,
+  extra: AnalyzeData,
+  label: string
+): AnalyzeData {
+  const baseHeader = base.getRawAnalyzeHeader()
+  const extraHeader = extra.getRawAnalyzeHeader()
+
+  const N = base.sourceCount() // base source count
+  const P = base.chunkPartCount() // base chunk part count
+  const F = base.outputFileCount() // base output file count
+  const M = extra.sourceCount() // extra source count
+
+  // The synthetic label directory is inserted at index N.
+  // Extra sources occupy indices N+1 .. N+M.
+  const syntheticDirIdx = N
+  const extraSourceOffset = N + 1
+
+  const baseRoots = base.sourceRoots()
+  const baseRootIdx = baseRoots[0] ?? 0
+  const extraRoots = extra.sourceRoots()
+
+  // ---- Merged sources ----
+  const mergedSources: AnalyzeSource[] = [
+    ...baseHeader.sources,
+    // Synthetic label directory, child of the base root
+    { path: `[${label}]/`, parent_source_index: baseRootIdx },
+    // Extra sources with remapped parent indices.
+    ...extraHeader.sources.map((s) => ({
+      path: s.path,
+      parent_source_index:
+        s.parent_source_index === null
+          ? syntheticDirIdx
+          : s.parent_source_index + extraSourceOffset,
+    })),
+  ]
+
+  // ---- Merged chunk parts ----
+  const mergedChunkParts: AnalyzeChunkPart[] = [
+    ...baseHeader.chunk_parts,
+    ...extraHeader.chunk_parts.map((cp) => ({
+      source_index: cp.source_index + extraSourceOffset,
+      output_file_index: cp.output_file_index + F,
+      size: cp.size,
+      compressed_size: cp.compressed_size,
+    })),
+  ]
+
+  // ---- Merged output files ----
+  const mergedOutputFiles: AnalyzeOutputFile[] = [
+    ...baseHeader.output_files,
+    ...extraHeader.output_files,
+  ]
+
+  // ---- Build source_children edge lists ----
+  const mergedSourceChildren: number[][] = new Array(N + 1 + M)
+  for (let i = 0; i < N; i++) {
+    const children = base.sourceChildren(i)
+    mergedSourceChildren[i] =
+      i === baseRootIdx ? [...children, syntheticDirIdx] : children
+  }
+  // Synthetic dir's children = extra's roots (remapped)
+  mergedSourceChildren[syntheticDirIdx] = extraRoots.map(
+    (r) => r + extraSourceOffset
+  )
+  for (let i = 0; i < M; i++) {
+    mergedSourceChildren[N + 1 + i] = extra
+      .sourceChildren(i)
+      .map((j) => j + extraSourceOffset)
+  }
+
+  // ---- Build source_chunk_parts edge lists ----
+  const mergedSourceChunkParts: number[][] = new Array(N + 1 + M)
+  for (let i = 0; i < N; i++) {
+    mergedSourceChunkParts[i] = base.sourceChunkParts(i)
+  }
+  mergedSourceChunkParts[syntheticDirIdx] = []
+  for (let i = 0; i < M; i++) {
+    mergedSourceChunkParts[N + 1 + i] = extra
+      .sourceChunkParts(i)
+      .map((j) => j + P)
+  }
+
+  // ---- Build output_file_chunk_parts edge lists ----
+  const mergedOutputFileChunkParts: number[][] = []
+  for (let i = 0; i < base.outputFileCount(); i++) {
+    mergedOutputFileChunkParts.push(base.outputFileChunkParts(i))
+  }
+  for (let i = 0; i < extra.outputFileCount(); i++) {
+    mergedOutputFileChunkParts.push(
+      extra.outputFileChunkParts(i).map((j) => j + P)
+    )
+  }
+
+  // ---- Encode an edge list into the binary CSR format ----
+  function encodeEdges(allEdges: number[][]): Uint8Array {
+    const n = allEdges.length
+    if (n === 0) return new Uint8Array(0)
+
+    const totalEdges = allEdges.reduce((sum, e) => sum + e.length, 0)
+    const byteLength = 4 + n * 4 + totalEdges * 4
+    const buf = new ArrayBuffer(byteLength)
+    const view = new DataView(buf)
+    let pos = 0
+
+    view.setUint32(pos, n, false)
+    pos += 4
+
+    let cumulative = 0
+    for (const edgeList of allEdges) {
+      cumulative += edgeList.length
+      view.setUint32(pos, cumulative, false)
+      pos += 4
+    }
+
+    for (const edgeList of allEdges) {
+      for (const edge of edgeList) {
+        view.setUint32(pos, edge, false)
+        pos += 4
+      }
+    }
+
+    return new Uint8Array(buf)
+  }
+
+  const sourceChildrenBytes = encodeEdges(mergedSourceChildren)
+  const sourceChunkPartsBytes = encodeEdges(mergedSourceChunkParts)
+  const outputFileChunkPartsBytes = encodeEdges(mergedOutputFileChunkParts)
+
+  // ---- Compute binary section layout (offsets are within binary section) ----
+  let binaryOffset = 0
+
+  const sourceChildrenRef: EdgesDataReference = {
+    offset: binaryOffset,
+    length: sourceChildrenBytes.byteLength,
+  }
+  binaryOffset += sourceChildrenBytes.byteLength
+
+  const sourceChunkPartsRef: EdgesDataReference = {
+    offset: binaryOffset,
+    length: sourceChunkPartsBytes.byteLength,
+  }
+  binaryOffset += sourceChunkPartsBytes.byteLength
+
+  const outputFileChunkPartsRef: EdgesDataReference = {
+    offset: binaryOffset,
+    length: outputFileChunkPartsBytes.byteLength,
+  }
+  binaryOffset += outputFileChunkPartsBytes.byteLength
+
+  // ---- Assemble header ----
+  const mergedHeader: AnalyzeDataHeader = {
+    sources: mergedSources,
+    chunk_parts: mergedChunkParts,
+    output_files: mergedOutputFiles,
+    output_file_chunk_parts: outputFileChunkPartsRef,
+    source_chunk_parts: sourceChunkPartsRef,
+    source_children: sourceChildrenRef,
+    source_roots: [...baseRoots],
+  }
+
+  const headerBytes = new TextEncoder().encode(JSON.stringify(mergedHeader))
+  const totalSize = 4 + headerBytes.byteLength + binaryOffset
+  const finalBuffer = new ArrayBuffer(totalSize)
+  const finalView = new DataView(finalBuffer)
+  const finalBytes = new Uint8Array(finalBuffer)
+
+  finalView.setUint32(0, headerBytes.byteLength, false)
+  finalBytes.set(headerBytes, 4)
+
+  const binaryStart = 4 + headerBytes.byteLength
+  finalBytes.set(sourceChildrenBytes, binaryStart + sourceChildrenRef.offset)
+  finalBytes.set(
+    sourceChunkPartsBytes,
+    binaryStart + sourceChunkPartsRef.offset
+  )
+  finalBytes.set(
+    outputFileChunkPartsBytes,
+    binaryStart + outputFileChunkPartsRef.offset
+  )
+
+  return new AnalyzeData(finalBuffer)
+}
