@@ -483,3 +483,174 @@ export class AnalyzeData {
     return this.analyzeHeader
   }
 }
+
+/**
+ * Merges `appData` analyze data into `routeData`. All source/chunk-part/output-file
+ * indices are remapped so the returned AnalyzeData is self-consistent and can be
+ * used directly for visualization.
+ *
+ * Everything is repacked into the same binary format expected by AnalyzeData
+ */
+export function mergeAnalyzeData(
+  routeData: AnalyzeData,
+  appData: AnalyzeData
+): AnalyzeData {
+  const baseHeader = routeData.getRawAnalyzeHeader()
+  const extraHeader = appData.getRawAnalyzeHeader()
+
+  const sourceOffset = routeData.sourceCount()
+  const chunkPartOffset = routeData.chunkPartCount()
+  const outputFileOffset = routeData.outputFileCount()
+  const appSourceCount = appData.sourceCount()
+
+  const baseRoots = routeData.sourceRoots()
+  const extraRoots = appData.sourceRoots().map((r) => r + sourceOffset)
+
+  const mergedSources: AnalyzeSource[] = [
+    ...baseHeader.sources,
+    ...extraHeader.sources.map((s) => ({
+      path: s.path,
+      parent_source_index:
+        s.parent_source_index === null
+          ? null
+          : s.parent_source_index + sourceOffset,
+    })),
+  ]
+
+  const mergedChunkParts: AnalyzeChunkPart[] = [
+    ...baseHeader.chunk_parts,
+    ...extraHeader.chunk_parts.map((cp) => ({
+      source_index: cp.source_index + sourceOffset,
+      output_file_index: cp.output_file_index + outputFileOffset,
+      size: cp.size,
+      compressed_size: cp.compressed_size,
+    })),
+  ]
+
+  const mergedOutputFiles: AnalyzeOutputFile[] = [
+    ...baseHeader.output_files,
+    ...extraHeader.output_files,
+  ]
+
+  const mergedSourceChildren: number[][] = new Array(
+    sourceOffset + appSourceCount
+  )
+  for (let i = 0; i < sourceOffset; i++) {
+    mergedSourceChildren[i] = routeData.sourceChildren(i)
+  }
+  for (let i = 0; i < appSourceCount; i++) {
+    mergedSourceChildren[sourceOffset + i] = appData
+      .sourceChildren(i)
+      .map((j) => j + sourceOffset)
+  }
+
+  const mergedSourceChunkParts: number[][] = new Array(
+    sourceOffset + appSourceCount
+  )
+  for (let i = 0; i < sourceOffset; i++) {
+    mergedSourceChunkParts[i] = routeData.sourceChunkParts(i)
+  }
+  for (let i = 0; i < appSourceCount; i++) {
+    mergedSourceChunkParts[sourceOffset + i] = appData
+      .sourceChunkParts(i)
+      .map((j) => j + chunkPartOffset)
+  }
+
+  const mergedOutputFileChunkParts: number[][] = []
+  for (let i = 0; i < routeData.outputFileCount(); i++) {
+    mergedOutputFileChunkParts.push(routeData.outputFileChunkParts(i))
+  }
+  for (let i = 0; i < appData.outputFileCount(); i++) {
+    mergedOutputFileChunkParts.push(
+      appData.outputFileChunkParts(i).map((j) => j + chunkPartOffset)
+    )
+  }
+
+  // Re-encode edges data back into the binary format expected by AnalyzeData
+  function encodeEdges(allEdges: number[][]): Uint8Array {
+    const n = allEdges.length
+    if (n === 0) return new Uint8Array(0)
+
+    const totalEdges = allEdges.reduce((sum, e) => sum + e.length, 0)
+    const byteLength = 4 + n * 4 + totalEdges * 4
+    const buf = new ArrayBuffer(byteLength)
+    const view = new DataView(buf)
+    let pos = 0
+
+    view.setUint32(pos, n, false)
+    pos += 4
+
+    let cumulative = 0
+    for (const edgeList of allEdges) {
+      cumulative += edgeList.length
+      view.setUint32(pos, cumulative, false)
+      pos += 4
+    }
+
+    for (const edgeList of allEdges) {
+      for (const edge of edgeList) {
+        view.setUint32(pos, edge, false)
+        pos += 4
+      }
+    }
+
+    return new Uint8Array(buf)
+  }
+
+  const sourceChildrenBytes = encodeEdges(mergedSourceChildren)
+  const sourceChunkPartsBytes = encodeEdges(mergedSourceChunkParts)
+  const outputFileChunkPartsBytes = encodeEdges(mergedOutputFileChunkParts)
+
+  // ---- Compute binary section layout (offsets are within binary section) ----
+  let binaryOffset = 0
+
+  const sourceChildrenRef: EdgesDataReference = {
+    offset: binaryOffset,
+    length: sourceChildrenBytes.byteLength,
+  }
+  binaryOffset += sourceChildrenBytes.byteLength
+
+  const sourceChunkPartsRef: EdgesDataReference = {
+    offset: binaryOffset,
+    length: sourceChunkPartsBytes.byteLength,
+  }
+  binaryOffset += sourceChunkPartsBytes.byteLength
+
+  const outputFileChunkPartsRef: EdgesDataReference = {
+    offset: binaryOffset,
+    length: outputFileChunkPartsBytes.byteLength,
+  }
+  binaryOffset += outputFileChunkPartsBytes.byteLength
+
+  const mergedHeader: AnalyzeDataHeader = {
+    sources: mergedSources,
+    chunk_parts: mergedChunkParts,
+    output_files: mergedOutputFiles,
+    output_file_chunk_parts: outputFileChunkPartsRef,
+    source_chunk_parts: sourceChunkPartsRef,
+    source_children: sourceChildrenRef,
+    source_roots: [...baseRoots, ...extraRoots],
+  }
+
+  const headerBytes = new TextEncoder().encode(JSON.stringify(mergedHeader))
+  const totalSize = 4 + headerBytes.byteLength + binaryOffset
+  const finalBuffer = new ArrayBuffer(totalSize)
+  const finalView = new DataView(finalBuffer)
+  const finalBytes = new Uint8Array(finalBuffer)
+
+  finalView.setUint32(0, headerBytes.byteLength, false)
+  finalBytes.set(headerBytes, 4)
+
+  const binaryStart = 4 + headerBytes.byteLength
+  finalBytes.set(sourceChildrenBytes, binaryStart + sourceChildrenRef.offset)
+  finalBytes.set(
+    sourceChunkPartsBytes,
+    binaryStart + sourceChunkPartsRef.offset
+  )
+  finalBytes.set(
+    outputFileChunkPartsBytes,
+    binaryStart + outputFileChunkPartsRef.offset
+  )
+
+  return new AnalyzeData(finalBuffer)
+}
