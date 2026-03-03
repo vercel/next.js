@@ -337,7 +337,7 @@ Behind the scenes, `loading.js` will be [nested inside `layout.js`](/docs/app/ge
   height="768"
 />
 
-Because of this, a layout that suspends by accessing uncached or runtime data (e.g. `cookies()`, `headers()`, or uncached fetches) does not fall back to `loading.js`. Instead, it blocks navigation until the layout finishes rendering. [Cache Components](/docs/app/getting-started/cache-components) prevents this by raising a build-time error.
+Because of this, a layout that accesses uncached or runtime data (e.g. `cookies()`, `headers()`, or uncached fetches) does not fall back to `loading.js`. Instead, it blocks navigation until the layout finishes rendering. [Cache Components](/docs/app/getting-started/cache-components) prevents this by guiding you with a build-time error.
 
 To fix this, wrap the uncached access in its own [`<Suspense>`](#with-suspense) boundary with a fallback, or move the data fetching into `page.js` where `loading.js` can cover it. See [`loading.js`](/docs/app/api-reference/file-conventions/loading) for more details.
 
