@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, ValueToString, Vc, get_effects};
+use turbo_tasks::{Effects, ResolvedVc, TurboTasks, ValueToString, Vc, get_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -223,7 +223,7 @@ async fn run(resource: PathBuf) -> Result<()> {
     ));
     tt.run_once(async move {
         #[turbo_tasks::function(operation)]
-        async fn inner_operation(resource: RcStr) -> Result<()> {
+        async fn inner_operation(resource: RcStr) -> Result<Vc<Effects>> {
             let out_op = run_test_operation(resource);
             let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
 
@@ -236,15 +236,9 @@ async fn run(resource: PathBuf) -> Result<()> {
                 .await
                 .context("Unable to handle issues")?;
 
-            Ok(())
+            Ok(get_effects(out_op).await?.cell())
         }
-        #[turbo_tasks::function(operation)]
-        async fn get_effects_operation(inner_op: OperationVc<()>) -> Result<Vc<Effects>> {
-            let _ = inner_op.read_strongly_consistent().await?;
-            Ok(get_effects(inner_op).await?.cell())
-        }
-        let emit_op = inner_operation(resource.to_str().unwrap().into());
-        get_effects_operation(emit_op)
+        inner_operation(resource.to_str().unwrap().into())
             .read_strongly_consistent()
             .await?
             .apply()
