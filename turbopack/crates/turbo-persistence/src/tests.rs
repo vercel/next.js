@@ -132,23 +132,19 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Simple",
         |batch| {
-            // Use family 1 to avoid collision with "Many SST files" which uses family 0.
-            // Note: "Families" test case also writes to family 1 (key [1]), but we only
-            // write keys 10..100 here, so no key collision.
             for i in 10..100u8 {
-                batch.put(1, vec![i], vec![i].into())?;
+                batch.put(0, vec![1, i], vec![i].into())?;
             }
             Ok(())
         },
         |db| {
-            let Some(value) = db.get(1, &[42u8])? else {
+            let Some(value) = db.get(0, &[1, 42u8])? else {
                 panic!("Value not found");
             };
             assert_eq!(&*value, &[42]);
-            assert_eq!(db.get(1, &[42u8, 42])?, None);
-            // Note: don't check for key [1u8] here because "Families" test writes that
-            assert_eq!(db.get(1, &[5u8])?, None); // 5 is not in 10..100
-            assert_eq!(db.get(1, &[255u8])?, None);
+            assert_eq!(db.get(0, &[1, 42u8, 42])?, None);
+            assert_eq!(db.get(0, &[1, 1u8])?, None);
+            assert_eq!(db.get(0, &[1, 255u8])?, None);
             Ok(())
         },
     );
@@ -157,21 +153,20 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Many SST files",
         |batch| {
-            // Use family 0 with keys 10..100 (different family from "Simple")
             for i in 10..100u8 {
-                batch.put(0, vec![i], vec![i].into())?;
+                batch.put(0, vec![2, i], vec![i].into())?;
                 unsafe { batch.flush(0)? };
             }
             Ok(())
         },
         |db| {
-            let Some(value) = db.get(0, &[42u8])? else {
+            let Some(value) = db.get(0, &[2, 42u8])? else {
                 panic!("Value not found");
             };
             assert_eq!(&*value, &[42]);
-            assert_eq!(db.get(0, &[42u8, 42])?, None);
-            assert_eq!(db.get(0, &[1u8])?, None);
-            assert_eq!(db.get(0, &[255u8])?, None);
+            assert_eq!(db.get(0, &[2, 42u8, 42])?, None);
+            assert_eq!(db.get(0, &[2, 1u8])?, None);
+            assert_eq!(db.get(0, &[2, 255u8])?, None);
             Ok(())
         },
     );
@@ -201,15 +196,18 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Medium keys and values",
         |batch| {
-            // Use family 4 to avoid collision with other test cases
             for i in 0..200u8 {
-                batch.put(4, vec![i; 10 * 1024], vec![i; 100 * 1024].into())?;
+                let mut key = vec![3u8];
+                key.extend(vec![i; 10 * 1024]);
+                batch.put(0, key, vec![i; 100 * 1024].into())?;
             }
             Ok(())
         },
         |db| {
             for i in 0..200u8 {
-                let Some(value) = db.get(4, &vec![i; 10 * 1024])? else {
+                let mut key = vec![3u8];
+                key.extend(vec![i; 10 * 1024]);
+                let Some(value) = db.get(0, &key)? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &vec![i; 100 * 1024]);
@@ -227,19 +225,22 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Large keys and values (blob files)",
         |batch| {
-            // Use family 5 to avoid collision with other test cases
             for i in 0..2u8 {
-                batch.put(5, vec![i; BLOB_SIZE], vec![i; BLOB_SIZE].into())?;
+                let mut key = vec![4u8];
+                key.extend(vec![i; BLOB_SIZE]);
+                batch.put(0, key, vec![i; BLOB_SIZE].into())?;
             }
             Ok(())
         },
         |db| {
             for i in 0..2u8 {
-                let key_and_value = vec![i; BLOB_SIZE];
-                let Some(value) = db.get(5, &key_and_value)? else {
+                let mut key = vec![4u8];
+                key.extend(vec![i; BLOB_SIZE]);
+                let value_expected = vec![i; BLOB_SIZE];
+                let Some(value) = db.get(0, &key)? else {
                     panic!("Value not found");
                 };
-                assert_eq!(&*value, &key_and_value);
+                assert_eq!(&*value, &value_expected);
             }
             Ok(())
         },
@@ -252,15 +253,18 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Different sizes keys and values",
         |batch| {
-            // Use family 6 to avoid collision with other test cases
             for i in different_sizes_range() {
-                batch.put(6, vec![i; i as usize], vec![i; i as usize].into())?;
+                let mut key = vec![5u8];
+                key.extend(vec![i; i as usize]);
+                batch.put(0, key, vec![i; i as usize].into())?;
             }
             Ok(())
         },
         |db| {
             for i in different_sizes_range() {
-                let Some(value) = db.get(6, &vec![i; i as usize])? else {
+                let mut key = vec![5u8];
+                key.extend(vec![i; i as usize]);
+                let Some(value) = db.get(0, &key)? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &vec![i; i as usize]);
@@ -273,16 +277,17 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Many items (1% read)",
         |batch| {
-            // Use family 2 to avoid collision with "Many items (multi-threaded)"
             for i in 0..1000 * 1024u32 {
-                batch.put(2, i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())?;
+                let key = [&[6u8], &i.to_be_bytes()[..]].concat();
+                batch.put(0, key, i.to_be_bytes().to_vec().into())?;
             }
             Ok(())
         },
         |db| {
             for i in 0..10 * 1024u32 {
                 let i = i * 100;
-                let Some(value) = db.get(2, &i.to_be_bytes())? else {
+                let key = [&[6u8], &i.to_be_bytes()[..]].concat();
+                let Some(value) = db.get(0, &key)? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &i.to_be_bytes());
@@ -295,18 +300,17 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Many items (1% read, multi-threaded)",
         |batch| {
-            // Use family 3 to avoid collision with other test cases
             (0..10 * 1024 * 1024u32).into_par_iter().for_each(|i| {
-                batch
-                    .put(3, i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())
-                    .unwrap();
+                let key = [&[7u8], &i.to_be_bytes()[..]].concat();
+                batch.put(0, key, i.to_be_bytes().to_vec().into()).unwrap();
             });
             Ok(())
         },
         |db| {
             (0..100 * 1024u32).into_par_iter().for_each(|i| {
                 let i = i * 100;
-                let Some(value) = db.get(3, &i.to_be_bytes()).unwrap() else {
+                let key = [&[7u8], &i.to_be_bytes()[..]].concat();
+                let Some(value) = db.get(0, &key).unwrap() else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &i.to_be_bytes());
