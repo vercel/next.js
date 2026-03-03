@@ -2,8 +2,31 @@ use std::{fmt::Write, ops::Range};
 
 use anyhow::{Result, bail};
 use serde::Deserialize;
+use unicode_width::UnicodeWidthChar;
 
 use crate::highlight::{ColorScheme, Language, Lines, apply_line_highlights, extract_highlights};
+
+/// Compute the display width of a string slice in terminal columns.
+///
+/// Uses Unicode UAX #11 East Asian Width to assign widths: most characters are
+/// 1 column, CJK ideographs and many emoji are 2 columns. Control characters
+/// and zero-width joiners are 0 columns.
+fn str_display_width(s: &str) -> usize {
+    s.chars().map(|c| c.width().unwrap_or(0)).sum()
+}
+
+/// Compute the display width of the text in `line` between two byte offsets
+/// (clamped and snapped to char boundaries).
+fn display_width_between(line: &str, byte_start: usize, byte_end: usize) -> usize {
+    let start = line.len().min(byte_start);
+    let start = line.ceil_char_boundary(start);
+    let end = line.len().min(byte_end);
+    let end = line.floor_char_boundary(end);
+    if start >= end {
+        return 0;
+    }
+    str_display_width(&line[start..end])
+}
 
 /// A source location with line and column.
 ///
@@ -78,12 +101,16 @@ struct TruncationResult {
     prefix_len: usize,
 }
 
-/// Convert a source-column range to display coordinates, accounting for
-/// line truncation and available width.
+/// Convert a source-column range (byte offsets) to display coordinates,
+/// accounting for line truncation, Unicode display widths, and available width.
+///
+/// `line_content` is the original (untruncated) line text used to convert byte
+/// offsets into display column widths.
 ///
 /// Returns `(display_col, display_length)` where `display_col` is the
 /// number of leading spaces before the `^` markers.
 fn marker_display_position(
+    line_content: &str,
     col_start: usize,
     col_end: usize,
     truncation_offset: usize,
@@ -98,20 +125,46 @@ fn marker_display_position(
         "col_start ({col_start}) must be less than col_end ({col_end})"
     );
 
+    let line_len = line_content.len();
+
+    // Convert byte offsets to display widths using the line content.
+    // col_start/col_end are 1-indexed byte offsets (exclusive end).
+    // byte_start_0 is the 0-indexed byte position of the marker start.
+    // col_start as an exclusive byte end = the first byte of the marker.
+    let byte_start_0 = (col_start - 1).min(line_len);
+    let byte_end_0 = (col_end - 1).min(line_len);
+
+    // Width of text between truncation point and marker start
+    let display_before_marker =
+        display_width_between(line_content, truncation_offset, byte_start_0);
+    // Width of the marked span
+    let mut display_marker_width = display_width_between(line_content, byte_start_0, byte_end_0);
+
+    // If the end column extends past the line, each overflow position adds 1
+    // display column (matching the old byte-arithmetic behavior for the
+    // "one past end" caret position).
+    if col_end - 1 > line_len {
+        display_marker_width += (col_end - 1) - line_len;
+    }
+    // If start is also past the end, fall back to byte arithmetic
+    if col_start > line_len {
+        display_marker_width = (col_end - col_start).max(1);
+    }
+
     // Map source column to display column, accounting for "..." prefix
     let display_col = if truncation_offset > 0 {
         if col_start <= truncation_offset {
             ELLIPSIS_DISPLAY_OFFSET
         } else {
-            (col_start - truncation_offset) + ELLIPSIS_DISPLAY_OFFSET
+            display_before_marker + ELLIPSIS_DISPLAY_OFFSET
         }
     } else {
-        col_start.max(1)
+        // +1 because the marker line starts with a space after the gutter
+        display_before_marker + 1
     };
 
     // Marker length: at least 1 caret, clamped to available width
-    let length = col_end
-        .saturating_sub(col_start)
+    let length = display_marker_width
         .max(1)
         .min(available_width.saturating_sub(display_col.saturating_sub(1)));
 
@@ -334,6 +387,7 @@ pub fn render_code_frame(
 
             // project into display space
             let (marker_col, marker_length) = marker_display_position(
+                line_content,
                 col_start,
                 col_end,
                 truncation.byte_offset,
@@ -371,9 +425,7 @@ const ELLIPSIS_DISPLAY_OFFSET: usize = ELLIPSIS.len() + 1;
 
 /// Calculate the truncation offset (in bytes) for all lines in the window.
 /// This ensures all lines are "scrolled" to the same horizontal position, centering the error
-/// range. All column values are byte offsets.
-// TODO: use a display-width crate (e.g. `unicode-width`) instead of byte length
-// for correct CJK / emoji column counting.
+/// range. Column values are byte offsets; width comparisons use display widths.
 fn calculate_truncation_offset(
     lines: &Lines<'_>,
     window: Range<usize>,
@@ -381,10 +433,10 @@ fn calculate_truncation_offset(
     end_column: usize,
     available_width: usize,
 ) -> usize {
-    // Check if any line in the window needs truncation
+    // Check if any line in the window needs truncation (using display width)
     let needs_truncation = window
         .clone()
-        .any(|i| lines.content(i).len() > available_width);
+        .any(|i| str_display_width(lines.content(i)) > available_width);
 
     // All lines are short enough or we don't have an error column so start at beginning
     if !needs_truncation || start_column == 0 {
@@ -409,10 +461,10 @@ fn calculate_truncation_offset(
 
 /// Truncate a line at a specific byte offset, adding ellipsis as needed.
 /// The `offset` is snapped forward to the nearest UTF-8 character boundary
-/// to avoid splitting multi-byte characters.
+/// to avoid splitting multi-byte characters. `max_width` is in display columns.
 fn truncate_line(line: &str, offset: usize, max_width: usize) -> TruncationResult {
-    // If no offset and line fits, return as-is
-    if offset == 0 && line.len() <= max_width {
+    // If no offset and line fits, return as-is (using display width)
+    if offset == 0 && str_display_width(line) <= max_width {
         return TruncationResult {
             visible_content: line.to_string(),
             byte_offset: 0,
@@ -433,7 +485,7 @@ fn truncate_line(line: &str, offset: usize, max_width: usize) -> TruncationResul
         0
     };
 
-    // Calculate how much content we can show (in bytes, approximate)
+    // Calculate how many display columns are available for content
     let available_content_width = if byte_offset > 0 {
         max_width.saturating_sub(ELLIPSIS.len())
     } else {
@@ -452,15 +504,25 @@ fn truncate_line(line: &str, offset: usize, max_width: usize) -> TruncationResul
         };
     };
 
-    let needs_trailing_ellipsis = remaining_line.len() > available_content_width;
-    let content_width = if needs_trailing_ellipsis {
+    let remaining_display_width = str_display_width(remaining_line);
+    let needs_trailing_ellipsis = remaining_display_width > available_content_width;
+    let target_width = if needs_trailing_ellipsis {
         available_content_width.saturating_sub(ELLIPSIS.len())
     } else {
-        available_content_width.min(remaining_line.len())
+        available_content_width
     };
 
-    // Find the largest byte offset <= content_width that is on a char boundary
-    let visible_end = remaining_line.floor_char_boundary(content_width);
+    // Walk characters until we reach the target display width
+    let mut cumulative_width = 0;
+    let mut visible_end = 0;
+    for (i, c) in remaining_line.char_indices() {
+        let char_width = c.width().unwrap_or(0);
+        if cumulative_width + char_width > target_width {
+            break;
+        }
+        cumulative_width += char_width;
+        visible_end = i + c.len_utf8();
+    }
 
     result.push_str(&remaining_line[..visible_end]);
 

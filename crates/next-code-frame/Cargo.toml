@@ -23,6 +23,7 @@ phf = { version = "0.11", features = ["macros"] }
 regex = { workspace = true }
 regex-automata = "0.4"
 serde = { workspace = true }
+unicode-width = "0.2"
 
 [dev-dependencies]
 criterion = { workspace = true }

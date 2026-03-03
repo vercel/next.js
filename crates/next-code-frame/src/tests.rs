@@ -240,7 +240,7 @@ fn test_long_line_single_error() {
     assert_snapshot!(result, @r"
       1 | ...
     > 2 | ...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...
-        |                                                 ^
+        |                                                ^
       3 | ...
     ");
 }
@@ -299,7 +299,7 @@ fn test_long_line_at_end() {
         .unwrap();
     assert_snapshot!(result, @r"
     > 1 | ...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-        |                                                 ^
+        |                                                ^
     ");
 }
 
@@ -333,7 +333,7 @@ fn test_long_line_multiline_aligned() {
     assert_snapshot!(result, @r"
       1 | ...bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...
     > 2 | ...cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc...
-        |                                                 ^
+        |                                                ^
       3 | ...dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd...
     ");
 }
@@ -844,7 +844,7 @@ fn test_multibyte_emoji() {
         .unwrap();
     assert_snapshot!(result, @r"
     > 1 | const x = '😀😀😀';
-        |            ^^^^^^^^^^^^
+        |            ^^^^^^
     ");
 }
 
