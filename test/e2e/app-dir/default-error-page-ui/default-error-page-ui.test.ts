@@ -40,9 +40,9 @@ describe('app dir - default error page UI', () => {
     const title = await browser.elementByCss('h1')
     expect(await title.text()).toBe("This page couldn't load")
 
-    // Check the error message - client errors show "Try reloading or go back."
+    // Check the error message - client errors show "Reload to try again, or go back."
     const message = await browser.elementByCss('p')
-    expect(await message.text()).toContain('Try reloading or go back')
+    expect(await message.text()).toContain('Reload to try again, or go back')
 
     // Check the "Reload" button exists
     const buttons = await browser.elementsByCss('button')

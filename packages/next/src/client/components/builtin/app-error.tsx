@@ -16,7 +16,7 @@ function AppError() {
             <WarningIcon />
             <h1 style={errorStyles.title}>This page couldn&apos;t load</h1>
             <p style={errorStyles.message}>
-              There was a server error. Try reloading.
+              A server error occurred. Reload to try again.
             </p>
             <form style={errorStyles.form}>
               <button type="submit" style={errorStyles.button}>

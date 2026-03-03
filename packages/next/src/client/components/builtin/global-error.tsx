@@ -15,8 +15,8 @@ function DefaultGlobalError({ error }: { error: any }) {
   const isServerError = !!digest
 
   const message = isServerError
-    ? 'There was a server error. Try reloading.'
-    : 'Try reloading or go back.'
+    ? 'A server error occurred. Reload to try again.'
+    : 'Reload to try again, or go back.'
 
   return (
     <html id="__next_error__">
