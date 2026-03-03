@@ -207,39 +207,7 @@ impl Debug for NativeFunction {
 }
 
 impl NativeFunction {
-    pub const fn new_function(
-        name: &'static str,
-        global_name: &'static str,
-        arg_meta: ArgMeta,
-        implementation: &'static dyn TaskFn,
-        is_root: bool,
-    ) -> Self {
-        Self {
-            name,
-            global_name,
-            arg_meta,
-            implementation,
-            is_root,
-        }
-    }
-
-    pub const fn new_method_without_this(
-        name: &'static str,
-        global_name: &'static str,
-        arg_meta: ArgMeta,
-        implementation: &'static dyn TaskFn,
-        is_root: bool,
-    ) -> Self {
-        Self {
-            name,
-            global_name,
-            arg_meta,
-            implementation,
-            is_root,
-        }
-    }
-
-    pub const fn new_method(
+    pub const fn new(
         name: &'static str,
         global_name: &'static str,
         arg_meta: ArgMeta,
