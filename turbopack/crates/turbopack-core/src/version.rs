@@ -6,7 +6,6 @@ use turbo_tasks::{
     IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::FileContent;
 use turbo_tasks_hash::HashAlgorithm;
 
 use crate::asset::AssetContent;
