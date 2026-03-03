@@ -38,6 +38,13 @@ import '../server/require-hook'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
+// Re-export for backward compatibility (swc/options.ts needs these via utils.ts
+// for the side-effect imports above to be triggered during Jest setup)
+export {
+  shouldUseReactServerCondition,
+  isWebpackAppPagesLayer,
+} from './webpack-layer'
+
 import { bold, cyan, green, red, underline, yellow } from '../lib/picocolors'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
