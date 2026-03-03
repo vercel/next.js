@@ -849,7 +849,9 @@ describe('app-dir - server source maps', () => {
              "description": "ignore-listed frames",
              "environmentLabel": null,
              "label": "Console Error",
-             "source": "internal-pkg/sourcemapped.ts (9:13) @ runSetOfSets",
+             "source": "app/ssr-anonymous-stack-frame-sandwich/page.js (7:29) @ Page
+         >  7 |   runHiddenSetOfSetsInternal('ssr-anonymous-stack-frame-sandwich: internal')
+              |                             ^",
              "stack": [
                "<unknown> internal-pkg/sourcemapped.ts (18:43)",
                "<unknown> internal-pkg/sourcemapped.ts (11:7)",

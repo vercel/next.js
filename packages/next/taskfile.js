@@ -990,7 +990,6 @@ export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
 }
 
 const babelCorePackages = {
-  'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/types': 'next/dist/compiled/babel/types',
@@ -1006,12 +1005,6 @@ const babelCorePackages = {
   '@babel/core/lib/transformation/plugin-pass':
     'next/dist/compiled/babel/core-lib-plugin-pass',
 }
-externals['next/dist/compiled/babel/code-frame'] =
-  'next/dist/compiled/babel/code-frame'
-
-externals['next/dist/compiled/babel-code-frame'] =
-  'next/dist/compiled/babel-code-frame'
-
 Object.assign(externals, babelCorePackages)
 
 export async function ncc_babel_bundle(task, opts) {
@@ -1030,21 +1023,6 @@ export async function ncc_babel_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/babel')
-}
-
-export async function ncc_babel_code_frame(task, opts) {
-  const bundleExternals = {
-    ...externals,
-    'next/dist/compiled/babel-packages': 'next/dist/compiled/babel-packages',
-  }
-  await task
-    .source('src/bundles/babel-code-frame/index.js')
-    .ncc({
-      packageName: '@babel/code-frame',
-      bundleName: 'babel-code-frame',
-      externals: bundleExternals,
-    })
-    .target('src/compiled/babel-code-frame')
 }
 
 export async function ncc_babel_bundle_packages(task, opts) {
@@ -2250,7 +2228,6 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
-        'ncc_babel_code_frame',
         'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',

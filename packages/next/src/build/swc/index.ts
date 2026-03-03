@@ -16,6 +16,8 @@ import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
   NapiSourceDiagnostic,
+  NapiCodeFrameLocation,
+  NapiCodeFrameOptions,
 } from './generated-native'
 import type {
   Binding,
@@ -388,7 +390,7 @@ async function tryLoadWasmWithFallback(
   }
 }
 
-function loadBindingsSync() {
+function loadBindingsSync(): Binding {
   let attempts: any[] = []
   try {
     return loadNative()
@@ -1438,6 +1440,17 @@ async function loadWasm(importPath = '') {
         imports
       )
     },
+    codeFrameColumns(
+      source: string,
+      location: NapiCodeFrameLocation,
+      options?: NapiCodeFrameOptions
+    ): string | undefined {
+      return rawBindings.codeFrameColumns(
+        Buffer.from(source),
+        location,
+        options
+      )
+    },
     lockfileTryAcquire(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquire` is not supported by the wasm bindings.'
@@ -1464,7 +1477,7 @@ async function loadWasm(importPath = '') {
  * Loads the native (non-wasm) bindings. Prefer `loadBindings` over this API, as that includes a
  * wasm fallback.
  */
-function loadNative(importPath?: string) {
+function loadNative(importPath?: string): Binding {
   if (loadedBindings) {
     return loadedBindings
   }
@@ -1687,8 +1700,13 @@ function loadNative(importPath?: string) {
       lockfileUnlockSync(lockfile: Lockfile) {
         return bindings.lockfileUnlockSync(lockfile)
       },
+      codeFrameColumns(source, location, options) {
+        // napi-rs translates Option::None as null but wasm-bindgen translates it to `null`
+        // convert here for consistency
+        return bindings.codeFrameColumns(source, location, options) ?? undefined
+      },
     }
-    return loadedBindings
+    return loadedBindings!
   }
 
   throw attempts

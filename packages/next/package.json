@@ -130,7 +130,6 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
-    "@babel/code-frame": "7.26.2",
     "@babel/core": "7.26.10",
     "@babel/eslint-parser": "7.24.6",
     "@babel/generator": "7.27.0",

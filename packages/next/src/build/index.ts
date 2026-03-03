@@ -1002,6 +1002,11 @@ export default async function build(
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
 
+      // Set up code frame renderer for error formatting
+      const { installCodeFrameSupport } =
+        require('../server/lib/install-code-frame') as typeof import('../server/lib/install-code-frame')
+      installCodeFrameSupport()
+
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 

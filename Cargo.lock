@@ -3448,16 +3448,16 @@ dependencies = [
 
 [[package]]
 name = "insta"
-version = "1.41.1"
+version = "1.46.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e9ffc4d4892617c50a928c52b2961cb5174b6fc6ebf252b2fac9d21955c48b8"
+checksum = "e82db8c87c7f1ccecb34ce0c24399b8a73081427f3c7c50a5d597925356115e4"
 dependencies = [
  "console",
- "lazy_static",
- "linked-hash-map",
+ "once_cell",
  "regex",
  "serde",
  "similar",
+ "tempfile",
 ]
 
 [[package]]
@@ -4513,6 +4513,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "next-code-frame"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "codspeed-criterion-compat",
+ "insta",
+ "memchr",
+ "phf",
+ "regex",
+ "regex-automata",
+ "serde",
+ "unicode-width 0.2.1",
+]
+
+[[package]]
 name = "next-core"
 version = "0.1.0"
 dependencies = [
@@ -4626,6 +4642,7 @@ dependencies = [
  "napi-derive",
  "next-api",
  "next-build",
+ "next-code-frame",
  "next-core",
  "next-custom-transforms",
  "next-taskless",
@@ -10987,6 +11004,7 @@ dependencies = [
  "getrandom 0.3.3",
  "js-sys",
  "mdxjs",
+ "next-code-frame",
  "next-custom-transforms",
  "next-taskless",
  "rustc-hash 2.1.1",

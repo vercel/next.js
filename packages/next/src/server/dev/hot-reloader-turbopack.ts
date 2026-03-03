@@ -429,6 +429,12 @@ export async function createHotReloaderTurbopack(
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)
   )
+
+  // Set up code frame renderer using native bindings
+  const { installCodeFrameSupport } =
+    require('../lib/install-code-frame') as typeof import('../lib/install-code-frame')
+  installCodeFrameSupport()
+
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     await project.onExit()
