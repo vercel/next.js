@@ -57,6 +57,21 @@ where
     }
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct ContentSourceWithIssues {
+    source_op: OperationVc<Box<dyn ContentSource>>,
+    effects: Effects,
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_source_with_issues_operation(
+    source_op: OperationVc<Box<dyn ContentSource>>,
+) -> Result<Vc<ContentSourceWithIssues>> {
+    let _ = source_op.resolve_strongly_consistent().await?;
+    let effects = get_effects(source_op).await?;
+    Ok(ContentSourceWithIssues { source_op, effects }.cell())
+}
+
 #[derive(TraceRawVcs, Debug, NonLocalValue)]
 pub struct DevServerBuilder {
     #[turbo_tasks(trace_ignore)]
@@ -208,23 +223,13 @@ impl DevServerBuilder {
 
                             let uri = request.uri();
                             let path = uri.path().to_string();
-                            let source_op = source_provider.get_source();
-                            #[turbo_tasks::function(operation)]
-                            async fn get_effects_operation(
-                                source_op: OperationVc<Box<dyn ContentSource>>,
-                            ) -> Result<Vc<Effects>> {
-                                let _ = source_op.read_trait_strongly_consistent().await?;
-                                Ok(get_effects(source_op).await?.cell())
-                            }
-                            // HACK: Resolve `source` now so that we can get any issues on it
-                            let _ = source_op.resolve_strongly_consistent().await?;
-                            get_effects_operation(source_op)
-                                .read_strongly_consistent()
-                                .await?
-                                .apply()
-                                .await?;
+                            let source_with_issues_op =
+                                get_source_with_issues_operation(source_provider.get_source());
+                            let ContentSourceWithIssues { source_op, effects } =
+                                &*source_with_issues_op.read_strongly_consistent().await?;
+                            effects.apply().await?;
                             handle_issues(
-                                source_op,
+                                source_with_issues_op,
                                 issue_reporter,
                                 IssueSeverity::Fatal,
                                 Some(&path),
@@ -240,7 +245,7 @@ impl DevServerBuilder {
                                     // It's unlikely (the calls happen one-after-another), but this
                                     // could cause inconsistency between the reported issues and
                                     // the generated HTTP response.
-                                    source_op,
+                                    *source_op,
                                     request,
                                     issue_reporter,
                                 )
