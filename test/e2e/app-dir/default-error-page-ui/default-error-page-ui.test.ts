@@ -132,7 +132,7 @@ describe('app dir - default error page UI', () => {
     // Server errors show "This page couldn\u2019t load"
     expect(html).toContain('This page couldn\u2019t load')
 
-    // Server errors show "There was a server error"
+    // Server errors show "A server error occurred"
     expect(html).toContain('A server error occurred')
 
     // Server errors show "ERROR" with digest
