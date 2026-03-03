@@ -101,13 +101,11 @@ This means:
 
 `loading.js` is useful when there's nothing meaningful to show until the page's data resolves. If the page needs to await data before it can render anything, a full-page skeleton is a reasonable fallback.
 
-For pages where some sections can render independently, you may prefer granular `<Suspense>` boundaries instead. Pushing fallbacks down into specific sections lets the static shell include more real content rather than a full-page skeleton.
-
 See the [`loading.js` API reference](/docs/app/api-reference/file-conventions/loading) for more details.
 
 ## Granular streaming with `<Suspense>`
 
-While `loading.js` streams an entire page, `<Suspense>` lets you control exactly which parts of the page stream independently. This is important when a page combines content with different loading characteristics.
+`<Suspense>` lets you control exactly which parts of the page stream independently. Instead of a full-page skeleton, you can push fallbacks down into specific sections so the static shell includes more real content.
 
 ### Parallel streaming with sibling boundaries
 
@@ -361,12 +359,12 @@ This keeps `ProductGrid` simple (it takes a `string`, not a `Promise`) while sti
 
 ### When to use `loading.js` vs `<Suspense>`
 
-|                | `loading.js`                    | `<Suspense>`                             |
-| -------------- | ------------------------------- | ---------------------------------------- |
-| **Scope**      | Entire page                     | Any component                            |
-| **Setup**      | Drop in a file                  | Wrap components explicitly               |
-| **Navigation** | Prefetched as instant fallback  | Not prefetched by default                |
-| **Best for**   | Pages with a single data source | Pages with multiple independent sections |
+|                | `loading.js`                             | `<Suspense>`                     |
+| -------------- | ---------------------------------------- | -------------------------------- |
+| **Scope**      | Entire page                              | Any component                    |
+| **Setup**      | Drop in a file                           | Wrap components explicitly       |
+| **Navigation** | Prefetched as instant fallback           | Not prefetched by default        |
+| **Best for**   | Pages where nothing renders without data | Most pages, for granular control |
 
 Prefer explicit `<Suspense>` boundaries close to the dynamic access. When the prerenderer encounters dynamic work, it walks up the tree looking for the nearest Suspense boundary. If none is found, the build fails with a [blocking route error](/docs/messages/blocking-route). A `loading.js` high in the tree is a valid boundary, so the framework finds it and stops, but now the entire page falls back to a full-page skeleton instead of streaming granularly.
 
@@ -455,7 +453,7 @@ The Server Component starts the fetch and passes the unresolved promise to the C
 
 When multiple Client Components need the same streamed data, you can store the promise in a React context. A Server Component creates the promise once (in a layout, for example) and passes it to a context provider. Any Client Component in the subtree can then call `useContext` to get the promise and `use()` to resolve it. The data is fetched once and the same promise is shared with every consumer through context.
 
-See [Sharing data with context and React.cache](/docs/app/getting-started/server-and-client-components#sharing-data-with-context-and-reactcache) for a full example.
+See [Sharing data with context and React.cache](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for a full example.
 
 ## Streaming in Route Handlers
 
@@ -570,11 +568,13 @@ When a Suspense fallback is replaced by the resolved content, the browser reflow
 
 ### INP (Interaction to Next Paint)
 
-Streaming enables [selective hydration](https://react.dev/reference/react-dom/client/hydrateRoot): React hydrates components independently as they stream in, and prioritizes hydrating whatever the user is interacting with. Each `<Suspense>` boundary is a hydration unit. Without them, React hydrates the entire page in one blocking pass. With them, hydration is broken into smaller tasks that yield to the browser, keeping the main thread responsive.
+Streaming enables [selective hydration](https://react.dev/reference/react-dom/client/hydrateRoot): React hydrates components independently as they stream in, and prioritizes hydrating whatever the user is interacting with. Each `<Suspense>` boundary is a hydration unit. Without them, React hydrates the entire page in one blocking pass. With them, hydration is broken into smaller tasks that yield to the browser, keeping the main thread responsive. The [companion demo](https://streaming-demo.labs.vercel.dev/hydration-single) lets you compare a single blocking hydration pass with [split hydration](https://streaming-demo.labs.vercel.dev/hydration-split) using Suspense boundaries.
 
 ### Early resource discovery
 
 The static shell includes `<link>` and `<script>` tags in the very first HTML chunk. The browser discovers and starts fetching CSS, JavaScript, and fonts immediately, while the server is still generating content. Resources are fetched during server think time rather than after it.
+
+In the [dashboard example](#parallel-streaming-with-sibling-boundaries) above, the `<h1>` renders in the shell (good for LCP), each data section streams independently behind its own Suspense boundary (good for INP since hydration is split), and the skeleton fallbacks reserve space (good for CLS).
 
 ## The HTTP contract
 
@@ -582,7 +582,7 @@ Once streaming begins, the HTTP response headers (including the status code) hav
 
 ### Status codes
 
-When a `<Suspense>` fallback renders or a Server Component suspends, the server must commit to `200 OK` in order to start sending the HTML stream. If a [`notFound()`](/docs/app/api-reference/functions/not-found) fires mid-stream, Next.js cannot go back and change the status to 404. Instead, it injects `<meta name="robots" content="noindex">` into the streamed HTML so that search engines don't index the page. Similarly, a [`redirect()`](/docs/app/api-reference/functions/redirect) mid-stream becomes a client-side redirect rather than a 301/302 header.
+When a `<Suspense>` fallback renders or a Server Component suspends, the server must commit to `200 OK` in order to start sending the HTML stream. If a [`notFound()`](/docs/app/api-reference/functions/not-found) fires mid-stream, Next.js cannot go back and change the status to 404. Instead, it injects `<meta name="robots" content="noindex">` into the streamed HTML so that search engines don't index the page. Similarly, a [`redirect()`](/docs/app/api-reference/functions/redirect) mid-stream becomes a client-side redirect rather than an HTTP redirect header.
 
 ### When does streaming start?
 
@@ -701,9 +701,12 @@ This section is about confirming the HTTP response is actually arriving in chunk
 **Observe raw chunks.** To see exactly what the server sends and when, use a small script that reads the response as a stream. This is more reliable than `curl` for observing timed chunks, since `curl` has its own buffering behavior:
 
 ```js filename="stream-observer.mjs"
-const res = await fetch('http://localhost:3000/your-page', {
-  headers: { 'Accept-Encoding': 'identity' },
-})
+const res = await fetch(
+  'https://streaming-demo.labs.vercel.dev/suspense-demo',
+  {
+    headers: { 'Accept-Encoding': 'identity' },
+  }
+)
 
 const reader = res.body.getReader()
 const decoder = new TextDecoder()
@@ -718,7 +721,18 @@ while (true) {
 }
 ```
 
-Run with `node stream-observer.mjs`. You will see the static shell arrive in the first chunk, then each Suspense boundary resolve in subsequent chunks with timestamps showing the delay.
+Run with `node stream-observer.mjs`. For a page with two sibling Suspense boundaries (like the [companion demo's Suspense page](https://streaming-demo.labs.vercel.dev/suspense-demo)), you will see output similar to:
+
+```text filename="Terminal"
+chunk 0 (+0ms)    # Static shell: <head>, CSS, nav, fallback skeletons,
+                  # <template id="B:0"> and <template id="B:1"> placeholders,
+                  # bootstrap scripts
+chunk 1 (+170ms)  # Component payload (self.__next_f.push) for hydration
+chunk 2 (+1000ms) # Weather widget: payload + <div hidden id="S:0"> (swaps B:0)
+chunk 3 (+3000ms) # Analytics dashboard: payload + <div hidden id="S:1"> (swaps B:1)
+```
+
+The `<template id="B:0">` markers are the Suspense fallback placeholders. When a boundary resolves, React streams a `<div hidden id="S:0">` containing the completed HTML and a script that swaps it into the page. The timestamps show each boundary resolving independently.
 
 > **Good to know:** The `Accept-Encoding: identity` header disables compression so chunks are not buffered by the compression layer.
 
@@ -744,17 +758,15 @@ The trigger is **your code**. The framework requires explicitness about three ki
 When the prerenderer encounters any of these, it cannot resolve that subtree statically. It walks up the component tree looking for the nearest `<Suspense>` boundary to use as a fallback. From there:
 
 1. **`<Suspense>` boundaries** are the catch. They tell React where to stop and what fallback to show while the subtree resolves. `loading.js` is a file convention that creates one automatically, wrapping the page and sibling slots inside the layout.
-2. **The static shell** is everything above and outside those boundaries: layouts, navigation, and fallback UI. It is sent in the first HTML chunk.
+2. **The static shell** is everything above and outside those boundaries: layouts, navigation, fallback UI, and cached component output. With Cache Components, this shell is prerendered at build time. It is sent in the first HTML chunk.
 3. **Streaming** delivers the static shell immediately over HTTP. As each boundary resolves, React streams the completed HTML along with a small script that swaps it into the page in-place, without waiting for the full JavaScript bundle.
-4. **Caching directives** like [`"use cache"`](/docs/app/api-reference/directives/use-cache) let you push work back into the shell. A cached database query can be prerendered at build time and served instantly from the edge, enlarging the static shell and reducing what needs to stream at request time.
+4. **Caching directives** like [`"use cache"`](/docs/app/api-reference/directives/use-cache) let you push work back into the shell. With [Cache Components](/docs/app/getting-started/cache-components), cached components are prerendered at build time and served from the edge. Their output becomes part of the static shell. Uncached components stream at request time. This means you control the boundary between instant and streamed content by choosing which components use `"use cache"`.
 
 The key decisions are **what to cache** and **where to place Suspense boundaries**. Cache what you can to grow the static shell. Push dynamic access down to the components that need it, and wrap those components in `<Suspense>`. Everything else becomes part of the shell.
 
-{/* TODO: update URL once repo is public */}
-
 ## Example
 
-The companion [streaming demo](https://github.com/vercel-labs/streaming-demo) lets you see each concept from this guide in action:
+The companion [streaming demo](https://streaming-demo.labs.vercel.dev/) ([source](https://github.com/vercel-labs/streaming-demo)) lets you see each concept from this guide in action:
 
 - Page-level streaming with `loading.tsx` (skeleton appears instantly, content streams in after ~2s)
 - Granular streaming with sibling `<Suspense>` boundaries that resolve independently
