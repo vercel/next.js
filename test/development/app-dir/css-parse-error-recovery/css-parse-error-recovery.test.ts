@@ -3,13 +3,13 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('css-parse-error-recovery', () => {
-  describe('with turbopackIgnoreIssue config', () => {
+  describe('with turbopack.ignoreIssue config', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
       nextConfig: {
-        experimental: {
-          turbopackIgnoreIssue: [
+        turbopack: {
+          ignoreIssue: [
             {
               path: '**/css-error/**',
             },
@@ -20,7 +20,7 @@ describe('css-parse-error-recovery', () => {
 
     if (skipped) return
     if (!isTurbopack) {
-      it('should skip tests since turbopackIgnoreIssue only works with Turbopack', () => {})
+      it('should skip tests since turbopack.ignoreIssue only works with Turbopack', () => {})
       return
     }
 
@@ -45,7 +45,7 @@ describe('css-parse-error-recovery', () => {
     })
   })
 
-  describe('without turbopackIgnoreIssue config', () => {
+  describe('without turbopack.ignoreIssue config', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
