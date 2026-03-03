@@ -67,7 +67,9 @@ use turbo_tasks::{
     ResolvedVc, TaskInput, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, effect,
     mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak,
 };
-use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
+use turbo_tasks_hash::{
+    DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
+};
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
 };
@@ -565,7 +567,7 @@ impl DiskFileSystemInner {
     }
 }
 
-#[derive(ValueToString)]
+#[derive(Clone, ValueToString)]
 #[value_to_string(self.inner.name)]
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
@@ -2371,9 +2373,11 @@ impl FileContent {
     /// Compared to [FileContent::hash], this hashes only the bytes of the file content and nothing
     /// else. If there is no file content, it returns `None`.
     #[turbo_tasks::function]
-    pub async fn content_hash(&self) -> Result<Vc<Option<u64>>> {
+    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
         match self {
-            FileContent::Content(file) => Ok(Vc::cell(Some(hash_xxh3_hash64(&file.content)))),
+            FileContent::Content(file) => Ok(Vc::cell(Some(
+                deterministic_hash(file.content().content_hash(), algorithm).into(),
+            ))),
             FileContent::NotFound => Ok(Vc::cell(None)),
         }
     }
@@ -2911,90 +2915,99 @@ mod tests {
             noop_backing_storage(),
         ));
         tt.run_once(async {
-            let fs_vc =
-                DiskFileSystem::new(rcstr!("temp"), RcStr::from(sys_root.to_str().unwrap()))
-                    .to_resolved()
-                    .await?;
-            let fs = fs_vc.await?;
-            let fs_root_path = fs_vc.root().await?;
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &Path::new("relative").join("directory"),
-                    /* relative_to */ None,
-                )
-                .unwrap()
-                .path,
-                "relative/directory"
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &sys_root
-                        .join("absolute")
-                        .join("directory")
-                        .join("..")
-                        .join("normalized_path"),
-                    /* relative_to */ Some(&fs_root_path.join("ignored").unwrap()),
-                )
-                .unwrap()
-                .path,
-                "absolute/normalized_path"
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    Path::new("child"),
-                    /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
-                )
-                .unwrap()
-                .path,
-                "parent/child"
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &Path::new("..").join("parallel_dir"),
-                    /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
-                )
-                .unwrap()
-                .path,
-                "parallel_dir"
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &Path::new("relative")
-                        .join("..")
-                        .join("..")
-                        .join("leaves_root"),
-                    /* relative_to */ None,
-                ),
-                None
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &sys_root
-                        .join("absolute")
-                        .join("..")
-                        .join("..")
-                        .join("leaves_root"),
-                    /* relative_to */ None,
-                ),
-                None
-            );
+            assert_try_from_sys_path_operation(RcStr::from(sys_root.to_str().unwrap()))
+                .read_strongly_consistent()
+                .await?;
 
             anyhow::Ok(())
         })
         .await
         .unwrap();
+    }
+
+    #[turbo_tasks::function(operation)]
+    async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
+        let sys_root = Path::new(sys_root.as_str());
+        let fs_vc = DiskFileSystem::new(rcstr!("temp"), RcStr::from(sys_root.to_str().unwrap()))
+            .to_resolved()
+            .await?;
+        let fs = fs_vc.await?;
+        let fs_root_path = fs_vc.root().await?;
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &Path::new("relative").join("directory"),
+                /* relative_to */ None,
+            )
+            .unwrap()
+            .path,
+            "relative/directory"
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &sys_root
+                    .join("absolute")
+                    .join("directory")
+                    .join("..")
+                    .join("normalized_path"),
+                /* relative_to */ Some(&fs_root_path.join("ignored").unwrap()),
+            )
+            .unwrap()
+            .path,
+            "absolute/normalized_path"
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                Path::new("child"),
+                /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
+            )
+            .unwrap()
+            .path,
+            "parent/child"
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &Path::new("..").join("parallel_dir"),
+                /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
+            )
+            .unwrap()
+            .path,
+            "parallel_dir"
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &Path::new("relative")
+                    .join("..")
+                    .join("..")
+                    .join("leaves_root"),
+                /* relative_to */ None,
+            ),
+            None
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &sys_root
+                    .join("absolute")
+                    .join("..")
+                    .join("..")
+                    .join("leaves_root"),
+                /* relative_to */ None,
+            ),
+            None
+        );
+
+        Ok(())
     }
 
     #[cfg(test)]
@@ -3004,15 +3017,15 @@ mod tests {
             io::Write,
         };
 
-        use rand::{Rng, SeedableRng};
+        use rand::{RngExt, SeedableRng};
         use turbo_rcstr::{RcStr, rcstr};
-        use turbo_tasks::{ResolvedVc, Vc, apply_effects};
+        use turbo_tasks::{OperationVc, ResolvedVc, Vc, apply_effects};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
         #[turbo_tasks::function(operation)]
-        async fn test_write_link_effect(
+        async fn test_write_link_effect_operation(
             fs: ResolvedVc<DiskFileSystem>,
             path: FileSystemPath,
             target: RcStr,
@@ -3048,6 +3061,13 @@ mod tests {
             Ok(())
         }
 
+        #[turbo_tasks::function(operation)]
+        async fn apply_effects_operation(op: OperationVc<()>) -> anyhow::Result<()> {
+            op.read_strongly_consistent().await?;
+            apply_effects(op).await?;
+            Ok(())
+        }
+
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_write_link() {
             let scratch = tempfile::tempdir().unwrap();
@@ -3071,15 +3091,18 @@ mod tests {
             ));
 
             tt.run_once(async move {
-                let fs = DiskFileSystem::new(rcstr!("test"), root)
-                    .to_resolved()
+                let fs = disk_file_system_operation(root)
+                    .resolve_strongly_consistent()
                     .await?;
-                let root_path = fs.root().owned().await?;
+                let root_path = disk_file_system_root(fs);
 
-                let write_result =
-                    test_write_link_effect(fs, root_path.clone(), rcstr!("subdir-a"));
-                write_result.read_strongly_consistent().await?;
-                apply_effects(write_result).await?;
+                apply_effects_operation(test_write_link_effect_operation(
+                    fs,
+                    root_path.clone(),
+                    rcstr!("subdir-a"),
+                ))
+                .read_strongly_consistent()
+                .await?;
 
                 assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "foo");
                 assert_eq!(
@@ -3088,9 +3111,13 @@ mod tests {
                 );
 
                 // Write the same links again but with different targets
-                let write_result = test_write_link_effect(fs, root_path, rcstr!("subdir-b"));
-                write_result.read_strongly_consistent().await?;
-                apply_effects(write_result).await?;
+                apply_effects_operation(test_write_link_effect_operation(
+                    fs,
+                    root_path,
+                    rcstr!("subdir-b"),
+                ))
+                .read_strongly_consistent()
+                .await?;
 
                 assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "bar");
                 assert_eq!(
@@ -3114,9 +3141,11 @@ mod tests {
             DiskFileSystem::new(rcstr!("test"), fs_root)
         }
 
-        #[turbo_tasks::function(operation)]
-        fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSystemPath> {
-            fs.root()
+        fn disk_file_system_root(fs: ResolvedVc<DiskFileSystem>) -> FileSystemPath {
+            FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!(""),
+            }
         }
 
         #[turbo_tasks::function(operation)]
@@ -3172,19 +3201,18 @@ mod tests {
                 let fs = disk_file_system_operation(root)
                     .resolve_strongly_consistent()
                     .await?;
-                let root_path = disk_file_system_root_operation(fs)
-                    .resolve_strongly_consistent()
-                    .await?
-                    .owned()
-                    .await?;
+                let root_path = disk_file_system_root(fs);
                 let symlinks_dir = root_path.join("_symlinks")?;
 
                 let initial_updates: Vec<(usize, usize)> =
                     (0..STRESS_SYMLINK_COUNT).map(|i| (i, 0)).collect();
-                let initial_op =
-                    write_symlink_stress_batch(fs, symlinks_dir.clone(), initial_updates);
-                initial_op.read_strongly_consistent().await?;
-                apply_effects(initial_op).await?;
+                apply_effects_operation(write_symlink_stress_batch(
+                    fs,
+                    symlinks_dir.clone(),
+                    initial_updates,
+                ))
+                .read_strongly_consistent()
+                .await?;
 
                 let mut rng = rand::rngs::SmallRng::seed_from_u64(0);
                 for _ in 0..STRESS_ITERATIONS {
@@ -3196,9 +3224,13 @@ mod tests {
                         })
                         .collect();
 
-                    let write_op = write_symlink_stress_batch(fs, symlinks_dir.clone(), updates);
-                    write_op.read_strongly_consistent().await?;
-                    apply_effects(write_op).await?;
+                    apply_effects_operation(write_symlink_stress_batch(
+                        fs,
+                        symlinks_dir.clone(),
+                        updates,
+                    ))
+                    .read_strongly_consistent()
+                    .await?;
                 }
 
                 anyhow::Ok(())
@@ -3219,6 +3251,7 @@ mod tests {
         };
 
         use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::apply_effects;
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{
@@ -3274,13 +3307,8 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read() {
-            let (_scratch, root, denied_path) = setup_test_fs();
-            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-                BackendOptions::default(),
-                noop_backing_storage(),
-            ));
-
-            tt.run_once(async {
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs =
                     DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
                 let root_path = fs.root().await?;
@@ -3318,6 +3346,19 @@ mod tests {
                     "denied directory should return NotFound"
                 );
 
+                Ok(())
+            }
+
+            let (_scratch, root, denied_path) = setup_test_fs();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async {
+                test_operation(root, denied_path)
+                    .read_strongly_consistent()
+                    .await?;
+
                 anyhow::Ok(())
             })
             .await
@@ -3326,13 +3367,8 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_dir() {
-            let (_scratch, root, denied_path) = setup_test_fs();
-            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-                BackendOptions::default(),
-                noop_backing_storage(),
-            ));
-
-            tt.run_once(async {
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs =
                     DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
                 let root_path = fs.root().await?;
@@ -3369,6 +3405,19 @@ mod tests {
                     "denied_dir read_dir should return NotFound"
                 );
 
+                Ok(())
+            }
+
+            let (_scratch, root, denied_path) = setup_test_fs();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async {
+                test_operation(root, denied_path)
+                    .read_strongly_consistent()
+                    .await?;
+
                 anyhow::Ok(())
             })
             .await
@@ -3377,13 +3426,8 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_glob() {
-            let (_scratch, root, denied_path) = setup_test_fs();
-            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-                BackendOptions::default(),
-                noop_backing_storage(),
-            ));
-
-            tt.run_once(async {
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs =
                     DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
                 let root_path = fs.root().await?;
@@ -3424,6 +3468,19 @@ mod tests {
                     "allowed_dir/file.txt should be found"
                 );
 
+                Ok(())
+            }
+
+            let (_scratch, root, denied_path) = setup_test_fs();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async {
+                test_operation(root, denied_path)
+                    .read_strongly_consistent()
+                    .await?;
+
                 anyhow::Ok(())
             })
             .await
@@ -3442,15 +3499,8 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_write() {
-            use turbo_tasks::apply_effects;
-
-            let (_scratch, root, denied_path) = setup_test_fs();
-            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-                BackendOptions::default(),
-                noop_backing_storage(),
-            ));
-
-            tt.run_once(async {
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs =
                     DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
                 let root_path = fs.root().await?;
@@ -3485,6 +3535,19 @@ mod tests {
                     result.is_err(),
                     "writing to nested denied path should return an error"
                 );
+
+                Ok(())
+            }
+
+            let (_scratch, root, denied_path) = setup_test_fs();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async {
+                test_operation(root, denied_path)
+                    .read_strongly_consistent()
+                    .await?;
 
                 anyhow::Ok(())
             })

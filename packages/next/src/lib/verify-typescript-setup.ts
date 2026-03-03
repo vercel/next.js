@@ -53,14 +53,14 @@ function hasNativeTypeScriptPreview(dir: string): boolean {
   }
 }
 
-export async function verifyTypeScriptSetup({
+export async function verifyAndRunTypeScript({
   dir,
   distDir,
-  distDirRoot,
   cacheDir,
   strictRouteTypes,
   tsconfigPath,
-  typeCheckPreflight,
+  shouldRunTypeCheck,
+  typedRoutes,
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
@@ -70,12 +70,11 @@ export async function verifyTypeScriptSetup({
 }: {
   dir: string
   distDir: string
-  /** The root dist directory without /dev suffix, used for fixed type paths */
-  distDirRoot?: string
   cacheDir?: string
   strictRouteTypes: boolean
   tsconfigPath: string | undefined
-  typeCheckPreflight: boolean
+  shouldRunTypeCheck: boolean
+  typedRoutes: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
@@ -127,10 +126,11 @@ export async function verifyTypeScriptSetup({
         await writeAppTypeDeclarations({
           baseDir: dir,
           distDir,
-          distDirRoot,
           imageImportsEnabled: !disableStaticImages,
           hasPagesDir,
           hasAppDir,
+          strictRouteTypes,
+          typedRoutes,
         })
 
         return { version: null }
@@ -209,14 +209,15 @@ export async function verifyTypeScriptSetup({
     await writeAppTypeDeclarations({
       baseDir: dir,
       distDir,
-      distDirRoot,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
+      strictRouteTypes,
+      typedRoutes,
     })
 
     let result
-    if (typeCheckPreflight) {
+    if (shouldRunTypeCheck) {
       const { runTypeCheck } =
         require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
 
@@ -247,7 +248,7 @@ export async function verifyTypeScriptSetup({
     }
 
     /**
-     * verifyTypeScriptSetup can be either invoked directly in the main thread (during next dev / next lint)
+     * verifyAndRunTypeScript can be either invoked directly in the main thread (during next dev / next lint)
      * or run in a worker (during next build). In the latter case, we need to print the error message, as the
      * parent process will only receive an `Jest worker encountered 1 child process exceptions, exceeding retry limit`.
      */

@@ -3,14 +3,16 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{Vc, unmark_top_level_task_may_leak_eventually_consistent_state};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_impl_method_args() -> Result<()> {
+async fn test_filtered_impl_method_args() -> Result<()> {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
         let uses_arg = UsesArg(0).cell();
         assert_eq!(
             uses_arg.method_with_arg(0).to_resolved().await?,
@@ -37,8 +39,10 @@ async fn filtered_impl_method_args() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_trait_method_args() -> Result<()> {
+async fn test_filtered_trait_method_args() -> Result<()> {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
         let uses_arg = UsesArg(0).cell();
         assert_eq!(
             uses_arg.trait_method_with_arg(0).to_resolved().await?,
@@ -65,8 +69,10 @@ async fn filtered_trait_method_args() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_impl_method_self() -> Result<()> {
+async fn test_filtered_impl_method_self() -> Result<()> {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
         let uses_arg = UsesArg(0).cell();
         let uses_arg2 = UsesArg(1).cell();
         assert_eq!(
@@ -99,8 +105,10 @@ async fn filtered_impl_method_self() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_trait_method_self() -> Result<()> {
+async fn test_filtered_trait_method_self() -> Result<()> {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
         let uses_arg = UsesArg(0).cell();
         let uses_arg2 = UsesArg(1).cell();
         assert_eq!(
@@ -133,8 +141,10 @@ async fn filtered_trait_method_self() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_plain_method_args() -> Result<()> {
+async fn test_filtered_plain_method_args() -> Result<()> {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
         assert_eq!(
             method_with_arg(0).to_resolved().await?,
             method_with_arg(0).to_resolved().await?,

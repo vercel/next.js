@@ -11,6 +11,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  getDeploymentId,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -20,17 +21,15 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-async function hasImageMatchingUrl(browser, url) {
-  const links = await browser.elementsByCss('img')
-  let foundMatch = false
-  for (const link of links) {
-    const src = await link.getAttribute('src')
-    if (new URL(src, `http://localhost:${appPort}`).toString() === url) {
-      foundMatch = true
-      break
-    }
-  }
-  return foundMatch
+async function getImageUrls(browser) {
+  return await Promise.all(
+    (await browser.elementsByCss('img')).map(async (link) =>
+      new URL(
+        await link.getAttribute('src'),
+        `http://localhost:${appPort}`
+      ).toString()
+    )
+  )
 }
 
 async function getComputed(browser, id, prop) {
@@ -60,7 +59,12 @@ function getRatio(width, height) {
   return height / width
 }
 
-function runTests(mode) {
+function runTests(mode: 'dev' | 'server') {
+  let dpl: string
+  beforeAll(() => {
+    dpl = getDeploymentId(appDir, mode === 'dev').getDeploymentIdQuery(true)
+  })
+
   it('should load the images', async () => {
     let browser = await webdriver(appPort, '/docs')
     try {
@@ -76,12 +80,9 @@ function runTests(mode) {
         return 'result-correct'
       }, /result-correct/)
 
-      expect(
-        await hasImageMatchingUrl(
-          browser,
-          `http://localhost:${appPort}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75`
-        )
-      ).toBe(true)
+      expect(await getImageUrls(browser)).toContain(
+        `http://localhost:${appPort}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75${dpl}`
+      )
     } finally {
       await browser.close()
     }
@@ -132,10 +133,10 @@ function runTests(mode) {
       const delta = 250
       const id = 'fixed1'
       expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
       )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 2x`
       )
       expect(await browser.elementById(id).getAttribute('sizes')).toBeFalsy()
       await browser.setDimensions({
@@ -165,12 +166,12 @@ function runTests(mode) {
 
       await check(async () => {
         expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+          `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
         )
         return 'success'
       }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 2x`
       )
       expect(await browser.elementById(id).getAttribute('sizes')).toBeFalsy()
       await browser.setDimensions({
@@ -206,12 +207,12 @@ function runTests(mode) {
 
       await check(async () => {
         expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+          `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
         )
         return 'success'
       }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75${dpl} 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75${dpl} 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75${dpl} 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75${dpl} 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75${dpl} 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75${dpl} 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 3840w`
       )
       expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
       await browser.setDimensions({
@@ -247,12 +248,12 @@ function runTests(mode) {
 
       await check(async () => {
         expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+          `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
         )
         return 'success'
       }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75${dpl} 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75${dpl} 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75${dpl} 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75${dpl} 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75${dpl} 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75${dpl} 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 3840w`
       )
       expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
       await browser.setDimensions({
@@ -288,12 +289,12 @@ function runTests(mode) {
 
       await check(async () => {
         expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+          `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
         )
         return 'success'
       }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75${dpl} 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75${dpl} 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75${dpl} 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75${dpl} 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75${dpl} 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75${dpl} 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 3840w`
       )
       expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
       expect(await getComputed(browser, id, 'width')).toBe(width)
@@ -339,12 +340,12 @@ function runTests(mode) {
 
       await check(async () => {
         expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+          `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
         )
         return 'success'
       }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=32&q=75 32w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=48&q=75 48w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=64&q=75 64w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=96&q=75 96w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=128&q=75 128w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=256&q=75 256w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=384&q=75 384w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=32&q=75${dpl} 32w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=48&q=75${dpl} 48w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=64&q=75${dpl} 64w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=96&q=75${dpl} 96w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=128&q=75${dpl} 128w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=256&q=75${dpl} 256w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=384&q=75${dpl} 384w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75${dpl} 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75${dpl} 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75${dpl} 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75${dpl} 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75${dpl} 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75${dpl} 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 3840w`
       )
       expect(await browser.elementById(id).getAttribute('sizes')).toBe(
         '(max-width: 2048px) 1200px, 3840px'

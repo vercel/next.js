@@ -7,10 +7,10 @@ use criterion::{
 };
 use parking_lot::Mutex;
 use quick_cache::sync::GuardResult;
-use rand::{Rng, SeedableRng, rngs::SmallRng, seq::SliceRandom};
+use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::TempDir;
 use turbo_persistence::{
-    ArcSlice, BlockCache, CompactConfig, Entry, EntryValue, MetaEntryFlags, SerialScheduler,
+    ArcBytes, BlockCache, CompactConfig, Entry, EntryValue, MetaEntryFlags, SerialScheduler,
     StaticSortedFile, StaticSortedFileMetaData, TurboPersistence, hash_key,
     write_static_stored_file,
 };
@@ -788,20 +788,12 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
             // Create temp directory and write SST file
             let tempdir = tempfile::tempdir().unwrap();
             let sst_path = tempdir.path().join("00000001.sst");
-            let total_key_size = entry_count * 8;
-
-            let (meta, _file) = write_static_stored_file(
-                &entries,
-                total_key_size,
-                &sst_path,
-                MetaEntryFlags::FRESH,
-            )
-            .unwrap();
+            let (meta, _file) =
+                write_static_stored_file(&entries, &sst_path, MetaEntryFlags::FRESH).unwrap();
 
             // Open the SST file
             let sst_meta = StaticSortedFileMetaData {
                 sequence_number: 1,
-                key_compression_dictionary_length: meta.key_compression_dictionary_length,
                 block_count: meta.block_count,
             };
             let sst = StaticSortedFile::open(tempdir.path(), sst_meta).unwrap();
@@ -957,7 +949,7 @@ fn bench_block_cache(c: &mut Criterion) {
 
             let mut block_data = vec![0u8; BLOCK_SIZE];
             rng.fill(&mut block_data[..]);
-            let block = ArcSlice::from(block_data.into_boxed_slice());
+            let block = ArcBytes::from(block_data.into_boxed_slice());
 
             // Create cache with enough capacity for all entries
             let cache: BlockCache = BlockCache::with(

@@ -391,6 +391,25 @@ impl DeterministicHash for Rope {
     }
 }
 
+impl Rope {
+    /// Returns a DeterministicHash impl that only hashes the bytes of the rope (still regardless of
+    /// their structure).
+    ///
+    /// The default (Deterministic)Hash implementation also includes the length of the rope. Be
+    /// careful when using this, as it would case `(Rope("abc"), Rope("def"))` and `(Rope("abcd"),
+    /// Rope("ef"))` to have the same hash. The best usecase is when the rope is the _whole_
+    /// datastructure being hashed and it isn't part of some other structure.
+    pub fn content_hash(&self) -> impl DeterministicHash + '_ {
+        RopeBytesOnlyHash(self)
+    }
+}
+pub struct RopeBytesOnlyHash<'a>(&'a Rope);
+impl DeterministicHash for RopeBytesOnlyHash<'_> {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        self.0.data.deterministic_hash(state);
+    }
+}
+
 /// Encode as a len + raw bytes format using the encoder's [`bincode::enc::write::Writer`]. Encoding
 /// [`Rope::to_bytes`] instead would be easier, but would require copying to an intermediate buffer.
 ///
@@ -893,7 +912,7 @@ mod test {
     };
 
     use anyhow::Result;
-    use turbo_tasks_hash::hash_xxh3_hash64;
+    use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher, hash_xxh3_hash64};
 
     use super::{InnerRope, Rope, RopeBuilder, RopeElem};
 
@@ -1092,6 +1111,17 @@ mod test {
         ]);
 
         assert_eq!(hash_xxh3_hash64(a), hash_xxh3_hash64(b));
+    }
+
+    #[test]
+    fn content_hash() {
+        let rope = Rope::new(vec!["abc".into(), "def".into()]);
+
+        let string = "abcdef";
+        let mut hasher = Xxh3Hash64Hasher::default();
+        hasher.write_bytes(string.as_bytes());
+
+        assert_eq!(hash_xxh3_hash64(rope.content_hash()), hasher.finish());
     }
 
     #[test]

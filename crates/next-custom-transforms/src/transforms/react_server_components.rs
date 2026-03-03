@@ -11,19 +11,19 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
+        DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
         visit::{
-            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
-            VisitWith,
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
         },
     },
 };
@@ -99,6 +99,7 @@ enum RSCErrorKind {
     NextRscErrDeprecatedApi((String, String, Span)),
     NextSsrDynamicFalseNotAllowed(Span),
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
+    NextRscErrRequiresRouteSegmentConfig(Span, String, NextConfigProperty),
     NextRscErrTaintWithoutConfig((String, Span)),
 }
 
@@ -121,6 +122,7 @@ enum InvalidExportKind {
     General,
     Metadata,
     RouteSegmentConfig(NextConfigProperty),
+    RequiresRouteSegmentConfig(NextConfigProperty),
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -162,15 +164,13 @@ impl<C: Comments> ReactServerComponents<C> {
     /// removes specific directive from the AST.
     fn remove_top_level_directive(&mut self, module: &mut Module) {
         module.body.retain(|item| {
-            if let ModuleItem::Stmt(stmt) = item {
-                if let Some(expr_stmt) = stmt.as_expr() {
-                    if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr_stmt.expr {
-                        if &**value == "use client" {
-                            // Remove the directive.
-                            return false;
-                        }
-                    }
-                }
+            if let ModuleItem::Stmt(stmt) = item
+                && let Some(expr_stmt) = stmt.as_expr()
+                && let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr_stmt.expr
+                && &**value == "use client"
+            {
+                // Remove the directive.
+                return false;
             }
             true
         });
@@ -361,6 +361,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
             vec![span],
         ),
+        RSCErrorKind::NextRscErrRequiresRouteSegmentConfig(span, segment, property) => (
+            format!("Route segment config \"{segment}\" requires `nextConfig.{property}` to be enabled."),
+            vec![span],
+        ),
         RSCErrorKind::NextRscErrTaintWithoutConfig((api_name, span)) => (
             format!(
                 "You're importing `{api_name}` from React which requires `experimental.taint: true` in your Next.js config. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/taint"
@@ -454,14 +458,14 @@ fn collect_module_info(
                             // an exception because they are not valid directives.
                             Expr::Paren(ParenExpr { expr, .. }) => {
                                 finished_directives = true;
-                                if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
-                                    if &**value == "use client" {
-                                        report_error(
-                                            app_dir,
-                                            filepath,
-                                            RSCErrorKind::NextRscErrClientDirective(expr_stmt.span),
-                                        );
-                                    }
+                                if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr
+                                    && &**value == "use client"
+                                {
+                                    report_error(
+                                        app_dir,
+                                        filepath,
+                                        RSCErrorKind::NextRscErrClientDirective(expr_stmt.span),
+                                    );
                                 }
                             }
                             _ => {
@@ -825,24 +829,22 @@ impl ReactServerComponentValidator {
 
         let is_error_file = RE.is_match(&self.filepath);
 
-        if is_error_file {
-            if let Some(app_dir) = &self.app_dir {
-                if let Some(app_dir) = app_dir.to_str() {
-                    if self.filepath.starts_with(app_dir) {
-                        let span = if let Some(first_item) = module.body.first() {
-                            first_item.span()
-                        } else {
-                            module.span
-                        };
+        if is_error_file
+            && let Some(app_dir) = &self.app_dir
+            && let Some(app_dir) = app_dir.to_str()
+            && self.filepath.starts_with(app_dir)
+        {
+            let span = if let Some(first_item) = module.body.first() {
+                first_item.span()
+            } else {
+                module.span
+            };
 
-                        report_error(
-                            &self.app_dir,
-                            &self.filepath,
-                            RSCErrorKind::NextRscErrErrorFileServerComponent(span),
-                        );
-                    }
-                }
-            }
+            report_error(
+                &self.app_dir,
+                &self.filepath,
+                RSCErrorKind::NextRscErrErrorFileServerComponent(span),
+            );
         }
     }
 
@@ -941,6 +943,19 @@ impl ReactServerComponentValidator {
                             );
                         }
                     }
+                    "unstable_instant" => {
+                        if !self.cache_components_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (
+                                    InvalidExportKind::RequiresRouteSegmentConfig(
+                                        NextConfigProperty::CacheComponents,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        }
+                    }
                     _ => (),
                 };
 
@@ -977,6 +992,17 @@ impl ReactServerComponentValidator {
                             &self.app_dir,
                             &self.filepath,
                             RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(
+                                *span,
+                                export_name.to_string(),
+                                *property,
+                            ),
+                        );
+                    }
+                    InvalidExportKind::RequiresRouteSegmentConfig(property) => {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrRequiresRouteSegmentConfig(
                                 *span,
                                 export_name.to_string(),
                                 *property,

@@ -512,7 +512,10 @@ export function processMessage(
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
-      createFromReadableStream<Error[]>(
+      createFromReadableStream<{
+        errors: Error[]
+        errorCodes: Map<Error, string>
+      }>(
         new ReadableStream({
           start(controller) {
             controller.enqueue(message.serializedErrors)
@@ -521,8 +524,16 @@ export function processMessage(
         }),
         { findSourceMapURL }
       ).then(
-        (errors) => {
+        ({ errors, errorCodes }) => {
           for (const error of errors) {
+            const code = errorCodes.get(error)
+            if (code !== undefined) {
+              Object.defineProperty(error, '__NEXT_ERROR_CODE', {
+                value: code,
+                enumerable: false,
+                configurable: true,
+              })
+            }
             console.error(error)
           }
         },

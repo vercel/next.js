@@ -157,6 +157,10 @@ pub struct NativeFunction {
 
     // The globally unique name for this function, used when persisting
     pub(crate) global_name: &'static str,
+
+    /// Whether this function's tasks should be treated as root nodes in the aggregation graph.
+    /// Root tasks start with aggregation number `u32::MAX` on initial creation.
+    pub is_root: bool,
 }
 
 impl Debug for NativeFunction {
@@ -173,6 +177,7 @@ impl NativeFunction {
         name: &'static str,
         global_name: &'static str,
         implementation: impl IntoTaskFn<Mode, Inputs>,
+        is_root: bool,
     ) -> Self
     where
         Inputs: TaskInput + Encode + Decode<()> + 'static,
@@ -182,6 +187,7 @@ impl NativeFunction {
             global_name,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
+            is_root,
         }
     }
 
@@ -190,6 +196,7 @@ impl NativeFunction {
         global_name: &'static str,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
+        is_root: bool,
     ) -> Self
     where
         Inputs: TaskInput + Encode + Decode<()> + 'static,
@@ -204,6 +211,7 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn()),
+            is_root,
         }
     }
 
@@ -212,6 +220,7 @@ impl NativeFunction {
         global_name: &'static str,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
+        is_root: bool,
     ) -> Self
     where
         This: Sync + Send + 'static,
@@ -227,6 +236,7 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn_with_this()),
+            is_root,
         }
     }
 
