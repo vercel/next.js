@@ -164,6 +164,7 @@
     "passed": [
       "Error recovery app can recover from a event handler error",
       "Error recovery app client component can recover from a component error",
+      "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
       "Error recovery app server component can recover from a component error",
@@ -172,8 +173,7 @@
       "Error recovery app syntax > runtime error"
     ],
     "failed": [
-      "Error recovery app can recover from a syntax error without losing state",
-      "Error recovery app client component can recover from syntax error"
+      "Error recovery app can recover from a syntax error without losing state"
     ],
     "pending": [],
     "flakey": [],
@@ -570,13 +570,14 @@
   },
   "test/development/app-dir/cache-components-dev-errors/cache-components-dev-errors.test.ts": {
     "passed": [
-      "Cache Components Dev Errors should clear segment errors after correcting them",
       "Cache Components Dev Errors should display error when component accessed data without suspense boundary",
       "Cache Components Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
       "Cache Components Dev Errors should not show a red box error on client navigations",
       "Cache Components Dev Errors should show a red box error on the SSR render"
     ],
-    "failed": [],
+    "failed": [
+      "Cache Components Dev Errors should clear segment errors after correcting them"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9634,8 +9635,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
-    "passed": ["prefetch-partial-rsc resolves after a client-side navigation"],
-    "failed": [],
+    "passed": [],
+    "failed": ["prefetch-partial-rsc resolves after a client-side navigation"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13479,10 +13480,10 @@
     "runtimeError": false
   },
   "test/e2e/tsconfig-module-preserve/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "tsconfig module: preserve allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
