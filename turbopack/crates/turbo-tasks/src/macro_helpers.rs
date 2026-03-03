@@ -99,12 +99,10 @@ pub const fn const_concat_into<const N: usize>(slices: &[&str]) -> [u8; N] {
     let mut i = 0;
     while i < slices.len() {
         let bytes = slices[i].as_bytes();
-        let mut j = 0;
-        while j < bytes.len() {
-            buf[pos] = bytes[j];
-            pos += 1;
-            j += 1;
-        }
+        let (_, rest) = buf.split_at_mut(pos);
+        let (dst, _) = rest.split_at_mut(bytes.len());
+        dst.copy_from_slice(bytes);
+        pos += bytes.len();
         i += 1;
     }
     assert!(pos == N, "const_concat: length mismatch");
@@ -136,28 +134,27 @@ macro_rules! const_concat {
 /// Used by `global_name_for_scope!` to extract the module path from a `type_name`.
 #[doc(hidden)]
 pub const fn strip_trailing_segments(s: &str, count: usize) -> &str {
-    let bytes = s.as_bytes();
-    let mut end = bytes.len();
+    let mut remaining = s;
     let mut i = 0;
     while i < count {
-        if end < 2 {
+        let bytes = remaining.as_bytes();
+        if bytes.len() < 2 {
             return s;
         }
-        let mut pos = end;
+        let mut pos = bytes.len();
         loop {
             if pos < 2 {
                 return s;
             }
             pos -= 1;
             if bytes[pos] == b':' && bytes[pos - 1] == b':' {
-                end = pos - 1;
+                (remaining, _) = remaining.split_at(pos - 1);
                 break;
             }
         }
         i += 1;
     }
-    // SAFETY: we're slicing at ASCII "::" boundaries within a valid UTF-8 string
-    unsafe { std::str::from_utf8_unchecked(bytes.split_at(end).0) }
+    remaining
 }
 
 /// A registry of all the impl vtables for a given VcValue trait
