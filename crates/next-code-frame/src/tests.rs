@@ -190,13 +190,16 @@ fn test_multiline_error_with_message() {
 
 #[test]
 fn test_with_message() {
-    let source = "const x = 1";
+    let source = "const x = 1;";
     let location = CodeFrameLocation {
         start: Location {
             line: 1,
-            column: Some(7),
+            column: Some(11),
         },
-        end: None,
+        end: Some(Location {
+            line: 1,
+            column: Some(12),
+        }),
     };
     let options = CodeFrameOptions {
         color: false,
@@ -209,8 +212,8 @@ fn test_with_message() {
         .unwrap()
         .unwrap();
     assert_snapshot!(result, @r"
-    > 1 | const x = 1
-        |       ^ Expected semicolon
+    > 1 | const x = 1;
+        |           ^ Expected semicolon
     ");
 }
 
@@ -277,7 +280,8 @@ fn test_long_line_at_start() {
 #[test]
 fn test_long_line_at_end() {
     // Error at the end of a long line
-    let long_line = "a".repeat(500);
+    let mut long_line = "a".repeat(500);
+    long_line.replace_range(494..495, "x"); // Insert 'x' at error location (column 495)
     let source = long_line.clone();
 
     let location = CodeFrameLocation {
@@ -298,7 +302,7 @@ fn test_long_line_at_end() {
         .unwrap()
         .unwrap();
     assert_snapshot!(result, @r"
-    > 1 | ...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    > 1 | ...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaxaaaaa
         |                                                ^
     ");
 }
@@ -406,9 +410,11 @@ fn test_gutter_width_alignment() {
 fn test_large_file() {
     // Test with a multi-megabyte file
     let line = "x".repeat(100);
-    let lines: Vec<String> = (1..=50000)
+    let mut lines: Vec<String> = (1..=50000)
         .map(|i| format!("line {} {}", i, line))
         .collect();
+    // Mark the error line so the `^` visibly points at something distinct
+    lines[24999] = format!("ERROR on line 25000 {}", line);
     let source = lines.join("\n");
 
     let location = CodeFrameLocation {
@@ -433,7 +439,7 @@ fn test_large_file() {
     assert_snapshot!(result, @r"
       24998 | line 24998 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       24999 | line 24999 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    > 25000 | line 25000 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    > 25000 | ERROR on line 25000 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
             | ^
       25001 | line 25001 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       25002 | line 25002 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
