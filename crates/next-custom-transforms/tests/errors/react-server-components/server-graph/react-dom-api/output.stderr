@@ -1,4 +1,5 @@
-  x You're importing a component that needs `flushSync`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'flushSync' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -7,7 +8,8 @@
  1 | import { flushSync, unstable_batchedUpdates } from 'react-dom'
    :          ^^^^^^^^^
    `----
-  x You're importing a component that needs `unstable_batchedUpdates`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'unstable_batchedUpdates' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -16,7 +18,8 @@
  1 | import { flushSync, unstable_batchedUpdates } from 'react-dom'
    :                     ^^^^^^^^^^^^^^^^^^^^^^^
    `----
-  x You're importing a component that needs `useActionState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useActionState' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -26,7 +29,8 @@
  3 | import { useActionState } from 'react'
    :          ^^^^^^^^^^^^^^
    `----
-  x You're importing a component that needs `useFormStatus`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useFormStatus' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
@@ -36,7 +40,8 @@
  5 | import { useFormStatus, useFormState } from 'react-dom'
    :          ^^^^^^^^^^^^^
    `----
-  x You're importing a component that needs `useFormState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  x The hook 'useFormState' cannot be imported from a Server Component module.
+  | To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
   |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 

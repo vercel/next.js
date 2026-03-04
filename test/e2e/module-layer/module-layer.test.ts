@@ -2,7 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   waitForRedbox,
   getRedboxSource,
-  retry,
   waitForNoRedbox,
 } from 'next-test-utils'
 
@@ -113,13 +112,11 @@ describe('module layer', () => {
                 "import './lib/mixed-lib'"
               ),
           async () => {
-            await retry(async () => {
-              await waitForRedbox(browser)
-              const source = await getRedboxSource(browser)
-              expect(source).toContain(
-                `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
-              )
-            })
+            await waitForRedbox(browser)
+            const source = await getRedboxSource(browser)
+            expect(source).toContain(
+              "'client-only' cannot be imported from a Server Component module"
+            )
           }
         )
 

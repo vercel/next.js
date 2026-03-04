@@ -280,7 +280,10 @@ pub async fn get_next_client_import_map(
     insert_turbopack_dev_alias(&mut import_map).await?;
     insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
-    insert_server_only_error_alias(&mut import_map);
+    insert_invalid_import_mappings_client(
+        &mut import_map,
+        matches!(ty, ClientContextType::Pages { .. }),
+    );
 
     Ok(import_map.cell())
 }
@@ -560,7 +563,7 @@ pub async fn get_next_edge_import_map(
             | ServerContextType::Middleware { .. }
             | ServerContextType::Instrumentation { .. }
     ) {
-        insert_client_only_error_alias(&mut import_map);
+        insert_invalid_import_mappings_server(&mut import_map);
     }
 
     Ok(import_map.cell())
@@ -783,7 +786,7 @@ async fn insert_next_server_special_aliases(
                     rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/error"),
                 },
             );
-            insert_client_only_error_alias(import_map);
+            insert_invalid_import_mappings_server(import_map);
         }
         ServerContextType::AppSSR { .. } => {
             insert_exact_alias_map(
@@ -1471,78 +1474,139 @@ async fn insert_instrumentation_client_alias(
     Ok(())
 }
 
-fn insert_client_only_error_alias(import_map: &mut ImportMap) {
-    import_map.insert_exact_alias(
+fn insert_invalid_import_mappings_server(import_map: &mut ImportMap) {
+    for pkg in [
         rcstr!("client-only"),
-        ImportMapping::Error(ResolvedVc::upcast(
+        // styled-jsx imports client-only. So this is effectively the same as above but produces a
+        // nicer import trace.
+        rcstr!("styled-jsx"),
+        rcstr!("react-dom/client"),
+        rcstr!("react-dom/server"),
+        rcstr!("next/router"),
+    ] {
+        let mapping = ImportMapping::Error(ResolvedVc::upcast(
             InvalidImportIssue {
                 title: StyledString::Line(vec![
-                    StyledString::Code(rcstr!("'client-only'")),
+                    StyledString::Code(format!("'{}'", pkg).into()),
                     StyledString::Text(rcstr!(
                         " cannot be imported from a Server Component module"
                     )),
                 ])
                 .resolved_cell(),
                 description: ResolvedVc::cell(Some(
-                    StyledString::Line(vec![StyledString::Text(
-                        "It should only be used from a Client Component.".into(),
-                    )])
+                    StyledString::Stack(
+                        (pkg == "client-only")
+                            .then_some(StyledString::Line(vec![
+                                StyledString::Text("Modules use ".into()),
+                                StyledString::Code("import 'client-only'".into()),
+                                StyledString::Text(
+                                    " to flag they shouldn't be used from Server Components."
+                                        .into(),
+                                ),
+                            ]))
+                            .into_iter()
+                            .chain([
+                                StyledString::Line(vec![
+                                    StyledString::Text(
+                                        "Usually this is caused by a missing ".into(),
+                                    ),
+                                    StyledString::Code("'use client'".into()),
+                                    StyledString::Text(
+                                        " in some module in the import chain.".into(),
+                                    ),
+                                ]),
+                                StyledString::Text(
+                                    "Alternatively, an import of the import chain can be removed \
+                                     to avoid referencing this module."
+                                        .into(),
+                                ),
+                            ])
+                            .collect(),
+                    )
                     .resolved_cell(),
                 )),
             }
             .resolved_cell(),
         ))
-        .resolved_cell(),
-    );
+        .resolved_cell();
 
-    // styled-jsx imports client-only. So this is effectively the same as above but produces a nicer
-    // import trace.
-    let mapping = ImportMapping::Error(ResolvedVc::upcast(
-        InvalidImportIssue {
-            title: StyledString::Line(vec![
-                StyledString::Code(rcstr!("'styled-jsx'")),
-                StyledString::Text(rcstr!(" cannot be imported from a Server Component module")),
-            ])
-            .resolved_cell(),
-            description: ResolvedVc::cell(Some(
-                StyledString::Line(vec![StyledString::Text(
-                    "It only works in a Client Component but none of its parents are marked with \
-                     'use client', so they're Server Components by default."
-                        .into(),
-                )])
-                .resolved_cell(),
-            )),
+        let is_styled_jsx = pkg == "styled-jsx";
+        import_map.insert_exact_alias(pkg, mapping);
+        if is_styled_jsx {
+            import_map.insert_wildcard_alias(rcstr!("styled-jsx/"), mapping);
         }
-        .resolved_cell(),
-    ))
-    .resolved_cell();
-    import_map.insert_exact_alias(rcstr!("styled-jsx"), mapping);
-    import_map.insert_wildcard_alias(rcstr!("styled-jsx/"), mapping);
+    }
 }
 
-fn insert_server_only_error_alias(import_map: &mut ImportMap) {
-    import_map.insert_exact_alias(
+fn insert_invalid_import_mappings_client(import_map: &mut ImportMap, is_pages: bool) {
+    // Putting this value inline below breaks rustfmt for the whole file
+    let server_components_hint: RcStr = rcstr!("Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components");
+
+    for pkg in [
         rcstr!("server-only"),
-        ImportMapping::Error(ResolvedVc::upcast(
-            InvalidImportIssue {
-                title: StyledString::Line(vec![
-                    StyledString::Code(rcstr!("'server-only'")),
-                    StyledString::Text(rcstr!(
-                        " cannot be imported from a Client Component module"
-                    )),
-                ])
-                .resolved_cell(),
-                description: ResolvedVc::cell(Some(
-                    StyledString::Line(vec![StyledString::Text(
-                        "It should only be used from a Server Component.".into(),
-                    )])
+        rcstr!("next/headers"),
+        rcstr!("next/root-params"),
+    ] {
+        import_map.insert_exact_alias(
+            pkg.clone(),
+            ImportMapping::Error(ResolvedVc::upcast(
+                InvalidImportIssue {
+                    title: StyledString::Line(vec![
+                        StyledString::Code(format!("'{}'", pkg).into()),
+                        StyledString::Text(rcstr!(
+                            " cannot be imported from a Client Component module"
+                        )),
+                    ])
                     .resolved_cell(),
-                )),
-            }
+                    description: ResolvedVc::cell(Some(
+                        StyledString::Stack(
+                            (pkg == "server-only")
+                                .then_some(StyledString::Line(vec![
+                                    StyledString::Text("Modules use ".into()),
+                                    StyledString::Code("import 'server-only'".into()),
+                                    StyledString::Text(
+                                        " to flag they shouldn't be used from Client Components."
+                                            .into(),
+                                    ),
+                                ]))
+                                .into_iter()
+                                .chain(if is_pages {
+                                    vec![
+                                        StyledString::Text(
+                                            "It only works in a Server Component which is not \
+                                             supported in the pages/ directory. "
+                                                .into(),
+                                        ),
+                                        StyledString::Text(server_components_hint.clone()),
+                                    ]
+                                } else {
+                                    vec![
+                                        StyledString::Line(vec![
+                                            StyledString::Text(
+                                                "This might be caused by an incorrect ".into(),
+                                            ),
+                                            StyledString::Code("'use client'".into()),
+                                            StyledString::Text(
+                                                " in some module in the import chain.".into(),
+                                            ),
+                                        ]),
+                                        StyledString::Text(
+                                            "Alternatively, an import of the import chain can be \
+                                             removed to avoid referencing this module."
+                                                .into(),
+                                        ),
+                                    ]
+                                })
+                                .collect(),
+                        )
+                        .resolved_cell(),
+                    )),
+                }
+                .resolved_cell(),
+            ))
             .resolved_cell(),
-        ))
-        .resolved_cell(),
-    );
+        );
+    }
 }
 
 #[turbo_tasks::value(shared)]

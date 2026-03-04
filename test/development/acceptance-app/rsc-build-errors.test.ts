@@ -150,7 +150,7 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.waitForRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      `You’re importing a class component. It only works in a Client Component`
+      `Class components cannot be imported from a Server Component module.`
     )
   })
 
@@ -176,15 +176,16 @@ describe('Error overlay - RSC build errors', () => {
       // turbopack emits the resolve issue first instead of the transform issue.
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./app/server-with-errors/client-only-in-server/client-only-lib.js (1:1)
-       Ecmascript file had an error
+       'client-only' cannot be imported from a Server Component module
        > 1 | import 'client-only'
            | ^^^^^^^^^^^^^^^^^^^^
          2 |
          3 | export default function ClientOnlyLib() {
          4 |   return 'client-only-lib'
 
-       You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+       Modules use import 'client-only' to flag they shouldn't be used from Server Components.
+       Usually this is caused by a missing 'use client' in some module in the import chain.
+       Alternatively, an import of the import chain can be removed to avoid referencing this module.
 
        Import trace:
          Server Component:
@@ -193,7 +194,7 @@ describe('Error overlay - RSC build errors', () => {
       `)
     } else {
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+        `'client-only' cannot be imported from a Server Component module`
       )
     }
   })
@@ -229,8 +230,8 @@ describe('Error overlay - RSC build errors', () => {
       expect(await session.getRedboxSource()).toInclude(
         // `Component` has a custom error message
         api === 'Component'
-          ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-          : `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+          ? `Class components cannot be imported from a Server Component module.`
+          : `The hook '${api}' cannot be imported from a Server Component module.`
       )
     })
   }
@@ -251,7 +252,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        `The hook '${api}' cannot be imported from a Server Component module.`
       )
     })
   }
@@ -275,7 +276,7 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.waitForRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that needs "server-only". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      `'server-only' cannot be imported from a Client Component module`
     )
   })
 
@@ -291,7 +292,7 @@ describe('Error overlay - RSC build errors', () => {
         const { session } = sandbox
         await session.waitForRedbox()
         expect(await session.getRedboxSource()).toInclude(
-          `You're importing a component that needs "${api}". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+          `'${api}' cannot be imported from a Client Component module.`
         )
       }
     )
@@ -354,7 +355,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs "next/root-params". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+        `'next/root-params' cannot be imported from a Client Component module`
       )
     })
 
@@ -377,7 +378,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component.`
+        `'next/root-params' cannot be imported from a Client Component module`
       )
     })
   })
@@ -427,7 +428,8 @@ describe('Error overlay - RSC build errors', () => {
        > 1 | export default function Error() {}
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-       app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+       app/server-with-errors/error-file/error.js must be a Client Component.
+       Add the "use client" directive the top of the file to resolve this issue.
        Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
       `)
     } else {

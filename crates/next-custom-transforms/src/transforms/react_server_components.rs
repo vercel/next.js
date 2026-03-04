@@ -137,6 +137,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             self.taint_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
+            true,
         );
 
         module.visit_with(&mut validator);
@@ -291,10 +292,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         RSCErrorKind::NextRscErrServerImport((source, span)) => {
             let msg = match source.as_str() {
                 // If importing "react-dom/server", we should show a different error.
-                "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering".to_string(),
+                "react-dom/server" => "'react-dom/server' cannot be imported from a Server Component module.\nTo fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering".to_string(),
                 // If importing "next/router", we should tell them to use "next/navigation".
-                "next/router" => "You have a Server Component that imports next/router. Use next/navigation instead.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/use-router".to_string(),
-                _ => format!("You're importing a component that imports {source}. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering")
+                "next/router" => "'next/router' cannot be imported from a Server Component module.\nUse next/navigation instead.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/use-router".to_string(),
+                _ => format!("'{source}' cannot be imported from a Server Component module.\nIt only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering")
             };
 
             (msg, vec![span])
@@ -312,36 +313,36 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 .unwrap_or_default();
 
             let msg = if !is_app_dir {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
+                format!("\'{source}\' cannot be imported from a Client Component module.\nThat only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
+                format!("\'{source}\' cannot be imported from a Client Component module.\nThat only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
             };
             (msg, vec![span])
         }
         RSCErrorKind::NextRscErrReactApi((source, span)) => {
             let msg = if source == "Component" {
-                "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n".to_string()
+                "Class components cannot be imported from a Server Component module. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n".to_string()
             } else {
-                format!("You're importing a component that needs `{source}`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
+                format!("The hook '{source}' cannot be imported from a Server Component module.\nTo fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
             };
 
             (msg, vec![span])
         },
         RSCErrorKind::NextRscErrErrorFileServerComponent(span) => {
             (
-                format!("{filepath} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"),
+                format!("{filepath} must be a Client Component.\nAdd the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"),
                 vec![span]
             )
         },
         RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
-            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. \"{source}\" must be resolved on the server before the page component is rendered. Keep your page as a Server Component and move Client Component logic to a separate file. Read more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata#why-generatemetadata-is-server-component-only\n\n"), vec![span])
+            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed.\n\"{source}\" must be resolved on the server before the page component is rendered. Keep your page as a Server Component and move Client Component logic to a separate file. Read more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata#why-generatemetadata-is-server-component-only\n\n"), vec![span])
         },
         RSCErrorKind::NextRscErrConflictMetadataExport((span1, span2)) => (
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
             vec![span1, span2]
         ),
         RSCErrorKind::NextRscErrInvalidApi((source, span)) => (
-            format!("\"{source}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n"), vec![span]
+            format!("\"{source}\" is not supported in app/.\nRead more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n"), vec![span]
         ),
         RSCErrorKind::NextRscErrDeprecatedApi((source, item, span)) => match (&*source, &*item) {
             ("next/server", "ImageResponse") => (
@@ -353,12 +354,12 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             _ => (format!("\"{source}\" is deprecated."), vec![span]),
         },
         RSCErrorKind::NextSsrDynamicFalseNotAllowed(span) => (
-            "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component."
+            "`ssr: false` is not allowed with `next/dynamic` in Server Components.\nPlease move it into a Client Component."
                 .to_string(),
             vec![span],
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
-            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
+            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`.\nPlease remove it."),
             vec![span],
         ),
         RSCErrorKind::NextRscErrRequiresRouteSegmentConfig(span, segment, property) => (
@@ -367,7 +368,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         ),
         RSCErrorKind::NextRscErrTaintWithoutConfig((api_name, span)) => (
             format!(
-                "You're importing `{api_name}` from React which requires `experimental.taint: true` in your Next.js config. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/taint"
+                "You're importing `{api_name}` from React which requires `experimental.taint: true` in your Next.js config.\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/taint"
             ),
             vec![span],
         ),
@@ -588,12 +589,15 @@ fn collect_module_info(
 
 /// A visitor to assert given module file is a valid React server component.
 struct ReactServerComponentValidator {
+    // Options
     is_react_server_layer: bool,
     cache_components_enabled: bool,
     use_cache_enabled: bool,
     taint_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
+
+    // State
     invalid_server_imports: Vec<Wtf8Atom>,
     invalid_server_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
     deprecated_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
@@ -614,6 +618,7 @@ impl ReactServerComponentValidator {
         taint_enabled: bool,
         filename: String,
         app_dir: Option<PathBuf>,
+        validate_context_only_import: bool,
     ) -> Self {
         Self {
             is_react_server_layer,
@@ -622,6 +627,7 @@ impl ReactServerComponentValidator {
             taint_enabled,
             filepath: filename,
             app_dir,
+
             module_directive: None,
             export_names: vec![],
             // react -> [apis]
@@ -681,18 +687,26 @@ impl ReactServerComponentValidator {
                 vec!["ImageResponse"],
             )]),
 
-            invalid_server_imports: vec![
-                atom!("client-only").into(),
-                atom!("react-dom/client").into(),
-                atom!("react-dom/server").into(),
-                atom!("next/router").into(),
-            ],
+            invalid_server_imports: if validate_context_only_import {
+                vec![
+                    atom!("client-only").into(),
+                    atom!("react-dom/client").into(),
+                    atom!("react-dom/server").into(),
+                    atom!("next/router").into(),
+                ]
+            } else {
+                vec![]
+            },
 
-            invalid_client_imports: vec![
-                atom!("server-only").into(),
-                atom!("next/headers").into(),
-                atom!("next/root-params").into(),
-            ],
+            invalid_client_imports: if validate_context_only_import {
+                vec![
+                    atom!("server-only").into(),
+                    atom!("next/headers").into(),
+                    atom!("next/root-params").into(),
+                ]
+            } else {
+                vec![]
+            },
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
                 (atom!("next/server").into(), vec!["after"]),
@@ -1188,6 +1202,7 @@ pub fn server_components_assert(
         taint_enabled,
         filename,
         app_dir,
+        false,
     )
 }
 

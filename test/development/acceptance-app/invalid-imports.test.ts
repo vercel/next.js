@@ -68,7 +68,8 @@ describe('Error Overlay invalid imports', () => {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./app/comp2.js
        'styled-jsx' cannot be imported from a Server Component module
-       It only works in a Client Component but none of its parents are marked with 'use client', so they're Server Components by default.
+       Usually this is caused by a missing 'use client' in some module in the import chain.
+       Alternatively, an import of the import chain can be removed to avoid referencing this module.
 
        Import trace:
          Server Component:
@@ -140,7 +141,9 @@ describe('Error Overlay invalid imports', () => {
        > 1 | require("client-only")
            | ^^^^^^^^^^^^^^^^^^^^^^
 
-       It should only be used from a Client Component.
+       Modules use import 'client-only' to flag they shouldn't be used from Server Components.
+       Usually this is caused by a missing 'use client' in some module in the import chain.
+       Alternatively, an import of the import chain can be removed to avoid referencing this module.
 
        Import trace:
          Server Component:
@@ -239,7 +242,9 @@ describe('Error Overlay invalid imports', () => {
        > 1 | require("client-only")
            | ^^^^^^^^^^^^^^^^^^^^^^
 
-       It should only be used from a Client Component.
+       Modules use import 'client-only' to flag they shouldn't be used from Server Components.
+       Usually this is caused by a missing 'use client' in some module in the import chain.
+       Alternatively, an import of the import chain can be removed to avoid referencing this module.
 
        Import trace:
          Server Component:
@@ -340,7 +345,9 @@ describe('Error Overlay invalid imports', () => {
        > 1 | require("server-only")
            | ^^^^^^^^^^^^^^^^^^^^^^
 
-       It should only be used from a Server Component.
+       Modules use import 'server-only' to flag they shouldn't be used from Client Components.
+       This might be caused by an incorrect 'use client' in some module in the import chain.
+       Alternatively, an import of the import chain can be removed to avoid referencing this module.
 
        Import traces:
          Client Component Browser:
