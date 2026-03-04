@@ -178,6 +178,7 @@ impl ValueType {
     fn trait_info(&self) -> &ValueTypeTraits {
         // SAFETY: After Lazy init completes, no more writes happen to trait_info,
         // and Lazy provides the necessary acquire barrier.
+        _ = &**registry::VALUES;
         unsafe { &*self.traits.get() }
     }
 
@@ -185,7 +186,6 @@ impl ValueType {
         &self,
         trait_method: &'static TraitMethod,
     ) -> Option<&'static NativeFunction> {
-        _ = &**registry::VALUES;
         match self.trait_info().trait_methods.get(trait_method) {
             Some(f) => Some(*f),
             None => trait_method.default_method,
@@ -210,7 +210,6 @@ impl ValueType {
     }
 
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
-        _ = &**registry::VALUES;
         self.trait_info().traits.contains(trait_type)
     }
 }
