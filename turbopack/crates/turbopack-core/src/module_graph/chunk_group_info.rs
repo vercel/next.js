@@ -13,7 +13,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
 
 use crate::{
@@ -228,18 +228,15 @@ impl ChunkGroup {
                     .try_join()
                     .await?
             ),
-            ChunkGroup::Async(entry) => {
-                format!("ChunkGroup::Async({:?})", entry.ident().to_string().await?)
-            }
-            ChunkGroup::Isolated(entry) => {
-                format!(
-                    "ChunkGroup::Isolated({:?})",
-                    entry.ident().to_string().await?
-                )
-            }
-            ChunkGroup::Shared(entry) => {
-                format!("ChunkGroup::Shared({:?})", entry.ident().to_string().await?)
-            }
+            ChunkGroup::Async(entry) => turbofmt!("ChunkGroup::Async({:?})", entry.ident())
+                .await?
+                .to_string(),
+            ChunkGroup::Isolated(entry) => turbofmt!("ChunkGroup::Isolated({:?})", entry.ident())
+                .await?
+                .to_string(),
+            ChunkGroup::Shared(entry) => turbofmt!("ChunkGroup::Shared({:?})", entry.ident())
+                .await?
+                .to_string(),
             ChunkGroup::IsolatedMerged {
                 parent,
                 merge_tag,
@@ -315,11 +312,11 @@ impl ChunkGroupKey {
                     .await?
             ),
             ChunkGroupKey::Async(module) => {
-                format!("Async({:?})", module.ident().to_string().await?)
+                turbofmt!("Async({:?})", module.ident()).await?.to_string()
             }
-            ChunkGroupKey::Isolated(module) => {
-                format!("Isolated({:?})", module.ident().to_string().await?)
-            }
+            ChunkGroupKey::Isolated(module) => turbofmt!("Isolated({:?})", module.ident())
+                .await?
+                .to_string(),
             ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
                 format!(
                     "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
@@ -328,7 +325,7 @@ impl ChunkGroupKey {
                 )
             }
             ChunkGroupKey::Shared(module) => {
-                format!("Shared({:?})", module.ident().to_string().await?)
+                turbofmt!("Shared({:?})", module.ident()).await?.to_string()
             }
             ChunkGroupKey::SharedMerged { parent, merge_tag } => {
                 format!(

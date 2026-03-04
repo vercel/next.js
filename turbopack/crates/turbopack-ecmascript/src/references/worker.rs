@@ -8,6 +8,7 @@ use swc_core::{
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -177,8 +178,6 @@ impl ModuleReference for WorkerAssetReference {
         for (request_key, resolve_item) in result_ref.primary.iter() {
             match resolve_item {
                 ModuleResolveResultItem::Module(module) => {
-                    let module_ident = module.ident().to_string().await?;
-
                     let Some(chunkable) =
                         ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
                     else {
@@ -187,13 +186,13 @@ impl ModuleReference for WorkerAssetReference {
                             title: StyledString::Text(rcstr!("non-chunkable module"))
                                 .resolved_cell(),
                             message: StyledString::Text(
-                                format!(
+                                turbofmt!(
                                     "Worker entry point module '{}' is not chunkable and cannot \
                                      be used as a worker module. This may happen if the module \
                                      type doesn't support bundling.",
-                                    module_ident
+                                    module.ident()
                                 )
-                                .into(),
+                                .await?,
                             )
                             .resolved_cell(),
                             path: self.origin.origin_path().owned().await?,
@@ -215,14 +214,14 @@ impl ModuleReference for WorkerAssetReference {
                             title: StyledString::Text(rcstr!("non-evaluatable module"))
                                 .resolved_cell(),
                             message: StyledString::Text(
-                                format!(
+                                turbofmt!(
                                     "Worker thread entry point module '{}' must be evaluatable to \
                                      serve as an entry point. This module cannot be used as a \
                                      Node.js worker_threads Worker entry point because it doesn't \
                                      support direct evaluation.",
-                                    module_ident
+                                    module.ident()
                                 )
-                                .into(),
+                                .await?,
                             )
                             .resolved_cell(),
                             path: self.origin.origin_path().owned().await?,
@@ -285,21 +284,16 @@ impl WorkerAssetReference {
 impl ValueToString for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "new {}({})",
-                match self.worker_type {
-                    WorkerType::WebWorker => "WebWorker",
-                    WorkerType::SharedWebWorker => "SharedWorker",
-                    WorkerType::NodeWorkerThread => "NodeWorkerThread",
-                },
-                match &self.request {
-                    WorkerRequest::Url(request) => request.to_string().await?,
-                    WorkerRequest::Pattern { path, .. } => path.to_string().await?,
-                }
-            )
-            .into(),
-        ))
+        let worker_type = match self.worker_type {
+            WorkerType::WebWorker => "WebWorker",
+            WorkerType::SharedWebWorker => "SharedWorker",
+            WorkerType::NodeWorkerThread => "NodeWorkerThread",
+        };
+        let request = match &self.request {
+            WorkerRequest::Url(request) => request.to_string(),
+            WorkerRequest::Pattern { path, .. } => path.to_string(),
+        };
+        Ok(Vc::cell(turbofmt!("new {worker_type}({request})").await?))
     }
 }
 

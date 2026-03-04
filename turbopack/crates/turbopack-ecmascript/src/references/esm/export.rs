@@ -12,8 +12,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt},
@@ -416,27 +415,27 @@ pub async fn expand_star_exports(
             EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => {
                 emit_star_exports_issue(
                     asset.ident(),
-                    format!(
+                    turbofmt!(
                         "export * used with module {} which has no exports\nTypescript only: Did \
                          you want to export only types with `export type * from \"...\"`?\nNote: \
                          Using `export type` is more efficient than `export *` as it won't emit \
                          any runtime code.",
-                        asset.ident().to_string().await?
+                        asset.ident()
                     )
-                    .into(),
+                    .await?,
                 )
                 .await?
             }
             EcmascriptExports::Value => {
                 emit_star_exports_issue(
                     asset.ident(),
-                    format!(
+                    turbofmt!(
                         "export * used with module {} which only has a default export (default \
                          export is not exported with export *)\nDid you want to use `export {{ \
                          default }} from \"...\";` instead?",
-                        asset.ident().to_string().await?
+                        asset.ident()
                     )
-                    .into(),
+                    .await?,
                 )
                 .await?
             }
@@ -444,14 +443,14 @@ pub async fn expand_star_exports(
                 dynamic_exporting_modules.push(asset);
                 emit_star_exports_issue(
                     asset.ident(),
-                    format!(
+                    turbofmt!(
                         "export * used with module {} which is a CommonJS module with exports \
                          only available at runtime\nList all export names manually (`export {{ a, \
                          b, c }} from \"...\") or rewrite the module to ESM, to avoid the \
                          additional runtime code.`",
-                        asset.ident().to_string().await?
+                        asset.ident()
                     )
-                    .into(),
+                    .await?,
                 )
                 .await?;
             }

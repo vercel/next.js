@@ -127,7 +127,7 @@ async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferenc
                     Ok(path) => {
                         results.insert(path.clone());
                     }
-                    Err(e) => bail!(e.as_error_message(file, &realpath)),
+                    Err(e) => bail!(e.as_error_message(file, &realpath).await?),
                 }
             }
             PatternMatch::Directory(..) => {}

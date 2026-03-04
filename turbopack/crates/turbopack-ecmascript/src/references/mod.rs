@@ -63,7 +63,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -533,10 +533,8 @@ pub async fn analyze_ecmascript_module(
 
     match result {
         Ok(result) => Ok(result),
-        Err(err) => Err(err.context(format!(
-            "failed to analyze ecmascript module '{}'",
-            module.ident().to_string().await?
-        ))),
+        Err(err) => Err(err
+            .context(turbofmt!("failed to analyze ecmascript module '{}'", module.ident()).await?)),
     }
 }
 

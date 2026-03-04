@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
-use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use anyhow::Result;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -78,10 +78,7 @@ impl Asset for RebasedAsset {
         if let Some(source) = *self.module.source().await? {
             Ok(source.content())
         } else {
-            bail!(
-                "Module {} has no source",
-                self.module.ident().to_string().await?
-            )
+            turbobail!("Module {} has no source", self.module.ident());
         }
     }
 }

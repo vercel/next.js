@@ -1169,7 +1169,7 @@ async fn realpath(
     }
     match &result.path_result {
         Ok(path) => Ok(path.clone()),
-        Err(e) => bail!(e.as_error_message(fs_path, &result)),
+        Err(e) => bail!(e.as_error_message(fs_path, &result).await?),
     }
 }
 
@@ -1375,7 +1375,7 @@ async fn find_package(
         if let Some(name) = basepath.get_path_to(package_dir) {
             Ok(name.into())
         } else {
-            bail!("Package directory {package_dir} is not inside the lookup path {basepath}");
+            bail!("Package directory {package_dir} is not inside the lookup path {basepath}",);
         }
     }
 
@@ -1531,7 +1531,7 @@ pub async fn resolve_raw(
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(e) => bail!(e.as_error_message(path, result)),
+            Err(e) => bail!(e.as_error_message(path, result).await?),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
@@ -3121,7 +3121,7 @@ async fn resolved(
     let result = &*fs_path.realpath_with_links().await?;
     let path = match &result.path_result {
         Ok(path) => path,
-        Err(e) => bail!(e.as_error_message(&fs_path, result)),
+        Err(e) => bail!(e.as_error_message(&fs_path, result).await?),
     };
 
     let path_ref = path.clone();

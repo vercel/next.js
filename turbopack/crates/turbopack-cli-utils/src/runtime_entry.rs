@@ -1,5 +1,5 @@
-use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use anyhow::Result;
+use turbo_tasks::{ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -50,9 +50,9 @@ impl RuntimeEntry {
             if let Some(entry) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module) {
                 runtime_entries.push(entry);
             } else {
-                bail!(
+                turbobail!(
                     "runtime reference resolved to an asset ({}) that cannot be evaluated",
-                    module.ident().to_string().await?
+                    module.ident()
                 );
             }
         }

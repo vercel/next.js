@@ -1,6 +1,6 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, Vc};
+use turbo_tasks::{FxIndexMap, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{chunk::ModuleId, version::Version};
@@ -27,7 +27,7 @@ impl EcmascriptBrowserChunkVersion {
         let chunk_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
-            bail!("chunk path {chunk_path} is not in client root {output_root}");
+            turbobail!("chunk path {chunk_path} is not in client root {output_root}");
         };
         let entries = EcmascriptBrowserChunkContentEntries::new(content).await?;
         let mut entries_hashes =

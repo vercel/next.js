@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -30,9 +30,9 @@ impl AvailableModuleItem {
             AvailableModuleItem::Batch(batch) => {
                 IdentStrings::Multiple(batch.ident_strings().await?)
             }
-            AvailableModuleItem::AsyncLoader(module) => IdentStrings::Single(
-                format!("async loader {}", module.ident().to_string().await?).into(),
-            ),
+            AvailableModuleItem::AsyncLoader(module) => {
+                IdentStrings::Single(turbofmt!("async loader {}", module.ident()).await?)
+            }
         })
     }
 }

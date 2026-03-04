@@ -7,7 +7,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString};
+use turbo_tasks::{ResolvedVc, turbofmt};
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_path_buf,
 };
@@ -86,7 +86,7 @@ pub async fn resolve_source_map_sources(
     origin: &FileSystemPath,
 ) -> Result<Option<Rope>> {
     let fs_vc = origin.fs().to_resolved().await?;
-    let fs_str = &*format!("[{}]", fs_vc.to_string().await?);
+    let fs_str = &*turbofmt!("[{fs_vc}]").await?;
 
     let disk_fs = if let Some(fs_vc) = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs_vc) {
         Some((fs_vc, fs_vc.await?))

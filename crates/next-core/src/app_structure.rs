@@ -8,7 +8,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -99,10 +99,7 @@ pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<RcStr>> {
         MetadataItem::Static { path } => Vc::cell(path.file_name().into()),
         MetadataItem::Dynamic { path } => {
             let Some(stem) = path.file_stem() else {
-                bail!(
-                    "unable to resolve file stem for metadata item at {}",
-                    path.value_to_string().await?
-                );
+                turbobail!("unable to resolve file stem for metadata item at {path}");
             };
 
             match stem {

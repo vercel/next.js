@@ -1,5 +1,5 @@
-use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, Upcast, ValueToString, Vc};
+use anyhow::Result;
+use turbo_tasks::{ResolvedVc, Upcast, Vc, turbobail};
 
 use super::ChunkableModule;
 use crate::{
@@ -46,10 +46,7 @@ async fn to_evaluatable(
     let Some(entry) =
         ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module.to_resolved().await?)
     else {
-        bail!(
-            "{} is not a valid evaluated entry",
-            module.ident().to_string().await?
-        )
+        turbobail!("{} is not a valid evaluated entry", module.ident());
     };
     Ok(*entry)
 }

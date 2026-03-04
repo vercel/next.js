@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::writedoc;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -48,7 +48,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
         } else {
-            bail!("runtime path {runtime_path} is not in output root {output_root}");
+            turbobail!("runtime path {runtime_path} is not in output root {output_root}");
         };
 
         let mut code = CodeBuilder::default();

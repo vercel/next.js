@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use futures::try_join;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc, turbobail};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath, LinkContent, LinkType, glob::Glob,
@@ -122,10 +122,7 @@ async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry>
         // match.
         let source_path = entry.path().unwrap();
         if source_path.is_inside_or_equal(&resolved_entry.clone().path().unwrap()) {
-            bail!(
-                "'{}' is a symlink causes that causes an infinite loop!",
-                source_path.path,
-            )
+            bail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
         }
     }
     Ok(resolved_entry)
@@ -197,12 +194,10 @@ async fn track_glob_internal(
                             reads.push(fs.read(path.clone()))
                         }
                     }
-                    DirectoryEntry::Symlink(symlink_path) => bail!(
+                    DirectoryEntry::Symlink(symlink_path) => turbobail!(
                         "resolve_symlink_safely() should have resolved all symlinks or returned \
-                         an error, but found unresolved symlink at path: '{}'. Found path: '{}'. \
-                         Please report this as a bug.",
-                        entry_path,
-                        symlink_path
+                         an error, but found unresolved symlink at path: '{entry_path}'. Found \
+                         path: '{symlink_path}'. Please report this as a bug.",
                     ),
                     DirectoryEntry::Other(path) => {
                         if glob_value.matches(&entry_path) {

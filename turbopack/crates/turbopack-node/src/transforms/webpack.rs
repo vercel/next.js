@@ -11,8 +11,8 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
+    trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -262,10 +262,10 @@ impl WebpackLoadersProcessedAsset {
 
             let resource_fs_path = self.source.ident().path().await?;
             let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
-                bail!(format!(
-                    "Resource path \"{}\" need to be on project filesystem \"{}\"",
-                    resource_fs_path, project_path
-                ));
+                turbobail!(
+                    "Resource path \"{resource_fs_path}\" needs to be on project filesystem \
+                     \"{project_path}\"",
+                );
             };
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
@@ -610,18 +610,13 @@ impl EvaluateContext for WebpackLoaderContext {
                     {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
-                        bail!(
-                            "Resolving {} in {} ends up on a different filesystem",
-                            request.to_string().await?,
-                            lookup_path.value_to_string().await?
+                        turbobail!(
+                            "Resolving {request} in {lookup_path} ends up on a different \
+                             filesystem"
                         );
                     }
                 } else {
-                    bail!(
-                        "Unable to resolve {} in {}",
-                        request.to_string().await?,
-                        lookup_path.value_to_string().await?
-                    );
+                    turbobail!("Unable to resolve {request} in {lookup_path}");
                 }
             }
             RequestMessage::TrackFileRead { file } => {
