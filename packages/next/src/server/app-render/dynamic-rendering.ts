@@ -28,7 +28,6 @@ import type {
   ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 
-// Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
@@ -408,8 +407,8 @@ export function formatDynamicAPIAccesses(
 }
 
 /**
- * This is a bit of a hack to allow us to abort a render using a Postpone instance instead of an Error which changes React's
- * abort semantics slightly.
+ * Abort with a dedicated CSR bailout reason so resumption can reliably switch
+ * postponed boundaries to client rendering.
  */
 export function createRenderInBrowserAbortSignal(): AbortSignal {
   const controller = new AbortController()
