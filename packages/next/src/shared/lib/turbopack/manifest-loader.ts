@@ -34,7 +34,6 @@ import { readFileSync } from 'fs'
 import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundler'
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
-import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
@@ -547,7 +546,11 @@ export class TurbopackManifestLoader {
     }
 
     const interceptionRewrites = JSON.stringify(
-      rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+      rewrites.beforeFiles.filter(
+        (
+          require('../../../lib/is-interception-route-rewrite') as typeof import('../../../lib/is-interception-route-rewrite')
+        ).isInterceptionRouteRewrite
+      )
     )
 
     if (this.cachedInterceptionRewrites === interceptionRewrites) {
@@ -637,12 +640,12 @@ export class TurbopackManifestLoader {
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
 
-    let buildManifestPath = join(
+    let buildManifestPath = posix.join(
       CLIENT_STATIC_FILES_PATH,
       this.buildId,
       '_buildManifest.js'
     )
-    let ssgManifestPath = join(
+    let ssgManifestPath = posix.join(
       CLIENT_STATIC_FILES_PATH,
       this.buildId,
       '_ssgManifest.js'
@@ -837,7 +840,7 @@ export class TurbopackManifestLoader {
   private writeMiddlewareManifest(): {
     clientMiddlewareManifestPath: string
   } {
-    let clientMiddlewareManifestPath = join(
+    let clientMiddlewareManifestPath = posix.join(
       CLIENT_STATIC_FILES_PATH,
       this.buildId,
       TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST

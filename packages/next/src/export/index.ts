@@ -64,7 +64,7 @@ import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
@@ -509,6 +509,7 @@ async function exportAppImpl(
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
+      prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
@@ -855,7 +856,7 @@ async function exportAppImpl(
   }
 
   // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
+  if (!options.buildExport && nextConfig.cacheComponents) {
     // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }

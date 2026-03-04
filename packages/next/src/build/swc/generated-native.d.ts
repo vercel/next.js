@@ -58,6 +58,58 @@ export declare function recvTaskMessageInWorker(
   workerId: number
 ): Promise<NapiTaskMessage>
 export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
+export interface NapiLocation {
+  line: number
+  column?: number
+}
+export interface NapiCodeFrameLocation {
+  start: NapiLocation
+  end?: NapiLocation
+}
+export interface NapiCodeFrameOptions {
+  /** Number of lines to show above the error (default: 2) */
+  linesAbove?: number
+  /** Number of lines to show below the error (default: 3) */
+  linesBelow?: number
+  /** Maximum width of the output in columns (default: 100) */
+  maxWidth?: number
+  /** Whether to use ANSI colors (default: false) */
+  color?: boolean
+  /**
+   * Whether to highlight code syntax (default: follows color)
+   *
+   * This might be useful if syntax highlighting is very expensive or known to be useless for
+   * this file.  The current syntax rules are optimized for javascript but should work well with
+   * other C-like languages.
+   */
+  highlightCode?: boolean
+  /** Optional message to display with the code frame */
+  message?: string
+  /** Language hint for keyword highlighting: "javascript" (default) or "css" */
+  language?: string
+}
+/**
+ * Renders a code frame showing the location of an error in source code
+ *
+ * This is a Rust implementation that replaces Babel's code-frame for better:
+ * - Performance on large files
+ * - Handling of long lines
+ * - Memory efficiency
+ *
+ * # Arguments
+ * * `source` - The source code to render
+ * * `location` - The location to highlight (line and column numbers are 1-indexed)
+ * * `options` - Optional configuration
+ *
+ * # Returns
+ * The formatted code frame string, or `undefined` if the location is out of
+ * range (e.g., empty source or line number past end of file).
+ */
+export declare function codeFrameColumns(
+  source: string,
+  location: NapiCodeFrameLocation,
+  options?: NapiCodeFrameOptions | undefined | null
+): string | null
 export declare function lockfileTryAcquireSync(
   path: string,
   content?: string | undefined | null

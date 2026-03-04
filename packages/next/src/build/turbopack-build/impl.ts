@@ -2,7 +2,6 @@
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import { installBindings } from '../swc/install-bindings'
@@ -19,7 +18,8 @@ import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers, printBuildErrors } from '../utils'
+import { getSupportedBrowsers } from '../get-supported-browsers'
+import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
 import type {
   ProjectOptions,
@@ -69,7 +69,8 @@ export async function turbopackBuild(): Promise<{
   const hasDeferredEntries =
     (config.experimental.deferredEntries?.length ?? 0) > 0
 
-  const persistentCaching = isFileSystemCacheEnabledForBuild(config)
+  const persistentCaching =
+    config.experimental?.turbopackFileSystemCacheForBuild || false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
 
   // Shared options for createProject calls

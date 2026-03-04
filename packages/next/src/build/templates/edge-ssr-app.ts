@@ -157,12 +157,12 @@ async function requestHandler(
         Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
-        isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),

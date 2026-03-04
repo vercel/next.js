@@ -11,7 +11,6 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
-import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
@@ -355,6 +354,7 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
+  prefetchInlining?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -691,7 +691,7 @@ export interface ExperimentalConfig {
    * @deprecated This configuration option has been merged into `cacheComponents`.
    * The Partial Prerendering feature is still available via `cacheComponents`.
    */
-  ppr?: ExperimentalPPRConfig
+  ppr?: boolean | 'incremental'
 
   /**
    * Enables experimental taint APIs in React.
@@ -1038,11 +1038,6 @@ export type ExportPathMap = {
      * @internal
      */
     _isDynamicError?: boolean
-
-    /**
-     * @internal
-     */
-    _isRoutePPREnabled?: boolean
 
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
@@ -1647,6 +1642,7 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     varyParams: false,
+    prefetchInlining: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1792,6 +1788,7 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'optimisticRouting'
     | 'inlineCss'
+    | 'prefetchInlining'
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
@@ -1856,10 +1853,14 @@ export function getNextConfigRuntime(
         dynamicOnHover: ex.dynamicOnHover,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
+        prefetchInlining: ex.prefetchInlining,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        adapterPath: ex.adapterPath,
+        // The full adapterPath might be non-deterministic across builds and doesn't actually matter
+        // at runtime, as it's only used to determine whether the adapter was used or not, not to
+        // execute it again. So replace it with a placeholder if it's set.
+        adapterPath: ex.adapterPath ? '<ommited but set>' : undefined,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,

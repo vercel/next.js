@@ -783,7 +783,6 @@ jobs:
       afterBuild: |
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}
@@ -817,7 +816,6 @@ jobs:
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
-        export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}

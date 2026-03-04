@@ -10,6 +10,18 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
+
+fn build_page_extensions_regex(page_extensions: &[String]) -> String {
+    if page_extensions.is_empty() {
+        "(ts|js)x?".to_string()
+    } else {
+        let escaped: Vec<String> = page_extensions
+            .iter()
+            .map(|ext| regex::escape(ext))
+            .collect();
+        format!("({})", escaped.join("|"))
+    }
+}
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
@@ -55,6 +67,8 @@ pub struct Options {
     pub use_cache_enabled: bool,
     #[serde(default)]
     pub taint_enabled: bool,
+    #[serde(default)]
+    pub page_extensions: Vec<String>,
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
@@ -69,6 +83,7 @@ struct ReactServerComponents<C: Comments> {
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
+    page_extensions: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -99,6 +114,7 @@ enum RSCErrorKind {
     NextRscErrDeprecatedApi((String, String, Span)),
     NextSsrDynamicFalseNotAllowed(Span),
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
+    NextRscErrRequiresRouteSegmentConfig(Span, String, NextConfigProperty),
     NextRscErrTaintWithoutConfig((String, Span)),
 }
 
@@ -121,6 +137,7 @@ enum InvalidExportKind {
     General,
     Metadata,
     RouteSegmentConfig(NextConfigProperty),
+    RequiresRouteSegmentConfig(NextConfigProperty),
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -135,6 +152,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             self.taint_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
+            self.page_extensions.clone(),
         );
 
         module.visit_with(&mut validator);
@@ -357,6 +375,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
             format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
+            vec![span],
+        ),
+        RSCErrorKind::NextRscErrRequiresRouteSegmentConfig(span, segment, property) => (
+            format!("Route segment config \"{segment}\" requires `nextConfig.{property}` to be enabled."),
             vec![span],
         ),
         RSCErrorKind::NextRscErrTaintWithoutConfig((api_name, span)) => (
@@ -598,6 +620,7 @@ struct ReactServerComponentValidator {
     pub module_directive: Option<ModuleDirective>,
     pub export_names: Vec<Atom>,
     imports: ImportMap,
+    page_extensions: Vec<String>,
 }
 
 impl ReactServerComponentValidator {
@@ -608,6 +631,7 @@ impl ReactServerComponentValidator {
         taint_enabled: bool,
         filename: String,
         app_dir: Option<PathBuf>,
+        page_extensions: Vec<String>,
     ) -> Self {
         Self {
             is_react_server_layer,
@@ -709,6 +733,7 @@ impl ReactServerComponentValidator {
                 "experimental_taintUniqueValue",
             ],
             imports: ImportMap::default(),
+            page_extensions,
         }
     }
 
@@ -818,10 +843,10 @@ impl ReactServerComponentValidator {
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
-        static RE: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"[\\/]((global-)?error)\.(ts|js)x?$").unwrap());
+        let ext_pattern = build_page_extensions_regex(&self.page_extensions);
+        let re = Regex::new(&format!(r"[\\/]((global-)?error)\.{ext_pattern}$")).unwrap();
 
-        let is_error_file = RE.is_match(&self.filepath);
+        let is_error_file = re.is_match(&self.filepath);
 
         if is_error_file
             && let Some(app_dir) = &self.app_dir
@@ -882,9 +907,9 @@ impl ReactServerComponentValidator {
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
-        static RE: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"[\\/](page|layout|route)\.(ts|js)x?$").unwrap());
-        let is_app_entry = RE.is_match(&self.filepath);
+        let ext_pattern = build_page_extensions_regex(&self.page_extensions);
+        let re = Regex::new(&format!(r"[\\/](page|layout|route)\.{ext_pattern}$")).unwrap();
+        let is_app_entry = re.is_match(&self.filepath);
 
         if is_app_entry {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
@@ -937,6 +962,19 @@ impl ReactServerComponentValidator {
                             );
                         }
                     }
+                    "unstable_instant" => {
+                        if !self.cache_components_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (
+                                    InvalidExportKind::RequiresRouteSegmentConfig(
+                                        NextConfigProperty::CacheComponents,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        }
+                    }
                     _ => (),
                 };
 
@@ -973,6 +1011,17 @@ impl ReactServerComponentValidator {
                             &self.app_dir,
                             &self.filepath,
                             RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(
+                                *span,
+                                export_name.to_string(),
+                                *property,
+                            ),
+                        );
+                    }
+                    InvalidExportKind::RequiresRouteSegmentConfig(property) => {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrRequiresRouteSegmentConfig(
                                 *span,
                                 export_name.to_string(),
                                 *property,
@@ -1147,6 +1196,10 @@ pub fn server_components_assert(
         Config::WithOptions(x) => x.taint_enabled,
         _ => false,
     };
+    let page_extensions: Vec<String> = match &config {
+        Config::WithOptions(x) => x.page_extensions.clone(),
+        _ => vec![],
+    };
     let filename = match filename {
         FileName::Custom(path) => format!("<{path}>"),
         _ => filename.to_string(),
@@ -1158,6 +1211,7 @@ pub fn server_components_assert(
         taint_enabled,
         filename,
         app_dir,
+        page_extensions,
     )
 }
 
@@ -1185,6 +1239,10 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.taint_enabled,
         _ => false,
     };
+    let page_extensions: Vec<String> = match &config {
+        Config::WithOptions(x) => x.page_extensions.clone(),
+        _ => vec![],
+    };
     visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
         cache_components_enabled,
@@ -1196,5 +1254,6 @@ pub fn server_components<C: Comments>(
             _ => filename.to_string(),
         },
         app_dir,
+        page_extensions,
     })
 }

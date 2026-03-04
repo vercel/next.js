@@ -20,7 +20,6 @@ import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
   getFallbackRouteParams,
   createOpaqueFallbackRouteParams,
@@ -63,6 +62,7 @@ import {
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
+import { createInstantTestScriptInsertionTransformStream } from '../../server/stream-utils/node-web-streams-helper'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
@@ -99,7 +99,6 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { scheduleOnNextTick } from '../../lib/scheduler'
-import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -194,16 +193,8 @@ export async function handler(
   // We use the resolvedPathname instead of the parsedUrl.pathname because it
   // is not rewritten as resolvedPathname is. This will ensure that the correct
   // prerender info is used instead of using the original pathname as the
-  // source. If however PPR is enabled and cacheComponents is disabled, we
-  // treat the pathname as dynamic. Currently, there's a bug in the PPR
-  // implementation that incorrectly leaves %%drp placeholders in the output of
-  // parallel routes. This is addressed with cacheComponents.
-  const prerenderInfo =
-    nextConfig.experimental.ppr &&
-    !nextConfig.cacheComponents &&
-    isInterceptionRouteAppPath(resolvedPathname)
-      ? null
-      : routeModule.match(resolvedPathname, prerenderManifest)
+  // source.
+  const prerenderInfo = routeModule.match(resolvedPathname, prerenderManifest)
 
   const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
@@ -227,12 +218,10 @@ export async function handler(
   const isPossibleServerAction = getIsPossibleServerAction(req)
 
   /**
-   * If the route being rendered is an app page, and the ppr feature has been
-   * enabled, then the given route _could_ support PPR.
+   * If the route being rendered is an app page, and the cacheComponents feature
+   * has been enabled, then the given route _could_ support PPR.
    */
-  const couldSupportPPR: boolean = checkIsAppPPREnabled(
-    nextConfig.experimental.ppr
-  )
+  const isAppCacheComponentsEnabled: boolean = !!nextConfig.cacheComponents
 
   // Stash postponed state for server actions when in minimal mode.
   // We extract it here so the RDC is available for the re-render after the action completes.
@@ -240,7 +229,7 @@ export async function handler(
   if (
     !getRequestMeta(req, 'postponed') &&
     isMinimalMode &&
-    couldSupportPPR &&
+    isAppCacheComponentsEnabled &&
     isPossibleServerAction &&
     resumeStateLengthHeader &&
     typeof resumeStateLengthHeader === 'string'
@@ -304,7 +293,7 @@ export async function handler(
 
   if (
     !getRequestMeta(req, 'postponed') &&
-    couldSupportPPR &&
+    isAppCacheComponentsEnabled &&
     req.headers[NEXT_RESUME_HEADER] === '1' &&
     req.method === 'POST'
   ) {
@@ -331,7 +320,7 @@ export async function handler(
   const hasDebugStaticShellQuery =
     process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1' &&
     typeof query.__nextppronly !== 'undefined' &&
-    couldSupportPPR
+    isAppCacheComponentsEnabled
 
   // When enabled, this will allow the use of the `?__nextppronly` query
   // to enable debugging of the fallback shell.
@@ -353,7 +342,7 @@ export async function handler(
   //   with blocking happening on the client side.
   const isInstantNavigationTest =
     exposeTestingApi &&
-    couldSupportPPR &&
+    isAppCacheComponentsEnabled &&
     (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
       (req.headers[RSC_HEADER] === undefined &&
         typeof req.headers.cookie === 'string' &&
@@ -362,7 +351,7 @@ export async function handler(
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
   const isRoutePPREnabled: boolean =
-    couldSupportPPR &&
+    isAppCacheComponentsEnabled &&
     ((
       prerenderManifest.routes[normalizedSrcPage] ??
       prerenderManifest.dynamicRoutes[normalizedSrcPage]
@@ -548,6 +537,7 @@ export async function handler(
       interceptionRoutePatterns
     )
     res.setHeader('Vary', varyHeader)
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (
       span: Span | undefined,
       context: AppPageRouteHandlerContext
@@ -591,6 +581,13 @@ export async function handler(
             'next.span_name': name,
           })
           span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists (e.g.
+          // a platform-created HTTP span in adapter deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+            parentSpan.updateName(name)
+          }
         } else {
           span.updateName(`${method} ${srcPage}`)
         }
@@ -718,7 +715,6 @@ export async function handler(
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
           experimental: {
-            isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
@@ -726,6 +722,7 @@ export async function handler(
               nextConfig.experimental.optimisticRouting
             ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
+            prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
@@ -1455,6 +1452,21 @@ export async function handler(
       // This is a request for HTML data.
       const body = cachedData.html
 
+      // When serving a static shell for instant navigation testing, inject
+      // self.__next_instant_test=1 as the first thing inside <head> so the
+      // client can detect the static shell. This must be before any async
+      // bootstrap scripts — otherwise a cached async script can execute
+      // before the global is set.
+      //
+      // TODO: Currently the client skips hydration entirely during
+      // instant navigation testing. Ideally we would still hydrate but
+      // without the dynamic data — the static shell is valid HTML that
+      // could be hydrated. This is just an implementation gap; the
+      // page gets reloaded when the instant scope ends anyway.
+      if (isInstantNavigationTest && isDebugStaticShell) {
+        body.pipeThrough(createInstantTestScriptInsertionTransformStream())
+      }
+
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
@@ -1489,25 +1501,22 @@ export async function handler(
       // HTML will be the static shell so all the Dynamic API's will be used
       // during static generation.
       if (isDebugStaticShell || isDebugDynamicAccesses) {
-        // Since we're not resuming the render, we need to at least add the
-        // closing body and html tags to create valid HTML.
-        body.push(
-          new ReadableStream({
-            start(controller) {
-              if (isInstantNavigationTest) {
-                // Inject a global so the client can detect that this response
-                // is a partial static shell, independent of document.cookie
-                // (which may be empty on the new page in some browsers).
-                const encoder = new TextEncoder()
-                controller.enqueue(
-                  encoder.encode('<script>self.__next_instant_test=1</script>')
-                )
-              }
-              controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
-              controller.close()
-            },
-          })
-        )
+        if (!isInstantNavigationTest) {
+          // Since we're not resuming the render, we need to at least add the
+          // closing body and html tags to create valid HTML.
+          body.push(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+                controller.close()
+              },
+            })
+          )
+        }
+        // When in instant navigation testing mode, we intentionally omit
+        // the closing </body></html> tags so the client interprets the
+        // response as a partial stream rather than a complete document
+        // with incoherent content.
 
         return sendRenderResult({
           req,
@@ -1583,6 +1592,7 @@ export async function handler(
     if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
+      parentSpan = tracer.getActiveScopeSpan()
       return await tracer.withPropagatedContext(
         req.headers,
         () =>

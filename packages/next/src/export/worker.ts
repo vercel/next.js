@@ -11,6 +11,8 @@ import type { AppPageModule } from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
+import { installBindings } from '../build/swc/install-bindings'
+import { installCodeFrameSupport } from '../server/lib/install-code-frame'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
@@ -106,10 +108,6 @@ async function exportPageImpl(
 
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
-
-    // If this page supports partial prerendering, then we need to pass that to
-    // the renderOpts.
-    _isRoutePPREnabled: isRoutePPREnabled,
 
     // Configure the rendering of the page to allow that an empty static shell
     // is generated while rendering using PPR and Cache Components.
@@ -269,7 +267,6 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     experimental: {
       ...commonRenderOpts.experimental,
-      isRoutePPREnabled,
     },
     renderResumeDataCache,
   }
@@ -336,6 +333,11 @@ async function exportPageImpl(
 export async function exportPages(
   input: ExportPagesInput
 ): Promise<ExportPagesResult> {
+  // Load native bindings in the worker process so that code frame rendering
+  // (which uses the native codeFrameColumns function) works during prerendering.
+  await installBindings()
+  installCodeFrameSupport()
+
   const {
     exportPaths,
     dir,

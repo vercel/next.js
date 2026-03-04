@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
@@ -344,11 +344,10 @@ impl CssChunkItem for CssModuleChunkItem {
             .cell())
         } else {
             Ok(CssChunkItemContent {
-                inner_code: format!(
-                    "/* unparsable {} */",
-                    self.module.ident().to_string().await?
-                )
-                .into(),
+                inner_code: turbofmt!("/* unparsable {} */", self.module.ident())
+                    .await?
+                    .to_string()
+                    .into(),
                 imports: vec![],
                 import_context: None,
                 source_map: FileContent::NotFound.resolved_cell(),

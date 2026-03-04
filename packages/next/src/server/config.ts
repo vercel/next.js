@@ -1396,9 +1396,6 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheComponents) {
-    // TODO: remove once we've finished migrating internally to cacheComponents.
-    result.experimental.ppr = true
-
     // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
     if (result.enablePrerenderSourceMaps === undefined) {
       result.enablePrerenderSourceMaps = true
@@ -1442,6 +1439,7 @@ async function applyModifyConfig(
 
       config = await adapterMod.modifyConfig(config, {
         phase,
+        nextVersion: process.env.__NEXT_VERSION as string,
       })
     }
   }
