@@ -7,6 +7,8 @@ import type {
   NapiSourceDiagnostic,
   NapiProjectOptions,
   NapiPartialProjectOptions,
+  NapiCodeFrameOptions,
+  NapiCodeFrameLocation,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -80,6 +82,11 @@ export interface Binding {
   lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
+  codeFrameColumns(
+    source: string,
+    location: NapiCodeFrameLocation,
+    options?: NapiCodeFrameOptions
+  ): string | undefined
 }
 
 export type StyledString =
@@ -219,7 +226,14 @@ export interface NodeJsPartialHmrUpdate extends BaseUpdate {
   }
 }
 
-export type NodeJsHmrUpdate = IssuesUpdate | NodeJsPartialHmrUpdate
+export interface NodeJsRestartHmrUpdate {
+  type: 'restart'
+}
+
+export type NodeJsHmrUpdate =
+  | IssuesUpdate
+  | NodeJsPartialHmrUpdate
+  | NodeJsRestartHmrUpdate
 
 export interface HmrChunkNames {
   /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */

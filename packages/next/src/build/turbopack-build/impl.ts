@@ -2,7 +2,6 @@
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import { installBindings } from '../swc/install-bindings'
@@ -19,13 +18,15 @@ import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers, printBuildErrors } from '../utils'
+import { getSupportedBrowsers } from '../get-supported-browsers'
+import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
 import type {
   ProjectOptions,
   RawEntrypoints,
   TurbopackResult,
 } from '../swc/types'
+import { Bundler } from '../../lib/bundler'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -68,7 +69,8 @@ export async function turbopackBuild(): Promise<{
   const hasDeferredEntries =
     (config.experimental.deferredEntries?.length ?? 0) > 0
 
-  const persistentCaching = isFileSystemCacheEnabledForBuild(config)
+  const persistentCaching =
+    config.experimental?.turbopackFileSystemCacheForBuild || false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
 
   // Shared options for createProject calls
@@ -105,6 +107,7 @@ export async function turbopackBuild(): Promise<{
     currentNodeJsVersion,
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,
+    nextVersion: process.env.__NEXT_VERSION as string,
   }
 
   const sharedTurboOptions = {
@@ -129,6 +132,7 @@ export async function turbopackBuild(): Promise<{
               debugPrerender: NextBuildContext.debugPrerender,
               reactProductionProfiling:
                 NextBuildContext.reactProductionProfiling,
+              bundler: Bundler.Turbopack,
             })
 
             await workerConfig.experimental.onBeforeDeferredEntries?.()
@@ -143,11 +147,9 @@ export async function turbopackBuild(): Promise<{
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
     await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-    if (!config.deploymentId) {
-      await fs.mkdir(path.join(distDir, 'static', buildId), {
-        recursive: true,
-      })
-    }
+    await fs.mkdir(path.join(distDir, 'static', buildId), {
+      recursive: true,
+    })
     await fs.writeFile(
       path.join(distDir, 'package.json'),
       '{"type": "commonjs"}'
@@ -181,7 +183,6 @@ export async function turbopackBuild(): Promise<{
       distDir,
       encryptionKey,
       dev: false,
-      deploymentId: config.deploymentId,
       sriEnabled,
     })
 
@@ -281,6 +282,7 @@ export async function workerMain(workerData: {
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      bundler: Bundler.Turbopack,
     }
   )
   NextBuildContext.config = config

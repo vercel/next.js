@@ -9,7 +9,7 @@ import { printAndExit } from '../server/lib/utils'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import { discoverRoutes } from '../build/route-discovery'
 
 import {
@@ -42,11 +42,11 @@ const nextTypegen = async (
 
   const strictRouteTypes = Boolean(nextConfig.experimental.strictRouteTypes)
 
-  await verifyTypeScriptSetup({
+  await verifyAndRunTypeScript({
     dir: baseDir,
     distDir: nextConfig.distDir,
     strictRouteTypes,
-    typeCheckPreflight: false,
+    shouldRunTypeCheck: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     typedRoutes: Boolean(nextConfig.typedRoutes),
     disableStaticImages: nextConfig.images.disableStaticImages,

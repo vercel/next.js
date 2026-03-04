@@ -579,7 +579,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 };
                 let hash = asset
                     .content()
-                    .content_hash(HashAlgorithm::default())
+                    .content_hash(HashAlgorithm::Xxh3Hash128Hex)
                     .await?;
                 let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \
@@ -684,11 +684,6 @@ impl ChunkingContext for BrowserChunkingContext {
                 static_suffix: ResolvedVc::cell(None),
             })
             .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_hot_module_replacement_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_hot_module_replacement)
     }
 
     #[turbo_tasks::function]

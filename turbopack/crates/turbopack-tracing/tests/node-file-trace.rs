@@ -31,7 +31,7 @@ use turbo_tasks::{
     ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects, backend::Backend, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::TurboTasksBackend;
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbopack::{
     ModuleAssetContext, emit_assets_into_dir_operation,
     module_options::{
@@ -469,10 +469,7 @@ fn node_file_trace<B: Backend + 'static>(
             let input = input.clone();
             let directory = directory.clone();
             let task = async move {
-                #[allow(unused)]
-                let bench_suites = bench_suites.clone();
                 let before_start = Instant::now();
-
                 let rebased = node_file_trace_operation(
                     package_root.clone(),
                     input.clone(),
@@ -480,11 +477,13 @@ fn node_file_trace<B: Backend + 'static>(
                 )
                 .resolve_strongly_consistent()
                 .await?;
+                let duration = before_start.elapsed();
 
-                print_graph(ResolvedVc::upcast(rebased)).await?;
+                print_graph_operation(ResolvedVc::upcast(rebased))
+                    .read_strongly_consistent()
+                    .await?;
 
                 if cfg!(feature = "bench_against_node_nft") {
-                    let duration = before_start.elapsed();
                     let node_start = Instant::now();
                     exec_node(&package_root, &input).await?;
                     let node_duration = node_start.elapsed();
@@ -517,7 +516,10 @@ fn node_file_trace<B: Backend + 'static>(
                         stderr: String::new(),
                     })
                 } else {
-                    let output_path = &rebased.path().await?.path;
+                    let output_path = &asset_path_operation(ResolvedVc::upcast(rebased))
+                        .read_strongly_consistent()
+                        .await?
+                        .path;
                     let original_output =
                         exec_node(&package_root, &format!("{package_root}/tests/{input}")).await?;
                     let output = exec_node(&directory, output_path).await?;
@@ -747,7 +749,13 @@ impl std::str::FromStr for CaseInput {
     }
 }
 
-async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
+#[turbo_tasks::function(operation)]
+async fn asset_path_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<FileSystemPath> {
+    asset.path()
+}
+
+#[turbo_tasks::function(operation)]
+async fn print_graph_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();
     queue.push((0, asset));

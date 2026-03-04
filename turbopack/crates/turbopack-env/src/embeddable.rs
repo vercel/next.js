@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_env::{EnvMap, ProcessEnv};
+use turbo_tasks_env::{ProcessEnv, TransientEnvMap};
 use turbopack_ecmascript::utils::StringifyJs;
 
 /// Encodes values as JS strings so that they can be safely injected into a JS
@@ -22,7 +22,7 @@ impl EmbeddableProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for EmbeddableProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(&self) -> Result<Vc<EnvMap>> {
+    async fn read_all(&self) -> Result<Vc<TransientEnvMap>> {
         let prior = self.prior.read_all().await?;
 
         let encoded = prior

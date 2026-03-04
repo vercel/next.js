@@ -51,6 +51,7 @@ import { RenderStage, type StagedRenderingController } from './staged-rendering'
 export function createComponentTree(props: {
   loaderTree: LoaderTree
   parentParams: Params
+  parentOptionalCatchAllParamName: string | null
   parentRuntimePrefetchable: false
   rootLayoutIncluded: boolean
   injectedCSS: Set<string>
@@ -87,6 +88,7 @@ async function createComponentTreeInternal(
   {
     loaderTree: tree,
     parentParams,
+    parentOptionalCatchAllParamName,
     parentRuntimePrefetchable,
     rootLayoutIncluded,
     injectedCSS,
@@ -100,6 +102,7 @@ async function createComponentTreeInternal(
   }: {
     loaderTree: LoaderTree
     parentParams: Params
+    parentOptionalCatchAllParamName: string | null
     parentRuntimePrefetchable: boolean
     rootLayoutIncluded: boolean
     injectedCSS: Set<string>
@@ -429,6 +432,18 @@ async function createComponentTreeInternal(
     }
   }
 
+  // Track optional catch-all params with no value (e.g., [[...slug]] at /).
+  // These params won't exist as properties on the params object, so vary
+  // params tracking needs to use a Proxy to detect access. We propagate this
+  // through the tree so that child segments (like __PAGE__) also know about
+  // the missing param. In practice, this only gets passed down one level —
+  // from the optional catch-all layout segment to the page segment — so it's
+  // always very close to the leaf of the tree.
+  const optionalCatchAllParamName: string | null =
+    segmentParam?.type === 'oc' && segmentParam.value === null
+      ? segmentParam.param
+      : parentOptionalCatchAllParamName
+
   // Resolve the segment param
   const isSegmentViewEnabled = !!process.env.__NEXT_DEV_SERVER
   const dir =
@@ -541,6 +556,7 @@ async function createComponentTreeInternal(
             {
               loaderTree: parallelRoute,
               parentParams: currentParams,
+              parentOptionalCatchAllParamName: optionalCatchAllParamName,
               parentRuntimePrefetchable: isRuntimePrefetchable,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
@@ -808,6 +824,7 @@ async function createComponentTreeInternal(
       // their usage in case the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
+        optionalCatchAllParamName,
         varyParamsAccumulator,
         isRuntimePrefetchable
       )
@@ -990,6 +1007,7 @@ async function createComponentTreeInternal(
     } else {
       const params = createServerParamsForServerSegment(
         currentParams,
+        optionalCatchAllParamName,
         varyParamsAccumulator,
         isRuntimePrefetchable
       )

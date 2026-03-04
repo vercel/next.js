@@ -237,9 +237,9 @@ Inline profiles apply only to the specific function or component. For reusable c
 
 Using `cacheLife({})` with an empty object applies the `default` profile values.
 
-### Client router cache behavior
+### Client cache behavior
 
-The `stale` property controls the client-side router cache, not the `Cache-Control` header:
+The `stale` property controls the [Client Cache](/docs/app/glossary#client-cache), not the `Cache-Control` header:
 
 - The server sends the stale time via the `x-nextjs-stale-time` response header
 - The client router uses this value to determine when to revalidate
