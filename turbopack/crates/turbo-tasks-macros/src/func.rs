@@ -1104,60 +1104,43 @@ impl NativeFn {
             is_root,
         } = self;
 
-        if *is_method {
-            let arg_filter = if let Some(filter) = filter_trait_call_args {
-                let FilterTraitCallArgsTokens {
-                    filter_owned,
-                    filter_and_resolve,
-                } = filter;
-                quote! {
-                    ::std::option::Option::Some((
-                        #filter_owned,
-                        #filter_and_resolve,
-                    ))
-                }
-            } else {
-                quote! { ::std::option::Option::None }
-            };
+        let task_fn = if *is_method && *is_self_used {
+            quote! { turbo_tasks::macro_helpers::into_task_fn_with_this(#function_path) }
+        } else {
+            quote! { turbo_tasks::macro_helpers::into_task_fn(#function_path) }
+        };
 
-            if *is_self_used {
-                quote! {
-                    {
-                        #[allow(deprecated)]
-                        turbo_tasks::macro_helpers::NativeFunction::new_method(
-                            #function_path_string,
-                            #function_global_name,
-                            #arg_filter,
-                            #function_path,
-                            #is_root,
-                        )
-                    }
-                }
-            } else {
-                quote! {
-                    {
-                        #[allow(deprecated)]
-                        turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
-                            #function_path_string,
-                            #function_global_name,
-                            #arg_filter,
-                            #function_path,
-                            #is_root,
-                        )
-                    }
-                }
+        let arg_meta = if let Some(filter) = filter_trait_call_args {
+            let FilterTraitCallArgsTokens {
+                filter_owned,
+                filter_and_resolve,
+            } = filter;
+            quote! {
+                turbo_tasks::macro_helpers::ArgMeta::with_filter_trait_call_from(
+                    &#task_fn,
+                    #filter_owned,
+                    #filter_and_resolve,
+                )
             }
         } else {
             quote! {
-                {
-                    #[allow(deprecated)]
-                    turbo_tasks::macro_helpers::NativeFunction::new_function(
-                        #function_path_string,
-                        #function_global_name,
-                        #function_path,
-                        #is_root,
-                    )
-                }
+                turbo_tasks::macro_helpers::ArgMeta::new_from(&#task_fn)
+            }
+        };
+
+        quote! {
+            {
+                #[allow(deprecated)]
+                const IMPL: &dyn turbo_tasks::task::TaskFn =
+                    const { &#task_fn as &dyn turbo_tasks::task::TaskFn };
+                #[allow(deprecated)]
+                turbo_tasks::macro_helpers::NativeFunction::new(
+                    #function_path_string,
+                    #function_global_name,
+                    #arg_meta,
+                    IMPL,
+                    #is_root,
+                )
             }
         }
     }

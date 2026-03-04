@@ -125,7 +125,7 @@ impl<T: RegistryItem> Registry<T> {
 static FUNCTIONS: Lazy<Registry<NativeFunction>> = Lazy::new(|| {
     let functions = inventory::iter::<CollectableFunction>
         .into_iter()
-        .map(|c| &**c.0)
+        .map(|c| c.0)
         .collect::<Vec<_>>();
     Registry::new_from_items(functions)
 });

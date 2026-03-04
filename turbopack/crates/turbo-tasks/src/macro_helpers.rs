@@ -19,8 +19,9 @@ pub use crate::{
     magic_any::MagicAny,
     manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{
-        CollectableFunction, NativeFunction, downcast_args_owned, downcast_args_ref,
+        ArgMeta, CollectableFunction, NativeFunction, downcast_args_owned, downcast_args_ref,
     },
+    task::function::{into_task_fn, into_task_fn_with_this},
     value_type::{CollectableTrait, CollectableValueType},
 };
 
@@ -69,6 +70,91 @@ macro_rules! stringify_path {
 pub const fn metadata<T: ?Sized>(ptr: *const T) -> <T as std::ptr::Pointee>::Metadata {
     // Ideally we would just `pub use std::ptr::metadata;` but this doesn't seem to work.
     std::ptr::metadata(ptr)
+}
+
+/// Const wrapper around `std::any::type_name` so downstream crates don't need to enable the
+/// unstable `const_type_name` feature.
+#[doc(hidden)]
+pub const fn const_type_name<T: ?Sized>() -> &'static str {
+    std::any::type_name::<T>()
+}
+
+/// Compute the total byte length of all string slices.
+#[doc(hidden)]
+pub const fn const_concat_len(slices: &[&str]) -> usize {
+    let mut total = 0;
+    let mut i = 0;
+    while i < slices.len() {
+        total += slices[i].len();
+        i += 1;
+    }
+    total
+}
+
+/// Copy all string slices into a fixed-size byte array at compile time.
+#[doc(hidden)]
+pub const fn const_concat_into<const N: usize>(slices: &[&str]) -> [u8; N] {
+    let mut buf = [0u8; N];
+    let mut pos = 0;
+    let mut i = 0;
+    while i < slices.len() {
+        let bytes = slices[i].as_bytes();
+        let (_, rest) = buf.split_at_mut(pos);
+        let (dst, _) = rest.split_at_mut(bytes.len());
+        dst.copy_from_slice(bytes);
+        pos += bytes.len();
+        i += 1;
+    }
+    assert!(pos == N, "const_concat: length mismatch");
+    buf
+}
+
+/// Concatenate a const slice of `&str` into a single `&'static str` at compile time.
+///
+/// This is a macro only because const generics require the length to be a const expression
+/// computed from the input. The call sites look like normal function calls:
+///
+/// ```ignore
+/// const_concat!(&[type_name, "::", method_name])
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! const_concat {
+    ($slices:expr) => {{
+        const SLICES: &[&str] = $slices;
+        const LEN: usize = $crate::macro_helpers::const_concat_len(SLICES);
+        const BYTES: [u8; LEN] = $crate::macro_helpers::const_concat_into(SLICES);
+        // SAFETY: all inputs are valid UTF-8 strings, concatenation preserves UTF-8
+        const STR: &str = unsafe { ::std::str::from_utf8_unchecked(&BYTES) };
+        STR
+    }};
+}
+
+/// Const fn that strips `count` trailing `::component` segments from a string.
+/// Used by `global_name_for_scope!` to extract the module path from a `type_name`.
+#[doc(hidden)]
+pub const fn strip_trailing_segments(s: &str, count: usize) -> &str {
+    let mut remaining = s;
+    let mut i = 0;
+    while i < count {
+        let bytes = remaining.as_bytes();
+        if bytes.len() < 2 {
+            return s;
+        }
+        let mut pos = bytes.len();
+        loop {
+            if pos < 2 {
+                return s;
+            }
+            pos -= 1;
+            if bytes[pos] == b':' && bytes[pos - 1] == b':' {
+                (remaining, _) = remaining.split_at(pos - 1);
+                break;
+            }
+        }
+        i += 1;
+    }
+    remaining
 }
 
 /// A registry of all the impl vtables for a given VcValue trait
@@ -201,19 +287,6 @@ macro_rules! inventory_submit {
 #[doc(hidden)]
 pub use inventory::submit as inventory_submit_inner;
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! debug_assert_runs_once {
-    () => {
-        #[cfg(debug_assertions)]
-        {
-            use ::std::sync::atomic::{AtomicBool, Ordering};
-            static ONLY_RUN_ONCE: AtomicBool = AtomicBool::new(false);
-            assert!(!AtomicBool::swap(&ONLY_RUN_ONCE, true, Ordering::AcqRel));
-        }
-    };
-}
-
 /// Use `type_name` to get globally unique identifier that's stable across multiple executions of
 /// the same Turbopack version, potentially allowing cache sharing across platforms/architectures.
 ///
@@ -223,76 +296,63 @@ macro_rules! debug_assert_runs_once {
 #[macro_export]
 macro_rules! global_name_for_type {
     ($item:ty) => {
-        ::std::any::type_name::<$item>()
+        $crate::macro_helpers::const_type_name::<$item>()
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! global_name_for_method {
-    ($ty:ty, $method:ident) => {{
-        // We cannot use `concat!` because `type_name` is not const, so we leak the string instead
-        // to get a &'static str.
-        //
-        // Assumption: the code that invokes this macro is only run once (e.g. part of an
-        // `inventory::submit!` callsite), so we're leaking a bounded number of strings.
-        $crate::debug_assert_runs_once!();
-        ::std::boxed::Box::leak(::std::string::String::into_boxed_str(::std::format!(
-            "{}::{}",
-            ::std::any::type_name::<$ty>(),
+    ($ty:ty, $method:ident) => {
+        $crate::const_concat!(&[
+            $crate::macro_helpers::const_type_name::<$ty>(),
+            "::",
             ::std::stringify!($method),
-        )))
-    }};
+        ])
+    };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! global_name_for_trait_method {
-    ($trait:path, $method:ident) => {{
-        $crate::debug_assert_runs_once!();
-        ::std::boxed::Box::leak(::std::string::String::into_boxed_str(::std::format!(
-            "<{}>::{}",
-            ::std::any::type_name::<dyn $trait>(),
+    ($trait:path, $method:ident) => {
+        $crate::const_concat!(&[
+            "<",
+            $crate::macro_helpers::const_type_name::<dyn $trait>(),
+            ">::",
             ::std::stringify!($method),
-        )))
-    }};
+        ])
+    };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! global_name_for_trait_method_impl {
-    ($ty:ty, $trait:path, $method:ident) => {{
-        $crate::debug_assert_runs_once!();
-        ::std::boxed::Box::leak(::std::string::String::into_boxed_str(::std::format!(
-            "<{} as {}>::{}",
-            ::std::any::type_name::<$ty>(),
-            ::std::any::type_name::<dyn $trait>(),
+    ($ty:ty, $trait:path, $method:ident) => {
+        $crate::const_concat!(&[
+            "<",
+            $crate::macro_helpers::const_type_name::<$ty>(),
+            " as ",
+            $crate::macro_helpers::const_type_name::<dyn $trait>(),
+            ">::",
             ::std::stringify!($method),
-        )))
-    }};
+        ])
+    };
 }
 
-/// Get a globally unique name for an identifier a current or parent scope.
+/// Get a globally unique name for an identifier in a current or parent scope.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! global_name_for_scope {
     ($depth:literal, $($item:tt)+) => {{
-        $crate::debug_assert_runs_once!();
-
         struct PlaceholderMarkerType;
-        let mut base = ::std::any::type_name::<PlaceholderMarkerType>();
-
-        // strip a caller-defined number of ancestors from the end of the path
-        for _ in 0..($depth+1) {  // add one to `depth` for the placeholder
-            base = ::std::option::Option::unwrap(
-                ::std::primitive::str::rsplit_once(base, "::"),
-            ).0;
-        }
-
-        ::std::boxed::Box::leak(
-            ::std::string::String::into_boxed_str(
-                ::std::format!("{}::{}", base, ::std::stringify!($($item)+))
+        $crate::const_concat!(&[
+            $crate::macro_helpers::strip_trailing_segments(
+                $crate::macro_helpers::const_type_name::<PlaceholderMarkerType>(),
+                $depth + 1,  // add one for the placeholder
             ),
-        )
+            "::",
+            ::std::stringify!($($item)+),
+        ])
     }}
 }

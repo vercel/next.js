@@ -149,9 +149,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         pub(self) #inline_signature #inline_block
                     }
 
-                    static #native_function_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+                    static #native_function_ident: #native_function_ty = #native_function_def;
 
                     // Register the function for deserialization
                     turbo_tasks::macro_helpers::inventory_submit! {
@@ -278,9 +276,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #inline_signature #inline_block
                     }
 
-                    static #native_function_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+                    static #native_function_ident: #native_function_ty = #native_function_def;
 
                     // Register the function for deserialization
                     turbo_tasks::macro_helpers::inventory_submit! {
