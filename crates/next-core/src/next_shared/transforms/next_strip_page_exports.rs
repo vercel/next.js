@@ -28,8 +28,7 @@ pub fn get_next_pages_transforms_rule(
         .iter()
         .map(|ext| {
             Ok(RuleCondition::ResourcePathEquals(
-                pages_dir
-                    .join(&format!("_document.{ext}"))?,
+                pages_dir.join(&format!("_document.{ext}"))?,
             ))
         })
         .collect::<Result<Vec<_>>>()?;
