@@ -2,7 +2,7 @@
  * Node.js stream operations for the rendering pipeline.
  * Loaded by stream-ops.ts when process.env.__NEXT_USE_NODE_STREAMS is true.
  *
- * AnyStream = StreamLike so the exported type surface matches stream-ops.web.ts,
+ * AnyStream = AnyStreamType so the exported type surface matches stream-ops.web.ts,
  * allowing the switcher to assign either module without casts.
  * Rendering uses pipeable APIs; continue functions wrap the existing web
  * transforms via Readable.fromWeb() on their output.
@@ -29,7 +29,7 @@ import {
   createRuntimePrefetchTransformStream,
 } from '../stream-utils/node-web-streams-helper'
 import { createInlinedDataReadableStream } from './use-flight-response'
-import type { StreamLike } from './app-render-prerender-utils'
+import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
@@ -53,7 +53,7 @@ export type {
 // AnyStream matches stream-ops.web.ts so both modules have the same type surface
 // ---------------------------------------------------------------------------
 
-export type AnyStream = StreamLike
+export type AnyStream = AnyStreamType
 
 export type FlightComponentMod = {
   renderToReadableStream: (
@@ -372,7 +372,7 @@ export async function streamToString(stream: AnyStream): Promise<string> {
 }
 
 export function createInlinedDataStream(
-  source: StreamLike,
+  source: AnyStream,
   nonce: string | undefined,
   formState: unknown | null
 ): AnyStream {

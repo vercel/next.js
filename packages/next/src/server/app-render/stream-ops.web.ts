@@ -2,7 +2,7 @@
  * Web stream operations for the rendering pipeline.
  * Loaded by stream-ops.ts when __NEXT_USE_NODE_STREAMS is false (default).
  *
- * AnyStream = StreamLike so the exported type surface matches stream-ops.node.ts,
+ * AnyStream = AnyStreamType so the exported type surface matches stream-ops.node.ts,
  * allowing the switcher to assign either module without `as unknown as`.
  */
 
@@ -26,7 +26,7 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import { processPrelude as webProcessPrelude } from './app-render-prerender-utils'
-import type { StreamLike } from './app-render-prerender-utils'
+import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -38,7 +38,7 @@ type FlightRenderToReadableStream = (
   options?: any
 ) => ReadableStream<Uint8Array>
 
-export type AnyStream = StreamLike
+export type AnyStream = AnyStreamType
 
 export type ContinueStreamSharedOptions = {
   deploymentId: string | undefined
@@ -83,7 +83,7 @@ export type FizzStreamResult = {
 
 // ---------------------------------------------------------------------------
 // Continue function wrappers
-// Thin wrappers that accept AnyStream (= StreamLike) and narrow to
+// Thin wrappers that accept AnyStream and narrow to
 // ReadableStream<Uint8Array> internally for the web helper functions.
 // ---------------------------------------------------------------------------
 
@@ -184,7 +184,7 @@ export async function processPrelude(
 // ---------------------------------------------------------------------------
 
 export function createInlinedDataStream(
-  source: StreamLike,
+  source: AnyStream,
   nonce: string | undefined,
   formState: unknown | null
 ): AnyStream {

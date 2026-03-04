@@ -4,7 +4,7 @@
  * When __NEXT_USE_NODE_STREAMS is true, uses Node.js pipeable stream APIs.
  * Otherwise, uses web ReadableStream APIs.
  *
- * Both modules export AnyStream = StreamLike so their type surfaces are
+ * Both modules export AnyStream = AnyStreamType so their type surfaces are
  * structurally identical — no `as unknown as` cast is needed.
  */
 export type {

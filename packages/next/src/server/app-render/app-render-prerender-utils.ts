@@ -1,9 +1,9 @@
 import type { Readable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-export type StreamLike = ReadableStream<Uint8Array> | Readable
+export type AnyStream = ReadableStream<Uint8Array> | Readable
 
-function isWebStream(stream: StreamLike): stream is ReadableStream<Uint8Array> {
+function isWebStream(stream: AnyStream): stream is ReadableStream<Uint8Array> {
   return typeof (stream as ReadableStream).tee === 'function'
 }
 
@@ -12,13 +12,13 @@ function isWebStream(stream: StreamLike): stream is ReadableStream<Uint8Array> {
 // has not yet implemented a concept of resume. For now we will simulate a paused connection by wrapping the stream
 // in one that doesn't close even when the underlying is complete.
 export class ReactServerResult {
-  private _stream: null | StreamLike
+  private _stream: null | AnyStream
 
-  constructor(stream: StreamLike) {
+  constructor(stream: AnyStream) {
     this._stream = stream
   }
 
-  tee(): StreamLike {
+  tee(): AnyStream {
     if (this._stream === null) {
       throw new Error(
         'Cannot tee a ReactServerResult that has already been consumed'
@@ -47,7 +47,7 @@ export class ReactServerResult {
     return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
   }
 
-  consume(): StreamLike {
+  consume(): AnyStream {
     if (this._stream === null) {
       throw new Error(
         'Cannot consume a ReactServerResult that has already been consumed'
@@ -80,7 +80,7 @@ export async function createReactServerPrerenderResult(
 }
 
 export async function createReactServerPrerenderResultFromRender(
-  underlying: StreamLike
+  underlying: AnyStream
 ): Promise<ReactServerPrerenderResult> {
   const chunks: Array<Uint8Array> = []
 
