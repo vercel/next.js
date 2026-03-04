@@ -14,7 +14,7 @@ use turbopack_core::{
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::OutputAssetsWithReferenced,
     reference::ModuleReferences,
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    reference_type::ReferenceType,
     source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
@@ -23,7 +23,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
-    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
+    runtime_functions::{TURBOPACK_ESM, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
 
@@ -49,10 +49,7 @@ impl CustomModuleType for CollectModuleType {
         module_asset_context: Vc<ModuleAssetContext>,
         reference_type: ReferenceType,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::ImportWithTurbopackCollect { namespace },
-        ) = reference_type
-        else {
+        let ReferenceType::Collect { namespace } = reference_type else {
             bail!(
                 "CollectModuleType only supports \
                  EcmaScriptModulesReferenceSubType::ImportWithTurbopackCollect"
@@ -183,7 +180,7 @@ impl EcmascriptChunkPlaceable for CollectModule {
 
         let mut code = RopeBuilder::default();
 
-        writeln!(code, "{TURBOPACK_EXPORT_VALUE}([")?;
+        code += "const data = ([\n";
         for (id, data) in items {
             writeln!(
                 code,
@@ -193,7 +190,15 @@ impl EcmascriptChunkPlaceable for CollectModule {
                 StringifyJs(&id),
             )?;
         }
-        writeln!(code, "]);")?;
+        code += "]);";
+        code += "function getList() { return data; }";
+
+        writeln!(
+            code,
+            "{TURBOPACK_ESM}([
+    'getList', ()=>getList
+]);"
+        )?;
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.build(),

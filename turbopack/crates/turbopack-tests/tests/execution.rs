@@ -20,7 +20,7 @@ use turbo_tasks::{
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
-    DiskFileSystem, File, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
     json::parse_json_with_source_context,
 };
 use turbo_unix_path::sys_to_unix;
@@ -33,7 +33,6 @@ use turbopack::{
     },
 };
 use turbopack_core::{
-    asset::AssetContent,
     chunk::{ChunkingConfig, MangleType, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -41,17 +40,16 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
-    ident::{AssetIdent, Layer},
+    ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
         ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
     },
-    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
+    reference_type::{InnerAssets, ReferenceType, ReferenceTypeCondition},
     resolve::{
-        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem,
+        ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
     },
-    virtual_source::VirtualSource,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
@@ -432,22 +430,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .resolved_cell(),
     );
 
-    import_map.insert_exact_alias(
-        rcstr!("@turbopack/collect"),
-        ImportMapping::Direct(
-            ResolveResult::primary(ResolveResultItem::Source(ResolvedVc::upcast(
-                VirtualSource::new_with_ident(
-                    AssetIdent::from_path(project_path.join("turbopack-collect")?),
-                    AssetContent::File(FileContent::Content(File::from("")).resolved_cell()).cell(),
-                )
-                .to_resolved()
-                .await?,
-            )))
-            .resolved_cell(),
-        )
-        .resolved_cell(),
-    );
-
     let mut fallback_import_map = ImportMap::empty();
     fallback_import_map.insert_exact_alias(
         rcstr!("fallback"),
@@ -484,13 +466,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 .resolved_cell(),
             )],
             module_rules: vec![ModuleRule::new(
-                RuleCondition::All(vec![
-                    // TODO
-                    RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-                        EcmaScriptModulesReferenceSubType::Undefined,
-                    )),
-                    RuleCondition::ResourcePathEndsWith("turbopack-collect".to_string()),
-                ]),
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Collect),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
                     ResolvedVc::upcast(CollectModuleType::new().to_resolved().await?),
                 ))],

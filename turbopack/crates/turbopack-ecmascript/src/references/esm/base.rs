@@ -440,14 +440,6 @@ impl ModuleReference for EsmAssetReference {
                     .and_then(|a| a.turbopack_module_type())
                     .cloned(),
             }
-        } else if let Some(namespace) = self
-            .annotations
-            .as_ref()
-            .and_then(|a| a.turbopack_collect())
-        {
-            EcmaScriptModulesReferenceSubType::ImportWithTurbopackCollect {
-                namespace: namespace.clone(),
-            }
         } else if let Some(module_type) = self.annotations.as_ref().and_then(|a| a.module_type()) {
             EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
                 &*module_type.to_string_lossy(),
@@ -514,17 +506,6 @@ impl ModuleReference for EsmAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        if let Some(emit) = self.annotations.turbopack_emit() {
-            return Some(ChunkingType::Isolated {
-                _ty: ChunkGroupType::Entry,
-                merge_tag: Some(ChunkingTypeMergeTag::Custom {
-                    tag: emit.clone(),
-                    // TODO make configurable
-                    merge_by_parent: false,
-                }),
-            });
-        }
-
         self.annotations
             .as_ref()
             .and_then(|a| a.chunking_type())
@@ -573,7 +554,6 @@ impl EsmAssetReference {
             .as_ref()
             .and_then(|a| a.chunking_type())
             .is_none_or(|v| v != SpecifiedChunkingType::None)
-            && this.annotations.turbopack_emit().is_none()
         {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;

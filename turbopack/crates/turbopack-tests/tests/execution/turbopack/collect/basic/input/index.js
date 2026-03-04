@@ -1,8 +1,11 @@
 import './lib'
 
-import list from '@turbopack/collect' with { turbopackCollect: 'my-test' }
+const getList = __turbopack_collect__({
+  namespace: 'my-test',
+})
 
 it('should work', async () => {
+  const list = getList()
   expect(list).toEqual([
     expect.objectContaining({
       id: '[project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/collect/basic/input/a.js [test] (ecmascript)',

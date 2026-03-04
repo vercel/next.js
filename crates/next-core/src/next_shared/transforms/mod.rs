@@ -44,11 +44,7 @@ use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
 
 pub async fn get_collect_rule() -> Result<ModuleRule> {
     Ok(ModuleRule::new(
-        RuleCondition::All(vec![
-            // TODO
-            RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(None)),
-            RuleCondition::ResourcePathEndsWith("turbopack-collect".to_string()),
-        ]),
+        RuleCondition::ReferenceType(ReferenceTypeCondition::Collect),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
             ResolvedVc::upcast(CollectModuleType::new().to_resolved().await?),
         ))],

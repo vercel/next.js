@@ -1918,6 +1918,14 @@ impl JsValue {
                       "module.hot.decline".to_string(),
                       "The module.hot.decline HMR API: https://webpack.js.org/api/hot-module-replacement/#decline"
                     ),
+                    WellKnownFunctionKind::TurbopackEmit => (
+                      "__turbopack_emit__".to_string(),
+                      "The __turbopack_emit__ function for emitting data to the bundler"
+                    ),
+                    WellKnownFunctionKind::TurbopackCollect => (
+                      "__turbopack_collect__".to_string(),
+                      "The __turbopack_collect__ function for collecting emitted data from the bundler"
+                    )
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -3520,6 +3528,8 @@ pub enum WellKnownFunctionKind {
     ModuleHotAccept,
     /// `module.hot.decline(deps)` — decline HMR updates for dependencies.
     ModuleHotDecline,
+    TurbopackEmit,
+    TurbopackCollect,
 }
 
 impl WellKnownFunctionKind {
@@ -3694,6 +3704,12 @@ pub mod test_utils {
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
+                "__turbopack_emit__" => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackEmit)
+                }
+                "__turbopack_collect__" => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackCollect)
+                }
                 _ => v.into_unknown(true, "unknown global"),
             },
             JsValue::Module(ref mv) => {

@@ -84,11 +84,8 @@ pub enum EcmaScriptModulesReferenceSubType {
         rename_as: Option<RcStr>,
         module_type: Option<RcStr>,
     },
-    /// Import with `turbopackCollect` attribute
-    ImportWithTurbopackCollect {
-        namespace: RcStr,
-    },
     DynamicImport,
+    Emit,
     Custom(u8),
     #[default]
     Undefined,
@@ -325,6 +322,9 @@ pub enum ReferenceType {
     Runtime,
     Internal(ResolvedVc<InnerAssets>),
     Loader,
+    Collect {
+        namespace: RcStr,
+    },
     Custom(u8),
     #[default]
     Undefined,
@@ -340,9 +340,6 @@ impl Display for ReferenceType {
                 EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse { .. } => {
                     "EcmaScript Modules (turbopackUse)"
                 }
-                EcmaScriptModulesReferenceSubType::ImportWithTurbopackCollect { .. } => {
-                    "EcmaScript Modules (turbopackCollect)"
-                }
                 _ => "EcmaScript Modules",
             },
             ReferenceType::Css(_) => "css",
@@ -353,6 +350,7 @@ impl Display for ReferenceType {
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
             ReferenceType::Loader => "loader",
+            ReferenceType::Collect { namespace } => return write!(f, "collect({namespace})"),
             ReferenceType::Custom(_) => todo!(),
             ReferenceType::Undefined => "undefined",
         };
@@ -390,6 +388,7 @@ pub enum ReferenceTypeCondition {
     TypeScript(Option<TypeScriptReferenceSubType>),
     Worker(Option<WorkerReferenceSubType>),
     Entry(Option<EntryReferenceSubType>),
+    Collect,
     Runtime,
     Internal,
     Loader,
@@ -445,7 +444,7 @@ impl ReferenceTypeCondition {
         match_condition_includes!(
             self, other,
             optional: [CommonJs, EcmaScriptModules, Css, Url, TypeScript, Worker, Entry],
-            unit: [Runtime, Loader, Internal],
+            unit: [Runtime, Loader, Internal, Collect],
             value: [Custom],
         );
 
