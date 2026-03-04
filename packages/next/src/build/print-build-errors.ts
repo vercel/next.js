@@ -1,4 +1,7 @@
-import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
+import {
+  formatIssue,
+  isRelevantWarning,
+} from '../shared/lib/turbopack/format-issue'
 import type { TurbopackResult } from './swc/types'
 
 /**

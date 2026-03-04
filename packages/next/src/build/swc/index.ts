@@ -40,6 +40,7 @@ import type {
   WrittenEndpoint,
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
+import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
 
 export enum HmrTarget {
   Client = 'client',
@@ -1242,9 +1243,7 @@ function bindingToApi(
         await rustifyProjectOptions(options),
         turboEngineOptions || {},
         {
-          throwTurbopackInternalError: (
-            require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
-          ).throwTurbopackInternalError,
+          throwTurbopackInternalError,
           onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
       )
