@@ -14,12 +14,13 @@ import {
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import {
   EntryStatus,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
-  processStaticStageResponse,
+  getStaleAt,
   writeStaticStageResponseIntoCache,
   type RouteTree,
   type FulfilledRouteCacheEntry,
@@ -371,7 +372,7 @@ async function navigateToUnknownRoute(
     renderedSearch,
     couldBeIntercepted,
     supportsPerSegmentPrefetching,
-    staticStageResponse,
+    staticStageData,
     responseHeaders,
     debugInfo,
   } = result
@@ -392,7 +393,7 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
   if (metadataVaryPath !== null) {
-    const fulfilledRoute = discoverKnownRoute(
+    discoverKnownRoute(
       now,
       url.pathname,
       nextUrl,
@@ -405,24 +406,33 @@ async function navigateToUnknownRoute(
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
 
-    // Write the static stage of the response into the segment cache so
-    // that subsequent navigations can serve cached static segments instantly.
-    if (staticStageResponse !== null) {
-      processStaticStageResponse(now, staticStageResponse).then(
-        ({ serverData, headVaryParams, staleAt }) =>
+    if (staticStageData !== null) {
+      const { response: staticStageResponse, isResponsePartial } =
+        staticStageData
+
+      // Write the static stage of the response into the segment cache so that
+      // subsequent navigations can serve cached static segments instantly.
+      getStaleAt(now, staticStageResponse.s)
+        .then((staleAt) => {
+          const buildId =
+            responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+            staticStageResponse.b
+
           writeStaticStageResponseIntoCache(
             now,
-            serverData,
-            responseHeaders,
-            headVaryParams,
+            staticStageResponse.f,
+            buildId,
+            staticStageResponse.h,
             staleAt,
-            fulfilledRoute
-          ),
-        () => {
+            currentFlightRouterState,
+            renderedSearch,
+            isResponsePartial
+          )
+        })
+        .catch(() => {
           // The static stage processing failed. Not fatal — the navigation
           // completed normally, we just won't write into the cache.
-        }
-      )
+        })
     }
   }
 

@@ -7,11 +7,13 @@ import type {
 } from '../../../server/app-render/collect-segment-data'
 import type {
   CacheNodeSeedData,
+  FlightData,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
 import {
   readVaryParams,
   type VaryParams,
+  type VaryParamsThenable,
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   NEXT_DID_POSTPONE_HEADER,
@@ -93,6 +95,7 @@ import type {
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 import {
+  type NormalizedFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
 } from '../../flight-data-helpers'
@@ -106,6 +109,7 @@ import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCacheDuringRegularNavigation } from './bfcache'
 import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
+import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 
@@ -2232,19 +2236,9 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // Track when the network connection closes.
     const closed = createPromiseWithResolvers<void>()
 
-    let isResponsePartial = false
-    let responseBody = response.body
-    // For runtime prefetches, strip the leading isPartial byte before passing
-    // the stream to Flight.
-    if (fetchStrategy === FetchStrategy.PPRRuntime) {
-      const stripped = await stripIsPartialByte(responseBody)
-      isResponsePartial = stripped.isPartial
-      responseBody = stripped.stream
-    }
-
     let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null = null
     const prefetchStream = createPrefetchResponseStream(
-      responseBody,
+      response.body,
       closed.resolve,
       function onResponseSizeUpdate(totalBytesReceivedSoFar) {
         // When processing a dynamic response, we don't know how large each
@@ -2261,12 +2255,15 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         }
       }
     )
-    const serverData =
-      await createFromNextReadableStream<NavigationFlightResponse>(
+
+    const [serverData, cacheData] = await Promise.all([
+      createFromNextReadableStream<NavigationFlightResponse>(
         prefetchStream,
         headers,
         { allowPartialStream: true }
-      )
+      ),
+      response.cacheData,
+    ])
 
     // Read head vary params synchronously. Individual segments carry their
     // own thenables in CacheNodeSeedData.
@@ -2277,20 +2274,37 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         : null
 
     const now = Date.now()
-    const staleAt = await getStaleAt(now, serverData, response)
+    const staleAt = await getStaleAt(now, serverData.s, response)
+    // PPRRuntime prefetches are partial when the server marks the response
+    // as '~' (Partial). Full/LoadingBoundary prefetches are always complete.
+    const isResponsePartial =
+      fetchStrategy === FetchStrategy.PPRRuntime &&
+      (cacheData?.isResponsePartial ?? false)
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
     // in the LRU as more data comes in.
+    const buildId =
+      response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
+    const flightDatas = normalizeFlightData(serverData.f)
+    if (typeof flightDatas === 'string') {
+      rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+      return null
+    }
+    const navigationSeed = convertServerPatchToFullTree(
+      dynamicRequestTree,
+      flightDatas,
+      renderedSearch
+    )
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
       fetchStrategy,
-      response.headers,
-      serverData,
+      flightDatas,
+      buildId,
       isResponsePartial,
       headVaryParams,
       staleAt,
-      route,
+      navigationSeed,
       spawnedEntries
     )
 
@@ -2339,10 +2353,9 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const flightRouterState = flightData.tree
-  // If the response contains dynamic holes, then we must conservatively assume
-  // that any individual segment might contain dynamic holes, and also the
-  // head. If it did not contain dynamic holes, then we can assume every segment
-  // and the head is completely static.
+  // If the response was postponed, segments may contain dynamic holes.
+  // The head has its own partiality flag (flightDataEntry.isHeadPartial)
+  // which is handled separately in writeDynamicRenderResponseIntoCache.
   const isResponsePartial =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
 
@@ -2363,7 +2376,7 @@ function writeDynamicTreeResponseIntoCache(
     return
   }
 
-  const fulfilledEntry = discoverKnownRoute(
+  discoverKnownRoute(
     now,
     originalPathname,
     nextUrl,
@@ -2378,22 +2391,25 @@ function writeDynamicTreeResponseIntoCache(
 
   // If the server sent segment data as part of the response, we should write
   // it into the cache to prevent a second, redundant prefetch request.
-  //
-  // TODO: When `clientSegmentCache` is enabled, the server does not include
-  // segment data when responding to a route tree prefetch request. However,
-  // when `clientSegmentCache` is set to "client-only", and PPR is enabled (or
-  // the page is fully static), the normal check is bypassed and the server
-  // responds with the full page. This is a temporary situation until we can
-  // remove the "client-only" option. Then, we can delete this function call.
+  // TODO: This is a leftover branch from before Client Segment Cache was
+  // enabled everywhere. Tree prefetches should never include segment data.  We
+  // can delete it. Leaving for a subsequent PR.
+  const navigationSeed = convertServerPatchToFullTree(
+    flightRouterState,
+    normalizedFlightDataResult,
+    renderedSearch
+  )
+  const buildId =
+    response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
   writeDynamicRenderResponseIntoCache(
     now,
     fetchStrategy,
-    response.headers,
-    serverData,
+    normalizedFlightDataResult,
+    buildId,
     isResponsePartial,
     headVaryParams,
     getStaleAtFromHeader(now, response),
-    fulfilledEntry,
+    navigationSeed,
     null
   )
 }
@@ -2420,18 +2436,15 @@ export function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  responseHeaders: Headers,
-  serverData: NavigationFlightResponse,
+  flightDatas: NormalizedFlightData[],
+  buildId: string | undefined,
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
   staleAt: number,
-  route: FulfilledRouteCacheEntry,
+  navigationSeed: NavigationSeed,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
-  const buildId =
-    responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
-
-  if (buildId !== getNavigationBuildId()) {
+  if (buildId && buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
     if (spawnedEntries !== null) {
@@ -2440,15 +2453,14 @@ export function writeDynamicRenderResponseIntoCache(
     return null
   }
 
-  const flightDatas = normalizeFlightData(serverData.f)
-  if (typeof flightDatas === 'string') {
-    // This means navigating to this route will result in an MPA navigation.
-    // TODO: We should cache this, too, so that the MPA navigation is immediate.
-    return null
-  }
+  const routeTree = navigationSeed.routeTree
+  const metadataTree =
+    navigationSeed.metadataVaryPath !== null
+      ? createMetadataRouteTree(navigationSeed.metadataVaryPath)
+      : null
 
-  for (const flightData of flightDatas) {
-    const seedData = flightData.seedData
+  for (const flightDataEntry of flightDatas) {
+    const seedData = flightDataEntry.seedData
     if (seedData !== null) {
       // The data sent by the server represents only a subtree of the app. We
       // need to find the part of the task tree that matches the response.
@@ -2457,8 +2469,8 @@ export function writeDynamicRenderResponseIntoCache(
       // pattern of parallel route key and segment:
       //
       //   [string, Segment, string, Segment, string, Segment, ...]
-      const segmentPath = flightData.segmentPath
-      let tree = route.tree
+      const segmentPath = flightDataEntry.segmentPath
+      let tree = routeTree
       for (let i = 0; i < segmentPath.length; i += 2) {
         const parallelRouteKey: string = segmentPath[i]
         if (tree?.slots?.[parallelRouteKey] !== undefined) {
@@ -2482,17 +2494,31 @@ export function writeDynamicRenderResponseIntoCache(
       )
     }
 
-    const head = flightData.head
-    if (head !== null) {
-      // For head entries, use the head-specific vary params passed as parameter.
+    const head = flightDataEntry.head
+    if (head !== null && metadataTree !== null) {
+      // When Cache Components is enabled, the server conservatively marks
+      // the head as partial during static generation (isPossiblyPartialHead
+      // in app-render.tsx), even for fully static pages where the head is
+      // actually complete. When the response is non-partial, we override
+      // this since the server confirmed no dynamic content exists.
+      //
+      // Without Cache Components, the server always sends the correct
+      // isHeadPartial value, so no override is needed.
+      const isHeadPartial =
+        !isResponsePartial && process.env.__NEXT_CACHE_COMPONENTS
+          ? false
+          : flightDataEntry.isHeadPartial
+
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
         fetchStrategy,
         head,
-        flightData.isHeadPartial,
+        isHeadPartial,
         staleAt,
+        // For head entries, use the head-specific vary params passed as
+        // parameter.
         headVaryParams,
-        route.metadata,
+        metadataTree,
         spawnedEntries
       )
     }
@@ -2823,24 +2849,28 @@ function getStaleAtFromHeader(
   return now + staleTimeMs
 }
 
-async function getStaleAt(
+/**
+ * Reads the stale time from an async iterable or a response header and
+ * returns a staleAt timestamp.
+ *
+ * TODO: Buffer the response and then read the iterable values
+ * synchronously, similar to readVaryParams. This would avoid the need to
+ * make this async, and we could also use it in
+ * writeDynamicTreeResponseIntoCache. This will also be needed when React
+ * starts leaving async iterables hanging when the outer RSC stream is
+ * aborted e.g. due to sync I/O (with unstable_allowPartialStream).
+ */
+export async function getStaleAt(
   now: number,
-  serverData: NavigationFlightResponse,
+  staleTimeIterable: AsyncIterable<number> | undefined,
   response?: RSCResponse<unknown>
 ): Promise<number> {
-  if (serverData.s !== undefined) {
+  if (staleTimeIterable !== undefined) {
     // Iterate the async iterable and take the last yielded value. The server
     // yields updated staleTime values during the render; the last one is the
     // final staleTime.
     let staleTimeSeconds: number | undefined
-
-    // TODO: Buffer the response and then read the iterable values
-    // synchronously, similar to readVaryParams. This would avoid the need to
-    // make getStaleAt async, and we could also use it in
-    // writeDynamicTreeResponseIntoCache. This will also be needed when React
-    // starts leaving async iterables hanging when the outer RSC stream is
-    // aborted e.g. due to sync I/O (with unstable_allowPartialStream).
-    for await (const value of serverData.s) {
+    for await (const value of staleTimeIterable) {
       staleTimeSeconds = value
     }
 
@@ -2860,77 +2890,65 @@ async function getStaleAt(
   return now + STATIC_STALETIME_MS
 }
 
-type ProcessedStaticStageResponse = {
-  readonly serverData: NavigationFlightResponse
-  readonly headVaryParams: VaryParams | null
-  readonly staleAt: number
-}
-
 /**
- * Resolves a static stage response promise and computes derived values
- * (stale time, vary params). Callers should `.then()` the result into
- * `writeStaticStageResponseIntoCache`.
- */
-export async function processStaticStageResponse(
-  now: number,
-  staticStageResponse: Promise<NavigationFlightResponse>
-): Promise<ProcessedStaticStageResponse> {
-  const serverData = await staticStageResponse
-  const staleAt = await getStaleAt(now, serverData)
-
-  const headVaryParams =
-    serverData.h !== null ? readVaryParams(serverData.h) : null
-
-  return { serverData, headVaryParams, staleAt }
-}
-
-/**
- * Writes the static stage of a dynamic navigation response into the segment
- * cache.
+ * Writes the static stage of a navigation response into the segment cache.
+ * When `isResponsePartial` is false, segments are written as non-partial with
+ * `FetchStrategy.Full` so no dynamic follow-up is needed. Default segments
+ * are skipped (by `writeSeedDataIntoCache`) to avoid caching fallback content
+ * that would block refreshes from overwriting with dynamic data.
  */
 export function writeStaticStageResponseIntoCache(
   now: number,
-  serverData: NavigationFlightResponse,
-  responseHeaders: Headers,
-  headVaryParams: VaryParams | null,
+  flightData: FlightData,
+  buildId: string | undefined,
+  headVaryParamsThenable: VaryParamsThenable | null,
   staleAt: number,
-  route: FulfilledRouteCacheEntry
+  baseTree: FlightRouterState,
+  renderedSearch: string,
+  isResponsePartial: boolean
 ): void {
-  // All segments are partial — the static stage needs a dynamic fetch to fill
-  // in runtime/dynamic content within their subtrees.
-  const isResponsePartial = true
+  const fetchStrategy = isResponsePartial
+    ? FetchStrategy.PPR
+    : FetchStrategy.Full
 
-  // The static stage corresponds to the default prefetching strategy for
-  // Cache Components (FetchStrategy.PPR).
-  const fetchStrategy = FetchStrategy.PPR
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
 
+  const flightDatas = normalizeFlightData(flightData)
+  if (typeof flightDatas === 'string') {
+    return
+  }
+  const navigationSeed = convertServerPatchToFullTree(
+    baseTree,
+    flightDatas,
+    renderedSearch
+  )
   writeDynamicRenderResponseIntoCache(
     now,
     fetchStrategy,
-    responseHeaders,
-    serverData,
+    flightDatas,
+    buildId,
     isResponsePartial,
     headVaryParams,
     staleAt,
-    route,
+    navigationSeed,
     null // spawnedEntries — no pre-created entries; will create or upsert
   )
 }
 
 /**
- * Checks for and strips the leading isPartial byte from a runtime prefetch
- * response stream. If the first byte is a recognized marker ('~' for partial,
- * '#' for complete), it is stripped and isPartial is set accordingly. If the
- * first byte is not a recognized marker (e.g. for static responses that were
- * not generated by the runtime prefetch codepath), the stream is returned
- * intact with isPartial set to false.
+ * Strips the leading isPartial byte from an RSC response stream.
  *
- * This is safe because the marker bytes (0x7e '~', 0x23 '#') cannot appear as
- * the first byte of a valid RSC Flight response. Flight rows start with either
- * a row ID (a hex character) or ':' (0x3a) for hint and debug chunks. Neither
- * overlaps with the marker bytes.
+ * The server prepends a single byte: '~' (0x7e) for partial, '#' (0x23) for
+ * complete. These bytes cannot appear as the first byte of a valid RSC Flight
+ * response (Flight rows start with a hex digit or ':').
+ *
+ * If the first byte is not a recognized marker, the stream is returned intact
+ * and the response is conservatively treated as partial.
  */
-async function stripIsPartialByte(
+export async function stripIsPartialByte(
   stream: ReadableStream<Uint8Array>
 ): Promise<{ stream: ReadableStream<Uint8Array>; isPartial: boolean }> {
   const reader = stream.getReader()
@@ -2938,14 +2956,16 @@ async function stripIsPartialByte(
   if (done || !value || value.byteLength === 0) {
     return {
       stream: new ReadableStream({ start: (c) => c.close() }),
-      isPartial: false,
+      isPartial: true,
     }
   }
 
   const firstByte = value[0]
-  // '~' (0x7e) = partial, '#' (0x23) = complete
-  const hasMarker = firstByte === 0x7e || firstByte === 0x23
-  const isPartial = firstByte === 0x7e
+  // '#' (0x23) = complete, '~' (0x7e) = partial.
+  // Only '#' explicitly means non-partial. Everything else (including
+  // unrecognized bytes) is conservatively treated as partial.
+  const hasMarker = firstByte === 0x23 || firstByte === 0x7e
+  const isPartial = firstByte !== 0x23
 
   const remainder = hasMarker
     ? value.byteLength > 1
