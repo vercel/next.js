@@ -54,6 +54,19 @@ macro_rules! turbo_register {
         static $name: $ty = $value;
         $crate::macro_helpers::inventory_submit! { &$name }
     };
+    ($reg:ty => $name:ident : $ty:ty = $value:expr) => {
+        static $name: $ty = $value;
+        $crate::macro_helpers::inventory_submit! { &$name }
+
+        impl $crate::macro_helpers::RegistryDef<$ty> for $reg {
+            const DEF: &'static $ty = &$name;
+        }
+    };
+}
+
+#[doc(hidden)]
+pub trait RegistryDef<T: 'static> {
+    const DEF: &'static T;
 }
 
 /// A trait for types that can be registered in a registry.

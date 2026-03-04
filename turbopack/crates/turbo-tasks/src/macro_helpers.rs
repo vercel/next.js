@@ -1,7 +1,5 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
-use std::any::TypeId;
-
 pub use async_trait::async_trait;
 pub use bincode;
 pub use inventory;
@@ -12,8 +10,8 @@ pub use shrink_to_fit;
 pub use tracing;
 
 use crate::{
-    FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitTypeId, ValueTypeId,
-    debug::ValueDebugFormatString,
+    FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitType, TraitTypeId, ValueType,
+    ValueTypeId, debug::ValueDebugFormatString,
 };
 pub use crate::{
     global_name_for_method, global_name_for_scope, global_name_for_trait_method,
@@ -21,6 +19,7 @@ pub use crate::{
     magic_any::MagicAny,
     manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{ArgMeta, NativeFunction, downcast_args_owned, downcast_args_ref},
+    registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
     turbo_register,
 };
@@ -231,13 +230,11 @@ inventory::collect! {CollectableTraitCastFunctions}
 
 #[allow(clippy::type_complexity)]
 pub struct CollectableTraitMethods(
-    pub  fn() -> (
-        TypeId,
-        TraitTypeId,
-        Vec<(&'static str, &'static NativeFunction)>,
-    ),
+    pub &'static ValueType,
+    pub &'static TraitType,
+    pub &'static phf::Map<&'static str, &'static NativeFunction>,
 );
-inventory::collect!(CollectableTraitMethods);
+inventory::collect! {CollectableTraitMethods}
 
 /// Submit an item to the inventory.
 ///

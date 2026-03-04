@@ -7,7 +7,6 @@ use std::{
 
 use auto_hash_map::{AutoMap, AutoSet};
 use bincode::{Decode, Encode};
-use rustc_hash::FxHashMap;
 use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
@@ -16,7 +15,7 @@ use crate::{
     id::TraitTypeId,
     macro_helpers::{CollectableTraitMethods, NativeFunction},
     magic_any::any_as_encode,
-    registry::{self, RegistryType, turbo_registry},
+    registry::{self, RegistryType, get_trait_type_id, turbo_registry},
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
@@ -182,17 +181,6 @@ impl ValueType {
         unsafe { &*self.traits.get() }
     }
 
-    fn register_trait_method(
-        &self,
-        trait_method: &'static TraitMethod,
-        native_fn: &'static NativeFunction,
-    ) {
-        // SAFETY: Called only during single-threaded registry init
-        unsafe { &mut *self.traits.get() }
-            .trait_methods
-            .insert(trait_method, native_fn);
-    }
-
     pub fn get_trait_method(
         &self,
         trait_method: &'static TraitMethod,
@@ -204,9 +192,21 @@ impl ValueType {
         }
     }
 
-    fn register_trait(&self, trait_type: TraitTypeId) {
+    fn register_trait(
+        &self,
+        trait_type: &'static TraitType,
+        trait_methods: &'static phf::Map<&'static str, &'static NativeFunction>,
+    ) {
         // SAFETY: Called only during single-threaded registry init
-        unsafe { &mut *self.traits.get() }.traits.insert(trait_type);
+        let traits = unsafe { &mut *self.traits.get() };
+        traits.traits.insert(get_trait_type_id(trait_type));
+        for (k, v) in trait_methods {
+            let k = trait_type
+                .methods
+                .get(k)
+                .expect("Trait key unexpectedly missing");
+            traits.trait_methods.insert(k, v);
+        }
     }
 
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
@@ -219,30 +219,9 @@ turbo_registry!("Value", ValueType);
 
 // Called during ValueType registry post_init to register all trait methods on all value types.
 // This runs inside the Lazy init (single-threaded), so the unsafe SyncUnsafeCell access is safe.
-pub(crate) fn register_all_trait_methods(value_types: &[&'static ValueType]) {
-    #[allow(clippy::type_complexity)]
-    let mut trait_methods_by_value: FxHashMap<
-        TypeId,
-        Vec<(TraitTypeId, Vec<(&'static str, &'static NativeFunction)>)>,
-    > = FxHashMap::default();
-    for CollectableTraitMethods(thunk) in inventory::iter::<CollectableTraitMethods> {
-        let (type_id, trait_type_id, fn_items) = thunk();
-        trait_methods_by_value
-            .entry(type_id)
-            .or_default()
-            .push((trait_type_id, fn_items));
-    }
-
-    for value_type in value_types {
-        if let Some(traits) = trait_methods_by_value.remove(&value_type.type_id()) {
-            for (trait_type_id, methods) in traits {
-                let trait_type = crate::registry::get_trait(trait_type_id);
-                value_type.register_trait(trait_type_id);
-                for (name, method) in methods {
-                    value_type.register_trait_method(trait_type.get(name), method);
-                }
-            }
-        }
+pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
+    for methods in inventory::iter::<CollectableTraitMethods> {
+        methods.0.register_trait(methods.1, methods.2)
     }
 }
 
