@@ -2939,20 +2939,24 @@ export function writeStaticStageResponseIntoCache(
 }
 
 /**
- * Decodes an embedded runtime prefetch Flight stream and computes derived
- * values (stale time, vary params, partiality). Callers should `.then()`
- * the result into `writeDynamicRenderResponseIntoCache`.
+ * Decodes an embedded runtime prefetch Flight stream, normalizes the flight
+ * data, and derives a `NavigationSeed` from the base tree.
+ *
+ * Returns `null` if the response triggers an MPA navigation.
  */
 export async function processRuntimePrefetchStream(
   now: number,
-  runtimePrefetchStream: ReadableStream<Uint8Array>
+  runtimePrefetchStream: ReadableStream<Uint8Array>,
+  baseTree: FlightRouterState,
+  renderedSearch: string
 ): Promise<{
-  flightData: FlightData
+  flightDatas: NormalizedFlightData[]
+  navigationSeed: NavigationSeed
   buildId: string | undefined
   isResponsePartial: boolean
   headVaryParams: VaryParams | null
   staleAt: number
-}> {
+} | null> {
   const { stream, isPartial } = await stripIsPartialByte(runtimePrefetchStream)
 
   const serverData =
@@ -2970,8 +2974,19 @@ export async function processRuntimePrefetchStream(
 
   const staleAt = await getStaleAt(now, serverData.s)
 
+  const flightDatas = normalizeFlightData(serverData.f)
+  if (typeof flightDatas === 'string') {
+    return null
+  }
+  const navigationSeed = convertServerPatchToFullTree(
+    baseTree,
+    flightDatas,
+    renderedSearch
+  )
+
   return {
-    flightData: serverData.f,
+    flightDatas,
+    navigationSeed,
     buildId: serverData.b,
     isResponsePartial: isPartial,
     headVaryParams,

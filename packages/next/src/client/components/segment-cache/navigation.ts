@@ -439,20 +439,27 @@ async function navigateToUnknownRoute(
     }
 
     if (runtimePrefetchStream !== null) {
-      processRuntimePrefetchStream(now, runtimePrefetchStream)
-        .then((processed) =>
-          writeDynamicRenderResponseIntoCache(
-            now,
-            FetchStrategy.PPRRuntime,
-            processed.flightData,
-            processed.buildId,
-            processed.isResponsePartial,
-            processed.headVaryParams,
-            processed.staleAt,
-            fulfilledRoute,
-            null
-          )
-        )
+      processRuntimePrefetchStream(
+        now,
+        runtimePrefetchStream,
+        currentFlightRouterState,
+        renderedSearch
+      )
+        .then((processed) => {
+          if (processed !== null) {
+            writeDynamicRenderResponseIntoCache(
+              now,
+              FetchStrategy.PPRRuntime,
+              processed.flightDatas,
+              processed.buildId,
+              processed.isResponsePartial,
+              processed.headVaryParams,
+              processed.staleAt,
+              processed.navigationSeed,
+              null
+            )
+          }
+        })
         .catch(() => {
           // The runtime prefetch cache write failed. Not fatal — the
           // navigation completed normally, we just won't cache runtime data.
