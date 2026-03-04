@@ -58,7 +58,7 @@ const BLOCK_INDEX_CAPACITY_BUFFER: usize = 16;
 /// Keys are sorted by hash, so we should not expect correlation in the data between nearby keys in
 /// a block. For small keys (below this threshold), compression is unlikely to be able to exploit
 /// patterns and only wastes CPU time. We skip the compression attempt entirely in this case.
-const MIN_KEY_SIZE_FOR_COMPRESSION: usize = 8;
+const MIN_KEY_SIZE_FOR_COMPRESSION: usize = 16;
 
 /// Maximum key length that can use fixed-size key block layout.
 ///
