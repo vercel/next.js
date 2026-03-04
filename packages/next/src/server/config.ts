@@ -2046,7 +2046,7 @@ function setExperimentalFeatureForDebugPrerender<
   }
 }
 
-function cloneObject(obj: any, seen: Map<object, any> = new Map()): any {
+export function cloneObject(obj: any, seen: Map<object, any> = new Map()): any {
   // Primitives & null
   if (obj === null || typeof obj !== 'object') {
     return obj
