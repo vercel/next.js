@@ -250,7 +250,7 @@ Every incoming request would see different random numbers, date, etc.
 
 If your route is intentionally fully dynamic and you don't need granular `<Suspense>` boundaries, you can wrap the document body in a `<Suspense>` boundary in your Root Layout. This signals to Next.js that the entire page should defer to request time.
 
-```tsx filename="app/layout.tsx" highlight={1,10-12}
+```tsx filename="app/layout.tsx" highlight={1,9,13}
 import { Suspense } from 'react'
 
 export default function RootLayout({
@@ -259,11 +259,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html>
-      <Suspense fallback={null}>
+    <Suspense>
+      <html>
         <body>{children}</body>
-      </Suspense>
-    </html>
+      </html>
+    </Suspense>
   )
 }
 ```
