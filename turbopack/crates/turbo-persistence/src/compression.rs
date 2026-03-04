@@ -40,6 +40,11 @@ pub fn checksum_block(data: &[u8]) -> u32 {
     crc32fast::hash(data)
 }
 
+/// Returns a new incremental CRC32 hasher for computing checksums over multiple chunks.
+pub fn incremental_checksum() -> crc32fast::Hasher {
+    crc32fast::Hasher::new()
+}
+
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compress_into_buffer(block: &[u8], buffer: &mut Vec<u8>) -> Result<()> {
     lz4::compress_to_vec(block, buffer, lz4::ACC_LEVEL_DEFAULT).context("Compression failed")?;

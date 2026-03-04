@@ -637,6 +637,7 @@ impl StaticSortedFile {
                 self.meta.block_offsets_start(self.mmap.len()),
             );
         }
+        // On-disk layout: [uncompressed_length: u32][block data][checksum: u32]
         let uncompressed_length = u32::from_be_bytes(
             self.mmap[block_start..block_start + 4]
                 .try_into()
@@ -648,16 +649,16 @@ impl StaticSortedFile {
                 })?,
         );
         let checksum = u32::from_be_bytes(
-            self.mmap[block_start + 4..block_start + 8]
+            self.mmap[block_end - 4..block_end]
                 .try_into()
                 .with_context(|| {
                     format!(
-                        "Failed to read checksum from block {} header in {:08}.sst",
+                        "Failed to read checksum from block {} trailer in {:08}.sst",
                         block_index, self.meta.sequence_number
                     )
                 })?,
         );
-        let block = &self.mmap[block_start + BLOCK_HEADER_SIZE..block_end];
+        let block = &self.mmap[block_start + 4..block_end - 4];
         Ok((uncompressed_length, checksum, block))
     }
 }
