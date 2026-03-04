@@ -1,5 +1,4 @@
-import type { FlightDataPath } from '../../../shared/lib/app-router-types'
-import type { VaryParamsThenable } from '../../../shared/lib/segment-cache/vary-params-decoding'
+import type { InitialRSCPayload } from '../../../shared/lib/app-router-types'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
@@ -12,32 +11,34 @@ import {
   getStaleAt,
   writeStaticStageResponseIntoCache,
 } from '../segment-cache/cache'
+import { decodeStaticStage } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
-  initialCanonicalUrlParts: string[]
-  initialRenderedSearch: string
-  initialFlightData: FlightDataPath[]
-  initialCouldBeIntercepted: boolean
-  initialSupportsPerSegmentPrefetching: boolean
-  initialStaleTime: AsyncIterable<number> | undefined
-  initialHeadVaryParams: VaryParamsThenable | null
+  initialRSCPayload: InitialRSCPayload
+  initialFlightStreamForCache?: ReadableStream<Uint8Array> | null
   location: Location | null
 }
 
 export function createInitialRouterState({
   navigatedAt,
-  initialFlightData,
-  initialCanonicalUrlParts,
-  initialRenderedSearch,
-  initialCouldBeIntercepted,
-  initialSupportsPerSegmentPrefetching,
-  initialStaleTime,
-  initialHeadVaryParams,
+  initialRSCPayload,
+  initialFlightStreamForCache,
   location,
 }: InitialRouterStateParameters): AppRouterState {
+  const {
+    c: initialCanonicalUrlParts,
+    f: initialFlightData,
+    q: initialRenderedSearch,
+    i: initialCouldBeIntercepted,
+    S: initialSupportsPerSegmentPrefetching,
+    s: initialStaleTime,
+    l: initialStaticStageByteLength,
+    h: initialHeadVaryParams,
+  } = initialRSCPayload
+
   // When initialized on the server, the canonical URL is provided as an array of parts.
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
   // as a URL that should be crawled.
@@ -98,26 +99,68 @@ export function createInitialRouterState({
     // Write the initial seed data into the segment cache so subsequent
     // navigations to the initial page can serve cached segments instantly.
     if (initialSeedData !== null && initialStaleTime !== undefined) {
-      // Currently only fully static pages include initialStaleTime.
-      const now = Date.now()
+      if (
+        initialStaticStageByteLength !== undefined &&
+        initialFlightStreamForCache != null
+      ) {
+        // Partially static page — truncate the cloned Flight stream at the
+        // static stage byte boundary, decode, and cache the static subset.
+        decodeStaticStage<InitialRSCPayload>(
+          initialFlightStreamForCache,
+          initialStaticStageByteLength,
+          undefined
+        )
+          .then(async (staticStageResponse) => {
+            const now = Date.now()
+            const staleAt = await getStaleAt(now, staticStageResponse.s)
 
-      getStaleAt(now, initialStaleTime)
-        .then((staleAt) => {
-          writeStaticStageResponseIntoCache(
-            now,
-            initialFlightData,
-            undefined, // buildId — not applicable for initial HTML
-            initialHeadVaryParams,
-            staleAt,
-            initialTree,
-            initialRenderedSearch,
-            false // isResponsePartial
-          )
-        })
-        .catch(() => {
-          // The static stage processing failed. Not fatal — the page
-          // rendered normally, we just won't write into the cache.
-        })
+            writeStaticStageResponseIntoCache(
+              now,
+              staticStageResponse.f,
+              undefined, // no build ID mismatch check for initial HTML
+              staticStageResponse.h,
+              staleAt,
+              initialTree,
+              initialRenderedSearch,
+              true // isResponsePartial
+            )
+          })
+          .catch(() => {
+            // The static stage processing failed. Not fatal — the page
+            // rendered normally, we just won't write into the cache.
+          })
+      } else {
+        // Fully static page — cache the entire decoded seed data as-is. We're
+        // not using the initial response here (which would allow us to combine
+        // the two branches) to avoid unnecessary decoding of the Flight data,
+        // since we can just take the seed data that we already decoded during
+        // hydration and write it into the cache directly.
+        const now = Date.now()
+
+        getStaleAt(now, initialStaleTime)
+          .then((staleAt) => {
+            writeStaticStageResponseIntoCache(
+              now,
+              initialFlightData,
+              undefined, // buildId — not applicable for initial HTML
+              initialHeadVaryParams,
+              staleAt,
+              initialTree,
+              initialRenderedSearch,
+              false // isResponsePartial
+            )
+          })
+          .catch(() => {
+            // The static stage processing failed. Not fatal — the page
+            // rendered normally, we just won't write into the cache.
+          })
+
+        // Cancel the stream clone — fully static path doesn't need it.
+        initialFlightStreamForCache?.cancel()
+      }
+    } else {
+      // No caching — cancel the unused stream clone.
+      initialFlightStreamForCache?.cancel()
     }
   }
 
