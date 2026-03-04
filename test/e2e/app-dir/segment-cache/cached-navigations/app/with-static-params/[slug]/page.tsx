@@ -1,4 +1,5 @@
 import { connection } from 'next/server'
+import { setTimeout } from 'timers/promises'
 import { Suspense } from 'react'
 
 export async function generateStaticParams() {
@@ -28,10 +29,11 @@ export default async function Page({
 
 async function CachedContent() {
   'use cache'
-  return <p id="cached-content">Cached content</p>
+  return <p id="cached-content">Cached content ({new Date().toISOString()})</p>
 }
 
 async function ConnectionContent() {
   await connection()
-  return <p>Dynamic content</p>
+  await setTimeout(600)
+  return <p>Dynamic content ({new Date().toISOString()})</p>
 }

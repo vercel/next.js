@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
@@ -460,6 +461,72 @@ describe('cached navigations', () => {
     )
     expect(await browser.elementById('cached-content').text()).toContain(
       'Cached content'
+    )
+  })
+
+  it('caches a partially static page from the initial HTML for subsequent navigations', async () => {
+    let page: Playwright.Page
+    // Start directly at /partially-static — full HTML load. The RSC payload
+    // inlined in the HTML contains both cached and dynamic content.
+    const browser = await next.browser('/partially-static', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+        await page.clock.install()
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Verify the page rendered fully via HTML. Dynamic content streams in
+    // with a delay, so use retry to wait for it.
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    await retry(async () => {
+      expect(await browser.elementById('connection-boundary').text()).toContain(
+        'Dynamic content'
+      )
+    })
+
+    // Navigate to home
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/"]').click()
+      },
+      { includes: 'Home' }
+    )
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Navigate back to /partially-static. The static stage was cached during
+    // the initial HTML load, so cached content should be available instantly
+    // while the dynamic content streams in.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser.elementByCss('a[href="/partially-static"]').click()
+        },
+        {
+          includes: 'Dynamic content',
+          block: true,
+        }
+      )
+
+      // Cached content should be visible while the dynamic request is blocked
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+
+      // Dynamic content should show Suspense fallbacks
+      expect(await browser.elementById('connection-boundary').text()).toBe(
+        'Loading connection...'
+      )
+    })
+
+    // After unblocking, all content should be visible
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
     )
   })
 })
