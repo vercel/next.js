@@ -36,7 +36,7 @@ impl Display for CellId {
         write!(
             f,
             "{}#{}",
-            registry::get_value_type(self.type_id).name,
+            registry::get_value_type(self.type_id).ty.name,
             self.index
         )
     }

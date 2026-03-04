@@ -1,0 +1,226 @@
+use std::{cell::SyncUnsafeCell, num::NonZeroU16};
+
+use anyhow::Error;
+use once_cell::sync::Lazy;
+
+use crate::{
+    TraitType, ValueType,
+    id::{FunctionId, TraitTypeId, ValueTypeId},
+    native_function::NativeFunction,
+};
+
+mod registry_type;
+
+pub use registry_type::RegistryType;
+
+/// Declare a type as a compile-time-collected registry item.
+///
+/// Generates pointer-based `Eq`, `PartialEq`, `Hash`, `Ord`, `PartialOrd` impls
+/// and an `inventory::collect!` call for `&'static $ty`.
+macro_rules! turbo_registry {
+    ($name:literal, $ty:ty) => {
+        inventory::collect!(&'static $ty);
+
+        impl ::core::cmp::Eq for $ty {}
+        impl ::core::cmp::PartialEq for $ty {
+            fn eq(&self, other: &$ty) -> bool {
+                ::core::ptr::eq(self, other)
+            }
+        }
+        impl ::core::hash::Hash for $ty {
+            fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
+                ::core::ptr::hash(self, state)
+            }
+        }
+        impl ::core::cmp::Ord for $ty {
+            fn cmp(&self, other: &Self) -> ::core::cmp::Ordering {
+                (self as *const Self).cmp(&(other as *const Self))
+            }
+        }
+        impl ::core::cmp::PartialOrd for $ty {
+            fn partial_cmp(&self, other: &Self) -> Option<::core::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+    };
+}
+
+pub(crate) use turbo_registry;
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! turbo_register {
+    ($name:ident : $ty:ty = $value:expr) => {
+        static $name: $ty = $value;
+        $crate::macro_helpers::inventory_submit! { &$name }
+    };
+}
+
+/// A trait for types that can be registered in a registry.
+///
+/// This allows the generic registry to work with different types
+/// while maintaining their specific requirements.
+trait RegistryItem: 'static + Eq + std::hash::Hash {
+    /// The ID type used for this registry item
+    type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
+    const TYPE_NAME: &'static str;
+
+    /// Get the global registry type used for sorting and uniqueness validation
+    fn ty(&self) -> &RegistryType;
+
+    /// Called after all items have been assigned IDs. Default is a no-op.
+    /// Only called during single-threaded Lazy init.
+    fn post_init(_items: &[&'static Self]) {}
+}
+
+impl RegistryItem for NativeFunction {
+    type Id = FunctionId;
+    const TYPE_NAME: &'static str = "Function";
+
+    fn ty(&self) -> &RegistryType {
+        &self.ty
+    }
+}
+
+impl RegistryItem for ValueType {
+    type Id = ValueTypeId;
+    const TYPE_NAME: &'static str = "Value";
+    fn ty(&self) -> &RegistryType {
+        &self.ty
+    }
+
+    fn post_init(items: &[&'static Self]) {
+        crate::value_type::register_all_trait_methods(items);
+    }
+}
+
+impl RegistryItem for TraitType {
+    type Id = TraitTypeId;
+    const TYPE_NAME: &'static str = "Trait";
+    fn ty(&self) -> &RegistryType {
+        &self.ty
+    }
+}
+
+/// Assign IDs to items and call post_init. Shared logic for all registry types.
+fn init_registry<T: RegistryItem>(mut items: Vec<&'static T>) -> Box<[&'static T]> {
+    // Sort by registry type to get stable order
+    items.sort_unstable_by_key(|item| item.ty());
+
+    let mut id = NonZeroU16::MIN;
+    let mut prev_name: Option<&str> = None;
+    for item in items.iter() {
+        let global_name = item.ty().global_name;
+        if let Some(prev) = prev_name {
+            assert!(
+                prev != global_name,
+                "multiple {ty} items registered with name: {global_name}!",
+                ty = T::TYPE_NAME
+            );
+        }
+        prev_name = Some(global_name);
+        unsafe { std::ptr::write(SyncUnsafeCell::raw_get(&item.ty().id), u16::from(id)) };
+        id = id.checked_add(1).expect("overflowing item ids");
+    }
+
+    T::post_init(&items);
+
+    items.into_boxed_slice()
+}
+
+/// Get an item by its ID from a registry slice
+fn get_item<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> &'static T {
+    registry[*id as usize - 1]
+}
+
+/// Get the ID for a registered item
+fn get_id<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, item: &'static T) -> T::Id {
+    // Force initialization
+    let _ = &**registry;
+    // SAFETY: The ID write happens-before this read thanks to the fence inside of Lazy
+    let n = unsafe { std::ptr::read(item.ty().id.get()) };
+    let Some(id) = NonZeroU16::new(n) else {
+        panic!(
+            "{ty} isn't registered: {item}",
+            ty = T::TYPE_NAME,
+            item = item.ty().global_name
+        );
+    };
+    T::Id::from(id)
+}
+
+/// Validate that an ID is within the valid range
+fn validate_id<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> Option<Error> {
+    let len = registry.len();
+    if *id as usize <= len {
+        None
+    } else {
+        Some(anyhow::anyhow!(
+            "Invalid {ty} id, {id} expected a value <= {len}",
+            ty = T::TYPE_NAME
+        ))
+    }
+}
+
+static FUNCTIONS: Lazy<Box<[&'static NativeFunction]>> = Lazy::new(|| {
+    init_registry(
+        inventory::iter::<&'static NativeFunction>
+            .into_iter()
+            .copied()
+            .collect(),
+    )
+});
+
+pub fn get_native_function(id: FunctionId) -> &'static NativeFunction {
+    get_item(&FUNCTIONS, id)
+}
+
+pub fn get_function_id(func: &'static NativeFunction) -> FunctionId {
+    get_id(&FUNCTIONS, func)
+}
+
+pub fn validate_function_id(id: FunctionId) -> Option<Error> {
+    validate_id(&FUNCTIONS, id)
+}
+
+pub(crate) static VALUES: Lazy<Box<[&'static ValueType]>> = Lazy::new(|| {
+    init_registry(
+        inventory::iter::<&'static ValueType>
+            .into_iter()
+            .copied()
+            .collect(),
+    )
+});
+
+pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
+    get_id(&VALUES, value)
+}
+
+pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
+    get_item(&VALUES, id)
+}
+
+pub fn validate_value_type_id(id: ValueTypeId) -> Option<Error> {
+    validate_id(&VALUES, id)
+}
+
+static TRAITS: Lazy<Box<[&'static TraitType]>> = Lazy::new(|| {
+    init_registry(
+        inventory::iter::<&'static TraitType>
+            .into_iter()
+            .copied()
+            .collect(),
+    )
+});
+
+pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
+    get_id(&TRAITS, trait_type)
+}
+
+pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
+    get_item(&TRAITS, id)
+}
+
+pub fn validate_trait_type_id(id: TraitTypeId) -> Option<Error> {
+    validate_id(&TRAITS, id)
+}

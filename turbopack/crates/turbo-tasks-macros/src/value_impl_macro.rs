@@ -149,12 +149,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         pub(self) #inline_signature #inline_block
                     }
 
-                    static #native_function_ident: #native_function_ty = #native_function_def;
-
-                    // Register the function for deserialization
-                    turbo_tasks::macro_helpers::inventory_submit! {
-                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
-                    }
+                    turbo_tasks::macro_helpers::turbo_register!(
+                        #native_function_ident: #native_function_ty = #native_function_def
+                    );
                 })
         }
 
@@ -276,12 +273,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #inline_signature #inline_block
                     }
 
-                    static #native_function_ident: #native_function_ty = #native_function_def;
-
-                    // Register the function for deserialization
-                    turbo_tasks::macro_helpers::inventory_submit! {
-                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
-                    }
+                    turbo_tasks::macro_helpers::turbo_register!(
+                        #native_function_ident: #native_function_ty = #native_function_def
+                    );
                 });
 
                 trait_methods.push(quote! {

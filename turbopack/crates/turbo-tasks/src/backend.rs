@@ -80,7 +80,7 @@ impl CachedTaskType {
     /// Get the name of the function from the registry. Equivalent to the
     /// [`Display`]/[`ToString::to_string`] implementation, but does not allocate a [`String`].
     pub fn get_name(&self) -> &'static str {
-        self.native_fn.name
+        self.native_fn.ty.name
     }
 
     /// Encodes this task type directly to a hasher, avoiding buffer allocation.
