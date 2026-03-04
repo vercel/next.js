@@ -1866,6 +1866,10 @@ importers:
         version: 0.7.3
 
   packages/next-playwright:
+    dependencies:
+      '@playwright/test':
+        specifier: '>=1.0.0'
+        version: 1.51.1
     devDependencies:
       typescript:
         specifier: 5.9.2
