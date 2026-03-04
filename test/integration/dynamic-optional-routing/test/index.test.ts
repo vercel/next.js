@@ -313,9 +313,47 @@ describe('Dynamic Optional Routing', () => {
             'utf-8'
           )
           const { stderr } = await nextBuild(appDir, [], { stderr: true })
-          await expect(stderr).toMatch(
-            'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]'
+          expect(stderr).toContain(
+            'A required parameter (slug) was not provided as an array of strings in getStaticPaths for /invalid/[[...slug]].'
           )
+          expect(stderr).toContain('Received: undefined')
+        } finally {
+          await fs.unlink(invalidRoute)
+        }
+      })
+
+      it('should fail to build when catch-all param array contains non-string values', async () => {
+        const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
+        try {
+          await fs.outputFile(
+            invalidRoute,
+            `
+            export async function getStaticPaths() {
+              return {
+                paths: [
+                  { params: { slug: [123] } },
+                ],
+                fallback: false,
+              }
+            }
+
+            export async function getStaticProps({ params }) {
+              return { props: { params } }
+            }
+
+            export default function Index(props) {
+              return (
+                <div>Invalid</div>
+              )
+            }
+          `,
+            'utf-8'
+          )
+          const { stderr } = await nextBuild(appDir, [], { stderr: true })
+          expect(stderr).toContain(
+            'A required parameter (slug) was not provided as an array of strings in getStaticPaths for /invalid/[[...slug]].'
+          )
+          expect(stderr).toContain('Received: an array ([123])')
         } finally {
           await fs.unlink(invalidRoute)
         }
