@@ -286,7 +286,7 @@ Next.js requires you to explicitly handle components that can't complete during 
 
 ### Opting out of the static shell
 
-If your route is intentionally fully dynamic and you don't need granular `<Suspense>` boundaries, you can wrap the document body in a `<Suspense>` boundary in your Root Layout. This signals to Next.js that the entire page should defer to request time. To limit the impact to specific routes, use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout).
+If you want to start using `use cache` in parts of your app without converting every dynamic component to use `<Suspense>` boundaries, you can wrap the document body in a `<Suspense>` boundary in your Root Layout. This catches any uncached dynamic data access that would otherwise require its own boundary, letting you adopt caching incrementally. To limit the impact to specific routes, use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout).
 
 ```tsx filename="app/layout.tsx" highlight={1,10-12}
 import { Suspense } from 'react'
