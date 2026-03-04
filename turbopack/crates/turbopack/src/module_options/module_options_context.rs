@@ -294,6 +294,12 @@ pub struct CssOptionsContext {
     /// `Any(ResourcePathEndsWith(".module.css"), ContentTypeStartsWith("text/css+module"))`
     pub module_css_condition: Option<RuleCondition>,
 
+    /// Extra lightningcss feature flags to always include (as a u32 bitmask).
+    pub lightningcss_include_features: u32,
+
+    /// Extra lightningcss feature flags to always exclude (as a u32 bitmask).
+    pub lightningcss_exclude_features: u32,
+
     pub placeholder_for_future_extensions: (),
 }
 

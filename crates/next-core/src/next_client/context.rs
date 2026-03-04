@@ -343,6 +343,8 @@ pub async fn get_client_module_options_context(
         css: CssOptionsContext {
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
+            lightningcss_include_features: *next_config.lightningcss_include_features().await?,
+            lightningcss_exclude_features: *next_config.lightningcss_exclude_features().await?,
             ..Default::default()
         },
         static_url_tag: Some(rcstr!("client")),

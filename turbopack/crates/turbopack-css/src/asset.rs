@@ -39,6 +39,8 @@ pub struct CssModuleAsset {
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
     environment: Option<ResolvedVc<Environment>>,
+    lightningcss_include_features: u32,
+    lightningcss_exclude_features: u32,
 }
 
 #[turbo_tasks::value_impl]
@@ -51,6 +53,8 @@ impl CssModuleAsset {
         ty: CssModuleAssetType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
+        lightningcss_include_features: u32,
+        lightningcss_exclude_features: u32,
     ) -> Vc<Self> {
         Self::cell(CssModuleAsset {
             source,
@@ -58,6 +62,8 @@ impl CssModuleAsset {
             import_context,
             ty,
             environment,
+            lightningcss_include_features,
+            lightningcss_exclude_features,
         })
     }
 
@@ -80,6 +86,8 @@ impl ParseCss for CssModuleAsset {
             this.import_context.map(|v| *v),
             this.ty,
             this.environment.as_deref().copied(),
+            this.lightningcss_include_features,
+            this.lightningcss_exclude_features,
         ))
     }
 }
@@ -94,6 +102,8 @@ impl ProcessCss for CssModuleAsset {
         Ok(process_css_with_placeholder(
             parse_result,
             this.environment.as_deref().copied(),
+            this.lightningcss_include_features,
+            this.lightningcss_exclude_features,
         ))
     }
 
@@ -117,6 +127,8 @@ impl ProcessCss for CssModuleAsset {
             minify_type,
             origin_source_map,
             this.environment.as_deref().copied(),
+            this.lightningcss_include_features,
+            this.lightningcss_exclude_features,
         ))
     }
 }

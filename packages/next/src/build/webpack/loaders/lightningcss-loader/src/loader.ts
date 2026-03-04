@@ -19,6 +19,7 @@ import {
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
 import { ECacheKey } from './interface'
+import { featureNamesToMask } from './features'
 import { getBindingsSync } from '../../../../../build/swc'
 import { installBindings } from '../../../../../build/swc/install-bindings'
 
@@ -378,7 +379,19 @@ export async function LightningCssLoader(
       targets: getTargets({ targets: userTargets, key: ECacheKey.loader }),
       inputSourceMap:
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
-      include: 1, // Features.Nesting
+      include: (() => {
+        const defaultInclude = 1 // Features.Nesting
+        const userInclude = options.lightningCssFeatures?.include
+          ? featureNamesToMask(options.lightningCssFeatures.include)
+          : 0
+        const userExclude = options.lightningCssFeatures?.exclude
+          ? featureNamesToMask(options.lightningCssFeatures.exclude)
+          : 0
+        return (defaultInclude | userInclude) & ~userExclude
+      })(),
+      exclude: options.lightningCssFeatures?.exclude
+        ? featureNamesToMask(options.lightningCssFeatures.exclude)
+        : 0,
     })
     let cssCodeAsString = code.toString()
 

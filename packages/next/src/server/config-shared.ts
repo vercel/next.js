@@ -335,6 +335,37 @@ export interface LoggingConfig {
   browserToTerminal?: boolean | 'error' | 'warn'
 }
 
+export type LightningCssFeature =
+  | 'nesting'
+  | 'not-selector-list'
+  | 'dir-selector'
+  | 'lang-selector-list'
+  | 'is-selector'
+  | 'text-decoration-thickness-percent'
+  | 'media-interval-syntax'
+  | 'media-range-syntax'
+  | 'custom-media-queries'
+  | 'clamp-function'
+  | 'color-function'
+  | 'oklab-colors'
+  | 'lab-colors'
+  | 'p3-colors'
+  | 'hex-alpha-colors'
+  | 'space-separated-color-notation'
+  | 'font-family-system-ui'
+  | 'double-position-gradients'
+  | 'vendor-prefixes'
+  | 'logical-properties'
+  | 'light-dark'
+  | 'selectors'
+  | 'media-queries'
+  | 'colors'
+
+export interface LightningCssFeatures {
+  include?: LightningCssFeature[]
+  exclude?: LightningCssFeature[]
+}
+
 export interface ExperimentalConfig {
   adapterPath?: string
   appNewScrollHandler?: boolean
@@ -770,6 +801,13 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of postcss-loader
    */
   useLightningcss?: boolean
+
+  /**
+   * Configure which CSS features lightningcss should always transpile
+   * (include) or never transpile (exclude), regardless of browser targets.
+   * Requires `useLightningcss: true`.
+   */
+  lightningCssFeatures?: LightningCssFeatures
 
   /**
    * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
