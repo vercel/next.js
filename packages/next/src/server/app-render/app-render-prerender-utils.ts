@@ -35,9 +35,9 @@ export class ReactServerResult {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
     } else {
-      Readable = __non_webpack_require__(
-        'node:stream'
-      ) as typeof import('node:stream').Readable
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
     }
     const webStream = Readable.toWeb(this._stream) as ReadableStream<Uint8Array>
     const tee = webStream.tee()

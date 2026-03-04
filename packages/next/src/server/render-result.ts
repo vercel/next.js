@@ -253,9 +253,9 @@ export default class RenderResult<
         Readable = (require('node:stream') as typeof import('node:stream'))
           .Readable
       } else {
-        Readable = __non_webpack_require__(
-          'node:stream'
-        ) as typeof import('node:stream').Readable
+        Readable = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
       }
       return Readable.toWeb(this.response) as ReadableStream<Uint8Array>
     }
@@ -288,9 +288,9 @@ export default class RenderResult<
         Readable = (require('node:stream') as typeof import('node:stream'))
           .Readable
       } else {
-        Readable = __non_webpack_require__(
-          'node:stream'
-        ) as typeof import('node:stream').Readable
+        Readable = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
       }
       return [Readable.toWeb(this.response) as ReadableStream<Uint8Array>]
     } else {
