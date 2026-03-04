@@ -11,7 +11,7 @@ use byteorder::{BE, ByteOrder, WriteBytesExt};
 use turbo_bincode::turbo_bincode_encode;
 
 use crate::{
-    compression::{checksum_block, compress_into_buffer},
+    compression::{checksum_block, compress_into_buffer, incremental_checksum},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
@@ -299,6 +299,8 @@ pub fn write_static_stored_file<E: Entry>(
 ///
 /// `uncompressed_size` is the original uncompressed size of the block data, or `0` if the block
 /// is stored uncompressed.
+///
+/// On-disk layout: `[uncompressed_size: u32][block data][checksum: u32]`
 fn write_raw_block_to_file(
     file: &mut BufWriter<File>,
     block_offsets: &mut Vec<u32>,
@@ -320,12 +322,15 @@ fn write_raw_block_to_file(
         .expect("Block offset overflow");
     block_offsets.push(offset);
 
+    // Prefix: uncompressed size
     file.write_u32::<BE>(uncompressed_size)
         .context("Failed to write uncompressed size")?;
-    file.write_u32::<BE>(checksum)
-        .context("Failed to write checksum")?;
+    // Block data
     file.write_all(block)
         .context("Failed to write block data")?;
+    // Trailer: CRC32 checksum
+    file.write_u32::<BE>(checksum)
+        .context("Failed to write checksum")?;
     Ok(block_index)
 }
 
@@ -361,6 +366,89 @@ fn write_block_to_file(
     );
     compress_buffer.clear();
     result
+}
+
+/// Streams an uncompressed fixed key block directly to the file without buffering the whole block.
+///
+/// With the CRC32 checksum stored as a trailer, we can write the block prefix, then stream
+/// each entry's bytes through both a CRC hasher and the `BufWriter`, and finally append the
+/// checksum. Each entry is serialized into `entry_buffer` one at a time, keeping peak memory
+/// to a single entry rather than the full block.
+///
+/// Used for fixed key blocks with small keys (< [`MIN_KEY_SIZE_FOR_COMPRESSION`]) where
+/// compression is skipped.
+fn stream_uncompressed_fixed_key_block_to_file<E: Entry>(
+    file: &mut BufWriter<File>,
+    block_offsets: &mut Vec<u32>,
+    entry_buffer: &mut Vec<u8>,
+    pending_keys: &VecDeque<PendingEntry<E>>,
+    start: usize,
+    end: usize,
+    has_hash: bool,
+    key_size: u8,
+    value_type: u8,
+) -> Result<u16> {
+    let entry_count = end - start;
+    let hash_len: usize = if has_hash { 8 } else { 0 };
+    let val_size = value_type_val_size(value_type);
+    let stride = hash_len + key_size as usize + val_size;
+    let block_data_size = FIXED_KEY_BLOCK_HEADER_SIZE + entry_count * stride;
+
+    // Record block offset (prefix + data + trailer).
+    let block_index: u16 = block_offsets
+        .len()
+        .try_into()
+        .expect("Block index overflow");
+    let len: u32 = (block_data_size + BLOCK_HEADER_SIZE).try_into().unwrap();
+    let offset = block_offsets
+        .last()
+        .copied()
+        .unwrap_or_default()
+        .checked_add(len)
+        .expect("Block offset overflow");
+    block_offsets.push(offset);
+
+    // Write 4-byte prefix: uncompressed_size = 0 (not compressed).
+    file.write_u32::<BE>(0)
+        .context("Failed to write uncompressed size")?;
+
+    let mut hasher = incremental_checksum();
+
+    // Fixed block header: block_type(1) + entry_count(3) + key_size(1) + value_type(1)
+    entry_buffer.clear();
+    let block_type = if has_hash {
+        BLOCK_TYPE_FIXED_KEY_WITH_HASH
+    } else {
+        BLOCK_TYPE_FIXED_KEY_NO_HASH
+    };
+    entry_buffer.write_u8(block_type).unwrap();
+    entry_buffer.write_u24::<BE>(entry_count as u32).unwrap();
+    entry_buffer.write_u8(key_size).unwrap();
+    entry_buffer.write_u8(value_type).unwrap();
+    hasher.update(entry_buffer);
+    file.write_all(entry_buffer)
+        .context("Failed to write fixed key block header")?;
+
+    // Stream each entry: serialize to scratch buffer, feed CRC, write to file.
+    for i in start..end {
+        entry_buffer.clear();
+        let pending = &pending_keys[i];
+        if has_hash {
+            entry_buffer.extend_from_slice(&pending.entry.key_hash().to_be_bytes());
+        }
+        pending.entry.write_key_to(entry_buffer);
+        pending.value_ref.write_value_to(entry_buffer);
+        hasher.update(entry_buffer);
+        file.write_all(entry_buffer)
+            .context("Failed to write fixed key block entry")?;
+    }
+
+    // Write 4-byte trailer: CRC32 checksum.
+    let checksum = hasher.finalize();
+    file.write_u32::<BE>(checksum)
+        .context("Failed to write checksum")?;
+
+    Ok(block_index)
 }
 
 // ---------------------------------------------------------------------------
@@ -847,8 +935,10 @@ impl<E: Entry> StreamingSstWriter<E> {
         let has_hash = use_hash(info.max_key_len);
         let try_compress = info.max_key_len >= MIN_KEY_SIZE_FOR_COMPRESSION;
 
-        self.key_buffer.clear();
+        let first_hash = self.pending_keys[start].entry.key_hash();
 
+        // For fixed key blocks that skip compression, stream directly to disk
+        // without buffering the whole block.
         if let KeyBlockFormat::Fixed {
             key_len: key_size,
             value_type,
@@ -867,6 +957,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             }
             builder.finish();
         } else {
+            self.key_buffer.clear();
             let mut builder =
                 KeyBlockBuilder::new(&mut self.key_buffer, entry_count as u32, has_hash);
 
@@ -879,7 +970,6 @@ impl<E: Entry> StreamingSstWriter<E> {
         }
 
         // Record boundary
-        let first_hash = self.pending_keys[start].entry.key_hash();
         let block_index = write_block_to_file(
             self.file.as_mut().unwrap(),
             &mut self.compress_buffer,
