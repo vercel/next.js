@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 import Link from 'next/link'
+import QueryParamReader from './client'
 
 function Skeleton({
   width,
@@ -89,11 +90,15 @@ export default function TargetPage() {
         }
       `}</style>
       <h1>Target Page</h1>
-      <p>
-        The heading and this paragraph are static — they appear instantly. The
-        comments below are dynamic and stream in after the shell.
-      </p>
+      <p>The heading and this paragraph are static — they appear instantly.</p>
+
+      <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Query param</h2>
+      <Suspense fallback="Query param loading...">
+        <QueryParamReader />
+      </Suspense>
+
       <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Comments</h2>
+      <p>The comments below are dynamic and stream in after the shell.</p>
       <div
         style={{
           border: '1px solid #eee',
