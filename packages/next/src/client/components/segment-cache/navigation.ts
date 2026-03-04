@@ -57,16 +57,11 @@ export function navigate(
   const now = Date.now()
   const href = url.href
 
-  // When navigating to the same URL (pathname + search), clear nextUrl so the
-  // NEXT_URL header is not sent. This prevents interception route rewrites from
-  // re-triggering when the user is already on the target page.
-  // Search-param-only changes (e.g. router.replace('?key=val')) must preserve
-  // nextUrl to maintain interception context during refresh/revalidation.
-  if (
-    url.pathname === currentUrl.pathname &&
-    url.search === currentUrl.search &&
-    url.hash === currentUrl.hash
-  ) {
+  // Only clear nextUrl for same-page navigations that were initiated by a
+  // link. This avoids re-triggering interception rewrites when clicking a link
+  // to the current page, while preserving interception context for non-link
+  // flows (e.g. server actions) that intentionally pass nextUrl.
+  if (url.href === currentUrl.href && getLinkForCurrentNavigation() !== null) {
     nextUrl = null
   }
 
