@@ -313,7 +313,7 @@ function maybeAppendBuildIdToRSCPayload<T extends RSCPayload>(
 }
 
 interface ParseRequestHeadersOptions {
-  readonly isRoutePPREnabled: boolean
+  readonly isCacheComponentsEnabled: boolean
   readonly previewModeId: string | undefined
 }
 
@@ -361,7 +361,7 @@ function parseRequestHeaders(
   const isRSCRequest = headers[RSC_HEADER] !== undefined
 
   const shouldProvideFlightRouterState =
-    isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
+    isRSCRequest && (!isPrefetchRequest || !options.isCacheComponentsEnabled)
 
   const flightRouterState = shouldProvideFlightRouterState
     ? parseAndValidateFlightRouterState(headers[NEXT_ROUTER_STATE_TREE_HEADER])
@@ -2458,7 +2458,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   // We read these values from the request object as, in certain cases,
   // base-server will strip them to opt into different rendering behavior.
   const parsedRequestHeaders = parseRequestHeaders(req.headers, {
-    isRoutePPREnabled: renderOpts.cacheComponents === true,
+    isCacheComponentsEnabled: renderOpts.cacheComponents === true,
     previewModeId: renderOpts.previewProps?.previewModeId,
   })
 
