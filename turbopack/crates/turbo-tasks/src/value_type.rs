@@ -185,21 +185,13 @@ impl ValueType {
         unsafe { &*self.traits.get() }
     }
 
-    /// Access trait info for mutation during registry init.
-    ///
-    /// SAFETY: Must only be called during single-threaded registry init (inside
-    /// the Lazy initialization closure).
-    unsafe fn trait_info_mut(&self) -> &mut ValueTypeTraits {
-        unsafe { &mut *self.traits.get() }
-    }
-
     fn register_trait_method(
         &self,
         trait_method: &'static TraitMethod,
         native_fn: &'static NativeFunction,
     ) {
         // SAFETY: Called only during single-threaded registry init
-        unsafe { self.trait_info_mut() }
+        unsafe { &mut *self.traits.get() }
             .trait_methods
             .insert(trait_method, native_fn);
     }
@@ -217,7 +209,7 @@ impl ValueType {
 
     fn register_trait(&self, trait_type: TraitTypeId) {
         // SAFETY: Called only during single-threaded registry init
-        unsafe { self.trait_info_mut() }.traits.insert(trait_type);
+        unsafe { &mut *self.traits.get() }.traits.insert(trait_type);
     }
 
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
