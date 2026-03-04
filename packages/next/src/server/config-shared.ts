@@ -1040,11 +1040,6 @@ export type ExportPathMap = {
     _isDynamicError?: boolean
 
     /**
-     * @internal
-     */
-    _isRoutePPREnabled?: boolean
-
-    /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
      * the app has `experimental.ppr` and `cacheComponents` enabled, and
