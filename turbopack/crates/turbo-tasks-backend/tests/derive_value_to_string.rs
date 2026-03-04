@@ -4,8 +4,8 @@
 
 use std::fmt;
 
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -286,6 +286,98 @@ async fn test_mixed_enum() {
         assert_eq!(
             &*to_string_operation(v3).read_strongly_consistent().await?,
             "wrapped(world)"
+        );
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+/// A Display type for torture-testing enum field resolution.
+#[turbo_tasks::value(shared)]
+struct DisplayVal(u32);
+
+impl fmt::Display for DisplayVal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "dv:{}", self.0)
+    }
+}
+
+/// Torture test: one enum variant with Display, RcStr, Vc, and ResolvedVc fields,
+/// exercising all ValueToStringify dispatch levels in a single match arm.
+#[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+enum TortureEnum {
+    /// Auto-field format with Display, RcStr, and ResolvedVc in one variant.
+    #[value_to_string("d={display_val} r={rc_str} rv1={resolved_named} rv2={resolved_const}")]
+    AllFieldTypes {
+        display_val: DisplayVal,
+        rc_str: RcStr,
+        resolved_named: ResolvedVc<NamedFields>,
+        resolved_const: ResolvedVc<ConstantString>,
+    },
+    /// FormatExprs form with a ResolvedVc positional arg.
+    #[value_to_string("expr({})", _0)]
+    ExprVc(ResolvedVc<NamedFields>),
+    /// DirectExpr form delegating to a ResolvedVc field.
+    #[value_to_string(_0)]
+    DelegateVc(ResolvedVc<ConstantString>),
+    /// ReadRef field.
+    #[value_to_string("read={0}")]
+    WithReadRef(ReadRef<NamedFields>),
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_torture_enum() {
+    run_once(&REGISTRATION, || async {
+        let named_resolved = NamedFields {
+            name: "x".into(),
+            count: 1,
+        }
+        .resolved_cell();
+        let named_resolved2 = NamedFields {
+            name: "y".into(),
+            count: 2,
+        }
+        .resolved_cell();
+        let const_resolved = ConstantString.resolved_cell();
+
+        // AllFieldTypes: Display + RcStr + ResolvedVc + ResolvedVc
+        let v1 = ResolvedVc::upcast(
+            (TortureEnum::AllFieldTypes {
+                display_val: DisplayVal(42),
+                rc_str: rcstr!("hello"),
+                resolved_named: named_resolved,
+                resolved_const: const_resolved,
+            })
+            .resolved_cell(),
+        );
+        assert_eq!(
+            &*to_string_operation(v1).read_strongly_consistent().await?,
+            "d=dv:42 r=hello rv1=item x (count: 1) rv2=constant-value"
+        );
+
+        // ExprVc: FormatExprs with ResolvedVc positional arg
+        let v2 = ResolvedVc::upcast(TortureEnum::ExprVc(named_resolved2).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v2).read_strongly_consistent().await?,
+            "expr(item y (count: 2))"
+        );
+
+        // DelegateVc: DirectExpr delegating to ResolvedVc
+        let v3 = ResolvedVc::upcast(TortureEnum::DelegateVc(const_resolved).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v3).read_strongly_consistent().await?,
+            "constant-value"
+        );
+
+        // WithReadRef: ReadRef field
+        let named_read: ReadRef<NamedFields> = named_resolved.await?;
+        let v4 = ResolvedVc::upcast(TortureEnum::WithReadRef(named_read).resolved_cell());
+        assert_eq!(
+            &*to_string_operation(v4).read_strongly_consistent().await?,
+            "read=item x (count: 1)"
         );
 
         anyhow::Ok(())
