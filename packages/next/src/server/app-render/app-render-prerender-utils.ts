@@ -95,15 +95,9 @@ export async function createReactServerPrerenderResultFromRender(
       }
     }
   } else {
-    // Node.js Readable stream
-    const readable: Readable = underlying
-    await new Promise<void>((resolve, reject) => {
-      readable.on('data', (chunk: Buffer | Uint8Array) => {
-        chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
-      })
-      readable.on('end', resolve)
-      readable.on('error', reject)
-    })
+    for await (const chunk of underlying) {
+      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
+    }
   }
 
   return new ReactServerPrerenderResult(chunks)
