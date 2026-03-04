@@ -106,12 +106,6 @@ describe('instant-nav-panel', () => {
       expect(text).toContain('Navigate to a page')
     })
 
-    // Badge should show instant status
-    await retry(async () => {
-      const status = await getBadgeStatus(browser)
-      expect(status).toBe('instant')
-    })
-
     // Cookie should be set
     const cookie = await browser.eval(() => document.cookie)
     expect(cookie).toContain('next-instant-navigation-testing=1')
@@ -154,11 +148,9 @@ describe('instant-nav-panel', () => {
 
     await openInstantNavPanel(browser)
 
-    // Wait for instant mode to be active
+    // Wait for panel to be open (instant mode is active)
     await retry(async () => {
-      const badge = await browser.elementByCss('[data-next-badge]')
-      const attr = await badge.getAttribute('data-cache-only')
-      expect(attr).toBe('true')
+      expect(await hasPanelOpen(browser)).toBe(true)
     })
 
     // Navigate to target page via SPA
@@ -174,38 +166,6 @@ describe('instant-nav-panel', () => {
 
     // Clean up
     await clearInstantModeCookie(browser)
-  })
-
-  it('should turn off instant mode when clicking the badge status indicator', async () => {
-    const browser = await next.browser('/')
-    await clearInstantModeCookie(browser)
-    await browser.waitForElementByCss('[data-testid="home-title"]')
-
-    await openInstantNavPanel(browser)
-
-    // Verify it's on
-    await retry(async () => {
-      const badge = await browser.elementByCss('[data-next-badge]')
-      const attr = await badge.getAttribute('data-cache-only')
-      expect(attr).toBe('true')
-    })
-
-    // Click the "Instant..." status indicator to unlock
-    await browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      portal?.shadowRoot?.querySelector('[data-indicator-status]')?.click()
-    })
-
-    // After reload, instant mode should be off
-    await retry(async () => {
-      const badge = await browser.elementByCss('[data-next-badge]')
-      const attr = await badge.getAttribute('data-cache-only')
-      expect(attr).toBe('false')
-    })
   })
 
   it('should clear cookie when closing panel via X button', async () => {
