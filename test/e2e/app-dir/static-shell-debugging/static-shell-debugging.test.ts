@@ -19,7 +19,7 @@ describe.skip('static-shell-debugging', () => {
         : undefined,
     },
     nextConfig: {
-      experimental: { ppr: context.ppr },
+      cacheComponents: context.ppr,
     },
   })
 
