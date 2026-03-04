@@ -15,7 +15,6 @@ function getValidationBoundaryTracking(): ValidationBoundaryTracking | null {
       return store.boundaryState
     case 'prerender':
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'request':
