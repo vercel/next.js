@@ -1,4 +1,19 @@
-pub const NODE_EXTERNALS: [&str; 64] = [
+// SAFETY: This has to be sorted alphabetically since we are doing binary search on it
+pub const NODE_EXTERNALS: [&str; 68] = [
+    "_http_agent",
+    "_http_client",
+    "_http_common",
+    "_http_incoming",
+    "_http_outgoing",
+    "_http_server",
+    "_stream_duplex",
+    "_stream_passthrough",
+    "_stream_readable",
+    "_stream_transform",
+    "_stream_wrap",
+    "_stream_writable",
+    "_tls_common",
+    "_tls_wrap",
     "assert",
     "assert/strict",
     "async_hooks",
@@ -27,12 +42,15 @@ pub const NODE_EXTERNALS: [&str; 64] = [
     "path/posix",
     "path/win32",
     "perf_hooks",
+    "pnpapi",
     "process",
     "punycode",
     "querystring",
     "readline",
+    "readline/promises",
     "repl",
     "stream",
+    "stream/consumers",
     "stream/promises",
     "stream/web",
     "string_decoder",
@@ -50,28 +68,48 @@ pub const NODE_EXTERNALS: [&str; 64] = [
     "wasi",
     "worker_threads",
     "zlib",
-    "pnpapi",
-    "_http_agent",
-    "_http_client",
-    "_http_common",
-    "_http_incoming",
-    "_http_outgoing",
-    "_http_server",
-    "_stream_duplex",
-    "_stream_passthrough",
-    "_stream_readable",
-    "_stream_transform",
-    "_stream_wrap",
-    "_stream_writable",
 ];
 
-pub const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "async_hooks"];
+/// List of node.js internals that are supported by edge runtime.
+/// If anything Node.js builtin module apart from these these imports are
+/// used and user does not provide alias for the polyfill, a runtime error will be thrown.
+/// See https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
+// SAFETY: This has to be sorted alphabetically since we are doing binary search on it
+pub const EDGE_NODE_EXTERNALS: [&str; 7] = [
+    "assert",
+    "assert/strict",
+    "async_hooks",
+    "buffer",
+    "events",
+    "util",
+    "util/types",
+];
 
 pub const BUN_EXTERNALS: [&str; 6] = [
+    "bun",
     "bun:ffi",
     "bun:jsc",
     "bun:sqlite",
     "bun:test",
     "bun:wrap",
-    "bun",
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_node_externals_sorted() {
+        assert!(NODE_EXTERNALS.is_sorted())
+    }
+
+    #[test]
+    fn test_edge_node_externals_sorted() {
+        assert!(EDGE_NODE_EXTERNALS.is_sorted())
+    }
+
+    #[test]
+    fn test_bun_externals_sorted() {
+        assert!(BUN_EXTERNALS.is_sorted())
+    }
+}

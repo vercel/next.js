@@ -4600,6 +4600,7 @@ dependencies = [
  "indexmap 2.13.0",
  "indoc",
  "modularize_imports",
+ "next-taskless",
  "once_cell",
  "pathdiff",
  "preset_env_base",
