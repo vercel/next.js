@@ -13,7 +13,6 @@ import { discoverRoutes } from '../route-discovery'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import http from 'node:http'
 
@@ -167,7 +166,7 @@ async function collectRoutesForAnalyze(
     config.basePath ? `${config.basePath}${pathPrefix}` : pathPrefix
   )
 
-  const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+  const isAppCacheComponentsEnabled = !!config.cacheComponents
 
   // Generate routes manifest
   const { routesManifest } = generateRoutesManifest({
@@ -179,7 +178,7 @@ async function collectRoutesForAnalyze(
     onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
-    isAppPPREnabled,
+    isAppCacheComponentsEnabled,
   })
 
   return routesManifest.dynamicRoutes

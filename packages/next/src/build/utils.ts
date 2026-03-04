@@ -2,8 +2,6 @@ import type {
   NextConfigComplete,
   NextConfigRuntime,
 } from '../server/config-shared'
-import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
-import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
@@ -666,7 +664,6 @@ export async function isPageStatic({
   cacheHandler,
   cacheHandlers,
   cacheLifeProfiles,
-  pprConfig,
   buildId,
   clientAssetToken,
   sriEnabled,
@@ -693,7 +690,6 @@ export async function isPageStatic({
     [profile: string]: import('../server/use-cache/cache-life').CacheLife
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
-  pprConfig: ExperimentalPPRConfig | undefined
   buildId: string
   clientAssetToken: string
   sriEnabled: boolean
@@ -820,12 +816,10 @@ export async function isPageStatic({
 
         rootParamKeys = collectRootParamKeys(routeModule)
 
-        // A page supports partial prerendering if it is an app page and either
-        // the whole app has PPR enabled or this page has PPR enabled when we're
-        // in incremental mode.
+        // A page supports partial prerendering if it is an app page and
+        // cacheComponents is enabled.
         isRoutePPREnabled =
-          routeModule.definition.kind === RouteKind.APP_PAGE &&
-          checkIsRoutePPREnabled(pprConfig)
+          routeModule.definition.kind === RouteKind.APP_PAGE && cacheComponents
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
