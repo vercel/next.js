@@ -29,9 +29,9 @@ describe('next-link', () => {
        }
       `)
     }
-    // Client errors show "This page crashed"
+    // Client errors show "This page couldn\u2019t load"
     expect(await browser.elementByCss('body').text()).toContain(
-      'This page crashed'
+      'This page couldn\u2019t load'
     )
   })
 
@@ -54,9 +54,9 @@ describe('next-link', () => {
          ],
        }
       `)
-      // Client errors show "This page crashed"
+      // Client errors show "This page couldn\u2019t load"
       expect(await browser.elementByCss('body').text()).toContain(
-        'This page crashed'
+        'This page couldn\u2019t load'
       )
     } else {
       expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
