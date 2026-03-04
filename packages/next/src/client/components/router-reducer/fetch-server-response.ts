@@ -212,6 +212,15 @@ export async function fetchServerResponse(
       return doMpaNavigation(responseUrl.toString())
     }
 
+    // Early build mismatch check using the response header. This runs before
+    // Flight decode to prevent evaluating incompatible modules from a different
+    // build during rolling deploys. The header-based check in createFetch
+    // already aborted the Flight stream; this ensures we do an MPA navigation.
+    const serverBuildId = res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER)
+    if (serverBuildId && serverBuildId !== getNavigationBuildId()) {
+      return doMpaNavigation(res.url)
+    }
+
     // We may navigate to a page that requires a different Webpack runtime.
     // In prod, every page will have the same Webpack runtime.
     // In dev, the Webpack runtime is minimal for each page.
@@ -382,8 +391,25 @@ export async function createFetch<T>(
   // top-level prefetch response never blocks a navigation; if it hasn't already
   // been written into the cache by the time the navigation happens, the router
   // will go straight to a dynamic request.
+  //
+  // Before letting Flight decode the response, we check the build ID header
+  // to detect version skew early. This prevents Flight from evaluating
+  // incompatible modules from a different build during rolling deploys,
+  // which can cause fatal runtime errors (TypeError, ChunkLoadError).
+  let buildMismatchDetected = false
+  const buildCheckedFetchPromise = fetchPromise.then((response) => {
+    const serverBuildId = response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER)
+    if (serverBuildId && serverBuildId !== getNavigationBuildId()) {
+      buildMismatchDetected = true
+      // Abort the response body to prevent Flight from decoding
+      // incompatible modules from a different build.
+      response.body?.cancel()
+      throw new Error('Build ID mismatch detected')
+    }
+    return response
+  })
   let flightResponsePromise = shouldImmediatelyDecode
-    ? createFromNextFetch<T>(fetchPromise, headers)
+    ? createFromNextFetch<T>(buildCheckedFetchPromise, headers)
     : null
   let browserResponse = await fetchPromise
 
@@ -445,8 +471,21 @@ export async function createFetch<T>(
       if (process.env.__NEXT_CACHE_COMPONENTS) {
         staticStageBodyPromise = fetchPromise.then((r) => r.clone().body)
       }
+      const redirectBuildCheckedFetchPromise = fetchPromise.then(
+        (response) => {
+          const serverBuildId = response.headers.get(
+            NEXT_NAV_DEPLOYMENT_ID_HEADER
+          )
+          if (serverBuildId && serverBuildId !== getNavigationBuildId()) {
+            buildMismatchDetected = true
+            response.body?.cancel()
+            throw new Error('Build ID mismatch detected')
+          }
+          return response
+        }
+      )
       flightResponsePromise = shouldImmediatelyDecode
-        ? createFromNextFetch<T>(fetchPromise, headers)
+        ? createFromNextFetch<T>(redirectBuildCheckedFetchPromise, headers)
         : null
       browserResponse = await fetchPromise
       // We just performed a manual redirect, so this is now true.
