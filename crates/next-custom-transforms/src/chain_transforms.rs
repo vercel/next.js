@@ -350,6 +350,12 @@ where
             ),
             crate::transforms::debug_instant_stack::debug_instant_stack(
                 file_path_for_instant_stack,
+                match &opts.server_components {
+                    Some(react_server_components::Config::WithOptions(options)) => {
+                        options.page_extensions.clone()
+                    }
+                    _ => vec![],
+                },
             ),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(
