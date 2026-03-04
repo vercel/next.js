@@ -52,15 +52,3 @@ export function createWebDebugChannel(): DebugChannelPair {
     clientSide: { readable: clientSideReadable },
   }
 }
-
-/**
- * toNodeDebugChannel is a no-op stub on the web path.
- * It should never be called in edge/web builds.
- */
-export function toNodeDebugChannel(
-  _webDebugChannel: DebugChannelServer
-): never {
-  throw new Error(
-    'toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase'
-  )
-}

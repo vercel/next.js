@@ -30,10 +30,6 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import type { StreamLike } from './app-render-prerender-utils'
-import {
-  toNodeDebugChannel,
-  type DebugChannelServer,
-} from './debug-channel-server'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
@@ -109,26 +105,6 @@ function webToReadable(
   return Readable.fromWeb(stream as WebReadableStream)
 }
 
-function normalizeNodeDebugChannel(options: any): any {
-  if (!options?.debugChannel) {
-    return options
-  }
-
-  const debugChannel = options.debugChannel as unknown
-  if (
-    typeof debugChannel === 'object' &&
-    debugChannel !== null &&
-    'writable' in debugChannel
-  ) {
-    return {
-      ...options,
-      debugChannel: toNodeDebugChannel(debugChannel as DebugChannelServer),
-    }
-  }
-
-  return options
-}
-
 // ---------------------------------------------------------------------------
 // Rendering functions (output Node Readable natively via PassThrough)
 // ---------------------------------------------------------------------------
@@ -144,9 +120,8 @@ export function renderToFlightStream(
 
   if (ComponentMod.renderToPipeableStream) {
     const pt = new PassThrough()
-    const nodeOptions = normalizeNodeDebugChannel(opts)
     const pipeable = run(() =>
-      ComponentMod.renderToPipeableStream!(payload, clientModules, nodeOptions)
+      ComponentMod.renderToPipeableStream!(payload, clientModules, opts)
     )
     pipeable.pipe(pt)
     return pt
