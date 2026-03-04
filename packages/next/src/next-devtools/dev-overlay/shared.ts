@@ -302,6 +302,33 @@ const instantNavCookieValue: string | null =
 
 const hasInstantTestCookie = instantNavCookieValue !== null
 
+function parseInstantNavCookie(value: string | null): {
+  phase: 'waiting' | 'client-nav' | 'initial-load'
+  fromUrl: string | null
+  toUrl: string | null
+} {
+  if (!value) {
+    return { phase: 'waiting', fromUrl: null, toUrl: null }
+  }
+  if (value === 'initial-load') {
+    return {
+      phase: 'initial-load',
+      fromUrl: null,
+      toUrl: typeof window !== 'undefined' ? window.location.pathname : null,
+    }
+  }
+  if (value.startsWith('client-nav|')) {
+    const parts = value.split('|')
+    return {
+      phase: 'client-nav',
+      fromUrl: parts[1] || null,
+      toUrl: parts[2] || null,
+    }
+  }
+  // Any other truthy value (e.g. "waiting", legacy "1") → waiting
+  return { phase: 'waiting', fromUrl: null, toUrl: null }
+}
+
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
   'isErrorOverlayOpen' | 'routerType'
@@ -337,15 +364,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   theme: 'system',
   hideShortcut: null,
   cacheOnly: hasInstantTestCookie,
-  instantNavPanel: {
-    phase:
-      instantNavCookieValue === 'initial-load' ? 'initial-load' : 'waiting',
-    fromUrl: null,
-    toUrl:
-      instantNavCookieValue === 'initial-load' && typeof window !== 'undefined'
-        ? window.location.pathname
-        : null,
-  },
+  instantNavPanel: parseInstantNavCookie(instantNavCookieValue),
 }
 
 function getInitialState(

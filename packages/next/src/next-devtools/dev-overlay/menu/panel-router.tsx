@@ -175,15 +175,10 @@ export const PanelRouter = () => {
     triggerRef
   )
 
-  // Auto-open instant nav panel after a refresh (initial-load flow)
+  // Auto-open instant nav panel if the cookie is present on page load
   useEffect(() => {
-    if (
-      state.instantNavPanel.phase === 'initial-load' &&
-      state.cacheOnly
-    ) {
+    if (state.cacheOnly) {
       setPanel('instant-nav')
-      // Reset cookie value back to '1' now that we've consumed the signal
-      document.cookie = 'next-instant-navigation-testing=1; path=/'
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

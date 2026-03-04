@@ -12,20 +12,21 @@ export function InstantNavPanel() {
   const { state, dispatch } = useDevOverlayContext()
   const { phase, fromUrl, toUrl } = state.instantNavPanel
   const fromUrlRef = useRef<string>(
-    typeof window !== 'undefined' ? window.location.pathname : ''
+    typeof window !== 'undefined'
+      ? window.location.pathname + window.location.search
+      : ''
   )
   const initialPageRef = useRef<string>(state.page)
   const phaseRef = useRef(phase)
   phaseRef.current = phase
 
-  // On mount: set cookie and enable cacheOnly
+  // On mount: set cookie if not already set, and enable cacheOnly
   useEffect(() => {
-    // Only set cookie if not already in a result state (e.g. after refresh)
     if (phase === 'waiting') {
-      document.cookie = 'next-instant-navigation-testing=1; path=/'
-      if (!state.cacheOnly) {
-        dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
-      }
+      document.cookie = 'next-instant-navigation-testing=waiting; path=/'
+    }
+    if (!state.cacheOnly) {
+      dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -57,11 +58,15 @@ export function InstantNavPanel() {
     if (!state.page || !initialPageRef.current) return
 
     if (state.page !== initialPageRef.current) {
+      const from = fromUrlRef.current
+      const to = window.location.pathname + window.location.search
+      // Sync cookie so this state survives a refresh
+      document.cookie = `next-instant-navigation-testing=client-nav|${from}|${to}; path=/`
       dispatch({
         type: ACTION_INSTANT_NAV_SET_PHASE,
         phase: 'client-nav',
-        fromUrl: fromUrlRef.current,
-        toUrl: window.location.pathname,
+        fromUrl: from,
+        toUrl: to,
       })
     }
   }, [state.page, phase, dispatch])
