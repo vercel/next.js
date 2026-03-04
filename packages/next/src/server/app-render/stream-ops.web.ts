@@ -279,7 +279,7 @@ export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
   return (stream as ReadableStream<Uint8Array>).tee()
 }
 
-export function toReadableStream(
+export function toWebReadableStream(
   stream: AnyStream
 ): ReadableStream<Uint8Array> {
   return stream as ReadableStream<Uint8Array>

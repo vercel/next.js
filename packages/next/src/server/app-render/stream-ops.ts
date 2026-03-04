@@ -53,4 +53,4 @@ export const getServerPrerender = _m.getServerPrerender
 export const getClientPrerender = _m.getClientPrerender
 export const pipeRuntimePrefetchTransform = _m.pipeRuntimePrefetchTransform
 export const teeStream = _m.teeStream
-export const toReadableStream = _m.toReadableStream
+export const toWebReadableStream = _m.toWebReadableStream

@@ -58,7 +58,6 @@ import {
   processPrelude as processPreludeOp,
   createDocumentClosingStream,
   teeStream,
-  toReadableStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
 import { stripInternalQueries } from '../internal-utils'
@@ -3732,7 +3731,7 @@ async function renderWithRestartOnCacheMissInDev(
 
       const stream = streamPair[0]
       const accumulatedChunksPromise = accumulateStreamChunks(
-        toReadableStream(streamPair[1]),
+        streamPair[1],
         initialStageController,
         initialDataController.signal
       )
@@ -3887,7 +3886,7 @@ async function renderWithRestartOnCacheMissInDev(
       return {
         stream: streamPair[0],
         accumulatedChunksPromise: accumulateStreamChunks(
-          toReadableStream(streamPair[1]),
+          streamPair[1],
           finalStageController,
           null
         ),
@@ -3934,69 +3933,114 @@ interface AccumulatedStreamChunks {
 }
 
 async function accumulateStreamChunks(
-  stream: ReadableStream<Uint8Array>,
+  stream: AnyStream,
   stageController: StagedRenderingController,
   signal: AbortSignal | null
 ): Promise<AccumulatedStreamChunks> {
   const staticChunks: Array<Uint8Array> = []
   const runtimeChunks: Array<Uint8Array> = []
   const dynamicChunks: Array<Uint8Array> = []
-  const reader = stream.getReader()
 
-  let cancelled = false
-  function cancel() {
-    if (!cancelled) {
-      cancelled = true
-      reader.cancel()
-    }
-  }
+  if (stream instanceof ReadableStream) {
+    const reader = stream.getReader()
 
-  if (signal) {
-    signal.addEventListener('abort', cancel, { once: true })
-  }
-
-  try {
-    while (!cancelled) {
-      const { done, value } = await reader.read()
-      if (done) {
-        cancel()
-        break
-      }
-      switch (stageController.currentStage) {
-        case RenderStage.Before:
-          throw new InvariantError(
-            'Unexpected stream chunk while in Before stage'
-          )
-        case RenderStage.EarlyStatic:
-        case RenderStage.Static:
-          staticChunks.push(value)
-        // fall through
-        case RenderStage.EarlyRuntime:
-        case RenderStage.Runtime:
-          runtimeChunks.push(value)
-        // fall through
-        case RenderStage.Dynamic:
-          dynamicChunks.push(value)
-          break
-        case RenderStage.Abandoned:
-          // If the render was abandoned, we won't use the chunks,
-          // so there's no need to accumulate them
-          break
-        default:
-          stageController.currentStage satisfies never
-          break
+    let cancelled = false
+    function cancel() {
+      if (!cancelled) {
+        cancelled = true
+        reader.cancel()
       }
     }
-  } catch (err) {
-    // When we cancel the reader we may reject the read.
-    // Only swallow errors caused by our intentional cancel();
-    // re-throw unexpected errors to avoid silently returning partial data.
-    if (!cancelled) {
-      throw err
+
+    if (signal) {
+      signal.addEventListener('abort', cancel, { once: true })
+    }
+
+    try {
+      while (!cancelled) {
+        const { done, value } = await reader.read()
+        if (done) {
+          cancel()
+          break
+        }
+        accumulateChunk(
+          stageController,
+          staticChunks,
+          runtimeChunks,
+          dynamicChunks,
+          value
+        )
+      }
+    } catch (err) {
+      // When we cancel the reader we may reject the read.
+      // Only swallow errors caused by our intentional cancel();
+      // re-throw unexpected errors to avoid silently returning partial data.
+      if (!cancelled) {
+        throw err
+      }
+    }
+  } else {
+    const nodeStream = stream as Readable
+    let cancelled = false
+    function cancel() {
+      if (!cancelled) {
+        cancelled = true
+        nodeStream.destroy()
+      }
+    }
+
+    if (signal) {
+      signal.addEventListener('abort', cancel, { once: true })
+    }
+
+    try {
+      for await (const value of nodeStream) {
+        if (cancelled) break
+        accumulateChunk(
+          stageController,
+          staticChunks,
+          runtimeChunks,
+          dynamicChunks,
+          value
+        )
+      }
+    } catch (err) {
+      if (!cancelled) {
+        throw err
+      }
     }
   }
 
   return { staticChunks, runtimeChunks, dynamicChunks }
+}
+
+function accumulateChunk(
+  stageController: StagedRenderingController,
+  staticChunks: Array<Uint8Array>,
+  runtimeChunks: Array<Uint8Array>,
+  dynamicChunks: Array<Uint8Array>,
+  value: Uint8Array
+): void {
+  switch (stageController.currentStage) {
+    case RenderStage.Before:
+      throw new InvariantError('Unexpected stream chunk while in Before stage')
+    case RenderStage.EarlyStatic:
+    case RenderStage.Static:
+      staticChunks.push(value)
+    // fall through
+    case RenderStage.EarlyRuntime:
+    case RenderStage.Runtime:
+      runtimeChunks.push(value)
+    // fall through
+    case RenderStage.Dynamic:
+      dynamicChunks.push(value)
+      break
+    case RenderStage.Abandoned:
+      break
+    default:
+      stageController.currentStage satisfies never
+      break
+  }
 }
 
 async function countStaticStageBytes(

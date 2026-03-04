@@ -438,7 +438,7 @@ export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
   return [webToReadable(s1), webToReadable(s2)]
 }
 
-export function toReadableStream(
+export function toWebReadableStream(
   stream: AnyStream
 ): ReadableStream<Uint8Array> {
   return readableToWeb(stream)
