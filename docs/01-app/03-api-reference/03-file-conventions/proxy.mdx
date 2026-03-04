@@ -25,7 +25,8 @@ Create a `proxy.ts` (or `.js`) file in the project root, or inside `src` if appl
 If you’ve customized [`pageExtensions`](/docs/app/api-reference/config/next-config-js/pageExtensions), for example to `.page.ts` or `.page.js`, name your file `proxy.page.ts` or `proxy.page.js` accordingly.
 
 ```tsx filename="proxy.ts" switcher
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 // This function can be marked `async` if using `await` inside
 export function proxy(request: NextRequest) {
@@ -148,6 +149,17 @@ export function proxy(request: NextRequest) {
 ```js filename="proxy.js" switcher
 export function proxy(request) {
   // Proxy logic goes here
+}
+```
+
+If you prefer a shorthand, you can use the `NextProxy` type. It infers the parameter types for both `request` (`NextRequest`) and `event` (`NextFetchEvent`) automatically:
+
+```tsx filename="proxy.ts"
+import type { NextProxy } from 'next/server'
+
+export const proxy: NextProxy = (request, event) => {
+  event.waitUntil(Promise.resolve())
+  return Response.json({ pathname: request.nextUrl.pathname })
 }
 ```
 
@@ -422,7 +434,8 @@ Learn more in [NextResponse headers in Proxy](/docs/app/api-reference/functions/
 You can set CORS headers in Proxy to allow cross-origin requests, including [simple](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests) and [preflighted](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#preflighted_requests) requests.
 
 ```tsx filename="proxy.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 const allowedOrigins = ['https://acme.com', 'https://my-app.org']
 
