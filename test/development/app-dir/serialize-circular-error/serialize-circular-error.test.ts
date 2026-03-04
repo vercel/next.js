@@ -40,7 +40,7 @@ describe('serialize-circular-error', () => {
     `)
 
     const bodyText = await browser.elementByCss('body').text()
-    expect(bodyText).toContain('This page crashed')
+    expect(bodyText).toContain('This page couldn\u2019t load')
 
     const output = next.cliOutput
     expect(output).toContain(
