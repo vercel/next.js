@@ -197,8 +197,9 @@ module.exports = {
             {
               any: [
                 { path: '*.svg' },
-                // 'query' matches anywhere in the full query string,
-                // which can be empty, or start with `?`.
+                // 'query' matches the import query string. A string
+                // must match exactly (including the leading `?`),
+                // while a RegExp can match partially.
                 { query: /[?&]svgr(?=&|$)/ },
                 // 'content' is always a RegExp, and can match
                 // anywhere in the file.
@@ -217,135 +218,10 @@ module.exports = {
 
 - Supported boolean operators are `{all: [...]}`, `{any: [...]}` and `{not: ...}`.
 - Supported customizable operators are `{path: string | RegExp}`, `{content: RegExp}`, `{query: string | RegExp}`, and `{contentType: string | RegExp}`. If multiple operators are specified in the same object, it acts as an implicit `and`.
-
-#### `path`
-
-Matches against the project-relative file path. A string is treated as a glob pattern, while a RegExp can be used to match the path partially.
-
-For example, to only run a loader on SVG files inside a specific directory:
-
-```js filename="next.config.js"
-module.exports = {
-  turbopack: {
-    rules: {
-      '*': {
-        condition: { path: 'assets/icons/*.svg' },
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-    },
-  },
-}
-```
-
-Using a RegExp to match files in any `components` subdirectory:
-
-```js filename="next.config.js"
-module.exports = {
-  turbopack: {
-    rules: {
-      '*.svg': {
-        condition: { path: /\/components\/.*\.svg$/ },
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-    },
-  },
-}
-```
-
-#### `content`
-
-Matches anywhere in the file content. This is always a RegExp.
-
-For example, to apply a loader only to files that contain a specific annotation:
-
-```js filename="next.config.js"
-module.exports = {
-  turbopack: {
-    rules: {
-      '*.js': {
-        condition: { content: /@useSpecialTransform/ },
-        loaders: ['my-special-loader'],
-        as: '*.js',
-      },
-    },
-  },
-}
-```
-
-#### `query`
-
-Matches the import's query string (e.g., `?raw` in `import './file?raw'`). A string must match exactly (including the leading `?`), while a RegExp can be used to match the query string partially. This is similar to webpack's [`resourceQuery`](https://webpack.js.org/configuration/module/#ruleresourcequery).
-
-For example, to apply different loaders based on the query string:
-
-```js filename="next.config.js"
-module.exports = {
-  turbopack: {
-    rules: {
-      '*.txt': [
-        {
-          condition: { query: '?raw' },
-          loaders: ['raw-loader'],
-          as: '*.js',
-        },
-        {
-          condition: { query: /\?upper/ },
-          loaders: [require.resolve('./upper-loader.js')],
-          as: '*.js',
-        },
-      ],
-    },
-  },
-}
-```
-
-Then in your application code:
-
-```tsx filename="app/page.tsx"
-// Exact string match: applies raw-loader
-import rawText from './data.txt?raw'
-
-// RegExp match: applies upper-loader
-import upperText from './data.txt?upper'
-```
-
-#### `contentType`
-
-Matches the MIME content type of the resource (e.g., from data URLs like `data:text/plain,...`). A string is treated as a glob pattern (e.g., `text/*`, `image/*`), while a RegExp can be used to match the content type partially.
-
-```js filename="next.config.js"
-module.exports = {
-  turbopack: {
-    rules: {
-      '*': {
-        condition: { contentType: 'text/*' },
-        loaders: ['raw-loader'],
-        as: '*.js',
-      },
-    },
-  },
-}
-```
-
-#### Combining operators
-
-If multiple operators are specified in the same object, it acts as an implicit `and`. For example, to match only SVG files inside a specific directory that contain an `<svg` tag:
-
-```js filename="next.config.js"
-module.exports = {
-  turbopack: {
-    rules: {
-      '*': {
-        condition: { path: 'assets/**/*.svg', content: /<svg\W/ },
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-    },
-  },
-}
-```
+  - **`path`** — matches against the file path. A string glob **without** `/` matches the **filename only**, while a glob **with** `/` matches the **project-relative path**. A RegExp matches anywhere in the project-relative path. See the `path` usage in the [example above](#advanced-webpack-loader-conditions).
+  - **`content`** — matches anywhere in the file content. Always a RegExp. See the `content` usage in the [example above](#advanced-webpack-loader-conditions).
+  - **`query`** — matches the import's query string (e.g., `?raw` in `import './file?raw'`). A string must match exactly (including the leading `?`), while a RegExp can match partially. Similar to webpack's [`resourceQuery`](https://webpack.js.org/configuration/module/#ruleresourcequery). See the `query` usage in the [example above](#advanced-webpack-loader-conditions).
+  - **`contentType`** — matches the MIME content type of the resource (e.g., from data URLs like `data:text/plain,...`). A string is treated as a glob pattern (e.g., `text/*`, `image/*`), while a RegExp can match partially.
 
 In addition, a number of built-in conditions are supported:
 
