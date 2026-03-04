@@ -248,16 +248,16 @@ export default class RenderResult<
     }
 
     if (isNodeReadable(this.response)) {
+      let Readable: typeof import('node:stream').Readable
       if (process.env.TURBOPACK) {
-        const { Readable: NodeReadable } =
-          require('stream') as typeof import('stream')
-        return NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>
+        Readable = (require('node:stream') as typeof import('node:stream'))
+          .Readable
       } else {
-        const { Readable: NodeReadable } = __non_webpack_require__(
-          'stream'
-        ) as typeof import('stream')
-        return NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>
+        Readable = __non_webpack_require__(
+          'node:stream'
+        ) as typeof import('node:stream').Readable
       }
+      return Readable.toWeb(this.response) as ReadableStream<Uint8Array>
     }
 
     return this.response
@@ -283,16 +283,16 @@ export default class RenderResult<
     } else if (Buffer.isBuffer(this.response)) {
       return [streamFromBuffer(this.response)]
     } else if (isNodeReadable(this.response)) {
+      let Readable: typeof import('node:stream').Readable
       if (process.env.TURBOPACK) {
-        const { Readable: NodeReadable } =
-          require('stream') as typeof import('stream')
-        return [NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>]
+        Readable = (require('node:stream') as typeof import('node:stream'))
+          .Readable
       } else {
-        const { Readable: NodeReadable } = __non_webpack_require__(
-          'stream'
-        ) as typeof import('stream')
-        return [NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>]
+        Readable = __non_webpack_require__(
+          'node:stream'
+        ) as typeof import('node:stream').Readable
       }
+      return [Readable.toWeb(this.response) as ReadableStream<Uint8Array>]
     } else {
       return [this.response]
     }

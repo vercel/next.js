@@ -30,30 +30,21 @@ export class ReactServerResult {
       return tee[1]
     }
 
+    let Readable: typeof import('node:stream').Readable
     if (process.env.TURBOPACK) {
-      const { Readable } =
-        require('node:stream') as typeof import('node:stream')
-      const webStream = Readable.toWeb(
-        this._stream
-      ) as ReadableStream<Uint8Array>
-      const tee = webStream.tee()
-      this._stream = Readable.fromWeb(
-        tee[0] as import('stream/web').ReadableStream
-      )
-      return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
     } else {
-      const { Readable } = __non_webpack_require__(
+      Readable = __non_webpack_require__(
         'node:stream'
-      ) as typeof import('node:stream')
-      const webStream = Readable.toWeb(
-        this._stream
-      ) as ReadableStream<Uint8Array>
-      const tee = webStream.tee()
-      this._stream = Readable.fromWeb(
-        tee[0] as import('stream/web').ReadableStream
-      )
-      return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
+      ) as typeof import('node:stream').Readable
     }
+    const webStream = Readable.toWeb(this._stream) as ReadableStream<Uint8Array>
+    const tee = webStream.tee()
+    this._stream = Readable.fromWeb(
+      tee[0] as import('stream/web').ReadableStream
+    )
+    return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
   }
 
   consume(): StreamLike {
