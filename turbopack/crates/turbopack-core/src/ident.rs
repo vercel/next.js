@@ -6,7 +6,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs,
+    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
@@ -376,12 +376,11 @@ impl AssetIdent {
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.value_to_string().owned().await?.into_owned();
-
-        // The query string is either empty or non-empty starting with `?` so we can just concat
-        s.push_str(&self.query);
-        // ditto for fragment
-        s.push_str(&self.fragment);
+        // The query string/fragment is either empty or non-empty starting with
+        // `?` so we can just concat
+        let mut s = turbofmt!("{}{}{}", self.path, self.query, self.fragment)
+            .await?
+            .into_owned();
 
         if !self.assets.is_empty() {
             s.push_str(" {");

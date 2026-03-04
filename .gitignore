@@ -68,6 +68,7 @@ test-timings.json
 .claude/settings.local.json
 .claude/plans/
 .claude/todos.json
+.claude/worktrees
 CLAUDE.local.md
 
 # Conductor (worktrees created by Conductor app, but keep scripts/)

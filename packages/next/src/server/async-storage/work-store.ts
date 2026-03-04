@@ -29,10 +29,7 @@ export type WorkStoreContext = {
     fetchCache?: AppSegmentConfig['fetchCache']
     isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
-    experimental: Pick<
-      RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'authInterrupts'
-    >
+    experimental: Pick<RenderOpts['experimental'], 'authInterrupts'>
 
     /**
      * Fetch metrics attached in patch-fetch.ts

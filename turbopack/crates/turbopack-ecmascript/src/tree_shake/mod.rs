@@ -13,7 +13,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc, turbobail};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
@@ -716,11 +716,11 @@ pub(crate) async fn part_of_module(
             let part_id = get_part_id(&split_data, &part).await?;
 
             if part_id as usize >= modules.len() {
-                bail!(
+                turbobail!(
                     "part_id is out of range: {part_id} >= {}; asset = {}; entrypoints = \
                      {entrypoints:?}: part_deps = {deps:?}",
-                    asset_ident.to_string().await?,
                     modules.len(),
+                    *asset_ident
                 );
             }
 
