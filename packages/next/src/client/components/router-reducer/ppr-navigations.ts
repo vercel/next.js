@@ -35,11 +35,12 @@ import {
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
-  processStaticStageResponse,
+  getStaleAt,
   writeStaticStageResponseIntoCache,
   EntryStatus,
 } from '../segment-cache/cache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import {
   getRenderedSearchFromVaryPath,
@@ -1581,23 +1582,33 @@ async function fetchMissingDynamicData(
       await waitForNavigationLock()
     }
 
-    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
+    if (routeCacheEntry !== null && result.staticStageData !== null) {
+      const { response: staticStageResponse, isResponsePartial } =
+        result.staticStageData
+
       const now = Date.now()
-      processStaticStageResponse(now, result.staticStageResponse).then(
-        ({ serverData, headVaryParams, staleAt }) =>
+
+      getStaleAt(now, staticStageResponse.s)
+        .then((staleAt) => {
+          const buildId =
+            result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+            staticStageResponse.b
+
           writeStaticStageResponseIntoCache(
             now,
-            serverData,
-            result.responseHeaders,
-            headVaryParams,
+            staticStageResponse.f,
+            buildId,
+            staticStageResponse.h,
             staleAt,
-            routeCacheEntry
-          ),
-        () => {
+            dynamicRequestTree,
+            result.renderedSearch,
+            isResponsePartial
+          )
+        })
+        .catch(() => {
           // The static stage processing failed. Not fatal — the navigation
           // completed normally, we just won't write into the cache.
-        }
-      )
+        })
     }
 
     const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(

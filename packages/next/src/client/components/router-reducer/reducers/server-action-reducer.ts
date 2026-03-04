@@ -64,6 +64,7 @@ import {
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
+import { processFetch } from '../fetch-server-response'
 import { invalidateBfCache } from '../../segment-cache/bfcache'
 
 const createFromFetch =
@@ -205,8 +206,15 @@ async function fetchServerAction(
   let couldBeIntercepted: boolean = false
 
   if (isRscResponse) {
+    // Server action redirect responses carry the Flight data of the redirect
+    // target, which may be prerendered with a completeness marker byte
+    // prepended. Strip it before passing to Flight.
+    const responsePromise = redirectLocation
+      ? processFetch(res).then(({ response: r }) => r)
+      : Promise.resolve(res)
+
     const response: ActionFlightResponse = await createFromFetch(
-      Promise.resolve(res),
+      responsePromise,
       {
         callServer,
         findSourceMapURL,
