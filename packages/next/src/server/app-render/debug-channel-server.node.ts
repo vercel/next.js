@@ -3,11 +3,11 @@
  * Loaded by debug-channel-server.ts when __NEXT_USE_NODE_STREAMS is enabled.
  */
 
-import { PassThrough, Readable } from 'node:stream'
+import { PassThrough, Readable, Writable } from 'node:stream'
 
 type NodeDebugChannelServer = {
   readable?: ReadableStream<Uint8Array>
-  writable: import('node:stream').Writable
+  writable: WritableStream<Uint8Array>
 }
 
 type NodeDebugChannelPair = {
@@ -30,10 +30,11 @@ export function createDebugChannel():
 export function createNodeDebugChannel(): NodeDebugChannelPair {
   const duplex = new PassThrough()
   const clientReadable = Readable.toWeb(duplex) as ReadableStream<Uint8Array>
+  const serverWritable = Writable.toWeb(duplex) as WritableStream<Uint8Array>
 
   return {
     serverSide: {
-      writable: duplex,
+      writable: serverWritable,
     },
     clientSide: { readable: clientReadable },
   }
