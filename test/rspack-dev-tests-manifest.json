@@ -7945,6 +7945,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/otel-parent-span-propagation/otel-parent-span-propagation.test.ts": {
+    "passed": [
+      "otel-parent-span-propagation should set http.route on handleRequest span for dynamic routes",
+      "otel-parent-span-propagation should set http.route on handleRequest span for static routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts": {
     "passed": [],
     "failed": ["pages-to-app-routing should work using browser"],
@@ -8664,10 +8674,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "proxy-with-middleware should error when both middleware and proxy files are detected"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10365,7 +10375,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/view-transitions/view-transitions.test.ts": {
-    "passed": ["view-transitions smoketest"],
+    "passed": [
+      "view-transitions smoketest",
+      "view-transitions transitionTypes smoketest"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10862,6 +10875,15 @@
     "passed": ["CPU Profiling - next start skip for development/deploy mode"],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/css-data-url-global-pages/css-data-url-global-pages.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "css-data-url-global-pages should apply styles from data url correctly"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -13480,10 +13502,10 @@
     "runtimeError": false
   },
   "test/e2e/tsconfig-module-preserve/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "tsconfig module: preserve allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
