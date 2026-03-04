@@ -29,8 +29,7 @@ pub fn get_next_pages_transforms_rule(
         .map(|ext| {
             RuleCondition::ResourcePathEquals(
                 pages_dir
-                    .join(&format!("_document.{ext}"))
-                    .expect("failed to join _document path"),
+                    .join(&format!("_document.{ext}"))?,
             )
         })
         .collect();
