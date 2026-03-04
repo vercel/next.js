@@ -774,11 +774,14 @@ async fn get_mock_stylesheet(
         .module();
 
     let entries = get_evaluate_entries(mocked_response_asset, asset_context, *node_backend, None);
-    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-        entries.graph_entries().to_resolved().await?,
-        false,
-        false,
-    ));
+    let module_graph = ModuleGraph::from_graphs(
+        vec![SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        )],
+        None,
+    );
     let module_graph = module_graph.connect();
 
     let root = mock_fs.root().owned().await?;
