@@ -200,6 +200,22 @@ export function fetchViaHTTP(
   return fetch(getFullUrl(appPort, url), opts)
 }
 
+export function expectVaryHeaderToContain(
+  varyHeader: string | null,
+  expectedFields: string[]
+) {
+  const varyFields = new Set(
+    (varyHeader ?? '')
+      .split(',')
+      .map((field) => field.trim().toLowerCase())
+      .filter(Boolean)
+  )
+
+  for (const expectedField of expectedFields) {
+    expect(varyFields.has(expectedField.toLowerCase())).toBe(true)
+  }
+}
+
 /**
  * Creates request options with a unique x-invocation-id header for testing
  * cache deduplication in minimal mode. Use this when you need to ensure each

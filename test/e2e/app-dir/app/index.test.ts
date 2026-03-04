@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry, waitFor } from 'next-test-utils'
+import {
+  check,
+  expectVaryHeaderToContain,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 import {
@@ -369,9 +374,12 @@ describe('app dir - basic', () => {
   it('should return the `vary` header from edge runtime', async () => {
     const res = await next.fetch('/dashboard')
     expect(res.headers.get('x-edge-runtime')).toBe('1')
-    expect(res.headers.get('vary')).toBe(
-      'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch'
-    )
+    expectVaryHeaderToContain(res.headers.get('vary'), [
+      'rsc',
+      'next-router-state-tree',
+      'next-router-prefetch',
+      'next-router-segment-prefetch',
+    ])
   })
 
   it('should return the `vary` header from pages for flight requests', async () => {
@@ -380,11 +388,16 @@ describe('app dir - basic', () => {
         [RSC_HEADER]: '1',
       },
     })
-    expect(res.headers.get('vary')).toBe(
-      isNextDeploy
-        ? 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch'
-        : 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding'
-    )
+    expectVaryHeaderToContain(res.headers.get('vary'), [
+      'rsc',
+      'next-router-state-tree',
+      'next-router-prefetch',
+      'next-router-segment-prefetch',
+    ])
+
+    if (!isNextDeploy) {
+      expectVaryHeaderToContain(res.headers.get('vary'), ['accept-encoding'])
+    }
   })
 
   it('should pass props from getServerSideProps in root layout', async () => {

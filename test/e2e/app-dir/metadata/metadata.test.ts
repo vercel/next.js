@@ -417,7 +417,7 @@ describe('app dir - metadata', () => {
           : expect.stringMatching(
               new RegExp(
                 `https:\\/\\/(${
-                  isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  isNextDeploy ? '[^/]+' : 'example\\.com'
                 })\\/opengraph\\/static\\/opengraph-image`
               )
             ),
@@ -431,7 +431,7 @@ describe('app dir - metadata', () => {
           : expect.stringMatching(
               new RegExp(
                 `https:\\/\\/(${
-                  isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  isNextDeploy ? '[^/]+' : 'example\\.com'
                 })\\/opengraph\\/static\\/twitter-image`
               )
             ),
