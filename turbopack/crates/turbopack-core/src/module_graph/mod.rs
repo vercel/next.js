@@ -32,7 +32,7 @@ use crate::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
         binding_usage_info::BindingUsageInfo,
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
-        collect::{CollectedModules, collect},
+        collect::{CollectedModules, collect_graph},
         merged_modules::{MergedModuleInfo, compute_merged_modules},
         module_batches::{ModuleBatchesGraph, compute_module_batches},
         style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
@@ -259,6 +259,8 @@ pub struct SingleModuleGraph {
     PartialEq,
     ValueDebugFormat,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct RefData {
     pub chunking_type: ChunkingType,
@@ -694,6 +696,7 @@ impl ImportTracer for ModuleGraphImportTracer {
 pub struct ModuleGraph {
     input_graphs: Vec<OperationVc<SingleModuleGraph>>,
     input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
+    input_collected_modules: Option<OperationVc<CollectedModules>>,
 
     snapshot: ModuleGraphSnapshot,
 }
@@ -707,9 +710,12 @@ impl ModuleGraph {
         graphs: Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<Self>> {
-        let graph = Self::from_graphs_inner(graphs, binding_usage)
+        let collected = collect_graph(Self::from_graphs_inner(graphs.clone(), binding_usage, None));
+
+        let graph = Self::from_graphs_inner(graphs, binding_usage, Some(collected))
             .read_strongly_consistent()
             .await?;
+
         Ok(ReadRef::cell(graph))
     }
 
@@ -717,16 +723,23 @@ impl ModuleGraph {
     async fn from_graphs_inner(
         graphs: Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
+        collected_modules: Option<OperationVc<CollectedModules>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(ModuleGraph {
             input_graphs: graphs.clone(),
             input_binding_usage: binding_usage,
+            input_collected_modules: collected_modules,
             snapshot: ModuleGraphSnapshot {
                 graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
                 skip_visited_module_children: false,
                 graph_idx_override: None,
                 binding_usage: if let Some(binding_usage) = binding_usage {
                     Some(binding_usage.connect().await?)
+                } else {
+                    None
+                },
+                collected_modules: if let Some(collected_modules) = collected_modules {
+                    Some(collected_modules.connect().await?)
                 } else {
                     None
                 },
@@ -743,11 +756,6 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub async fn merged_modules(self: Vc<Self>) -> Result<Vc<MergedModuleInfo>> {
         compute_merged_modules(self).await
-    }
-
-    #[turbo_tasks::function]
-    pub async fn collect(self: Vc<Self>) -> Result<Vc<CollectedModules>> {
-        collect(self).await
     }
 
     #[turbo_tasks::function]
@@ -815,7 +823,12 @@ impl ModuleGraph {
                 .iter()
                 .enumerate()
                 .map(|(graph_idx, graph)| {
-                    ModuleGraphLayer::new(*graph, graph_idx as u32, self.input_binding_usage)
+                    ModuleGraphLayer::new(
+                        *graph,
+                        graph_idx as u32,
+                        self.input_binding_usage,
+                        self.input_collected_modules,
+                    )
                 })
                 .collect(),
         )
@@ -842,6 +855,7 @@ impl ModuleGraphLayer {
         graph: OperationVc<SingleModuleGraph>,
         graph_idx: u32,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
+        collected_modules: Option<OperationVc<CollectedModules>>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             snapshot: ModuleGraphSnapshot {
@@ -850,6 +864,11 @@ impl ModuleGraphLayer {
                 graph_idx_override: Some(graph_idx),
                 binding_usage: if let Some(binding_usage) = binding_usage {
                     Some(binding_usage.connect().await?)
+                } else {
+                    None
+                },
+                collected_modules: if let Some(collected_modules) = collected_modules {
+                    Some(collected_modules.connect().await?)
                 } else {
                     None
                 },
@@ -880,6 +899,7 @@ pub struct ModuleGraphSnapshot {
     pub graph_idx_override: Option<u32>,
 
     pub binding_usage: Option<ReadRef<BindingUsageInfo>>,
+    pub collected_modules: Option<ReadRef<CollectedModules>>,
 }
 
 impl ModuleGraphSnapshot {
@@ -1334,12 +1354,12 @@ impl ModuleGraphSnapshot {
     ///
     /// Returns the number of node visits (i.e. higher than the node count if there are
     /// retraversals).
-    pub fn traverse_edges_fixed_point_with_priority<S, P: Ord>(
-        &self,
+    pub fn traverse_edges_fixed_point_with_priority<'graph, S, P: Ord>(
+        &'graph self,
         entries: impl IntoIterator<Item = (ResolvedVc<Box<dyn Module>>, P)>,
         state: &mut S,
         mut visit: impl FnMut(
-            Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, GraphEdgeIndex)>,
+            Option<(ResolvedVc<Box<dyn Module>>, &'graph RefData, GraphEdgeIndex)>,
             ResolvedVc<Box<dyn Module>>,
             &mut S,
         ) -> Result<GraphTraversalAction>,

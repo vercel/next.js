@@ -7,6 +7,7 @@ use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     self,
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    emit_collect::CollectingModule,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -120,6 +121,14 @@ impl Module for CollectModule {
 }
 
 #[turbo_tasks::value_impl]
+impl CollectingModule for CollectModule {
+    #[turbo_tasks::function]
+    fn namespace(&self) -> Vc<RcStr> {
+        Vc::cell(self.namespace.clone())
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkableModule for CollectModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
@@ -146,37 +155,37 @@ impl EcmascriptChunkPlaceable for CollectModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let collect = module_graph.collect().await?;
-        let items = collect.get(&self.namespace);
+        // let collect = module_graph.collect().await?;
+        // let items = collect.get(&self.namespace);
 
-        let chunk_item_id_strategy = chunking_context.chunk_item_id_strategy().await?;
+        // let chunk_item_id_strategy = chunking_context.chunk_item_id_strategy().await?;
 
-        let items = items
-            .into_iter()
-            .flatten()
-            .map(async |(module, data)| {
-                Ok((
-                    chunk_item_id_strategy.get_id_from_module(**module).await?,
-                    data,
-                ))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .collect::<FxIndexMap<_, _>>();
+        // let items = items
+        //     .into_iter()
+        //     .flatten()
+        //     .map(async |(module, data)| {
+        //         Ok((
+        //             chunk_item_id_strategy.get_id_from_module(**module).await?,
+        //             data,
+        //         ))
+        //     })
+        //     .try_join()
+        //     .await?
+        //     .into_iter()
+        //     .collect::<FxIndexMap<_, _>>();
 
         let mut code = RopeBuilder::default();
 
         code += "const data = ([\n";
-        for (id, data) in items {
-            writeln!(
-                code,
-                "{{id: {}, data: {}, import: () => {TURBOPACK_IMPORT}({})}},",
-                StringifyJs(&id),
-                StringifyJs(data),
-                StringifyJs(&id),
-            )?;
-        }
+        // for (id, data) in items {
+        //     writeln!(
+        //         code,
+        //         "{{id: {}, data: {}, import: () => {TURBOPACK_IMPORT}({})}},",
+        //         StringifyJs(&id),
+        //         StringifyJs(data),
+        //         StringifyJs(&id),
+        //     )?;
+        // }
         code += "]);";
         code += "function getList() { return data; }";
 

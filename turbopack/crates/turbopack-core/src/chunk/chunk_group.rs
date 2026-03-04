@@ -68,7 +68,7 @@ pub async fn make_chunk_group(
         availability_info: new_availability_info,
     } = chunk_group_content(
         module_graph,
-        chunk_group.entries(),
+        chunk_group,
         ChunkGroupContentOptions {
             availability_info,
             can_split_async,
@@ -207,9 +207,7 @@ pub struct ChunkGroupContentOptions {
 /// Computes the content of a chunk group.
 pub async fn chunk_group_content(
     module_graph: Vc<ModuleGraph>,
-    chunk_group_entries: impl IntoIterator<
-        IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send,
-    > + Send,
+    chunk_group: &ChunkGroup,
     ChunkGroupContentOptions {
         availability_info,
         can_split_async,
@@ -241,9 +239,10 @@ pub async fn chunk_group_content(
         None => None,
     };
 
-    let chunk_group_entries = chunk_group_entries.into_iter();
-    let entries = chunk_group_entries
-        .into_iter()
+    let is_chunk_group_entry = matches!(chunk_group, ChunkGroup::Entry(_));
+
+    let entries = chunk_group
+        .entries()
         .map(|entry| module_batches_graph.get_entry_index(entry))
         .try_join()
         .await?;
