@@ -465,21 +465,20 @@ describe('app dir - metadata dynamic routes', () => {
     const $ = await next.render$('/metadata-base/unset')
     const twitterImage = $('meta[name="twitter:image"]').attr('content')
     const ogImages = $('meta[property="og:image"]')
+    const hostPattern = isNextDeploy
+      ? /https?:\/\/[^/]+/
+      : /http:\/\/localhost:\d+/
 
     expect(ogImages.length).toBe(2)
     ogImages.each((_, ogImage) => {
       const ogImageUrl = $(ogImage).attr('content')
-      expect(ogImageUrl).toMatch(
-        isNextDeploy ? /https:\/\/[^/]+/ : /http:\/\/localhost:\d+/
-      )
+      expect(ogImageUrl).toMatch(hostPattern)
       expect(ogImageUrl).toMatch(
         /\/metadata-base\/unset\/opengraph-image2\/10\d/
       )
     })
 
-    expect(twitterImage).toMatch(
-      isNextDeploy ? /https:\/\/[^/]+/ : /http:\/\/localhost:\d+/
-    )
+    expect(twitterImage).toMatch(hostPattern)
     expect(twitterImage).toMatch(/\/metadata-base\/unset\/twitter-image\.png/)
   })
 
