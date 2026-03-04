@@ -983,6 +983,13 @@ export async function handler(
               incrementalCache &&
               !isOnDemandRevalidate &&
               !isDebugFallbackShell &&
+              // The testing API relies on deterministic shell behavior, so
+              // don't upgrade fallback shells in the background when it's
+              // exposed.
+              !exposeTestingApi &&
+              // Instant Navigation Testing API requests intentionally keep
+              // the route in shell mode; don't upgrade these in background.
+              !isInstantNavigationTest &&
               // Avoid background revalidate during prefetches; this can trigger
               // static prerender errors that surface as 500s for the prefetch
               // request itself.
