@@ -2046,7 +2046,7 @@ function setExperimentalFeatureForDebugPrerender<
   }
 }
 
-function cloneObject(obj: any, seen: WeakSet<object> = new WeakSet()): any {
+function cloneObject(obj: any, seen: Map<object, any> = new Map()): any {
   // Primitives & null
   if (obj === null || typeof obj !== 'object') {
     return obj
@@ -2062,15 +2062,21 @@ function cloneObject(obj: any, seen: WeakSet<object> = new WeakSet()): any {
     return obj
   }
 
-  // Circular reference guard → return the original reference to break the cycle
+  // Shared/circular reference guard → return the already-created clone to
+  // preserve the graph structure without risking mutations to the original.
   if (seen.has(obj)) {
-    return obj
+    return seen.get(obj)
   }
-  seen.add(obj)
 
-  // Arrays → map each element
+  // Arrays → register result in seen first, then fill, so back-references
+  // within the array point to the clone, not the original.
   if (Array.isArray(obj)) {
-    return obj.map((item) => cloneObject(item, seen))
+    const result: any[] = []
+    seen.set(obj, result)
+    for (const item of obj) {
+      result.push(cloneObject(item, seen))
+    }
+    return result
   }
 
   // Detect non‑plain objects (class instances)
@@ -2082,10 +2088,10 @@ function cloneObject(obj: any, seen: WeakSet<object> = new WeakSet()): any {
     return obj
   }
 
-  // Plain object → create a new object with the same prototype
-  // and copy all properties, cloning data properties and keeping
-  // accessor properties (getters/setters) as‑is.
+  // Plain object → register result in seen before copying properties so
+  // self-referential keys resolve to the clone rather than the original.
   const result = Object.create(proto)
+  seen.set(obj, result)
   for (const key of Reflect.ownKeys(obj)) {
     const descriptor = Object.getOwnPropertyDescriptor(obj, key)
 
