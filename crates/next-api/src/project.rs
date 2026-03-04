@@ -1477,11 +1477,14 @@ impl Project {
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
             let is_production = self.next_mode().await?.is_production();
-            ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entry(
-                ChunkGroupEntry::Entry(vec![entry]),
-                is_production,
-                is_production,
-            ))
+            ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entry(
+                    ChunkGroupEntry::Entry(vec![entry]),
+                    is_production,
+                    is_production,
+                )],
+                None,
+            )
             .connect()
         } else {
             *self.whole_app_module_graphs().await?.full
@@ -1501,11 +1504,14 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-                ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries)]),
-                is_production,
-                is_production,
-            ))
+            ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entries(
+                    ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries)]),
+                    is_production,
+                    is_production,
+                )],
+                None,
+            )
             .connect()
         } else {
             *self.whole_app_module_graphs().await?.full
@@ -2513,7 +2519,7 @@ async fn whole_app_module_graph_operation(
         );
         let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
-        let base = ModuleGraph::from_single_graph(base_single_module_graph);
+        let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
 
         let turbopack_remove_unused_imports = *project
             .next_config()
@@ -2524,10 +2530,7 @@ async fn whole_app_module_graph_operation(
             // TODO suboptimal that we do compute_binding_usage_info twice (once for the base
             // graph and later for the full graph)
             let binding_usage_info = compute_binding_usage_info(base, true);
-            ModuleGraph::from_single_graph_without_unused_references(
-                base_single_module_graph,
-                binding_usage_info,
-            )
+            ModuleGraph::from_graphs(vec![base_single_module_graph], Some(binding_usage_info))
         } else {
             base
         };
@@ -2563,14 +2566,14 @@ async fn whole_app_module_graph_operation(
         let graphs = vec![base_single_module_graph, additional_module_graph];
 
         let (full, binding_usage_info) = if turbopack_remove_unused_imports {
-            let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
+            let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone(), None);
             let binding_usage_info = compute_binding_usage_info(full_with_unused_references, true);
             (
-                ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info),
+                ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
                 Some(binding_usage_info),
             )
         } else {
-            (ModuleGraph::from_graphs(graphs), None)
+            (ModuleGraph::from_graphs(graphs, None), None)
         };
 
         Ok(BaseAndFullModuleGraph {
