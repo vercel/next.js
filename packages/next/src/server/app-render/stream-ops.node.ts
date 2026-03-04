@@ -437,9 +437,3 @@ export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
   const [s1, s2] = readableToWeb(stream).tee()
   return [webToReadable(s1), webToReadable(s2)]
 }
-
-export function toWebReadableStream(
-  stream: AnyStream
-): ReadableStream<Uint8Array> {
-  return readableToWeb(stream)
-}
