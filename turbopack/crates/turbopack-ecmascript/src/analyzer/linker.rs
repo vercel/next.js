@@ -39,7 +39,7 @@ const LIMIT_NODE_SIZE: u32 = 100;
 const LIMIT_IN_PROGRESS_NODES: u32 = 500;
 const LIMIT_LINK_STEPS: u32 = 1500;
 
-#[derive(Debug, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug)]
 enum Step {
     /// Take all chlidren out of the value (replacing temporarily with unknown) and queue them
     /// for processing using individual `Enter`s.
@@ -89,11 +89,13 @@ where
     RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
     F: 'a + Fn(JsValue) -> RF + Sync,
 {
-    let mut work_queue_stack: Vec<Step> = Vec::new();
-    let mut done: Vec<JsValue> = Vec::new();
+    let initial_capacity = (val.total_nodes() as usize).min(64);
+    let mut work_queue_stack: Vec<Step> = Vec::with_capacity(initial_capacity * 2);
+    let mut done: Vec<JsValue> = Vec::with_capacity(initial_capacity);
     // Tracks the number of nodes in the queue and done combined
     let mut total_nodes = 0;
     let mut cycle_stack: FxHashSet<Id> = FxHashSet::default();
+    let mut fun_args_depth: u32 = 0;
     // Tracks the number linking steps so far
     let mut steps = 0;
 
@@ -118,6 +120,7 @@ where
                 } else {
                     total_nodes -= 1;
                     let var_cache_lock = (cycle_stack.is_empty()
+                        && fun_args_depth == 0
                         && fun_args_values.lock().is_empty())
                     .then(|| var_cache.lock());
                     if let Some(val) = var_cache_lock.as_deref().and_then(|cache| cache.get(&var)) {
@@ -141,7 +144,10 @@ where
             // Leave a variable
             Step::LeaveVar(var) => {
                 cycle_stack.remove(&var);
-                if cycle_stack.is_empty() && fun_args_values.lock().is_empty() {
+                if cycle_stack.is_empty()
+                    && fun_args_depth == 0
+                    && fun_args_values.lock().is_empty()
+                {
                     var_cache.lock().insert(var, done.last().unwrap().clone());
                 }
             }
@@ -184,6 +190,7 @@ where
                         total_nodes -= arg.total_nodes();
                     }
                     entry.insert(args);
+                    fun_args_depth += 1;
                     work_queue_stack.push(Step::LeaveCall(func_ident));
                     work_queue_stack.push(Step::Enter(*return_value));
                 } else {
@@ -206,6 +213,7 @@ where
             // - remove function arguments from the map
             Step::LeaveCall(func_ident) => {
                 fun_args_values.lock().remove(&func_ident);
+                fun_args_depth -= 1;
             }
             // Enter a function
             // We don't want to process the function return value yet, this will happen after
@@ -258,8 +266,9 @@ where
                     true
                 });
                 val.debug_assert_total_nodes_up_to_date();
-                total_nodes -= val.total_nodes();
-                if val.total_nodes() > LIMIT_NODE_SIZE {
+                let count = val.total_nodes();
+                total_nodes -= count;
+                if count > LIMIT_NODE_SIZE {
                     total_nodes += 1;
                     done.push(JsValue::unknown_empty(true, "node limit reached"));
                     continue;
@@ -309,9 +318,10 @@ where
                 });
                 val.debug_assert_total_nodes_up_to_date();
 
-                total_nodes -= val.total_nodes();
+                let count = val.total_nodes();
+                total_nodes -= count;
 
-                if val.total_nodes() > LIMIT_NODE_SIZE {
+                if count > LIMIT_NODE_SIZE {
                     total_nodes += 1;
                     done.push(JsValue::unknown_empty(true, "node limit reached"));
                     continue;
@@ -332,9 +342,10 @@ where
                 });
                 val.debug_assert_total_nodes_up_to_date();
 
-                total_nodes -= val.total_nodes();
+                let count = val.total_nodes();
+                total_nodes -= count;
 
-                if val.total_nodes() > LIMIT_NODE_SIZE {
+                if count > LIMIT_NODE_SIZE {
                     total_nodes += 1;
                     done.push(JsValue::unknown_empty(true, "node limit reached"));
                     continue;
@@ -367,7 +378,10 @@ where
                 match step {
                     Step::LeaveVar(var) => {
                         cycle_stack.remove(&var);
-                        if cycle_stack.is_empty() && fun_args_values.lock().is_empty() {
+                        if cycle_stack.is_empty()
+                            && fun_args_depth == 0
+                            && fun_args_values.lock().is_empty()
+                        {
                             var_cache.lock().insert(
                                 var,
                                 JsValue::unknown_empty(true, "max number of linking steps reached"),
@@ -376,6 +390,7 @@ where
                     }
                     Step::LeaveCall(func_ident) => {
                         fun_args_values.lock().remove(&func_ident);
+                        fun_args_depth -= 1;
                     }
                     _ => {}
                 }
