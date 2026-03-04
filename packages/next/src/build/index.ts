@@ -3342,32 +3342,60 @@ export default async function build(
                     const pageSegmentPath = metadata.segmentPaths.find((item) =>
                       item.endsWith('__PAGE__')
                     )
-                    if (!pageSegmentPath) {
+                    const inlinedSegmentPath = !pageSegmentPath
+                      ? metadata.segmentPaths.find((item) =>
+                          item.endsWith('/_inlined')
+                        )
+                      : null
+
+                    if (pageSegmentPath) {
+                      const builtSegmentDataRoute =
+                        buildPrefetchSegmentDataRoute(
+                          route.pathname,
+                          pageSegmentPath
+                        )
+
+                      builtSegmentDataRoute.source =
+                        builtSegmentDataRoute.source.replace(
+                          '/__PAGE__\\.segment\\.rsc$',
+                          `(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$`
+                        )
+                      builtSegmentDataRoute.destination =
+                        builtSegmentDataRoute.destination.replace(
+                          '/__PAGE__.segment.rsc',
+                          '$segment'
+                        )
+                      dynamicRoute.prefetchSegmentDataRoutes ??= []
+                      dynamicRoute.prefetchSegmentDataRoutes.push(
+                        builtSegmentDataRoute
+                      )
+                    } else if (inlinedSegmentPath) {
+                      // When prefetchInlining is enabled, segment data is
+                      // bundled into /_inlined instead of per-segment __PAGE__
+                      // entries. Build routing rules for the inlined format.
+                      const builtSegmentDataRoute =
+                        buildPrefetchSegmentDataRoute(
+                          route.pathname,
+                          inlinedSegmentPath
+                        )
+
+                      builtSegmentDataRoute.source =
+                        builtSegmentDataRoute.source.replace(
+                          '/_inlined\\.segment\\.rsc$',
+                          `(?<segment>/_inlined\\.segment\\.rsc|/_tree\\.segment\\.rsc|/_full\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$`
+                        )
+                      builtSegmentDataRoute.destination =
+                        builtSegmentDataRoute.destination.replace(
+                          '/_inlined.segment.rsc',
+                          '$segment'
+                        )
+                      dynamicRoute.prefetchSegmentDataRoutes ??= []
+                      dynamicRoute.prefetchSegmentDataRoutes.push(
+                        builtSegmentDataRoute
+                      )
+                    } else {
                       throw new Error(`Invariant: missing __PAGE__ segmentPath`)
                     }
-
-                    // We build a combined segment data route from the
-                    // page segment as we need to limit the number of
-                    // routes we output and they can be shared
-                    const builtSegmentDataRoute = buildPrefetchSegmentDataRoute(
-                      route.pathname,
-                      pageSegmentPath
-                    )
-
-                    builtSegmentDataRoute.source =
-                      builtSegmentDataRoute.source.replace(
-                        '/__PAGE__\\.segment\\.rsc$',
-                        `(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$`
-                      )
-                    builtSegmentDataRoute.destination =
-                      builtSegmentDataRoute.destination.replace(
-                        '/__PAGE__.segment.rsc',
-                        '$segment'
-                      )
-                    dynamicRoute.prefetchSegmentDataRoutes ??= []
-                    dynamicRoute.prefetchSegmentDataRoutes.push(
-                      builtSegmentDataRoute
-                    )
                   }
                 }
 
