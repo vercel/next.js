@@ -27,12 +27,12 @@ pub fn get_next_pages_transforms_rule(
     let document_exclusions: Vec<RuleCondition> = page_extensions
         .iter()
         .map(|ext| {
-            RuleCondition::ResourcePathEquals(
+            Ok(RuleCondition::ResourcePathEquals(
                 pages_dir
                     .join(&format!("_document.{ext}"))?,
-            )
+            ))
         })
-        .collect();
+        .collect::<Result<Vec<_>>>()?;
     let conditions = RuleCondition::all(vec![
         RuleCondition::all(vec![
             RuleCondition::ResourcePathInExactDirectory(pages_dir.clone()),
