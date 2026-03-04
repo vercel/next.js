@@ -42,7 +42,12 @@ import { createDebugChannel } from '../debug-channel-server'
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { renderToReadableStream } from 'react-server-dom-webpack/server'
-import { addSearchParamsIfPageSegment } from '../../../shared/lib/segment'
+import {
+  addSearchParamsIfPageSegment,
+  isGroupSegment,
+  PAGE_SEGMENT_KEY,
+  DEFAULT_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import type { NextParsedUrlQuery } from '../../request-meta'
 
 const filterStackFrame =
@@ -104,6 +109,9 @@ export async function findNavigationsToValidate(
   type ValidationTask = { target: SegmentPath; parents: SegmentPath[] }
 
   const validationTasks: ValidationTask[] = []
+  // navigationParents tracks the URL-contributing layouts we've passed
+  // through. When we find a config, we create a task with these as the
+  // potential "FROM" points for the navigation.
   let navigationParents: SegmentPath[] = []
 
   const segmentsWithInstantConfigs: SegmentPath[] = []
@@ -122,6 +130,16 @@ export async function findNavigationsToValidate(
     return query ? addSearchParamsIfPageSegment(segment, query) : segment
   }
 
+  function isURLContributingSegment(rawSegment: string): boolean {
+    // Route groups, __PAGE__, and __DEFAULT__ don't contribute to the URL.
+    // Everything else represents a real URL segment boundary.
+    return (
+      !isGroupSegment(rawSegment) &&
+      rawSegment !== PAGE_SEGMENT_KEY &&
+      rawSegment !== DEFAULT_SEGMENT_KEY
+    )
+  }
+
   async function visit(
     loaderTree: LoaderTree,
     parentPath: SegmentPath | null,
@@ -133,6 +151,7 @@ export async function findNavigationsToValidate(
     const { mod: layoutOrPageMod, modType } =
       await getLayoutOrPageModule(loaderTree)
 
+    const rawSegment = loaderTree[0]
     const segment = getSegmentFromLoaderTree(loaderTree)
     const segmentPath =
       parentPath === null
@@ -156,8 +175,8 @@ export async function findNavigationsToValidate(
       }
 
       if (isInsideParallelSlot) {
-        // For now, we ignore parallel routes for purposes of finding configs to validate
-        // and finding shared layout parents.
+        // For now, we ignore parallel routes for purposes of finding configs
+        // to validate and finding shared layout parents.
         if (instantConfig !== null) {
           console.error(
             `${conventionPath}: \`unstable_instant\` validation is not fully implemented for parallel routes yet.`
@@ -186,20 +205,28 @@ export async function findNavigationsToValidate(
                 throw error
               }
 
-              const task: ValidationTask = {
-                target: segmentPath,
-                parents: navigationParents,
+              if (navigationParents.length > 0) {
+                const task: ValidationTask = {
+                  target: segmentPath,
+                  parents: navigationParents,
+                }
+                validationTasks.push(task)
+                navigationParents = []
               }
-              validationTasks.push(task)
-              navigationParents = []
             }
           }
-          navigationParents.push(segmentPath)
+
+          // Only URL-contributing layouts advance the navigation boundary.
+          // Route group layouts are part of the same navigation as their
+          // parent URL segment — they always mount together.
+          if (isURLContributingSegment(rawSegment)) {
+            navigationParents.push(segmentPath)
+          }
         } else if (modType === 'page') {
           if (instantConfig !== null) {
             if (instantConfig === false) {
               navigationParents = []
-            } else {
+            } else if (navigationParents.length > 0) {
               const task: ValidationTask = {
                 target: segmentPath,
                 parents: navigationParents,
