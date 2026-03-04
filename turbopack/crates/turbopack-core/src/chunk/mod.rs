@@ -292,6 +292,20 @@ pub enum ChunkingType {
         _ty: ChunkGroupType,
         merge_tag: Option<RcStr>,
     },
+    /// corresponds to __turboack_emit__()
+    Emitted {
+        merge_tag: RcStr,
+        /// false = emit to current entry, true = emit to all entries
+        emit_to_all_entries: bool,
+        /// whether to insert an async loader in-between
+        is_async: bool,
+    },
+    /// A module referenced with ChunkingType::Emitted which was collected and reattached to the
+    /// collecting module.
+    Collected {
+        merge_tag: RcStr,
+        is_async: bool,
+    },
     /// Create a new chunk group in a separate context, merging references with the same tag into a
     /// single chunk group. It provides available modules to the current chunk group. It's assumed
     /// to be loaded before the current chunk group.
@@ -327,6 +341,23 @@ impl Display for ChunkingType {
                 merge_tag: None,
             } => {
                 write!(f, "Isolated")
+            }
+            ChunkingType::Emitted {
+                merge_tag,
+                emit_to_all_entries,
+                is_async,
+            } => {
+                write!(
+                    f,
+                    "Emitted(merge_tag: {merge_tag}, emit_to_all_entries: {emit_to_all_entries}, \
+                     is_async: {is_async})"
+                )
+            }
+            ChunkingType::Collected {
+                merge_tag,
+                is_async,
+            } => {
+                write!(f, "Collected(merge_tag: {merge_tag}, is_async: {is_async})")
             }
             ChunkingType::Shared {
                 inherit_async,
@@ -375,7 +406,7 @@ impl ChunkingType {
             } | ChunkingType::Shared {
                 merge_tag: Some(_),
                 ..
-            }
+            } | ChunkingType::Emitted { .. }
         )
     }
 
@@ -389,6 +420,22 @@ impl ChunkingType {
             ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
                 _ty: *_ty,
                 merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Emitted {
+                merge_tag,
+                emit_to_all_entries,
+                is_async,
+            } => ChunkingType::Emitted {
+                merge_tag: merge_tag.clone(),
+                emit_to_all_entries: *emit_to_all_entries,
+                is_async: *is_async,
+            },
+            ChunkingType::Collected {
+                merge_tag,
+                is_async,
+            } => ChunkingType::Collected {
+                merge_tag: merge_tag.clone(),
+                is_async: *is_async,
             },
             ChunkingType::Shared {
                 inherit_async: _,

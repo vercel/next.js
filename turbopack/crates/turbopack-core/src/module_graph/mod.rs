@@ -1700,6 +1700,15 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     let _span = span.entered();
                     span = tracing::info_span!("async reference");
                 }
+                ChunkingType::Emitted { merge_tag, .. } => {
+                    let _span = span.entered();
+                    span = tracing::info_span!("emitted reference", merge_tag = debug(&merge_tag));
+                }
+                ChunkingType::Collected { merge_tag, .. } => {
+                    let _span = span.entered();
+                    span =
+                        tracing::info_span!("collected reference", merge_tag = debug(&merge_tag));
+                }
                 ChunkingType::Isolated { _ty: ty, merge_tag } => {
                     let _span = span.entered();
                     span = tracing::info_span!(

@@ -4,16 +4,14 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
-    chunk::{ChunkingType, ChunkingTypeMergeTag},
+    chunk::ChunkingType,
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 #[allow(clippy::type_complexity)]
-pub struct CollectedModules(
-    FxHashMap<ChunkingTypeMergeTag, Vec<(ResolvedVc<Box<dyn Module>>, RcStr)>>,
-);
+pub struct CollectedModules(FxHashMap<RcStr, Vec<(ResolvedVc<Box<dyn Module>>, RcStr)>>);
 
 #[tracing::instrument(level = "info", name = "compute emit-collect", skip_all)]
 pub async fn collect(module_graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules>> {
@@ -30,7 +28,7 @@ pub async fn collect(module_graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModule
 
     let mut edges = vec![];
 
-    let mut references: FxHashMap<ChunkingTypeMergeTag, Vec<_>> = FxHashMap::default();
+    let mut references: FxHashMap<RcStr, Vec<_>> = FxHashMap::default();
     module_graph.traverse_edges_bfs(entries.iter().copied(), |parent, node| {
         let Some((parent, RefData { chunking_type, .. })) = parent else {
             return Ok(GraphTraversalAction::Continue);
@@ -42,7 +40,6 @@ pub async fn collect(module_graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModule
             merge_tag: Some(merge_tag),
             ..
         } = chunking_type
-            && !merge_tag.merge_by_parent()
         {
             references
                 // TODO don't clone

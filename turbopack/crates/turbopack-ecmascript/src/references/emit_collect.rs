@@ -9,9 +9,7 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{
-        ChunkGroupType, ChunkingContext, ChunkingType, ChunkingTypeMergeTag, ChunkingTypeOption,
-    },
+    chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -105,15 +103,12 @@ impl ModuleReference for EmitReference {
         .await
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
-            _ty: ChunkGroupType::Entry,
-            merge_tag: Some(ChunkingTypeMergeTag::Custom {
-                tag: self.namespace.clone(),
-                // TODO make configurable
-                merge_by_parent: false,
-            }),
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Emitted {
+            merge_tag: self.namespace.clone(),
+            emit_to_all_entries: self.emit_to_all_entries,
+            // TODO make configurable
+            is_async: false,
         })
     }
 

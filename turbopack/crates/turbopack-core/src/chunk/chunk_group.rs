@@ -75,7 +75,6 @@ pub async fn make_chunk_group(
             should_trace,
             should_merge_modules,
             batching_config,
-            include_root_merged_isolated: matches!(chunk_group, ChunkGroup::Entry(_)),
         },
     )
     .await?;
@@ -203,8 +202,6 @@ pub struct ChunkGroupContentOptions {
     pub should_merge_modules: bool,
     /// The batching config to use
     pub batching_config: Vc<BatchingConfig>,
-    /// Whether to chunk ChunkingType::Isolate { tag } if tag.merge_by_parent() is false
-    pub include_root_merged_isolated: bool,
 }
 
 /// Computes the content of a chunk group.
@@ -219,7 +216,6 @@ pub async fn chunk_group_content(
         should_trace,
         should_merge_modules,
         batching_config,
-        include_root_merged_isolated,
     }: ChunkGroupContentOptions,
 ) -> Result<ChunkGroupContent> {
     let module_batches_graph = module_graph.module_batches(batching_config).await?;
@@ -251,53 +247,6 @@ pub async fn chunk_group_content(
         .map(|entry| module_batches_graph.get_entry_index(entry))
         .try_join()
         .await?;
-
-    if include_root_merged_isolated {
-        // TODO merge with the traversal below instead
-        module_batches_graph.traverse_edges_from_entries_dfs(
-            entries.iter().cloned(),
-            &mut state,
-            |parent_info, &node, state| {
-                if matches!(node, ModuleOrBatch::None(_)) {
-                    return Ok(GraphTraversalAction::Continue);
-                }
-                if let Some((
-                    _,
-                    ModuleBatchesGraphEdge {
-                        ty: ChunkingType::Traced,
-                        ..
-                    },
-                )) = parent_info
-                {
-                    return Ok(GraphTraversalAction::Exclude);
-                }
-
-                let Some(chunkable_node) = ChunkableModuleOrBatch::from_module_or_batch(node)
-                else {
-                    return Ok(GraphTraversalAction::Exclude);
-                };
-
-                let Some((_, edge)) = parent_info else {
-                    // An entry from the entries list
-                    return Ok(GraphTraversalAction::Continue);
-                };
-
-                if let ChunkingType::Isolated { _ty, merge_tag } = &edge.ty
-                    && merge_tag.as_ref().is_some_and(|t| !t.merge_by_parent())
-                {
-                    state.chunkable_items.insert(chunkable_node);
-                }
-
-                Ok(GraphTraversalAction::Continue)
-            },
-            |_, node, state| {
-                // Insert modules in topological order
-                if let Some(chunkable_module) = state.chunkable_items_unsorted.get(node).copied() {
-                    state.chunkable_items.insert(chunkable_module);
-                }
-            },
-        )?;
-    }
 
     module_batches_graph.traverse_edges_from_entries_dfs(
         entries,
@@ -348,7 +297,9 @@ pub async fn chunk_group_content(
             };
 
             Ok(match &edge.ty {
-                ChunkingType::Parallel { .. } | ChunkingType::Shared { .. } => {
+                ChunkingType::Parallel { .. }
+                | ChunkingType::Shared { .. }
+                | ChunkingType::Collected { .. } => {
                     if is_available {
                         GraphTraversalAction::Exclude
                     } else if state
@@ -390,15 +341,13 @@ pub async fn chunk_group_content(
                     // handled above already
                     unreachable!();
                 }
-                ChunkingType::Isolated { merge_tag, .. } => {
-                    if merge_tag.as_ref().is_some_and(|t| !t.merge_by_parent()) {
-                        // These are not chunked here, but explicitly discovered and collected by
-                        // the root chunk group
-                        GraphTraversalAction::Exclude
-                    } else {
-                        // TODO currently not implemented
-                        GraphTraversalAction::Exclude
-                    }
+                ChunkingType::Emitted { .. } => {
+                    // Already handled during module graph construction
+                    GraphTraversalAction::Exclude
+                }
+                ChunkingType::Isolated { .. } => {
+                    // TODO currently not implemented
+                    GraphTraversalAction::Exclude
                 }
             })
         },

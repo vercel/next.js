@@ -6,7 +6,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     self,
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingTypeMergeTag},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -88,15 +88,6 @@ impl CollectModule {
     }
 }
 
-impl CollectModule {
-    fn merge_tag(&self) -> ChunkingTypeMergeTag {
-        ChunkingTypeMergeTag::Custom {
-            tag: self.namespace.clone(),
-            merge_by_parent: false,
-        }
-    }
-}
-
 /// Each entry point in the HMR system has an ident with a different nested asset.
 /// This produces the 'base' ident for the HMR entry point, which is then modified
 #[turbo_tasks::function]
@@ -124,8 +115,7 @@ impl Module for CollectModule {
 
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
-        // TODO is this always true?
-        ModuleSideEffects::SideEffectFree.cell()
+        ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
     }
 }
 
@@ -157,7 +147,7 @@ impl EcmascriptChunkPlaceable for CollectModule {
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let collect = module_graph.collect().await?;
-        let items = collect.get(&self.merge_tag());
+        let items = collect.get(&self.namespace);
 
         let chunk_item_id_strategy = chunking_context.chunk_item_id_strategy().await?;
 
