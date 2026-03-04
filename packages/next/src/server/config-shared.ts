@@ -11,7 +11,6 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
-import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
@@ -692,7 +691,7 @@ export interface ExperimentalConfig {
    * @deprecated This configuration option has been merged into `cacheComponents`.
    * The Partial Prerendering feature is still available via `cacheComponents`.
    */
-  ppr?: ExperimentalPPRConfig
+  ppr?: boolean | 'incremental'
 
   /**
    * Enables experimental taint APIs in React.
