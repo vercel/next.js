@@ -1,6 +1,6 @@
 use std::{
-    cell::UnsafeCell, fs::create_dir_all, marker::PhantomData, mem::transmute, path::Path,
-    sync::Arc, thread::available_parallelism,
+    cell::UnsafeCell, fs::create_dir_all, marker::PhantomData, mem::transmute, ops::Deref,
+    path::Path, sync::Arc, thread::available_parallelism,
 };
 
 use anyhow::{Context, Result};
@@ -21,25 +21,48 @@ mod extended_key;
 
 type ReadTransactionsCache = ThreadLocal<ThreadLocalReadTransactionsContainer>;
 
-struct ThreadLocalReadTransactionsContainer(UnsafeCell<SmallVec<[RoTransaction<'static>; 4]>>);
+struct SendRoTransaction(RoTransaction<'static>);
+
+impl SendRoTransaction {
+    fn into_inner(self) -> RoTransaction<'static> {
+        self.0
+    }
+}
+
+impl Deref for SendRoTransaction {
+    type Target = RoTransaction<'static>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+// Safety: We open LMDB with `EnvironmentFlags::NO_TLS` (see `new()` below), which relaxes
+// the default thread-local reader-slot behavior for read-only transactions.
+// LMDB docs: https://github.com/mozilla/lmdb/blob/205300e8aec/libraries/liblmdb/lmdb.h#L576-L584
+//
+// We still do not use a transaction concurrently from multiple threads. This `Send` wrapper only
+// allows moving ownership between threads when `ThreadLocal` internals move stored values at drop
+// time.
+unsafe impl Send for SendRoTransaction {}
+
+struct ThreadLocalReadTransactionsContainer(UnsafeCell<SmallVec<[SendRoTransaction; 4]>>);
 
 impl ThreadLocalReadTransactionsContainer {
     unsafe fn pop(&self) -> Option<RoTransaction<'static>> {
         let vec = unsafe { &mut *self.0.get() };
-        vec.pop()
+        vec.pop().map(SendRoTransaction::into_inner)
     }
 
     unsafe fn push(&self, tx: RoTransaction<'static>) {
         let vec = unsafe { &mut *self.0.get() };
-        vec.push(tx)
+        vec.push(SendRoTransaction(tx))
     }
 }
 
-// Safety: the container is thread-local and only accessed from the owning thread.
-unsafe impl Send for ThreadLocalReadTransactionsContainer {}
-
 struct LmdbReadTransactionGuardInner {
-    tx: Option<RoTransaction<'static>>,
+    tx: Option<SendRoTransaction>,
+    // Keep this generation alive so dropped read txs return to the same cache generation.
     thread_locals: Arc<ReadTransactionsCache>,
 }
 
@@ -50,7 +73,7 @@ impl Drop for LmdbReadTransactionGuardInner {
             .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
         // Safety: put back into this thread's local cache.
         unsafe {
-            container.push(self.tx.take().unwrap());
+            container.push(self.tx.take().unwrap().into_inner());
         }
     }
 }
@@ -149,14 +172,14 @@ impl LmbdKeyValueDatabase {
 
         // Safety: container is thread-local.
         let tx = if let Some(tx) = unsafe { container.pop() } {
-            tx
+            SendRoTransaction(tx)
         } else {
             let tx = self.env.begin_ro_txn().unwrap_or_else(|err| {
                 panic!("failed to begin LMDB read transaction: {err}");
             });
             // Safety: `read_transactions_cache` is dropped before `env`, so cached transactions
             // never outlive the LMDB environment.
-            unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) }
+            SendRoTransaction(unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) })
         };
 
         LmdbReadTransactionGuard(Arc::new(LmdbReadTransactionGuardInner {
