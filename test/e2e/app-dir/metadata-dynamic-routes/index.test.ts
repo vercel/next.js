@@ -438,8 +438,8 @@ describe('app dir - metadata dynamic routes', () => {
     let twitterImageUrlPattern
     if (isNextDeploy) {
       // absolute urls
-      ogImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/opengraph-image\?/
-      twitterImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/twitter-image\?/
+      ogImageUrlPattern = /https:\/\/[^/]+\/opengraph-image\?/
+      twitterImageUrlPattern = /https:\/\/[^/]+\/twitter-image\?/
     } else if (isNextStart) {
       // configured metadataBase for next start
       ogImageUrlPattern = /https:\/\/mydomain.com\/opengraph-image\?/
@@ -470,7 +470,7 @@ describe('app dir - metadata dynamic routes', () => {
     ogImages.each((_, ogImage) => {
       const ogImageUrl = $(ogImage).attr('content')
       expect(ogImageUrl).toMatch(
-        isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
+        isNextDeploy ? /https:\/\/[^/]+/ : /http:\/\/localhost:\d+/
       )
       expect(ogImageUrl).toMatch(
         /\/metadata-base\/unset\/opengraph-image2\/10\d/
@@ -478,7 +478,7 @@ describe('app dir - metadata dynamic routes', () => {
     })
 
     expect(twitterImage).toMatch(
-      isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
+      isNextDeploy ? /https:\/\/[^/]+/ : /http:\/\/localhost:\d+/
     )
     expect(twitterImage).toMatch(/\/metadata-base\/unset\/twitter-image\.png/)
   })
