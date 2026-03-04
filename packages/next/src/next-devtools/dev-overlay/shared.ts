@@ -71,6 +71,11 @@ export interface OverlayState {
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
   readonly cacheOnly: boolean
+  readonly instantNavPanel: {
+    readonly phase: 'waiting' | 'client-nav' | 'initial-load'
+    readonly fromUrl: string | null
+    readonly toUrl: string | null
+  }
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -103,6 +108,8 @@ export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
 export const ACTION_CACHE_ONLY_TOGGLE = 'cache-only-toggle'
+export const ACTION_INSTANT_NAV_SET_PHASE = 'instant-nav-set-phase'
+export const ACTION_INSTANT_NAV_RESET = 'instant-nav-reset'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -222,6 +229,17 @@ interface CacheOnlyToggleAction {
   type: typeof ACTION_CACHE_ONLY_TOGGLE
 }
 
+interface InstantNavSetPhaseAction {
+  type: typeof ACTION_INSTANT_NAV_SET_PHASE
+  phase: 'waiting' | 'client-nav' | 'initial-load'
+  fromUrl: string | null
+  toUrl: string | null
+}
+
+interface InstantNavResetAction {
+  type: typeof ACTION_INSTANT_NAV_RESET
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -248,6 +266,8 @@ export type DispatcherEvent =
   | DevIndicatorSetAction
   | DevToolsConfigAction
   | CacheOnlyToggleAction
+  | InstantNavSetPhaseAction
+  | InstantNavResetAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -270,10 +290,17 @@ const shouldDisableDevIndicator =
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 
-const hasInstantTestCookie =
-  !!process.env.__NEXT_INSTANT_NAV_TOGGLE &&
-  typeof document !== 'undefined' &&
-  document.cookie.includes('next-instant-navigation-testing=')
+const instantNavCookieValue: string | null =
+  !!process.env.__NEXT_INSTANT_NAV_TOGGLE && typeof document !== 'undefined'
+    ? (() => {
+        const match = document.cookie.match(
+          /next-instant-navigation-testing=([^;]*)/
+        )
+        return match ? match[1] : null
+      })()
+    : null
+
+const hasInstantTestCookie = instantNavCookieValue !== null
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -310,6 +337,15 @@ export const INITIAL_OVERLAY_STATE: Omit<
   theme: 'system',
   hideShortcut: null,
   cacheOnly: hasInstantTestCookie,
+  instantNavPanel: {
+    phase:
+      instantNavCookieValue === 'initial-load' ? 'initial-load' : 'waiting',
+    fromUrl: null,
+    toUrl:
+      instantNavCookieValue === 'initial-load' && typeof window !== 'undefined'
+        ? window.location.pathname
+        : null,
+  },
 }
 
 function getInitialState(
@@ -525,6 +561,26 @@ export function useErrorOverlayReducer(
         }
         case ACTION_CACHE_ONLY_TOGGLE: {
           return { ...state, cacheOnly: !state.cacheOnly }
+        }
+        case ACTION_INSTANT_NAV_SET_PHASE: {
+          return {
+            ...state,
+            instantNavPanel: {
+              phase: action.phase,
+              fromUrl: action.fromUrl,
+              toUrl: action.toUrl,
+            },
+          }
+        }
+        case ACTION_INSTANT_NAV_RESET: {
+          return {
+            ...state,
+            instantNavPanel: {
+              phase: 'waiting',
+              fromUrl: null,
+              toUrl: null,
+            },
+          }
         }
         default: {
           return state
