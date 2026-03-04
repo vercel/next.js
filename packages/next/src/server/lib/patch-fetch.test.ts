@@ -94,4 +94,55 @@ describe('createPatchedFetcher', () => {
     // Setting a lower timeout than default, because the test will fail with a
     // timeout when we regress and buffer the response.
   }, 1000)
+
+  it('should preserve Request body source for uncached POST requests', async () => {
+    const http = (require('node:http') as typeof import('node:http'))
+
+    // Use a real HTTP server so the request goes through undici,
+    // which validates the internal body source on Node >= 24.14.0.
+    const server = http.createServer(
+      (
+        req: import('node:http').IncomingMessage,
+        res: import('node:http').ServerResponse
+      ) => {
+        req.resume()
+        req.on('end', () => {
+          res.writeHead(401, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ status: 401 }))
+        })
+      }
+    )
+
+    await new Promise<void>((resolve) => server.listen(0, resolve))
+    const port = (server.address() as import('node:net').AddressInfo).port
+
+    try {
+      const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+      const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+
+      const patchedFetch = createPatchedFetcher(fetch, {
+        workAsyncStorage,
+        workUnitAsyncStorage,
+      })
+
+      const workStore: Partial<WorkStore> = {
+        page: '/',
+        route: '/',
+      }
+
+      await workAsyncStorage.run(workStore as WorkStore, async () => {
+        const body = JSON.stringify({ key: 'value' })
+        const request = new Request(`http://localhost:${port}`, {
+          method: 'POST',
+          body,
+          headers: { 'Content-Type': 'application/json' },
+        })
+
+        const response = await patchedFetch(request)
+        expect(response.status).toBe(401)
+      })
+    } finally {
+      server.close()
+    }
+  })
 })
