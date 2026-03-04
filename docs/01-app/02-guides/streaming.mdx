@@ -29,11 +29,11 @@ React's server renderer produces progressive HTML chunks. The static parts of yo
 
 ### The component payload
 
-The component payload is a serialized representation of the component tree that React uses to [hydrate](/docs/app/04-glossary#hydration) the page and handle client-side updates. On initial load, it arrives embedded in the HTML stream (as described above). On **client-side navigation**, only the component payload is fetched (with an `rsc: 1` request header) and no HTML is transferred at all. React uses it to update the component tree in place.
+The component payload is a serialized representation of the component tree that React uses to [hydrate](/docs/app/glossary#hydration) the page and handle client-side updates. On initial load, it arrives embedded in the HTML stream (as described above). On **client-side navigation**, only the component payload is fetched (with an `rsc: 1` request header) and no HTML is transferred at all. React uses it to update the component tree in place.
 
 ### The static shell
 
-Everything that renders before any async work resolves is called the **static shell**: your layouts, navigation, and the fallback UI defined by your `<Suspense>` boundaries. It is sent immediately, giving the user something to see and interact with while dynamic content streams in. With [Cache Components](/docs/app/getting-started/cache-components), the static shell is prerendered at build time and served instantly from the edge.
+Everything that renders before any async work resolves is called the **static shell**: your layouts, navigation, and the fallback UI defined by your `<Suspense>` boundaries. It is sent immediately, giving the user something to see and interact with while dynamic content streams in. With [Cache Components](/docs/app/getting-started/caching), the static shell is prerendered at build time and served instantly from the edge.
 
 <Image
   alt="How Server Rendering with Streaming Works"
@@ -694,7 +694,7 @@ Command-line tools like `curl` also buffer by default. The `-N` flag disables ou
 
 ### Verifying that streaming works
 
-This section is about confirming the HTTP response is actually arriving in chunks through your infrastructure. For guidance on designing meaningful loading states and placing Suspense boundaries effectively, see [Granular streaming with `<Suspense>`](#granular-streaming-with-suspense) and the [Cache Components](/docs/app/getting-started/cache-components) guide.
+This section is about confirming the HTTP response is actually arriving in chunks through your infrastructure. For guidance on designing meaningful loading states and placing Suspense boundaries effectively, see [Granular streaming with `<Suspense>`](#granular-streaming-with-suspense) and the [Cache Components](/docs/app/getting-started/caching) guide.
 
 **Check the Network tab.** In Chrome DevTools, select the document request and look at the "Timing" breakdown. A long "Content Download" phase with an early "Time to First Byte" confirms the response is streaming rather than arriving all at once.
 
@@ -752,7 +752,7 @@ See the [Self-Hosting guide](/docs/app/guides/self-hosting#streaming-and-suspens
 The trigger is **your code**. The framework requires explicitness about three kinds of work:
 
 - **Asynchronous work** - database queries, API calls, file reads. These suspend the component while they resolve.
-- **Non-deterministic output** - `new Date()`, `Math.random()`. [Cache Components](/docs/app/getting-started/cache-components) track these and ask you to decide: cache the result with [`"use cache"`](/docs/app/api-reference/directives/use-cache), or make it per-request by accessing it in a dynamic scope (under [`connection`](/docs/app/api-reference/functions/connection), for example).
+- **Non-deterministic output** - `new Date()`, `Math.random()`. [Cache Components](/docs/app/getting-started/caching) track these and ask you to decide: cache the result with [`"use cache"`](/docs/app/api-reference/directives/use-cache), or make it per-request by accessing it in a dynamic scope (under [`connection`](/docs/app/api-reference/functions/connection), for example).
 - **Runtime data** - `cookies()`, `headers()`, `searchParams`. These are inherently request-scoped and cannot be known at build time.
 
 When the prerenderer encounters any of these, it cannot resolve that subtree statically. It walks up the component tree looking for the nearest `<Suspense>` boundary to use as a fallback. From there:
@@ -760,7 +760,7 @@ When the prerenderer encounters any of these, it cannot resolve that subtree sta
 1. **`<Suspense>` boundaries** are the catch. They tell React where to stop and what fallback to show while the subtree resolves. `loading.js` is a file convention that creates one automatically, wrapping the page and sibling slots inside the layout.
 2. **The static shell** is everything above and outside those boundaries: layouts, navigation, fallback UI, and cached component output. With Cache Components, this shell is prerendered at build time. It is sent in the first HTML chunk.
 3. **Streaming** delivers the static shell immediately over HTTP. As each boundary resolves, React streams the completed HTML along with a small script that swaps it into the page in-place, without waiting for the full JavaScript bundle.
-4. **Caching directives** like [`"use cache"`](/docs/app/api-reference/directives/use-cache) let you push work back into the shell. With [Cache Components](/docs/app/getting-started/cache-components), cached components are prerendered at build time and served from the edge. Their output becomes part of the static shell. Uncached components stream at request time. This means you control the boundary between instant and streamed content by choosing which components use `"use cache"`.
+4. **Caching directives** like [`"use cache"`](/docs/app/api-reference/directives/use-cache) let you push work back into the shell. With [Cache Components](/docs/app/getting-started/caching), cached components are prerendered at build time and served from the edge. Their output becomes part of the static shell. Uncached components stream at request time. This means you control the boundary between instant and streamed content by choosing which components use `"use cache"`.
 
 The key decisions are **what to cache** and **where to place Suspense boundaries**. Cache what you can to grow the static shell. Push dynamic access down to the components that need it, and wrap those components in `<Suspense>`. Everything else becomes part of the shell.
 
