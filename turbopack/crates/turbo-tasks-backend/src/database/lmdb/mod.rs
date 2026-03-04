@@ -17,12 +17,12 @@ mod read_tx_cache;
 pub struct LmdbValueBuffer<'l> {
     ptr: *const u8,
     len: usize,
-    _guard: read_tx_cache::ReadTxGuard,
+    _guard: read_tx_cache::ReadTxGuard<'l>,
     _marker: PhantomData<&'l LmbdKeyValueDatabase>,
 }
 
 impl<'l> LmdbValueBuffer<'l> {
-    fn from_raw_parts(ptr: *const u8, len: usize, guard: read_tx_cache::ReadTxGuard) -> Self {
+    fn from_raw_parts(ptr: *const u8, len: usize, guard: read_tx_cache::ReadTxGuard<'l>) -> Self {
         Self {
             ptr,
             len,
@@ -92,9 +92,9 @@ impl LmbdKeyValueDatabase {
         }
     }
 
-    fn with_read_tx<R>(
-        &self,
-        f: impl FnOnce(&RoTransaction<'static>, read_tx_cache::ReadTxGuard) -> Result<R>,
+    fn with_read_tx<'db, R>(
+        &'db self,
+        f: impl FnOnce(&'db RoTransaction<'db>, read_tx_cache::ReadTxGuard<'db>) -> Result<R>,
     ) -> Result<R> {
         self.read_tx_cache.with_read_tx(&self.env, f)
     }
