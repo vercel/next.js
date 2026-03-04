@@ -154,6 +154,40 @@ async fn test_struct_transparent_debug() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_struct_option_debug() {
+    run_once(&REGISTRATION, || async {
+        let a = StructWithOption { option: None }.resolved_cell();
+        assert_eq!(
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(a))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "StructWithOption {\n    option: None,\n}",
+        );
+
+        let b = StructWithOption {
+            option: Some(Transparent(42).resolved_cell()),
+        }
+        .resolved_cell();
+        assert_eq!(
+            format!(
+                "{:?}",
+                dbg_operation(ResolvedVc::upcast(b))
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+            "StructWithOption {\n    option: Some(\n        42,\n    ),\n}",
+        );
+
+        Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_vec_debug() {
     run_once(&REGISTRATION, || async {
         let a = StructWithVec { vec: Vec::new() }.resolved_cell();

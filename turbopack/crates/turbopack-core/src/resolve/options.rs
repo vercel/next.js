@@ -20,10 +20,6 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
-pub struct LockedVersions {}
-
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
 pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<RcStr>);

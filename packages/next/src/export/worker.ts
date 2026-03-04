@@ -11,6 +11,8 @@ import type { AppPageModule } from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
+import { installBindings } from '../build/swc/install-bindings'
+import { installCodeFrameSupport } from '../server/lib/install-code-frame'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
@@ -336,6 +338,11 @@ async function exportPageImpl(
 export async function exportPages(
   input: ExportPagesInput
 ): Promise<ExportPagesResult> {
+  // Load native bindings in the worker process so that code frame rendering
+  // (which uses the native codeFrameColumns function) works during prerendering.
+  await installBindings()
+  installCodeFrameSupport()
+
   const {
     exportPaths,
     dir,

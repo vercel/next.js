@@ -117,14 +117,17 @@ async function runTest(
   next: NextInstance,
   readFiles: (next: NextInstance) => Promise<Map<string, Map<string, string>>>
 ) {
+  // Same for both builds
+  next.env['__NEXT_IMMUTABLE_ASSET_TOKEN'] = 'imm-token'
+
   // First build
   next.env['NEXT_DEPLOYMENT_ID'] = 'foo-dpl-id'
-  await next.build()
+  expect((await next.build()).exitCode).toBe(0)
   let run1 = await readFiles(next)
 
   // Second build
   next.env['NEXT_DEPLOYMENT_ID'] = 'bar-dpl-id'
-  await next.build()
+  expect((await next.build()).exitCode).toBe(0)
   let run2 = await readFiles(next)
 
   // First, compare file names
@@ -178,29 +181,36 @@ async function runTest(
 }
 
 const FILES = {
-  app: new FileRef(path.join(__dirname, 'app')),
-  pages: new FileRef(path.join(__dirname, 'pages')),
-  public: new FileRef(path.join(__dirname, 'public')),
-  'instrumentation.ts': new FileRef(path.join(__dirname, 'instrumentation.ts')),
-  'middleware.ts': new FileRef(path.join(__dirname, 'middleware.ts')),
-  'next.config.js': `module.exports = {
-    experimental: {
-      // Enable these when debugging to get readable diffs
-      // turbopackMinify: false,
-      // turbopackModuleIds: 'named',
-      // turbopackScopeHoisting: false,
-    },
-  }`,
+  standard: {
+    app: new FileRef(path.join(__dirname, 'standard', 'app')),
+    pages: new FileRef(path.join(__dirname, 'standard', 'pages')),
+    public: new FileRef(path.join(__dirname, 'standard', 'public')),
+    'instrumentation.ts': new FileRef(
+      path.join(__dirname, 'standard', 'instrumentation.ts')
+    ),
+    'middleware.ts': new FileRef(
+      path.join(__dirname, 'standard', 'middleware.ts')
+    ),
+    'next.config.js': new FileRef(
+      path.join(__dirname, 'standard', 'next.config.js')
+    ),
+  },
+  cacheComponents: {
+    app: new FileRef(path.join(__dirname, 'cache-components', 'app')),
+    'next.config.js': new FileRef(
+      path.join(__dirname, 'cache-components', 'next.config.js')
+    ),
+  },
 }
 
 // Webpack itself isn't deterministic
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'deterministic build - changing deployment id',
   () => {
-    describe('.next folder', () => {
+    describe('standard - .next folder', () => {
       const { next } = nextTestSetup({
         files: {
-          ...FILES,
+          ...FILES.standard,
         },
         env: {
           NOW_BUILDER: '1',
@@ -215,15 +225,20 @@ const FILES = {
       })
     })
 
-    describe.each(['builder', 'adapter'])('build output API - %s', (mode) => {
+    describe.each([
+      { test: 'standard', mode: 'builder' },
+      { test: 'standard', mode: 'adapter' },
+      { test: 'cacheComponents', mode: 'builder' },
+      { test: 'cacheComponents', mode: 'adapter' },
+    ])('build output API - $test $mode', ({ test, mode }) => {
       const { next } = nextTestSetup({
         files: {
           // A mock file to be able to run `vercel build` without logging in
           '.vercel/project.json': `{ "projectId": "prj_", "orgId": "team_", "settings": {} }`,
-          ...FILES,
+          ...FILES[test],
         },
         dependencies: {
-          vercel: '>=50.13.2',
+          vercel: 'latest',
         },
         packageJson: {
           scripts: {
@@ -247,18 +262,22 @@ const FILES = {
       it('should produce identical build outputs even when changing deployment id', async () => {
         let { run1, run2 } = await runTest(next, readFilesBuilder)
 
-        expect([...run1.keys()]).toIncludeAllMembers([
-          '.vercel/output/functions/app-page.func/.vc-config.json',
-          '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
-          '.vercel/output/functions/app-route.func/.vc-config.json',
-          '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
-          '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
-          '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
-        ])
-        expect([...run1.keys()]).toSatisfyAny((k) =>
-          k.includes('middleware.func')
-        )
+        expect(run1.size).toBeGreaterThan(0)
         expect([...run1.keys()]).toEqual([...run2.keys()])
+
+        if (test === 'standard') {
+          expect([...run1.keys()]).toIncludeAllMembers([
+            '.vercel/output/functions/app-page.func/.vc-config.json',
+            '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
+            '.vercel/output/functions/app-route.func/.vc-config.json',
+            '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
+            '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
+            '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
+          ])
+          expect([...run1.keys()]).toSatisfyAny((k) =>
+            k.includes('middleware.func')
+          )
+        }
       })
     })
   }

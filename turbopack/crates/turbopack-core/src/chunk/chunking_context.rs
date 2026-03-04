@@ -367,11 +367,6 @@ pub trait ChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
-    }
-
-    #[turbo_tasks::function]
     fn chunking_configs(self: Vc<Self>) -> Vc<ChunkingConfigs> {
         Vc::cell(Default::default())
     }

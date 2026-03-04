@@ -41,7 +41,7 @@ Therefore there are these value types:
 | Compression unit      | key block         | shared value block (≥ 8 kB)                     | dedicated value block                 | separate file                             |
 | Compression unit size | ≤ 16 kB           | 8 kB .. 12 kB                                   | 4 kB .. 64 MB                         | > 64 MB                                   |
 | Access cost           | no extra overhead | decompress shared block (~8 kB)                 | decompress value size                 | open separate file, decompress value size |
-| Storage overhead      | 0                 | 8 B in key block + 8 B per ~8 kB in block table | 2 B in key block + 8 B in block table | 4 B in key block + 4 B in blob header     |
+| Storage overhead      | 0                 | 8 B in key block + 8 B per ~8 kB in block table | 2 B in key block + 8 B in block table | 4 B in key block + 8 B in blob header     |
 | Compaction            | re-compressed     | re-compressed                                   | copied compressed                     | pointer copied                            |
 
 Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BLOCK_SIZE` (8 kB) of data. This means actual block sizes range from 8 kB up to 8 kB + `MAX_SMALL_VALUE_SIZE` (4 kB) = 12 kB. This provides a good balance between compression efficiency (blocks ≥ 4 kB compress well with LZ4) and access cost (only ~8–12 kB needs to be decompressed per lookup).
@@ -78,6 +78,7 @@ The SST file contains only data without any header.
 
 - foreach block
   - 4 bytes block header (uncompressed length or sentinel)
+  - 4 bytes checksum (CRC32 of uncompressed block data)
   - block data (compressed or uncompressed)
 - foreach block
   - 4 bytes end of block offset relative to start of all blocks
@@ -88,6 +89,10 @@ Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header disting
 
 - **Header > 0**: Block is LZ4 compressed. Header value is the uncompressed length.
 - **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
+
+#### Block Checksum
+
+Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression so that on-disk damage is caught before passing data to LZ4. A checksum mismatch returns an error indicating that the cached data is damaged.
 
 #### Index Block
 
@@ -162,7 +167,13 @@ Future:
 
 ### Blob file
 
-The plain value compressed with dynamic compression.
+The plain value compressed with dynamic compression. Each blob file has an 8-byte header:
+
+- 4 bytes: uncompressed length (u32 big-endian)
+- 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
+- remaining bytes: LZ4-compressed value data
+
+The checksum is verified on the compressed data **before** decompression when the blob is read.
 
 ## Reading
 
