@@ -1,7 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO: the incremental option has been removed, update to use cacheComponents
-describe.skip('app-dir - metadata-streaming-config-customized', () => {
+describe('app-dir - metadata-streaming-config-customized', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -9,9 +8,7 @@ describe.skip('app-dir - metadata-streaming-config-customized', () => {
       'next.config.js': `
         module.exports = {
           htmlLimitedBots: /MyBot/i,
-            experimental: {
-            ppr: 'incremental',
-          }
+          cacheComponents: true,
         }
       `,
     },
@@ -33,6 +30,26 @@ describe.skip('app-dir - metadata-streaming-config-customized', () => {
 
     expect(bypassConfigs).toMatchInlineSnapshot(`
      {
+       "/": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "MyBot",
+       },
+       "/_global-error": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "MyBot",
+       },
+       "/_not-found": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "MyBot",
+       },
+       "/dynamic": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "MyBot",
+       },
        "/ppr": {
          "key": "user-agent",
          "type": "header",
