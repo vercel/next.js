@@ -30,6 +30,7 @@ export type HtmlProps = {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   assetQueryString: string
+  mutableAssetQueryString: string
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]

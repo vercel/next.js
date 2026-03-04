@@ -355,6 +355,7 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
+  prefetchInlining?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -496,6 +497,11 @@ export interface ExperimentalConfig {
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
+
+  /**
+   * Selects the runtime backend used by Turbopack for Node.js evaluation.
+   */
+  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
@@ -951,6 +957,12 @@ export interface ExperimentalConfig {
    * @default false
    */
   runtimeServerDeploymentId?: boolean
+
+  /**
+   * A different token to use for static assets (as opposed to config.deploymentId) which
+   * doesn't have to be unique per deployment.
+   */
+  immutableAssetToken?: string
 
   /**
    * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
@@ -1636,6 +1648,7 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     varyParams: false,
+    prefetchInlining: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1692,7 +1705,7 @@ export const defaultConfig = Object.freeze({
       static: 300,
     },
     allowDevelopmentBuild: undefined,
-    reactDebugChannel: false,
+    reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
@@ -1711,6 +1724,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
+    turbopackPluginRuntimeStrategy: 'childProcesses',
     devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,
@@ -1780,6 +1794,7 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'optimisticRouting'
     | 'inlineCss'
+    | 'prefetchInlining'
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
@@ -1811,6 +1826,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'exposeTestingApiInProductionBuild'
+    | 'immutableAssetToken'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1843,10 +1859,14 @@ export function getNextConfigRuntime(
         dynamicOnHover: ex.dynamicOnHover,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
+        prefetchInlining: ex.prefetchInlining,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        adapterPath: ex.adapterPath,
+        // The full adapterPath might be non-deterministic across builds and doesn't actually matter
+        // at runtime, as it's only used to determine whether the adapter was used or not, not to
+        // execute it again. So replace it with a placeholder if it's set.
+        adapterPath: ex.adapterPath ? '<ommited but set>' : undefined,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
@@ -1875,6 +1895,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        immutableAssetToken: ex.immutableAssetToken,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

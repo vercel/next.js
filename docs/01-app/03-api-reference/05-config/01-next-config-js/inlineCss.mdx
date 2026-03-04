@@ -68,5 +68,5 @@ This trade-off matters most with:
 >
 > - CSS inlining is applied globally and cannot be configured on a per-page basis
 > - Styles are duplicated during initial page load - once within `<style>` tags for SSR and once in the RSC payload
-> - When navigating to statically rendered pages, styles will use `<link>` tags instead of inline CSS to avoid duplication
+> - When navigating to prerendered pages, styles will use `<link>` tags instead of inline CSS to avoid duplication
 > - This feature is not available in development mode and only works in production builds

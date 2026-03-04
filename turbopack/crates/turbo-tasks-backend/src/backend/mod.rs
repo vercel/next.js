@@ -284,21 +284,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ExecuteContextImpl::new(self, turbo_tasks)
     }
 
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this TurboTasksBackendInner instance.
-    unsafe fn execute_context_with_tx<'e, 'tx>(
-        &'e self,
-        tx: Option<&'e B::ReadTransaction<'tx>>,
-        turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> impl ExecuteContext<'e> + use<'e, 'tx, B>
-    where
-        'tx: 'e,
-    {
-        // Safety: `tx` is from `self`.
-        unsafe { ExecuteContextImpl::new_with_tx(self, tx, turbo_tasks) }
-    }
-
     fn suspending_requested(&self) -> bool {
         self.should_persist()
             && (self.in_progress_operations.load(Ordering::Relaxed) & SNAPSHOT_REQUESTED_BIT) != 0
@@ -483,22 +468,6 @@ struct TaskExecutionCompletePrepareResult {
 
 // Operations
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this TurboTasksBackendInner instance.
-    unsafe fn connect_child_with_tx<'l, 'tx: 'l>(
-        &'l self,
-        tx: Option<&'l B::ReadTransaction<'tx>>,
-        parent_task: Option<TaskId>,
-        child_task: TaskId,
-        task_type: Option<ArcOrOwned<CachedTaskType>>,
-        turbo_tasks: &'l dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) {
-        operation::ConnectChildOperation::run(parent_task, child_task, task_type, unsafe {
-            self.execute_context_with_tx(tx, turbo_tasks)
-        });
-    }
-
     fn connect_child(
         &self,
         parent_task: Option<TaskId>,
@@ -1271,7 +1240,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 persisted_task_cache_log,
                 task_snapshots,
             ) {
-                println!("Persisting failed: {err:?}");
+                eprintln!("Persisting failed: {err:?}");
                 return None;
             }
             #[cfg(feature = "print_cache_item_size")]
@@ -1485,6 +1454,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
+        let is_root = task_type.native_fn.is_root;
+
         // First check if the task exists in the cache which only uses a read lock
         if let Some(task_id) = self.task_cache.get(&task_type) {
             let task_id = *task_id;
@@ -1498,71 +1469,63 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return task_id;
         }
 
-        let check_backing_storage =
-            self.should_restore() && self.local_is_partial.load(Ordering::Acquire);
-        let tx = check_backing_storage
-            .then(|| self.backing_storage.start_read_transaction())
-            .flatten();
-        let (task_id, task_type) = {
-            // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-            if let Some(task_id) = unsafe {
-                check_backing_storage
-                    .then(|| {
-                        self.backing_storage
-                            .forward_lookup_task_cache(tx.as_ref(), &task_type)
-                            .expect("Failed to lookup task id")
-                    })
-                    .flatten()
-            } {
-                // Task exists in backing storage
-                // So we only need to insert it into the in-memory cache
-                self.track_cache_hit(&task_type);
-                let task_type = match raw_entry(&self.task_cache, &task_type) {
-                    RawEntry::Occupied(_) => ArcOrOwned::Owned(task_type),
-                    RawEntry::Vacant(e) => {
-                        let task_type = Arc::new(task_type);
-                        e.insert(task_type.clone(), task_id);
-                        ArcOrOwned::Arc(task_type)
-                    }
-                };
-                (task_id, task_type)
-            } else {
-                // Task doesn't exist in memory cache or backing storage
-                // So we might need to create a new task
-                let (task_id, mut task_type) = match raw_entry(&self.task_cache, &task_type) {
-                    RawEntry::Occupied(e) => {
-                        let task_id = *e.get();
-                        drop(e);
-                        self.track_cache_hit(&task_type);
-                        (task_id, ArcOrOwned::Owned(task_type))
-                    }
-                    RawEntry::Vacant(e) => {
-                        let task_type = Arc::new(task_type);
-                        let task_id = self.persisted_task_id_factory.get();
-                        e.insert(task_type.clone(), task_id);
-                        self.track_cache_miss(&task_type);
-                        (task_id, ArcOrOwned::Arc(task_type))
-                    }
-                };
-                if let Some(log) = &self.persisted_task_cache_log {
-                    let task_type_arc: Arc<CachedTaskType> = Arc::from(task_type);
-                    log.lock(task_id).push((task_type_arc.clone(), task_id));
-                    task_type = ArcOrOwned::Arc(task_type_arc);
-                }
-                (task_id, task_type)
-            }
-        };
+        // Create a single ExecuteContext for both lookup and connect_child
+        let mut ctx = self.execute_context(turbo_tasks);
 
-        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        unsafe {
-            self.connect_child_with_tx(
-                tx.as_ref(),
-                parent_task,
-                task_id,
-                Some(task_type),
-                turbo_tasks,
-            )
+        let mut is_new = false;
+        let (task_id, task_type) = if let Some(task_id) = ctx.task_by_type(&task_type) {
+            // Task exists in backing storage
+            // So we only need to insert it into the in-memory cache
+            self.track_cache_hit(&task_type);
+            let task_type = match raw_entry(&self.task_cache, &task_type) {
+                RawEntry::Occupied(_) => ArcOrOwned::Owned(task_type),
+                RawEntry::Vacant(e) => {
+                    let task_type = Arc::new(task_type);
+                    e.insert(task_type.clone(), task_id);
+                    ArcOrOwned::Arc(task_type)
+                }
+            };
+            (task_id, task_type)
+        } else {
+            // Task doesn't exist in memory cache or backing storage
+            // So we might need to create a new task
+            let (task_id, task_type) = match raw_entry(&self.task_cache, &task_type) {
+                RawEntry::Occupied(e) => {
+                    // Another thread beat us to creating this task - use their task_id.
+                    // They will handle logging to persisted_task_cache_log.
+                    let task_id = *e.get();
+                    drop(e);
+                    self.track_cache_hit(&task_type);
+                    (task_id, ArcOrOwned::Owned(task_type))
+                }
+                RawEntry::Vacant(e) => {
+                    // We're creating a new task.
+                    let task_type = Arc::new(task_type);
+                    let task_id = self.persisted_task_id_factory.get();
+                    e.insert(task_type.clone(), task_id);
+                    // insert() consumes e, releasing the lock
+                    self.track_cache_miss(&task_type);
+                    is_new = true;
+                    if let Some(log) = &self.persisted_task_cache_log {
+                        log.lock(task_id).push((task_type.clone(), task_id));
+                    }
+                    (task_id, ArcOrOwned::Arc(task_type))
+                }
+            };
+            (task_id, task_type)
         };
+        if is_new && is_root {
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: u32::MAX,
+                    distance: None,
+                },
+                &mut ctx,
+            );
+        }
+        // Reuse the same ExecuteContext for connect_child
+        operation::ConnectChildOperation::run(parent_task, task_id, Some(task_type), ctx);
 
         task_id
     }
@@ -1573,6 +1536,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
+        let is_root = task_type.native_fn.is_root;
+
         if let Some(parent_task) = parent_task
             && !parent_task.is_transient()
         {
@@ -1613,6 +1578,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let task_id = self.transient_task_id_factory.get();
                 e.insert(task_type.clone(), task_id);
                 self.track_cache_miss(&task_type);
+
+                if is_root {
+                    let mut ctx = self.execute_context(turbo_tasks);
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id,
+                            base_aggregation_number: u32::MAX,
+                            distance: None,
+                        },
+                        &mut ctx,
+                    );
+                }
+
                 self.connect_child(
                     parent_task,
                     task_id,
@@ -3038,23 +3016,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
-    fn set_own_task_aggregation_number(
-        &self,
-        task: TaskId,
-        aggregation_number: u32,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) {
-        let mut ctx = self.execute_context(turbo_tasks);
-        AggregationUpdateQueue::run(
-            AggregationUpdateJob::UpdateAggregationNumber {
-                task_id: task,
-                base_aggregation_number: aggregation_number,
-                distance: None,
-            },
-            &mut ctx,
-        );
-    }
-
     fn connect_task(
         &self,
         task: TaskId,
@@ -3567,16 +3528,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.mark_own_task_as_finished(task_id, turbo_tasks);
-    }
-
-    fn set_own_task_aggregation_number(
-        &self,
-        task: TaskId,
-        aggregation_number: u32,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        self.0
-            .set_own_task_aggregation_number(task, aggregation_number, turbo_tasks);
     }
 
     fn mark_own_task_as_session_dependent(

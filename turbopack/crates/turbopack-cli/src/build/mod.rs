@@ -44,7 +44,7 @@ use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
@@ -225,6 +225,7 @@ async fn build_internal(
     };
 
     let compile_time_info = get_client_compile_time_info(browserslist_query.clone(), node_env);
+    let node_backend = child_process_backend();
     let execution_context = ExecutionContext::new(
         root_path.clone(),
         Vc::upcast(
@@ -245,6 +246,7 @@ async fn build_internal(
             .build(),
         ),
         load_env(root_path.clone()),
+        node_backend,
     );
 
     let asset_context = get_client_asset_context(

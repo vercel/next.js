@@ -199,6 +199,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -243,6 +244,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -285,6 +287,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -329,6 +332,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -373,6 +377,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -416,6 +421,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -469,6 +475,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -535,6 +542,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Runtime data was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -579,6 +587,7 @@ describe('instant validation', () => {
              ],
            },
          ],
+         "code": "E1078",
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -611,6 +620,7 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "code": "E394",
          "description": "Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -635,6 +645,7 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "code": "E394",
          "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -665,6 +676,7 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "code": "E394",
          "description": "Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -699,6 +711,7 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "code": "E394",
          "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -734,6 +747,7 @@ describe('instant validation', () => {
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "code": "E394",
          "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -759,24 +773,39 @@ describe('instant validation', () => {
       await expectNoValidationErrors(browser, await browser.url())
     })
 
-    it('invalid - missing suspense around dynamic (with loading.js)', async () => {
+    it('valid - no suspense needed around dynamic in page if loading.js is present', async () => {
       const browser = await navigateTo(
-        '/suspense-in-root/static/invalid-only-loading-around-dynamic'
+        '/suspense-in-root/static/valid-only-loading-around-dynamic'
+      )
+      await expectNoValidationErrors(browser, await browser.url())
+    })
+
+    it('valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above', async () => {
+      const browser = await navigateTo(
+        '/suspense-in-root/static/valid-only-loading-around-dynamic-higher'
+      )
+      await expectNoValidationErrors(browser, await browser.url())
+    })
+
+    it('invalid - loading.js covers page, but not layout at the same level', async () => {
+      const browser = await navigateTo(
+        '/suspense-in-root/static/invalid-dynamic-layout-with-loading'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (4:33) @ unstable_instant
+             "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33) @ unstable_instant
        > 4 | export const unstable_instant = { prefetch: 'static' }
            |                                 ^",
              "stack": [
-               "unstable_instant app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (4:33)",
+               "unstable_instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33)",
                "Set.forEach <anonymous>",
              ],
            },
          ],
+         "code": "E1078",
          "description": "Data that blocks navigation was accessed outside of <Suspense>
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -792,12 +821,12 @@ describe('instant validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (31:19) @ Dynamic
-       > 31 |   await connection()
+         "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19) @ Dynamic
+       > 24 |   await connection()
             |                   ^",
          "stack": [
-           "Dynamic app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (31:19)",
-           "Page app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (19:9)",
+           "Dynamic app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19)",
+           "Layout app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (15:9)",
          ],
        }
       `)
@@ -828,6 +857,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -886,6 +916,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -930,6 +961,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1078",
            "description": "Data that blocks navigation was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -975,6 +1007,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -1020,6 +1053,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -1065,6 +1099,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -1112,6 +1147,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1082",
            "description": "Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -1355,6 +1391,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1086",
            "description": "Runtime data was accessed inside generateViewport()
 
          Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -1402,6 +1439,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1086",
            "description": "Data that blocks navigation was accessed inside generateViewport()
 
          Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -1467,6 +1505,7 @@ describe('instant validation', () => {
                ],
              },
            ],
+           "code": "E1086",
            "description": "Data that blocks navigation was accessed inside generateViewport()
 
          Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.

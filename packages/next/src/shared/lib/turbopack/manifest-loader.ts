@@ -34,7 +34,6 @@ import { readFileSync } from 'fs'
 import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundler'
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
-import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
@@ -212,7 +211,6 @@ export class TurbopackManifestLoader {
 
   private readonly distDir: string
   private readonly buildId: string
-  private readonly deploymentId: string
   private readonly dev: boolean
   private readonly sriEnabled: boolean
 
@@ -221,21 +219,18 @@ export class TurbopackManifestLoader {
     buildId,
     encryptionKey,
     dev,
-    deploymentId,
     sriEnabled,
   }: {
     buildId: string
     distDir: string
     encryptionKey: string
     dev: boolean
-    deploymentId: string
     sriEnabled: boolean
   }) {
     this.distDir = distDir
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dev = dev
-    this.deploymentId = deploymentId
     this.sriEnabled = sriEnabled
   }
 
@@ -551,7 +546,11 @@ export class TurbopackManifestLoader {
     }
 
     const interceptionRewrites = JSON.stringify(
-      rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+      rewrites.beforeFiles.filter(
+        (
+          require('../../../lib/is-interception-route-rewrite') as typeof import('../../../lib/is-interception-route-rewrite')
+        ).isInterceptionRouteRewrite
+      )
     )
 
     if (this.cachedInterceptionRewrites === interceptionRewrites) {
@@ -641,25 +640,16 @@ export class TurbopackManifestLoader {
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
 
-    let buildManifestPath
-    let ssgManifestPath
-    if (this.deploymentId && !this.dev) {
-      // When skew protection is enabled, we instead just rely on the deployment id query string to
-      // load the correct manifests, to avoid the build id.
-      buildManifestPath = join(CLIENT_STATIC_FILES_PATH, '_buildManifest.js')
-      ssgManifestPath = join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
-    } else {
-      buildManifestPath = join(
-        CLIENT_STATIC_FILES_PATH,
-        this.buildId,
-        '_buildManifest.js'
-      )
-      ssgManifestPath = join(
-        CLIENT_STATIC_FILES_PATH,
-        this.buildId,
-        '_ssgManifest.js'
-      )
-    }
+    let buildManifestPath = posix.join(
+      CLIENT_STATIC_FILES_PATH,
+      this.buildId,
+      '_buildManifest.js'
+    )
+    let ssgManifestPath = posix.join(
+      CLIENT_STATIC_FILES_PATH,
+      this.buildId,
+      '_ssgManifest.js'
+    )
 
     if (
       this.dev &&
@@ -850,14 +840,11 @@ export class TurbopackManifestLoader {
   private writeMiddlewareManifest(): {
     clientMiddlewareManifestPath: string
   } {
-    let clientMiddlewareManifestPath =
-      this.deploymentId && !this.dev
-        ? join(CLIENT_STATIC_FILES_PATH, TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST)
-        : join(
-            CLIENT_STATIC_FILES_PATH,
-            this.buildId,
-            TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-          )
+    let clientMiddlewareManifestPath = posix.join(
+      CLIENT_STATIC_FILES_PATH,
+      this.buildId,
+      TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+    )
 
     if (this.dev && !this.middlewareManifests.takeChanged()) {
       return {
