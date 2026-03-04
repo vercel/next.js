@@ -1,8 +1,4 @@
-use std::{
-    borrow::{Borrow, Cow},
-    marker::PhantomData,
-    ops::Deref,
-};
+use std::{borrow::Cow, marker::PhantomData, ops::Deref};
 
 use anyhow::Result;
 use smallvec::SmallVec;
@@ -10,7 +6,7 @@ use smallvec::SmallVec;
 use crate::database::key_value_database::KeySpace;
 
 pub trait BaseWriteBatch<'a> {
-    type ValueBuffer<'l>: std::borrow::Borrow<[u8]>
+    type ValueBuffer<'l>: AsRef<[u8]>
     where
         Self: 'l,
         'a: 'l;
@@ -89,16 +85,16 @@ where
     Concurrent(C, PhantomData<&'a ()>),
 }
 
-pub enum WriteBatchValueBuffer<S: Borrow<[u8]>, C: Borrow<[u8]>> {
+pub enum WriteBatchValueBuffer<S: AsRef<[u8]>, C: AsRef<[u8]>> {
     Serial(S),
     Concurrent(C),
 }
 
-impl<S: Borrow<[u8]>, C: Borrow<[u8]>> Borrow<[u8]> for WriteBatchValueBuffer<S, C> {
-    fn borrow(&self) -> &[u8] {
+impl<S: AsRef<[u8]>, C: AsRef<[u8]>> AsRef<[u8]> for WriteBatchValueBuffer<S, C> {
+    fn as_ref(&self) -> &[u8] {
         match self {
-            WriteBatchValueBuffer::Serial(s) => s.borrow(),
-            WriteBatchValueBuffer::Concurrent(c) => c.borrow(),
+            WriteBatchValueBuffer::Serial(s) => s.as_ref(),
+            WriteBatchValueBuffer::Concurrent(c) => c.as_ref(),
         }
     }
 }

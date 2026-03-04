@@ -40,6 +40,14 @@ const COMPACT_CONFIG: CompactConfig = CompactConfig {
     max_merge_segment_count: 16,
 };
 
+pub struct TurboValueBuffer(ArcBytes);
+
+impl AsRef<[u8]> for TurboValueBuffer {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
     compact_join_handle: Mutex<Option<JoinHandle<Result<()>>>>,
@@ -70,49 +78,43 @@ impl TurboKeyValueDatabase {
 }
 
 impl KeyValueDatabase for TurboKeyValueDatabase {
-    type ReadTransaction<'l>
-        = ()
-    where
-        Self: 'l;
-
     fn is_empty(&self) -> bool {
         self.db.is_empty()
     }
 
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
-        Ok(())
-    }
-
     type ValueBuffer<'l>
-        = ArcBytes
+        = TurboValueBuffer
     where
         Self: 'l;
 
-    fn get<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>> {
-        self.db.get(key_space as usize, &key)
+    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>> {
+        Ok(self.db.get(key_space as usize, &key)?.map(TurboValueBuffer))
     }
 
-    fn batch_get<'l, 'db: 'l>(
+    fn batch_get<'l>(
         &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
         key_space: KeySpace,
         keys: &[&[u8]],
     ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
-        self.db.batch_get(key_space as usize, keys)
+        Ok(self
+            .db
+            .batch_get(key_space as usize, keys)?
+            .into_iter()
+            .map(|value| value.map(TurboValueBuffer))
+            .collect())
     }
 
-    fn get_multiple<'l, 'db: 'l>(
+    fn get_multiple<'l>(
         &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
         key_space: KeySpace,
         key: &[u8],
     ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
-        self.db.get_multiple(key_space as usize, &key)
+        Ok(self
+            .db
+            .get_multiple(key_space as usize, &key)?
+            .into_iter()
+            .map(TurboValueBuffer)
+            .collect())
     }
 
     type ConcurrentWriteBatch<'l>
@@ -212,7 +214,7 @@ pub struct TurboWriteBatch<'a> {
 
 impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     type ValueBuffer<'l>
-        = ArcBytes
+        = TurboValueBuffer
     where
         Self: 'l,
         'a: 'l;
@@ -221,7 +223,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     where
         'a: 'l,
     {
-        self.db.get(key_space as usize, &key)
+        Ok(self.db.get(key_space as usize, &key)?.map(TurboValueBuffer))
     }
 
     fn commit(self) -> Result<()> {

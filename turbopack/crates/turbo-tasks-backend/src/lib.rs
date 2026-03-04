@@ -27,11 +27,9 @@ pub use crate::{
 
 #[cfg(feature = "lmdb")]
 pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
-    database::read_transaction_cache::ReadTransactionCache<
-        database::startup_cache::StartupCacheLayer<
-            database::fresh_db_optimization::FreshDbOptimization<
-                crate::database::lmdb::LmbdKeyValueDatabase,
-            >,
+    database::startup_cache::StartupCacheLayer<
+        database::fresh_db_optimization::FreshDbOptimization<
+            crate::database::lmdb::LmbdKeyValueDatabase,
         >,
     >,
 >;
@@ -52,7 +50,6 @@ pub fn lmdb_backing_storage(
 ) -> Result<(LmdbBackingStorage, StartupCacheState)> {
     use crate::database::{
         fresh_db_optimization::{FreshDbOptimization, is_fresh},
-        read_transaction_cache::ReadTransactionCache,
         startup_cache::StartupCacheLayer,
     };
 
@@ -66,7 +63,7 @@ pub fn lmdb_backing_storage(
             let database = FreshDbOptimization::new(database, fresh_db);
             let database =
                 StartupCacheLayer::new(database, versioned_path.join("startup.cache"), fresh_db)?;
-            Ok(ReadTransactionCache::new(database))
+            Ok(database)
         },
     )
 }
@@ -116,6 +113,7 @@ pub fn default_backing_storage(
 ) -> Result<(DefaultBackingStorage, StartupCacheState)> {
     #[cfg(feature = "lmdb")]
     {
+        let _ = is_short_session;
         lmdb_backing_storage(path, version_info, is_ci)
     }
     #[cfg(not(feature = "lmdb"))]

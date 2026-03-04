@@ -32,17 +32,8 @@ impl<T: KeyValueDatabase> FreshDbOptimization<T> {
 }
 
 impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
-    type ReadTransaction<'l>
-        = T::ReadTransaction<'l>
-    where
-        Self: 'l;
-
     fn is_empty(&self) -> bool {
         self.fresh_db.load(Ordering::Acquire) || self.database.is_empty()
-    }
-
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
-        self.database.begin_read_transaction()
     }
 
     type ValueBuffer<'l>
@@ -50,9 +41,8 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
     where
         Self: 'l;
 
-    fn get<'l, 'db: 'l>(
+    fn get<'l>(
         &'l self,
-        transaction: &'l Self::ReadTransaction<'db>,
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
     ) -> anyhow::Result<Option<Self::ValueBuffer<'l>>> {
@@ -62,7 +52,7 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
             // might change that in future.
             return Ok(None);
         }
-        self.database.get(transaction, key_space, key)
+        self.database.get(key_space, key)
     }
 
     type SerialWriteBatch<'l>

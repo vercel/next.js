@@ -1,10 +1,16 @@
-use std::{fs::create_dir_all, path::Path, thread::available_parallelism};
+use std::{
+    cell::UnsafeCell, fs::create_dir_all, marker::PhantomData, mem::transmute, path::Path,
+    sync::Arc, thread::available_parallelism,
+};
 
 use anyhow::{Context, Result};
+use arc_swap::ArcSwap;
 use lmdb::{
     Database, DatabaseFlags, Environment, EnvironmentFlags, RoTransaction, RwTransaction,
     Transaction, WriteFlags,
 };
+use smallvec::SmallVec;
+use thread_local::ThreadLocal;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -13,7 +19,80 @@ use crate::database::{
 
 mod extended_key;
 
+type ReadTransactionsCache = ThreadLocal<ThreadLocalReadTransactionsContainer>;
+
+struct ThreadLocalReadTransactionsContainer(UnsafeCell<SmallVec<[RoTransaction<'static>; 4]>>);
+
+impl ThreadLocalReadTransactionsContainer {
+    unsafe fn pop(&self) -> Option<RoTransaction<'static>> {
+        let vec = unsafe { &mut *self.0.get() };
+        vec.pop()
+    }
+
+    unsafe fn push(&self, tx: RoTransaction<'static>) {
+        let vec = unsafe { &mut *self.0.get() };
+        vec.push(tx)
+    }
+}
+
+// Safety: the container is thread-local and only accessed from the owning thread.
+unsafe impl Send for ThreadLocalReadTransactionsContainer {}
+
+struct LmdbReadTransactionGuardInner {
+    tx: Option<RoTransaction<'static>>,
+    thread_locals: Arc<ReadTransactionsCache>,
+}
+
+impl Drop for LmdbReadTransactionGuardInner {
+    fn drop(&mut self) {
+        let container = self
+            .thread_locals
+            .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
+        // Safety: put back into this thread's local cache.
+        unsafe {
+            container.push(self.tx.take().unwrap());
+        }
+    }
+}
+
+#[derive(Clone)]
+struct LmdbReadTransactionGuard(Arc<LmdbReadTransactionGuardInner>);
+
+impl LmdbReadTransactionGuard {
+    fn transaction(&self) -> &RoTransaction<'static> {
+        self.0.tx.as_ref().unwrap()
+    }
+}
+
+pub struct LmdbValueBuffer<'l> {
+    ptr: *const u8,
+    len: usize,
+    _guard: LmdbReadTransactionGuard,
+    _marker: PhantomData<&'l LmbdKeyValueDatabase>,
+}
+
+impl<'l> LmdbValueBuffer<'l> {
+    fn from_raw_parts(ptr: *const u8, len: usize, guard: LmdbReadTransactionGuard) -> Self {
+        Self {
+            ptr,
+            len,
+            _guard: guard,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl AsRef<[u8]> for LmdbValueBuffer<'_> {
+    fn as_ref(&self) -> &[u8] {
+        // Safety: ptr/len points into LMDB value memory owned by the guarded read transaction.
+        // The guard keeps that transaction alive for at least as long as this value buffer.
+        unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
+    }
+}
+
 pub struct LmbdKeyValueDatabase {
+    // Safety: must be dropped before `env`, as dropping cached transactions accesses LMDB env.
+    read_transactions_cache: ArcSwap<ReadTransactionsCache>,
     env: Environment,
     infra_db: Database,
     data_db: Database,
@@ -45,6 +124,7 @@ impl LmbdKeyValueDatabase {
         let meta_db = env.create_db(Some("meta"), DatabaseFlags::INTEGER_KEY)?;
         let task_cache_db = env.create_db(Some("task_cache"), DatabaseFlags::empty())?;
         Ok(LmbdKeyValueDatabase {
+            read_transactions_cache: ArcSwap::new(Arc::new(ThreadLocal::new())),
             env,
             infra_db,
             data_db,
@@ -61,44 +141,96 @@ impl LmbdKeyValueDatabase {
             KeySpace::TaskCache => self.task_cache_db,
         }
     }
+
+    fn acquire_read_transaction_guard(&self) -> LmdbReadTransactionGuard {
+        let thread_locals = self.read_transactions_cache.load().clone();
+        let container = thread_locals
+            .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
+
+        // Safety: container is thread-local.
+        let tx = if let Some(tx) = unsafe { container.pop() } {
+            tx
+        } else {
+            let tx = self.env.begin_ro_txn().unwrap_or_else(|err| {
+                panic!("failed to begin LMDB read transaction: {err}");
+            });
+            // Safety: `read_transactions_cache` is dropped before `env`, so cached transactions
+            // never outlive the LMDB environment.
+            unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) }
+        };
+
+        LmdbReadTransactionGuard(Arc::new(LmdbReadTransactionGuardInner {
+            tx: Some(tx),
+            thread_locals,
+        }))
+    }
+
+    fn get_from_tx<'tx>(
+        tx: &'tx impl Transaction,
+        db: Database,
+        key: &[u8],
+    ) -> Result<Option<&'tx [u8]>> {
+        match extended_key::get(tx, db, key) {
+            Ok(result) => Ok(Some(result)),
+            Err(err) if err == lmdb::Error::NotFound => Ok(None),
+            Err(err) => Err(err.into()),
+        }
+    }
 }
 
 impl KeyValueDatabase for LmbdKeyValueDatabase {
-    type ReadTransaction<'l>
-        = RoTransaction<'l>
-    where
-        Self: 'l;
+    type ValueBuffer<'l> = LmdbValueBuffer<'l>;
 
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
-        Ok(self.env.begin_ro_txn()?)
-    }
-
-    type ValueBuffer<'l> = &'l [u8];
-
-    fn get<'l, 'db: 'l>(
+    fn get<'l>(
         &'l self,
-        transaction: &'l Self::ReadTransaction<'db>,
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>> {
-        let db = match key_space {
-            KeySpace::Infra => self.infra_db,
-            KeySpace::TaskMeta => self.meta_db,
-            KeySpace::TaskData => self.data_db,
-            KeySpace::TaskCache => self.task_cache_db,
+        let guard = self.acquire_read_transaction_guard();
+        let Some((ptr, len)) = ({
+            let tx = guard.transaction();
+            Self::get_from_tx(tx, self.db(key_space), key)?
+                .map(|value| (value.as_ptr(), value.len()))
+        }) else {
+            return Ok(None);
         };
+        Ok(Some(LmdbValueBuffer::from_raw_parts(ptr, len, guard)))
+    }
 
-        let value = match extended_key::get(transaction, db, key) {
-            Ok(result) => result,
-            Err(err) => {
-                if err == lmdb::Error::NotFound {
-                    return Ok(None);
-                } else {
-                    return Err(err.into());
-                }
-            }
+    fn get_multiple<'l>(
+        &'l self,
+        key_space: KeySpace,
+        key: &[u8],
+    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
+        let guard = self.acquire_read_transaction_guard();
+        let Some((ptr, len)) = ({
+            let tx = guard.transaction();
+            Self::get_from_tx(tx, self.db(key_space), key)?
+                .map(|value| (value.as_ptr(), value.len()))
+        }) else {
+            return Ok(SmallVec::new());
         };
-        Ok(Some(value))
+        Ok(SmallVec::from_iter([LmdbValueBuffer::from_raw_parts(
+            ptr, len, guard,
+        )]))
+    }
+
+    fn batch_get<'l>(
+        &'l self,
+        key_space: KeySpace,
+        keys: &[&[u8]],
+    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+        let guard = self.acquire_read_transaction_guard();
+        let tx = guard.transaction();
+        let db = self.db(key_space);
+        keys.iter()
+            .map(|key| {
+                let value = Self::get_from_tx(tx, db, key)?;
+                Ok(value.map(|value| {
+                    LmdbValueBuffer::from_raw_parts(value.as_ptr(), value.len(), guard.clone())
+                }))
+            })
+            .collect()
     }
 
     type SerialWriteBatch<'l>
@@ -132,20 +264,15 @@ impl<'a> BaseWriteBatch<'a> for LmbdWriteBatch<'a> {
     where
         'a: 'l,
     {
-        match extended_key::get(&self.tx, self.this.db(key_space), key) {
-            Ok(value) => Ok(Some(value)),
-            Err(err) => {
-                if err == lmdb::Error::NotFound {
-                    Ok(None)
-                } else {
-                    Err(err.into())
-                }
-            }
-        }
+        LmbdKeyValueDatabase::get_from_tx(&self.tx, self.this.db(key_space), key)
     }
 
     fn commit(self) -> Result<()> {
         self.tx.commit()?;
+        // Swap generation after commit so new reads don't reuse old read transactions.
+        self.this
+            .read_transactions_cache
+            .store(Arc::new(ThreadLocal::new()));
         Ok(())
     }
 }

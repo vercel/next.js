@@ -1,5 +1,4 @@
 use std::{
-    borrow::Borrow,
     env,
     path::PathBuf,
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
@@ -52,8 +51,8 @@ impl AsRef<[u8]> for IntKey {
     }
 }
 
-fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
-    let n = u32::from_le_bytes(bytes.borrow().try_into()?);
+fn as_u32(bytes: impl AsRef<[u8]>) -> Result<u32> {
+    let n = u32::from_le_bytes(bytes.as_ref().try_into()?);
     Ok(n)
 }
 
@@ -165,21 +164,6 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
 }
 
 impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
-    fn with_tx<R>(
-        &self,
-        tx: Option<&T::ReadTransaction<'_>>,
-        f: impl FnOnce(&T::ReadTransaction<'_>) -> Result<R>,
-    ) -> Result<R> {
-        if let Some(tx) = tx {
-            f(tx)
-        } else {
-            let tx = self.database.begin_read_transaction()?;
-            let r = f(&tx)?;
-            drop(tx);
-            Ok(r)
-        }
-    }
-
     fn invalidate(&self, reason_code: &str) -> Result<()> {
         // `base_path` can be `None` for a `NoopKvDb`
         if let Some(base_path) = &self.base_path {
@@ -205,9 +189,8 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
 
     /// Used to read the next free task ID from the database.
     fn get_infra_u32(&self, key: u32) -> Result<Option<u32>> {
-        let tx = self.database.begin_read_transaction()?;
         self.database
-            .get(&tx, KeySpace::Infra, IntKey::new(key).as_ref())?
+            .get(KeySpace::Infra, IntKey::new(key).as_ref())?
             .map(as_u32)
             .transpose()
     }
@@ -224,8 +207,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
 impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
     for KeyValueDatabaseBackingStorage<T>
 {
-    type ReadTransaction<'l> = T::ReadTransaction<'l>;
-
     fn next_free_task_id(&self) -> Result<TaskId> {
         Ok(self
             .inner
@@ -236,16 +217,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         fn get(database: &impl KeyValueDatabase) -> Result<Vec<AnyOperation>> {
-            let tx = database.begin_read_transaction()?;
-            let Some(operations) = database.get(
-                &tx,
-                KeySpace::Infra,
-                IntKey::new(META_KEY_OPERATIONS).as_ref(),
-            )?
+            let Some(operations) =
+                database.get(KeySpace::Infra, IntKey::new(META_KEY_OPERATIONS).as_ref())?
             else {
                 return Ok(Vec::new());
             };
-            let operations = turbo_bincode_decode(operations.borrow())?;
+            let operations = turbo_bincode_decode(operations.as_ref())?;
             Ok(operations)
         }
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
@@ -406,27 +383,18 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         Ok(())
     }
 
-    fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>> {
-        self.inner.database.begin_read_transaction().ok()
-    }
-
-    unsafe fn lookup_task_candidates(
-        &self,
-        tx: Option<&T::ReadTransaction<'_>>,
-        task_type: &CachedTaskType,
-    ) -> Result<SmallVec<[TaskId; 1]>> {
+    fn lookup_task_candidates(&self, task_type: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>> {
         let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
-            tx: &D::ReadTransaction<'_>,
             task_type: &CachedTaskType,
         ) -> Result<SmallVec<[TaskId; 1]>> {
             let hash = compute_task_type_hash(task_type);
-            let buffers = database.get_multiple(tx, KeySpace::TaskCache, &hash.to_le_bytes())?;
+            let buffers = database.get_multiple(KeySpace::TaskCache, &hash.to_le_bytes())?;
 
             let mut task_ids = SmallVec::with_capacity(buffers.len());
             for bytes in buffers {
-                let bytes = bytes.borrow().try_into()?;
+                let bytes = bytes.as_ref().try_into()?;
                 let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
                 task_ids.push(id);
             }
@@ -437,65 +405,54 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             // to avoid computing the hash.
             return Ok(SmallVec::new());
         }
-        inner
-            .with_tx(tx, |tx| lookup(&self.inner.database, tx, task_type))
+        lookup(&self.inner.database, task_type)
             .with_context(|| format!("Looking up task id for {task_type:?} from database failed"))
     }
 
-    unsafe fn lookup_data(
+    fn lookup_data(
         &self,
-        tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
         storage: &mut TaskStorage,
     ) -> Result<()> {
-        let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
-            tx: &D::ReadTransaction<'_>,
             task_id: TaskId,
             category: SpecificTaskDataCategory,
             storage: &mut TaskStorage,
         ) -> Result<()> {
-            let Some(bytes) =
-                database.get(tx, category.key_space(), IntKey::new(*task_id).as_ref())?
+            let Some(bytes) = database.get(category.key_space(), IntKey::new(*task_id).as_ref())?
             else {
                 return Ok(());
             };
-            let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+            let mut decoder = new_turbo_bincode_decoder(bytes.as_ref());
             storage
                 .decode(category, &mut decoder)
                 .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
         }
-        inner
-            .with_tx(tx, |tx| {
-                lookup(&inner.database, tx, task_id, category, storage)
-            })
+        lookup(&self.inner.database, task_id, category, storage)
             .with_context(|| format!("Looking up task storage for {task_id} from database failed"))
     }
 
-    unsafe fn batch_lookup_data(
+    fn batch_lookup_data(
         &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
     ) -> Result<Vec<TaskStorage>> {
-        let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
-            tx: &D::ReadTransaction<'_>,
             task_ids: &[TaskId],
             category: SpecificTaskDataCategory,
         ) -> Result<Vec<TaskStorage>> {
             let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
             let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
-            let bytes = database.batch_get(tx, category.key_space(), &keys)?;
+            let bytes = database.batch_get(category.key_space(), &keys)?;
             bytes
                 .into_iter()
                 .map(|opt_bytes| {
                     let mut storage = TaskStorage::new();
                     if let Some(bytes) = opt_bytes {
-                        let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+                        let mut decoder = new_turbo_bincode_decoder(bytes.as_ref());
                         storage
                             .decode(category, &mut decoder)
                             .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
@@ -504,14 +461,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 })
                 .collect::<Result<Vec<_>>>()
         }
-        inner
-            .with_tx(tx, |tx| lookup(&inner.database, tx, task_ids, category))
-            .with_context(|| {
-                format!(
-                    "Looking up typed data for {} tasks from database failed",
-                    task_ids.len()
-                )
-            })
+        lookup(&self.inner.database, task_ids, category).with_context(|| {
+            format!(
+                "Looking up typed data for {} tasks from database failed",
+                task_ids.len()
+            )
+        })
     }
 
     fn shutdown(&self) -> Result<()> {
@@ -531,7 +486,7 @@ where
             KeySpace::Infra,
             IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
         )? {
-            Some(bytes) => u32::from_le_bytes(Borrow::<[u8]>::borrow(&bytes).try_into()?),
+            Some(bytes) => u32::from_le_bytes(bytes.as_ref().try_into()?),
             None => 1,
         },
     )
@@ -649,8 +604,6 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use std::borrow::Borrow;
-
     use turbo_tasks::TaskId;
 
     use super::*;
@@ -710,7 +663,7 @@ mod tests {
         write_task_cache_entry(&db, collision_hash, task_id_3)?;
 
         // Now query using get_multiple - should return all three TaskIds
-        let results = db.get_multiple(&(), KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
+        let results = db.get_multiple(KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
 
         assert_eq!(
             results.len(),
@@ -722,7 +675,7 @@ mod tests {
         let mut found_ids: Vec<TaskId> = results
             .iter()
             .map(|bytes| {
-                let bytes: [u8; 4] = Borrow::<[u8]>::borrow(bytes).try_into().unwrap();
+                let bytes: [u8; 4] = bytes.as_ref().try_into().unwrap();
                 TaskId::try_from(u32::from_le_bytes(bytes)).unwrap()
             })
             .collect();

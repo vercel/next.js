@@ -1,5 +1,4 @@
 use std::{
-    borrow::Borrow,
     fs::{self, File},
     io::{BufWriter, Read, Write},
     mem::transmute,
@@ -31,10 +30,10 @@ where
     Cached(&'l [u8]),
 }
 
-impl<T: KeyValueDatabase> Borrow<[u8]> for ValueBuffer<'_, T> {
-    fn borrow(&self) -> &[u8] {
+impl<T: KeyValueDatabase> AsRef<[u8]> for ValueBuffer<'_, T> {
+    fn as_ref(&self) -> &[u8] {
         match self {
-            ValueBuffer::Database(value) => value.borrow(),
+            ValueBuffer::Database(value) => value.as_ref(),
             ValueBuffer::Cached(value) => value,
         }
     }
@@ -97,17 +96,8 @@ impl<T: KeyValueDatabase> StartupCacheLayer<T> {
 }
 
 impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
-    type ReadTransaction<'l>
-        = T::ReadTransaction<'l>
-    where
-        Self: 'l;
-
     fn is_empty(&self) -> bool {
         self.database.is_empty()
-    }
-
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
-        self.database.begin_read_transaction()
     }
 
     type ValueBuffer<'l>
@@ -115,16 +105,11 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
     where
         Self: 'l;
 
-    fn get<'l, 'db: 'l>(
-        &'l self,
-        transaction: &'l Self::ReadTransaction<'db>,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>> {
+    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>> {
         if self.fresh_db {
             return Ok(self
                 .database
-                .get(transaction, key_space, key)?
+                .get(key_space, key)?
                 .map(ValueBuffer::Database));
         }
         let value = {
@@ -132,12 +117,12 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
                 Some(ValueBuffer::Cached(value))
             } else {
                 self.database
-                    .get(transaction, key_space, key)?
+                    .get(key_space, key)?
                     .map(ValueBuffer::Database)
             }
         };
         if let Some(value) = value.as_ref() {
-            let value: &[u8] = value.borrow();
+            let value = value.as_ref();
             let size = self.cache_size.fetch_add(
                 key.len() + value.len() + PAIR_HEADER_SIZE,
                 Ordering::Relaxed,
