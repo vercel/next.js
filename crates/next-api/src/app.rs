@@ -1598,8 +1598,6 @@ impl AppEndpoint {
 
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
-                        *module_graphs.full,
-                        *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),
@@ -1714,8 +1712,6 @@ impl AppEndpoint {
                 let loadable_manifest_output = if emit_manifests == EmitManifests::Full {
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
-                        *module_graphs.full,
-                        *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),
