@@ -65,6 +65,7 @@ futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = { workspace = true }
+next-code-frame = { workspace = true  }
 next-custom-transforms = { workspace = true }
 next-taskless = { workspace = true }
 rand = { workspace = true }

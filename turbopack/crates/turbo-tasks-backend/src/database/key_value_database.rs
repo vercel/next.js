@@ -1,4 +1,6 @@
 use anyhow::Result;
+use smallvec::SmallVec;
+use turbo_persistence::{FamilyConfig, FamilyKind};
 
 use crate::database::write_batch::{
     ConcurrentWriteBatch, SerialWriteBatch, UnimplementedWriteBatch, WriteBatch,
@@ -10,6 +12,20 @@ pub enum KeySpace {
     TaskMeta = 1,
     TaskData = 2,
     TaskCache = 3,
+}
+impl KeySpace {
+    /// Returns the persistence configuration for this keyspace.
+    pub const fn family_config(&self) -> FamilyConfig {
+        match self {
+            KeySpace::Infra | KeySpace::TaskMeta | KeySpace::TaskData => FamilyConfig {
+                kind: FamilyKind::SingleValue,
+            },
+            KeySpace::TaskCache => FamilyConfig {
+                // TaskCache uses hash-based lookups with potential collisions.
+                kind: FamilyKind::MultiValue,
+            },
+        }
+    }
 }
 
 pub trait KeyValueDatabase {
@@ -33,6 +49,19 @@ pub trait KeyValueDatabase {
         key_space: KeySpace,
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>>;
+    /// Looks up a key and returns all matching values.
+    ///
+    /// Useful for keyspaces where keys are hashes and collisions are possible (e.g., TaskCache).
+    /// The default implementation returns at most one value (from `get`), but implementations
+    /// that support multiple values per key should override this.
+    fn get_multiple<'l, 'db: 'l>(
+        &'l self,
+        transaction: &'l Self::ReadTransaction<'db>,
+        key_space: KeySpace,
+        key: &[u8],
+    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
+        Ok(self.get(transaction, key_space, key)?.into_iter().collect())
+    }
 
     fn batch_get<'l, 'db: 'l>(
         &'l self,

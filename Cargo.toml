@@ -8,6 +8,7 @@ members = [
   "crates/next-api",
   "crates/next-build-test",
   "crates/next-build",
+  "crates/next-code-frame",
   "crates/next-core",
   "crates/next-custom-transforms",
   "crates/next-taskless",
@@ -284,6 +285,7 @@ debug = true
 # Workspace crates
 next-api = { path = "crates/next-api" }
 next-build = { path = "crates/next-build" }
+next-code-frame = { path = "crates/next-code-frame" }
 next-core = { path = "crates/next-core" }
 next-custom-transforms = { path = "crates/next-custom-transforms", default-features = false }
 next-taskless = { path = "crates/next-taskless" }
@@ -410,6 +412,7 @@ lightningcss-napi = { version = "0.4.6", default-features = false, features = [
 ] }
 lzzzz = "2.0.0"
 markdown = "1.0.0-alpha.18"
+memchr = "2.7.4"
 mime = "0.3.16"
 napi = { version = "2", default-features = false, features = [
   "napi3",

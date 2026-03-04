@@ -12,7 +12,7 @@ related:
     - app/api-reference/config/next-config-js/taint
 ---
 
-This page will walk you through how you can fetch data in [Server and Client Components](/docs/app/getting-started/server-and-client-components), and how to [stream](#streaming) components that depend on data.
+This page will walk you through how you can fetch data in [Server](#server-components) and [Client](#client-components) Components, and how to [stream](#streaming) components that depend on uncached data.
 
 ## Fetching data
 
@@ -22,7 +22,6 @@ You can fetch data in Server Components using any asynchronous I/O, such as:
 
 1. The [`fetch` API](#with-the-fetch-api)
 2. An [ORM or database](#with-an-orm-or-database)
-3. Reading from the filesystem using Node.js APIs like `fs`
 
 #### With the `fetch` API
 
@@ -58,12 +57,13 @@ export default async function Page() {
 
 > **Good to know:**
 >
-> - `fetch` responses are not cached by default. However, Next.js will [pre-render](/docs/app/guides/caching#static-rendering) the route and the output will be cached for improved performance. If you'd like to opt into [dynamic rendering](/docs/app/guides/caching#dynamic-rendering), use the `{ cache: 'no-store' }` option. See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch).
+> - Identical `fetch` requests in a React component tree are [memoized](/docs/app/glossary#memoization) by default, so you can fetch data in the component that needs it instead of drilling props.
+> - `fetch` requests are not cached by default and will block the page from rendering until the request is complete. Use the [`use cache`](/docs/app/api-reference/directives/use-cache) directive to cache results, or wrap the fetching component in [`<Suspense>`](/docs/app/getting-started/caching#streaming-uncached-data) to stream fresh data at request time. See [caching](/docs/app/getting-started/caching) for details.
 > - During development, you can log `fetch` calls for better visibility and debugging. See the [`logging` API reference](/docs/app/api-reference/config/next-config-js/logging).
 
 #### With an ORM or database
 
-Since Server Components are rendered on the server, you can safely make database queries using an ORM or database client. Turn your component into an asynchronous function, and await the call:
+Since Server Components are rendered on the server, credentials and query logic will not be included in the client bundle so you can safely make database queries using an ORM or database client.
 
 ```tsx filename="app/blog/page.tsx" switcher
 import { db, posts } from '@/lib/db'
@@ -94,6 +94,133 @@ export default async function Page() {
   )
 }
 ```
+
+You should still ensure requests are properly authenticated and authorized. For best practices on securing server-side data access, see the [data security guide](/docs/app/guides/data-security).
+
+### Streaming
+
+When you fetch data in Server Components, the data is fetched and rendered on the server for each request. If you have any slow data requests, the whole route will be blocked from rendering until all the data is fetched.
+
+To improve the initial load time and user experience, you can break the page into smaller _chunks_ and progressively send those chunks from the server to the client. This is called streaming.
+
+<Image
+  alt="How Server Rendering with Streaming Works"
+  srcLight="/docs/light/server-rendering-with-streaming.png"
+  srcDark="/docs/dark/server-rendering-with-streaming.png"
+  width="1600"
+  height="785"
+/>
+
+There are two ways you can use streaming in your application:
+
+1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
+2. Wrapping a component with [`<Suspense>`](#with-suspense)
+
+#### With `loading.js`
+
+You can create a `loading.js` file in the same folder as your page to stream the **entire page** while the data is being fetched. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.
+
+<Image
+  alt="Blog folder structure with loading.js file"
+  srcLight="/docs/light/loading-file.png"
+  srcDark="/docs/dark/loading-file.png"
+  width="1600"
+  height="525"
+/>
+
+```tsx filename="app/blog/loading.tsx" switcher
+export default function Loading() {
+  // Define the Loading UI here
+  return <div>Loading...</div>
+}
+```
+
+```jsx filename="app/blog/loading.js" switcher
+export default function Loading() {
+  // Define the Loading UI here
+  return <div>Loading...</div>
+}
+```
+
+On navigation, the user will immediately see the layout and a [loading state](#creating-meaningful-loading-states) while the page is being rendered. The new content will then be automatically swapped in once rendering is complete.
+
+<Image
+  alt="Loading UI"
+  srcLight="/docs/light/loading-ui.png"
+  srcDark="/docs/dark/loading-ui.png"
+  width="1600"
+  height="691"
+/>
+
+Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will automatically wrap the `page.js` file and any children below in a `<Suspense>` boundary.
+
+<Image
+  alt="loading.js overview"
+  srcLight="/docs/light/loading-overview.png"
+  srcDark="/docs/dark/loading-overview.png"
+  width="1600"
+  height="768"
+/>
+
+This approach works well for route segments (layouts and pages), but for more granular streaming, you can use `<Suspense>`.
+
+#### With `<Suspense>`
+
+`<Suspense>` allows you to be more granular about what parts of the page to stream. For example, you can immediately show any page content that falls outside of the `<Suspense>` boundary, and stream in the list of blog posts inside the boundary.
+
+```tsx filename="app/blog/page.tsx" switcher
+import { Suspense } from 'react'
+import BlogList from '@/components/BlogList'
+import BlogListSkeleton from '@/components/BlogListSkeleton'
+
+export default function BlogPage() {
+  return (
+    <div>
+      {/* This content will be sent to the client immediately */}
+      <header>
+        <h1>Welcome to the Blog</h1>
+        <p>Read the latest posts below.</p>
+      </header>
+      <main>
+        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
+        <Suspense fallback={<BlogListSkeleton />}>
+          <BlogList />
+        </Suspense>
+      </main>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+import { Suspense } from 'react'
+import BlogList from '@/components/BlogList'
+import BlogListSkeleton from '@/components/BlogListSkeleton'
+
+export default function BlogPage() {
+  return (
+    <div>
+      {/* This content will be sent to the client immediately */}
+      <header>
+        <h1>Welcome to the Blog</h1>
+        <p>Read the latest posts below.</p>
+      </header>
+      <main>
+        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
+        <Suspense fallback={<BlogListSkeleton />}>
+          <BlogList />
+        </Suspense>
+      </main>
+    </div>
+  )
+}
+```
+
+#### Creating meaningful loading states
+
+An instant loading state is fallback UI that is shown immediately to the user after navigation. For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, you can use skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc.
+
+In development, you can preview and inspect the loading state of your components using the [React Devtools](https://react.dev/learn/react-developer-tools).
 
 ### Client Components
 
@@ -235,168 +362,6 @@ export default function BlogPage() {
 }
 ```
 
-## Deduplicate requests and cache data
-
-One way to deduplicate `fetch` requests is with [request memoization](/docs/app/guides/caching#request-memoization). With this mechanism, `fetch` calls using `GET` or `HEAD` with the same URL and options in a single render pass are combined into one request. This happens automatically, and you can [opt out](/docs/app/guides/caching#opting-out) by passing an Abort signal to `fetch`.
-
-Request memoization is scoped to the lifetime of a request.
-
-You can also deduplicate `fetch` requests by using Next.js’ [Data Cache](/docs/app/guides/caching#data-cache), for example by setting `cache: 'force-cache'` in your `fetch` options.
-
-Data Cache allows sharing data across the current render pass and incoming requests.
-
-If you are _not_ using `fetch`, and instead using an ORM or database directly, you can wrap your data access with the [React `cache`](https://react.dev/reference/react/cache) function.
-
-```tsx filename="app/lib/data.ts" switcher
-import { cache } from 'react'
-import { db, posts, eq } from '@/lib/db'
-
-export const getPost = cache(async (id: string) => {
-  const post = await db.query.posts.findFirst({
-    where: eq(posts.id, parseInt(id)),
-  })
-})
-```
-
-```jsx filename="app/lib/data.js" switcher
-import { cache } from 'react'
-import { db, posts, eq } from '@/lib/db'
-import { notFound } from 'next/navigation'
-
-export const getPost = cache(async (id) => {
-  const post = await db.query.posts.findFirst({
-    where: eq(posts.id, parseInt(id)),
-  })
-})
-```
-
-## Streaming
-
-> **Warning:** The content below assumes the [`cacheComponents` config option](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled in your application. The flag was introduced in Next.js 15 canary.
-
-When you fetch data in Server Components, the data is fetched and rendered on the server for each request. If you have any slow data requests, the whole route will be blocked from rendering until all the data is fetched.
-
-To improve the initial load time and user experience, you can use streaming to break up the page's HTML into smaller chunks and progressively send those chunks from the server to the client.
-
-<Image
-  alt="How Server Rendering with Streaming Works"
-  srcLight="/docs/light/server-rendering-with-streaming.png"
-  srcDark="/docs/dark/server-rendering-with-streaming.png"
-  width="1600"
-  height="785"
-/>
-
-There are two ways you can leverage streaming in your application:
-
-1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
-2. Wrapping a component with [`<Suspense>`](#with-suspense)
-
-### With `loading.js`
-
-You can create a `loading.js` file in the same folder as your page to stream the **entire page** while the data is being fetched. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.
-
-<Image
-  alt="Blog folder structure with loading.js file"
-  srcLight="/docs/light/loading-file.png"
-  srcDark="/docs/dark/loading-file.png"
-  width="1600"
-  height="525"
-/>
-
-```tsx filename="app/blog/loading.tsx" switcher
-export default function Loading() {
-  // Define the Loading UI here
-  return <div>Loading...</div>
-}
-```
-
-```jsx filename="app/blog/loading.js" switcher
-export default function Loading() {
-  // Define the Loading UI here
-  return <div>Loading...</div>
-}
-```
-
-On navigation, the user will immediately see the layout and a [loading state](#creating-meaningful-loading-states) while the page is being rendered. The new content will then be automatically swapped in once rendering is complete.
-
-<Image
-  alt="Loading UI"
-  srcLight="/docs/light/loading-ui.png"
-  srcDark="/docs/dark/loading-ui.png"
-  width="1600"
-  height="691"
-/>
-
-Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will automatically wrap the `page.js` file and any children below in a `<Suspense>` boundary.
-
-<Image
-  alt="loading.js overview"
-  srcLight="/docs/light/loading-overview.png"
-  srcDark="/docs/dark/loading-overview.png"
-  width="1600"
-  height="768"
-/>
-
-This approach works well for route segments (layouts and pages), but for more granular streaming, you can use `<Suspense>`.
-
-### With `<Suspense>`
-
-`<Suspense>` allows you to be more granular about what parts of the page to stream. For example, you can immediately show any page content that falls outside of the `<Suspense>` boundary, and stream in the list of blog posts inside the boundary.
-
-```tsx filename="app/blog/page.tsx" switcher
-import { Suspense } from 'react'
-import BlogList from '@/components/BlogList'
-import BlogListSkeleton from '@/components/BlogListSkeleton'
-
-export default function BlogPage() {
-  return (
-    <div>
-      {/* This content will be sent to the client immediately */}
-      <header>
-        <h1>Welcome to the Blog</h1>
-        <p>Read the latest posts below.</p>
-      </header>
-      <main>
-        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
-        <Suspense fallback={<BlogListSkeleton />}>
-          <BlogList />
-        </Suspense>
-      </main>
-    </div>
-  )
-}
-```
-
-```jsx filename="app/blog/page.js" switcher
-import { Suspense } from 'react'
-import BlogList from '@/components/BlogList'
-import BlogListSkeleton from '@/components/BlogListSkeleton'
-
-export default function BlogPage() {
-  return (
-    <div>
-      {/* This content will be sent to the client immediately */}
-      <header>
-        <h1>Welcome to the Blog</h1>
-        <p>Read the latest posts below.</p>
-      </header>
-      <main>
-        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
-        <Suspense fallback={<BlogListSkeleton />}>
-          <BlogList />
-        </Suspense>
-      </main>
-    </div>
-  )
-}
-```
-
-### Creating meaningful loading states
-
-An instant loading state is fallback UI that is shown immediately to the user after navigation. For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, you can use skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc.
-
-In development, you can preview and inspect the loading state of your components using the [React Devtools](https://react.dev/learn/react-developer-tools).
-
 ## Examples
 
 ### Sequential data fetching
@@ -475,7 +440,7 @@ async function Playlists({ artistID }) {
 
 In this example, `<Suspense>` allows the playlists to stream in after the artist data loads. However, the page still waits for the artist data before displaying anything. To prevent this, you can wrap the entire page component in a `<Suspense>` boundary (for example, using a [`loading.js` file](#with-loadingjs)) to show a loading state immediately.
 
-Ensure your data source can resolve the first request quickly, as it blocks everything else. If you can't optimize the request further, consider [caching](#deduplicate-requests-and-cache-data) the result if the data changes infrequently.
+Ensure your data source can resolve the first request quickly, as it blocks everything else. If you can't optimize the request further, consider [caching](/docs/app/getting-started/caching) the result if the data changes infrequently.
 
 ### Parallel data fetching
 
@@ -567,91 +532,187 @@ export default async function Page({ params }) {
 
 > **Good to know:** If one request fails when using `Promise.all`, the entire operation will fail. To handle this, you can use the [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) method instead.
 
-### Preloading data
+### Sharing data with context and `React.cache`
 
-You can preload data by creating a utility function that you eagerly call above blocking requests. `<Item>` conditionally renders based on the `checkIsAvailable()` function.
+You can share fetched data across both Server and Client Components by combining [`React.cache`](https://react.dev/reference/react/cache) with context providers.
 
-You can call `preload()` before `checkIsAvailable()` to eagerly initiate `<Item/>` data dependencies. By the time `<Item/>` is rendered, its data has already been fetched.
+Create a cached function that fetches data:
 
-```tsx filename="app/item/[id]/page.tsx" switcher
-import { getItem, checkIsAvailable } from '@/lib/data'
+```ts filename="app/lib/user.ts" switcher
+import { cache } from 'react'
 
-export default async function Page({
-  params,
+export const getUser = cache(async () => {
+  const res = await fetch('https://api.example.com/user')
+  return res.json()
+})
+```
+
+```js filename="app/lib/user.js" switcher
+import { cache } from 'react'
+
+export const getUser = cache(async () => {
+  const res = await fetch('https://api.example.com/user')
+  return res.json()
+})
+```
+
+Create a context provider that stores the promise:
+
+```tsx filename="app/user-provider.tsx" switcher
+'use client'
+
+import { createContext } from 'react'
+
+type User = {
+  id: string
+  name: string
+}
+
+export const UserContext = createContext<Promise<User> | null>(null)
+
+export default function UserProvider({
+  children,
+  userPromise,
 }: {
-  params: Promise<{ id: string }>
+  children: React.ReactNode
+  userPromise: Promise<User>
 }) {
-  const { id } = await params
-  // starting loading item data
-  preload(id)
-  // perform another asynchronous task
-  const isAvailable = await checkIsAvailable()
-
-  return isAvailable ? <Item id={id} /> : null
-}
-
-const preload = (id: string) => {
-  // void evaluates the given expression and returns undefined
-  // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
-  void getItem(id)
-}
-
-export async function Item({ id }: { id: string }) {
-  const result = await getItem(id)
-  // ...
+  return <UserContext value={userPromise}>{children}</UserContext>
 }
 ```
 
-```jsx filename="app/item/[id]/page.js" switcher
-import { getItem, checkIsAvailable } from '@/lib/data'
+```jsx filename="app/user-provider.js" switcher
+'use client'
 
-export default async function Page({ params }) {
-  const { id } = await params
-  // starting loading item data
-  preload(id)
-  // perform another asynchronous task
-  const isAvailable = await checkIsAvailable()
+import { createContext } from 'react'
 
-  return isAvailable ? <Item id={id} /> : null
+export const UserContext = createContext(null)
+
+export default function UserProvider({ children, userPromise }) {
+  return <UserContext value={userPromise}>{children}</UserContext>
 }
-
-const preload = (id) => {
-  // void evaluates the given expression and returns undefined
-  // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
-  void getItem(id)
-}
-
-export async function Item({ id }) {
-  const result = await getItem(id)
-  // ...
 ```
 
-Additionally, you can use React's [`cache` function](https://react.dev/reference/react/cache) and the [`server-only` package](https://www.npmjs.com/package/server-only) to create a reusable utility function. This approach allows you to cache the data fetching function and ensure that it's only executed on the server.
+In a layout, pass the promise to the provider without awaiting:
 
-```ts filename="utils/get-item.ts" switcher
-import { cache } from 'react'
-import 'server-only'
-import { getItem } from '@/lib/data'
+```tsx filename="app/layout.tsx" switcher
+import UserProvider from './user-provider'
+import { getUser } from './lib/user'
 
-export const preload = (id: string) => {
-  void getItem(id)
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const userPromise = getUser() // Don't await
+
+  return (
+    <html>
+      <body>
+        <UserProvider userPromise={userPromise}>{children}</UserProvider>
+      </body>
+    </html>
+  )
 }
-
-export const getItem = cache(async (id: string) => {
-  // ...
-})
 ```
 
-```js filename="utils/get-item.js" switcher
-import { cache } from 'react'
-import 'server-only'
-import { getItem } from '@/lib/data'
+```jsx filename="app/layout.js" switcher
+import UserProvider from './user-provider'
+import { getUser } from './lib/user'
 
-export const preload = (id) => {
-  void getItem(id)
+export default function RootLayout({ children }) {
+  const userPromise = getUser() // Don't await
+
+  return (
+    <html>
+      <body>
+        <UserProvider userPromise={userPromise}>{children}</UserProvider>
+      </body>
+    </html>
+  )
 }
-
-export const getItem = cache(async (id) => {
-  // ...
-})
 ```
+
+Client Components use [`use()`](https://react.dev/reference/react/use) to resolve the promise from context, wrapped in `<Suspense>` for fallback UI:
+
+```tsx filename="app/ui/profile.tsx" switcher
+'use client'
+
+import { use, useContext } from 'react'
+import { UserContext } from '../user-provider'
+
+export function Profile() {
+  const userPromise = useContext(UserContext)
+  if (!userPromise) {
+    throw new Error('useContext must be used within a UserProvider')
+  }
+  const user = use(userPromise)
+  return <p>Welcome, {user.name}</p>
+}
+```
+
+```jsx filename="app/ui/profile.js" switcher
+'use client'
+
+import { use, useContext } from 'react'
+import { UserContext } from '../user-provider'
+
+export function Profile() {
+  const userPromise = useContext(UserContext)
+  if (!userPromise) {
+    throw new Error('useContext must be used within a UserProvider')
+  }
+  const user = use(userPromise)
+  return <p>Welcome, {user.name}</p>
+}
+```
+
+```tsx filename="app/page.tsx" switcher
+import { Suspense } from 'react'
+import { Profile } from './ui/profile'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading profile...</div>}>
+      <Profile />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { Suspense } from 'react'
+import { Profile } from './ui/profile'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading profile...</div>}>
+      <Profile />
+    </Suspense>
+  )
+}
+```
+
+Server Components can also call `getUser()` directly:
+
+```tsx filename="app/dashboard/page.tsx" switcher
+import { getUser } from '../lib/user'
+
+export default async function DashboardPage() {
+  const user = await getUser() // Cached - same request, no duplicate fetch
+  return <h1>Dashboard for {user.name}</h1>
+}
+```
+
+```jsx filename="app/dashboard/page.js" switcher
+import { getUser } from '../lib/user'
+
+export default async function DashboardPage() {
+  const user = await getUser() // Cached - same request, no duplicate fetch
+  return <h1>Dashboard for {user.name}</h1>
+}
+```
+
+Since `getUser` is wrapped with `React.cache`, multiple calls within the same request return the same memoized result, whether called directly in Server Components or resolved via context in Client Components.
+
+> **Good to know**: `React.cache` is scoped to the current request only. Each request gets its own memoization scope with no sharing between requests.

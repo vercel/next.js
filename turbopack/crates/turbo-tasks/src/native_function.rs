@@ -5,7 +5,8 @@ use bincode::{Decode, Encode};
 use futures::Future;
 use once_cell::sync::Lazy;
 use tracing::Span;
-use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
+use turbo_bincode::{AnyDecodeFn, AnyEncodeFn, new_hash_encoder};
+use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
@@ -24,9 +25,17 @@ type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
 type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
 type FilterAndResolveFunctor = ResolveFunctor;
 
+/// Function pointer that encodes a task argument directly to a hasher.
+///
+/// This allows computing hashes of task arguments without intermediate buffer allocation.
+pub type AnyHashEncodeFn = fn(&dyn Any, &mut dyn DeterministicHasher);
+
 pub struct ArgMeta {
     // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
     pub bincode: (AnyEncodeFn, AnyDecodeFn<Box<dyn MagicAny>>),
+    /// Encodes the argument directly to a hasher, avoiding buffer allocation.
+    /// Uses the same encoding logic as bincode but writes to a [`DeterministicHasher`].
+    pub hash_encode: AnyHashEncodeFn,
     is_resolved: IsResolvedFunctor,
     resolve: ResolveFunctor,
     /// Used for trait methods, filters out unused arguments.
@@ -70,6 +79,11 @@ impl ArgMeta {
                     Ok(Box::new(val))
                 },
             ),
+            hash_encode: |this, hasher| {
+                let mut encoder = new_hash_encoder(hasher);
+                T::encode(any_as_encode::<T>(this), &mut encoder)
+                    .expect("encoding to hasher should not fail");
+            },
             is_resolved: |value| downcast_args_ref::<T>(value).is_resolved(),
             resolve: resolve_functor_impl::<T>,
             filter_owned,

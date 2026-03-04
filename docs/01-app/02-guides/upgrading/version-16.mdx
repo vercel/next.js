@@ -303,9 +303,9 @@ Starting with **Next.js 16**, synchronous access is fully removed. These APIs ca
 - `params` in [`layout.js`](/docs/app/api-reference/file-conventions/layout), [`page.js`](/docs/app/api-reference/file-conventions/page), [`route.js`](/docs/app/api-reference/file-conventions/route), [`default.js`](/docs/app/api-reference/file-conventions/default), [`opengraph-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image#opengraph-image), [`twitter-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image#twitter-image), [`icon`](/docs/app/api-reference/file-conventions/metadata/app-icons#icon), and [`apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons#apple-icon).
 - `searchParams` in [`page.js`](/docs/app/api-reference/file-conventions/page)
 
-Use the [codemod](/docs/app/guides/upgrading/codemods#migrate-to-async-dynamic-apis) to migrate to async Dynamic APIs.
+Use the [codemod](/docs/app/guides/upgrading/codemods#migrate-to-async-dynamic-apis) to migrate to async Request-time APIs.
 
-### Migrating types for async Dynamic APIs
+### Migrating types for async Request-time APIs
 
 To help migrate to async `params` and `searchParams`, you can run [`npx next typegen`](/docs/app/api-reference/cli/next#next-typegen-options) to automatically generate these globally available types helpers:
 
@@ -482,7 +482,7 @@ Use `revalidateTag` for content where a slight delay in updates is acceptable, s
 
 ### updateTag
 
-[`updateTag`](/docs/app/api-reference/functions/updateTag) is a new [Server Actions](/docs/app/getting-started/updating-data#what-are-server-functions)-only API that provides **read-your-writes** semantics, where a user makes a change and the UI immediately shows the change, rather than stale data.
+[`updateTag`](/docs/app/api-reference/functions/updateTag) is a new [Server Actions](/docs/app/getting-started/mutating-data#what-are-server-functions)-only API that provides **read-your-writes** semantics, where a user makes a change and the UI immediately shows the change, rather than stale data.
 
 It does this by expiring and immediately refreshing data within the same request.
 
@@ -582,9 +582,9 @@ However, you may see more individual prefetch requests with much lower total tra
 
 If the increased request count causes issues, please let us know by creating an [issue](https://github.com/vercel/next.js/issues) or [discussion](https://github.com/vercel/next.js/discussions) item.
 
-## Partial Pre-Rendering (PPR)
+## Partial Prerendering (PPR)
 
-**Next.js 16** removes the experimental **Partial Pre-Rendering (PPR)** flag and configuration options, including the route level segment `experimental_ppr`.
+**Next.js 16** removes the experimental **Partial Prerendering (PPR)** flag and configuration options, including the route level segment `experimental_ppr`.
 
 Starting with **Next.js 16**, you can opt into PPR using the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) configuration.
 
@@ -597,7 +597,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-PPR in **Next.js 16** works differently than in **Next.js 15** canaries. If you are using PPR today, stay in the current Next.js 15 canary you are using. We will follow up with a guide to migrate to Cache Components.
+PPR in **Next.js 16** works differently than in **Next.js 15** canaries. If you are using PPR today, stay in the current Next.js 15 canary you are using. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) for migration patterns.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */

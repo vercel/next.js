@@ -1293,6 +1293,12 @@ export async function setupDevBundler(opts: SetupOpts) {
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
   await installBindings(opts.nextConfig.experimental?.useWasmBinary)
+
+  // Set up code frame renderer for error formatting
+  const { installCodeFrameSupport } =
+    require('../install-code-frame') as typeof import('../install-code-frame')
+  installCodeFrameSupport()
+
   const result = await startWatcher({
     ...opts,
     isSrcDir,
