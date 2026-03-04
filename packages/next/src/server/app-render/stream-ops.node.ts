@@ -85,7 +85,7 @@ export type FizzStreamResult = {
 
 type WebReadableStream = import('stream/web').ReadableStream
 
-function readableToWeb(
+function nodeReadableToWebReadableStream(
   stream: Readable | ReadableStream<Uint8Array>
 ): ReadableStream<Uint8Array> {
   if (stream instanceof ReadableStream) {
@@ -243,13 +243,13 @@ export async function continueFizzStream(
   const webOpts = {
     ...opts,
     inlinedDataStream: opts.inlinedDataStream
-      ? readableToWeb(opts.inlinedDataStream)
+      ? nodeReadableToWebReadableStream(opts.inlinedDataStream)
       : undefined,
   }
   // The web continueFizzStream reads renderStream.allReady from the stream
   // object itself (ReactDOMServerReadableStream). A plain ReadableStream from
   // readableToWeb() won't have that property, so we attach it from opts.
-  const webStream = readableToWeb(renderStream)
+  const webStream = nodeReadableToWebReadableStream(renderStream)
   const fizzLike = Object.assign(webStream, {
     allReady: opts.allReady ?? Promise.resolve(),
   }) as ReactDOMServerReadableStream
@@ -262,10 +262,12 @@ export async function continueStaticPrerender(
   opts: import('./stream-ops.web').ContinueStaticPrerenderOptions
 ): Promise<AnyStream> {
   const webResult = await webContinueStaticPrerender(
-    readableToWeb(prerenderStream),
+    nodeReadableToWebReadableStream(prerenderStream),
     {
       ...opts,
-      inlinedDataStream: readableToWeb(opts.inlinedDataStream),
+      inlinedDataStream: nodeReadableToWebReadableStream(
+        opts.inlinedDataStream
+      ),
     }
   )
   return webToReadable(webResult)
@@ -280,7 +282,7 @@ export async function continueDynamicPrerender(
   }
 ): Promise<AnyStream> {
   const webResult = await webContinueDynamicPrerender(
-    readableToWeb(prerenderStream),
+    nodeReadableToWebReadableStream(prerenderStream),
     opts
   )
   return webToReadable(webResult)
@@ -291,10 +293,12 @@ export async function continueStaticFallbackPrerender(
   opts: import('./stream-ops.web').ContinueStaticPrerenderOptions
 ): Promise<AnyStream> {
   const webResult = await webContinueStaticFallbackPrerender(
-    readableToWeb(prerenderStream),
+    nodeReadableToWebReadableStream(prerenderStream),
     {
       ...opts,
-      inlinedDataStream: readableToWeb(opts.inlinedDataStream),
+      inlinedDataStream: nodeReadableToWebReadableStream(
+        opts.inlinedDataStream
+      ),
     }
   )
   return webToReadable(webResult)
@@ -305,10 +309,12 @@ export async function continueDynamicHTMLResume(
   opts: import('./stream-ops.web').ContinueDynamicHTMLResumeOptions
 ): Promise<AnyStream> {
   const webResult = await webContinueDynamicHTMLResume(
-    readableToWeb(renderStream),
+    nodeReadableToWebReadableStream(renderStream),
     {
       ...opts,
-      inlinedDataStream: readableToWeb(opts.inlinedDataStream),
+      inlinedDataStream: nodeReadableToWebReadableStream(
+        opts.inlinedDataStream
+      ),
     }
   )
   return webToReadable(webResult)
@@ -348,7 +354,7 @@ export function chainStreams(...streams: AnyStream[]): AnyStream {
 }
 
 export async function streamToBuffer(stream: AnyStream): Promise<Buffer> {
-  return webStreamToBuffer(readableToWeb(stream))
+  return webStreamToBuffer(nodeReadableToWebReadableStream(stream))
 }
 
 export async function streamToUint8Array(
@@ -362,7 +368,7 @@ export async function streamToUint8Array(
 }
 
 export async function streamToString(stream: AnyStream): Promise<string> {
-  return webStreamToString(readableToWeb(stream))
+  return webStreamToString(nodeReadableToWebReadableStream(stream))
 }
 
 export function createInlinedDataStream(
@@ -370,7 +376,7 @@ export function createInlinedDataStream(
   nonce: string | undefined,
   formState: unknown | null
 ): AnyStream {
-  const webSource = readableToWeb(source)
+  const webSource = nodeReadableToWebReadableStream(source)
   const webResult = createInlinedDataReadableStream(webSource, nonce, formState)
   return webToReadable(webResult)
 }
@@ -400,7 +406,7 @@ export function pipeRuntimePrefetchTransform(
   isPartial: boolean,
   staleTime: number
 ): AnyStream {
-  const webStream = readableToWeb(stream)
+  const webStream = nodeReadableToWebReadableStream(stream)
   const transformed = webStream.pipeThrough(
     createRuntimePrefetchTransformStream(sentinel, isPartial, staleTime)
   )
@@ -412,7 +418,8 @@ export function pipeRuntimePrefetchTransform(
 // ---------------------------------------------------------------------------
 
 export async function processPrelude(unprocessedPrelude: AnyStream) {
-  const [prelude, peek] = readableToWeb(unprocessedPrelude).tee()
+  const [prelude, peek] =
+    nodeReadableToWebReadableStream(unprocessedPrelude).tee()
 
   const reader = peek.getReader()
   const firstResult = await reader.read()
@@ -434,6 +441,6 @@ export const getClientPrerender: typeof import('react-dom/static').prerender =
   prerender
 
 export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
-  const [s1, s2] = readableToWeb(stream).tee()
+  const [s1, s2] = nodeReadableToWebReadableStream(stream).tee()
   return [webToReadable(s1), webToReadable(s2)]
 }
