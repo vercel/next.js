@@ -73,7 +73,8 @@
       { "type": "user", "pattern": "manovotny" },
       { "type": "user", "pattern": "molebox" },
       { "type": "user", "pattern": "timeyoutakeit" },
-      { "type": "user", "pattern": "icyJoseph" }
+      { "type": "user", "pattern": "icyJoseph" },
+      { "type": "user", "pattern": "aurorascharff" }
     ],
     "created-by: Turbopack team": [
       { "type": "user", "pattern": "andrewimm" },
