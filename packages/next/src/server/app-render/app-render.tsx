@@ -509,6 +509,7 @@ async function generateDynamicRSCPayload(
     skipPageRendering?: boolean
     staleTimeIterable?: AsyncIterable<number>
     staticStageByteLengthPromise?: Promise<number>
+    runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<RSCPayload> {
   // Flight data that is going to be passed to the browser.
@@ -648,6 +649,10 @@ async function generateDynamicRSCPayload(
     baseResponse.l = options.staticStageByteLengthPromise
   }
 
+  if (options?.runtimePrefetchStream !== undefined) {
+    baseResponse.p = options.runtimePrefetchStream
+  }
+
   return baseResponse
 }
 
@@ -755,7 +760,8 @@ async function generateStagedDynamicFlightRenderResult(
   requestStore: RequestStore
 ): Promise<RenderResult> {
   const { componentMod, workStore, renderOpts } = ctx
-  const { renderToReadableStream } = componentMod
+  const { renderToReadableStream, routeModule } = componentMod
+  const { loaderTree } = routeModule.userland
   const { onInstrumentationRequestError, experimental } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
@@ -803,11 +809,53 @@ async function generateStagedDynamicFlightRenderResult(
     resolveStaticStageByteLength = resolve
   })
 
+  // Check if this route has opted into runtime prefetching via
+  // unstable_instant. If so, we piggyback on the dynamic render to fill caches
+  // and then spawn a final runtime prerender whose result stream is embedded in
+  // the RSC payload. This is gated on the explicit opt-in because it adds extra
+  // server processing, increases the response payload size, and the runtime
+  // prefetch output should have been validated first.
+  const hasRuntimePrefetch =
+    await anySegmentHasRuntimePrefetchEnabled(loaderTree)
+
+  let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
+
+  if (hasRuntimePrefetch) {
+    // Create a mutable cache that gets filled during the dynamic render.
+    const prerenderResumeDataCache = createPrerenderResumeDataCache()
+    requestStore.prerenderResumeDataCache = prerenderResumeDataCache
+
+    const cacheSignal = new CacheSignal()
+    trackPendingModules(cacheSignal)
+    requestStore.cacheSignal = cacheSignal
+
+    // Create a deferred stream for the runtime prefetch result. Its readable
+    // side goes into the RSC payload (Flight serializes it lazily). The
+    // writable side receives the runtime prerender result once the dynamic
+    // render has filled all caches.
+    const runtimePrefetchTransform = new TransformStream<Uint8Array>()
+    runtimePrefetchStream = runtimePrefetchTransform.readable
+
+    // Wait for the dynamic render to fill caches, then run the final runtime
+    // prerender (fire-and-forget — does not block the response).
+    void cacheSignal
+      .cacheReady()
+      .then(() =>
+        spawnRuntimePrefetchDuringNavigation(
+          runtimePrefetchTransform.writable,
+          ctx,
+          prerenderResumeDataCache,
+          requestStore,
+          onError
+        )
+      )
+  }
+
   const rscPayload = await workUnitAsyncStorage.run(
     requestStore,
     generateDynamicRSCPayload,
     ctx,
-    { staleTimeIterable, staticStageByteLengthPromise }
+    { staleTimeIterable, staticStageByteLengthPromise, runtimePrefetchStream }
   )
 
   const { clientModules } = getClientReferenceManifest()
@@ -846,6 +894,49 @@ async function generateStagedDynamicFlightRenderResult(
   return new FlightRenderResult(flightReadableStream, {
     fetchMetrics: workStore.fetchMetrics,
   })
+}
+
+/**
+ * Runs a final runtime prerender using the provided (already filled) cache and
+ * pipes its output into the provided writable stream. The caller is responsible
+ * for waiting until caches are warm before calling this function.
+ */
+async function spawnRuntimePrefetchDuringNavigation(
+  writable: WritableStream<Uint8Array>,
+  ctx: AppRenderContext,
+  prerenderResumeDataCache: PrerenderResumeDataCache,
+  requestStore: RequestStore,
+  onError: (err: unknown) => string | undefined
+): Promise<void> {
+  try {
+    const { componentMod, getDynamicParamFromSegment } = ctx
+    const { loaderTree } = componentMod.routeModule.userland
+    const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
+    const staleTimeIterable = new StaleTimeIterable()
+
+    const { result } = await finalRuntimeServerPrerender(
+      ctx,
+      generateDynamicRSCPayload.bind(null, ctx, { staleTimeIterable }),
+      prerenderResumeDataCache,
+      null, // renderResumeDataCache
+      rootParams,
+      requestStore.headers,
+      requestStore.cookies,
+      requestStore.draftMode,
+      onError,
+      staleTimeIterable
+    )
+
+    await result.prelude.pipeTo(writable)
+  } catch {
+    // Runtime prerender failed. Close the stream gracefully — the navigation
+    // still works, we just won't get cached runtime data.
+    try {
+      await writable.close()
+    } catch {
+      // Writable may already be closed/errored.
+    }
+  }
 }
 
 type RenderToReadableStreamServerOptions = NonNullable<

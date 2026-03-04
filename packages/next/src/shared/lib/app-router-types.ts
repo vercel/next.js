@@ -286,6 +286,8 @@ export type NavigationFlightResponse = {
   l?: Promise<number>
   /** headVaryParams */
   h: VaryParamsThenable | null
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

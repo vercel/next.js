@@ -403,6 +403,160 @@ describe('cached navigations', () => {
     )
   })
 
+  it('caches runtime-prefetchable content from a navigation for instant second visit', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+        await page.clock.install()
+      },
+    })
+    const act = createRouterAct(page)
+
+    // First navigation — full dynamic request, no prefetch
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/runtime-prefetchable"]').click()
+      },
+      { includes: 'Dynamic content' }
+    )
+
+    // Verify all content is visible
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(
+      await browser.elementById('search-params-boundary').text()
+    ).toContain('Search params:')
+    expect(await browser.elementById('cookies-boundary').text()).toContain(
+      'Cookie:'
+    )
+    expect(await browser.elementById('headers-boundary').text()).toContain(
+      'Header:'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+
+    // Navigate back to home
+    await browser.back()
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Second navigation — no time has passed, so both the static cache
+    // (stale: 120s) and the runtime cache (stale: 30s from the
+    // short-lived cache entry in CookiesContent) should still be fresh.
+    // With unstable_instant { prefetch: 'runtime' }, runtime-prefetchable
+    // content (cookies, headers, searchParams) should be cached from the
+    // first navigation and show instantly alongside the static content.
+    // Only truly dynamic content (connection()) needs a server request.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser.elementByCss('a[href="/runtime-prefetchable"]').click()
+        },
+        {
+          includes: 'Dynamic content',
+          block: true,
+        }
+      )
+
+      // Static cached content should be visible
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+
+      // Runtime-prefetchable content should also be visible (cached from
+      // the first navigation's embedded runtime prefetch stream)
+      expect(
+        await browser.elementById('search-params-boundary').text()
+      ).toContain('Search params:')
+      expect(await browser.elementById('cookies-boundary').text()).toContain(
+        'Cookie:'
+      )
+      expect(await browser.elementById('headers-boundary').text()).toContain(
+        'Header:'
+      )
+
+      // Only connection() content should show a Suspense fallback — it's
+      // truly dynamic and not runtime-prefetchable
+      expect(await browser.elementById('connection-boundary').text()).toBe(
+        'Loading connection...'
+      )
+    })
+
+    // After unblocking, all content should be visible
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(
+      await browser.elementById('search-params-boundary').text()
+    ).toContain('Search params:')
+    expect(await browser.elementById('cookies-boundary').text()).toContain(
+      'Cookie:'
+    )
+    expect(await browser.elementById('headers-boundary').text()).toContain(
+      'Header:'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+
+    // Navigate back to home again
+    await browser.back()
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Fast-forward past the runtime cache's stale time (30s).
+    await page.clock.fastForward(60_000)
+
+    // Third navigation — runtime cache is stale. Verify the navigation
+    // blocks on a full server request (nothing is cached).
+    //
+    // TODO: Ideally, the static cache (120s stale) should survive and show
+    // static content instantly even after the runtime cache expires. Currently
+    // the runtime prefetch write (PPRRuntime) evicts the static cache entry
+    // (PPR) via the fallback lookup in upsertSegmentEntry, so there's no
+    // static fallback after the runtime entry expires. This needs a layered
+    // cache approach where entries with different fetch strategies / stale
+    // times coexist independently.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser.elementByCss('a[href="/runtime-prefetchable"]').click()
+        },
+        {
+          includes: 'Dynamic content',
+          block: true,
+        }
+      )
+
+      // With a stale cache, nothing from the target page should be visible
+      // while the request is blocked. The navigation stays on the home page.
+      const mainText = await (await browser.elementByCss('main')).innerText()
+      expect(mainText).not.toContain('Cached content')
+      expect(mainText).not.toContain('Search params:')
+      expect(mainText).not.toContain('Cookie:')
+      expect(mainText).not.toContain('Header:')
+      expect(mainText).not.toContain('Dynamic content')
+    })
+
+    // After unblocking, all content should be visible
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(
+      await browser.elementById('search-params-boundary').text()
+    ).toContain('Search params:')
+    expect(await browser.elementById('cookies-boundary').text()).toContain(
+      'Cookie:'
+    )
+    expect(await browser.elementById('headers-boundary').text()).toContain(
+      'Header:'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+  })
+
   it('caches a fully static page from the initial HTML for subsequent navigations', async () => {
     let page: Playwright.Page
     // Start directly at /fully-static — full HTML load, not a client-side
