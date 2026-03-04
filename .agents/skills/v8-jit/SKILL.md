@@ -82,12 +82,16 @@ class RequestContext {
 - Assign every property in the constructor, in the same order, for every
   instance. Use `null` / `undefined` / `false` as default values rather than
   omitting the property.
+- Prefer factory functions when constructing hot-path objects. A single factory
+  makes it harder to accidentally fork shapes in different call sites.
 - Never `delete` a property on a hot object — it forces a transition to
   dictionary mode (slow properties).
 - Avoid adding properties after construction (`obj.newProp = x`) on objects
   used in hot paths.
 - Object literals that flow into the same function should have keys in the
   same order:
+- Use tuples for very small fixed-size records when names are not needed.
+  Tuples avoid key-order pitfalls entirely.
 
 ```ts
 // GOOD — same key order, shares hidden class
@@ -164,20 +168,25 @@ or per-request paths generates GC pressure and can prevent escape analysis.
 ### Hoist Closures Out of Hot Paths
 
 ```ts
-// BAD — new closure per request
+// BAD — closure allocated for every request
 function handleRequest(req) {
-  const transform = (chunk) => processChunk(chunk, req.id)
-  stream.on('data', transform)
+  stream.on('data', (chunk) => processChunk(chunk, req.id))
 }
 
-// GOOD — reuse a bound function or pass context explicitly
-function processChunkWithId(chunk, id) {
+// GOOD — shared listener, request context looked up by stream
+const requestIdByStream = new WeakMap()
+function onData(chunk) {
+  const id = requestIdByStream.get(this)
+  if (id !== undefined) processChunk(chunk, id)
+}
+
+function processChunk(chunk, id) {
   /* ... */
 }
 
 function handleRequest(req) {
-  stream.on('data', (chunk) => processChunkWithId(chunk, req.id))
-  // Or better: use a class/object that carries context
+  requestIdByStream.set(stream, req.id)
+  stream.on('data', onData)
 }
 ```
 
@@ -239,7 +248,9 @@ it never goes back.
   Prefer `[]` and `push()`, or use `Array.from({ length: n }, initFn)`.
 - Don't create holes: `arr[100] = x` on an empty array creates 100 holes.
 - Don't mix types: `[1, 'two', {}]` immediately becomes `PACKED_ELEMENTS`.
-- For numeric-heavy code, use typed arrays (`Uint8Array`, `Float64Array`).
+- Prefer typed arrays only when you need binary interop/contiguous memory or
+  have profiling evidence that they help. For small/short-lived collections,
+  normal arrays can be faster and allocate less.
 
 ```ts
 // GOOD — packed SMI array
@@ -262,22 +273,16 @@ throughout its lifetime.
 
 ## Function Optimization and Deopts
 
-### What Triggers Deoptimization
+### Hot-Path Deopt Footguns
 
-- **Type changes**: a variable that was always a number suddenly becomes a
-  string.
-- **Hidden class mismatches**: an object's shape doesn't match what Turbofan
-  expected.
 - **`arguments` object**: using `arguments` in non-trivial ways (e.g.
   `arguments[i]` with variable `i`, leaking `arguments`). Use rest params
   instead.
-- **`try/catch` in hot functions**: historically problematic; modern V8
-  handles this, but the `catch` block can still cause deopts if it introduces
-  new types. Keep `try/catch` at function boundaries, not inside tight loops.
+- **Type instability at one call site**: same operation sees both numbers and
+  strings (or many object shapes) and becomes polymorphic/megamorphic.
 - **`eval` / `with`**: prevents optimization entirely.
-- **`for...in`** on objects with prototype properties or non-enumerable
-  properties: use `Object.keys()` or `for...of Object.entries()`.
-- **Polymorphic/megamorphic operations** (see above).
+- **Highly dynamic object iteration**: avoid `for...in` on hot objects; prefer
+  `Object.keys()` / `Object.entries()` when possible.
 
 ### Favor Predictable Control Flow
 
@@ -297,10 +302,10 @@ function getStatus(code: number): string | null | undefined {
 }
 ```
 
-### Avoid Megamorphic `switch` on Shapes
+### Watch Shape Diversity in `switch` Dispatch
 
 ```ts
-// BAD — each case creates/accesses different shapes
+// WATCH OUT — `node.type` IC can go megamorphic if many shapes hit one site
 function render(node) {
   switch (node.type) {
     case 'div':
@@ -309,19 +314,20 @@ function render(node) {
       return { tag: 'span', text: node.text }
     case 'img':
       return { src: node.src, alt: node.alt }
-    // 10+ cases → megamorphic property access on `node`
+    // Many distinct node layouts can make this dispatch site polymorphic
   }
 }
 ```
 
-If `node` has 5+ different shapes flowing into one site, V8's IC goes
-megamorphic. Consider: (a) normalizing node shapes to a common structure, or
-(b) splitting into per-type functions.
+This pattern is not always bad. Often the main pressure is at the shared
+dispatch site (`node.type`), while properties used only in one branch stay
+monomorphic within that branch. Reach for normalization/splitting only when
+profiles show this site is hot and polymorphic.
 
 ## String Operations
 
-- **Avoid repeated string concatenation in loops** — use array `push()` +
-  `join('')`, or `Buffer.concat()` for binary data.
+- **String concatenation in loops is usually fine in modern V8** (ropes make
+  many concatenations cheap). For binary data, use `Buffer.concat()`.
 - **Template literals vs concatenation**: equivalent performance in modern V8,
   but template literals are clearer.
 - **`string.indexOf()` > regex** for simple substring checks.
