@@ -1,6 +1,6 @@
 use std::{
-    cell::UnsafeCell, fs::create_dir_all, marker::PhantomData, mem::transmute, ops::Deref,
-    path::Path, sync::Arc, thread::available_parallelism,
+    fs::create_dir_all, marker::PhantomData, mem::transmute, ops::Deref, path::Path, sync::Arc,
+    thread::available_parallelism,
 };
 
 use anyhow::{Context, Result};
@@ -9,7 +9,6 @@ use lmdb::{
     Database, DatabaseFlags, Environment, EnvironmentFlags, RoTransaction, RwTransaction,
     Transaction, WriteFlags,
 };
-use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::database::{
@@ -19,15 +18,9 @@ use crate::database::{
 
 mod extended_key;
 
-type ReadTransactionsCache = ThreadLocal<ThreadLocalReadTransactionsContainer>;
+type ReadTransactionsCache = ThreadLocal<SendRoTransaction>;
 
 struct SendRoTransaction(RoTransaction<'static>);
-
-impl SendRoTransaction {
-    fn into_inner(self) -> RoTransaction<'static> {
-        self.0
-    }
-}
 
 impl Deref for SendRoTransaction {
     type Target = RoTransaction<'static>;
@@ -46,45 +39,11 @@ impl Deref for SendRoTransaction {
 // time.
 unsafe impl Send for SendRoTransaction {}
 
-struct ThreadLocalReadTransactionsContainer(UnsafeCell<SmallVec<[SendRoTransaction; 4]>>);
-
-impl ThreadLocalReadTransactionsContainer {
-    unsafe fn pop(&self) -> Option<RoTransaction<'static>> {
-        let vec = unsafe { &mut *self.0.get() };
-        vec.pop().map(SendRoTransaction::into_inner)
-    }
-
-    unsafe fn push(&self, tx: RoTransaction<'static>) {
-        let vec = unsafe { &mut *self.0.get() };
-        vec.push(SendRoTransaction(tx))
-    }
-}
-
-struct LmdbReadTransactionGuardInner {
-    tx: Option<SendRoTransaction>,
-    // Keep this generation alive so dropped read txs return to the same cache generation.
-    thread_locals: Arc<ReadTransactionsCache>,
-}
-
-impl Drop for LmdbReadTransactionGuardInner {
-    fn drop(&mut self) {
-        let container = self
-            .thread_locals
-            .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
-        // Safety: put back into this thread's local cache.
-        unsafe {
-            container.push(self.tx.take().unwrap().into_inner());
-        }
-    }
-}
-
 #[derive(Clone)]
-struct LmdbReadTransactionGuard(Arc<LmdbReadTransactionGuardInner>);
-
-impl LmdbReadTransactionGuard {
-    fn transaction(&self) -> &RoTransaction<'static> {
-        self.0.tx.as_ref().unwrap()
-    }
+struct LmdbReadTransactionGuard {
+    // Keep this generation alive so the borrowed read transaction (and value pointers from it)
+    // remain valid until all value buffers/guards from that generation are dropped.
+    _thread_locals: Arc<ReadTransactionsCache>,
 }
 
 pub struct LmdbValueBuffer<'l> {
@@ -165,27 +124,25 @@ impl LmbdKeyValueDatabase {
         }
     }
 
-    fn acquire_read_transaction_guard(&self) -> LmdbReadTransactionGuard {
+    fn with_read_tx<R>(
+        &self,
+        f: impl FnOnce(&RoTransaction<'static>, LmdbReadTransactionGuard) -> Result<R>,
+    ) -> Result<R> {
         let thread_locals = self.read_transactions_cache.load().clone();
-        let container = thread_locals
-            .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
-
-        // Safety: container is thread-local.
-        let tx = if let Some(tx) = unsafe { container.pop() } {
-            SendRoTransaction(tx)
-        } else {
+        let guard_thread_locals = thread_locals.clone();
+        let tx = thread_locals.get_or(|| {
             let tx = self.env.begin_ro_txn().unwrap_or_else(|err| {
                 panic!("failed to begin LMDB read transaction: {err}");
             });
             // Safety: `read_transactions_cache` is dropped before `env`, so cached transactions
             // never outlive the LMDB environment.
             SendRoTransaction(unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) })
-        };
+        });
 
-        LmdbReadTransactionGuard(Arc::new(LmdbReadTransactionGuardInner {
-            tx: Some(tx),
-            thread_locals,
-        }))
+        let guard = LmdbReadTransactionGuard {
+            _thread_locals: guard_thread_locals,
+        };
+        f(tx, guard)
     }
 
     fn get_from_tx<'tx>(
@@ -209,33 +166,16 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>> {
-        let guard = self.acquire_read_transaction_guard();
-        let Some((ptr, len)) = ({
-            let tx = guard.transaction();
-            Self::get_from_tx(tx, self.db(key_space), key)?
-                .map(|value| (value.as_ptr(), value.len()))
-        }) else {
-            return Ok(None);
-        };
-        Ok(Some(LmdbValueBuffer::from_raw_parts(ptr, len, guard)))
-    }
-
-    fn get_multiple<'l>(
-        &'l self,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
-        let guard = self.acquire_read_transaction_guard();
-        let Some((ptr, len)) = ({
-            let tx = guard.transaction();
-            Self::get_from_tx(tx, self.db(key_space), key)?
-                .map(|value| (value.as_ptr(), value.len()))
-        }) else {
-            return Ok(SmallVec::new());
-        };
-        Ok(SmallVec::from_iter([LmdbValueBuffer::from_raw_parts(
-            ptr, len, guard,
-        )]))
+        self.with_read_tx(|tx, guard| {
+            let Some(value) = Self::get_from_tx(tx, self.db(key_space), key)? else {
+                return Ok(None);
+            };
+            Ok(Some(LmdbValueBuffer::from_raw_parts(
+                value.as_ptr(),
+                value.len(),
+                guard,
+            )))
+        })
     }
 
     fn batch_get<'l>(
@@ -243,17 +183,17 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
         key_space: KeySpace,
         keys: &[&[u8]],
     ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
-        let guard = self.acquire_read_transaction_guard();
-        let tx = guard.transaction();
-        let db = self.db(key_space);
-        keys.iter()
-            .map(|key| {
-                let value = Self::get_from_tx(tx, db, key)?;
-                Ok(value.map(|value| {
-                    LmdbValueBuffer::from_raw_parts(value.as_ptr(), value.len(), guard.clone())
-                }))
-            })
-            .collect()
+        self.with_read_tx(|tx, guard| {
+            let db = self.db(key_space);
+            keys.iter()
+                .map(|key| {
+                    let value = Self::get_from_tx(tx, db, key)?;
+                    Ok(value.map(|value| {
+                        LmdbValueBuffer::from_raw_parts(value.as_ptr(), value.len(), guard.clone())
+                    }))
+                })
+                .collect()
+        })
     }
 
     type SerialWriteBatch<'l>
