@@ -34,8 +34,6 @@ type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 /// Contains a list of traits and trait methods that are available on that type.
 pub struct ValueType {
     pub ty: RegistryType,
-    /// Returns the TypeId of the concrete type this ValueType represents.
-    type_id: TypeId,
 
     /// Functions to convert to write the type to a buffer or read it from a buffer.
     pub bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
@@ -158,8 +156,7 @@ impl ValueType {
         bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
     ) -> Self {
         Self {
-            ty: RegistryType::new(std::any::type_name::<T>(), global_name),
-            type_id: TypeId::of::<T>(),
+            ty: RegistryType::new::<T>(std::any::type_name::<T>(), global_name),
             bincode,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
             traits: SyncUnsafeCell::new(ValueTypeTraits {
@@ -171,7 +168,7 @@ impl ValueType {
 
     /// Returns the TypeId of the concrete type this ValueType represents.
     pub fn type_id(&self) -> TypeId {
-        self.type_id
+        self.ty.type_id
     }
 
     /// Access trait info for reading.
@@ -309,6 +306,17 @@ impl Display for TraitType {
 }
 
 impl TraitType {
+    pub const fn new<T: 'static>(
+        name: &'static str,
+        global_name: &'static str,
+        methods: phf::Map<&'static str, TraitMethod>,
+    ) -> Self {
+        Self {
+            ty: RegistryType::new::<T>(name, global_name),
+            methods,
+        }
+    }
+
     pub fn get(&self, name: &str) -> &TraitMethod {
         self.methods.get(name).unwrap()
     }

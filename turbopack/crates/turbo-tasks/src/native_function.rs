@@ -204,15 +204,15 @@ impl Debug for NativeFunction {
 }
 
 impl NativeFunction {
-    pub const fn new(
+    pub const fn new<T: TaskFn>(
         name: &'static str,
         global_name: &'static str,
         arg_meta: ArgMeta,
-        implementation: &'static dyn TaskFn,
+        implementation: &'static T,
         is_root: bool,
     ) -> Self {
         Self {
-            ty: RegistryType::new(name, global_name),
+            ty: RegistryType::new::<T>(name, global_name),
             arg_meta,
             implementation,
             is_root,

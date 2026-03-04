@@ -310,15 +310,13 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         turbo_tasks::macro_helpers::turbo_register!(
             #trait_type_ident: turbo_tasks::TraitType = {
                 use turbo_tasks::macro_helpers::{phf, phf::phf_map};
-                turbo_tasks::TraitType {
-                    ty: turbo_tasks::registry::RegistryType::new(
-                        stringify!(#trait_ident),
-                        #trait_name,
-                    ),
-                    methods: phf_map! {
+                turbo_tasks::TraitType::new::<&'static dyn #trait_ident>(
+                    stringify!(#trait_ident),
+                    #trait_name,
+                    phf_map! {
                         #(#trait_methods)*
                     },
-                }
+                )
             }
         );
 
