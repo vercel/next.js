@@ -82,7 +82,7 @@ export function createInitialRouterState({
   // route learning nor segment cache state persists from SSR to client.
   if (location !== null && metadataVaryPath !== null) {
     // Learn the route pattern so we can predict it for future navigations.
-    const route = discoverKnownRoute(
+    discoverKnownRoute(
       Date.now(),
       location.pathname,
       null, // nextUrl — initial render is never an interception
@@ -109,7 +109,8 @@ export function createInitialRouterState({
             undefined, // buildId — not applicable for initial HTML
             initialHeadVaryParams,
             staleAt,
-            route,
+            initialTree,
+            initialRenderedSearch,
             false // isResponsePartial
           )
         })

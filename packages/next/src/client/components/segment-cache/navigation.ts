@@ -393,7 +393,7 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
   if (metadataVaryPath !== null) {
-    const fulfilledRoute = discoverKnownRoute(
+    discoverKnownRoute(
       now,
       url.pathname,
       nextUrl,
@@ -424,7 +424,8 @@ async function navigateToUnknownRoute(
             buildId,
             staticStageResponse.h,
             staleAt,
-            fulfilledRoute,
+            currentFlightRouterState,
+            renderedSearch,
             isResponsePartial
           )
         })

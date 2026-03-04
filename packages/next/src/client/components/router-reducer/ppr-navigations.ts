@@ -1600,7 +1600,8 @@ async function fetchMissingDynamicData(
             buildId,
             staticStageResponse.h,
             staleAt,
-            routeCacheEntry,
+            dynamicRequestTree,
+            result.renderedSearch,
             isResponsePartial
           )
         })
