@@ -1,15 +1,10 @@
-use std::{
-    fs::create_dir_all, marker::PhantomData, mem::transmute, ops::Deref, path::Path, sync::Arc,
-    thread::available_parallelism,
-};
+use std::{fs::create_dir_all, marker::PhantomData, path::Path, thread::available_parallelism};
 
 use anyhow::{Context, Result};
-use arc_swap::ArcSwap;
 use lmdb::{
     Database, DatabaseFlags, Environment, EnvironmentFlags, RoTransaction, RwTransaction,
     Transaction, WriteFlags,
 };
-use thread_local::ThreadLocal;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -17,44 +12,17 @@ use crate::database::{
 };
 
 mod extended_key;
-
-type ReadTransactionsCache = ThreadLocal<SendRoTransaction>;
-
-struct SendRoTransaction(RoTransaction<'static>);
-
-impl Deref for SendRoTransaction {
-    type Target = RoTransaction<'static>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-// Safety: We open LMDB with `EnvironmentFlags::NO_TLS` (see `new()` below), which relaxes
-// the default thread-local reader-slot behavior for read-only transactions.
-// LMDB docs: https://github.com/mozilla/lmdb/blob/205300e8aec/libraries/liblmdb/lmdb.h#L576-L584
-//
-// We still do not use a transaction concurrently from multiple threads. This `Send` wrapper only
-// allows moving ownership between threads when `ThreadLocal` internals move stored values at drop
-// time.
-unsafe impl Send for SendRoTransaction {}
-
-#[derive(Clone)]
-struct LmdbReadTransactionGuard {
-    // Keep this generation alive so the borrowed read transaction (and value pointers from it)
-    // remain valid until all value buffers/guards from that generation are dropped.
-    _thread_locals: Arc<ReadTransactionsCache>,
-}
+mod read_tx_cache;
 
 pub struct LmdbValueBuffer<'l> {
     ptr: *const u8,
     len: usize,
-    _guard: LmdbReadTransactionGuard,
+    _guard: read_tx_cache::ReadTxGuard,
     _marker: PhantomData<&'l LmbdKeyValueDatabase>,
 }
 
 impl<'l> LmdbValueBuffer<'l> {
-    fn from_raw_parts(ptr: *const u8, len: usize, guard: LmdbReadTransactionGuard) -> Self {
+    fn from_raw_parts(ptr: *const u8, len: usize, guard: read_tx_cache::ReadTxGuard) -> Self {
         Self {
             ptr,
             len,
@@ -73,8 +41,8 @@ impl AsRef<[u8]> for LmdbValueBuffer<'_> {
 }
 
 pub struct LmbdKeyValueDatabase {
-    // Safety: must be dropped before `env`, as dropping cached transactions accesses LMDB env.
-    read_transactions_cache: ArcSwap<ReadTransactionsCache>,
+    // Safety: this cache must be dropped before `env`.
+    read_tx_cache: read_tx_cache::ReadTxCache,
     env: Environment,
     infra_db: Database,
     data_db: Database,
@@ -106,7 +74,7 @@ impl LmbdKeyValueDatabase {
         let meta_db = env.create_db(Some("meta"), DatabaseFlags::INTEGER_KEY)?;
         let task_cache_db = env.create_db(Some("task_cache"), DatabaseFlags::empty())?;
         Ok(LmbdKeyValueDatabase {
-            read_transactions_cache: ArcSwap::new(Arc::new(ThreadLocal::new())),
+            read_tx_cache: read_tx_cache::ReadTxCache::new(),
             env,
             infra_db,
             data_db,
@@ -126,23 +94,9 @@ impl LmbdKeyValueDatabase {
 
     fn with_read_tx<R>(
         &self,
-        f: impl FnOnce(&RoTransaction<'static>, LmdbReadTransactionGuard) -> Result<R>,
+        f: impl FnOnce(&RoTransaction<'static>, read_tx_cache::ReadTxGuard) -> Result<R>,
     ) -> Result<R> {
-        let thread_locals = self.read_transactions_cache.load().clone();
-        let guard_thread_locals = thread_locals.clone();
-        let tx = thread_locals.get_or(|| {
-            let tx = self.env.begin_ro_txn().unwrap_or_else(|err| {
-                panic!("failed to begin LMDB read transaction: {err}");
-            });
-            // Safety: `read_transactions_cache` is dropped before `env`, so cached transactions
-            // never outlive the LMDB environment.
-            SendRoTransaction(unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) })
-        });
-
-        let guard = LmdbReadTransactionGuard {
-            _thread_locals: guard_thread_locals,
-        };
-        f(tx, guard)
+        self.read_tx_cache.with_read_tx(&self.env, f)
     }
 
     fn get_from_tx<'tx>(
@@ -233,9 +187,7 @@ impl<'a> BaseWriteBatch<'a> for LmbdWriteBatch<'a> {
     fn commit(self) -> Result<()> {
         self.tx.commit()?;
         // Swap generation after commit so new reads don't reuse old read transactions.
-        self.this
-            .read_transactions_cache
-            .store(Arc::new(ThreadLocal::new()));
+        self.this.read_tx_cache.swap_generation();
         Ok(())
     }
 }
