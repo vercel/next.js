@@ -18,4 +18,5 @@ mime = { workspace = true }
 ringmap = { workspace = true }
 serde = { workspace = true }
 smallvec = { workspace = true }
+turbo-tasks-hash = { workspace = true }
 unty = { workspace = true }
