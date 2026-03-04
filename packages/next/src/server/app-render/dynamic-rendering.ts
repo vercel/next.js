@@ -28,7 +28,6 @@ import type {
   ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 
-// Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
@@ -50,8 +49,6 @@ import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { INSTANT_VALIDATION_BOUNDARY_NAME } from './instant-validation/boundary-constants'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
-
-const hasPostpone = typeof React.unstable_postpone === 'function'
 
 export type DynamicAccess = {
   /**
@@ -329,73 +326,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   )
 }
 
-/**
- * This component will call `React.postpone` that throws the postponed error.
- */
-type PostponeProps = {
-  reason: string
-  route: string
-}
-export function Postpone({ reason, route }: PostponeProps): never {
-  postponeWithTracking(route, reason, null)
-}
-
-export function postponeWithTracking(
-  route: string,
-  expression: string,
-  dynamicTracking: null | DynamicTrackingState
-): never {
-  assertPostpone()
-  if (dynamicTracking) {
-    dynamicTracking.dynamicAccesses.push({
-      // When we aren't debugging, we don't need to create another error for the
-      // stack trace.
-      stack: dynamicTracking.isDebugDynamicAccesses
-        ? new Error().stack
-        : undefined,
-      expression,
-    })
-  }
-
-  React.unstable_postpone(createPostponeReason(route, expression))
-}
-
-function createPostponeReason(route: string, expression: string) {
-  return (
-    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
-    `React throws this special object to indicate where. It should not be caught by ` +
-    `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-  )
-}
-
-export function isDynamicPostpone(err: unknown) {
-  if (
-    typeof err === 'object' &&
-    err !== null &&
-    typeof (err as any).message === 'string'
-  ) {
-    return isDynamicPostponeReason((err as any).message)
-  }
-  return false
-}
-
-function isDynamicPostponeReason(reason: string) {
-  return (
-    reason.includes(
-      'needs to bail out of prerendering at this point because it used'
-    ) &&
-    reason.includes(
-      'Learn more: https://nextjs.org/docs/messages/ppr-caught-error'
-    )
-  )
-}
-
-if (isDynamicPostponeReason(createPostponeReason('%%%', '^^^')) === false) {
-  throw new Error(
-    'Invariant: isDynamicPostpone misidentified a postpone reason. This is a bug in Next.js'
-  )
-}
-
 const NEXT_PRERENDER_INTERRUPTED = 'NEXT_PRERENDER_INTERRUPTED'
 
 function createPrerenderInterruptedError(message: string): Error {
@@ -476,17 +406,9 @@ export function formatDynamicAPIAccesses(
     })
 }
 
-function assertPostpone() {
-  if (!hasPostpone) {
-    throw new Error(
-      `Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`
-    )
-  }
-}
-
 /**
- * This is a bit of a hack to allow us to abort a render using a Postpone instance instead of an Error which changes React's
- * abort semantics slightly.
+ * Abort with a dedicated CSR bailout reason so resumption can reliably switch
+ * postponed boundaries to client rendering.
  */
 export function createRenderInBrowserAbortSignal(): AbortSignal {
   const controller = new AbortController()
