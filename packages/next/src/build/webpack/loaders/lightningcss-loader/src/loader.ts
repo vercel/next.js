@@ -358,6 +358,17 @@ export async function LightningCssLoader(
     ...icssVisitor,
   }
 
+  // Compute feature include/exclude masks from user config.
+  // Default: always transpile nesting (bit 0). User `include` adds flags,
+  // user `exclude` removes them from both include and exclude masks.
+  const userIncludeMask = options.lightningCssFeatures?.include
+    ? featureNamesToMask(options.lightningCssFeatures.include)
+    : 0
+  const userExcludeMask = options.lightningCssFeatures?.exclude
+    ? featureNamesToMask(options.lightningCssFeatures.exclude)
+    : 0
+  const includeMask = (1 | userIncludeMask) & ~userExcludeMask // 1 = Features.Nesting
+
   try {
     const {
       code,
@@ -379,19 +390,8 @@ export async function LightningCssLoader(
       targets: getTargets({ targets: userTargets, key: ECacheKey.loader }),
       inputSourceMap:
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
-      include: (() => {
-        const defaultInclude = 1 // Features.Nesting
-        const userInclude = options.lightningCssFeatures?.include
-          ? featureNamesToMask(options.lightningCssFeatures.include)
-          : 0
-        const userExclude = options.lightningCssFeatures?.exclude
-          ? featureNamesToMask(options.lightningCssFeatures.exclude)
-          : 0
-        return (defaultInclude | userInclude) & ~userExclude
-      })(),
-      exclude: options.lightningCssFeatures?.exclude
-        ? featureNamesToMask(options.lightningCssFeatures.exclude)
-        : 0,
+      include: includeMask,
+      exclude: userExcludeMask,
     })
     let cssCodeAsString = code.toString()
 

@@ -1,5 +1,9 @@
 import type { LightningCssFeature } from '../../../../../server/config-shared'
 
+/**
+ * Maps feature names to lightningcss `Features` bitmask values.
+ * Bit positions must match the Rust `lightningcss::targets::Features` bitflags.
+ */
 const FEATURE_MAP: Record<LightningCssFeature, number> = {
   nesting: 1 << 0,
   'not-selector-list': 1 << 1,
@@ -35,6 +39,7 @@ const FEATURE_MAP: Record<LightningCssFeature, number> = {
     (1 << 20),
 }
 
+/** Convert an array of feature names into a combined bitmask. */
 export function featureNamesToMask(names: LightningCssFeature[]): number {
   let mask = 0
   for (const name of names) {

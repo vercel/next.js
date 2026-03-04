@@ -53,6 +53,10 @@ struct LightningCssTargets(
 );
 
 /// Returns the LightningCSS targets for the given browserslist query.
+///
+/// `extra_include` / `extra_exclude` are raw `Features` bitmasks from user
+/// config (`experimental.lightningCssFeatures`). They are OR-ed into (or masked
+/// from) the default feature set (`Nesting | MediaRangeSyntax`).
 #[turbo_tasks::function]
 async fn get_lightningcss_browser_targets(
     environment: Option<ResolvedVc<Environment>>,

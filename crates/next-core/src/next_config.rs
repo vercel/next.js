@@ -2152,26 +2152,18 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn lightningcss_include_features(&self) -> Vc<u32> {
-        let mask = self
-            .experimental
-            .lightning_css_features
-            .as_ref()
-            .and_then(|f| f.include.as_ref())
-            .map(|names| lightningcss_feature_names_to_mask(names))
-            .unwrap_or(0);
-        Vc::cell(mask)
+        Vc::cell(lightningcss_features_field_mask(
+            &self.experimental.lightning_css_features,
+            |f| f.include.as_ref(),
+        ))
     }
 
     #[turbo_tasks::function]
     pub fn lightningcss_exclude_features(&self) -> Vc<u32> {
-        let mask = self
-            .experimental
-            .lightning_css_features
-            .as_ref()
-            .and_then(|f| f.exclude.as_ref())
-            .map(|names| lightningcss_feature_names_to_mask(names))
-            .unwrap_or(0);
-        Vc::cell(mask)
+        Vc::cell(lightningcss_features_field_mask(
+            &self.experimental.lightning_css_features,
+            |f| f.exclude.as_ref(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -2409,6 +2401,24 @@ mod tests {
     }
 }
 
+/// Extract either the `include` or `exclude` field from `LightningCssFeatures`
+/// and convert the feature names to a bitmask.
+fn lightningcss_features_field_mask(
+    features: &Option<LightningCssFeatures>,
+    field: impl FnOnce(&LightningCssFeatures) -> Option<&Vec<RcStr>>,
+) -> u32 {
+    features
+        .as_ref()
+        .and_then(field)
+        .map(|names| lightningcss_feature_names_to_mask(names))
+        .unwrap_or(0)
+}
+
+/// Convert dash-case feature name strings to a lightningcss `Features` bitmask.
+///
+/// Bit positions match the `lightningcss::targets::Features` bitflags exactly.
+/// Composite names (`selectors`, `media-queries`, `colors`) OR together the
+/// bits of their constituent individual features.
 fn lightningcss_feature_names_to_mask(names: &[RcStr]) -> u32 {
     let mut mask = 0u32;
     for name in names {
@@ -2434,7 +2444,7 @@ fn lightningcss_feature_names_to_mask(names: &[RcStr]) -> u32 {
             "vendor-prefixes" => 1 << 18,
             "logical-properties" => 1 << 19,
             "light-dark" => 1 << 20,
-            // Composites
+            // Composite groups
             "selectors" => (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4),
             "media-queries" => (1 << 6) | (1 << 7) | (1 << 8),
             "colors" => {

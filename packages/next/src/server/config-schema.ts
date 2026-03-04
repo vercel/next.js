@@ -5,14 +5,15 @@ import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
 import type { SizeLimit } from '../types'
-import type {
-  ExportPathMap,
-  TurbopackLoaderItem,
-  TurbopackOptions,
-  TurbopackRuleConfigItem,
-  TurbopackRuleConfigCollection,
-  TurbopackRuleCondition,
-  TurbopackLoaderBuiltinCondition,
+import {
+  LIGHTNINGCSS_FEATURE_NAMES,
+  type ExportPathMap,
+  type TurbopackLoaderItem,
+  type TurbopackOptions,
+  type TurbopackRuleConfigItem,
+  type TurbopackRuleConfigCollection,
+  type TurbopackRuleCondition,
+  type TurbopackLoaderBuiltinCondition,
 } from './config-shared'
 import type {
   Header,
@@ -357,66 +358,8 @@ export const experimentalSchema = {
   useLightningcss: z.boolean().optional(),
   lightningCssFeatures: z
     .object({
-      include: z
-        .array(
-          z.enum([
-            'nesting',
-            'not-selector-list',
-            'dir-selector',
-            'lang-selector-list',
-            'is-selector',
-            'text-decoration-thickness-percent',
-            'media-interval-syntax',
-            'media-range-syntax',
-            'custom-media-queries',
-            'clamp-function',
-            'color-function',
-            'oklab-colors',
-            'lab-colors',
-            'p3-colors',
-            'hex-alpha-colors',
-            'space-separated-color-notation',
-            'font-family-system-ui',
-            'double-position-gradients',
-            'vendor-prefixes',
-            'logical-properties',
-            'light-dark',
-            'selectors',
-            'media-queries',
-            'colors',
-          ])
-        )
-        .optional(),
-      exclude: z
-        .array(
-          z.enum([
-            'nesting',
-            'not-selector-list',
-            'dir-selector',
-            'lang-selector-list',
-            'is-selector',
-            'text-decoration-thickness-percent',
-            'media-interval-syntax',
-            'media-range-syntax',
-            'custom-media-queries',
-            'clamp-function',
-            'color-function',
-            'oklab-colors',
-            'lab-colors',
-            'p3-colors',
-            'hex-alpha-colors',
-            'space-separated-color-notation',
-            'font-family-system-ui',
-            'double-position-gradients',
-            'vendor-prefixes',
-            'logical-properties',
-            'light-dark',
-            'selectors',
-            'media-queries',
-            'colors',
-          ])
-        )
-        .optional(),
+      include: z.array(z.enum(LIGHTNINGCSS_FEATURE_NAMES)).optional(),
+      exclude: z.array(z.enum(LIGHTNINGCSS_FEATURE_NAMES)).optional(),
     })
     .optional(),
   testProxy: z.boolean().optional(),
