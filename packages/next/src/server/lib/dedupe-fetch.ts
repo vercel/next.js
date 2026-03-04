@@ -6,6 +6,59 @@ import { cloneResponse } from './clone-response'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 const simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]' // generateCacheKey(new Request('https://blank'));
+const MAX_BUFFER_BYTES = 1024 * 1024
+
+async function consumeBodyWithLimit(
+  body: ReadableStream<Uint8Array>,
+  maxBytes: number
+): Promise<ArrayBuffer> {
+  const reader = body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > maxBytes) {
+        await reader.cancel()
+        throw new Error(
+          `Response body exceeds ${maxBytes} bytes, aborting to prevent memory growth`
+        )
+      }
+      chunks.push(value)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+
+  const buffer = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return buffer.buffer
+}
+
+function buildConsumedResponse(
+  body: ArrayBuffer,
+  original: Response
+): Response {
+  const consumed = new Response(body, {
+    status: original.status,
+    statusText: original.statusText,
+    headers: original.headers,
+  })
+  Object.defineProperty(consumed, 'url', {
+    value: original.url,
+    configurable: true,
+    enumerable: true,
+    writable: false,
+  })
+  return consumed
+}
 
 // Headers that should not affect deduplication
 // traceparent and tracestate are used for distributed tracing and should not affect cache keys
@@ -116,12 +169,27 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
     const entry: CacheEntry = [cacheKey, promise, null]
     cacheEntries.push(entry)
 
-    return promise.then((response) => {
-      // We're cloning the response using this utility because there exists
-      // a bug in the undici library around response cloning. See the
-      // following pull request for more details:
-      // https://github.com/vercel/next.js/pull/73274
-      const [cloned1, cloned2] = cloneResponse(response)
+    return promise.then(async (response) => {
+      if (!response.body) {
+        entry[2] = response
+        return response
+      }
+
+      const contentLength = response.headers.get('content-length')
+      const parsedLength =
+        contentLength !== null ? parseInt(contentLength, 10) : NaN
+      const knownLarge =
+        !Number.isNaN(parsedLength) && parsedLength > MAX_BUFFER_BYTES
+
+      if (knownLarge) {
+        const [cloned1, cloned2] = cloneResponse(response)
+        entry[2] = cloned2
+        return cloned1
+      }
+
+      const body = await consumeBodyWithLimit(response.body, MAX_BUFFER_BYTES)
+      const consumed = buildConsumedResponse(body, response)
+      const [cloned1, cloned2] = cloneResponse(consumed)
       entry[2] = cloned2
       return cloned1
     })
