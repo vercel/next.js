@@ -220,7 +220,7 @@ export async function handler(
    * If the route being rendered is an app page, and the cacheComponents feature
    * has been enabled, then the given route _could_ support PPR.
    */
-  const couldSupportPPR: boolean = !!nextConfig.cacheComponents
+  const isAppCacheComponentsEnabled: boolean = !!nextConfig.cacheComponents
 
   // Stash postponed state for server actions when in minimal mode.
   // We extract it here so the RDC is available for the re-render after the action completes.
@@ -228,7 +228,7 @@ export async function handler(
   if (
     !getRequestMeta(req, 'postponed') &&
     isMinimalMode &&
-    couldSupportPPR &&
+    isAppCacheComponentsEnabled &&
     isPossibleServerAction &&
     resumeStateLengthHeader &&
     typeof resumeStateLengthHeader === 'string'
@@ -292,7 +292,7 @@ export async function handler(
 
   if (
     !getRequestMeta(req, 'postponed') &&
-    couldSupportPPR &&
+    isAppCacheComponentsEnabled &&
     req.headers[NEXT_RESUME_HEADER] === '1' &&
     req.method === 'POST'
   ) {
@@ -319,7 +319,7 @@ export async function handler(
   const hasDebugStaticShellQuery =
     process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1' &&
     typeof query.__nextppronly !== 'undefined' &&
-    couldSupportPPR
+    isAppCacheComponentsEnabled
 
   // When enabled, this will allow the use of the `?__nextppronly` query
   // to enable debugging of the fallback shell.
@@ -341,7 +341,7 @@ export async function handler(
   //   with blocking happening on the client side.
   const isInstantNavigationTest =
     exposeTestingApi &&
-    couldSupportPPR &&
+    isAppCacheComponentsEnabled &&
     (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
       (req.headers[RSC_HEADER] === undefined &&
         typeof req.headers.cookie === 'string' &&
@@ -350,7 +350,7 @@ export async function handler(
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
   const isRoutePPREnabled: boolean =
-    couldSupportPPR &&
+    isAppCacheComponentsEnabled &&
     ((
       prerenderManifest.routes[normalizedSrcPage] ??
       prerenderManifest.dynamicRoutes[normalizedSrcPage]

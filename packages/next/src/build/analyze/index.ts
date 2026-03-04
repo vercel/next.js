@@ -166,7 +166,7 @@ async function collectRoutesForAnalyze(
     config.basePath ? `${config.basePath}${pathPrefix}` : pathPrefix
   )
 
-  const isAppPPREnabled = !!config.cacheComponents
+  const isAppCacheComponentsEnabled = !!config.cacheComponents
 
   // Generate routes manifest
   const { routesManifest } = generateRoutesManifest({
@@ -178,7 +178,7 @@ async function collectRoutesForAnalyze(
     onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
-    isAppPPREnabled,
+    isAppCacheComponentsEnabled,
   })
 
   return routesManifest.dynamicRoutes
