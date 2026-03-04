@@ -893,9 +893,15 @@ async fn process_default_internal(
 #[turbo_tasks::function]
 pub async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
+    resolve_typescript: bool,
 ) -> Result<Vc<ModuleAssetContext>> {
+    let mut extensions = vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")];
+    if resolve_typescript {
+        extensions.insert(0, rcstr!(".ts"));
+    }
+
     let resolve_options = ResolveOptionsContext {
-        enable_node_native_modules: true,
+        custom_extensions: Some(extensions),
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         collect_affecting_sources: true,
@@ -1078,6 +1084,7 @@ impl AssetContext for ModuleAssetContext {
                                     let origin = PlainResolveOrigin::new(
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
+                                            false,
                                         )),
                                         // If target is specified, a symlink will be created to
                                         // make the folder
