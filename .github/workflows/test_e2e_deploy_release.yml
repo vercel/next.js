@@ -261,6 +261,9 @@ jobs:
     steps:
       - name: Check token
         run: gh auth status
+        # This sometimes fails for unknown reasons.
+        # Ignoring failures for now to check if a failure actually blocks subsequent steps
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
       - uses: actions/github-script@v7
@@ -332,6 +335,9 @@ jobs:
     steps:
       - name: Check token
         run: gh auth status
+        # This sometimes fails for unknown reasons.
+        # Ignoring failures for now to check if a failure actually blocks subsequent steps
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
       - uses: actions/github-script@v7
