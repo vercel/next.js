@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_env::ProcessEnv;
@@ -194,10 +194,10 @@ pub async fn create_web_entry_source(
                 })
             } else {
                 // TODO convert into a serve-able asset
-                Err(anyhow!(
+                bail!(
                     "Entry module is not chunkable, so it can't be used to bootstrap the \
                      application"
-                ))
+                )
             }
         })
         .try_join()

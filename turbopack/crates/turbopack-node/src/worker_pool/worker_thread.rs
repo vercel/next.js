@@ -79,7 +79,7 @@ pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
             ThreadsafeFunctionCallMode::NonBlocking,
         );
     } else {
-        return Err(anyhow::anyhow!("Worker creator not registered"));
+        anyhow::bail!("Worker creator not registered");
     }
 
     let worker_id = rx.await?;

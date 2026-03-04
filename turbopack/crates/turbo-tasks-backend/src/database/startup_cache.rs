@@ -7,7 +7,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use anyhow::{Ok, Result};
+use anyhow::{Ok, Result, bail};
 use byteorder::WriteBytesExt;
 use rustc_hash::FxHashMap;
 use turbo_tasks::FxDashMap;
@@ -341,7 +341,7 @@ fn read_key_value_pair<'l>(
         1 => KeySpace::TaskMeta,
         2 => KeySpace::TaskData,
         3 => KeySpace::TaskCache,
-        _ => return Err(anyhow::anyhow!("Invalid key space")),
+        _ => bail!("Invalid key space"),
     };
     *pos += 1;
     let key_len = u32::from_be_bytes(buffer[*pos..*pos + 4].try_into()?);

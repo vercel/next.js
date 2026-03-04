@@ -2770,7 +2770,7 @@ impl CodeGenResultComments {
                 .map_err(|_| anyhow!("Failed to grab lock on the index map for byte positions"))?;
             let ix = lookup_table.len() as u32;
             if ix >= 1 << 30 {
-                return Err(anyhow!("Too many byte positions being stored"));
+                bail!("Too many byte positions being stored");
             }
             lookup_table.push(ModulePosition(module, pos_u32));
             Ok(ix)
@@ -2787,7 +2787,7 @@ impl CodeGenResultComments {
         let mut push = |module: u32, pos_u32: u32| -> Result<u32> {
             let ix = lookup_table.len() as u32;
             if ix >= 1 << 30 {
-                return Err(anyhow!("Too many byte positions being stored"));
+                bail!("Too many byte positions being stored");
             }
             lookup_table.push(ModulePosition(module, pos_u32));
             Ok(ix)

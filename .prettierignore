@@ -7,6 +7,9 @@ dist/
 target/
 compiled/
 
+# ast-grep snapshots (managed by ast-grep, not prettier)
+.config/ast-grep/rule-tests/__snapshots__/
+
 lerna.json
 test-timings.json
 pnpm-lock.yaml

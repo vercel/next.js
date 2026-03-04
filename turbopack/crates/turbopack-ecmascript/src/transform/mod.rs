@@ -1,6 +1,6 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use swc_core::{
     atoms::{Atom, atom},
@@ -133,10 +133,10 @@ impl EcmascriptInputTransform {
                         "classic" => Runtime::Classic,
                         "automatic" => Runtime::Automatic,
                         _ => {
-                            return Err(anyhow::anyhow!(
+                            bail!(
                                 "Invalid value for swc.jsc.transform.react.runtime: {}",
                                 runtime
-                            ));
+                            );
                         }
                     }
                 } else {

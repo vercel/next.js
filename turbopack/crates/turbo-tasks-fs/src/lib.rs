@@ -1791,7 +1791,7 @@ impl FileSystemPath {
         let result = &(*self.realpath_with_links().await?);
         match &result.path_result {
             Ok(path) => Ok(path.clone()),
-            Err(error) => Err(anyhow::anyhow!(error.as_error_message(self, result).await?)),
+            Err(error) => bail!("{}", error.as_error_message(self, result).await?),
         }
     }
 
@@ -2410,8 +2410,8 @@ impl ValueToString for FileJsonContent {
     fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.to_string().into())),
-            FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
-            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+            FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {}", e),
+            FileJsonContent::NotFound => bail!("File not found"),
         }
     }
 }
@@ -2422,8 +2422,8 @@ impl FileJsonContent {
     pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
         match &*self.await? {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
-            FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
-            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+            FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {}", e),
+            FileJsonContent::NotFound => bail!("File not found"),
         }
     }
 }

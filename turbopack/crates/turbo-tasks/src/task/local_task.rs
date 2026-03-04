@@ -1,6 +1,6 @@
 use std::{fmt, sync::Arc};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 
 use crate::{
     CellId, MagicAny, OutputContent, RawVc, TaskPersistence, TraitMethod, TurboTasksBackendApi,
@@ -72,7 +72,7 @@ impl LocalTaskType {
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
         let RawVc::TaskCell(_, CellId { type_id, .. }) = this else {
-            return Err(anyhow!("Trait method receiver must be a cell"));
+            bail!("Trait method receiver must be a cell");
         };
 
         let native_fn = Self::resolve_trait_method_from_value(trait_method, type_id)?;
@@ -86,11 +86,11 @@ impl LocalTaskType {
     ) -> Result<&'static NativeFunction> {
         match registry::get_value_type(value_type).get_trait_method(trait_method) {
             Some(native_fn) => Ok(native_fn),
-            None => Err(anyhow!(
+            None => bail!(
                 "{} doesn't implement the trait for {:?}, the compiler should have flagged this",
                 registry::get_value_type(value_type),
                 trait_method
-            )),
+            ),
         }
     }
 }

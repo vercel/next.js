@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use either::Either;
 use strsim::jaro;
 use swc_core::{
@@ -513,10 +513,7 @@ impl ModuleReference for EsmAssetReference {
                 } else if chunking_type == "none" {
                     None
                 } else {
-                    return Err(anyhow!(
-                        "unknown chunking_type: {}",
-                        chunking_type.to_string_lossy()
-                    ));
+                    bail!("unknown chunking_type: {}", chunking_type.to_string_lossy());
                 }
             } else {
                 Some(ChunkingType::Parallel {

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
@@ -232,7 +232,7 @@ impl FileHashVersion {
                     .context("file not found")?;
                 Ok(Self::cell(FileHashVersion { hash }))
             }
-            AssetContent::Redirect { .. } => Err(anyhow!("not a file")),
+            AssetContent::Redirect { .. } => bail!("not a file"),
         }
     }
 }

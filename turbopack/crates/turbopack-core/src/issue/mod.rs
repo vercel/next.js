@@ -8,7 +8,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -1089,7 +1089,7 @@ pub async fn handle_issues<T: Send>(
             message += &format!(" ({operation})");
         };
 
-        Err(anyhow!(message))
+        bail!(message)
     } else {
         Ok(())
     }
