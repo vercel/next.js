@@ -57,11 +57,10 @@ export function navigate(
   const now = Date.now()
   const href = url.href
 
-  // Only clear nextUrl for same-page navigations that were initiated by a
-  // link. This avoids re-triggering interception rewrites when clicking a link
-  // to the current page, while preserving interception context for non-link
-  // flows (e.g. server actions) that intentionally pass nextUrl.
-  if (url.href === currentUrl.href && getLinkForCurrentNavigation() !== null) {
+  // Clear nextUrl for same-page navigations to avoid re-triggering
+  // interception rewrites. This applies to both link clicks and programmatic
+  // navigations (e.g. router.push, router.replace).
+  if (url.href === currentUrl.href) {
     nextUrl = null
   }
 
