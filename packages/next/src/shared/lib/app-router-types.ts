@@ -266,6 +266,8 @@ export type InitialRSCPayload = {
   s?: AsyncIterable<number>
   /** staticStageByteLength - Resolves when the static stage ends. */
   l?: Promise<number>
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
 }
 
 // Response from `createFromFetch` for normal rendering
