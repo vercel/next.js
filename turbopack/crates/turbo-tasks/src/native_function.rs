@@ -9,6 +9,7 @@ use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    macro_helpers::into_task_fn,
     magic_any::{MagicAny, any_as_encode},
     registry::{RegistryType, turbo_registry},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
@@ -203,7 +204,18 @@ impl Debug for NativeFunction {
     }
 }
 
+fn default_fn() {
+    panic!("Pure virtual function called")
+}
+
 impl NativeFunction {
+    pub const DEFAULT: NativeFunction = NativeFunction {
+        arg_meta: ArgMeta::new::<()>(),
+        implementation: &into_task_fn(default_fn) as &dyn TaskFn,
+        ty: RegistryType::new::<()>("", ""),
+        is_root: false,
+    };
+
     pub const fn new<T: TaskFn>(
         name: &'static str,
         global_name: &'static str,

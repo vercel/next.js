@@ -5,7 +5,7 @@ use std::{
     hash::Hash,
 };
 
-use auto_hash_map::{AutoMap, AutoSet};
+use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
@@ -56,15 +56,15 @@ impl Debug for ValueType {
         let mut d = f.debug_struct("ValueType");
         d.field("name", &self.ty.name);
         let info = self.trait_info();
-        for trait_id in info.traits.iter() {
-            for (name, m) in registry::get_trait(*trait_id).methods.entries() {
-                // The phf map entry lives in a static, so this pointer cast is safe.
-                let m: &'static TraitMethod = unsafe { &*(m as *const TraitMethod) };
-                if info.trait_methods.contains_key(&m) {
-                    d.field(name, &"(trait fn)");
-                }
-            }
-        }
+        // for trait_id in info.traits.iter() {
+        //     for (name, m) in registry::get_trait(*trait_id).methods.entries() {
+        //         // The phf map entry lives in a static, so this pointer cast is safe.
+        //         let m: &'static TraitMethod = unsafe { &*(m as *const TraitMethod) };
+        //         if info.trait_methods.contains_key(&m) {
+        //             d.field(name, &"(trait fn)");
+        //         }
+        //     }
+        // }
         d.finish()
     }
 }
@@ -76,10 +76,8 @@ impl Display for ValueType {
 }
 
 struct ValueTypeTraits {
-    /// Set of traits available
-    traits: AutoSet<TraitTypeId>,
-    /// List of trait methods available
-    trait_methods: AutoMap<&'static TraitMethod, &'static NativeFunction>,
+    /// List of traits available
+    traits: AutoMap<TraitTypeId, &'static [&'static NativeFunction]>,
 }
 
 pub trait ManualEncodeWrapper: Encode {
@@ -159,8 +157,7 @@ impl ValueType {
             bincode,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
             traits: SyncUnsafeCell::new(ValueTypeTraits {
-                traits: AutoSet::new(),
-                trait_methods: AutoMap::new(),
+                traits: AutoMap::new(),
             }),
         }
     }
@@ -186,31 +183,24 @@ impl ValueType {
         &self,
         trait_method: &'static TraitMethod,
     ) -> Option<&'static NativeFunction> {
-        match self.trait_info().trait_methods.get(trait_method) {
-            Some(f) => Some(*f),
-            None => trait_method.default_method,
-        }
+        let trait_type_id = registry::get_trait_type_id(trait_method.trait_type);
+        Some(self.trait_info().traits.get(&trait_type_id)?[trait_method.index as usize])
     }
 
     fn register_trait(
         &self,
         trait_type: &'static TraitType,
-        trait_methods: &'static phf::Map<&'static str, &'static NativeFunction>,
+        trait_methods: &'static [&'static NativeFunction],
     ) {
         // SAFETY: Called only during single-threaded registry init
         let traits = unsafe { &mut *self.traits.get() };
-        traits.traits.insert(get_trait_type_id(trait_type));
-        for (k, v) in trait_methods {
-            let k = trait_type
-                .methods
-                .get(k)
-                .expect("Trait key unexpectedly missing");
-            traits.trait_methods.insert(k, v);
-        }
+        traits
+            .traits
+            .insert(get_trait_type_id(trait_type), trait_methods);
     }
 
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
-        self.trait_info().traits.contains(trait_type)
+        self.trait_info().traits.contains_key(trait_type)
     }
 }
 
@@ -225,6 +215,8 @@ pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
 }
 
 pub struct TraitMethod {
+    pub trait_type: &'static TraitType,
+    pub index: u8,
     pub trait_name: &'static str,
     pub method_name: &'static str,
     pub default_method: Option<&'static NativeFunction>,
@@ -264,6 +256,8 @@ impl TraitMethod {
 pub struct TraitType {
     pub ty: RegistryType,
     pub methods: phf::Map<&'static str, TraitMethod>,
+    pub method_names: &'static [&'static str],
+    pub default_methods: &'static [Option<&'static NativeFunction>],
 }
 
 impl Debug for TraitType {
@@ -288,10 +282,14 @@ impl TraitType {
         name: &'static str,
         global_name: &'static str,
         methods: phf::Map<&'static str, TraitMethod>,
+        method_names: &'static [&'static str],
+        default_methods: &'static [Option<&'static NativeFunction>],
     ) -> Self {
         Self {
             ty: RegistryType::new::<T>(name, global_name),
             methods,
+            method_names,
+            default_methods,
         }
     }
 
@@ -301,3 +299,49 @@ impl TraitType {
 }
 
 turbo_registry!("Trait", TraitType);
+
+pub trait TraitBuilder {
+    const LEN: usize;
+    const NAMES: &'static [&'static str];
+    const DEFAULTS: &'static [Option<&'static NativeFunction>];
+}
+
+pub const fn index_of_name(array: &'static [&'static str], name: &'static str) -> usize {
+    let mut i = 0;
+    'outer: while i < array.len() {
+        if array[i].len() == name.len() {
+            let mut j = 0;
+            while j < name.len() {
+                if array[i].as_bytes()[j] != name.as_bytes()[j] {
+                    i += 1;
+                    continue 'outer;
+                }
+                j += 1;
+            }
+            return i;
+        }
+        i += 1;
+    }
+    panic!("Method not found!")
+}
+
+pub const fn build_trait_vtable<B: TraitBuilder, const LEN: usize>(
+    overrides: &[(&'static str, &'static NativeFunction)],
+) -> [&'static NativeFunction; LEN] {
+    static DEFAULT: NativeFunction = NativeFunction::DEFAULT;
+    let mut methods = [&DEFAULT; LEN];
+    let mut i = 0;
+    while i < LEN {
+        if let Some(default) = B::DEFAULTS[i] {
+            methods[i] = default;
+        }
+        i += 1;
+    }
+    let mut i = 0;
+    while i < overrides.len() {
+        let (name, f) = overrides[i];
+        methods[index_of_name(B::NAMES, name)] = f;
+        i += 1;
+    }
+    methods
+}

@@ -22,6 +22,7 @@ pub use crate::{
     registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
     turbo_register,
+    value_type::{TraitBuilder, build_trait_vtable},
 };
 
 #[inline(never)]
@@ -232,7 +233,7 @@ inventory::collect! {CollectableTraitCastFunctions}
 pub struct CollectableTraitMethods(
     pub &'static ValueType,
     pub &'static TraitType,
-    pub &'static phf::Map<&'static str, &'static NativeFunction>,
+    pub &'static [&'static NativeFunction],
 );
 inventory::collect! {CollectableTraitMethods}
 

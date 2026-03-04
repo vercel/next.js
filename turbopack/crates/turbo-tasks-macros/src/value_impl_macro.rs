@@ -280,7 +280,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
                 let method_name_str = syn::LitStr::new(&ident.to_string(), ident.span());
                 trait_methods.push(quote! {
-                    #method_name_str => &#native_function_ident
+                    (#method_name_str, &#native_function_ident)
                 });
             }
         }
@@ -292,14 +292,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // 3 ValueTypes (requires functions and TraitTypeIds)
             // 4.VTableRegistries (requires ValueTypeIds)
             turbo_tasks::macro_helpers::inventory_submit!{{
-                use turbo_tasks::macro_helpers::{phf, phf::phf_map};
-                static MAP: phf::Map<&'static str, &'static turbo_tasks::macro_helpers::NativeFunction> = phf_map! {
-                    #(#trait_methods),*
-                };
+                const LEN: usize = <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::TraitBuilder>::LEN;
+                static METHODS: [&turbo_tasks::macro_helpers::NativeFunction; LEN] = turbo_tasks::macro_helpers::build_trait_vtable::<::std::boxed::Box<dyn #trait_path>, LEN>(&[#(#trait_methods),*]);
+
                 turbo_tasks::macro_helpers::CollectableTraitMethods(
                     <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
                     <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
-                    &MAP
+                    &METHODS
                 )
             }}
 

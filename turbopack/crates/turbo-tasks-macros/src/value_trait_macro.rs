@@ -69,6 +69,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let trait_type_ident = get_trait_type_ident(trait_ident);
     let mut dynamic_trait_fns = Vec::new();
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
+    let mut method_names: Vec<TokenStream2> = Vec::new();
+    let mut default_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
     let mut items: Vec<TokenStream2> = Vec::with_capacity(raw_items.len());
     let mut errors = Vec::new();
@@ -219,13 +221,18 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let native_function_def = native_function.definition();
 
             let method_name_str = syn::LitStr::new(&ident.to_string(), ident.span());
+            let index = trait_methods.len();
             trait_methods.push(quote! {
                 #method_name_str => turbo_tasks::TraitMethod {
+                    trait_type: &#trait_type_ident,
                     trait_name: stringify!(#trait_ident),
                     method_name: #method_name_str,
                     default_method: Some(&#native_function_ident),
+                    index: #index as _,
                 },
             });
+            method_names.push(quote! { #method_name_str });
+            default_methods.push(quote! { Some(&#native_function_ident) });
 
             native_functions.push(quote! {
                 #[doc(hidden)]
@@ -252,13 +259,18 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_fn.static_block(&native_function_ident)
         } else {
             let method_name_str = syn::LitStr::new(&ident.to_string(), ident.span());
+            let index = trait_methods.len();
             trait_methods.push(quote! {
                 #method_name_str => turbo_tasks::TraitMethod {
+                    trait_type: &#trait_type_ident,
                     trait_name: stringify!(#trait_ident),
                     method_name: #method_name_str,
                     default_method: None,
+                    index: #index as _,
                 },
             });
+            method_names.push(quote! { #method_name_str });
+            default_methods.push(quote! { None });
             quote! { ; }
         };
 
@@ -316,9 +328,17 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     phf_map! {
                         #(#trait_methods)*
                     },
+                    &[#(#method_names),*],
+                    &[#(#default_methods),*]
                 )
             }
         );
+
+        impl turbo_tasks::macro_helpers::TraitBuilder for Box<dyn #trait_ident> {
+            const LEN: usize = ["", #(#method_names),*].len() - 1;
+            const NAMES: &[&str] = &[#(#method_names),*];
+            const DEFAULTS: &[Option<&turbo_tasks::macro_helpers::NativeFunction>] = &[#(#default_methods),*];
+        }
 
         #[automatically_derived]
         impl turbo_tasks::VcValueTrait for Box<dyn #trait_ident> {
