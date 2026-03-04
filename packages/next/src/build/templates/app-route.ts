@@ -306,6 +306,7 @@ export async function handler(
           // a platform-created HTTP span in adapter deployments).
           if (parentSpan && parentSpan !== span) {
             parentSpan.setAttribute('http.route', route)
+            parentSpan.updateName(name)
           }
         } else {
           span.updateName(`${method} ${srcPage}`)

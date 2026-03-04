@@ -60,14 +60,20 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
             > + Send
             + Sync;
     fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>>;
+    /// Returns all task IDs that match the given task type (hash collision candidates).
+    ///
+    /// Since TaskCache uses hash-based keys, multiple task types may (rarely) hash to the same key.
+    /// The caller must verify each returned TaskId by comparing the stored task type which will
+    /// require a second database read
+    ///
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn forward_lookup_task_cache(
+    unsafe fn lookup_task_candidates(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         key: &CachedTaskType,
-    ) -> Result<Option<TaskId>>;
+    ) -> Result<SmallVec<[TaskId; 1]>>;
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
@@ -151,19 +157,19 @@ where
         })
     }
 
-    unsafe fn forward_lookup_task_cache(
+    unsafe fn lookup_task_candidates(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         key: &CachedTaskType,
-    ) -> Result<Option<TaskId>> {
+    ) -> Result<SmallVec<[TaskId; 1]>> {
         match self {
             Either::Left(this) => {
                 let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.forward_lookup_task_cache(tx, key) }
+                unsafe { this.lookup_task_candidates(tx, key) }
             }
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.forward_lookup_task_cache(tx, key) }
+                unsafe { this.lookup_task_candidates(tx, key) }
             }
         }
     }
