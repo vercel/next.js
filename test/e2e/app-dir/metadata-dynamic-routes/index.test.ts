@@ -503,7 +503,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       // @vercel/og default font should be traced
       const isTraced = fileTrace.files.some((filePath) =>
-        filePath.includes('/noto-sans-v27-latin-regular.ttf')
+        filePath.includes('/Geist-Regular.ttf')
       )
       expect(isTraced).toBe(true)
     })
