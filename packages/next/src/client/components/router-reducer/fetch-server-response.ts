@@ -29,12 +29,6 @@ import {
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
-import { isChunkOrNetworkError } from '../chunk-load-error/is-chunk-load-error'
-import {
-  MAX_RETRY_ATTEMPTS,
-  getRetryDelayMs,
-  sleep,
-} from '../chunk-load-error/chunk-load-error-handler'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import {
@@ -143,14 +137,6 @@ if (typeof window !== 'undefined') {
 export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
-): Promise<FetchServerResponseResult> {
-  return fetchServerResponseWithRetry(url, options, 0)
-}
-
-async function fetchServerResponseWithRetry(
-  url: URL,
-  options: FetchServerResponseOptions,
-  retryCount: number
 ): Promise<FetchServerResponseResult> {
   const { flightRouterState, nextUrl } = options
 
@@ -306,17 +292,6 @@ async function fetchServerResponseWithRetry(
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
-    if (
-      err instanceof Error &&
-      isChunkOrNetworkError(err) &&
-      !isPageUnloading &&
-      retryCount < MAX_RETRY_ATTEMPTS
-    ) {
-      // Retry once after a jittered delay for transient failures.
-      await sleep(getRetryDelayMs())
-      return fetchServerResponseWithRetry(originalUrl, options, retryCount + 1)
-    }
-
     if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,

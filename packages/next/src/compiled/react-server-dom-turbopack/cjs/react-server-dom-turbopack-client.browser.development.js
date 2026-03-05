@@ -81,13 +81,34 @@
       return promise;
     }
     function ignoreReject() {}
+    var retryChunkLoadError = require("next/dist/client/components/chunk-load-error/retry-chunk-load-error").retryChunkLoadError;
+    var retryingChunks = new Map();
+    function loadChunk(chunkUrl) {
+      var entry = retryingChunks.get(chunkUrl);
+      if (void 0 === entry) {
+        entry = retryChunkLoadError(function () {
+          return __turbopack_load_by_url__(chunkUrl);
+        }).then(
+          function (value) {
+            retryingChunks.delete(chunkUrl);
+            return value;
+          },
+          function (error) {
+            retryingChunks.delete(chunkUrl);
+            throw error;
+          }
+        );
+        retryingChunks.set(chunkUrl, entry);
+      }
+      return entry;
+    }
     function preloadModule(metadata) {
       for (
         var chunks = metadata[1], promises = [], i = 0;
         i < chunks.length;
         i++
       ) {
-        var thenable = __turbopack_load_by_url__(chunks[i]);
+        var thenable = loadChunk(chunks[i]);
         loadedChunks.has(thenable) || promises.push(thenable);
         if (!instrumentedChunks.has(thenable)) {
           var resolve = loadedChunks.add.bind(loadedChunks, thenable);

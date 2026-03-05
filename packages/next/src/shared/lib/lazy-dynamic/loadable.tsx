@@ -2,12 +2,7 @@ import { Suspense, Fragment, lazy } from 'react'
 import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
 import { PreloadChunks } from './preload-chunks'
-import { isChunkLoadError } from '../../../client/components/chunk-load-error/is-chunk-load-error'
-import {
-  MAX_RETRY_ATTEMPTS,
-  getRetryDelayMs,
-  sleep,
-} from '../../../client/components/chunk-load-error/chunk-load-error-handler'
+import { retryChunkLoadError } from '../../../client/components/chunk-load-error/retry-chunk-load-error'
 
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
@@ -31,32 +26,8 @@ function convertModule<P>(
   }
 }
 
-/**
- * Creates a loader function with automatic retry for chunk load errors.
- * On first failure, retries once after a delay.
- */
 function createRetryableLoader<T>(loader: () => Promise<T>): () => Promise<T> {
-  return async () => {
-    let retries = 0
-
-    while (true) {
-      try {
-        return await loader()
-      } catch (err) {
-        if (
-          typeof window !== 'undefined' &&
-          isChunkLoadError(err) &&
-          retries < MAX_RETRY_ATTEMPTS
-        ) {
-          retries++
-          await sleep(getRetryDelayMs())
-          continue
-        }
-
-        throw err
-      }
-    }
-  }
+  return () => retryChunkLoadError(loader)
 }
 
 const defaultOptions = {

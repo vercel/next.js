@@ -59,41 +59,6 @@ describe('chunk-load-failure', () => {
     )
   })
 
-  it('should retry failed RSC fetches without falling back to MPA navigation', async () => {
-    let rscRequestCount = 0
-
-    const browser = await next.browser('/dynamic', {
-      beforePageLoad(page) {
-        page.route('**/other*', async (route) => {
-          if (route.request().url().includes('_rsc=')) {
-            rscRequestCount++
-            if (rscRequestCount === 1) {
-              await route.abort('connectionreset')
-              return
-            }
-          }
-          await route.continue()
-        })
-      },
-    })
-
-    await browser.eval('window.__TEST_NO_RELOAD = true')
-    await browser.elementByCss('#to-other').click()
-
-    await retry(
-      async () => {
-        const body = await browser.elementByCss('body')
-        expect(await body.text()).toContain('this is other')
-      },
-      10_000,
-      250
-    )
-
-    expect(await browser.eval('window.__TEST_NO_RELOAD')).toBe(true)
-    // One initial request + one retry attempt.
-    expect(rscRequestCount).toBe(2)
-  })
-
   it('should recover after a transient async chunk load failure', async () => {
     let nextDynamicChunk = await getChunkContainingText(
       'this is a lazy loaded async component'
@@ -131,41 +96,6 @@ describe('chunk-load-failure', () => {
     // One initial request + one retry attempt.
     expect(chunkRequestCount).toBe(2)
     expect(pageError).toBeUndefined()
-  })
-
-  it('should fallback to MPA navigation after a persistent RSC fetch failure', async () => {
-    let rscRequestCount = 0
-
-    const browser = await next.browser('/dynamic', {
-      beforePageLoad(page) {
-        page.route('**/other*', async (route) => {
-          if (route.request().url().includes('_rsc=')) {
-            rscRequestCount++
-            await route.abort('connectionreset')
-            return
-          }
-          await route.continue()
-        })
-      },
-    })
-
-    await browser.eval('window.__TEST_NO_RELOAD = true')
-    await browser.elementByCss('#to-other').click()
-
-    await retry(
-      async () => {
-        expect(await browser.eval('window.location.pathname')).toBe('/other')
-        const body = await browser.elementByCss('body')
-        expect(await body.text()).toContain('this is other')
-      },
-      10_000,
-      250
-    )
-
-    // MPA fallback reloads the page context.
-    expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
-    // One initial request + one retry attempt.
-    expect(rscRequestCount).toBe(2)
   })
 
   it('should recover after a transient pages-router chunk load failure', async () => {
@@ -209,6 +139,105 @@ describe('chunk-load-failure', () => {
     if (pageError) {
       expect(pageError.name).toBe('ChunkLoadError')
     }
+  })
+
+  it('should recover after a transient app-router client chunk load failure', async () => {
+    let appRouterChunk = await getChunkContainingText('this is other')
+    const expectedChunkRequestCount = process.env.IS_TURBOPACK_TEST ? 3 : 2
+    let chunkRequestCount = 0
+    let rscRequestCount = 0
+    let documentRequestCount = 0
+    let pageError: Error | undefined
+
+    const browser = await next.browser('/dynamic', {
+      beforePageLoad(page) {
+        page.route(`**/${appRouterChunk}*`, async (route) => {
+          chunkRequestCount++
+          if (chunkRequestCount === 1) {
+            await route.abort('connectionreset')
+            return
+          }
+          await route.continue()
+        })
+        page.on('request', (request) => {
+          const url = new URL(request.url())
+          if (
+            request.resourceType() === 'document' &&
+            url.pathname === '/other'
+          ) {
+            documentRequestCount++
+          }
+          if (url.pathname === '/other' && url.searchParams.has('_rsc')) {
+            rscRequestCount++
+          }
+        })
+        page.on('pageerror', (error: Error) => {
+          pageError = error
+        })
+      },
+    })
+
+    await browser.elementByCss('#to-other').click()
+
+    await retry(
+      async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain('this is other')
+      },
+      10_000,
+      250
+    )
+
+    expect(chunkRequestCount).toBe(expectedChunkRequestCount)
+    expect(rscRequestCount).toBe(1)
+    expect(documentRequestCount).toBe(0)
+    expect(pageError).toBeUndefined()
+  })
+
+  it('should surface app-router client chunk failures after one retry', async () => {
+    let appRouterChunk = await getChunkContainingText('this is other')
+    let chunkRequestCount = 0
+    let rscRequestCount = 0
+    let documentRequestCount = 0
+    let pageError: Error | undefined
+
+    const browser = await next.browser('/dynamic', {
+      beforePageLoad(page) {
+        page.route(`**/${appRouterChunk}*`, async (route) => {
+          chunkRequestCount++
+          await route.abort('connectionreset')
+        })
+        page.on('request', (request) => {
+          const url = new URL(request.url())
+          if (
+            request.resourceType() === 'document' &&
+            url.pathname === '/other'
+          ) {
+            documentRequestCount++
+          }
+          if (url.pathname === '/other' && url.searchParams.has('_rsc')) {
+            rscRequestCount++
+          }
+        })
+        page.on('pageerror', (error: Error) => {
+          pageError = error
+        })
+      },
+    })
+
+    await browser.elementByCss('#to-other').click()
+
+    await retry(async () => {
+      const body = await browser.elementByCss('body')
+      expect(await body.text()).toMatch(/This page couldn\u2019t load/)
+    })
+
+    expect(chunkRequestCount).toBe(2)
+    expect(rscRequestCount).toBe(1)
+    expect(documentRequestCount).toBe(0)
+    expect(pageError).toBeDefined()
+    expect(pageError.name).toBe('ChunkLoadError')
+    expect(pageError.message).toContain('/_next/static/' + appRouterChunk)
   })
 
   it('should report aborted chunks when navigating away', async () => {

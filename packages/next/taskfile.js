@@ -1611,6 +1611,107 @@ export async function copy_vendor_react(task_) {
       return statement.expression
     }
 
+    function replaceOnce(source, searchValue, replaceValue, context) {
+      const replaced = source.replace(searchValue, replaceValue)
+      if (replaced === source) {
+        throw new Error(`Failed to patch vendored React file: ${context}`)
+      }
+      return replaced
+    }
+
+    function indentBlock(source, indent) {
+      return source
+        .split('\n')
+        .map((line) => (line.length > 0 ? indent + line : line))
+        .join('\n')
+    }
+
+    function insertAfterIgnoreReject(source, block, context) {
+      return replaceOnce(
+        source,
+        /(^(\s*)function ignoreReject\(\) \{\}\n)/m,
+        (match, line, indent) => line + indentBlock(block, indent) + '\n',
+        context
+      )
+    }
+
+    const retryChunkLoadErrorRequire = `var retryChunkLoadError = require("next/dist/client/components/chunk-load-error/retry-chunk-load-error").retryChunkLoadError;`
+
+    const webpackChunkLoadRetryHelpers = `${retryChunkLoadErrorRequire}
+function clearChunkCache(chunkId) {
+  chunkCache.delete(chunkId);
+}`
+
+    function patchReactServerDomWebpackBrowserClient(source) {
+      let newSource = insertAfterIgnoreReject(
+        source,
+        webpackChunkLoadRetryHelpers,
+        'insert webpack browser chunk retry helpers'
+      )
+
+      newSource = replaceOnce(
+        newSource,
+        'chunkFilename.then(entry, ignoreReject),',
+        'chunkFilename.then(entry, clearChunkCache.bind(null, chunkId)),',
+        'clear failed webpack browser chunk cache'
+      )
+
+      if (newSource.includes('function loadChunk(chunkId, filename)')) {
+        return replaceOnce(
+          newSource,
+          /^(\s*)return __webpack_chunk_load__\(chunkId\);$/m,
+          (match, indent) =>
+            `${indent}return retryChunkLoadError(function () {\n${indent}  return __webpack_chunk_load__(chunkId);\n${indent}});`,
+          'wrap webpack browser chunk loader'
+        )
+      }
+
+      return replaceOnce(
+        newSource,
+        /^(\s*)\(chunkFilename = __webpack_chunk_load__\(chunkId\)\),$/m,
+        (match, indent) =>
+          `${indent}(chunkFilename = retryChunkLoadError(function () {\n${indent}  return __webpack_chunk_load__(chunkId);\n${indent}})),`,
+        'wrap webpack browser chunk loader'
+      )
+    }
+
+    const turbopackChunkLoadRetryHelpers = `${retryChunkLoadErrorRequire}
+var retryingChunks = new Map();
+function loadChunk(chunkUrl) {
+  var entry = retryingChunks.get(chunkUrl);
+  if (void 0 === entry) {
+    entry = retryChunkLoadError(function () {
+      return __turbopack_load_by_url__(chunkUrl);
+    }).then(
+      function (value) {
+        retryingChunks.delete(chunkUrl);
+        return value;
+      },
+      function (error) {
+        retryingChunks.delete(chunkUrl);
+        throw error;
+      }
+    );
+    retryingChunks.set(chunkUrl, entry);
+  }
+  return entry;
+}`
+
+    function patchReactServerDomTurbopackBrowserClient(source) {
+      let newSource = insertAfterIgnoreReject(
+        source,
+        turbopackChunkLoadRetryHelpers,
+        'insert turbopack browser chunk retry helpers'
+      )
+
+      return replaceOnce(
+        newSource,
+        '__turbopack_load_by_url__(chunks[i])',
+        'loadChunk(chunks[i])',
+        'wrap turbopack browser chunk loader'
+      )
+    }
+
     // Remove unused files
     const reactDomCompiledDir = join(
       __dirname,
@@ -1650,11 +1751,9 @@ export async function copy_vendor_react(task_) {
       )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        // NOTE: We only replace module/chunk loading for server builds because the server
-        // bundles have unique constraints like a runtime bundle. For browser builds this
-        // package will be bundled alongside user code and we don't need to introduce the extra
-        // indirection
+        // Server builds replace the module/chunk loading indirection for Next's
+        // runtime bundle constraints. Browser clients stay upstream except for
+        // a one-shot ChunkLoadError retry around client reference chunk loads.
         if (
           (file.base.startsWith('react-server-dom-webpack-client') &&
             !file.base.startsWith('react-server-dom-webpack-client.browser')) ||
@@ -1675,6 +1774,12 @@ export async function copy_vendor_react(task_) {
           )
 
           file.data = recast.print(ast).code
+        } else if (
+          file.base.startsWith('react-server-dom-webpack-client.browser')
+        ) {
+          file.data = patchReactServerDomWebpackBrowserClient(
+            file.data.toString()
+          )
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }
@@ -1704,11 +1809,9 @@ export async function copy_vendor_react(task_) {
       )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
-        // We replace the module loading code with our own implementation in Next.js.
-        // NOTE: We only replace module loading for server builds because the server
-        // bundles have unique constraints like a runtime bundle. For browser builds this
-        // package will be bundled alongside user code and we don't need to introduce the extra
-        // indirection
+        // Server builds replace the module loading indirection for Next's
+        // runtime bundle constraints. Browser clients stay upstream except for
+        // a one-shot ChunkLoadError retry around client reference chunk loads.
 
         if (
           (file.base.startsWith('react-server-dom-turbopack-client') ||
@@ -1734,6 +1837,12 @@ export async function copy_vendor_react(task_) {
           )
 
           file.data = recast.print(ast).code
+        } else if (
+          file.base.startsWith('react-server-dom-turbopack-client.browser')
+        ) {
+          file.data = patchReactServerDomTurbopackBrowserClient(
+            file.data.toString()
+          )
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }

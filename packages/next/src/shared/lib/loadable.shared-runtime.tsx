@@ -24,12 +24,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 
 import React from 'react'
 import { LoadableContext } from './loadable-context.shared-runtime'
-import { isChunkLoadError } from '../../client/components/chunk-load-error/is-chunk-load-error'
-import {
-  MAX_RETRY_ATTEMPTS,
-  getRetryDelayMs,
-  sleep,
-} from '../../client/components/chunk-load-error/chunk-load-error-handler'
+import { retryChunkLoadError } from '../../client/components/chunk-load-error/retry-chunk-load-error'
 
 function resolve(obj: any) {
   return obj && obj.default ? obj.default : obj
@@ -40,27 +35,7 @@ const READY_INITIALIZERS: any[] = []
 let initialized = false
 
 function retryChunkLoadErrorOnce(loader: any) {
-  let retries = 0
-
-  const run = async (): Promise<any> => {
-    try {
-      return await loader()
-    } catch (err) {
-      if (
-        typeof window !== 'undefined' &&
-        isChunkLoadError(err) &&
-        retries < MAX_RETRY_ATTEMPTS
-      ) {
-        retries++
-        await sleep(getRetryDelayMs())
-        return run()
-      }
-
-      throw err
-    }
-  }
-
-  return run()
+  return retryChunkLoadError(loader)
 }
 
 function load(loader: any) {

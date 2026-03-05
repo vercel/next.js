@@ -1,5 +1,5 @@
 /**
- * Shared retry timing utilities for chunk and RSC request retries.
+ * Shared retry timing utilities for chunk load retries.
  */
 // Retry budget after the initial attempt.
 export const MAX_RETRY_ATTEMPTS = 1
