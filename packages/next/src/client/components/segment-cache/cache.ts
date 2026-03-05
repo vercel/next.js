@@ -2015,7 +2015,7 @@ export async function fetchInlinedSegmentsOnCacheMiss(
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
     [NEXT_ROUTER_PREFETCH_HEADER]: '1',
-    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/_inlined',
+    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/' + PAGE_SEGMENT_KEY,
   }
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl

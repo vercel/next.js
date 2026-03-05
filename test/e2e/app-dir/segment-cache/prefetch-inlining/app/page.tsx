@@ -16,6 +16,9 @@ export default function Home() {
             Route A (duplicate)
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/dynamic/hello">Dynamic Route</LinkAccordion>
+        </li>
       </ul>
     </div>
   )
