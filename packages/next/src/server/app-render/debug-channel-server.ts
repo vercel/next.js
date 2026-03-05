@@ -1,8 +1,11 @@
 /**
  * Compile-time switcher for debug channel operations.
  *
- * When __NEXT_USE_NODE_STREAMS is true, uses a Node Writable-based channel.
+ * When __NEXT_USE_NODE_STREAMS is true, uses a Node PassThrough-based channel.
  * Otherwise, uses web WritableStream APIs.
+ *
+ * Both modules share the same DebugChannelPair type surface via AnyStream,
+ * matching the pattern used by stream-ops.ts.
  */
 export type {
   DebugChannelPair,
@@ -19,7 +22,7 @@ if (process.env.__NEXT_USE_NODE_STREAMS) {
     require('./debug-channel-server.node') as typeof import('./debug-channel-server.node')
 } else {
   _m =
-    require('./debug-channel-server.web') as typeof import('./debug-channel-server.web') as DebugChannelMod
+    require('./debug-channel-server.web') as typeof import('./debug-channel-server.web')
 }
 
 export const createDebugChannel = _m.createDebugChannel

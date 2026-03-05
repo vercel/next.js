@@ -41,7 +41,7 @@ export type RouterServerContext = Record<
     // allow setting ISR status in dev
     setIsrStatus?: (key: string, value: boolean | undefined) => void
     setReactDebugChannel?: (
-      debugChannel: { readable: ReadableStream<Uint8Array> },
+      debugChannel: { readable: AnyStream },
       htmlRequestId: string,
       requestId: string
     ) => void

@@ -1,12 +1,13 @@
+import { Readable } from 'node:stream'
 import { createBufferedTransformStream } from '../stream-utils/node-web-streams-helper'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
 } from './hot-reloader-types'
+import type { AnyStream } from '../app-render/stream-ops'
 
 export interface ReactDebugChannelForBrowser {
-  readonly readable: ReadableStream<Uint8Array>
-  // Might also get a writable stream as return channel in the future.
+  readonly readable: AnyStream
 }
 
 const reactDebugChannelsByHtmlRequestId = new Map<
@@ -14,14 +15,20 @@ const reactDebugChannelsByHtmlRequestId = new Map<
   ReactDebugChannelForBrowser
 >()
 
+function toWebReadableStream(stream: AnyStream): ReadableStream<Uint8Array> {
+  if (stream instanceof ReadableStream) {
+    return stream
+  }
+  return Readable.toWeb(stream) as unknown as ReadableStream<Uint8Array>
+}
+
 export function connectReactDebugChannel(
   requestId: string,
   debugChannel: ReactDebugChannelForBrowser,
   sendToClient: (message: HmrMessageSentToBrowser) => void
 ) {
-  const reader = debugChannel.readable
+  const reader = toWebReadableStream(debugChannel.readable)
     .pipeThrough(
-      // We're sending the chunks in batches to reduce overhead in the browser.
       createBufferedTransformStream({ maxBufferByteLength: 128 * 1024 })
     )
     .getReader()

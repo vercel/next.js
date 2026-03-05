@@ -3,20 +3,18 @@
  * Loaded by debug-channel-server.ts.
  */
 
-// Types defined inline for now; will move to debug-channel-server.node.ts later.
+import type { AnyStream } from './app-render-prerender-utils'
+
 export type DebugChannelPair = {
   serverSide: DebugChannelServer
   clientSide: DebugChannelClient
 }
 
-export type DebugChannelServer = {
-  readable?: ReadableStream<Uint8Array>
-  writable: WritableStream<Uint8Array>
-}
+ 
+export type DebugChannelServer = any
 
 type DebugChannelClient = {
-  readable: ReadableStream<Uint8Array>
-  writable?: WritableStream<Uint8Array>
+  readable: AnyStream
 }
 
 export function createDebugChannel(): DebugChannelPair | undefined {

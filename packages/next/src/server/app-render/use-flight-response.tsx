@@ -77,8 +77,8 @@ export function getFlightStream<T>(
         require('node:stream') as typeof import('node:stream')
 
       // Convert debug stream to Readable if it's a ReadableStream.
-      // This can happen when the flight stream is a Node Readable (node streams path)
-      // but the debug channel always produces web ReadableStreams.
+      // When __NEXT_USE_NODE_STREAMS is enabled, the debug channel produces
+      // Node Readables natively. Otherwise, it produces web ReadableStreams.
       let nodeDebugStream: Readable | undefined
       if (debugStream) {
         if (debugStream instanceof Readable) {
