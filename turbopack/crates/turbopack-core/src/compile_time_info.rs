@@ -129,32 +129,18 @@ pub enum CompileTimeDefineValue {
     Regex(RcStr, RcStr),
 }
 
-fn integer_decode(val: f64) -> (u64, i16, i8) {
-    let bits: u64 = val.to_bits();
-    let sign: i8 = if bits >> 63 == 0 { 1 } else { -1 };
-    let mut exponent: i16 = ((bits >> 52) & 0x7ff) as i16;
-    let mantissa = if exponent == 0 {
-        (bits & 0xfffffffffffff) << 1
-    } else {
-        (bits & 0xfffffffffffff) | 0x10000000000000
-    };
-
-    exponent -= 1023 + 52;
-    (mantissa, exponent, sign)
-}
-
-/// Wrapper around f64 that implements total ordering and hashing based on total ordering.
+/// Wrapper around f64 that implements total Eq and Hash, based on total ordering.
 #[derive(Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct TotalOrderF64(f64);
 impl PartialEq for TotalOrderF64 {
     fn eq(&self, other: &Self) -> bool {
-        integer_decode(self.0) == integer_decode(other.0)
+        self.0.total_cmp(&other.0) == std::cmp::Ordering::Equal
     }
 }
 impl Eq for TotalOrderF64 {}
 impl Hash for TotalOrderF64 {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        integer_decode(self.0).hash(state);
+        self.0.to_le_bytes().hash(state);
     }
 }
 impl From<f64> for TotalOrderF64 {
