@@ -25,6 +25,7 @@ export interface WorkerOptions {
    * e.g. "Next.js build worker" produces "Next.js build worker exited with code: ..."
    */
   workerName?: string
+  /** Extra environment variables to merge into the worker process environment */
   forkOptions?: {
     env?: Partial<NodeJS.ProcessEnv> | undefined
   }
@@ -40,19 +41,35 @@ export interface WorkerOptions {
    * Debugger port offset, or `undefined` if not inspectable (default: undefined)
    */
   debuggerPortOffset?: number
+  /** If true, passes `--enable-source-maps` to worker processes (default: false) */
   enableSourceMaps?: boolean
   /**
    * If true, strips `--max-old-space-size` from NODE_OPTIONS (default: false)
    */
   isolatedMemory?: boolean
+  /**
+   * Milliseconds before considering a worker hung. When the timeout fires the
+   * current pool is ended and a fresh one is created. (default: no timeout)
+   */
   timeout?: number
+  /** Called when a worker reports activity (heartbeat for progress indicators) */
   onActivity?: () => void
+  /** Called to abort the activity indicator (e.g. when workers write to stdout/stderr) */
   onActivityAbort?: () => void
+  /** Called before retrying a method call after a WorkerExitError */
   onRestart?: (method: string, args: any[], attempts: number) => void
+  /** Logger used for timeout warnings (default: console) */
   logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
+  /** Method names exported by the worker module to expose on this Worker instance */
   exposedMethods: ReadonlyArray<string>
+  /** Use worker_threads instead of child_process (default: false) */
   enableWorkerThreads?: boolean
+  /** Number of times to retry a call that fails with WorkerExitError (default: 0) */
   maxRetries?: number
+  /**
+   * Maximum number of workers booting simultaneously.
+   * Passed through to WorkerPool. (default: Math.ceil(maxWorkers / 4))
+   */
   maxBootingWorkers?: number
 }
 
