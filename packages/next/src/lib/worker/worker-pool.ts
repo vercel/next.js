@@ -343,6 +343,7 @@ export class WorkerPool {
   /**
    * Force-kill all workers immediately.
    * All in-flight requests and queued tasks are rejected.
+   * Sends an END message first to allow graceful cleanup, then force-kills.
    */
   close(): void {
     this._ending = true
@@ -354,6 +355,8 @@ export class WorkerPool {
     for (const worker of this._workers) {
       worker.ending = true
       this._rejectActiveRequests(worker, new Error('Worker pool closed'))
+      // Send END message to allow the child to clean up, then force-kill
+      worker.handle.send([CHILD_MESSAGE_END])
       worker.handle.forceKill()
     }
     this._workers = []
