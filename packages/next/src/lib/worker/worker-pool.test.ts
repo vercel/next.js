@@ -656,7 +656,7 @@ describe('WorkerPool', () => {
       proc.emit('exit', 1, null)
 
       await expect(promise).rejects.toThrow(
-        'Worker exited unexpectedly with code 1'
+        'Worker exited with code: 1 and signal: null'
       )
       try {
         await promise
