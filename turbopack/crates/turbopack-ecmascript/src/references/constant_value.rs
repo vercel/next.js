@@ -3,7 +3,9 @@ use bincode::{Decode, Encode};
 use swc_core::{
     common::{DUMMY_SP, FileName, SourceMap, sync::Lrc},
     ecma::{
-        ast::{ArrayLit, EsVersion, Expr, KeyValueProp, Lit, ObjectLit, Prop, PropName, Str},
+        ast::{
+            ArrayLit, EsVersion, Expr, KeyValueProp, Lit, ObjectLit, Prop, PropName, Regex, Str,
+        },
         parser::{Syntax, parse_file_as_expr},
     },
     quote,
@@ -72,6 +74,13 @@ fn value_to_expr(value: &CompileTimeDefineValue) -> Expr {
         }
         CompileTimeDefineValue::BigInt(n) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Lit(Lit::BigInt(n.as_ref().clone().into())))
+        }
+        CompileTimeDefineValue::Regex(pattern, flags) => {
+            quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Lit(Lit::Regex(Regex {
+               span: DUMMY_SP,
+               exp: pattern.as_str().into(),
+               flags: flags.as_str().into(),
+            })))
         }
         CompileTimeDefineValue::Array(a) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Array(ArrayLit {

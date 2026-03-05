@@ -570,6 +570,9 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
             CompileTimeDefineValue::Number(n) => ConstantValue::Num(ConstantNumber(*n)),
             CompileTimeDefineValue::BigInt(n) => ConstantValue::BigInt(n.clone()),
             CompileTimeDefineValue::String(s) => s.as_str().into(),
+            CompileTimeDefineValue::Regex(pattern, flags) => {
+                ConstantValue::Regex(Box::new((pattern.as_str().into(), flags.as_str().into())))
+            }
             CompileTimeDefineValue::Array(a) => {
                 let mut js_value = JsValue::Array {
                     total_nodes: a.len() as u32,
@@ -615,9 +618,10 @@ impl TryFrom<&ConstantValue> for CompileTimeDefineValue {
             ConstantValue::Num(n) => CompileTimeDefineValue::Number(n.0),
             ConstantValue::Str(s) => CompileTimeDefineValue::String(s.as_rcstr()),
             ConstantValue::BigInt(n) => CompileTimeDefineValue::BigInt(n.clone()),
-            ConstantValue::Regex(_) => {
-                bail!("ConstantValue::Regex is not supported in ConstantValueCodeGen")
-            }
+            ConstantValue::Regex(regex) => CompileTimeDefineValue::Regex(
+                RcStr::from(regex.0.as_str()),
+                RcStr::from(regex.1.as_str()),
+            ),
         })
     }
 }

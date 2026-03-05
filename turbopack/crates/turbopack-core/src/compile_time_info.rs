@@ -126,6 +126,7 @@ pub enum CompileTimeDefineValue {
     Object(Vec<(RcStr, CompileTimeDefineValue)>),
     Undefined,
     Evaluate(RcStr),
+    Regex(RcStr, RcStr),
 }
 
 fn integer_decode(val: f64) -> (u64, i16, i8) {
