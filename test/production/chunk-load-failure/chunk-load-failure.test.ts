@@ -91,6 +91,42 @@ describe('chunk-load-failure', () => {
     expect(rscRequestCount).toBeGreaterThanOrEqual(2)
   })
 
+  it('should recover after a transient async chunk load failure', async () => {
+    let nextDynamicChunk = await getNextDynamicChunk()
+    let chunkRequestCount = 0
+    let pageError: Error | undefined
+
+    const browser = await next.browser('/dynamic', {
+      beforePageLoad(page) {
+        page.route(`**/${nextDynamicChunk}*`, async (route) => {
+          chunkRequestCount++
+          if (chunkRequestCount === 1) {
+            await route.abort('connectionreset')
+            return
+          }
+          await route.continue()
+        })
+        page.on('pageerror', (error: Error) => {
+          pageError = error
+        })
+      },
+    })
+
+    await retry(
+      async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain(
+          'this is a lazy loaded async component'
+        )
+      },
+      10_000,
+      250
+    )
+
+    expect(chunkRequestCount).toBeGreaterThanOrEqual(2)
+    expect(pageError).toBeUndefined()
+  })
+
   it('should report aborted chunks when navigating away', async () => {
     let nextDynamicChunk = await getNextDynamicChunk()
 
