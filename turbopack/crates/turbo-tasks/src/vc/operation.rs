@@ -130,7 +130,6 @@ impl<T: ?Sized> OperationVc<T> {
     /// consistent][crate::ReadConsistency::Strong] read of the value.
     ///
     /// This ensures that all internal tasks are finished before the read is returned.
-    #[must_use]
     pub fn read_strongly_consistent(self) -> ReadVcFuture<T>
     where
         T: VcValueType,

@@ -566,7 +566,6 @@ where
 {
     /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
     #[cfg(feature = "non_operation_vc_strongly_consistent")]
-    #[must_use]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
         self.node
             .into_read(T::has_serialization())
@@ -576,7 +575,6 @@ where
 
     /// Returns a untracked read of the value. This will not invalidate the current function when
     /// the read value changed.
-    #[must_use]
     pub fn untracked(self) -> ReadVcFuture<T> {
         self.node
             .into_read(T::has_serialization())
@@ -586,7 +584,6 @@ where
 
     /// Read the value with the hint that this is the final read of the value. This might drop the
     /// cell content. Future reads might need to recompute the value.
-    #[must_use]
     pub fn final_read_hint(self) -> ReadVcFuture<T> {
         self.node
             .into_read(T::has_serialization())
