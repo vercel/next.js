@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense } from 'react'
-import { useSearchParams, usePathname } from 'next/navigation'
+import { useSearchParams, usePathname, useParams } from 'next/navigation'
 
 function Box({
   label,
@@ -46,6 +46,16 @@ function PathnameDisplay() {
   )
 }
 
+function ParamsDisplay() {
+  const params = useParams()
+
+  return (
+    <p style={{ margin: 0 }} data-testid="client-params">
+      <code>slug={String(params.slug ?? '(none)')}</code>
+    </p>
+  )
+}
+
 function SearchParamsDisplay() {
   const searchParams = useSearchParams()
 
@@ -75,6 +85,18 @@ export function ClientFeatures() {
           }
         >
           <PathnameDisplay />
+        </Suspense>
+      </Box>
+
+      <Box label="useParams()">
+        <Suspense
+          fallback={
+            <p style={{ margin: 0 }}>
+              <span className="skeleton" style={{ display: 'inline-block', width: 120, height: '1em', verticalAlign: 'middle' }} />
+            </p>
+          }
+        >
+          <ParamsDisplay />
         </Suspense>
       </Box>
 

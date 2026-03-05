@@ -71,9 +71,25 @@ async function SearchParamReader({
   )
 }
 
+async function ParamReader({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
+  return (
+    <p data-testid="param-value" style={{ margin: 0 }}>
+      <code>slug={slug}</code>
+    </p>
+  )
+}
+
 export default async function TargetPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ slug: string }>
   searchParams: Promise<{ search?: string }>
 }) {
   return (
@@ -150,6 +166,12 @@ export default async function TargetPage({
               }
             >
               <DynamicStats />
+            </Suspense>
+          </Box>
+
+          <Box label="await params">
+            <Suspense fallback={<p data-testid="param-skeleton" style={{ margin: 0 }}><span className="skeleton" style={{ display: 'inline-block', width: 120, height: '1em', verticalAlign: 'middle' }} /></p>}>
+              <ParamReader params={params} />
             </Suspense>
           </Box>
 
