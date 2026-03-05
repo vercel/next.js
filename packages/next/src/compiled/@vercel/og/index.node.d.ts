@@ -1,8 +1,10 @@
-/// <reference types="node" />
-import type { ReactElement } from 'react';
-import type { ImageResponseNodeOptions, ImageResponseOptions, FigmaImageResponseProps } from './types';
+import { ReactElement } from 'react';
+import { I as ImageResponseOptions, a as ImageResponseNodeOptions } from './types-d38469ff.js';
 import { Readable } from 'stream';
-export declare class ImageResponse extends Response {
+import "next/dist/compiled/@vercel/og/satori";
+import 'http';
+
+declare class ImageResponse extends Response {
     constructor(element: ReactElement, options?: ImageResponseOptions);
 }
 /**
@@ -22,6 +24,7 @@ export declare class ImageResponse extends Response {
  * }
  * ```
  */
-export declare function unstable_createNodejsStream(element: ReactElement, options?: Omit<ImageResponseNodeOptions, 'status' | 'statusText' | 'headers'>): Promise<Readable>;
-export declare const experimental_FigmaImageResponse: (props: FigmaImageResponseProps) => Promise<import("./index.edge").ImageResponse>;
-export type NodeImageResponse = typeof ImageResponse;
+declare function unstable_createNodejsStream(element: ReactElement, options?: Omit<ImageResponseNodeOptions, 'status' | 'statusText' | 'headers'>): Promise<Readable>;
+type NodeImageResponse = typeof ImageResponse;
+
+export { ImageResponse, ImageResponseOptions, NodeImageResponse, unstable_createNodejsStream };
