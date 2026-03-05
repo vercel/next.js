@@ -3002,26 +3002,30 @@ export async function processRuntimePrefetchStream(
  * response (Flight rows start with a hex digit or ':').
  *
  * If the first byte is not a recognized marker, the stream is returned intact
- * and the response is conservatively treated as partial.
+ * and `isPartial` is determined by the cachedNavigations experimental flag.
  */
 export async function stripIsPartialByte(
   stream: ReadableStream<Uint8Array>
 ): Promise<{ stream: ReadableStream<Uint8Array>; isPartial: boolean }> {
+  // When there is no recognized marker byte, the fallback depends on whether
+  // Cached Navigations is enabled. When enabled, dynamic navigation responses
+  // don't have a marker but may contain dynamic holes, so they are treated as
+  // partial. When disabled, unmarked responses are treated as non-partial.
+  const defaultIsPartial = !!process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+
   const reader = stream.getReader()
   const { done, value } = await reader.read()
+
   if (done || !value || value.byteLength === 0) {
     return {
       stream: new ReadableStream({ start: (c) => c.close() }),
-      isPartial: true,
+      isPartial: defaultIsPartial,
     }
   }
 
   const firstByte = value[0]
-  // '#' (0x23) = complete, '~' (0x7e) = partial.
-  // Only '#' explicitly means non-partial. Everything else (including
-  // unrecognized bytes) is conservatively treated as partial.
   const hasMarker = firstByte === 0x23 || firstByte === 0x7e
-  const isPartial = firstByte !== 0x23
+  const isPartial = hasMarker ? firstByte === 0x7e : defaultIsPartial
 
   const remainder = hasMarker
     ? value.byteLength > 1

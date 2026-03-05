@@ -430,6 +430,12 @@ function assignDefaultsAndValidate(
     )
   }
 
+  if (result.experimental.cachedNavigations && !result.cacheComponents) {
+    throw new Error(
+      `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
   if (result.experimental.ppr) {
     throw new HardDeprecatedConfigError(
       `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`
@@ -1937,6 +1943,25 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.cacheComponents))
   ) {
     config.cacheComponents = true
+  }
+
+  // TODO: Remove this once cachedNavigations is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.cachedNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.cachedNavigations))
+  ) {
+    config.experimental.cachedNavigations = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'cachedNavigations',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS`'
+      )
+    }
   }
 
   // TODO: Remove this once appNewScrollHandler is the default.

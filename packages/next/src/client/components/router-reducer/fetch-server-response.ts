@@ -328,7 +328,7 @@ export type RSCResponse<T> = {
 
 type FetchResponseCacheData = {
   isResponsePartial: boolean
-  responseBodyClone: ReadableStream<Uint8Array>
+  responseBodyClone?: ReadableStream<Uint8Array>
 }
 
 /**
@@ -355,9 +355,20 @@ export async function processFetch(response: Response): Promise<{
     }
 
     const { stream, isPartial } = await stripIsPartialByte(response.body)
-    const [stream1, stream2] = stream.tee()
 
-    const strippedResponse = new Response(stream1, {
+    let responseStream: ReadableStream<Uint8Array>
+    let cacheData: FetchResponseCacheData
+
+    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
+      const [stream1, stream2] = stream.tee()
+      responseStream = stream1
+      cacheData = { isResponsePartial: isPartial, responseBodyClone: stream2 }
+    } else {
+      responseStream = stream
+      cacheData = { isResponsePartial: isPartial }
+    }
+
+    const strippedResponse = new Response(responseStream, {
       headers: response.headers,
       status: response.status,
       statusText: response.statusText,
@@ -371,10 +382,7 @@ export async function processFetch(response: Response): Promise<{
       value: response.redirected,
     })
 
-    return {
-      response: strippedResponse,
-      cacheData: { isResponsePartial: isPartial, responseBodyClone: stream2 },
-    }
+    return { response: strippedResponse, cacheData }
   }
 
   return { response, cacheData: null }
@@ -398,27 +406,29 @@ export async function resolveStaticStageData<
 ): Promise<StaticStageData<T> | null> {
   const { isResponsePartial, responseBodyClone } = cacheData
 
-  if (!isResponsePartial) {
-    // Fully static — cache the entire decoded response as-is.
+  if (responseBodyClone) {
+    if (!isResponsePartial) {
+      // Fully static — cache the entire decoded response as-is.
+      responseBodyClone.cancel()
+
+      return { response: flightResponse, isResponsePartial: false }
+    }
+
+    if (flightResponse.l !== undefined) {
+      // Partially static — truncate the body clone at the byte boundary and
+      // decode it.
+      const response = await decodeStaticStage<T>(
+        responseBodyClone,
+        flightResponse.l,
+        headers
+      )
+
+      return { response, isResponsePartial: true }
+    }
+
+    // No caching — cancel the unused clone.
     responseBodyClone.cancel()
-
-    return { response: flightResponse, isResponsePartial: false }
   }
-
-  if (flightResponse.l !== undefined) {
-    // Partially static — truncate the body clone at the byte boundary and
-    // decode it.
-    const response = await decodeStaticStage<T>(
-      responseBodyClone,
-      flightResponse.l,
-      headers
-    )
-
-    return { response, isResponsePartial: true }
-  }
-
-  // No caching — cancel the unused clone.
-  responseBodyClone.cancel()
 
   return null
 }
