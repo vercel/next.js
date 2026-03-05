@@ -113,6 +113,10 @@ jobs:
 
       - run: pnpm install
 
+      - name: Set preview version
+        if: ${{ needs.deploy-target.outputs.value != 'production' }}
+        run: node scripts/set-preview-version.js "${{ github.sha }}"
+
       - run: pnpm run build
 
       - uses: actions/cache@v4
@@ -542,7 +546,7 @@ jobs:
       - name: Create tarballs
         # github.event.after is available on push and pull_request#synchronize events.
         # For workflow_dispatch events, github.sha is the head commit.
-        run: node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs"
+        run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs"
 
       - name: Upload tarballs
         uses: actions/upload-artifact@v4
