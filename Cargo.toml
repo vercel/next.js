@@ -470,7 +470,7 @@ syn = "2.0.100"
 tempfile = "3.20.0"
 thiserror = "1.0.48"
 thread_local = "1.1.8"
-tokio = "1.43.0"
+tokio = "1.47.3"
 tokio-util = { version = "0.7.13", features = ["io", "rt"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
