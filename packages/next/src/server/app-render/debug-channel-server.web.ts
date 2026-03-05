@@ -10,7 +10,6 @@ export type DebugChannelPair = {
   clientSide: DebugChannelClient
 }
 
- 
 export type DebugChannelServer = any
 
 type DebugChannelClient = {
