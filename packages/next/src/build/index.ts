@@ -122,6 +122,7 @@ import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
 import {
   detectConflictingPaths,
+  writeRouteBundleStats,
   printCustomRoutes,
   printTreeView,
   copyTracedFiles,
@@ -4152,6 +4153,14 @@ export default async function build(
           hasGSPAndRevalidateZero,
         })
       )
+
+      if (bundler === Bundler.Turbopack) {
+        await nextBuildSpan
+          .traceChild('write-route-bundle-stats')
+          .traceAsyncFn(() =>
+            writeRouteBundleStats(pageKeys, buildManifest, distDir, dir)
+          )
+      }
 
       await nextBuildSpan
         .traceChild('telemetry-flush')
