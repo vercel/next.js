@@ -571,8 +571,7 @@ pub async fn get_server_module_options_context(
         css: CssOptionsContext {
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
-            lightningcss_include_features: *next_config.lightningcss_include_features().await?,
-            lightningcss_exclude_features: *next_config.lightningcss_exclude_features().await?,
+            lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,

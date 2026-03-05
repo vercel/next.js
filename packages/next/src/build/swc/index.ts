@@ -1651,6 +1651,9 @@ function loadNative(importPath?: string): Binding {
               transformAttrOptions
             )
           },
+          featureNamesToMask(names: string[]) {
+            return bindings.lightningcssFeatureNamesToMaskNapi(names)
+          },
         },
       },
       reactCompiler: {

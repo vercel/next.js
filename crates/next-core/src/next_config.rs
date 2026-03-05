@@ -2151,19 +2151,18 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn lightningcss_include_features(&self) -> Vc<u32> {
-        Vc::cell(lightningcss_features_field_mask(
-            &self.experimental.lightning_css_features,
-            |f| f.include.as_ref(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub fn lightningcss_exclude_features(&self) -> Vc<u32> {
-        Vc::cell(lightningcss_features_field_mask(
-            &self.experimental.lightning_css_features,
-            |f| f.exclude.as_ref(),
-        ))
+    pub fn lightningcss_feature_flags(&self) -> Vc<turbopack_css::LightningCssFeatureFlags> {
+        turbopack_css::LightningCssFeatureFlags {
+            include: lightningcss_features_field_mask(
+                &self.experimental.lightning_css_features,
+                |f| f.include.as_ref(),
+            ),
+            exclude: lightningcss_features_field_mask(
+                &self.experimental.lightning_css_features,
+                |f| f.exclude.as_ref(),
+            ),
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -2340,51 +2339,49 @@ fn lightningcss_features_field_mask(
 
 /// Convert dash-case feature name strings to a lightningcss `Features` bitmask.
 ///
-/// Bit positions match the `lightningcss::targets::Features` bitflags exactly.
+/// Uses the canonical `Features` constants from the lightningcss crate.
 /// Composite names (`selectors`, `media-queries`, `colors`) OR together the
 /// bits of their constituent individual features.
 ///
-/// Keep in sync with:
-/// - Names: `packages/next/src/server/config-shared.ts` (`LIGHTNINGCSS_FEATURE_NAMES`)
-/// - JS:    `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
-fn lightningcss_feature_names_to_mask(names: &[RcStr]) -> u32 {
-    let mut mask = 0u32;
+/// Feature names must match: `packages/next/src/server/config-shared.ts`
+/// (`LIGHTNINGCSS_FEATURE_NAMES`)
+pub fn lightningcss_feature_names_to_mask(names: &[impl std::ops::Deref<Target = str>]) -> u32 {
+    use lightningcss::targets::Features;
+    let mut mask = Features::empty();
     for name in names {
-        mask |= match name.as_str() {
-            "nesting" => 1 << 0,
-            "not-selector-list" => 1 << 1,
-            "dir-selector" => 1 << 2,
-            "lang-selector-list" => 1 << 3,
-            "is-selector" => 1 << 4,
-            "text-decoration-thickness-percent" => 1 << 5,
-            "media-interval-syntax" => 1 << 6,
-            "media-range-syntax" => 1 << 7,
-            "custom-media-queries" => 1 << 8,
-            "clamp-function" => 1 << 9,
-            "color-function" => 1 << 10,
-            "oklab-colors" => 1 << 11,
-            "lab-colors" => 1 << 12,
-            "p3-colors" => 1 << 13,
-            "hex-alpha-colors" => 1 << 14,
-            "space-separated-color-notation" => 1 << 15,
-            "font-family-system-ui" => 1 << 16,
-            "double-position-gradients" => 1 << 17,
-            "vendor-prefixes" => 1 << 18,
-            "logical-properties" => 1 << 19,
-            "light-dark" => 1 << 20,
+        mask |= match &**name {
+            "nesting" => Features::Nesting,
+            "not-selector-list" => Features::NotSelectorList,
+            "dir-selector" => Features::DirSelector,
+            "lang-selector-list" => Features::LangSelectorList,
+            "is-selector" => Features::IsSelector,
+            "text-decoration-thickness-percent" => Features::TextDecorationThicknessPercent,
+            "media-interval-syntax" => Features::MediaIntervalSyntax,
+            "media-range-syntax" => Features::MediaRangeSyntax,
+            "custom-media-queries" => Features::CustomMediaQueries,
+            "clamp-function" => Features::ClampFunction,
+            "color-function" => Features::ColorFunction,
+            "oklab-colors" => Features::OklabColors,
+            "lab-colors" => Features::LabColors,
+            "p3-colors" => Features::P3Colors,
+            "hex-alpha-colors" => Features::HexAlphaColors,
+            "space-separated-color-notation" => Features::SpaceSeparatedColorNotation,
+            "font-family-system-ui" => Features::FontFamilySystemUi,
+            "double-position-gradients" => Features::DoublePositionGradients,
+            "vendor-prefixes" => Features::VendorPrefixes,
+            "logical-properties" => Features::LogicalProperties,
+            "light-dark" => Features::LightDark,
             // Composite groups
-            "selectors" => (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4),
-            "media-queries" => (1 << 6) | (1 << 7) | (1 << 8),
-            "colors" => {
-                (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13) | (1 << 14) | (1 << 15) | (1 << 20)
-            }
+            "selectors" => Features::Selectors,
+            "media-queries" => Features::MediaQueries,
+            "colors" => Features::Colors,
             _ => {
-                tracing::warn!("Unknown lightningcss feature: {}", name);
-                0
+                tracing::warn!("Unknown lightningcss feature: {}", &**name);
+                Features::empty()
             }
         };
     }
-    mask
+    mask.bits()
 }
 
 #[cfg(test)]

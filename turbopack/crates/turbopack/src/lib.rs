@@ -257,8 +257,7 @@ async fn apply_module_type(
         ModuleType::Css {
             ty,
             environment,
-            lightningcss_include_features,
-            lightningcss_exclude_features,
+            lightningcss_features,
         } => ResolvedVc::upcast(
             CssModuleAsset::new(
                 *source,
@@ -266,8 +265,7 @@ async fn apply_module_type(
                 *ty,
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
-                *lightningcss_include_features,
-                *lightningcss_exclude_features,
+                *lightningcss_features,
             )
             .to_resolved()
             .await?,
@@ -760,8 +758,7 @@ async fn process_default_internal(
                     empty_transforms,
                     default_options,
                     None,
-                    0,
-                    0,
+                    Default::default(),
                 )
                 .await?;
             match effect {

@@ -19,7 +19,6 @@ import {
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
 import { ECacheKey } from './interface'
-import { featureNamesToMask } from './features'
 import { getBindingsSync } from '../../../../../build/swc'
 import { installBindings } from '../../../../../build/swc/install-bindings'
 
@@ -361,6 +360,7 @@ export async function LightningCssLoader(
   // Compute feature include/exclude masks from user config.
   // Default: always transpile nesting (bit 0). User `include` adds flags,
   // user `exclude` removes them from both include and exclude masks.
+  const featureNamesToMask = getBindingsSync().css.lightning.featureNamesToMask
   const userIncludeMask = options.lightningCssFeatures?.include
     ? featureNamesToMask(options.lightningCssFeatures.include)
     : 0
