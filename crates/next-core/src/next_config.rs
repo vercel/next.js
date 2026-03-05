@@ -2325,6 +2325,68 @@ impl JsConfig {
     }
 }
 
+/// Extract either the `include` or `exclude` field from `LightningCssFeatures`
+/// and convert the feature names to a bitmask.
+fn lightningcss_features_field_mask(
+    features: &Option<LightningCssFeatures>,
+    field: impl FnOnce(&LightningCssFeatures) -> Option<&Vec<RcStr>>,
+) -> u32 {
+    features
+        .as_ref()
+        .and_then(field)
+        .map(|names| lightningcss_feature_names_to_mask(names))
+        .unwrap_or(0)
+}
+
+/// Convert dash-case feature name strings to a lightningcss `Features` bitmask.
+///
+/// Bit positions match the `lightningcss::targets::Features` bitflags exactly.
+/// Composite names (`selectors`, `media-queries`, `colors`) OR together the
+/// bits of their constituent individual features.
+///
+/// Keep in sync with:
+/// - Names: `packages/next/src/server/config-shared.ts` (`LIGHTNINGCSS_FEATURE_NAMES`)
+/// - JS:    `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
+fn lightningcss_feature_names_to_mask(names: &[RcStr]) -> u32 {
+    let mut mask = 0u32;
+    for name in names {
+        mask |= match name.as_str() {
+            "nesting" => 1 << 0,
+            "not-selector-list" => 1 << 1,
+            "dir-selector" => 1 << 2,
+            "lang-selector-list" => 1 << 3,
+            "is-selector" => 1 << 4,
+            "text-decoration-thickness-percent" => 1 << 5,
+            "media-interval-syntax" => 1 << 6,
+            "media-range-syntax" => 1 << 7,
+            "custom-media-queries" => 1 << 8,
+            "clamp-function" => 1 << 9,
+            "color-function" => 1 << 10,
+            "oklab-colors" => 1 << 11,
+            "lab-colors" => 1 << 12,
+            "p3-colors" => 1 << 13,
+            "hex-alpha-colors" => 1 << 14,
+            "space-separated-color-notation" => 1 << 15,
+            "font-family-system-ui" => 1 << 16,
+            "double-position-gradients" => 1 << 17,
+            "vendor-prefixes" => 1 << 18,
+            "logical-properties" => 1 << 19,
+            "light-dark" => 1 << 20,
+            // Composite groups
+            "selectors" => (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4),
+            "media-queries" => (1 << 6) | (1 << 7) | (1 << 8),
+            "colors" => {
+                (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13) | (1 << 14) | (1 << 15) | (1 << 20)
+            }
+            _ => {
+                tracing::warn!("Unknown lightningcss feature: {}", name);
+                0
+            }
+        };
+    }
+    mask
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2399,66 +2461,4 @@ mod tests {
             }
         );
     }
-}
-
-/// Extract either the `include` or `exclude` field from `LightningCssFeatures`
-/// and convert the feature names to a bitmask.
-fn lightningcss_features_field_mask(
-    features: &Option<LightningCssFeatures>,
-    field: impl FnOnce(&LightningCssFeatures) -> Option<&Vec<RcStr>>,
-) -> u32 {
-    features
-        .as_ref()
-        .and_then(field)
-        .map(|names| lightningcss_feature_names_to_mask(names))
-        .unwrap_or(0)
-}
-
-/// Convert dash-case feature name strings to a lightningcss `Features` bitmask.
-///
-/// Bit positions match the `lightningcss::targets::Features` bitflags exactly.
-/// Composite names (`selectors`, `media-queries`, `colors`) OR together the
-/// bits of their constituent individual features.
-///
-/// Keep in sync with:
-/// - Names: `packages/next/src/server/config-shared.ts` (`LIGHTNINGCSS_FEATURE_NAMES`)
-/// - JS:    `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
-fn lightningcss_feature_names_to_mask(names: &[RcStr]) -> u32 {
-    let mut mask = 0u32;
-    for name in names {
-        mask |= match name.as_str() {
-            "nesting" => 1 << 0,
-            "not-selector-list" => 1 << 1,
-            "dir-selector" => 1 << 2,
-            "lang-selector-list" => 1 << 3,
-            "is-selector" => 1 << 4,
-            "text-decoration-thickness-percent" => 1 << 5,
-            "media-interval-syntax" => 1 << 6,
-            "media-range-syntax" => 1 << 7,
-            "custom-media-queries" => 1 << 8,
-            "clamp-function" => 1 << 9,
-            "color-function" => 1 << 10,
-            "oklab-colors" => 1 << 11,
-            "lab-colors" => 1 << 12,
-            "p3-colors" => 1 << 13,
-            "hex-alpha-colors" => 1 << 14,
-            "space-separated-color-notation" => 1 << 15,
-            "font-family-system-ui" => 1 << 16,
-            "double-position-gradients" => 1 << 17,
-            "vendor-prefixes" => 1 << 18,
-            "logical-properties" => 1 << 19,
-            "light-dark" => 1 << 20,
-            // Composite groups
-            "selectors" => (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4),
-            "media-queries" => (1 << 6) | (1 << 7) | (1 << 8),
-            "colors" => {
-                (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13) | (1 << 14) | (1 << 15) | (1 << 20)
-            }
-            _ => {
-                tracing::warn!("Unknown lightningcss feature: {}", name);
-                0
-            }
-        };
-    }
-    mask
 }
