@@ -35,7 +35,16 @@ async function main() {
 
   await execa(
     'pnpm',
-    ['lerna', 'version', version, '--no-git-tag-version', '--no-push', '--yes'],
+    [
+      'lerna',
+      'version',
+      version,
+      '--no-git-tag-version',
+      '--no-push',
+      '--allow-branch',
+      '*',
+      '--yes',
+    ],
     { cwd: repoRoot, stdio: 'inherit' }
   )
 
