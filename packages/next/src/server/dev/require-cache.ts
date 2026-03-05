@@ -30,20 +30,28 @@ function deleteFromRequireCache(filePaths: string[]): void {
   if (modsToDelete.size === 0) return
 
   // Phase 2: Single scan of require.cache to remove child references
-  for (const parent of Object.values(require.cache)) {
-    if (parent?.children) {
-      for (let i = parent.children.length - 1; i >= 0; i--) {
-        if (modsToDelete.has(parent.children[i])) {
-          parent.children.splice(i, 1)
+  const modules = Object.values(require.cache)
+  for (let m = 0; m < modules.length; m++) {
+    const children = modules[m]?.children
+    if (children && children.length) {
+      let len = children.length
+      for (let i = 0; i < len; i++) {
+        if (modsToDelete.has(children[i])) {
+          children[i] = children[--len]
+          i-- // re-check swapped element
         }
       }
+      children.length = len
     }
   }
 
   // Phase 3: Clear parent references from children and delete cache entries
   for (const mod of modsToDelete) {
-    for (const child of mod.children) {
-      child.parent = null
+    const children = mod.children
+    for (let i = 0; i < children.length; i++) {
+      if (children[i].parent === mod) {
+        children[i].parent = null
+      }
     }
   }
 

@@ -26,22 +26,17 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
     })
 
     compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async (compilation) => {
-      const allPaths: string[] = []
-
-      for (const name of RUNTIME_NAMES) {
-        allPaths.push(path.join(compilation.outputOptions.path!, `${name}.js`))
-      }
-
       // we need to make sure to clear all server entries from cache
       // since they can have a stale webpack-runtime cache
       // which needs to always be in-sync
-      const entries = [...compilation.entrypoints.keys()].filter((entry) => {
-        const isAppPath = entry.toString().startsWith('app/')
-        return entry.toString().startsWith('pages/') || isAppPath
-      })
-
-      for (const page of entries) {
-        allPaths.push(path.join(compilation.outputOptions.path!, page + '.js'))
+      const outputPath = compilation.outputOptions.path!
+      const allPaths = RUNTIME_NAMES.map((name) =>
+        path.join(outputPath, `${name}.js`)
+      )
+      for (const entry of compilation.entrypoints.keys()) {
+        if (entry.startsWith('pages/') || entry.startsWith('app/')) {
+          allPaths.push(path.join(outputPath, `${entry}.js`))
+        }
       }
 
       deleteCache(allPaths)
