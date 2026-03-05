@@ -176,12 +176,8 @@ impl ModuleReference for CollectReference {
             .await
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: true,
-            hoisted: false,
-        }))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::PerEntry)
     }
 }
 

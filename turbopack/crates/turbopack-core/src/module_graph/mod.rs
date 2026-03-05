@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use either::Either;
 use petgraph::{
     Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
@@ -800,11 +801,8 @@ impl ModuleGraph {
         let entry = graph_ref.get_entry(module)?;
         let referenced_modules = graph_ref
             .iter_graphs_neighbors_rev(entry, Direction::Outgoing)
-            .filter(|(edge_idx, _)| {
-                let ty = graph_ref.get_edge(*edge_idx).unwrap();
-                ty.chunking_type.is_inherit_async()
-            })
-            .map(|(_, child_idx)| anyhow::Ok(graph_ref.get_node(child_idx)?.module()))
+            .filter(|(_, ref_data, _)| ref_data.chunking_type.is_inherit_async())
+            .map(|(_, _, child_idx)| anyhow::Ok(graph_ref.get_node(child_idx)?.module()))
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             .rev()
@@ -975,15 +973,35 @@ impl ModuleGraphSnapshot {
         &'a self,
         node: GraphNodeIndex,
         direction: Direction,
-    ) -> impl Iterator<Item = (GraphEdgeIndex, GraphNodeIndex)> + 'a {
+    ) -> impl Iterator<Item = (Option<GraphEdgeIndex>, &'a RefData, GraphNodeIndex)> + 'a {
         let graph = &*self.get_graph(node.graph_idx).graph;
 
-        if cfg!(debug_assertions) && direction == Direction::Outgoing {
-            let node_weight = graph.node_weight(node.node_idx).unwrap();
-            if let SingleModuleGraphNode::VisitedModule { .. } = node_weight {
-                panic!("iter_graphs_neighbors_rev called on VisitedModule node");
-            }
+        let node_weight = graph.node_weight(node.node_idx).unwrap();
+        if cfg!(debug_assertions)
+            && direction == Direction::Outgoing
+            && let SingleModuleGraphNode::VisitedModule { .. } = node_weight
+        {
+            panic!("iter_graphs_neighbors_rev called on VisitedModule node");
         }
+
+        // let additional = if let Some(collected_modules) = &self.collected_modules
+        //     && let SingleModuleGraphNode::Module(module) = node_weight
+        // {
+        //     Either::Right(
+        //         collected_modules
+        //             .collected_references
+        //             // TODO lookup instead of iter, with proper conditional edge handling
+        //             .iter()
+        //             .filter(|((_, m), _)| *m == *module)
+        //             .flat_map(|((_, _), reference)| {
+        //                 reference
+        //                     .iter()
+        //                     .map(|r| (None::<GraphEdgeIndex>, &r.0, r.2))
+        //             }),
+        //     )
+        // } else {
+        //     Either::Left(std::iter::empty())
+        // };
 
         let mut walker = graph.neighbors_directed(node.node_idx, direction).detach();
         std::iter::from_fn(move || {
@@ -998,10 +1016,24 @@ impl ModuleGraphSnapshot {
                     continue;
                 }
 
-                return Some((edge_idx, GraphNodeIndex::new(node.graph_idx, succ_idx)));
+                let edge_data = self.get_edge(edge_idx).unwrap();
+                if self.collected_modules.is_some()
+                    && matches!(edge_data.chunking_type, ChunkingType::Emitted { .. })
+                {
+                    // The modules were collected already, so we need to ignore the
+                    // ChunkingType::Emitted version now
+                    continue;
+                }
+
+                return Some((
+                    Some(edge_idx),
+                    edge_data,
+                    GraphNodeIndex::new(node.graph_idx, succ_idx),
+                ));
             }
             None
         })
+        // .chain(additional)
     }
 
     /// Returns a map of all modules in the graphs to their identifiers.
@@ -1067,7 +1099,7 @@ impl ModuleGraphSnapshot {
                             .unwrap_or(current);
                         stack.extend(
                             self.iter_graphs_neighbors_rev(current, Direction::Outgoing)
-                                .map(|(_, child)| (Pass::ExpandAndVisit, child)),
+                                .map(|(_, _, child)| (Pass::ExpandAndVisit, child)),
                         );
                     }
                 }
@@ -1108,10 +1140,12 @@ impl ModuleGraphSnapshot {
         while let Some(node) = queue.pop_front() {
             if visited.insert(node) {
                 let node_weight = self.get_node(node)?;
-                for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
+                for (_, edge_data, succ) in
+                    self.iter_graphs_neighbors_rev(node, Direction::Outgoing)
+                {
                     let succ_weight = self.get_node(succ)?;
                     let action = visitor(
-                        Some((node_weight.module(), self.get_edge(edge)?)),
+                        Some((node_weight.module(), edge_data)),
                         succ_weight.module(),
                     )?;
                     if !self.should_visit_node(succ_weight, Direction::Outgoing) {
@@ -1270,21 +1304,17 @@ impl ModuleGraphSnapshot {
             ExpandAndVisit,
         }
         #[allow(clippy::type_complexity)] // This is a temporary internal structure
-        let mut stack: Vec<(
-            Pass,
-            Option<(GraphNodeIndex, GraphEdgeIndex)>,
-            GraphNodeIndex,
-        )> = Vec::with_capacity(entries.len());
+        let mut stack: Vec<(Pass, Option<(GraphNodeIndex, &RefData)>, GraphNodeIndex)> =
+            Vec::with_capacity(entries.len());
         for entry in entries.into_iter().rev() {
             stack.push((Pass::ExpandAndVisit, None, self.get_entry(entry)?));
         }
         let mut expanded = FxHashSet::default();
         while let Some((pass, parent, current)) = stack.pop() {
             let parent_arg = match parent {
-                Some((parent_node, parent_edge)) => Some((
-                    self.get_node(parent_node)?.module(),
-                    self.get_edge(parent_edge)?,
-                )),
+                Some((parent_node, parent_edge)) => {
+                    Some((self.get_node(parent_node)?.module(), parent_edge))
+                }
                 None => None,
             };
             let current_node = self.get_node(current)?;
@@ -1304,7 +1334,9 @@ impl ModuleGraphSnapshot {
                     {
                         let current = current_node.target_idx(direction).unwrap_or(current);
                         stack.extend(self.iter_graphs_neighbors_rev(current, direction).map(
-                            |(edge, child)| (Pass::ExpandAndVisit, Some((current, edge)), child),
+                            |(_, edge_data, child)| {
+                                (Pass::ExpandAndVisit, Some((current, edge_data)), child)
+                            },
                         ));
                     }
                 }
@@ -1359,8 +1391,13 @@ impl ModuleGraphSnapshot {
         entries: impl IntoIterator<Item = (ResolvedVc<Box<dyn Module>>, P)>,
         state: &mut S,
         mut visit: impl FnMut(
-            Option<(ResolvedVc<Box<dyn Module>>, &'graph RefData, GraphEdgeIndex)>,
+            Option<(
+                ResolvedVc<Box<dyn Module>>,
+                &'graph RefData,
+                Option<GraphEdgeIndex>,
+            )>,
             ResolvedVc<Box<dyn Module>>,
+            GraphNodeIndex,
             &mut S,
         ) -> Result<GraphTraversalAction>,
         priority: impl Fn(ResolvedVc<Box<dyn Module>>, &mut S) -> Result<P>,
@@ -1415,7 +1452,12 @@ impl ModuleGraphSnapshot {
         );
 
         for entry_node in &queue {
-            visit(None, self.get_node(entry_node.node)?.module(), state)?;
+            visit(
+                None,
+                self.get_node(entry_node.node)?.module(),
+                entry_node.node,
+                state,
+            )?;
         }
 
         let mut visit_count = 0usize;
@@ -1426,12 +1468,14 @@ impl ModuleGraphSnapshot {
 
             visit_count += 1;
 
-            for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
+            for (edge, edge_data, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing)
+            {
                 let succ_weight = self.get_node(succ)?;
 
                 let action = visit(
-                    Some((node_weight.module(), self.get_edge(edge)?, edge)),
+                    Some((node_weight.module(), edge_data, edge)),
                     succ_weight.module(),
+                    succ,
                     state,
                 )?;
 
@@ -1720,6 +1764,10 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     let _span = span.entered();
                     span = tracing::info_span!("async reference");
                 }
+                ChunkingType::PerEntry => {
+                    let _span = span.entered();
+                    span = tracing::info_span!("per-entry reference");
+                }
                 ChunkingType::Emitted { merge_tag, .. } => {
                     let _span = span.entered();
                     span = tracing::info_span!("emitted reference", merge_tag = debug(&merge_tag));
@@ -1906,7 +1954,7 @@ pub mod tests {
                 graph.traverse_edges_fixed_point_with_priority(
                     entry_modules.into_iter().map(|m| (m, 0)),
                     &mut (),
-                    |parent, target, _| {
+                    |parent, target, _, _| {
                         visits.push((
                             parent.map(|(node, _, _)| module_to_name.get(&node).unwrap().clone()),
                             module_to_name.get(&target).unwrap().clone(),
@@ -1963,7 +2011,7 @@ pub mod tests {
                 graph.traverse_edges_fixed_point_with_priority(
                     entry_modules.into_iter().map(|m| (m, 0)),
                     &mut (),
-                    |parent, target, _| {
+                    |parent, target, _, _| {
                         visits.push((
                             parent.map(|(node, _, _)| module_to_name.get(&node).unwrap().clone()),
                             module_to_name.get(&target).unwrap().clone(),

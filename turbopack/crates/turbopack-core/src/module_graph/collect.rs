@@ -8,7 +8,7 @@ use crate::{
     emit_collect::CollectingModule,
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph, RefData,
+        GraphNodeIndex, GraphTraversalAction, ModuleGraph, RefData,
         chunk_group_info::{ChunkGroupEntry, RoaringBitmapWrapper},
     },
 };
@@ -22,7 +22,7 @@ pub struct CollectedModules {
     /// (Page Entry Module, Collecting Module) -> Vec<(Reference, Collected Module)>
     pub collected_references: FxHashMap<
         (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
-        Vec<(RefData, ResolvedVc<Box<dyn Module>>)>,
+        Vec<(RefData, ResolvedVc<Box<dyn Module>>, GraphNodeIndex)>,
     >,
 }
 
@@ -100,8 +100,12 @@ pub async fn collect_graph(graph: OperationVc<ModuleGraph>) -> Result<Vc<Collect
 
     let mut collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>> =
         FxIndexSet::default();
-    let mut emitted_references: FxIndexSet<(&RefData, ResolvedVc<Box<dyn Module>>)> =
-        FxIndexSet::default();
+    #[allow(clippy::type_complexity)]
+    let mut emitted_references: FxIndexSet<(
+        &RefData,
+        ResolvedVc<Box<dyn Module>>,
+        GraphNodeIndex,
+    )> = FxIndexSet::default();
 
     graph.traverse_edges_fixed_point_with_priority(
         entries
@@ -119,6 +123,7 @@ pub async fn collect_graph(graph: OperationVc<ModuleGraph>) -> Result<Vc<Collect
         &mut (&mut module_entry_membership, &mut emitted_references),
         |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
          node: ResolvedVc<Box<dyn Module>>,
+         node_idx: GraphNodeIndex,
          (module_entry_membership, emitted_references)|
          -> Result<GraphTraversalAction> {
             let Some((parent, ref_data, _)) = parent_info else {
@@ -127,7 +132,7 @@ pub async fn collect_graph(graph: OperationVc<ModuleGraph>) -> Result<Vc<Collect
             };
 
             if let ChunkingType::Emitted { .. } = ref_data.chunking_type {
-                emitted_references.insert((ref_data, node));
+                emitted_references.insert((ref_data, node, node_idx));
             }
 
             if let Some(node) = ResolvedVc::try_downcast::<Box<dyn CollectingModule>>(node) {
@@ -228,10 +233,10 @@ pub async fn collect_graph(graph: OperationVc<ModuleGraph>) -> Result<Vc<Collect
     #[allow(clippy::type_complexity)]
     let mut collected_references: FxHashMap<
         (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
-        Vec<(RefData, ResolvedVc<Box<dyn Module>>)>,
+        Vec<(RefData, ResolvedVc<Box<dyn Module>>, GraphNodeIndex)>,
     > = FxHashMap::default();
 
-    for (ref_data, emitted_module) in emitted_references {
+    for (ref_data, emitted_module, emitted_module_idx) in emitted_references {
         let emitted_membership = module_entry_membership
             .get(&emitted_module)
             .context("Module entry membership not found")?;
@@ -268,6 +273,7 @@ pub async fn collect_graph(graph: OperationVc<ModuleGraph>) -> Result<Vc<Collect
                                     ..ref_data.clone()
                                 },
                                 emitted_module,
+                                emitted_module_idx,
                             ));
                     }
                 }
@@ -275,25 +281,25 @@ pub async fn collect_graph(graph: OperationVc<ModuleGraph>) -> Result<Vc<Collect
         }
     }
 
-    println!("result:");
-    println!(
-        "{:#?}",
-        collected_references
-            .iter()
-            .map(async |((page, collecting), references)| Ok((
-                page.ident_string().await?,
-                collecting.ident_string().await?,
-                references
-                    .iter()
-                    .map(async |(data, target)| {
-                        Ok((&data.chunking_type, target.ident_string().await?))
-                    })
-                    .try_join()
-                    .await?
-            )))
-            .try_join()
-            .await?
-    );
+    // println!("result:");
+    // println!(
+    //     "{:#?}",
+    //     collected_references
+    //         .iter()
+    //         .map(async |((page, collecting), references)| Ok((
+    //             page.ident_string().await?,
+    //             collecting.ident_string().await?,
+    //             references
+    //                 .iter()
+    //                 .map(async |(data, target, _)| {
+    //                     Ok((&data.chunking_type, target.ident_string().await?))
+    //                 })
+    //                 .try_join()
+    //                 .await?
+    //         )))
+    //         .try_join()
+    //         .await?
+    // );
 
     Ok(CollectedModules {
         collected_references,

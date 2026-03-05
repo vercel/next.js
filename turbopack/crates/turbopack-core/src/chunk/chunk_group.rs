@@ -15,6 +15,7 @@ use crate::{
         available_modules::AvailableModuleItem,
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
+    emit_collect::CollectingModule,
     environment::ChunkLoading,
     module::Module,
     module_graph::{
@@ -65,6 +66,7 @@ pub async fn make_chunk_group(
         batch_groups,
         async_modules,
         traced_modules,
+        collecting_modules,
         availability_info: new_availability_info,
     } = chunk_group_content(
         module_graph,
@@ -112,6 +114,27 @@ pub async fn make_chunk_group(
         .try_join()
         .await?;
 
+    chunk_items.extend(
+        collecting_modules
+            .into_iter()
+            .map(|module| {
+                module
+                    // TODO entry chunk group instead of current one
+                    .as_chunk_item(module_graph, *chunking_context, chunk_group.clone())
+                    .to_resolved()
+            })
+            .try_join()
+            .await?
+            .iter()
+            .map(|&chunk_item| {
+                ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(ChunkItemWithAsyncModuleInfo {
+                    chunk_item,
+                    module: None,
+                    async_info: None,
+                })
+            }),
+    );
+
     // Insert async chunk loaders for every referenced async module
     let async_availability_info =
         if is_nested_async_availability_enabled || !availability_info.is_in_async_module() {
@@ -136,6 +159,7 @@ pub async fn make_chunk_group(
             async_info: None,
         })
     });
+    chunk_items.extend(async_loader_chunk_items);
 
     let referenced_output_assets = traced_modules
         .into_iter()
@@ -146,8 +170,6 @@ pub async fn make_chunk_group(
         })
         .try_join()
         .await?;
-
-    chunk_items.extend(async_loader_chunk_items);
 
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
@@ -225,6 +247,7 @@ pub async fn chunk_group_content(
         chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
         async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
         traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+        collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
     }
 
     let mut state = TraverseState {
@@ -232,6 +255,7 @@ pub async fn chunk_group_content(
         chunkable_items: FxIndexSet::default(),
         async_modules: FxIndexSet::default(),
         traced_modules: FxIndexSet::default(),
+        collecting_modules: FxIndexSet::default(),
     };
 
     let available_modules = match availability_info.available_modules() {
@@ -239,13 +263,44 @@ pub async fn chunk_group_content(
         None => None,
     };
 
-    let is_chunk_group_entry = matches!(chunk_group, ChunkGroup::Entry(_));
-
     let entries = chunk_group
         .entries()
         .map(|entry| module_batches_graph.get_entry_index(entry))
         .try_join()
         .await?;
+
+    let mut x = vec![];
+    module_batches_graph.traverse_edges_from_entries_dfs(
+        entries.clone(),
+        &mut (),
+        |parent_info, &node, _| {
+            if matches!(node, ModuleOrBatch::None(_)) {
+                return Ok(GraphTraversalAction::Continue);
+            }
+
+    //         let Some((_, edge)) = parent_info else {
+    //             return Ok(GraphTraversalAction::Continue);
+    //         };
+
+    //         x.push((edge.ty.to_string(), node));
+
+    //         Ok(match &edge.ty {
+    //             ChunkingType::Async => GraphTraversalAction::Exclude,
+    //             ChunkingType::Emitted { .. } => GraphTraversalAction::Exclude,
+    //             ChunkingType::Traced => GraphTraversalAction::Exclude,
+    //             _ => GraphTraversalAction::Continue,
+    //         })
+    //     },
+    //     |_, _, _| {},
+    // )?;
+
+    println!(
+        "module_batches_graph.traverse_edges_from_entries_dfs {:#?}",
+        x.iter()
+            .map(async |m| Ok((&m.0, m.1.ident_strings().await?)))
+            .try_join()
+            .await?
+    );
 
     module_batches_graph.traverse_edges_from_entries_dfs(
         entries,
@@ -270,6 +325,14 @@ pub async fn chunk_group_content(
                     state.traced_modules.insert(module);
                 }
                 return Ok(GraphTraversalAction::Exclude);
+            }
+
+            if let Some(collecting_module) = parent_info
+                .and_then(|(_, edge)| edge.module)
+                .and_then(ResolvedVc::try_downcast::<Box<dyn CollectingModule>>)
+            {
+                state.collecting_modules.insert(collecting_module);
+                return Ok(GraphTraversalAction::Continue);
             }
 
             let Some(chunkable_node) = ChunkableModuleOrBatch::from_module_or_batch(node) else {
@@ -340,6 +403,10 @@ pub async fn chunk_group_content(
                     // handled above already
                     unreachable!();
                 }
+                ChunkingType::PerEntry => {
+                    // TODO currently not implemented
+                    GraphTraversalAction::Exclude
+                }
                 ChunkingType::Emitted { .. } => {
                     // Already handled during module graph construction
                     GraphTraversalAction::Exclude
@@ -357,6 +424,28 @@ pub async fn chunk_group_content(
             }
         },
     )?;
+
+    // println!(
+    //     "chunked {:#?} {:#?} {:#?}",
+    //     state
+    //         .chunkable_items
+    //         .iter()
+    //         .map(|m| m.ident_strings())
+    //         .try_join()
+    //         .await?,
+    //     state
+    //         .async_modules
+    //         .iter()
+    //         .map(|m| m.ident_string())
+    //         .try_join()
+    //         .await?,
+    //     state
+    //         .collecting_modules
+    //         .iter()
+    //         .map(|m| m.ident_string())
+    //         .try_join()
+    //         .await?
+    // );
 
     // This needs to use the unmerged items
     let available_modules = state
@@ -444,6 +533,7 @@ pub async fn chunk_group_content(
         batch_groups,
         async_modules: state.async_modules,
         traced_modules: state.traced_modules,
+        collecting_modules: state.collecting_modules,
         availability_info,
     })
 }

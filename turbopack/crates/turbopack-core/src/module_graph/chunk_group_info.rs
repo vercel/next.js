@@ -157,7 +157,9 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(
+    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode, NonLocalValue,
+)]
 pub enum ChunkGroup {
     /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
     /// for Next.js.
@@ -551,6 +553,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             &mut module_chunk_groups,
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
+             _,
              module_chunk_groups: &mut FxHashMap<
                 ResolvedVc<Box<dyn Module>>,
                 RoaringBitmapWrapper,
@@ -627,6 +630,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                     ChunkGroupKey::Collected(node)
                                 },
                             )))
+                        }
+                        ChunkingType::PerEntry => {
+                            // This edge in itself is irrelevant, but continue with transitive
+                            // imports.
+                            return Ok(GraphTraversalAction::Continue);
                         }
                         ChunkingType::Traced => {
                             // Traced modules are not placed in chunk groups

@@ -357,6 +357,24 @@ pub async fn compute_module_batches(
 
         let mut pre_batches = PreBatches::new();
 
+        // let mut x = vec![];
+        // module_graph.traverse_edges_unordered(|parent_info, node| {
+        //     let Some((_, edge)) = parent_info else {
+        //         return Ok(());
+        //     };
+
+        //     x.push((edge.chunking_type.to_string(), node));
+
+        //     Ok(())
+        // })?;
+        // println!(
+        //     "module_graph.traverse_edges_unordered {:#?}",
+        //     x.iter()
+        //         .map(async |m| Ok((&m.0, m.1.ident_string().await?)))
+        //         .try_join()
+        //         .await?
+        // );
+
         // Walk the module graph and mark all modules that are boundary modules (referenced from a
         // different chunk group bitmap)
         module_graph.traverse_edges_unordered(|parent, node| {
@@ -387,10 +405,29 @@ pub async fn compute_module_batches(
 
         // All entries are boundary modules too
         for chunk_group in &chunk_group_info.chunk_groups {
-            for entry in chunk_group.entries() {
-                pre_batches.boundary_modules.insert(entry);
-            }
+            pre_batches.boundary_modules.extend(chunk_group.entries());
         }
+
+        // All collected modules are boundary modules too
+        if let Some(collected) = &module_graph.collected_modules {
+            pre_batches.boundary_modules.extend(
+                collected
+                    .collected_references
+                    .values()
+                    .flatten()
+                    .map(|(_, m, _)| *m),
+            );
+        }
+
+        // println!(
+        //     "boundary_modules {:#?}",
+        //     pre_batches
+        //         .boundary_modules
+        //         .iter()
+        //         .map(|m| m.ident_string())
+        //         .try_join()
+        //         .await?
+        // );
 
         // Pre batches would be incorrect with cycles, so we need to opt-out of pre batches for
         // cycles that include boundary modules

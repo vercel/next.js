@@ -41,6 +41,10 @@ fn traced_reference_ty() -> RcStr {
     rcstr!("traced reference")
 }
 
+fn per_entry_reference_ty() -> RcStr {
+    rcstr!("per entry reference")
+}
+
 fn emitted_reference_ty() -> RcStr {
     rcstr!("emitted reference")
 }
@@ -92,6 +96,7 @@ pub async fn children_from_module_references(
             Some(ChunkingType::Emitted { .. }) => emitted_reference_ty(),
             Some(ChunkingType::Collected { .. }) => collected_reference_ty(),
             Some(ChunkingType::Traced) => traced_reference_ty(),
+            Some(ChunkingType::PerEntry) => per_entry_reference_ty(),
         };
 
         for &module in reference
