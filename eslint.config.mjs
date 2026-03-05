@@ -307,6 +307,7 @@ export default defineConfig([
             'retry',
             'itCI',
             'itHeaded',
+            'itTurbopack',
             'itTurbopackDev',
             'itOnlyTurbopack',
           ],
