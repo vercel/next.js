@@ -120,28 +120,35 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
 }
 
 /**
- * Check if a port is available on a specific host by attempting to bind to it.
- * Returns true if available, false if in use (EADDRINUSE).
- * Other bind errors (e.g., EADDRNOTAVAIL for missing IPv6) are treated as available.
+ * Try to connect to a port on a specific host. Returns true if something is
+ * already listening (connection succeeded), false otherwise.
+ *
+ * Unlike a bind-based check, this is not affected by SO_REUSEADDR — which on
+ * macOS/BSD lets two servers bind to the same port on different addresses
+ * (e.g. 127.0.0.1 vs 0.0.0.0) without EADDRINUSE.
  */
-function isPortAvailableOnHost(port: number, host: string): Promise<boolean> {
+function isPortListening(port: number, host: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const tester = net.createServer()
-    tester.once('error', (err: NodeJS.ErrnoException) => {
-      resolve(err.code !== 'EADDRINUSE')
-    })
-    tester.once('listening', () => {
-      tester.close(() => resolve(true))
-    })
-    tester.listen(port, host)
+    const socket = new net.Socket()
+    const onDone = (listening: boolean) => {
+      socket.removeAllListeners()
+      socket.destroy()
+      resolve(listening)
+    }
+    socket.setTimeout(400)
+    socket.once('connect', () => onDone(true))
+    socket.once('error', () => onDone(false))
+    socket.once('timeout', () => onDone(false))
+    socket.connect(port, host)
   })
 }
 
 /**
  * Find an available port starting from the given port.
- * Checks both IPv4 (0.0.0.0) and IPv6 (::) to detect cross-address-family
- * conflicts that server.listen() alone may miss on some platforms (e.g., macOS
- * where an IPv6 bind does not conflict with an existing IPv4 listener).
+ * Checks both IPv4 (127.0.0.1) and IPv6 (::1) loopback addresses to detect
+ * cross-address-family conflicts that server.listen() alone may miss — for
+ * example, a Vite server on 127.0.0.1:3000 is not detected when Node.js
+ * defaults to listening on [::]:3000.
  */
 async function findAvailablePort(
   startPort: number,
@@ -151,17 +158,18 @@ async function findAvailablePort(
   let port = startPort
 
   for (let retryCount = 0; retryCount <= maxRetries; retryCount++) {
-    const hostsToCheck = hostname !== undefined ? [hostname] : ['0.0.0.0', '::']
-    let available = true
+    const hostsToCheck =
+      hostname !== undefined ? [hostname] : ['127.0.0.1', '::1']
+    let inUse = false
 
     for (const host of hostsToCheck) {
-      if (!(await isPortAvailableOnHost(port, host))) {
-        available = false
+      if (await isPortListening(port, host)) {
+        inUse = true
         break
       }
     }
 
-    if (available) {
+    if (!inUse) {
       return { port, retryCount }
     }
 

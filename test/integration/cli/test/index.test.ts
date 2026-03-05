@@ -830,13 +830,28 @@ describe('CLI Usage', () => {
     })
 
     test('Allow retry when port is used by IPv4-only server', async () => {
+      const net = require('net')
       let output = ''
       let ipv4Server: ReturnType<typeof http.createServer> | undefined
       let app: any
 
+      // Wait for port 3000 to be free (previous tests may still be releasing it)
+      await retry(
+        async () => {
+          await new Promise<void>((resolve, reject) => {
+            const tester = net.createServer()
+            tester.once('error', (err: any) => reject(err))
+            tester.once('listening', () => tester.close(() => resolve()))
+            tester.listen(3000, '127.0.0.1')
+          })
+        },
+        5000,
+        500
+      )
+
       try {
         // Start a server explicitly bound to IPv4 loopback (127.0.0.1:3000)
-        // to simulate a third-party server like Vite/vinext
+        // to simulate a third-party server like Vite
         ipv4Server = http.createServer((_, res) => {
           res.writeHead(200, { 'Content-Type': 'text/plain' })
           res.end('OK')
