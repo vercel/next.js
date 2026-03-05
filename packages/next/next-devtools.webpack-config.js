@@ -26,7 +26,7 @@ module.exports = ({ dev, ...rest }) => {
   return {
     entry: path.join(__dirname, 'src/next-devtools/entrypoint.ts'),
     target,
-    mode: dev ? 'development' : 'production',
+    mode: 'development',
     output: {
       path: path.join(__dirname, 'dist/compiled/next-devtools'),
       filename: `index.js`,
