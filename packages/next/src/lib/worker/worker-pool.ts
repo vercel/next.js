@@ -79,6 +79,15 @@ interface QueuedTask {
   reject: (error: unknown) => void
 }
 
+const enum WorkerState {
+  /** Worker has been spawned but hasn't sent PARENT_MESSAGE_READY yet */
+  BOOTING = 0,
+  /** Worker is ready to accept calls */
+  RUNNING = 1,
+  /** Worker is being shut down (graceful or forced) */
+  SHUTTING_DOWN = 2,
+}
+
 interface PoolWorker {
   /** The underlying child process or worker thread */
   process: ChildProcess | NodeWorker
@@ -86,10 +95,8 @@ interface PoolWorker {
   handle: WorkerHandle
   /** Map of in-flight request IDs to their resolve/reject callbacks */
   activeRequests: Map<number, PendingRequest>
-  /** Whether this worker is being terminated (graceful or forced) */
-  ending: boolean
-  /** True from spawn until the worker sends PARENT_MESSAGE_READY */
-  booting: boolean
+  /** Current lifecycle state of this worker */
+  state: WorkerState
 }
 
 /** Milliseconds to wait for a worker to exit gracefully before force-killing it */
@@ -308,7 +315,7 @@ export class WorkerPool {
 
     const results = await Promise.all(
       this._workers.map(async (worker) => {
-        worker.ending = true
+        worker.state = WorkerState.SHUTTING_DOWN
 
         // Send END message to trigger teardown in the child
         worker.handle.send([CHILD_MESSAGE_END])
@@ -356,7 +363,7 @@ export class WorkerPool {
     this._taskQueue = []
 
     for (const worker of this._workers) {
-      worker.ending = true
+      worker.state = WorkerState.SHUTTING_DOWN
       this._rejectActiveRequests(worker, new Error('Worker pool closed'))
       // Send END message to allow the child to clean up, then force-kill
       worker.handle.send([CHILD_MESSAGE_END])
@@ -369,12 +376,11 @@ export class WorkerPool {
   // Internal: worker lifecycle
   // ---------------------------------------------------------------------------
 
-  /** Find a non-ending, non-booting worker that has available concurrency slots */
+  /** Find a RUNNING worker that has available concurrency slots */
   private _findAvailableWorker(): PoolWorker | null {
     for (const worker of this._workers) {
       if (
-        !worker.ending &&
-        !worker.booting &&
+        worker.state === WorkerState.RUNNING &&
         worker.activeRequests.size < this._options.concurrencyPerWorker
       ) {
         return worker
@@ -422,8 +428,7 @@ export class WorkerPool {
       process: proc,
       handle,
       activeRequests: new Map(),
-      ending: false,
-      booting: true,
+      state: WorkerState.BOOTING,
     }
 
     // Pipe stdout/stderr from the child into the pool-level streams
@@ -519,8 +524,8 @@ export class WorkerPool {
         // Reject them first, then clear booting so queued tasks can be
         // dispatched to this (now available) worker and new workers can spawn.
         this._rejectActiveRequests(worker, error)
-        if (worker.booting) {
-          worker.booting = false
+        if (worker.state === WorkerState.BOOTING) {
+          worker.state = WorkerState.RUNNING
           this._bootingCount--
           this._onWorkerReady(worker)
         }
@@ -531,7 +536,7 @@ export class WorkerPool {
         break
       }
       case PARENT_MESSAGE_READY: {
-        worker.booting = false
+        worker.state = WorkerState.RUNNING
         this._bootingCount--
         this._onWorkerReady(worker)
         break
@@ -588,13 +593,13 @@ export class WorkerPool {
     code: number | null,
     signal: string | null
   ): void {
-    if (worker.booting) {
+    if (worker.state === WorkerState.BOOTING) {
       this._bootingCount--
     }
 
     // During graceful shutdown, exit is expected — reject any lingering
     // in-flight requests that the child didn't respond to before exiting.
-    if (worker.ending) {
+    if (worker.state === WorkerState.SHUTTING_DOWN) {
       this._rejectActiveRequests(
         worker,
         new Error('Worker exited during shutdown')
@@ -643,7 +648,7 @@ export class WorkerPool {
   /** Dequeue one task into a worker that has capacity */
   private _dequeueTask(worker: PoolWorker): void {
     if (
-      worker.ending ||
+      worker.state !== WorkerState.RUNNING ||
       worker.activeRequests.size >= this._options.concurrencyPerWorker
     ) {
       return
@@ -659,7 +664,7 @@ export class WorkerPool {
   private _drainQueue(worker: PoolWorker): void {
     while (
       this._taskQueue.length > 0 &&
-      !worker.ending &&
+      worker.state === WorkerState.RUNNING &&
       worker.activeRequests.size < this._options.concurrencyPerWorker
     ) {
       const task = this._taskQueue.shift()!
