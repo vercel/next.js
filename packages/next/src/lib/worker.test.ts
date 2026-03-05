@@ -550,26 +550,37 @@ describe('lib/worker timeout and activity', () => {
     latestPoolInstance = undefined
   })
 
-  it('calls onActivity when an exposed method is invoked', async () => {
+  it('passes timeout to WorkerPool', () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      timeout: 5000,
+    })
+    worker.close()
+
+    expect(latestPoolOptions?.timeout).toBe(5000)
+  })
+
+  it('passes onActivity callback to WorkerPool', () => {
     const onActivity = jest.fn()
 
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, {
       ...noopOptions,
-      timeout: 5000,
       onActivity,
-      exposedMethods: ['doWork'],
-    }) as any
+    })
 
-    await worker.doWork()
-
-    expect(onActivity).toHaveBeenCalled()
+    // The pool receives an onActivity callback that delegates to the user's callback
+    expect(latestPoolOptions?.onActivity).toBeDefined()
+    latestPoolOptions.onActivity()
+    expect(onActivity).toHaveBeenCalledTimes(1)
 
     worker.close()
   })
 
-  it('calls setOnActivity to update the activity callback', async () => {
+  it('calls setOnActivity to update the activity callback', () => {
     const onActivity1 = jest.fn()
     const onActivity2 = jest.fn()
 
@@ -577,29 +588,29 @@ describe('lib/worker timeout and activity', () => {
 
     const worker = new Worker(__filename, {
       ...noopOptions,
-      timeout: 5000,
       onActivity: onActivity1,
-      exposedMethods: ['doWork'],
-    }) as any
+    })
 
-    await worker.doWork()
-    expect(onActivity1).toHaveBeenCalledTimes(2) // once on start, once on finish
+    // Pool's onActivity delegates to the current callback
+    latestPoolOptions.onActivity()
+    expect(onActivity1).toHaveBeenCalledTimes(1)
 
     worker.setOnActivity(onActivity2)
-    await worker.doWork()
-    expect(onActivity2).toHaveBeenCalled()
+    latestPoolOptions.onActivity()
+    expect(onActivity2).toHaveBeenCalledTimes(1)
+    // onActivity1 should not have been called again
+    expect(onActivity1).toHaveBeenCalledTimes(1)
 
     worker.close()
   })
 
-  it('triggers onCustomMessage callback for activity messages', () => {
+  it('triggers onActivity callback for activity custom messages', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const onActivity = jest.fn()
 
     new Worker(__filename, {
       ...noopOptions,
-      timeout: 5000,
       onActivity,
       exposedMethods: ['doWork'],
     })
@@ -619,7 +630,6 @@ describe('lib/worker timeout and activity', () => {
 
     new Worker(__filename, {
       ...noopOptions,
-      timeout: 5000,
       onActivity,
       exposedMethods: [],
     })
@@ -628,49 +638,6 @@ describe('lib/worker timeout and activity', () => {
     onCustomMessage({ type: 'other' })
 
     expect(onActivity).not.toHaveBeenCalled()
-  })
-
-  it('recreates pool on timeout', async () => {
-    jest.useFakeTimers()
-
-    const { Worker } = require('./worker') as typeof import('./worker')
-
-    const worker = new Worker(__filename, {
-      ...noopOptions,
-      timeout: 1000,
-      exposedMethods: ['slowMethod'],
-    }) as any
-
-    const firstPool = latestPoolInstance!
-
-    // Start a task that will cause the timer to start
-    // The mock resolves immediately, but the timeout timer is set before await
-    const promise = worker.slowMethod()
-    await promise
-
-    // Dispatch again to create an active task scenario
-    // We need to make the dispatch hang to trigger the timeout
-    let resolveHanging: (v: unknown) => void
-    firstPool.dispatch = () =>
-      new Promise((resolve) => {
-        resolveHanging = resolve
-      })
-
-    const hangingPromise = worker.slowMethod()
-
-    // Advance time past the timeout
-    jest.advanceTimersByTime(1001)
-
-    // A new pool should have been created
-    expect(latestPoolInstance).not.toBe(firstPool)
-    expect(firstPool._ended).toBe(true)
-
-    // Clean up
-    resolveHanging!(undefined)
-    await hangingPromise.catch(() => {})
-    worker.close()
-
-    jest.useRealTimers()
   })
 })
 

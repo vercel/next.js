@@ -59,6 +59,15 @@ export interface WorkerPoolOptions {
    * (default: Math.ceil(maxWorkers / 4))
    */
   maxBootingWorkers?: number
+  /**
+   * Per-worker inactivity timeout in milliseconds. When a worker with
+   * in-flight requests doesn't report any activity (message completion or
+   * custom activity message) within this window, it is killed and a
+   * replacement is spawned. (default: no timeout)
+   */
+  timeout?: number
+  /** Called when any worker reports activity (used for progress indicators) */
+  onActivity?: () => void
   /** Called when a worker process exits unexpectedly */
   onWorkerExit?: (code: number | null, signal: string | null) => void
   /** Called when a worker sends a custom message */
@@ -97,6 +106,8 @@ interface PoolWorker {
   activeRequests: Map<number, PendingRequest>
   /** Current lifecycle state of this worker */
   state: WorkerState
+  /** Timestamp of last activity on this worker (used for timeout detection) */
+  lastActivity: number
 }
 
 /** Milliseconds to wait for a worker to exit gracefully before force-killing it */
@@ -220,6 +231,9 @@ export class WorkerPool {
   /** Merged stderr from all workers, piped through a PassThrough stream */
   private _stderr: PassThrough
 
+  /** Interval handle for periodic timeout checks (null when timeout is disabled) */
+  private _timeoutInterval: ReturnType<typeof setInterval> | null = null
+
   /**
    * Create a new pool. No workers are spawned until the first `dispatch()` call.
    * Validates options and applies defaults for optional fields.
@@ -243,6 +257,15 @@ export class WorkerPool {
 
     this._stdout = new PassThrough()
     this._stderr = new PassThrough()
+
+    // Start periodic timeout checks when timeout is configured
+    if (this._options.timeout) {
+      this._timeoutInterval = setInterval(
+        () => this._checkTimeouts(),
+        Math.max(Math.floor(this._options.timeout / 2), 500)
+      )
+      this._timeoutInterval.unref()
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -309,6 +332,7 @@ export class WorkerPool {
    */
   async shutdown(): Promise<{ forceExited: boolean }> {
     this._ending = true
+    this._clearTimeoutInterval()
 
     // Reject queued tasks that will never be dispatched
     for (const task of this._taskQueue) {
@@ -361,6 +385,7 @@ export class WorkerPool {
    */
   shutdownNow(): void {
     this._ending = true
+    this._clearTimeoutInterval()
     for (const task of this._taskQueue) {
       task.reject(new Error('Worker pool closed'))
     }
@@ -427,6 +452,7 @@ export class WorkerPool {
       handle,
       activeRequests: new Map(),
       state: WorkerState.BOOTING,
+      lastActivity: Date.now(),
     }
 
     // Pipe stdout/stderr from the child into the pool-level streams
@@ -482,6 +508,7 @@ export class WorkerPool {
   ): void {
     const requestId = this._nextRequestId++
     worker.activeRequests.set(requestId, { resolve, reject })
+    this._reportActivity(worker)
     // If this worker is now at capacity, remove it from the available set
     if (worker.activeRequests.size >= this._options.concurrencyPerWorker) {
       this._availableWorkers.delete(worker)
@@ -504,6 +531,7 @@ export class WorkerPool {
   private _handleMessage(worker: PoolWorker, message: ParentMessage): void {
     switch (message[0]) {
       case PARENT_MESSAGE_OK: {
+        this._reportActivity(worker)
         const requestId = message[1]
         const result = message[2]
         const pending = worker.activeRequests.get(requestId)
@@ -516,6 +544,7 @@ export class WorkerPool {
         break
       }
       case PARENT_MESSAGE_CLIENT_ERROR: {
+        this._reportActivity(worker)
         const requestId = message[1]
         const error = this._deserializeError(message)
         const pending = worker.activeRequests.get(requestId)
@@ -528,6 +557,7 @@ export class WorkerPool {
         break
       }
       case PARENT_MESSAGE_SETUP_ERROR: {
+        this._reportActivity(worker)
         const error = new Error('Error when calling setup: ' + message[2])
         ;(error as any).type = message[1]
         error.stack = message[3]
@@ -543,10 +573,12 @@ export class WorkerPool {
         break
       }
       case PARENT_MESSAGE_CUSTOM: {
+        this._reportActivity(worker)
         this._options.onCustomMessage?.(message[1])
         break
       }
       case PARENT_MESSAGE_READY: {
+        this._reportActivity(worker)
         worker.state = WorkerState.RUNNING
         this._bootingCount--
         this._onWorkerReady(worker)
@@ -716,6 +748,64 @@ export class WorkerPool {
       this._canSpawnWorker()
     ) {
       this._spawnWorker()
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal: timeout handling
+  // ---------------------------------------------------------------------------
+
+  /** Update a worker's activity timestamp and notify the caller */
+  private _reportActivity(worker: PoolWorker): void {
+    worker.lastActivity = Date.now()
+    this._options.onActivity?.()
+  }
+
+  /**
+   * Periodic check for workers that have timed out. A worker is considered
+   * timed out when it has in-flight requests and hasn't reported activity
+   * within the configured timeout window. Only the hung worker is killed
+   * and replaced — other workers are unaffected.
+   */
+  private _checkTimeouts(): void {
+    const { timeout } = this._options
+    if (!timeout || this._ending) return
+
+    const now = Date.now()
+    for (const worker of this._allWorkers) {
+      if (
+        worker.state === WorkerState.RUNNING &&
+        worker.activeRequests.size > 0 &&
+        now - worker.lastActivity >= timeout
+      ) {
+        this._handleWorkerTimeout(worker)
+      }
+    }
+  }
+
+  /**
+   * Kill a single worker that has timed out. Rejects its in-flight requests,
+   * removes it from the pool, and spawns replacements for any queued tasks.
+   */
+  private _handleWorkerTimeout(worker: PoolWorker): void {
+    worker.state = WorkerState.SHUTTING_DOWN
+    this._rejectActiveRequests(worker, new Error('Worker timed out'))
+    this._availableWorkers.delete(worker)
+    this._allWorkers.delete(worker)
+
+    // Send END to allow cleanup, then force-kill
+    worker.handle.send([CHILD_MESSAGE_END])
+    worker.handle.forceKill()
+
+    // Spawn replacement workers for any queued tasks
+    this._spawnForQueuedTasks()
+  }
+
+  /** Stop the timeout check interval */
+  private _clearTimeoutInterval(): void {
+    if (this._timeoutInterval) {
+      clearInterval(this._timeoutInterval)
+      this._timeoutInterval = null
     }
   }
 

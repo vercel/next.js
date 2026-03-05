@@ -1359,4 +1359,173 @@ describe('WorkerPool', () => {
       pool.shutdownNow()
     })
   })
+
+  // -----------------------------------------------------------------------
+  // Per-worker timeout
+  // -----------------------------------------------------------------------
+  describe('per-worker timeout', () => {
+    beforeEach(() => {
+      jest.useFakeTimers()
+    })
+
+    afterEach(() => {
+      jest.useRealTimers()
+    })
+
+    it('kills a single hung worker and rejects its requests', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 2,
+        maxBootingWorkers: 2,
+        concurrencyPerWorker: 1,
+        timeout: 1000,
+      })
+
+      const p1 = pool.dispatch('slow', [])
+      const p2 = pool.dispatch('fast', [])
+      expect(spawnedProcesses).toHaveLength(2)
+
+      const proc1 = spawnedProcesses[0]
+      const proc2 = spawnedProcesses[1]
+      replyReady(proc1)
+      replyReady(proc2)
+
+      // Complete p2 immediately
+      const calls2 = proc2.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      replyOk(proc2, calls2[0][1] as number, 'fast-result')
+      await expect(p2).resolves.toBe('fast-result')
+
+      // p1 is still in-flight — advance past timeout
+      jest.advanceTimersByTime(1500)
+
+      // p1 should be rejected due to timeout
+      await expect(p1).rejects.toThrow('Worker timed out')
+
+      // proc1 should be killed
+      expect(proc1.killed).toBe(true)
+      // proc2 should still be alive (not killed)
+      expect(proc2.killed).toBe(false)
+
+      pool.shutdownNow()
+    })
+
+    it('does not kill workers without in-flight requests', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        timeout: 1000,
+      })
+
+      pool.dispatch('test', [])
+      const proc = latestProcess()
+      replyReady(proc)
+
+      // Complete the request
+      const calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      replyOk(proc, calls[0][1] as number, 'done')
+
+      // Advance past timeout — worker is idle, should not be killed
+      jest.advanceTimersByTime(2000)
+      expect(proc.killed).toBe(false)
+      expect(pool.getWorkerCount()).toBe(1)
+
+      pool.shutdownNow()
+    })
+
+    it('calls onActivity on message events', () => {
+      const onActivity = jest.fn()
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        onActivity,
+      })
+
+      pool.dispatch('test', [])
+      const proc = latestProcess()
+
+      // READY triggers activity
+      replyReady(proc)
+      expect(onActivity).toHaveBeenCalled()
+
+      const callsBefore = onActivity.mock.calls.length
+      // OK triggers activity
+      const calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      replyOk(proc, calls[0][1] as number, 'result')
+      expect(onActivity).toHaveBeenCalledTimes(callsBefore + 1)
+
+      pool.shutdownNow()
+    })
+
+    it('resets timeout when worker reports activity', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        concurrencyPerWorker: 2,
+        timeout: 1000,
+      })
+
+      const p1 = pool.dispatch('long', [])
+      const p2 = pool.dispatch('short', [])
+      const proc = latestProcess()
+      replyReady(proc)
+
+      const calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+
+      // Advance 800ms — then complete p2, which resets activity timestamp
+      jest.advanceTimersByTime(800)
+      replyOk(proc, calls[1][1] as number, 'short-result')
+      await expect(p2).resolves.toBe('short-result')
+
+      // Advance another 800ms — total 1600ms from start, but only 800ms
+      // since last activity, so p1 should NOT be timed out
+      jest.advanceTimersByTime(800)
+      expect(proc.killed).toBe(false)
+
+      // Advance another 500ms — now 1300ms since last activity, past timeout
+      jest.advanceTimersByTime(500)
+      await expect(p1).rejects.toThrow('Worker timed out')
+
+      pool.shutdownNow()
+    })
+
+    it('spawns replacement workers for queued tasks after timeout', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        concurrencyPerWorker: 1,
+        timeout: 1000,
+      })
+
+      pool.dispatch('hung', [])
+      pool.dispatch('queued', []) // waiting in queue
+      const proc1 = latestProcess()
+      replyReady(proc1)
+
+      expect(spawnedProcesses).toHaveLength(1)
+
+      // Timeout kills the hung worker
+      jest.advanceTimersByTime(1500)
+      expect(proc1.killed).toBe(true)
+
+      // A replacement worker should be spawned for the queued task
+      expect(spawnedProcesses).toHaveLength(2)
+      expect(pool.getWorkerCount()).toBe(1)
+
+      pool.shutdownNow()
+    })
+
+    it('clears timeout interval on shutdown()', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        timeout: 1000,
+      })
+
+      const endPromise = pool.shutdown()
+      await endPromise
+
+      // Advancing timers should not cause issues
+      jest.advanceTimersByTime(5000)
+    })
+  })
 })

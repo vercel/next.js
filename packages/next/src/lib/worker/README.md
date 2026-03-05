@@ -119,6 +119,8 @@ The `setupArgs` are provided via `WorkerPoolOptions.setupArgs`. READY is sent af
 | `forkOptions.execArgv` | string[] | [] | Node.js CLI flags for child processes |
 | `setupArgs` | unknown[] | [] | Arguments for worker `setup()` function |
 | `maxBootingWorkers` | number | ceil(maxWorkers/4) | Max workers starting up concurrently (must be >= 1). A worker is "booting" from spawn until it sends READY after module load + setup(). |
+| `timeout` | number | undefined | Per-worker inactivity timeout in ms. Workers with in-flight requests that don't report activity within this window are killed and replaced individually. |
+| `onActivity` | function | undefined | `() => void` — called when any worker reports activity (message completion, custom message, ready) |
 | `onWorkerExit` | function | undefined | `(code, signal) => void` — called when a worker exits unexpectedly (not during graceful shutdown) |
 | `onCustomMessage` | function | undefined | `(message) => void` — called when a worker sends a CUSTOM message |
 
@@ -135,7 +137,7 @@ The `setupArgs` are provided via `WorkerPoolOptions.setupArgs`. READY is sent af
 
 ### Worker Options (high-level)
 
-The `Worker` class wraps `WorkerPool` and adds timeout/restart logic, NODE_OPTIONS management, and exposed method wiring.
+The `Worker` class wraps `WorkerPool` and adds retry logic, NODE_OPTIONS management, and exposed method wiring.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -150,11 +152,10 @@ The `Worker` class wraps `WorkerPool` and adds timeout/restart logic, NODE_OPTIO
 | `concurrencyPerWorker` | number | 1 | Passed through to WorkerPool |
 | `enableWorkerThreads` | boolean | false | Passed through to WorkerPool |
 | `enableSourceMaps` | boolean | false | Adds `--enable-source-maps` to NODE_OPTIONS |
-| `timeout` | number | undefined | Kill and recreate the pool if no activity within this duration (ms) |
+| `timeout` | number | undefined | Per-worker inactivity timeout in ms. Passed through to WorkerPool. |
 | `forkOptions.env` | object | {} | Merged into worker environment |
-| `onActivity` | function | undefined | Called when a task starts/completes (used for activity spinners) |
+| `onActivity` | function | undefined | Called when any worker reports activity (used for activity spinners) |
 | `onActivityAbort` | function | undefined | Called when a worker produces stdout/stderr output |
-| `logger` | object | console | Logger with `error`, `info`, `warn` methods |
 
 ### Worker Methods
 

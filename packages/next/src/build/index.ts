@@ -837,7 +837,6 @@ export function createStaticWorker(
   const { numberOfWorkers, debuggerPortOffset, progress } = options
   return new Worker(staticWorkerPath, {
     workerName: 'Next.js static worker',
-    logger: Log,
     maxWorkers: numberOfWorkers,
     onActivity: () => {
       progress?.run()

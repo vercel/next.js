@@ -41,8 +41,9 @@ export interface WorkerOptions {
    */
   isolatedMemory?: boolean
   /**
-   * Milliseconds before considering a worker hung. When the timeout fires the
-   * current pool is ended and a fresh one is created. (default: no timeout)
+   * Per-worker inactivity timeout in milliseconds. Workers with in-flight
+   * requests that don't report activity within this window are killed and
+   * replaced individually. Passed through to WorkerPool. (default: no timeout)
    */
   timeout?: number
   /** Called when a worker reports activity (heartbeat for progress indicators) */
@@ -51,8 +52,6 @@ export interface WorkerOptions {
   onActivityAbort?: () => void
   /** Called before retrying a method call after a WorkerExitError */
   onRestart?: (method: string, args: any[], attempts: number) => void
-  /** Logger used for timeout warnings (default: console) */
-  logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
   /** Method names exported by the worker module to expose on this Worker instance */
   exposedMethods: ReadonlyArray<string>
   /** Use worker_threads instead of child_process (default: false) */
@@ -171,7 +170,6 @@ export class Worker {
       enableSourceMaps,
       timeout,
       onRestart,
-      logger = console,
       debuggerPortOffset,
       isolatedMemory,
       onActivity,
@@ -188,8 +186,6 @@ export class Worker {
     this._onActivity = onActivity
     this._onActivityAbort = onActivityAbort
 
-    let activeTasks = 0
-
     // Register an exit handler to ensure workers are cleaned up.
     // We keep a reference so it can be removed when end()/close() is called.
     this._exitHandler = () => {
@@ -204,86 +200,59 @@ export class Worker {
       forkOptions,
     })
 
-    const createPool = () => {
-      const pool = new WorkerPool({
-        workerPath,
-        maxWorkers: maxWorkersOption ?? Math.max(os.cpus().length - 1, 1),
-        concurrencyPerWorker: concurrencyPerWorker ?? 1,
-        enableWorkerThreads: enableWorkerThreads ?? false,
-        maxBootingWorkers,
-        forkOptions: {
-          env: workerEnv,
-          execArgv: [
-            ...execArgv,
-            ...process.execArgv.filter(
-              (arg) => !/^--(debug|inspect)/.test(arg)
-            ),
-          ],
-        },
-        onCustomMessage: (data) => {
-          if (
-            data &&
-            typeof data === 'object' &&
-            'type' in data &&
-            (data as any).type === 'activity'
-          ) {
-            onActivityImpl()
-          }
-        },
-      })
-
-      this._pool = pool
-
-      let aborted = false
-      const onActivityAbortImpl = () => {
-        if (!aborted) {
-          this._onActivityAbort?.()
-          aborted = true
-        }
+    let aborted = false
+    const onActivityAbortImpl = () => {
+      if (!aborted) {
+        this._onActivityAbort?.()
+        aborted = true
       }
-
-      // Listen to the worker's stdout and stderr;
-      // if anything is logged, abort the activity spinner first
-      const abortActivityStreamOnLog = new Transform({
-        transform(_chunk, _encoding, callback) {
-          onActivityAbortImpl()
-          callback()
-        },
-      })
-      pool.getStdout().pipe(abortActivityStreamOnLog)
-      pool.getStderr().pipe(abortActivityStreamOnLog)
-
-      // Pipe the worker's stdout and stderr to the parent process
-      pool.getStdout().pipe(process.stdout)
-      pool.getStderr().pipe(process.stderr)
-
-      return pool
     }
 
-    createPool()
+    const pool = new WorkerPool({
+      workerPath,
+      maxWorkers: maxWorkersOption ?? Math.max(os.cpus().length - 1, 1),
+      concurrencyPerWorker: concurrencyPerWorker ?? 1,
+      enableWorkerThreads: enableWorkerThreads ?? false,
+      maxBootingWorkers,
+      timeout,
+      onActivity: () => {
+        this._onActivity?.()
+      },
+      forkOptions: {
+        env: workerEnv,
+        execArgv: [
+          ...execArgv,
+          ...process.execArgv.filter((arg) => !/^--(debug|inspect)/.test(arg)),
+        ],
+      },
+      onCustomMessage: (data) => {
+        if (
+          data &&
+          typeof data === 'object' &&
+          'type' in data &&
+          (data as any).type === 'activity'
+        ) {
+          this._onActivity?.()
+        }
+      },
+    })
 
-    // Timeout / restart logic
-    let hangingTimer: ReturnType<typeof setTimeout> | false = false
+    this._pool = pool
 
-    const onActivityImpl = () => {
-      if (hangingTimer) clearTimeout(hangingTimer)
-      this._onActivity?.()
-      hangingTimer =
-        activeTasks > 0 && timeout ? setTimeout(onHanging, timeout) : false
-    }
+    // Listen to the worker's stdout and stderr;
+    // if anything is logged, abort the activity spinner first
+    const abortActivityStreamOnLog = new Transform({
+      transform(_chunk, _encoding, callback) {
+        onActivityAbortImpl()
+        callback()
+      },
+    })
+    pool.getStdout().pipe(abortActivityStreamOnLog)
+    pool.getStderr().pipe(abortActivityStreamOnLog)
 
-    const onHanging = () => {
-      if (!this._pool) return
-      logger.warn(
-        `Sending SIGTERM signal to static worker due to timeout${
-          timeout ? ` of ${timeout / 1000} seconds` : ''
-        }. Subsequent errors may be a result of the worker exiting.`
-      )
-      // End the current pool and create a fresh one
-      const oldPool = this._pool
-      createPool()
-      oldPool.shutdown()
-    }
+    // Pipe the worker's stdout and stderr to the parent process
+    pool.getStdout().pipe(process.stdout)
+    pool.getStderr().pipe(process.stderr)
 
     const dispatchWithRetry = async (
       method: string,
@@ -309,21 +278,10 @@ export class Worker {
     }
 
     for (const method of exposedMethods) {
-      ;(this as any)[method] = timeout
-        ? // eslint-disable-next-line no-loop-func
-          async (...args: any[]) => {
-            activeTasks++
-            try {
-              onActivityImpl()
-              return await dispatchWithRetry(method, args)
-            } finally {
-              activeTasks--
-              onActivityImpl()
-            }
-          }
-        : (...args: any[]) => {
-            return dispatchWithRetry(method, args)
-          }
+      if (method.startsWith('_')) continue
+      ;(this as any)[method] = (...args: any[]) => {
+        return dispatchWithRetry(method, args)
+      }
     }
   }
 
