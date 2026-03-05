@@ -52,7 +52,7 @@ export async function walkTreeWithFlightRouterState({
   MetadataOutlet: React.ComponentType
 }): Promise<FlightDataPath[]> {
   const {
-    renderOpts: { nextFontManifest, experimental, cacheComponents },
+    renderOpts: { nextFontManifest, experimental },
     query,
     isPrefetch,
     getDynamicParamFromSegment,
@@ -124,7 +124,7 @@ export async function walkTreeWithFlightRouterState({
 
   if (
     isInsideSharedLayout &&
-    !cacheComponents &&
+    !experimental.isRoutePPREnabled &&
     // If PPR is disabled, and this is a request for the route tree, then we
     // never render any components. Only send the router state.
     (parsedRequestHeaders.isRouteTreePrefetchRequest ||

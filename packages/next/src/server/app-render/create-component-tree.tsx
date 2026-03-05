@@ -117,7 +117,7 @@ async function createComponentTreeInternal(
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
   const {
-    renderOpts: { nextConfigOutput, cacheComponents },
+    renderOpts: { nextConfigOutput, experimental, cacheComponents },
     workStore,
     componentMod: {
       createElement,
@@ -287,7 +287,7 @@ async function createComponentTreeInternal(
       workStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (workStore.isStaticGeneration && !cacheComponents) {
+      if (workStore.isStaticGeneration && !experimental.isRoutePPREnabled) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         const err = new DynamicServerError(
@@ -347,7 +347,7 @@ async function createComponentTreeInternal(
       defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
-      !cacheComponents
+      !experimental.isRoutePPREnabled
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       workStore.dynamicUsageDescription = dynamicUsageDescription
@@ -372,7 +372,7 @@ async function createComponentTreeInternal(
   // For dynamic requests, this must always be `false` because dynamic responses
   // are never partial.
   const isPossiblyPartialResponse =
-    isStaticGeneration && cacheComponents === true
+    isStaticGeneration && experimental.isRoutePPREnabled === true
 
   const LayoutOrPage: ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
@@ -534,7 +534,7 @@ async function createComponentTreeInternal(
           // possible during both prefetches and dynamic navigations. But during
           // the beta period, we should be clear about this trade off in our
           // communications.
-          !cacheComponents
+          !experimental.isRoutePPREnabled
         ) {
           // Don't prefetch this child. This will trigger a lazy fetch by the
           // client router.
@@ -740,7 +740,7 @@ async function createComponentTreeInternal(
   if (
     workStore.isStaticGeneration &&
     workStore.forceDynamic &&
-    cacheComponents
+    experimental.isRoutePPREnabled
   ) {
     return createSeedData(
       ctx,
