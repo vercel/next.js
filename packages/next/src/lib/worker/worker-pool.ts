@@ -203,7 +203,10 @@ export class WorkerPool {
   > &
     WorkerPoolOptions
 
-  private _workers: PoolWorker[] = []
+  /** All workers currently alive (booting, running, or shutting down) */
+  private _allWorkers = new Set<PoolWorker>()
+  /** Workers in RUNNING state with available concurrency slots */
+  private _availableWorkers = new Set<PoolWorker>()
   /** FIFO queue of tasks waiting for a worker with available capacity */
   private _taskQueue: QueuedTask[] = []
   /** Monotonically increasing counter for correlating requests to responses */
@@ -294,7 +297,7 @@ export class WorkerPool {
 
   /** Returns the number of currently alive workers (including booting ones) */
   getWorkerCount(): number {
-    return this._workers.length
+    return this._allWorkers.size
   }
 
   /**
@@ -314,7 +317,7 @@ export class WorkerPool {
     this._taskQueue = []
 
     const results = await Promise.all(
-      this._workers.map(async (worker) => {
+      [...this._allWorkers].map(async (worker) => {
         worker.state = WorkerState.SHUTTING_DOWN
 
         // Send END message to trigger teardown in the child
@@ -343,7 +346,8 @@ export class WorkerPool {
       })
     )
 
-    this._workers = []
+    this._allWorkers.clear()
+    this._availableWorkers.clear()
     this._stdout.end()
     this._stderr.end()
 
@@ -362,31 +366,25 @@ export class WorkerPool {
     }
     this._taskQueue = []
 
-    for (const worker of this._workers) {
+    for (const worker of this._allWorkers) {
       worker.state = WorkerState.SHUTTING_DOWN
       this._rejectActiveRequests(worker, new Error('Worker pool closed'))
       // Send END message to allow the child to clean up, then force-kill
       worker.handle.send([CHILD_MESSAGE_END])
       worker.handle.forceKill()
     }
-    this._workers = []
+    this._allWorkers.clear()
+    this._availableWorkers.clear()
   }
 
   // ---------------------------------------------------------------------------
   // Internal: worker lifecycle
   // ---------------------------------------------------------------------------
 
-  /** Find a RUNNING worker that has available concurrency slots */
+  /** Pick a RUNNING worker with available concurrency slots (O(1) from set) */
   private _findAvailableWorker(): PoolWorker | null {
-    for (const worker of this._workers) {
-      if (
-        worker.state === WorkerState.RUNNING &&
-        worker.activeRequests.size < this._options.concurrencyPerWorker
-      ) {
-        return worker
-      }
-    }
-    return null
+    const first = this._availableWorkers.values().next()
+    return first.done ? null : first.value
   }
 
   /** Spawn a new worker process/thread and register it with the pool. */
@@ -465,7 +463,7 @@ export class WorkerPool {
       setupArgs ?? [],
     ] satisfies ChildMessageInitialize)
 
-    this._workers.push(worker)
+    this._allWorkers.add(worker)
     this._bootingCount++
     return worker
   }
@@ -484,6 +482,10 @@ export class WorkerPool {
   ): void {
     const requestId = this._nextRequestId++
     worker.activeRequests.set(requestId, { resolve, reject })
+    // If this worker is now at capacity, remove it from the available set
+    if (worker.activeRequests.size >= this._options.concurrencyPerWorker) {
+      this._availableWorkers.delete(worker)
+    }
     worker.handle.send([CHILD_MESSAGE_CALL, requestId, method, args])
   }
 
@@ -500,6 +502,7 @@ export class WorkerPool {
         const pending = worker.activeRequests.get(requestId)
         if (pending) {
           worker.activeRequests.delete(requestId)
+          this._markAvailableIfRunning(worker)
           pending.resolve(result)
           this._dequeueTask(worker)
         }
@@ -511,6 +514,7 @@ export class WorkerPool {
         const pending = worker.activeRequests.get(requestId)
         if (pending) {
           worker.activeRequests.delete(requestId)
+          this._markAvailableIfRunning(worker)
           pending.reject(error)
           this._dequeueTask(worker)
         }
@@ -613,10 +617,8 @@ export class WorkerPool {
     // Reject all in-flight requests and remove from pool
     this._rejectActiveRequests(worker, new WorkerExitError(code, signal))
 
-    const idx = this._workers.indexOf(worker)
-    if (idx !== -1) {
-      this._workers.splice(idx, 1)
-    }
+    this._allWorkers.delete(worker)
+    this._availableWorkers.delete(worker)
 
     // A slot freed up — try to spawn replacements for queued tasks
     if (!this._ending) {
@@ -679,17 +681,18 @@ export class WorkerPool {
   /** Whether the pool has capacity to spawn another worker (under both maxWorkers and maxBootingWorkers limits) */
   private _canSpawnWorker(): boolean {
     return (
-      this._workers.length < this._options.maxWorkers &&
+      this._allWorkers.size < this._options.maxWorkers &&
       this._bootingCount < this._options.maxBootingWorkers
     )
   }
 
   /**
    * Called when a worker transitions from booting to ready.
-   * Drains queued tasks to the newly ready worker, then spawns additional
-   * workers for remaining queued tasks (now that a booting slot freed up).
+   * Adds it to the available set, drains queued tasks into it, then spawns
+   * additional workers for remaining queued tasks (now that a booting slot freed up).
    */
   private _onWorkerReady(worker: PoolWorker): void {
+    this._availableWorkers.add(worker)
     this._drainQueue(worker)
     this._spawnForQueuedTasks()
   }
@@ -712,6 +715,16 @@ export class WorkerPool {
   // ---------------------------------------------------------------------------
   // Internal: helpers
   // ---------------------------------------------------------------------------
+
+  /** Add a worker to the available set if it is RUNNING and has capacity */
+  private _markAvailableIfRunning(worker: PoolWorker): void {
+    if (
+      worker.state === WorkerState.RUNNING &&
+      worker.activeRequests.size < this._options.concurrencyPerWorker
+    ) {
+      this._availableWorkers.add(worker)
+    }
+  }
 
   /** Reject all in-flight requests on a worker and clear the map */
   private _rejectActiveRequests(worker: PoolWorker, error: Error): void {
