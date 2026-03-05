@@ -3,6 +3,10 @@ import type { LightningCssFeature } from '../../../../../server/config-shared'
 /**
  * Maps feature names to lightningcss `Features` bitmask values.
  * Bit positions must match the Rust `lightningcss::targets::Features` bitflags.
+ *
+ * Keep in sync with:
+ * - Names: `packages/next/src/server/config-shared.ts` (`LIGHTNINGCSS_FEATURE_NAMES`)
+ * - Rust:  `crates/next-core/src/next_config.rs` (`lightningcss_feature_names_to_mask`)
  */
 const FEATURE_MAP: Record<LightningCssFeature, number> = {
   nesting: 1 << 0,

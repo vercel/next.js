@@ -1762,6 +1762,16 @@ export default async function loadConfig(
       userConfig.reactProductionProfiling = reactProductionProfiling
     }
 
+    if (
+      userConfig.experimental?.lightningCssFeatures &&
+      !userConfig.experimental?.useLightningcss
+    ) {
+      curLog.warn(
+        `experimental.lightningCssFeatures is set but experimental.useLightningcss is not enabled. ` +
+          `The lightningCssFeatures option has no effect without useLightningcss.`
+      )
+    }
+
     if (userConfig.experimental?.useLightningcss) {
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')

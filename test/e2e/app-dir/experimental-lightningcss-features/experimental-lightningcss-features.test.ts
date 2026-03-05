@@ -19,9 +19,9 @@ describe('experimental-lightningcss-features', () => {
     for (const m of html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
       css += m[1]
     }
-    // External <link> stylesheets
+    // External <link> stylesheets (href may contain query strings like ?dpl=...)
     for (const m of html.matchAll(
-      /<link[^>]*href="([^"]*\.css[^"]*)"[^>]*>/g
+      /<link[^>]*href="([^"]*\.css[^"]*?)"[^>]*>/g
     )) {
       const res = await next.fetch(m[1])
       if (res.ok) css += await res.text()

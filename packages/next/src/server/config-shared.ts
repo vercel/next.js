@@ -340,6 +340,10 @@ export interface LoggingConfig {
  * Individual features map 1:1 to lightningcss `Features` bitflags.
  * Composite names (`selectors`, `media-queries`, `colors`) enable a group of
  * related individual features at once.
+ *
+ * The name→bitmask mapping is duplicated in:
+ * - JS:   `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
+ * - Rust: `crates/next-core/src/next_config.rs` (`lightningcss_feature_names_to_mask`)
  */
 export const LIGHTNINGCSS_FEATURE_NAMES = [
   // Individual features (bit 0–20)

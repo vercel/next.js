@@ -2419,6 +2419,10 @@ fn lightningcss_features_field_mask(
 /// Bit positions match the `lightningcss::targets::Features` bitflags exactly.
 /// Composite names (`selectors`, `media-queries`, `colors`) OR together the
 /// bits of their constituent individual features.
+///
+/// Keep in sync with:
+/// - Names: `packages/next/src/server/config-shared.ts` (`LIGHTNINGCSS_FEATURE_NAMES`)
+/// - JS:    `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
 fn lightningcss_feature_names_to_mask(names: &[RcStr]) -> u32 {
     let mut mask = 0u32;
     for name in names {
