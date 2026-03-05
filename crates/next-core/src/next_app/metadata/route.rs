@@ -41,6 +41,7 @@ pub async fn get_app_metadata_route_source(
     mode: NextMode,
     metadata: MetadataItem,
     is_multi_dynamic: bool,
+    has_semantic_outputs: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     Ok(match metadata {
         MetadataItem::Static { path } => static_route_source(mode, path),
@@ -51,7 +52,7 @@ pub async fn get_app_metadata_route_source(
             if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(path, is_multi_dynamic)
+                dynamic_site_map_route_source(path, is_multi_dynamic, has_semantic_outputs)
             } else {
                 dynamic_image_route_source(path, is_multi_dynamic)
             }
@@ -75,11 +76,13 @@ pub async fn get_app_metadata_route_entry(
 
     let source = Vc::upcast(FileSource::new(original_path.clone()));
     let segment_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
+    let mut has_semantic_outputs = false;
     if original_path.file_stem().unwrap_or_default() == "sitemap" {
         let exports = &*collect_direct_exports(nodejs_context, original_path.clone()).await?;
         let has_generate_sitemaps = exports.contains(&"generateSitemaps".into());
         let has_agent = exports.contains(&"agent".into());
         let has_semantic_sitemap = exports.contains(&"semanticSitemap".into());
+        has_semantic_outputs = has_agent || has_semantic_sitemap;
         if has_generate_sitemaps && (has_agent || has_semantic_sitemap) {
             bail!(
                 "Route \"{}\" cannot combine `generateSitemaps` with `agent` or \
@@ -124,7 +127,7 @@ pub async fn get_app_metadata_route_entry(
     Ok(get_app_route_entry(
         nodejs_context,
         edge_context,
-        get_app_metadata_route_source(mode, metadata, is_multi_dynamic),
+        get_app_metadata_route_source(mode, metadata, is_multi_dynamic, has_semantic_outputs),
         page,
         project_root,
         Some(segment_config),
@@ -377,17 +380,24 @@ async fn dynamic_sitemap_route_with_generate_source(
 
 async fn dynamic_sitemap_route_without_generate_source(
     path: FileSystemPath,
+    has_semantic_outputs: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
+    let dynamic_export = if has_semantic_outputs {
+        "export const dynamic = 'force-dynamic'\n"
+    } else {
+        ""
+    };
 
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
             import {{ default as handler }} from {resource_path}
             import {{ resolveRouteData, resolveSemanticSitemapRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+            import {{ negotiateAgentFormat }} from 'next/dist/server/agent/request'
 
             const getUserland = () => import({resource_path})
 
@@ -399,6 +409,7 @@ async fn dynamic_sitemap_route_without_generate_source(
                 throw new Error('Default export is missing in {resource_path}')
             }}
 
+            {dynamic_export}
             export async function GET(request) {{
                 const userland = await getUserland()
                 const agent = userland['agent']
@@ -406,13 +417,13 @@ async fn dynamic_sitemap_route_without_generate_source(
             
                 const requestUrl = request?.url ? new URL(request.url) : null
                 const nextUrl = request?.nextUrl
-                const pathname = nextUrl?.pathname || requestUrl?.pathname || ''
+                const pathname = requestUrl?.pathname || nextUrl?.pathname || ''
                 const semanticFormatHeader = request?.headers?.get('x-next-sitemap-format')
                 const semanticFormatParam =
                     semanticFormatHeader ??
                     nextUrl?.searchParams.get('__nextSitemapFormat') ??
                     requestUrl?.searchParams.get('__nextSitemapFormat')
-                const semanticFormat =
+                const explicitSemanticFormat =
                     semanticFormatParam === 'markdown' || semanticFormatParam === 'json'
                         ? semanticFormatParam
                         : pathname === '/sitemap.md' || pathname.endsWith('/sitemap.md')
@@ -420,8 +431,19 @@ async fn dynamic_sitemap_route_without_generate_source(
                             : pathname === '/sitemap.json' || pathname.endsWith('/sitemap.json')
                                 ? 'json'
                                 : null
+                const isSharedSitemapRequest =
+                    pathname === '/sitemap.xml' || pathname.endsWith('/sitemap.xml')
+                const negotiatedSemanticFormat =
+                    isSharedSitemapRequest
+                        ? negotiateAgentFormat(request?.headers?.get('accept'), 'xml')
+                        : null
+                const semanticFormat = explicitSemanticFormat ?? negotiatedSemanticFormat
                 const hasSemanticSitemap = typeof semanticSitemap === 'function'
                 const agentMode = agent ?? (hasSemanticSitemap ? 'markdown' : undefined)
+                const varyHeaders =
+                    typeof agentMode !== 'undefined'
+                        ? {{ Vary: 'Accept' }}
+                        : {{}}
             
                 if (
                     typeof agentMode !== 'undefined' &&
@@ -438,11 +460,14 @@ async fn dynamic_sitemap_route_without_generate_source(
                         agentMode === semanticFormat
             
                     if (!isEnabled) {{
-                        return new NextResponse('Not Found', {{
-                            status: 404,
+                        return new NextResponse(
+                            explicitSemanticFormat ? 'Not Found' : 'Not Acceptable',
+                            {{
+                            status: explicitSemanticFormat ? 404 : 406,
                             headers: {{
                                 'Cache-Control': cacheControl,
                                 'X-Robots-Tag': 'noindex',
+                                ...varyHeaders,
                             }},
                         }})
                     }}
@@ -463,6 +488,7 @@ async fn dynamic_sitemap_route_without_generate_source(
                                     : 'text/markdown; charset=utf-8',
                             'Cache-Control': cacheControl,
                             'X-Robots-Tag': 'noindex',
+                            ...varyHeaders,
                         }},
                     }})
                 }}
@@ -474,6 +500,7 @@ async fn dynamic_sitemap_route_without_generate_source(
                     headers: {{
                         'Content-Type': contentType,
                         'Cache-Control': cacheControl,
+                        ...varyHeaders,
                     }},
                 }})
             }}
@@ -484,6 +511,7 @@ async fn dynamic_sitemap_route_without_generate_source(
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
+        dynamic_export = dynamic_export,
     };
 
     let file = File::from(code);
@@ -526,11 +554,12 @@ async fn collect_direct_exports(
 async fn dynamic_site_map_route_source(
     path: FileSystemPath,
     is_multi_dynamic: bool,
+    has_semantic_outputs: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     if is_multi_dynamic {
         dynamic_sitemap_route_with_generate_source(path).await
     } else {
-        dynamic_sitemap_route_without_generate_source(path).await
+        dynamic_sitemap_route_without_generate_source(path, has_semantic_outputs).await
     }
 }
 

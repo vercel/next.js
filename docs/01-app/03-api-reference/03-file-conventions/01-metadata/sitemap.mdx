@@ -400,6 +400,8 @@ outputs at:
 
 - `/sitemap.md`
 - `/sitemap.json`
+- `/sitemap.xml` with `Accept: text/markdown`
+- `/sitemap.xml` with `Accept: application/json`
 
 You can opt in by exporting `agent` from `app/sitemap.ts`:
 
@@ -429,12 +431,13 @@ export async function semanticSitemap(): Promise<MetadataRoute.SemanticSitemap> 
 }
 ```
 
-If `semanticSitemap` is exported without `agent`, Next.js defaults to
-markdown output (`/sitemap.md`).
+If `semanticSitemap` is exported without `agent`, Next.js defaults to markdown
+for `/sitemap.md` and when `/sitemap.xml` is requested with
+`Accept: text/markdown`.
 
 > **Good to know**
 >
-> - Semantic outputs are additive and do not change `/sitemap.xml`.
+> - Semantic outputs are additive. `/sitemap.xml` still returns XML by default.
 > - `generateSitemaps` cannot be combined with `agent` or
 >   `semanticSitemap`.
 

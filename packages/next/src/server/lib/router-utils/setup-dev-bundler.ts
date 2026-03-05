@@ -465,12 +465,15 @@ async function startWatcher(
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles, staticMetadataFiles } = opts.fsChecker
+      const { appFiles, appPageFiles, pageFiles, staticMetadataFiles } =
+        opts.fsChecker
 
-      appFiles.clear()
-      pageFiles.clear()
-      staticMetadataFiles.clear()
       devPageFiles.clear()
+
+      const nextAppFiles = new Set<string>()
+      const nextAppPageFiles = new Set<string>()
+      const nextPageFiles = new Set<string>()
+      const nextStaticMetadataFiles = new Map<string, string>()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
@@ -708,7 +711,10 @@ async function startWatcher(
               : originalPageName
           )
 
-          if (useFileSystemPublicRoutes) {
+          if (
+            useFileSystemPublicRoutes ||
+            validFileMatcher.isMetadataFile(fileName)
+          ) {
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
               const segment = path.posix.dirname(pageName)
               const lastSegment = path.posix.basename(pageName)
@@ -718,9 +724,9 @@ async function startWatcher(
                 lastSegment,
                 true
               )
-              staticMetadataFiles.set(normalizedPath, fileName)
+              nextStaticMetadataFiles.set(normalizedPath, fileName)
             } else {
-              appFiles.add(pageName)
+              nextAppFiles.add(pageName)
             }
           }
 
@@ -729,7 +735,9 @@ async function startWatcher(
             appRouteHandlers.push(routeEntry)
           } else {
             appRoutes.push(routeEntry)
-
+            if (!validFileMatcher.isMetadataFile(fileName)) {
+              nextAppPageFiles.add(pageName)
+            }
             if (nextConfig.experimental.agentRoutes) {
               const getPageStaticInfo = (
                 require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
@@ -756,7 +764,7 @@ async function startWatcher(
         } else {
           // Pages router
           if (useFileSystemPublicRoutes) {
-            pageFiles.add(pageName)
+            nextPageFiles.add(pageName)
             opts.fsChecker.nextDataRoutes.add(pageName)
           }
 
@@ -792,6 +800,26 @@ async function startWatcher(
         }
 
         routedPages.push(pageName)
+      }
+
+      appFiles.clear()
+      for (const route of nextAppFiles) {
+        appFiles.add(route)
+      }
+
+      appPageFiles.clear()
+      for (const route of nextAppPageFiles) {
+        appPageFiles.add(route)
+      }
+
+      pageFiles.clear()
+      for (const route of nextPageFiles) {
+        pageFiles.add(route)
+      }
+
+      staticMetadataFiles.clear()
+      for (const [route, filePath] of nextStaticMetadataFiles) {
+        staticMetadataFiles.set(route, filePath)
       }
 
       opts.fsChecker.setAgentRoutes(

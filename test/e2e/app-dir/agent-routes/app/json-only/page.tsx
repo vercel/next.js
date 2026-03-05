@@ -4,7 +4,7 @@ export default function JsonOnlyPage() {
   return (
     <main>
       <h1>JSON Only</h1>
-      <p>This route should only expose /agent.json.</p>
+      <p>This route should only expose agent JSON on the page URL.</p>
     </main>
   )
 }

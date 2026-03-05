@@ -617,8 +617,9 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
-   * Enables App Router agent routes (`/agent.md`, `/agent.json`) and
-   * semantic sitemap agent outputs.
+   * Enables same-path App Router agent responses via `Accept` negotiation and
+   * semantic sitemap outputs (`/sitemap.md`, `/sitemap.json`, or `/sitemap.xml`
+   * with an explicit agent media type).
    */
   agentRoutes?: boolean
 

@@ -145,9 +145,12 @@ const API_DOCS: Record<
     description:
       'The `agent` option enables agent-friendly route outputs for this page.',
     options: {
-      '"markdown"': 'Expose a Markdown endpoint at `/<route>/agent.md`.',
-      '"json"': 'Expose a JSON endpoint at `/<route>/agent.json`.',
-      '"all"': 'Expose both Markdown and JSON agent endpoints.',
+      '"markdown"':
+        'Serve Markdown from the page URL when `Accept: text/markdown` is explicitly preferred.',
+      '"json"':
+        'Serve JSON from the page URL when `Accept: application/json` is explicitly preferred.',
+      '"all"':
+        'Support both Markdown and JSON on the page URL via `Accept` negotiation.',
     },
     isValid: (value: string) => {
       return value === '"markdown"' || value === '"json"' || value === '"all"'

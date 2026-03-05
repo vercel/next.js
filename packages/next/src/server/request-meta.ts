@@ -12,6 +12,7 @@ import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages
 import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
 import type { NextRequest } from './web/exports'
+import type { AgentMode } from './agent/types'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -128,24 +129,14 @@ export interface RequestMeta {
   isRSCRequest?: true
 
   /**
-   * True when the request targets an agent endpoint for an App Router page.
-   */
-  isAgentRequest?: true
-
-  /**
-   * The negotiated agent endpoint output format.
-   */
-  agentFormat?: 'markdown' | 'json'
-
-  /**
-   * The canonical app route pathname behind an agent endpoint request.
-   */
-  agentBasePath?: string
-
-  /**
    * The requested semantic sitemap output format for metadata sitemap routes.
    */
   semanticSitemapFormat?: 'markdown' | 'json'
+
+  /**
+   * The statically analyzed agent mode for the matched App Router page.
+   */
+  agentModeHint?: AgentMode
 
   /**
    * A search param set by the Next.js client when performing RSC requests.

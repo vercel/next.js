@@ -122,10 +122,11 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
 
 ## Examples
 
-### Agent endpoint precedence (experimental)
+### Agent route paths (experimental)
 
-When `experimental.agentRoutes` is enabled, explicit routes still take
-precedence over internal agent endpoint fallback behavior.
+When `experimental.agentRoutes` is enabled, page agent responses are negotiated
+on the page's normal URL. Explicit route handlers at paths like `/agent.md`
+remain ordinary user-defined routes.
 
 For example, this explicit route continues to own `/agent.md`:
 

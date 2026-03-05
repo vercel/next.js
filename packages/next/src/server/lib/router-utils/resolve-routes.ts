@@ -31,6 +31,7 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
+import { negotiateAgentFormat } from '../../agent/request'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -275,11 +276,44 @@ export function getResolveRoutes(
       }
     }
 
-    const isSpecialOutputRequest = (output: FsOutput) => {
-      return (
-        output.requestMeta?.isAgentRequest === true ||
+    const applyAgentRequestMeta = (output: FsOutput): FsOutput => {
+      if (
+        !config.experimental.agentRoutes ||
         typeof output.requestMeta?.semanticSitemapFormat !== 'undefined'
-      )
+      ) {
+        return output
+      }
+
+      const pathname = parsedUrl.pathname || ''
+      const negotiatedSemanticSitemapFormat =
+        pathname === '/sitemap.xml' || pathname.endsWith('/sitemap.xml')
+          ? negotiateAgentFormat(req.headers.accept, 'xml')
+          : null
+
+      if (
+        !negotiatedSemanticSitemapFormat ||
+        output.type !== 'appFile' ||
+        !output.itemPath.endsWith('/sitemap.xml')
+      ) {
+        return output
+      }
+
+      return {
+        ...output,
+        invokePath: output.invokePath ?? pathname,
+        invokeQuery: {
+          ...output.invokeQuery,
+          __nextSitemapFormat: negotiatedSemanticSitemapFormat,
+        },
+        requestMeta: {
+          ...output.requestMeta,
+          semanticSitemapFormat: negotiatedSemanticSitemapFormat,
+        },
+      }
+    }
+
+    const isSpecialOutputRequest = (output: FsOutput) => {
+      return typeof output.requestMeta?.semanticSitemapFormat !== 'undefined'
     }
 
     async function checkTrue() {
@@ -292,14 +326,16 @@ export function getResolveRoutes(
         const output = await fsChecker.getItem(pathname)
 
         if (output) {
+          const resolvedOutput = applyAgentRequestMeta(output)
           if (
             config.useFileSystemPublicRoutes ||
             didRewrite ||
-            isSpecialOutputRequest(output) ||
-            (output.type !== 'appFile' && output.type !== 'pageFile')
+            isSpecialOutputRequest(resolvedOutput) ||
+            (resolvedOutput.type !== 'appFile' &&
+              resolvedOutput.type !== 'pageFile')
           ) {
-            applyOutputRequestMeta(output)
-            return output
+            applyOutputRequestMeta(resolvedOutput)
+            return resolvedOutput
           }
         }
       }
@@ -329,22 +365,30 @@ export function getResolveRoutes(
           const pageOutput = await fsChecker.getItem(
             addPathPrefix(route.page, config.basePath || '')
           )
+          const resolvedPageOutput = pageOutput
+            ? applyAgentRequestMeta(pageOutput)
+            : pageOutput
 
           // i18n locales aren't matched for app dir
           if (
-            pageOutput?.type === 'appFile' &&
+            resolvedPageOutput?.type === 'appFile' &&
             initialLocaleResult?.detectedLocale
           ) {
             continue
           }
 
-          if (pageOutput && curPathname?.startsWith('/_next/data')) {
+          if (resolvedPageOutput && curPathname?.startsWith('/_next/data')) {
             addRequestMeta(req, 'isNextDataReq', true)
           }
 
-          if (pageOutput && (config.useFileSystemPublicRoutes || didRewrite)) {
-            applyOutputRequestMeta(pageOutput)
-            return pageOutput
+          if (
+            resolvedPageOutput &&
+            (config.useFileSystemPublicRoutes ||
+              didRewrite ||
+              isSpecialOutputRequest(resolvedPageOutput))
+          ) {
+            applyOutputRequestMeta(resolvedPageOutput)
+            return resolvedPageOutput
           }
         }
       }

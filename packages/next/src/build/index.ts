@@ -238,9 +238,6 @@ function mergeAgentModes(
   if (!current || current === next) {
     return next
   }
-  if (current === 'all' || next === 'all') {
-    return 'all'
-  }
 
   return 'all'
 }

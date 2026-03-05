@@ -252,13 +252,15 @@ async function getImageRouteCode(
 
 async function getSingleSitemapRouteCode(
   resourcePath: string,
-  loaderContext: webpack.LoaderContext<any>
+  loaderContext: webpack.LoaderContext<any>,
+  hasSemanticOutputs: boolean
 ) {
   return `\
 /* single sitemap route */
 import { NextResponse } from 'next/server'
 import { default as handler } from ${JSON.stringify(resourcePath)}
 import { resolveRouteData, resolveSemanticSitemapRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+import { negotiateAgentFormat } from 'next/dist/server/agent/request'
 
 const getUserland = () => import(${JSON.stringify(resourcePath)})
 
@@ -267,6 +269,7 @@ const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
 ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
+${hasSemanticOutputs ? `export const dynamic = 'force-dynamic'\n` : ''}
 
 export async function GET(request) {
   const userland = await getUserland()
@@ -275,7 +278,7 @@ export async function GET(request) {
 
   const requestUrl = request?.url ? new URL(request.url) : null
   const nextUrl = request?.nextUrl
-  const pathname = nextUrl?.pathname || requestUrl?.pathname || ''
+  const pathname = requestUrl?.pathname || nextUrl?.pathname || ''
   const semanticFormatHeader = request?.headers?.get(
     'x-next-sitemap-format'
   )
@@ -283,7 +286,7 @@ export async function GET(request) {
     semanticFormatHeader ??
     nextUrl?.searchParams.get('__nextSitemapFormat') ??
     requestUrl?.searchParams.get('__nextSitemapFormat')
-  const semanticFormat =
+  const explicitSemanticFormat =
     semanticFormatParam === 'markdown' || semanticFormatParam === 'json'
       ? semanticFormatParam
       : pathname === '/sitemap.md' || pathname.endsWith('/sitemap.md')
@@ -291,8 +294,19 @@ export async function GET(request) {
         : pathname === '/sitemap.json' || pathname.endsWith('/sitemap.json')
           ? 'json'
           : null
+  const isSharedSitemapRequest =
+    pathname === '/sitemap.xml' || pathname.endsWith('/sitemap.xml')
+  const negotiatedSemanticFormat =
+    isSharedSitemapRequest
+      ? negotiateAgentFormat(request?.headers?.get('accept'), 'xml')
+      : null
+  const semanticFormat = explicitSemanticFormat ?? negotiatedSemanticFormat
   const hasSemanticSitemap = typeof semanticSitemap === 'function'
   const agentMode = agent ?? (hasSemanticSitemap ? 'markdown' : undefined)
+  const varyHeaders =
+    typeof agentMode !== 'undefined'
+      ? { Vary: 'Accept' }
+      : {}
 
   if (
     typeof agentMode !== 'undefined' &&
@@ -311,13 +325,17 @@ export async function GET(request) {
       agentMode === semanticFormat
 
     if (!isEnabled) {
-      return new NextResponse('Not Found', {
-        status: 404,
-        headers: {
-          'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
-          'X-Robots-Tag': 'noindex',
-        },
-      })
+      return new NextResponse(
+        explicitSemanticFormat ? 'Not Found' : 'Not Acceptable',
+        {
+          status: explicitSemanticFormat ? 404 : 406,
+          headers: {
+            'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
+            'X-Robots-Tag': 'noindex',
+            ...varyHeaders,
+          },
+        }
+      )
     }
 
     const isSemanticInput = hasSemanticSitemap
@@ -336,6 +354,7 @@ export async function GET(request) {
             : 'text/markdown; charset=utf-8',
         'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
         'X-Robots-Tag': 'noindex',
+        ...varyHeaders,
       },
     })
   }
@@ -347,6 +366,7 @@ export async function GET(request) {
     headers: {
       'Content-Type': contentType,
       'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
+      ...varyHeaders,
     },
   })
 }
@@ -447,7 +467,11 @@ async function getSitemapRouteCode(
   if (hasGenerateSitemaps) {
     return getDynamicSitemapRouteCode(resourcePath, loaderContext)
   } else {
-    return getSingleSitemapRouteCode(resourcePath, loaderContext)
+    return getSingleSitemapRouteCode(
+      resourcePath,
+      loaderContext,
+      hasAgentExport || hasSemanticSitemapExport
+    )
   }
 }
 

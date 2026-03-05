@@ -101,12 +101,28 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes'
 import {
+  negotiateAgentFormat,
   resolveAgentCanonicalUrl,
+  resolveAgentMode,
   resolveAgentRequest,
   resolveLeafPageModule,
 } from '../../server/agent/request'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+
+function appendHeaderValue(existingValue: string, value: string): string {
+  const normalizedValue = value.toLowerCase()
+  const parts = existingValue
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  if (parts.some((part) => part.toLowerCase() === normalizedValue)) {
+    return existingValue
+  }
+
+  return `${existingValue}, ${value}`
+}
 
 // Create and export the route module that will be consumed.
 export const routeModule = new AppPageRouteModule({
@@ -531,11 +547,17 @@ export async function handler(
     __next_app__,
   }
 
-  const isAgentRequest = getRequestMeta(req, 'isAgentRequest') === true
-  const agentFormat = getRequestMeta(req, 'agentFormat')
-  const agentBasePath = getRequestMeta(req, 'agentBasePath')
-  const pageModuleForAgent = isAgentRequest
+  const pageModuleForAgent = nextConfig.experimental.agentRoutes
     ? await resolveLeafPageModule(tree)
+    : null
+  const pageAgentModeHint = nextConfig.experimental.agentRoutes
+    ? getRequestMeta(req, 'agentModeHint')
+    : undefined
+  const pageAgentMode = nextConfig.experimental.agentRoutes
+    ? (pageAgentModeHint ?? resolveAgentMode(pageModuleForAgent))
+    : null
+  const requestedAgentFormat = nextConfig.experimental.agentRoutes
+    ? negotiateAgentFormat(req.headers.accept, 'html')
     : null
 
   // Before rendering (which initializes component tree modules), we have to
@@ -568,7 +590,10 @@ export async function handler(
       resolvedPathname,
       interceptionRoutePatterns
     )
-    res.setHeader('Vary', varyHeader)
+    res.setHeader(
+      'Vary',
+      pageAgentMode ? appendHeaderValue(varyHeader, 'Accept') : varyHeader
+    )
     const invokeRouteModule = async (
       span: Span | undefined,
       context: AppPageRouteHandlerContext
@@ -1399,20 +1424,35 @@ export async function handler(
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
-      if (isAgentRequest) {
+      if (requestedAgentFormat) {
         const agentResolution = await resolveAgentRequest({
           pageModule: pageModuleForAgent,
-          format: agentFormat,
+          modeOverride: pageAgentMode,
+          format: requestedAgentFormat,
           params: params ?? {},
           searchParams: query ?? {},
           canonicalUrl: resolveAgentCanonicalUrl(
-            getRequestMeta(req, 'initURL'),
-            agentBasePath
+            getRequestMeta(req, 'initURL')
           ),
           fallbackTitle: normalizedSrcPage,
           isDev: routeModule.isDev,
           getHtml: () => cachedData.html.toUnchunkedString(true),
         })
+
+        if (
+          agentResolution.statusCode !== 200 &&
+          typeof cachedData.status === 'number' &&
+          cachedData.status !== 200
+        ) {
+          return sendRenderResult({
+            req,
+            res,
+            generateEtags: nextConfig.generateEtags,
+            poweredByHeader: nextConfig.poweredByHeader,
+            result: cachedData.html,
+            cacheControl: cacheEntry.cacheControl,
+          })
+        }
 
         let responseStatusCode: number = agentResolution.statusCode
         if (

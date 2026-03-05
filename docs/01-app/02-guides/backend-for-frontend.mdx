@@ -115,10 +115,10 @@ You can also define custom ones, such as:
 - `.well-known`
 
 With `experimental.agentRoutes` enabled, App Router pages can also expose
-agent-friendly outputs:
+agent-friendly outputs from the same URL via `Accept` negotiation:
 
-- `/<route>/agent.md`
-- `/<route>/agent.json`
+- `Accept: text/markdown`
+- `Accept: application/json`
 
 Use page exports to opt in:
 
@@ -136,7 +136,7 @@ export async function generateAgent(): Promise<AgentRoute.Document> {
 ```
 
 If `generateAgent` is exported without `agent`, Next.js defaults to markdown
-output (`agent.md`).
+when `Accept: text/markdown` is explicitly preferred.
 
 For example, `app/rss.xml/route.ts` creates a Route Handler for `rss.xml`.
 

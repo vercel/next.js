@@ -1,4 +1,5 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
+import type { AgentRoute } from '../../../../server/agent/types'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
 // convert robots data to txt string
@@ -167,6 +168,72 @@ function inferSitemapTitle(url: string): string {
   }
 }
 
+function normalizeMarkdownText(value: string): string {
+  return value.trim().replace(/\n{3,}/g, '\n\n')
+}
+
+function serializeSemanticLastModified(
+  lastModified: string | Date | undefined
+): string | undefined {
+  if (!lastModified) {
+    return undefined
+  }
+
+  return lastModified instanceof Date
+    ? lastModified.toISOString()
+    : lastModified
+}
+
+function serializeSemanticActions(actions: AgentRoute.Action[]): string[] {
+  if (!actions.length) return []
+
+  const lines: string[] = ['Actions']
+  for (const action of actions) {
+    const method = action.method ? ` [${action.method}]` : ''
+    const href = action.href ? ` (${action.href})` : ''
+    const description = action.description ? ` - ${action.description}` : ''
+    lines.push(`- ${action.label}${method}${href}${description}`)
+  }
+  lines.push('')
+  return lines
+}
+
+function serializeSemanticSection(
+  lines: string[],
+  section: AgentRoute.Section,
+  depth: number
+) {
+  if (section.title) {
+    lines.push(`${'#'.repeat(Math.min(depth, 6))} ${section.title}`)
+    lines.push('')
+  }
+
+  if (section.summary) {
+    lines.push(normalizeMarkdownText(section.summary))
+    lines.push('')
+  }
+
+  if (section.url) {
+    lines.push(`Source: ${section.url}`)
+    lines.push('')
+  }
+
+  if (section.content) {
+    lines.push(normalizeMarkdownText(section.content))
+    lines.push('')
+  }
+
+  if (section.actions?.length) {
+    lines.push(...serializeSemanticActions(section.actions))
+  }
+
+  if (section.sections?.length) {
+    for (const child of section.sections) {
+      serializeSemanticSection(lines, child, depth + 1)
+    }
+  }
+}
+
 function sitemapToSemanticSitemap(
   data: MetadataRoute.Sitemap
 ): MetadataRoute.SemanticSitemap {
@@ -190,9 +257,63 @@ function sitemapToSemanticSitemap(
   })
 }
 
-function resolveSemanticSitemapMarkdown(
+function hasDetailedSemanticEntries(
+  data: MetadataRoute.SemanticSitemap
+): boolean {
+  return data.some(
+    (entry) =>
+      Boolean(entry.lastModified) ||
+      Boolean(entry.actions?.length) ||
+      Boolean(entry.sections?.length)
+  )
+}
+
+function resolveDetailedSemanticSitemapMarkdown(
   data: MetadataRoute.SemanticSitemap
 ): string {
+  const lines = ['# Sitemap', '']
+
+  for (const entry of data) {
+    const title = entry.title || inferSitemapTitle(entry.url)
+    lines.push(`## ${title}`)
+    lines.push('')
+
+    if (entry.summary) {
+      lines.push(normalizeMarkdownText(entry.summary))
+      lines.push('')
+    }
+
+    lines.push(`Source: ${entry.url}`)
+    lines.push('')
+
+    const lastModified = serializeSemanticLastModified(entry.lastModified)
+    if (lastModified) {
+      lines.push(`Last modified: ${lastModified}`)
+      lines.push('')
+    }
+
+    if (entry.actions?.length) {
+      lines.push(...serializeSemanticActions(entry.actions))
+    }
+
+    if (entry.sections?.length) {
+      for (const section of entry.sections) {
+        serializeSemanticSection(lines, section, 3)
+      }
+    }
+  }
+
+  return `${lines.join('\n').trim()}\n`
+}
+
+function resolveSemanticSitemapMarkdown(
+  data: MetadataRoute.SemanticSitemap,
+  useDetailedRendering: boolean
+): string {
+  if (useDetailedRendering) {
+    return resolveDetailedSemanticSitemapMarkdown(data)
+  }
+
   const lines = ['# Sitemap', '']
 
   for (const entry of data) {
@@ -217,7 +338,10 @@ export function resolveSemanticSitemapRouteData(
     return `${JSON.stringify(semanticData, null, 2)}\n`
   }
 
-  return resolveSemanticSitemapMarkdown(semanticData)
+  return resolveSemanticSitemapMarkdown(
+    semanticData,
+    isSemanticInput && hasDetailedSemanticEntries(semanticData)
+  )
 }
 
 export function resolveRouteData(

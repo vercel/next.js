@@ -21,7 +21,9 @@ import { LRUCache } from '../lru-cache'
 import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
+import { findPagesDir } from '../../../lib/find-pages-dir'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
+import { PAGE_TYPES } from '../../../lib/page-types'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
@@ -33,6 +35,8 @@ import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
+import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import {
   AGENT_ROUTES_MANIFEST,
@@ -45,10 +49,19 @@ import {
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import {
+  fillMetadataSegment,
+  normalizeMetadataPageToRoute,
+  normalizeMetadataRoute,
+} from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
-import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
+import {
+  isMetadataRouteFile,
+  isStaticMetadataFile,
+} from '../../../lib/metadata/is-metadata-route'
+import { createValidFileMatcher } from '../find-page-file'
+import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 
 export type FsOutput = {
   type:
@@ -66,16 +79,7 @@ export type FsOutput = {
   locale?: string
   invokePath?: string
   invokeQuery?: Record<string, string>
-  requestMeta?: Pick<
-    RequestMeta,
-    'isAgentRequest' | 'agentFormat' | 'agentBasePath' | 'semanticSitemapFormat'
-  >
-}
-
-type DynamicAgentRoute = {
-  page: string
-  mode: AgentMode
-  match: PatchMatcher
+  requestMeta?: Pick<RequestMeta, 'agentModeHint' | 'semanticSitemapFormat'>
 }
 
 const debug = setupDebug('next:router-server:filesystem')
@@ -84,6 +88,11 @@ export type FilesystemDynamicRoute = ManifestRoute & {
   /**
    * The path matcher that can be used to match paths against this route.
    */
+  match: PatchMatcher
+}
+
+type DynamicPathRoute = {
+  page: string
   match: PatchMatcher
 }
 
@@ -148,6 +157,7 @@ export async function setupFsCheck(opts: {
   const legacyStaticFolderItems = new Set<string>()
 
   const appFiles = new Set<string>()
+  const appPageFiles = new Set<string>()
   const pageFiles = new Set<string>()
   // Map normalized path to the file path. This is essential
   // for parallel and group routes as their original path
@@ -160,7 +170,6 @@ export async function setupFsCheck(opts: {
   const staticMetadataFiles = new Map<string, string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
   const agentRoutes = new Map<string, AgentMode>()
-  let dynamicAgentRoutes: DynamicAgentRoute[] = []
 
   let middlewareMatcher:
     | ReturnType<typeof getMiddlewareRouteMatcher>
@@ -271,7 +280,7 @@ export async function setupFsCheck(opts: {
     )
     const appRoutesManifest = JSON.parse(
       await fs.readFile(appRoutesManifestPath, 'utf8').catch(() => '{}')
-    )
+    ) as Record<string, string>
 
     for (const key of Object.keys(pagesManifest)) {
       // ensure the non-locale version is in the set
@@ -283,8 +292,12 @@ export async function setupFsCheck(opts: {
         pageFiles.add(key)
       }
     }
-    for (const key of Object.keys(appRoutesManifest)) {
-      appFiles.add(appRoutesManifest[key])
+    for (const [key, route] of Object.entries(appRoutesManifest)) {
+      appFiles.add(route)
+
+      if (key.endsWith('/page')) {
+        appPageFiles.add(route)
+      }
     }
 
     if (opts.config.experimental.agentRoutes) {
@@ -384,6 +397,93 @@ export async function setupFsCheck(opts: {
         .randomBytes(32)
         .toString('hex'),
     }
+
+    const { appDir } = findPagesDir(opts.dir)
+
+    if (appDir) {
+      const validFileMatcher = createValidFileMatcher(
+        opts.config.pageExtensions,
+        appDir
+      )
+      const appPaths = await recursiveReadDir(appDir)
+
+      for (const file of appPaths) {
+        const fileName = path.join(appDir, file)
+
+        if (!validFileMatcher.isAppRouterPage(fileName)) {
+          continue
+        }
+
+        if (validFileMatcher.isRootNotFound(fileName)) {
+          continue
+        }
+
+        let pageName = absolutePathToPage(fileName, {
+          dir: appDir,
+          extensions: opts.config.pageExtensions,
+          keepIndex: true,
+          pagesType: PAGE_TYPES.APP,
+        })
+
+        if (
+          isMetadataRouteFile(
+            fileName.replace(appDir, ''),
+            opts.config.pageExtensions,
+            true
+          )
+        ) {
+          const getPageStaticInfo = (
+            require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
+          ).getPageStaticInfo
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: {},
+            page: pageName,
+            isDev: true,
+            pageType: PAGE_TYPES.APP,
+          })
+
+          pageName = normalizeMetadataPageToRoute(
+            pageName,
+            !!(staticInfo.generateSitemaps || staticInfo.generateImageMetadata)
+          )
+        }
+
+        const normalizedPageName = normalizePathSep(pageName)
+
+        if (normalizedPageName.includes('/_')) {
+          continue
+        }
+
+        if (validFileMatcher.isAppLayoutPage(fileName)) {
+          continue
+        }
+
+        pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
+
+        if (isStaticMetadataFile(fileName.replace(appDir, ''))) {
+          const segment = path.posix.dirname(pageName)
+          const lastSegment = path.posix.basename(pageName)
+          const normalizedPath = fillMetadataSegment(
+            segment,
+            {},
+            lastSegment,
+            true
+          )
+
+          staticMetadataFiles.set(normalizedPath, fileName)
+        } else {
+          appFiles.add(pageName)
+        }
+
+        if (
+          !validFileMatcher.isAppRouterRoute(fileName) &&
+          !validFileMatcher.isMetadataFile(fileName)
+        ) {
+          appPageFiles.add(pageName)
+        }
+      }
+    }
   }
 
   const headers = customRoutes.headers.map((item) =>
@@ -452,53 +552,43 @@ export async function setupFsCheck(opts: {
     for (const [route, mode] of Object.entries(routes)) {
       agentRoutes.set(route, mode)
     }
-
-    dynamicAgentRoutes = []
-    for (const [route, mode] of agentRoutes) {
-      if (!isDynamicRoute(route)) continue
-
-      dynamicAgentRoutes.push({
-        page: route,
-        mode,
-        match: getRouteMatcher(getRouteRegex(route)),
-      })
-    }
   }
 
-  const getAgentRouteMatch = (
-    pathname: string
-  ): { page: string; mode: AgentMode } | null => {
-    const staticMode = agentRoutes.get(pathname)
-    if (staticMode) {
-      return { page: pathname, mode: staticMode }
-    }
+  const getDynamicPathRoutes = (
+    routes: Iterable<string>,
+    shouldIncludeRoute?: (page: string) => boolean
+  ): DynamicPathRoute[] => {
+    return getSortedRoutes(
+      Array.from(routes).filter(
+        (page) =>
+          isDynamicRoute(page) &&
+          (!shouldIncludeRoute || shouldIncludeRoute(page))
+      )
+    ).map((page) => ({
+      page,
+      match: getRouteMatcher(getRouteRegex(page)),
+    }))
+  }
 
-    for (const route of dynamicAgentRoutes) {
+  const matchDynamicAppRoutePath = (
+    pathname: string,
+    shouldIncludeRoute?: (page: string) => boolean
+  ): string | null => {
+    for (const route of getDynamicPathRoutes(appFiles, shouldIncludeRoute)) {
       if (route.match(pathname)) {
-        return {
-          page: route.page,
-          mode: route.mode,
-        }
+        return route.page
       }
     }
 
     return null
   }
 
-  const parseAgentRequestPath = (
-    pathname: string
-  ): { format: AgentFormat; basePath: string } | null => {
-    if (pathname === '/agent.md' || pathname.endsWith('/agent.md')) {
-      const basePath = pathname.slice(0, -'/agent.md'.length) || '/'
-      return { format: 'markdown', basePath }
+  const getAppFileRouteMatch = (pathname: string): string | null => {
+    if (appFiles.has(pathname)) {
+      return pathname
     }
 
-    if (pathname === '/agent.json' || pathname.endsWith('/agent.json')) {
-      const basePath = pathname.slice(0, -'/agent.json'.length) || '/'
-      return { format: 'json', basePath }
-    }
-
-    return null
+    return matchDynamicAppRoutePath(pathname)
   }
 
   const parseSemanticSitemapRequestPath = (
@@ -548,6 +638,7 @@ export async function setupFsCheck(opts: {
     handleLocale,
 
     appFiles,
+    appPageFiles,
     pageFiles,
     agentRoutes,
     staticMetadataFiles,
@@ -609,6 +700,10 @@ export async function setupFsCheck(opts: {
       try {
         decodedItemPath = decodeURIComponent(itemPath)
       } catch {}
+
+      const parsedSemanticSitemapRequest = opts.config.experimental.agentRoutes
+        ? parseSemanticSitemapRequestPath(itemPath)
+        : null
 
       if (itemPath === '/_next/image') {
         return {
@@ -736,6 +831,16 @@ export async function setupFsCheck(opts: {
           }
         }
 
+        const shouldDeferSpecialRouteHandling =
+          opts.dev &&
+          !matchedItem &&
+          isDynamicOutput &&
+          parsedSemanticSitemapRequest
+
+        if (shouldDeferSpecialRouteHandling) {
+          continue
+        }
+
         if (matchedItem || opts.dev) {
           let fsPath: string | undefined
           let itemsRoot: string | undefined
@@ -829,6 +934,12 @@ export async function setupFsCheck(opts: {
             locale,
             itemsRoot,
             itemPath: curItemPath,
+            requestMeta:
+              type === 'appFile' && agentRoutes.has(curItemPath)
+                ? {
+                    agentModeHint: agentRoutes.get(curItemPath)!,
+                  }
+                : undefined,
           }
 
           getItemsLru?.set(itemKey, itemResult)
@@ -837,49 +948,10 @@ export async function setupFsCheck(opts: {
       }
 
       if (opts.config.experimental.agentRoutes) {
-        const parsedAgentRequest = parseAgentRequestPath(itemPath)
-
-        if (parsedAgentRequest) {
-          let locale: string | undefined
-          let normalizedBasePath = parsedAgentRequest.basePath
-
-          if (i18n) {
-            const localeResult = handleLocale(parsedAgentRequest.basePath)
-            normalizedBasePath = localeResult.pathname
-            locale = localeResult.locale
-          }
-
-          if (!locale || locale === i18n?.defaultLocale) {
-            const routeMatch = getAgentRouteMatch(normalizedBasePath)
-
-            if (routeMatch) {
-              const itemResult = {
-                type: 'appFile' as const,
-                locale,
-                itemPath: routeMatch.page,
-                invokePath: normalizedBasePath,
-                requestMeta: {
-                  isAgentRequest: true as const,
-                  agentFormat: parsedAgentRequest.format,
-                  agentBasePath: normalizedBasePath,
-                },
-              }
-
-              getItemsLru?.set(itemKey, itemResult)
-              return itemResult
-            }
-          }
-        }
-      }
-
-      if (opts.config.experimental.agentRoutes) {
-        const parsedSemanticSitemapRequest =
-          parseSemanticSitemapRequestPath(itemPath)
-
         if (parsedSemanticSitemapRequest) {
           let locale: string | undefined
           let sitemapXmlPath = parsedSemanticSitemapRequest.sitemapXmlPath
-          let hasSitemapXmlRoute = appFiles.has(sitemapXmlPath)
+          let matchedSitemapXmlRoute = getAppFileRouteMatch(sitemapXmlPath)
 
           if (i18n) {
             const localeResult = handleLocale(
@@ -887,27 +959,17 @@ export async function setupFsCheck(opts: {
             )
             sitemapXmlPath = localeResult.pathname
             locale = localeResult.locale
-            hasSitemapXmlRoute = appFiles.has(sitemapXmlPath)
-          }
-
-          if (!hasSitemapXmlRoute && opts.dev && ensureFn) {
-            try {
-              await ensureFn({
-                type: 'appFile',
-                itemPath: normalizeMetadataRoute(sitemapXmlPath),
-              })
-              hasSitemapXmlRoute = true
-            } catch {}
+            matchedSitemapXmlRoute = getAppFileRouteMatch(sitemapXmlPath)
           }
 
           if (
             (!locale || locale === i18n?.defaultLocale) &&
-            hasSitemapXmlRoute
+            matchedSitemapXmlRoute
           ) {
             const itemResult = {
               type: 'appFile' as const,
               locale,
-              itemPath: sitemapXmlPath,
+              itemPath: matchedSitemapXmlRoute,
               invokePath: sitemapXmlPath,
               invokeQuery: {
                 __nextSitemapFormat: parsedSemanticSitemapRequest.format,

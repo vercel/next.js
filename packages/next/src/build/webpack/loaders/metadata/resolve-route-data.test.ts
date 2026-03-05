@@ -282,5 +282,54 @@ describe('resolveRouteData', () => {
         "
       `)
     })
+
+    it('preserves authored sections and actions in semantic sitemap markdown', () => {
+      const content = resolveSemanticSitemapRouteData(
+        [
+          {
+            url: 'https://example.com/dashboard',
+            title: 'Dashboard',
+            summary: 'Quick actions and metrics',
+            lastModified: '2025-01-01',
+            actions: [
+              {
+                label: 'Refresh cache',
+                method: 'POST',
+                href: 'https://example.com/dashboard/actions/refresh',
+                description: 'Regenerate cached metrics',
+              },
+            ],
+            sections: [
+              {
+                title: 'Reports',
+                content: 'Weekly reports and exports.',
+              },
+            ],
+          },
+        ],
+        'markdown',
+        true
+      )
+
+      expect(content).toMatchInlineSnapshot(`
+        "# Sitemap
+        
+        ## Dashboard
+        
+        Quick actions and metrics
+        
+        Source: https://example.com/dashboard
+        
+        Last modified: 2025-01-01
+        
+        Actions
+        - Refresh cache [POST] (https://example.com/dashboard/actions/refresh) - Regenerate cached metrics
+        
+        ### Reports
+        
+        Weekly reports and exports.
+        "
+      `)
+    })
   })
 })
