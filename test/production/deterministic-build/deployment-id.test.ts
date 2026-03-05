@@ -70,6 +70,12 @@ async function readFilesBuilder(
       functions.map(async (fn) => {
         let config = await next.readJSON(fn)
         let fnDir = path.dirname(fn)
+        const filePathMapValues =
+          config && typeof config.filePathMap === 'object'
+            ? Object.values(config.filePathMap).filter(
+                (value): value is string => typeof value === 'string'
+              )
+            : []
         let files = [
           ...(
             await glob('**/*', {
@@ -79,7 +85,7 @@ async function readFilesBuilder(
               ignore: ['.vc-config.json'],
             })
           ).map((f) => path.join(fnDir, f)),
-          ...Object.values(config.filePathMap),
+          ...filePathMapValues,
         ] as string[]
         files.sort()
         return [

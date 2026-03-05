@@ -31,8 +31,6 @@ import {
 } from '../app-router-headers'
 import { isChunkOrNetworkError } from '../chunk-load-error/is-chunk-load-error'
 import {
-  createChunkErrorContext,
-  handleChunkFailure,
   getRetryDelayMs,
   sleep,
 } from '../chunk-load-error/chunk-load-error-handler'
@@ -121,6 +119,7 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
 }
 
 let isPageUnloading = false
+const MAX_RSC_FETCH_RETRIES = 1
 
 if (typeof window !== 'undefined') {
   // Track when the page is unloading, e.g. due to reloading the page or
@@ -144,6 +143,14 @@ if (typeof window !== 'undefined') {
 export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
+): Promise<FetchServerResponseResult> {
+  return fetchServerResponseWithRetry(url, options, 0)
+}
+
+async function fetchServerResponseWithRetry(
+  url: URL,
+  options: FetchServerResponseOptions,
+  retryCount: number
 ): Promise<FetchServerResponseResult> {
   const { flightRouterState, nextUrl } = options
 
@@ -299,42 +306,15 @@ export async function fetchServerResponse(
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
-    // Check if this is a chunk/network error that we can retry
     if (
       err instanceof Error &&
       isChunkOrNetworkError(err) &&
-      !isPageUnloading
+      !isPageUnloading &&
+      retryCount < MAX_RSC_FETCH_RETRIES
     ) {
-      const ctx = createChunkErrorContext(
-        err,
-        originalUrl.pathname,
-        true // user-visible navigation
-      )
-
-      if (ctx) {
-        // handleChunkFailure updates failure tracking and returns whether to retry
-        const shouldRetry = handleChunkFailure(ctx)
-
-        if (shouldRetry) {
-          // Silent retry with jittered delay
-          const delay = getRetryDelayMs()
-          await sleep(delay)
-
-          try {
-            // Retry the fetch once (use originalUrl to ensure consistent error tracking)
-            return await fetchServerResponse(originalUrl, options)
-          } catch (retryErr) {
-            // Retry failed, fall through to MPA navigation
-            if (!isPageUnloading) {
-              console.error(
-                `Retry failed for RSC payload ${originalUrl}. Falling back to browser navigation.`,
-                retryErr
-              )
-            }
-            return originalUrl.toString()
-          }
-        }
-      }
+      // Retry once after a jittered delay for transient failures.
+      await sleep(getRetryDelayMs())
+      return fetchServerResponseWithRetry(originalUrl, options, retryCount + 1)
     }
 
     if (!isPageUnloading) {

@@ -25,7 +25,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 import React from 'react'
 import { LoadableContext } from './loadable-context.shared-runtime'
 import { isChunkLoadError } from '../../client/components/chunk-load-error/is-chunk-load-error'
-import { getRetryDelayMs } from '../../client/components/chunk-load-error/chunk-load-error-handler'
+import {
+  getRetryDelayMs,
+  sleep,
+} from '../../client/components/chunk-load-error/chunk-load-error-handler'
 
 function resolve(obj: any) {
   return obj && obj.default ? obj.default : obj
@@ -35,8 +38,19 @@ const ALL_INITIALIZERS: any[] = []
 const READY_INITIALIZERS: any[] = []
 let initialized = false
 
+function retryChunkLoadErrorOnce(loader: any) {
+  return loader().catch(async (err: any) => {
+    if (typeof window !== 'undefined' && isChunkLoadError(err)) {
+      await sleep(getRetryDelayMs())
+      return loader()
+    }
+
+    throw err
+  })
+}
+
 function load(loader: any) {
-  let promise = loader()
+  let promise = retryChunkLoadErrorOnce(loader)
 
   let state: any = {
     loading: true,
@@ -169,14 +183,12 @@ class LoadableSubscription {
   _timeout: any
   _res: any
   _state: any
-  _hasAutoRetried: boolean
   constructor(loadFn: any, opts: any) {
     this._loadFn = loadFn
     this._opts = opts
     this._callbacks = new Set()
     this._delay = null
     this._timeout = null
-    this._hasAutoRetried = false
 
     this.retry()
   }
@@ -221,31 +233,9 @@ class LoadableSubscription {
         this._update({})
         this._clearTimeouts()
       })
-      .catch((err: any) => {
-        // Auto-retry for chunk load errors (once)
-        // This handles transient network failures during dynamic imports
-        if (
-          typeof window !== 'undefined' &&
-          isChunkLoadError(err) &&
-          !this._hasAutoRetried
-        ) {
-          this._hasAutoRetried = true
-
-          // Retry after a short delay with jitter
-          const delay = getRetryDelayMs()
-          setTimeout(() => {
-            this.retry()
-          }, delay)
-          // Mark state before retrying but ensure the promise chain rejects.
-          this._update({})
-          this._clearTimeouts()
-          throw err
-        }
-
-        // No more retries - propagate error
+      .catch((_err: any) => {
         this._update({})
         this._clearTimeouts()
-        throw err
       })
     this._update({})
   }

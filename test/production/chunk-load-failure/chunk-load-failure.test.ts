@@ -27,10 +27,12 @@ describe('chunk-load-failure', () => {
   it('should report async chunk load failures', async () => {
     let nextDynamicChunk = await getNextDynamicChunk()
 
+    let chunkRequestCount = 0
     let pageError: Error | undefined
     const browser = await next.browser('/dynamic', {
       beforePageLoad(page) {
         page.route(`**/${nextDynamicChunk}*`, async (route) => {
+          chunkRequestCount++
           await route.abort('connectionreset')
         })
         page.on('pageerror', (error: Error) => {
@@ -45,6 +47,8 @@ describe('chunk-load-failure', () => {
       expect(await body.text()).toMatch(/This page couldn\u2019t load/)
     })
 
+    // One initial request + one retry attempt.
+    expect(chunkRequestCount).toBe(2)
     expect(pageError).toBeDefined()
     expect(pageError.name).toBe('ChunkLoadError')
     if (process.env.IS_TURBOPACK_TEST) {
@@ -88,7 +92,8 @@ describe('chunk-load-failure', () => {
     )
 
     expect(await browser.eval('window.__TEST_NO_RELOAD')).toBe(true)
-    expect(rscRequestCount).toBeGreaterThanOrEqual(2)
+    // One initial request + one retry attempt.
+    expect(rscRequestCount).toBe(2)
   })
 
   it('should recover after a transient async chunk load failure', async () => {
@@ -123,7 +128,8 @@ describe('chunk-load-failure', () => {
       250
     )
 
-    expect(chunkRequestCount).toBeGreaterThanOrEqual(2)
+    // One initial request + one retry attempt.
+    expect(chunkRequestCount).toBe(2)
     expect(pageError).toBeUndefined()
   })
 

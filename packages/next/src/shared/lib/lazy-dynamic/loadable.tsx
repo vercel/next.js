@@ -3,7 +3,10 @@ import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
 import { PreloadChunks } from './preload-chunks'
 import { isChunkLoadError } from '../../../client/components/chunk-load-error/is-chunk-load-error'
-import { getRetryDelayMs } from '../../../client/components/chunk-load-error/chunk-load-error-handler'
+import {
+  getRetryDelayMs,
+  sleep,
+} from '../../../client/components/chunk-load-error/chunk-load-error-handler'
 
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
@@ -32,30 +35,18 @@ function convertModule<P>(
  * On first failure, retries once after a delay.
  */
 function createRetryableLoader<T>(loader: () => Promise<T>): () => Promise<T> {
-  let hasRetried = false
-
-  return () =>
-    loader().catch((err) => {
-      // Only retry chunk load errors, and only once
-      if (
-        typeof window !== 'undefined' &&
-        isChunkLoadError(err) &&
-        !hasRetried
-      ) {
-        hasRetried = true
-
-        // Retry after a short delay with jitter
-        return new Promise<T>((resolve, reject) => {
-          const delay = getRetryDelayMs()
-          setTimeout(() => {
-            loader().then(resolve, reject)
-          }, delay)
-        })
+  return async () => {
+    try {
+      return await loader()
+    } catch (err) {
+      if (typeof window !== 'undefined' && isChunkLoadError(err)) {
+        await sleep(getRetryDelayMs())
+        return loader()
       }
 
-      // No retry - propagate error
       throw err
-    })
+    }
+  }
 }
 
 const defaultOptions = {
