@@ -146,6 +146,7 @@ export function io(expression: string, type: ApiType) {
       }
       break
     case 'validation-client':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

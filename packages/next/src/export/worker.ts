@@ -109,6 +109,10 @@ async function exportPageImpl(
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
 
+    // If this page supports partial prerendering, then we need to pass that to
+    // the renderOpts.
+    _isRoutePPREnabled: isRoutePPREnabled,
+
     // Configure the rendering of the page to allow that an empty static shell
     // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
@@ -267,6 +271,7 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     experimental: {
       ...commonRenderOpts.experimental,
+      isRoutePPREnabled,
     },
     renderResumeDataCache,
   }

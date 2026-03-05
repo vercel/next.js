@@ -4,6 +4,7 @@ import {
   workUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
 import {
+  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -92,6 +93,14 @@ export function connection(): Promise<void> {
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
           )
         }
+        case 'prerender-ppr':
+          // We use React's postpone API to interrupt rendering here to create a
+          // dynamic hole
+          return postponeWithTracking(
+            workStore.route,
+            'connection',
+            workUnitStore.dynamicTracking
+          )
         case 'prerender-legacy':
           // We throw an error here to interrupt prerendering to mark the route
           // as dynamic
