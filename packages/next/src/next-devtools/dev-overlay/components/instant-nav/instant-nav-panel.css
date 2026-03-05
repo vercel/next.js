@@ -1,12 +1,17 @@
 .instant-nav-panel {
-  padding: 8px 20px;
   display: flex;
   flex-direction: column;
+  height: 100%;
+}
+
+.instant-nav-content {
+  flex: 1;
+  padding: 12px 20px 0;
 }
 
 /* Waiting state: preference-style sections */
 .instant-nav-section {
-  padding: 12px 0;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--color-gray-400);
   display: flex;
   justify-content: space-between;
@@ -125,4 +130,40 @@
 
 .instant-nav-share-button:hover {
   background: var(--color-gray-alpha-200);
+}
+
+.instant-nav-helper-description {
+  color: var(--color-gray-900);
+  font-size: var(--size-14);
+  margin: 8px 0 0;
+}
+
+/* Footer (pinned to bottom, matching segment-explorer-footer) */
+.instant-nav-footer {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--color-gray-400);
+  user-select: none;
+}
+
+.instant-nav-footer-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+  padding: 6px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: 6px;
+  color: var(--color-gray-1000);
+  font-size: var(--size-14);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.instant-nav-footer-button:hover {
+  background: var(--color-gray-200);
 }

@@ -1,11 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import {
   ACTION_CACHE_ONLY_TOGGLE,
   ACTION_INSTANT_NAV_SET_STATUS,
   ACTION_INSTANT_NAV_RESET,
 } from '../../shared'
-import { CopyButton } from '../copy-button'
 import './instant-nav-panel.css'
 
 export function InstantNavPanel() {
@@ -18,7 +17,9 @@ export function InstantNavPanel() {
   )
   const initialPageRef = useRef<string>(state.page)
   const statusRef = useRef(status)
-  statusRef.current = status
+  useEffect(() => {
+    statusRef.current = status
+  }, [status])
 
   // On mount: set cookie if not already set, and enable cacheOnly
   useEffect(() => {
@@ -89,6 +90,11 @@ export function InstantNavPanel() {
     window.location.reload()
   }
 
+  function handleContinueRendering() {
+    document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
+    window.location.reload()
+  }
+
   function getShareUrl(): string {
     const targetUrl = toUrl || window.location.pathname
     const url = new URL(targetUrl, window.location.origin)
@@ -136,25 +142,34 @@ export function InstantNavPanel() {
   if (status === 'client-nav') {
     return (
       <div className="instant-nav-panel">
-        <h4 className="instant-nav-status-title">Client nav</h4>
-        <div className="instant-nav-urls">
-          <div className="instant-nav-url-row">
-            <span className="instant-nav-url-label">From:</span>
-            <span className="instant-nav-url-value">{fromUrl}</span>
+        <div className="instant-nav-content">
+          <div className="instant-nav-section-header">
+            <label>Client navigation</label>
           </div>
-          <div className="instant-nav-url-row">
-            <span className="instant-nav-url-label">To:</span>
-            <span className="instant-nav-url-value">{toUrl}</span>
+          <div className="instant-nav-urls">
+            <div className="instant-nav-url-row">
+              <span className="instant-nav-url-label">Route:</span>
+              <span className="instant-nav-url-value">/target-page/[slug]</span>
+            </div>
+            <div className="instant-nav-url-row">
+              <span className="instant-nav-url-label">From:</span>
+              <span className="instant-nav-url-value">{fromUrl}</span>
+            </div>
           </div>
+          <p className="instant-nav-helper-description">
+            You're viewing the prefetched UI for the current URL. Edit your code
+            and reload the page to see any changes.
+          </p>
         </div>
-        <div className="instant-nav-actions">
-          <CopyButton
-            data-instant-nav-share
-            className="instant-nav-share-button"
-            getContent={() => Promise.resolve(getShareUrl())}
-            actionLabel="Share"
-            successLabel="Copied!"
-          />
+        <div className="instant-nav-footer">
+          <ShareButton getShareUrl={getShareUrl} />
+          <button
+            className="instant-nav-footer-button"
+            onClick={handleContinueRendering}
+            type="button"
+          >
+            Continue rendering
+          </button>
         </div>
       </div>
     )
@@ -163,27 +178,58 @@ export function InstantNavPanel() {
   if (status === 'initial-load') {
     return (
       <div className="instant-nav-panel">
-        <h4 className="instant-nav-status-title">Initial Page load</h4>
-        <div className="instant-nav-urls">
-          <div className="instant-nav-url-row">
-            <span className="instant-nav-url-label">To:</span>
-            <span className="instant-nav-url-value">{toUrl}</span>
+        <div className="instant-nav-content">
+          <div className="instant-nav-section-header">
+            <label>Page load</label>
           </div>
+          <div className="instant-nav-urls">
+            <div className="instant-nav-url-row">
+              <span className="instant-nav-url-label">Route:</span>
+              <span className="instant-nav-url-value">/target-page/[slug]</span>
+            </div>
+          </div>
+          <p className="instant-nav-helper-description">
+            You're viewing the pre-rendered static UI for the current URL. Edit
+            your code and reload the page to see any changes.
+          </p>
         </div>
-        <div className="instant-nav-actions">
-          <CopyButton
-            data-instant-nav-share
-            className="instant-nav-share-button"
-            getContent={() => Promise.resolve(getShareUrl())}
-            actionLabel="Share"
-            successLabel="Copied!"
-          />
+        <div className="instant-nav-footer">
+          <ShareButton getShareUrl={getShareUrl} />
+          <button
+            className="instant-nav-footer-button"
+            onClick={handleContinueRendering}
+            type="button"
+          >
+            Continue rendering
+          </button>
         </div>
       </div>
     )
   }
 
   return null
+}
+
+function ShareButton({ getShareUrl }: { getShareUrl: () => string }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleClick() {
+    navigator.clipboard.writeText(getShareUrl()).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <button
+      className="instant-nav-footer-button"
+      onClick={handleClick}
+      type="button"
+      data-instant-nav-share
+    >
+      {copied ? 'Copied!' : 'Share'}
+    </button>
+  )
 }
 
 function ReloadIcon() {

@@ -314,7 +314,10 @@ function parseInstantNavCookie(value: string | null): {
     return {
       status: 'initial-load',
       fromUrl: null,
-      toUrl: typeof window !== 'undefined' ? window.location.pathname : null,
+      toUrl:
+        typeof window !== 'undefined'
+          ? window.location.pathname + window.location.search
+          : null,
     }
   }
   if (value.startsWith('client-nav|')) {

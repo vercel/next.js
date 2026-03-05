@@ -71,11 +71,7 @@ async function SearchParamReader({
   )
 }
 
-async function ParamReader({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
+async function ParamReader({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
 
   return (
@@ -100,7 +96,7 @@ export default async function TargetPage({
           100% { background-position: 400px 0; }
         }
         .skeleton {
-          background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
+          background: linear-gradient(90deg, #eee 25%, #93c5fd 50%, #eee 75%);
           background-size: 800px 100%;
           animation: shimmer 1.5s ease-in-out infinite;
           border-radius: 4px;
@@ -153,13 +149,26 @@ export default async function TargetPage({
           <Box label="Data Fetching">
             <Suspense
               fallback={
-                <div data-testid="dynamic-skeleton" style={{ display: 'flex', gap: '1rem' }}>
+                <div
+                  data-testid="dynamic-skeleton"
+                  style={{ display: 'flex', gap: '1rem' }}
+                >
                   {['Stat one', 'Stat two', 'Stat three'].map((label) => (
                     <div key={label} style={{ flex: 1, textAlign: 'center' }}>
                       <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
-                        <span className="skeleton" style={{ display: 'inline-block', width: 48, height: '1em', verticalAlign: 'middle' }} />
+                        <span
+                          className="skeleton"
+                          style={{
+                            display: 'inline-block',
+                            width: 48,
+                            height: '1em',
+                            verticalAlign: 'middle',
+                          }}
+                        />
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#888' }}>{label}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#888' }}>
+                        {label}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -170,13 +179,41 @@ export default async function TargetPage({
           </Box>
 
           <Box label="await params">
-            <Suspense fallback={<p data-testid="param-skeleton" style={{ margin: 0 }}><span className="skeleton" style={{ display: 'inline-block', width: 120, height: '1em', verticalAlign: 'middle' }} /></p>}>
+            <Suspense
+              fallback={
+                <p data-testid="param-skeleton" style={{ margin: 0 }}>
+                  <span
+                    className="skeleton"
+                    style={{
+                      display: 'inline-block',
+                      width: 120,
+                      height: '1em',
+                      verticalAlign: 'middle',
+                    }}
+                  />
+                </p>
+              }
+            >
               <ParamReader params={params} />
             </Suspense>
           </Box>
 
           <Box label="await searchParams">
-            <Suspense fallback={<p data-testid="search-param-skeleton" style={{ margin: 0 }}><span className="skeleton" style={{ display: 'inline-block', width: 120, height: '1em', verticalAlign: 'middle' }} /></p>}>
+            <Suspense
+              fallback={
+                <p data-testid="search-param-skeleton" style={{ margin: 0 }}>
+                  <span
+                    className="skeleton"
+                    style={{
+                      display: 'inline-block',
+                      width: 120,
+                      height: '1em',
+                      verticalAlign: 'middle',
+                    }}
+                  />
+                </p>
+              }
+            >
               <SearchParamReader searchParams={searchParams} />
             </Suspense>
           </Box>
