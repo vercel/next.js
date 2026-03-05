@@ -1,15 +1,15 @@
-use std::{marker::PhantomData, mem::transmute, ops::Deref, sync::Arc};
+use std::{mem::transmute, ops::Deref, sync::Arc};
 
 use arc_swap::ArcSwap;
 use lmdb::{Environment, RoTransaction};
 use thread_local::ThreadLocal;
 
-type ReadTransactionsCache = ThreadLocal<SendRoTransaction>;
+type ReadTransactionsCache = ThreadLocal<SendRoTransaction<'static>>;
 
-struct SendRoTransaction(RoTransaction<'static>);
+pub struct SendRoTransaction<'tx>(RoTransaction<'tx>);
 
-impl Deref for SendRoTransaction {
-    type Target = RoTransaction<'static>;
+impl<'tx> Deref for SendRoTransaction<'tx> {
+    type Target = RoTransaction<'tx>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -23,14 +23,22 @@ impl Deref for SendRoTransaction {
 // We still do not use a transaction concurrently from multiple threads. This `Send` wrapper only
 // allows moving ownership between threads when `ThreadLocal` internals move stored values at drop
 // time.
-unsafe impl Send for SendRoTransaction {}
+unsafe impl<'tx> Send for SendRoTransaction<'tx> {}
 
 #[derive(Clone)]
 pub struct ReadTxGuard<'db> {
+    tx: &'db SendRoTransaction<'db>,
     // Keep this generation alive so the borrowed read transaction (and value pointers from it)
     // remain valid until all value buffers/guards from that generation are dropped.
     _thread_locals: Arc<ReadTransactionsCache>,
-    _marker: PhantomData<&'db Environment>,
+}
+
+impl<'db> Deref for ReadTxGuard<'db> {
+    type Target = SendRoTransaction<'db>;
+
+    fn deref(&self) -> &Self::Target {
+        self.tx
+    }
 }
 
 pub struct ReadTxCache {
@@ -46,11 +54,7 @@ impl ReadTxCache {
         }
     }
 
-    pub fn with_read_tx<'db, R>(
-        &'db self,
-        env: &'db Environment,
-        f: impl FnOnce(&'db RoTransaction<'db>, ReadTxGuard<'db>) -> R,
-    ) -> R {
+    pub fn get_read_tx<'db>(&'db self, env: &'db Environment) -> ReadTxGuard<'db> {
         let thread_locals = self.read_transactions_cache.load().clone();
         let guard_thread_locals = thread_locals.clone();
         let tx_static = thread_locals.get_or(|| {
@@ -63,14 +67,14 @@ impl ReadTxCache {
         // Safety: `tx_static` always originates from `env` and `ReadTxCache` is dropped before
         // the environment in the parent database type. We narrow the externally-visible lifetime
         // to `'db` so callers cannot observe or depend on `'static`.
-        let tx: &'db RoTransaction<'db> =
-            unsafe { transmute::<&RoTransaction<'static>, &'db RoTransaction<'db>>(tx_static) };
-
-        let guard = ReadTxGuard {
-            _thread_locals: guard_thread_locals,
-            _marker: PhantomData,
+        let tx: &'db SendRoTransaction<'db> = unsafe {
+            transmute::<&SendRoTransaction<'static>, &'db SendRoTransaction<'db>>(tx_static)
         };
-        f(tx, guard)
+
+        ReadTxGuard {
+            tx,
+            _thread_locals: guard_thread_locals,
+        }
     }
 
     pub fn swap_generation(&self) {

@@ -2,8 +2,7 @@ use std::{fs::create_dir_all, marker::PhantomData, path::Path, thread::available
 
 use anyhow::{Context, Result};
 use lmdb::{
-    Database, DatabaseFlags, Environment, EnvironmentFlags, RoTransaction, RwTransaction,
-    Transaction, WriteFlags,
+    Database, DatabaseFlags, Environment, EnvironmentFlags, RwTransaction, Transaction, WriteFlags,
 };
 
 use crate::database::{
@@ -92,11 +91,8 @@ impl LmbdKeyValueDatabase {
         }
     }
 
-    fn with_read_tx<'db, R>(
-        &'db self,
-        f: impl FnOnce(&'db RoTransaction<'db>, read_tx_cache::ReadTxGuard<'db>) -> Result<R>,
-    ) -> Result<R> {
-        self.read_tx_cache.with_read_tx(&self.env, f)
+    fn get_read_tx(&self) -> read_tx_cache::ReadTxGuard<'_> {
+        self.read_tx_cache.get_read_tx(&self.env)
     }
 
     fn get_from_tx<'tx>(
@@ -115,21 +111,16 @@ impl LmbdKeyValueDatabase {
 impl KeyValueDatabase for LmbdKeyValueDatabase {
     type ValueBuffer<'l> = LmdbValueBuffer<'l>;
 
-    fn get<'l>(
-        &'l self,
-        key_space: super::key_value_database::KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>> {
-        self.with_read_tx(|tx, guard| {
-            let Some(value) = Self::get_from_tx(tx, self.db(key_space), key)? else {
-                return Ok(None);
-            };
-            Ok(Some(LmdbValueBuffer::from_raw_parts(
-                value.as_ptr(),
-                value.len(),
-                guard,
-            )))
-        })
+    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>> {
+        let tx = self.get_read_tx();
+        let Some(value) = Self::get_from_tx(&**tx, self.db(key_space), key)? else {
+            return Ok(None);
+        };
+        Ok(Some(LmdbValueBuffer::from_raw_parts(
+            value.as_ptr(),
+            value.len(),
+            tx,
+        )))
     }
 
     fn batch_get<'l>(
@@ -137,17 +128,16 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
         key_space: KeySpace,
         keys: &[&[u8]],
     ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
-        self.with_read_tx(|tx, guard| {
-            let db = self.db(key_space);
-            keys.iter()
-                .map(|key| {
-                    let value = Self::get_from_tx(tx, db, key)?;
-                    Ok(value.map(|value| {
-                        LmdbValueBuffer::from_raw_parts(value.as_ptr(), value.len(), guard.clone())
-                    }))
-                })
-                .collect()
-        })
+        let tx = self.get_read_tx();
+        let db = self.db(key_space);
+        keys.iter()
+            .map(|key| {
+                let value = Self::get_from_tx(&**tx, db, key)?;
+                Ok(value.map(|value| {
+                    LmdbValueBuffer::from_raw_parts(value.as_ptr(), value.len(), tx.clone())
+                }))
+            })
+            .collect()
     }
 
     type SerialWriteBatch<'l>
