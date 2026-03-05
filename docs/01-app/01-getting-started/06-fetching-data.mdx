@@ -152,7 +152,7 @@ On navigation, the user will immediately see the layout and a [loading state](#c
   height="691"
 />
 
-Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will automatically wrap the `page.js` file and any children below in a `<Suspense>` boundary.
+Behind the scenes, `loading.js` will be [nested inside `layout.js`](/docs/app/getting-started/project-structure#component-hierarchy), and will automatically wrap the `page.js` file and any children below in a `<Suspense>` boundary.
 
 <Image
   alt="loading.js overview"
@@ -162,7 +162,11 @@ Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will auto
   height="768"
 />
 
-This approach works well for route segments (layouts and pages), but for more granular streaming, you can use `<Suspense>`.
+Because of this, a layout that accesses uncached or runtime data (e.g. `cookies()`, `headers()`, or uncached fetches) does not fall back to a same route segment `loading.js`. Instead, it blocks navigation until the layout finishes rendering. [Cache Components](/docs/app/getting-started/caching) prevents this by guiding you with a build-time error.
+
+To fix this, wrap the uncached access in its own [`<Suspense>`](#with-suspense) boundary with a fallback, or move the data fetching into `page.js` where `loading.js` can cover it. See [`loading.js`](/docs/app/api-reference/file-conventions/loading) for more details.
+
+This is why, while `loading.js` works well for streaming route segments, using `<Suspense>` closer to the runtime or uncached data access is recommended.
 
 #### With `<Suspense>`
 
