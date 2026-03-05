@@ -415,10 +415,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         mmap.advise(memmap2::Advice::Sequential)?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::WillNeed)?;
-        #[cfg(target_os = "linux")]
-        mmap.advise(memmap2::Advice::DontFork)?;
-        #[cfg(target_os = "linux")]
-        mmap.advise(memmap2::Advice::Unmergeable)?;
+        crate::mmap_helper::advise_mmap_for_persistence(&mmap)?;
         let mut reader = &mmap[..];
         let uncompressed_length = reader
             .read_u32::<BE>()

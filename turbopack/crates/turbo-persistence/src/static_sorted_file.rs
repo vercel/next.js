@@ -185,10 +185,7 @@ impl StaticSortedFile {
             let offset = meta.block_offsets_start(mmap.len());
             let _ = mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
         }
-        #[cfg(target_os = "linux")]
-        mmap.advise(memmap2::Advice::DontFork)?;
-        #[cfg(target_os = "linux")]
-        mmap.advise(memmap2::Advice::Unmergeable)?;
+        crate::mmap_helper::advise_mmap_for_persistence(&mmap)?;
         let file = Self {
             meta,
             mmap: Arc::new(mmap),
