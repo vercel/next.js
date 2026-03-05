@@ -73,12 +73,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
         }
         // matching property access like `obj.prop` when we don't know what the obj is.
         // We can early return here
-        JsValue::Member(_, obj, prop)
-            if matches!(
-                obj.as_ref(),
-                JsValue::Unknown { .. }
-            ) =>
-        {
+        JsValue::Member(_, obj, prop) if matches!(obj.as_ref(), JsValue::Unknown { .. }) => {
             let JsValue::Unknown {
                 has_side_effects, ..
             } = obj.as_ref()
@@ -140,10 +135,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     prop: &mut Arc<JsValue>,
                 ) -> JsValue {
                     items.push(JsValue::unknown(
-                        JsValue::member(
-                            Arc::new(JsValue::array(Vec::new())),
-                            take(prop),
-                        ),
+                        JsValue::member(Arc::new(JsValue::array(Vec::new())), take(prop)),
                         false,
                         "unknown array prototype methods or values",
                     ));
@@ -158,12 +150,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     // Returns Some((item, mutable)) if found, None for invalid index,
                     // or Some((default, false)) with separate handling for non-index
                     let result = {
-                        let JsValue::Array {
-                            items,
-                            mutable,
-                            ..
-                        } = Arc::make_mut(obj)
-                        else {
+                        let JsValue::Array { items, mutable, .. } = Arc::make_mut(obj) else {
                             unreachable!()
                         };
                         let JsValue::Constant(ConstantValue::Num(num @ ConstantNumber(_))) =
@@ -231,10 +218,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 } else {
                     // otherwise we can say that this might gives an item of the array
                     // but we also add an unknown value to the alternatives for other properties
-                    let JsValue::Array {
-                        items, ..
-                    } = Arc::make_mut(obj)
-                    else {
+                    let JsValue::Array { items, .. } = Arc::make_mut(obj) else {
                         unreachable!()
                     };
                     *value = items_to_alternatives(items, prop);
@@ -267,10 +251,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                     if include_unknown {
                         values.push(JsValue::unknown(
-                            JsValue::member(
-                                Arc::new(JsValue::object(Vec::new())),
-                                take(prop),
-                            ),
+                            JsValue::member(Arc::new(JsValue::object(Vec::new())), take(prop)),
                             true,
                             "unknown object prototype methods or values",
                         ));
@@ -316,12 +297,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     // - Ok((new_value, mutable)) - replace *value with new_value
                     // - Err(()) - call value.make_unknown for spread case
                     let result: Result<(JsValue, bool), ()> = {
-                        let JsValue::Object {
-                            parts,
-                            mutable,
-                            ..
-                        } = Arc::make_mut(obj)
-                        else {
+                        let JsValue::Object { parts, mutable, .. } = Arc::make_mut(obj) else {
                             unreachable!()
                         };
                         let mutable = *mutable;
@@ -418,10 +394,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     );
                     true
                 } else {
-                    let JsValue::Object {
-                        parts, ..
-                    } = Arc::make_mut(obj)
-                    else {
+                    let JsValue::Object { parts, .. } = Arc::make_mut(obj) else {
                         unreachable!()
                     };
                     *value = parts_to_alternatives(parts, prop, true);
@@ -454,8 +427,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 )
                             }) {
                                 {
-                                    let JsValue::Array { items, mutable, .. } =
-                                        Arc::make_mut(obj)
+                                    let JsValue::Array { items, mutable, .. } = Arc::make_mut(obj)
                                     else {
                                         unreachable!()
                                     };
@@ -532,13 +504,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 *value = JsValue::alternatives(
                     take(values)
                         .into_iter()
-                        .map(|alt| {
-                            JsValue::member_call(
-                                Arc::new(alt),
-                                prop.clone(),
-                                args.clone(),
-                            )
-                        })
+                        .map(|alt| JsValue::member_call(Arc::new(alt), prop.clone(), args.clone()))
                         .collect(),
                 );
                 return true;
@@ -560,10 +526,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
 
             // without special handling, we convert it into a normal call like
             // `(obj.prop)(arg1, arg2, ...)`
-            *value = JsValue::call(
-                Arc::new(JsValue::member(take(obj), take(prop))),
-                take(args),
-            );
+            *value = JsValue::call(Arc::new(JsValue::member(take(obj), take(prop))), take(args));
             true
         }
         // match calls when the callee are multiple alternative functions like `(func1 |

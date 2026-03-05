@@ -46,25 +46,19 @@ pub async fn replace_well_known(
             }
             (JsValue::Call(usize, callee, args), false)
         }
-        JsValue::Member(_, obj, prop)
-            if matches!(obj.as_ref(), JsValue::WellKnownObject(..)) =>
-        {
+        JsValue::Member(_, obj, prop) if matches!(obj.as_ref(), JsValue::WellKnownObject(..)) => {
             let JsValue::WellKnownObject(kind) = Arc::unwrap_or_clone(obj) else {
                 unreachable!()
             };
             well_known_object_member(kind, Arc::unwrap_or_clone(prop), compile_time_info).await?
         }
-        JsValue::Member(_, obj, prop)
-            if matches!(obj.as_ref(), JsValue::WellKnownFunction(..)) =>
-        {
+        JsValue::Member(_, obj, prop) if matches!(obj.as_ref(), JsValue::WellKnownFunction(..)) => {
             let JsValue::WellKnownFunction(kind) = Arc::unwrap_or_clone(obj) else {
                 unreachable!()
             };
             well_known_function_member(kind, Arc::unwrap_or_clone(prop))
         }
-        JsValue::Member(_, ref obj, ref prop)
-            if matches!(obj.as_ref(), JsValue::Array { .. }) =>
-        {
+        JsValue::Member(_, ref obj, ref prop) if matches!(obj.as_ref(), JsValue::Array { .. }) => {
             match prop.as_ref().as_str() {
                 Some("filter") => (
                     JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayFilter),

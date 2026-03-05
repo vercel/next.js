@@ -2321,20 +2321,23 @@ impl JsValue {
                 logical_property: _,
             } => merge_if_known(values, JsValue::is_string),
 
-            JsValue::Call(
-                _,
-                callee,
-                _,
-            ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireResolve
-                    | WellKnownFunctionKind::PathJoin
-                    | WellKnownFunctionKind::PathResolve(..)
-                    | WellKnownFunctionKind::OsArch
-                    | WellKnownFunctionKind::OsPlatform
-                    | WellKnownFunctionKind::PathDirname
-                    | WellKnownFunctionKind::PathToFileUrl
-                    | WellKnownFunctionKind::ProcessCwd,
-                )) => Some(true),
+            JsValue::Call(_, callee, _)
+                if matches!(
+                    callee.as_ref(),
+                    JsValue::WellKnownFunction(
+                        WellKnownFunctionKind::RequireResolve
+                            | WellKnownFunctionKind::PathJoin
+                            | WellKnownFunctionKind::PathResolve(..)
+                            | WellKnownFunctionKind::OsArch
+                            | WellKnownFunctionKind::OsPlatform
+                            | WellKnownFunctionKind::PathDirname
+                            | WellKnownFunctionKind::PathToFileUrl
+                            | WellKnownFunctionKind::ProcessCwd,
+                    )
+                ) =>
+            {
+                Some(true)
+            }
 
             JsValue::Awaited(_, operand) => match &**operand {
                 JsValue::Promise(_, v) => v.is_string(),
@@ -3529,32 +3532,33 @@ pub mod test_utils {
     ) -> Result<(JsValue, bool)> {
         let ImportAttributes { ignore, .. } = *attributes;
         let mut new_value = match v {
-            JsValue::Call(
-                _,
-                ref callee,
-                ref args,
-            ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::Import)) => match &args[0] {
-                JsValue::Constant(ConstantValue::Str(v)) => {
-                    JsValue::promise(JsValue::Module(ModuleValue {
-                        module: v.as_atom().into_owned().into(),
-                        annotations: ImportAnnotations::default(),
-                    }))
+            JsValue::Call(_, ref callee, ref args)
+                if matches!(
+                    callee.as_ref(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import)
+                ) =>
+            {
+                match &args[0] {
+                    JsValue::Constant(ConstantValue::Str(v)) => {
+                        JsValue::promise(JsValue::Module(ModuleValue {
+                            module: v.as_atom().into_owned().into(),
+                            annotations: ImportAnnotations::default(),
+                        }))
+                    }
+                    _ => v.into_unknown(true, "import() non constant"),
                 }
-                _ => v.into_unknown(true, "import() non constant"),
-            },
-            JsValue::Call(
-                _,
-                ref callee,
-                ref args,
-            ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)) => {
-                if let [
-                    JsValue::Member(
-                        _,
-                        obj,
-                        prop,
-                    ),
-                ] = &args[..]
-                    && matches!(obj.as_ref(), JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta))
+            }
+            JsValue::Call(_, ref callee, ref args)
+                if matches!(
+                    callee.as_ref(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
+                ) =>
+            {
+                if let [JsValue::Member(_, obj, prop)] = &args[..]
+                    && matches!(
+                        obj.as_ref(),
+                        JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
+                    )
                     && matches!(prop.as_ref(), JsValue::Constant(ConstantValue::Str(p)) if p.as_str() == "url")
                 {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
@@ -3562,55 +3566,61 @@ pub mod test_utils {
                     v.into_unknown(true, "createRequire() non constant")
                 }
             }
-            JsValue::Call(
-                _,
-                ref callee,
-                ref args,
-            ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)) => match &args[0] {
-                JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
-                _ => v.into_unknown(true, "require.resolve non constant"),
-            },
-            JsValue::Call(
-                _,
-                ref callee,
-                ref args,
-            ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)) => match parse_require_context(args) {
-                Ok(options) => {
-                    let mut map = FxIndexMap::default();
-
-                    map.insert(
-                        rcstr!("./a"),
-                        format!("[context: {}]/a", options.dir).into(),
-                    );
-                    map.insert(
-                        rcstr!("./b"),
-                        format!("[context: {}]/b", options.dir).into(),
-                    );
-                    map.insert(
-                        rcstr!("./c"),
-                        format!("[context: {}]/c", options.dir).into(),
-                    );
-
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        RequireContextValue(map),
-                    ))
+            JsValue::Call(_, ref callee, ref args)
+                if matches!(
+                    callee.as_ref(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
+                ) =>
+            {
+                match &args[0] {
+                    JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
+                    _ => v.into_unknown(true, "require.resolve non constant"),
                 }
-                Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
-            },
-            JsValue::New(
-                _,
-                ref callee,
-                ref args,
-            ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor)) => {
+            }
+            JsValue::Call(_, ref callee, ref args)
+                if matches!(
+                    callee.as_ref(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
+                ) =>
+            {
+                match parse_require_context(args) {
+                    Ok(options) => {
+                        let mut map = FxIndexMap::default();
+
+                        map.insert(
+                            rcstr!("./a"),
+                            format!("[context: {}]/a", options.dir).into(),
+                        );
+                        map.insert(
+                            rcstr!("./b"),
+                            format!("[context: {}]/b", options.dir).into(),
+                        );
+                        map.insert(
+                            rcstr!("./c"),
+                            format!("[context: {}]/c", options.dir).into(),
+                        );
+
+                        JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
+                            RequireContextValue(map),
+                        ))
+                    }
+                    Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
+                }
+            }
+            JsValue::New(_, ref callee, ref args)
+                if matches!(
+                    callee.as_ref(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor)
+                ) =>
+            {
                 if let [
                     JsValue::Constant(ConstantValue::Str(url)),
-                    JsValue::Member(
-                        _,
-                        obj,
-                        prop,
-                    ),
+                    JsValue::Member(_, obj, prop),
                 ] = &args[..]
-                    && matches!(obj.as_ref(), JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta))
+                    && matches!(
+                        obj.as_ref(),
+                        JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
+                    )
                     && matches!(prop.as_ref(), JsValue::Constant(ConstantValue::Str(p)) if p.as_str() == "url")
                 {
                     // TODO avoid clone
