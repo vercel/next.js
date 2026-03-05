@@ -57,6 +57,40 @@ describe('chunk-load-failure', () => {
     }
   })
 
+  it('should retry failed RSC fetches without falling back to MPA navigation', async () => {
+    let rscRequestCount = 0
+
+    const browser = await next.browser('/dynamic', {
+      beforePageLoad(page) {
+        page.route('**/other*', async (route) => {
+          if (route.request().url().includes('_rsc=')) {
+            rscRequestCount++
+            if (rscRequestCount === 1) {
+              await route.abort('connectionreset')
+              return
+            }
+          }
+          await route.continue()
+        })
+      },
+    })
+
+    await browser.eval('window.__TEST_NO_RELOAD = true')
+    await browser.elementByCss('#to-other').click()
+
+    await retry(
+      async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain('this is other')
+      },
+      10_000,
+      250
+    )
+
+    expect(await browser.eval('window.__TEST_NO_RELOAD')).toBe(true)
+    expect(rscRequestCount).toBeGreaterThanOrEqual(2)
+  })
+
   it('should report aborted chunks when navigating away', async () => {
     let nextDynamicChunk = await getNextDynamicChunk()
 
