@@ -12,13 +12,6 @@ import { WorkerPool, WorkerExitError } from './worker-pool'
 
 export { WorkerPool, WorkerExitError } from './worker-pool'
 
-export function getNextBuildDebuggerPortOffset(_: {
-  kind: 'export-page'
-}): number {
-  // 0: export worker
-  return 0
-}
-
 export interface WorkerOptions {
   /**
    * Human-readable name for this worker, used in error messages.
