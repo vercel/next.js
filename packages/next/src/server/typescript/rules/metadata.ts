@@ -12,30 +12,39 @@ const metadata = {
       const source = getSource(fileName)
       const ts = getTs()
 
-      // It is not allowed to export `metadata` or `generateMetadata` in client entry
+      const disallowedClientExports = new Set([
+        'metadata',
+        'generateMetadata',
+        'agent',
+        'generateAgent',
+      ])
+
+      // It is not allowed to export metadata/agent APIs in client entry.
       if (ts.isFunctionDeclaration(node)) {
-        if (node.name?.getText() === 'generateMetadata') {
+        const nodeName = node.name
+        const name = nodeName?.getText()
+        if (name && nodeName && disallowedClientExports.has(name)) {
           return [
             {
               file: source,
               category: ts.DiagnosticCategory.Error,
               code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-              messageText: `The Next.js 'generateMetadata' API is not allowed in a Client Component.`,
-              start: node.name.getStart(),
-              length: node.name.getWidth(),
+              messageText: `The Next.js '${name}' API is not allowed in a Client Component.`,
+              start: nodeName.getStart(),
+              length: nodeName.getWidth(),
             },
           ]
         }
       } else {
         for (const declaration of node.declarationList.declarations) {
           const name = declaration.name.getText()
-          if (name === 'metadata') {
+          if (disallowedClientExports.has(name)) {
             return [
               {
                 file: source,
                 category: ts.DiagnosticCategory.Error,
                 code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-                messageText: `The Next.js 'metadata' API is not allowed in a Client Component.`,
+                messageText: `The Next.js '${name}' API is not allowed in a Client Component.`,
                 start: declaration.name.getStart(),
                 length: declaration.name.getWidth(),
               },
@@ -52,16 +61,23 @@ const metadata = {
       const ts = getTs()
       const source = getSource(fileName)
       const diagnostics: tsModule.Diagnostic[] = []
+      const disallowedClientExports = new Set([
+        'generateMetadata',
+        'metadata',
+        'generateAgent',
+        'agent',
+      ])
 
       const exportClause = node.exportClause
       if (exportClause && ts.isNamedExports(exportClause)) {
         for (const e of exportClause.elements) {
-          if (['generateMetadata', 'metadata'].includes(e.name.getText())) {
+          const exportName = e.name.getText()
+          if (disallowedClientExports.has(exportName)) {
             diagnostics.push({
               file: source,
               category: ts.DiagnosticCategory.Error,
               code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-              messageText: `The Next.js '${e.name.getText()}' API is not allowed in a Client Component.`,
+              messageText: `The Next.js '${exportName}' API is not allowed in a Client Component.`,
               start: e.name.getStart(),
               length: e.name.getWidth(),
             })

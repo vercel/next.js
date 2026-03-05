@@ -393,6 +393,51 @@ Your generated sitemaps will be available at `/.../sitemap/[id]`. For example, `
 
 See the [`generateSitemaps` API reference](/docs/app/api-reference/functions/generate-sitemaps) for more information.
 
+### Semantic sitemap outputs (experimental)
+
+With `experimental.agentRoutes` enabled, sitemap routes can opt into semantic
+outputs at:
+
+- `/sitemap.md`
+- `/sitemap.json`
+
+You can opt in by exporting `agent` from `app/sitemap.ts`:
+
+```ts filename="app/sitemap.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export const agent = 'all'
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [{ url: 'https://acme.com' }]
+}
+```
+
+For custom semantic summaries, export `semanticSitemap`:
+
+```ts filename="app/sitemap.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export async function semanticSitemap(): Promise<MetadataRoute.SemanticSitemap> {
+  return [
+    {
+      url: 'https://acme.com',
+      title: 'Home',
+      summary: 'Primary entry point for the site.',
+    },
+  ]
+}
+```
+
+If `semanticSitemap` is exported without `agent`, Next.js defaults to
+markdown output (`/sitemap.md`).
+
+> **Good to know**
+>
+> - Semantic outputs are additive and do not change `/sitemap.xml`.
+> - `generateSitemaps` cannot be combined with `agent` or
+>   `semanticSitemap`.
+
 ## Returns
 
 The default function exported from `sitemap.(xml|ts|js)` should return an array of objects with the following properties:

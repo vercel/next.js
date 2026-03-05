@@ -1,5 +1,9 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
-import { resolveRobots, resolveSitemap } from './resolve-route-data'
+import {
+  resolveRobots,
+  resolveSemanticSitemapRouteData,
+  resolveSitemap,
+} from './resolve-route-data'
 
 describe('resolveRouteData', () => {
   describe('resolveRobots', () => {
@@ -222,6 +226,59 @@ describe('resolveRouteData', () => {
         <priority>0.5</priority>
         </url>
         </urlset>
+        "
+      `)
+    })
+  })
+
+  describe('resolveSemanticSitemapRouteData', () => {
+    it('derives semantic markdown from sitemap XML input shape', () => {
+      const content = resolveSemanticSitemapRouteData(
+        [
+          {
+            url: 'https://example.com/',
+            lastModified: '2025-01-01',
+          },
+          {
+            url: 'https://example.com/docs',
+            changeFrequency: 'weekly',
+            priority: 0.7,
+          },
+        ],
+        'markdown',
+        false
+      )
+
+      expect(content).toMatchInlineSnapshot(`
+        "# Sitemap
+
+        - [Home](https://example.com/)
+        - [Docs](https://example.com/docs) - Updated weekly. Priority 0.7.
+        "
+      `)
+    })
+
+    it('serializes pre-computed semantic sitemap to JSON', () => {
+      const content = resolveSemanticSitemapRouteData(
+        [
+          {
+            url: 'https://example.com/dashboard',
+            title: 'Dashboard',
+            summary: 'Quick actions and metrics',
+          },
+        ],
+        'json',
+        true
+      )
+
+      expect(content).toMatchInlineSnapshot(`
+        "[
+          {
+            "url": "https://example.com/dashboard",
+            "title": "Dashboard",
+            "summary": "Quick actions and metrics"
+          }
+        ]
         "
       `)
     })

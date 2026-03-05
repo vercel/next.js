@@ -82,6 +82,7 @@ import {
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
+import type { AgentMode } from '../../agent/types'
 import { parseUrl } from '../../../lib/url'
 import {
   createRouteTypesManifest,
@@ -147,6 +148,17 @@ export type ServerFields = {
   >[]
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   resetFetch?: () => void
+}
+
+function mergeAgentModes(
+  current: AgentMode | undefined,
+  next: AgentMode
+): AgentMode {
+  if (!current || current === next) {
+    return next
+  }
+
+  return 'all'
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -440,6 +452,7 @@ async function startWatcher(
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
+      const agentRoutes: Record<string, AgentMode> = {}
       const appRouteHandlers: RouteInfo[] = []
       const pageApiRoutes: RouteInfo[] = []
       const pageRoutes: RouteInfo[] = []
@@ -716,6 +729,27 @@ async function startWatcher(
             appRouteHandlers.push(routeEntry)
           } else {
             appRoutes.push(routeEntry)
+
+            if (nextConfig.experimental.agentRoutes) {
+              const getPageStaticInfo = (
+                require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
+              ).getPageStaticInfo
+
+              const staticInfo = await getPageStaticInfo({
+                pageFilePath: fileName,
+                nextConfig,
+                page: originalPageName,
+                isDev: true,
+                pageType: PAGE_TYPES.APP,
+              })
+
+              if (staticInfo.type === PAGE_TYPES.APP && staticInfo.agent) {
+                agentRoutes[appRoute] = mergeAgentModes(
+                  agentRoutes[appRoute],
+                  staticInfo.agent
+                )
+              }
+            }
           }
 
           if (routedPages.includes(pageName)) continue
@@ -759,6 +793,10 @@ async function startWatcher(
 
         routedPages.push(pageName)
       }
+
+      opts.fsChecker.setAgentRoutes(
+        nextConfig.experimental.agentRoutes ? agentRoutes : {}
+      )
 
       const numConflicting = conflictingAppPagePaths.size
       conflictingPageChange = numConflicting - previousConflictingPagePaths.size

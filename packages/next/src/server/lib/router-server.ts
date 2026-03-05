@@ -321,6 +321,11 @@ export async function initialize(opts: {
         )
       }
 
+      const semanticSitemapFormat = getRequestMeta(req, 'semanticSitemapFormat')
+      if (semanticSitemapFormat) {
+        req.headers['x-next-sitemap-format'] = semanticSitemapFormat
+      }
+
       debug('invokeRender', req.url, req.headers)
 
       try {
@@ -599,13 +604,19 @@ export async function initialize(opts: {
       if (matchedOutput) {
         invokedOutputs.add(matchedOutput.itemPath)
 
+        const additionalRequestMeta: RequestMeta = {
+          invokeOutput: matchedOutput.itemPath,
+          ...(matchedOutput.invokeQuery
+            ? { invokeQuery: matchedOutput.invokeQuery }
+            : {}),
+          ...(matchedOutput.requestMeta || {}),
+        }
+
         return await invokeRender(
           parsedUrl,
-          parsedUrl.pathname || '/',
+          matchedOutput.invokePath || parsedUrl.pathname || '/',
           handleIndex,
-          {
-            invokeOutput: matchedOutput.itemPath,
-          }
+          additionalRequestMeta
         )
       }
 

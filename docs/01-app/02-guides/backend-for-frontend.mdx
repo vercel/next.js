@@ -114,6 +114,30 @@ You can also define custom ones, such as:
 - `rss.xml`
 - `.well-known`
 
+With `experimental.agentRoutes` enabled, App Router pages can also expose
+agent-friendly outputs:
+
+- `/<route>/agent.md`
+- `/<route>/agent.json`
+
+Use page exports to opt in:
+
+```ts filename="app/docs/page.tsx"
+import type { AgentRoute } from 'next'
+
+export const agent = 'all'
+
+export async function generateAgent(): Promise<AgentRoute.Document> {
+  return {
+    title: 'Docs',
+    sections: [{ content: 'Agent-focused route summary.' }],
+  }
+}
+```
+
+If `generateAgent` is exported without `agent`, Next.js defaults to markdown
+output (`agent.md`).
+
 For example, `app/rss.xml/route.ts` creates a Route Handler for `rss.xml`.
 
 ```ts filename="/app/rss.xml/route.ts" switcher

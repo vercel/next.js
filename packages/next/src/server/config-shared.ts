@@ -617,6 +617,12 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
+   * Enables App Router agent routes (`/agent.md`, `/agent.json`) and
+   * semantic sitemap agent outputs.
+   */
+  agentRoutes?: boolean
+
+  /**
    * Enable type-checking and autocompletion for environment variables.
    *
    * @default false
@@ -1674,6 +1680,7 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
+    agentRoutes: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: !!(
@@ -1803,6 +1810,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'exposeTestingApiInProductionBuild'
+    | 'agentRoutes'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1867,6 +1875,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        agentRoutes: ex.agentRoutes,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

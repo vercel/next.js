@@ -258,7 +258,9 @@ async function getSingleSitemapRouteCode(
 /* single sitemap route */
 import { NextResponse } from 'next/server'
 import { default as handler } from ${JSON.stringify(resourcePath)}
-import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+import { resolveRouteData, resolveSemanticSitemapRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+
+const getUserland = () => import(${JSON.stringify(resourcePath)})
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
@@ -266,7 +268,79 @@ const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
 
-export async function GET() {
+export async function GET(request) {
+  const userland = await getUserland()
+  const agent = userland['agent']
+  const semanticSitemap =
+    userland['semanticSitemap'] ?? userland['generateAgentSitemap']
+
+  const requestUrl = request?.url ? new URL(request.url) : null
+  const nextUrl = request?.nextUrl
+  const pathname = nextUrl?.pathname || requestUrl?.pathname || ''
+  const semanticFormatHeader = request?.headers?.get(
+    'x-next-sitemap-format'
+  )
+  const semanticFormatParam =
+    semanticFormatHeader ??
+    nextUrl?.searchParams.get('__nextSitemapFormat') ??
+    requestUrl?.searchParams.get('__nextSitemapFormat')
+  const semanticFormat =
+    semanticFormatParam === 'markdown' || semanticFormatParam === 'json'
+      ? semanticFormatParam
+      : pathname === '/sitemap.md' || pathname.endsWith('/sitemap.md')
+        ? 'markdown'
+        : pathname === '/sitemap.json' || pathname.endsWith('/sitemap.json')
+          ? 'json'
+          : null
+  const hasSemanticSitemap = typeof semanticSitemap === 'function'
+  const agentMode = agent ?? (hasSemanticSitemap ? 'markdown' : undefined)
+
+  if (
+    typeof agentMode !== 'undefined' &&
+    agentMode !== 'markdown' &&
+    agentMode !== 'json' &&
+    agentMode !== 'all'
+  ) {
+    throw new Error('Invalid \`agent\` export in ${JSON.stringify(
+      resourcePath
+    )}. Expected "markdown", "json", or "all".')
+  }
+
+  if (semanticFormat === 'markdown' || semanticFormat === 'json') {
+    const isEnabled =
+      agentMode === 'all' ||
+      agentMode === semanticFormat
+
+    if (!isEnabled) {
+      return new NextResponse('Not Found', {
+        status: 404,
+        headers: {
+          'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
+          'X-Robots-Tag': 'noindex',
+        },
+      })
+    }
+
+    const isSemanticInput = hasSemanticSitemap
+    const data = isSemanticInput ? await semanticSitemap() : await handler()
+    const content = resolveSemanticSitemapRouteData(
+      data,
+      semanticFormat,
+      isSemanticInput
+    )
+
+    return new NextResponse(content, {
+      headers: {
+        'Content-Type':
+          semanticFormat === 'json'
+            ? 'application/json; charset=utf-8'
+            : 'text/markdown; charset=utf-8',
+        'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
+        'X-Robots-Tag': 'noindex',
+      },
+    })
+  }
+
   const data = await handler()
   const content = resolveRouteData(data, fileType)
 
@@ -362,6 +436,16 @@ async function getSitemapRouteCode(
   )
 
   const hasGenerateSitemaps = exportNames.includes('generateSitemaps')
+  const hasAgentExport = exportNames.includes('agent')
+  const hasSemanticSitemapExport =
+    exportNames.includes('semanticSitemap') ||
+    exportNames.includes('generateAgentSitemap')
+
+  if (hasGenerateSitemaps && (hasAgentExport || hasSemanticSitemapExport)) {
+    throw new Error(
+      `Route "${resourcePath}" cannot combine \`generateSitemaps\` with \`agent\` or \`semanticSitemap\`. Semantic sitemap outputs currently support single sitemap mode only.`
+    )
+  }
 
   if (hasGenerateSitemaps) {
     return getDynamicSitemapRouteCode(resourcePath, loaderContext)

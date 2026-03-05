@@ -39,6 +39,7 @@ export type {
   ResolvingViewport,
   ResolvedViewport,
 } from './lib/metadata/types/metadata-interface'
+export type { AgentRoute } from './server/agent/types'
 
 export type { Instrumentation } from './server/instrumentation/types'
 

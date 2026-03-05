@@ -17,6 +17,8 @@ export const ALLOWED_EXPORTS = [
   'generateStaticParams',
   'metadata',
   'generateMetadata',
+  'agent',
+  'generateAgent',
   'viewport',
   'generateViewport',
 ]

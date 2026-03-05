@@ -53,6 +53,11 @@ ${
     ? `import type { NextRequest } from 'next/server.js'`
     : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
+${
+  options.type === 'page'
+    ? `import type { AgentRoute } from 'next/types.js'`
+    : ''
+}
 
 import type { InstantConfigForTypeCheckInternal } from 'next/dist/build/segment-config/app/app-segment-config.js'
 
@@ -79,6 +84,7 @@ checkFields<Diff<{
   preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
   runtime?: 'nodejs' | 'experimental-edge' | 'edge'
   maxDuration?: number
+  ${options.type === 'page' ? `agent?: 'markdown' | 'json' | 'all'` : ''}
   ${
     options.type === 'route'
       ? ''
@@ -87,6 +93,7 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
+  ${options.type === 'page' ? 'generateAgent?: Function' : ''}
   `
   }
 }, TEntry, ''>>()
@@ -160,6 +167,17 @@ if ('generateViewport' in entry) {
     options.type === 'page' ? 'PageProps' : 'LayoutProps'
   }, FirstArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
   checkFields<Diff<ResolvingViewport, SecondArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
+}
+
+${
+  options.type === 'page'
+    ? `// Check the arguments and return type of the generateAgent function
+if ('generateAgent' in entry) {
+  checkFields<Diff<PageProps, FirstArg<MaybeField<TEntry, 'generateAgent'>>, 'generateAgent'>>()
+  checkFields<Diff<{ __tag__: 'generateAgent', __return_type__: AgentRoute.Document | Promise<AgentRoute.Document> }, { __tag__: 'generateAgent', __return_type__: ReturnType<MaybeField<TEntry, 'generateAgent'>> }, 'generateAgent'>>()
+}
+`
+    : ''
 }
 `
 }

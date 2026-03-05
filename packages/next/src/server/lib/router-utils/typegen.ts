@@ -510,6 +510,10 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
+  agent?: 'markdown' | 'json' | 'all'
+  generateAgent?: (
+    props: { params: Promise<ParamMap[Route]> } & any
+  ) => Promise<AgentRoute.Document> | AgentRoute.Document
 }
 
 `
@@ -624,6 +628,9 @@ export function generateValidatorFile(
   }
   if (appPageValidations || layoutValidations) {
     nextTypes.push('ResolvingMetadata', 'ResolvingViewport')
+  }
+  if (appPageValidations) {
+    nextTypes.push('AgentRoute')
   }
   const nextTypesImport =
     nextTypes.length > 0
@@ -745,6 +752,10 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
+  agent?: 'markdown' | 'json' | 'all'
+  generateAgent?: (
+    props: PageProps<Route>
+  ) => Promise<AgentRoute.Document> | AgentRoute.Document
 }
 
 `
@@ -859,6 +870,9 @@ export function generateValidatorFileStrict(
   }
   if (appPageValidations || layoutValidations) {
     nextTypes.push('ResolvingMetadata', 'ResolvingViewport')
+  }
+  if (appPageValidations) {
+    nextTypes.push('AgentRoute')
   }
   const nextTypesImport =
     nextTypes.length > 0

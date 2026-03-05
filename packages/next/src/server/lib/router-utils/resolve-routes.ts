@@ -261,6 +261,27 @@ export function getResolveRoutes(
       }
     }
 
+    const applyOutputRequestMeta = (output: FsOutput) => {
+      if (output.locale) {
+        addRequestMeta(req, 'locale', output.locale)
+      }
+
+      if (output.requestMeta) {
+        for (const [key, value] of Object.entries(output.requestMeta)) {
+          if (typeof value === 'undefined') continue
+
+          addRequestMeta(req, key as any, value as any)
+        }
+      }
+    }
+
+    const isSpecialOutputRequest = (output: FsOutput) => {
+      return (
+        output.requestMeta?.isAgentRequest === true ||
+        typeof output.requestMeta?.semanticSitemapFormat !== 'undefined'
+      )
+    }
+
     async function checkTrue() {
       const pathname = parsedUrl.pathname || '/'
 
@@ -274,8 +295,10 @@ export function getResolveRoutes(
           if (
             config.useFileSystemPublicRoutes ||
             didRewrite ||
+            isSpecialOutputRequest(output) ||
             (output.type !== 'appFile' && output.type !== 'pageFile')
           ) {
+            applyOutputRequestMeta(output)
             return output
           }
         }
@@ -319,7 +342,8 @@ export function getResolveRoutes(
             addRequestMeta(req, 'isNextDataReq', true)
           }
 
-          if (config.useFileSystemPublicRoutes || didRewrite) {
+          if (pageOutput && (config.useFileSystemPublicRoutes || didRewrite)) {
+            applyOutputRequestMeta(pageOutput)
             return pageOutput
           }
         }
@@ -467,13 +491,12 @@ export function getResolveRoutes(
             if (
               config.useFileSystemPublicRoutes ||
               didRewrite ||
+              isSpecialOutputRequest(output) ||
               (output.type !== 'appFile' && output.type !== 'pageFile')
             ) {
               matchedOutput = output
 
-              if (output.locale) {
-                addRequestMeta(req, 'locale', output.locale)
-              }
+              applyOutputRequestMeta(output)
               return {
                 parsedUrl,
                 resHeaders,

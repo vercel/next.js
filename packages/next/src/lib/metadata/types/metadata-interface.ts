@@ -51,6 +51,7 @@ import type {
 import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
+import type { AgentRoute } from '../../../server/agent/types'
 
 /**
  * Metadata interface to describe all the metadata fields that can be set in a document.
@@ -716,11 +717,14 @@ type SitemapFile = Array<{
   videos?: Videos[] | undefined
 }>
 
+type SemanticSitemapFile = AgentRoute.SemanticSitemap
+
 type ResolvingMetadata = Promise<ResolvedMetadata>
 declare namespace MetadataRoute {
   // eslint-disable-next-line @typescript-eslint/no-shadow
   export type Robots = RobotsFile
   export type Sitemap = SitemapFile
+  export type SemanticSitemap = SemanticSitemapFile
   export type Manifest = ManifestFile
 }
 

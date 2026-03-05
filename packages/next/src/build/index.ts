@@ -70,6 +70,7 @@ import {
   MIDDLEWARE_MANIFEST,
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
+  AGENT_ROUTES_MANIFEST,
   RSC_MODULE_TYPES,
   NEXT_FONT_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
@@ -190,6 +191,7 @@ import {
   checkIsAppPPREnabled,
   checkIsRoutePPREnabled,
 } from '../server/lib/experimental/ppr'
+import type { AgentMode } from '../server/agent/types'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -228,6 +230,20 @@ import { generateRoutesManifest } from './generate-routes-manifest'
 import { validateAppPaths } from './validate-app-paths'
 
 type Fallback = null | boolean | string
+
+function mergeAgentModes(
+  current: AgentMode | undefined,
+  next: AgentMode
+): AgentMode {
+  if (!current || current === next) {
+    return next
+  }
+  if (current === 'all' || next === 'all') {
+    return 'all'
+  }
+
+  return 'all'
+}
 
 export interface PrerenderManifestRoute {
   dataRoute: string | null
@@ -1847,6 +1863,7 @@ export default async function build(
                       : []),
                     path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
                     path.join(APP_PATH_ROUTES_MANIFEST),
+                    path.join(AGENT_ROUTES_MANIFEST),
                     path.join(
                       SERVER_DIRECTORY,
                       SERVER_REFERENCE_MANIFEST + '.js'
@@ -1985,6 +2002,7 @@ export default async function build(
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
 
       const appPathRoutes: Record<string, string> = {}
+      const agentRoutesManifest: Record<string, AgentMode> = {}
 
       if (appDir) {
         const appPathsManifest = await readManifest<Record<string, string>>(
@@ -2210,6 +2228,19 @@ export default async function build(
 
                 if (staticInfo?.hadUnsupportedValue) {
                   errorFromUnsupportedSegmentConfig()
+                }
+
+                if (
+                  config.experimental.agentRoutes &&
+                  pageType === 'app' &&
+                  staticInfo?.type === PAGE_TYPES.APP &&
+                  staticInfo.agent &&
+                  originalAppPath?.endsWith('/page')
+                ) {
+                  agentRoutesManifest[page] = mergeAgentModes(
+                    agentRoutesManifest[page],
+                    staticInfo.agent
+                  )
                 }
 
                 // If there's any thing that would contribute to the functions
@@ -2533,6 +2564,13 @@ export default async function build(
         postCompileSpinner.stopAndPersist()
       }
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
+
+      if (appDir) {
+        await writeManifest(
+          path.join(distDir, AGENT_ROUTES_MANIFEST),
+          config.experimental.agentRoutes ? agentRoutesManifest : {}
+        )
+      }
 
       if (customAppGetInitialProps) {
         console.warn(

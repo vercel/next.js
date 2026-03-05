@@ -149,6 +149,77 @@ export function resolveManifest(data: MetadataRoute.Manifest): string {
   return JSON.stringify(data)
 }
 
+function inferSitemapTitle(url: string): string {
+  try {
+    const { pathname } = new URL(url)
+    if (pathname === '/' || pathname === '') return 'Home'
+    return pathname
+      .split('/')
+      .filter(Boolean)
+      .map((segment) =>
+        segment
+          .replace(/[-_]/g, ' ')
+          .replace(/\b\w/g, (char) => char.toUpperCase())
+      )
+      .join(' / ')
+  } catch {
+    return url
+  }
+}
+
+function sitemapToSemanticSitemap(
+  data: MetadataRoute.Sitemap
+): MetadataRoute.SemanticSitemap {
+  return data.map((item) => {
+    let summary = ''
+    if (item.changeFrequency) {
+      summary += `Updated ${item.changeFrequency}.`
+    }
+    if (typeof item.priority === 'number') {
+      summary += summary
+        ? ` Priority ${item.priority}.`
+        : `Priority ${item.priority}.`
+    }
+
+    return {
+      url: item.url,
+      title: inferSitemapTitle(item.url),
+      summary: summary || undefined,
+      lastModified: item.lastModified,
+    }
+  })
+}
+
+function resolveSemanticSitemapMarkdown(
+  data: MetadataRoute.SemanticSitemap
+): string {
+  const lines = ['# Sitemap', '']
+
+  for (const entry of data) {
+    const title = entry.title || inferSitemapTitle(entry.url)
+    const summary = entry.summary ? ` - ${entry.summary}` : ''
+    lines.push(`- [${title}](${entry.url})${summary}`)
+  }
+
+  return `${lines.join('\n').trim()}\n`
+}
+
+export function resolveSemanticSitemapRouteData(
+  data: MetadataRoute.Sitemap | MetadataRoute.SemanticSitemap,
+  format: 'markdown' | 'json',
+  isSemanticInput: boolean
+): string {
+  const semanticData = isSemanticInput
+    ? (data as MetadataRoute.SemanticSitemap)
+    : sitemapToSemanticSitemap(data as MetadataRoute.Sitemap)
+
+  if (format === 'json') {
+    return `${JSON.stringify(semanticData, null, 2)}\n`
+  }
+
+  return resolveSemanticSitemapMarkdown(semanticData)
+}
+
 export function resolveRouteData(
   data: MetadataRoute.Robots | MetadataRoute.Sitemap | MetadataRoute.Manifest,
   fileType: 'robots' | 'sitemap' | 'manifest'

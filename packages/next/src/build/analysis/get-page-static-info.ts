@@ -41,9 +41,10 @@ import {
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isProxyFile } from '../utils'
+import type { AgentMode } from '../../server/agent/types'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|generateAgent|middleware|proxy/
 
 export type ProxyMatcher = {
   regexp: string
@@ -80,6 +81,8 @@ export interface AppPageStaticInfo {
   generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
+  generateAgent?: boolean
+  agent?: AgentMode
   middleware?: ProxyConfig
   config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
   runtime: AppSegmentConfig['runtime'] | undefined
@@ -120,6 +123,27 @@ const ACTION_MODULE_LABEL =
 
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
+const VALID_AGENT_MODES: AgentMode[] = ['markdown', 'json', 'all']
+
+function normalizeAgentMode(
+  page: string,
+  value: unknown,
+  valueSource: 'agent' | 'generateAgent'
+): AgentMode | undefined {
+  if (valueSource === 'generateAgent' && typeof value === 'undefined') {
+    return undefined
+  }
+
+  if (value === 'markdown' || value === 'json' || value === 'all') {
+    return value
+  }
+
+  throw new Error(
+    `Page "${page}" has an invalid \`agent\` export. Expected one of ${VALID_AGENT_MODES.map(
+      (mode) => `"${mode}"`
+    ).join(', ')}.`
+  )
+}
 
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleInformation(
@@ -176,6 +200,7 @@ function checkExports(
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
   generateStaticParams?: boolean
+  generateAgent?: boolean
   directives?: Set<string>
   exports?: Set<string>
 } {
@@ -185,6 +210,7 @@ function checkExports(
     'generateImageMetadata',
     'generateSitemaps',
     'generateStaticParams',
+    'generateAgent',
   ])
   if (!Array.isArray(ast?.body)) {
     return {}
@@ -196,6 +222,7 @@ function checkExports(
     let generateImageMetadata: boolean = false
     let generateSitemaps: boolean = false
     let generateStaticParams = false
+    let generateAgent = false
     let exports = new Set<string>()
     let directives = new Set<string>()
     let hasLeadingNonDirectiveNode = false
@@ -240,6 +267,7 @@ function checkExports(
         generateImageMetadata = id === 'generateImageMetadata'
         generateSitemaps = id === 'generateSitemaps'
         generateStaticParams = id === 'generateStaticParams'
+        generateAgent = id === 'generateAgent'
       }
 
       if (
@@ -253,6 +281,7 @@ function checkExports(
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
           generateStaticParams = id === 'generateStaticParams'
+          generateAgent = id === 'generateAgent'
         }
       }
 
@@ -279,6 +308,9 @@ function checkExports(
             if (!generateStaticParams && value === 'generateStaticParams') {
               generateStaticParams = true
             }
+            if (!generateAgent && value === 'generateAgent') {
+              generateAgent = true
+            }
             if (expectedExports.includes(value) && !exports.has(value)) {
               // An export was found that was actually a re-export, and not a
               // literal value. We should warn here.
@@ -297,6 +329,7 @@ function checkExports(
       generateImageMetadata,
       generateSitemaps,
       generateStaticParams,
+      generateAgent,
       directives,
       exports,
     }
@@ -639,15 +672,19 @@ export async function getAppPageStaticInfo({
     generateStaticParams,
     generateImageMetadata,
     generateSitemaps,
+    generateAgent,
     exports,
     directives,
-  } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
+  } = checkExports(ast, [...AppSegmentConfigSchemaKeys, 'agent'], page)
 
   const { type: rsc } = getRSCModuleInformation(content, true)
 
   const exportedConfig: Record<string, unknown> = {}
+  let resolvedAgentMode: AgentMode | undefined
   if (exports) {
     for (const property of exports) {
+      if (property === 'agent') continue
+
       try {
         exportedConfig[property] = extractExportedConstValue(ast, property)
       } catch (e) {
@@ -655,6 +692,23 @@ export async function getAppPageStaticInfo({
           warnAboutUnsupportedValue(pageFilePath, page, e)
         }
       }
+    }
+  }
+
+  if (exports?.has('agent')) {
+    try {
+      const agentValue = extractExportedConstValue(ast, 'agent')
+      resolvedAgentMode = normalizeAgentMode(page, agentValue, 'agent')
+    } catch (e) {
+      if (e instanceof UnsupportedValueError) {
+        throw new Error(
+          `Page "${page}" has a non-static \`agent\` export. Expected one of ${VALID_AGENT_MODES.map(
+            (mode) => `"${mode}"`
+          ).join(', ')}.`
+        )
+      }
+
+      throw e
     }
   }
 
@@ -690,12 +744,18 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  if (!resolvedAgentMode && generateAgent) {
+    resolvedAgentMode = normalizeAgentMode(page, 'markdown', 'generateAgent')
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,
     generateImageMetadata,
     generateSitemaps,
     generateStaticParams,
+    generateAgent,
+    agent: resolvedAgentMode,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: config.runtime,

@@ -128,6 +128,26 @@ export interface RequestMeta {
   isRSCRequest?: true
 
   /**
+   * True when the request targets an agent endpoint for an App Router page.
+   */
+  isAgentRequest?: true
+
+  /**
+   * The negotiated agent endpoint output format.
+   */
+  agentFormat?: 'markdown' | 'json'
+
+  /**
+   * The canonical app route pathname behind an agent endpoint request.
+   */
+  agentBasePath?: string
+
+  /**
+   * The requested semantic sitemap output format for metadata sitemap routes.
+   */
+  semanticSitemapFormat?: 'markdown' | 'json'
+
+  /**
    * A search param set by the Next.js client when performing RSC requests.
    * Because some CDNs do not vary their cache entries on our custom headers,
    * this search param represents a hash of the header values. For any cached

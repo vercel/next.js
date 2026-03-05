@@ -122,6 +122,23 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
 
 ## Examples
 
+### Agent endpoint precedence (experimental)
+
+When `experimental.agentRoutes` is enabled, explicit routes still take
+precedence over internal agent endpoint fallback behavior.
+
+For example, this explicit route continues to own `/agent.md`:
+
+```ts filename="app/agent.md/route.ts"
+export function GET() {
+  return new Response('custom agent output\n', {
+    headers: {
+      'Content-Type': 'text/markdown; charset=utf-8',
+    },
+  })
+}
+```
+
 ### Cookies
 
 You can read or set cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`.

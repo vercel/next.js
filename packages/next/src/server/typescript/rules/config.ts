@@ -141,6 +141,24 @@ const API_DOCS: Record<
     link: 'https://nextjs.org/docs/app/api-reference/functions/generate-metadata',
     insertText: 'generateMetadata = (): Metadata => { return {} };',
   },
+  agent: {
+    description:
+      'The `agent` option enables agent-friendly route outputs for this page.',
+    options: {
+      '"markdown"': 'Expose a Markdown endpoint at `/<route>/agent.md`.',
+      '"json"': 'Expose a JSON endpoint at `/<route>/agent.json`.',
+      '"all"': 'Expose both Markdown and JSON agent endpoints.',
+    },
+    isValid: (value: string) => {
+      return value === '"markdown"' || value === '"json"' || value === '"all"'
+    },
+  },
+  generateAgent: {
+    description: 'Next.js generateAgent configurations',
+    link: 'https://nextjs.org/docs/app/api-reference/functions/generate-agent',
+    insertText:
+      'generateAgent = async (props: PageProps<any>): Promise<AgentRoute.Document> => { return {} };',
+  },
   maxDuration: {
     description:
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',

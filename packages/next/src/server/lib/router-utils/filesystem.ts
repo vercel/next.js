@@ -4,12 +4,14 @@ import type {
   PrerenderManifest,
   RoutesManifest,
 } from '../../../build'
+import type { AgentFormat, AgentMode } from '../../agent/types'
 import type { NextConfigRuntime } from '../../config-shared'
 import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { __ApiPreviewProps } from '../../api-utils'
+import type { RequestMeta } from '../../request-meta'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -33,6 +35,7 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import {
+  AGENT_ROUTES_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
   FUNCTIONS_CONFIG_MANIFEST,
@@ -61,6 +64,18 @@ export type FsOutput = {
   fsPath?: string
   itemsRoot?: string
   locale?: string
+  invokePath?: string
+  invokeQuery?: Record<string, string>
+  requestMeta?: Pick<
+    RequestMeta,
+    'isAgentRequest' | 'agentFormat' | 'agentBasePath' | 'semanticSitemapFormat'
+  >
+}
+
+type DynamicAgentRoute = {
+  page: string
+  mode: AgentMode
+  match: PatchMatcher
 }
 
 const debug = setupDebug('next:router-server:filesystem')
@@ -144,6 +159,8 @@ export async function setupFsCheck(opts: {
   // /icon.png -> .../app/icon.png
   const staticMetadataFiles = new Map<string, string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
+  const agentRoutes = new Map<string, AgentMode>()
+  let dynamicAgentRoutes: DynamicAgentRoute[] = []
 
   let middlewareMatcher:
     | ReturnType<typeof getMiddlewareRouteMatcher>
@@ -268,6 +285,15 @@ export async function setupFsCheck(opts: {
     }
     for (const key of Object.keys(appRoutesManifest)) {
       appFiles.add(appRoutesManifest[key])
+    }
+
+    if (opts.config.experimental.agentRoutes) {
+      const agentRoutesManifestPath = path.join(distDir, AGENT_ROUTES_MANIFEST)
+      const agentRoutesManifest = JSON.parse(
+        await fs.readFile(agentRoutesManifestPath, 'utf8').catch(() => '{}')
+      ) as Record<string, AgentMode>
+
+      setAgentRoutes(agentRoutesManifest)
     }
 
     const escapedBuildId = escapeStringRegexp(buildId)
@@ -420,6 +446,81 @@ export async function setupFsCheck(opts: {
     return { locale, pathname }
   }
 
+  function setAgentRoutes(routes: Record<string, AgentMode>) {
+    agentRoutes.clear()
+
+    for (const [route, mode] of Object.entries(routes)) {
+      agentRoutes.set(route, mode)
+    }
+
+    dynamicAgentRoutes = []
+    for (const [route, mode] of agentRoutes) {
+      if (!isDynamicRoute(route)) continue
+
+      dynamicAgentRoutes.push({
+        page: route,
+        mode,
+        match: getRouteMatcher(getRouteRegex(route)),
+      })
+    }
+  }
+
+  const getAgentRouteMatch = (
+    pathname: string
+  ): { page: string; mode: AgentMode } | null => {
+    const staticMode = agentRoutes.get(pathname)
+    if (staticMode) {
+      return { page: pathname, mode: staticMode }
+    }
+
+    for (const route of dynamicAgentRoutes) {
+      if (route.match(pathname)) {
+        return {
+          page: route.page,
+          mode: route.mode,
+        }
+      }
+    }
+
+    return null
+  }
+
+  const parseAgentRequestPath = (
+    pathname: string
+  ): { format: AgentFormat; basePath: string } | null => {
+    if (pathname === '/agent.md' || pathname.endsWith('/agent.md')) {
+      const basePath = pathname.slice(0, -'/agent.md'.length) || '/'
+      return { format: 'markdown', basePath }
+    }
+
+    if (pathname === '/agent.json' || pathname.endsWith('/agent.json')) {
+      const basePath = pathname.slice(0, -'/agent.json'.length) || '/'
+      return { format: 'json', basePath }
+    }
+
+    return null
+  }
+
+  const parseSemanticSitemapRequestPath = (
+    pathname: string
+  ): { format: AgentFormat; sitemapXmlPath: string } | null => {
+    if (pathname === '/sitemap.md' || pathname.endsWith('/sitemap.md')) {
+      return {
+        format: 'markdown',
+        sitemapXmlPath: `${pathname.slice(0, -'.md'.length)}.xml`,
+      }
+    }
+
+    if (pathname === '/sitemap.json' || pathname.endsWith('/sitemap.json')) {
+      return {
+        format: 'json',
+        sitemapXmlPath: `${pathname.slice(0, -'.json'.length)}.xml`,
+      }
+    }
+
+    return null
+  }
+
   debug('nextDataRoutes', nextDataRoutes)
   debug('dynamicRoutes', dynamicRoutes)
   debug('customRoutes', customRoutes)
@@ -427,6 +528,7 @@ export async function setupFsCheck(opts: {
   debug('nextStaticFolderItems', nextStaticFolderItems)
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
+  debug('agentRoutes', agentRoutes)
 
   let ensureFn: (item: FsOutput) => Promise<void> | undefined
 
@@ -447,6 +549,7 @@ export async function setupFsCheck(opts: {
 
     appFiles,
     pageFiles,
+    agentRoutes,
     staticMetadataFiles,
     dynamicRoutes,
     nextDataRoutes,
@@ -463,6 +566,8 @@ export async function setupFsCheck(opts: {
     ensureCallback(fn: typeof ensureFn) {
       ensureFn = fn
     },
+
+    setAgentRoutes,
 
     async getItem(itemPath: string): Promise<FsOutput | null> {
       const originalItemPath = itemPath
@@ -728,6 +833,93 @@ export async function setupFsCheck(opts: {
 
           getItemsLru?.set(itemKey, itemResult)
           return itemResult
+        }
+      }
+
+      if (opts.config.experimental.agentRoutes) {
+        const parsedAgentRequest = parseAgentRequestPath(itemPath)
+
+        if (parsedAgentRequest) {
+          let locale: string | undefined
+          let normalizedBasePath = parsedAgentRequest.basePath
+
+          if (i18n) {
+            const localeResult = handleLocale(parsedAgentRequest.basePath)
+            normalizedBasePath = localeResult.pathname
+            locale = localeResult.locale
+          }
+
+          if (!locale || locale === i18n?.defaultLocale) {
+            const routeMatch = getAgentRouteMatch(normalizedBasePath)
+
+            if (routeMatch) {
+              const itemResult = {
+                type: 'appFile' as const,
+                locale,
+                itemPath: routeMatch.page,
+                invokePath: normalizedBasePath,
+                requestMeta: {
+                  isAgentRequest: true as const,
+                  agentFormat: parsedAgentRequest.format,
+                  agentBasePath: normalizedBasePath,
+                },
+              }
+
+              getItemsLru?.set(itemKey, itemResult)
+              return itemResult
+            }
+          }
+        }
+      }
+
+      if (opts.config.experimental.agentRoutes) {
+        const parsedSemanticSitemapRequest =
+          parseSemanticSitemapRequestPath(itemPath)
+
+        if (parsedSemanticSitemapRequest) {
+          let locale: string | undefined
+          let sitemapXmlPath = parsedSemanticSitemapRequest.sitemapXmlPath
+          let hasSitemapXmlRoute = appFiles.has(sitemapXmlPath)
+
+          if (i18n) {
+            const localeResult = handleLocale(
+              parsedSemanticSitemapRequest.sitemapXmlPath
+            )
+            sitemapXmlPath = localeResult.pathname
+            locale = localeResult.locale
+            hasSitemapXmlRoute = appFiles.has(sitemapXmlPath)
+          }
+
+          if (!hasSitemapXmlRoute && opts.dev && ensureFn) {
+            try {
+              await ensureFn({
+                type: 'appFile',
+                itemPath: normalizeMetadataRoute(sitemapXmlPath),
+              })
+              hasSitemapXmlRoute = true
+            } catch {}
+          }
+
+          if (
+            (!locale || locale === i18n?.defaultLocale) &&
+            hasSitemapXmlRoute
+          ) {
+            const itemResult = {
+              type: 'appFile' as const,
+              locale,
+              itemPath: sitemapXmlPath,
+              invokePath: sitemapXmlPath,
+              invokeQuery: {
+                __nextSitemapFormat: parsedSemanticSitemapRequest.format,
+              },
+              requestMeta: {
+                semanticSitemapFormat: parsedSemanticSitemapRequest.format,
+              },
+            }
+
+            getItemsLru?.set(itemKey, itemResult)
+            return itemResult
+          }
         }
       }
 

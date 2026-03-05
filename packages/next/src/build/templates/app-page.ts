@@ -56,10 +56,12 @@ import RenderResult from '../../server/render-result'
 import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
+  JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
+  TEXT_PLAIN_CONTENT_TYPE_HEADER,
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
@@ -98,6 +100,11 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes'
+import {
+  resolveAgentCanonicalUrl,
+  resolveAgentRequest,
+  resolveLeafPageModule,
+} from '../../server/agent/request'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -523,6 +530,13 @@ export async function handler(
     routeModule,
     __next_app__,
   }
+
+  const isAgentRequest = getRequestMeta(req, 'isAgentRequest') === true
+  const agentFormat = getRequestMeta(req, 'agentFormat')
+  const agentBasePath = getRequestMeta(req, 'agentBasePath')
+  const pageModuleForAgent = isAgentRequest
+    ? await resolveLeafPageModule(tree)
+    : null
 
   // Before rendering (which initializes component tree modules), we have to
   // set the reference manifests to our global store so Server Action's
@@ -1383,6 +1397,54 @@ export async function handler(
       // Mark that the request did postpone.
       if (didPostpone && !isDynamicRSCRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
+      }
+
+      if (isAgentRequest) {
+        const agentResolution = await resolveAgentRequest({
+          pageModule: pageModuleForAgent,
+          format: agentFormat,
+          params: params ?? {},
+          searchParams: query ?? {},
+          canonicalUrl: resolveAgentCanonicalUrl(
+            getRequestMeta(req, 'initURL'),
+            agentBasePath
+          ),
+          fallbackTitle: normalizedSrcPage,
+          isDev: routeModule.isDev,
+          getHtml: () => cachedData.html.toUnchunkedString(true),
+        })
+
+        let responseStatusCode: number = agentResolution.statusCode
+        if (
+          agentResolution.statusCode === 200 &&
+          typeof cachedData.status === 'number' &&
+          cachedData.status !== 200
+        ) {
+          responseStatusCode = cachedData.status
+        }
+
+        res.statusCode = responseStatusCode
+        res.setHeader('X-Robots-Tag', 'noindex')
+        if (agentResolution.contentType === 'markdown') {
+          res.setHeader('Content-Type', 'text/markdown; charset=utf-8')
+        }
+
+        return sendRenderResult({
+          req,
+          res,
+          generateEtags: nextConfig.generateEtags,
+          poweredByHeader: nextConfig.poweredByHeader,
+          result: RenderResult.fromStatic(
+            agentResolution.payload,
+            agentResolution.contentType === 'json'
+              ? JSON_CONTENT_TYPE_HEADER
+              : TEXT_PLAIN_CONTENT_TYPE_HEADER
+          ),
+          cacheControl:
+            agentResolution.statusCode === 200
+              ? cacheEntry.cacheControl
+              : { revalidate: 0, expire: undefined },
+        })
       }
 
       // we don't go through this block when preview mode is true
