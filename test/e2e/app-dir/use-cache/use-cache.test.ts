@@ -1083,8 +1083,8 @@ describe('use-cache', () => {
         expect.stringContaining('["inner"]'),
         ...(withCacheComponents
           ? []
-          : // With legacy PPR, the "short" cache is included in the prerendered
-            // shell.
+          : // Without cacheComponents, the "short" cache is included in the
+            // prerendered shell.
             [expect.stringContaining('[{"id":"short"},"$undefined"]]')]),
       ])
     })

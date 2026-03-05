@@ -233,19 +233,11 @@ export async function fetchServerResponse(
       ).waitForWebpackRuntimeHotUpdate()
     }
 
-    let flightResponsePromise = res.flightResponsePromise
+    const flightResponsePromise = res.flightResponsePromise
     if (flightResponsePromise === null) {
-      // Typically, `createFetch` would have already started decoding the
-      // Flight response. If it hasn't, though, we need to decode it now.
-      // TODO: This should only be reachable if legacy PPR is enabled (i.e. PPR
-      // without Cache Components). Remove this branch once legacy PPR
-      // is deleted.
-      flightResponsePromise =
-        createFromNextReadableStream<NavigationFlightResponse>(
-          res.body,
-          headers,
-          { allowPartialStream: postponed }
-        )
+      throw new InvariantError(
+        'Expected createFetch() to eagerly decode a flight response for navigations.'
+      )
     }
 
     const [flightResponse, cacheData] = await Promise.all([
