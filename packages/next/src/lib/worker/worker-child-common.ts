@@ -37,10 +37,8 @@ export function createMessageHandler(
   transport: ChildTransport,
   onInitialize?: (message: ChildMessage) => void
 ): (message: ChildMessage) => void {
-  let workerModule: any = null
-  let initialized = false
-  let readySent = false
-  let setupArgs: unknown[] = []
+  /** The loaded worker module (set during INITIALIZE) */
+  let main: any = null
 
   function isPromise(value: unknown): value is Promise<unknown> {
     return (
@@ -114,13 +112,32 @@ export function createMessageHandler(
     }
   }
 
+  /**
+   * Load the worker module, run its setup() if present, and send READY.
+   * Called once during INITIALIZE.
+   */
+  function initialize(workerPath: string, setupArgs: unknown[]): void {
+    main = require(workerPath)
+
+    if (!main.setup) {
+      transport.send([PARENT_MESSAGE_READY])
+      return
+    }
+
+    execFunction(
+      main.setup,
+      main,
+      setupArgs,
+      () => transport.send([PARENT_MESSAGE_READY]),
+      reportInitializeError
+    )
+  }
+
   function execMethod(
     requestId: number,
     method: string,
     args: unknown[]
   ): void {
-    const main = require(workerModule)
-
     let fn: Function
     if (method === 'default') {
       fn = main.__esModule ? main['default'] : main
@@ -128,43 +145,17 @@ export function createMessageHandler(
       fn = main[method]
     }
 
-    function execHelper(): void {
-      execFunction(
-        fn,
-        main,
-        args,
-        (result) => reportSuccess(requestId, result),
-        (error) => reportClientError(requestId, error)
-      )
-    }
-
-    /** Send READY (once) to tell the parent this worker has finished loading */
-    function sendReadyAndExec(): void {
-      if (!readySent) {
-        readySent = true
-        transport.send([PARENT_MESSAGE_READY])
-      }
-      execHelper()
-    }
-
-    if (initialized || !main.setup) {
-      sendReadyAndExec()
-      return
-    }
-
-    initialized = true
     execFunction(
-      main.setup,
+      fn,
       main,
-      setupArgs,
-      sendReadyAndExec,
-      reportInitializeError
+      args,
+      (result) => reportSuccess(requestId, result),
+      (error) => reportClientError(requestId, error)
     )
   }
 
   function end(): void {
-    const main = require(workerModule)
-    if (!main.teardown) {
+    if (!main?.teardown) {
       transport.disconnect()
       return
     }
@@ -181,9 +172,8 @@ export function createMessageHandler(
   return function messageListener(message: ChildMessage): void {
     switch (message[0]) {
       case CHILD_MESSAGE_INITIALIZE:
-        workerModule = message[2]
-        setupArgs = message[3]
         onInitialize?.(message)
+        initialize(message[2], message[3])
         break
       case CHILD_MESSAGE_CALL:
         execMethod(message[1], message[2], message[3])
