@@ -82,6 +82,8 @@ interface QueuedTask {
 interface PoolWorker {
   /** The underlying child process or worker thread */
   process: ChildProcess | NodeWorker
+  /** Uniform handle for message passing and lifecycle management */
+  handle: WorkerHandle
   /** Map of in-flight request IDs to their resolve/reject callbacks */
   activeRequests: Map<number, PendingRequest>
   /** Whether this worker is being terminated (graceful or forced) */
@@ -195,8 +197,6 @@ export class WorkerPool {
     WorkerPoolOptions
 
   private _workers: PoolWorker[] = []
-  /** Handles keyed by PoolWorker identity for uniform process operations */
-  private _handles = new WeakMap<PoolWorker, WorkerHandle>()
   /** FIFO queue of tasks waiting for a worker with available capacity */
   private _taskQueue: QueuedTask[] = []
   /** Monotonically increasing counter for correlating requests to responses */
@@ -307,17 +307,15 @@ export class WorkerPool {
       this._workers.map(async (worker) => {
         worker.ending = true
 
-        const handle = this._handles.get(worker)!
-
         // Send END message to trigger teardown in the child
-        handle.send([CHILD_MESSAGE_END])
+        worker.handle.send([CHILD_MESSAGE_END])
 
         // Wait for exit with timeout — if the child doesn't exit within
         // FORCE_EXIT_DELAY we SIGKILL it
         let forceExited = false
-        const exitPromise = handle.waitForExit()
+        const exitPromise = worker.handle.waitForExit()
         const timeout = setTimeout(() => {
-          handle.forceKill()
+          worker.handle.forceKill()
           forceExited = true
         }, FORCE_EXIT_DELAY)
 
@@ -356,7 +354,7 @@ export class WorkerPool {
     for (const worker of this._workers) {
       worker.ending = true
       this._rejectActiveRequests(worker, new Error('Worker pool closed'))
-      this._handles.get(worker)?.forceKill()
+      worker.handle.forceKill()
     }
     this._workers = []
   }
@@ -415,11 +413,11 @@ export class WorkerPool {
 
     const worker: PoolWorker = {
       process: proc,
+      handle,
       activeRequests: new Map(),
       ending: false,
       booting: true,
     }
-    this._handles.set(worker, handle)
 
     // Pipe stdout/stderr from the child into the pool-level streams
     const stdout = handle.getOutputStream('stdout')
@@ -473,9 +471,7 @@ export class WorkerPool {
   ): void {
     const requestId = this._nextRequestId++
     worker.activeRequests.set(requestId, { resolve, reject })
-    this._handles
-      .get(worker)!
-      .send([CHILD_MESSAGE_CALL, requestId, method, args])
+    worker.handle.send([CHILD_MESSAGE_CALL, requestId, method, args])
   }
 
   // ---------------------------------------------------------------------------
