@@ -40,7 +40,6 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _fallbackRouteParams: z.array(z.any()).optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
-    _isRoutePPREnabled: z.boolean().optional(),
     _allowEmptyStaticShell: z.boolean().optional(),
   })
 )
@@ -221,6 +220,7 @@ export const experimentalSchema = {
   dynamicOnHover: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   varyParams: z.boolean().optional(),
+  prefetchInlining: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
@@ -239,6 +239,7 @@ export const experimentalSchema = {
   externalMiddlewareRewritesResolve: z.boolean().optional(),
   externalProxyRewritesResolve: z.boolean().optional(),
   exposeTestingApiInProductionBuild: z.boolean().optional(),
+  instantNavigationDevToolsToggle: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),
   forceSwcTransforms: z.boolean().optional(),
@@ -323,6 +324,9 @@ export const experimentalSchema = {
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
   turbopackMemoryLimit: z.number().optional(),
+  turbopackPluginRuntimeStrategy: z
+    .enum(['workerThreads', 'childProcesses'])
+    .optional(),
   turbopackMinify: z.boolean().optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
@@ -381,6 +385,7 @@ export const experimentalSchema = {
   lockDistDir: z.boolean().optional(),
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
+  immutableAssetToken: z.string().optional(),
   devCacheControlNoCache: z.boolean().optional(),
   deferredEntries: z.array(z.string()).optional(),
   onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
@@ -622,6 +627,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         loader: z.enum(VALID_LOADERS).optional(),
         loaderFile: z.string().optional(),
+        maximumDiskCacheSize: z.number().int().min(0).optional(),
         maximumRedirects: z.number().int().min(0).max(20).optional(),
         maximumResponseBody: z
           .number()

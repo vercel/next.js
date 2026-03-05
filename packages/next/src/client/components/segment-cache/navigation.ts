@@ -14,11 +14,16 @@ import {
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import {
   EntryStatus,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
+  getStaleAt,
+  writeStaticStageResponseIntoCache,
+  processRuntimePrefetchStream,
+  writeDynamicRenderResponseIntoCache,
   type RouteTree,
   type FulfilledRouteCacheEntry,
 } from './cache'
@@ -211,7 +216,8 @@ export function navigateToKnownRoute(
         nextUrl,
         freshnessPolicy,
         accumulation,
-        routeCacheEntry
+        routeCacheEntry,
+        navigateType
       )
     }
     return completeSoftNavigation(
@@ -367,7 +373,10 @@ async function navigateToUnknownRoute(
     canonicalUrl,
     renderedSearch,
     couldBeIntercepted,
-    prerendered,
+    supportsPerSegmentPrefetching,
+    staticStageData,
+    runtimePrefetchStream,
+    responseHeaders,
     debugInfo,
   } = result
 
@@ -390,14 +399,72 @@ async function navigateToUnknownRoute(
     discoverKnownRoute(
       now,
       url.pathname,
+      nextUrl,
       null, // No pending entry
       navigationSeed.routeTree,
       metadataVaryPath,
       couldBeIntercepted,
       createHrefFromUrl(canonicalUrl),
-      prerendered,
+      supportsPerSegmentPrefetching,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
+
+    if (staticStageData !== null) {
+      const { response: staticStageResponse, isResponsePartial } =
+        staticStageData
+
+      // Write the static stage of the response into the segment cache so that
+      // subsequent navigations can serve cached static segments instantly.
+      getStaleAt(now, staticStageResponse.s)
+        .then((staleAt) => {
+          const buildId =
+            responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+            staticStageResponse.b
+
+          writeStaticStageResponseIntoCache(
+            now,
+            staticStageResponse.f,
+            buildId,
+            staticStageResponse.h,
+            staleAt,
+            currentFlightRouterState,
+            renderedSearch,
+            isResponsePartial
+          )
+        })
+        .catch(() => {
+          // The static stage processing failed. Not fatal — the navigation
+          // completed normally, we just won't write into the cache.
+        })
+    }
+
+    if (runtimePrefetchStream !== null) {
+      processRuntimePrefetchStream(
+        now,
+        runtimePrefetchStream,
+        currentFlightRouterState,
+        renderedSearch
+      )
+        .then((processed) => {
+          if (processed !== null) {
+            writeDynamicRenderResponseIntoCache(
+              now,
+              FetchStrategy.PPRRuntime,
+              processed.flightDatas,
+              processed.buildId,
+              processed.isResponsePartial,
+              processed.headVaryParams,
+              processed.staleAt,
+              processed.navigationSeed,
+              null
+            )
+          }
+        })
+        .catch(() => {
+          // The runtime prefetch cache write failed. Not fatal — the
+          // navigation completed normally, we just won't cache runtime data.
+        })
+    }
   }
 
   return navigateToKnownRoute(
@@ -843,9 +910,13 @@ async function tryNavigateUsingTestingAPIPrefetch(
       )
     }
 
-    // Prefetch failed - fall through to normal unknown route path. This is fine
-    // because the lock will still be held, and waitForNavigationLockIfActive()
-    // in the dynamic data path will block until the lock is released.
+    // Prefetch failed. Wait for the lock to be released before falling
+    // through to the normal navigation path. This prevents runtime data
+    // from leaking into the shell while the lock is held — the navigation
+    // blocks until the instant scope ends, then proceeds normally.
+    const { waitForNavigationLockIfActive } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    await waitForNavigationLockIfActive()
     return null
   }
   return null

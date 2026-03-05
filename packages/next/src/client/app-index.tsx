@@ -65,16 +65,6 @@ declare global {
      */
     __next_r?: string
     __next_f: NextFlight
-    /**
-     * Testing API that allows e2e tests to assert on the prefetched UI state
-     * before dynamic data streams in. Dev-only.
-     */
-    __EXPERIMENTAL_NEXT_TESTING__?: {
-      navigation: {
-        lock: () => void
-        unlock: () => void
-      }
-    }
   }
 }
 
@@ -175,7 +165,7 @@ nextServerDataLoadingGlobal.length = 0
 // Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-const readable = new ReadableStream({
+let readable: ReadableStream<Uint8Array> = new ReadableStream({
   start(controller) {
     nextServerDataRegisterWriter(controller)
   },
@@ -183,6 +173,17 @@ const readable = new ReadableStream({
 if (process.env.NODE_ENV !== 'production') {
   // @ts-expect-error
   readable.name = 'hydration'
+}
+
+// When Cache Components is enabled, tee the inlined Flight stream so we can
+// truncate a clone at the static stage byte boundary and cache it. We don't
+// know if `l` is present until React decodes the payload, so always tee and
+// cancel the clone if not needed.
+let initialFlightStreamForCache: ReadableStream<Uint8Array> | null = null
+if (process.env.__NEXT_CACHE_COMPONENTS) {
+  const [forReact, forCache] = readable.tee()
+  readable = forReact
+  initialFlightStreamForCache = forCache
 }
 
 let debugChannel:
@@ -331,11 +332,8 @@ export async function hydrate(
   const actionQueue: AppRouterActionQueue = createMutableActionQueue(
     createInitialRouterState({
       navigatedAt: initialTimestamp,
-      initialFlightData: initialRSCPayload.f,
-      initialCanonicalUrlParts: initialRSCPayload.c,
-      initialRenderedSearch: initialRSCPayload.q,
-      initialCouldBeIntercepted: initialRSCPayload.i,
-      initialPrerendered: initialRSCPayload.S,
+      initialRSCPayload,
+      initialFlightStreamForCache,
       location: window.location,
     }),
     instrumentationHooks

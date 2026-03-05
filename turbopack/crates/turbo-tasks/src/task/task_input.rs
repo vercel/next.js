@@ -18,6 +18,7 @@ use bincode::{
 use either::Either;
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
+use turbo_tasks_hash::HashAlgorithm;
 
 // This import is necessary for derive macros to work, as their expansion refers to the crate
 // name directly.
@@ -72,7 +73,8 @@ impl_task_input! {
     TaskId,
     ValueTypeId,
     Duration,
-    String
+    String,
+    HashAlgorithm
 }
 
 impl<T> TaskInput for Vec<T>

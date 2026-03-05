@@ -76,31 +76,29 @@ export function appBootstrap(hydrate: (assetPrefix: string) => void) {
       }
     }
 
-    // Instant Navigation Testing API: If the page was loaded with the instant
-    // test cookie set (from an MPA navigation while locked), skip hydration
-    // and set up a minimal testing API. Hydration would fail because the
-    // static shell response doesn't include the full Flight data stream.
-    // When unlock() is called, we clear the cookie and reload the page.
+    // Instant Navigation Testing: When the cookie is set, set up a
+    // CookieStore listener that auto-reloads when the cookie is cleared.
+    // This is shared infrastructure for both the dev tools toggle and
+    // external test frameworks.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
       const NEXT_INSTANT_TEST_COOKIE = 'next-instant-navigation-testing'
-      if (document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')) {
-        // Set up minimal testing API for the static shell
-        window.__EXPERIMENTAL_NEXT_TESTING__ = {
-          navigation: {
-            lock: () => {
-              console.error(
-                'Navigation lock already acquired. Concurrent locks are not allowed. ' +
-                  'Did you forget to release the previous lock?'
-              )
-            },
-            unlock: () => {
-              // Clear the cookie and reload to get the full page with dynamic data
-              document.cookie = `${NEXT_INSTANT_TEST_COOKIE}=;path=/;max-age=0`
+      if (
+        document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+        typeof cookieStore !== 'undefined'
+      ) {
+        cookieStore.addEventListener('change', (event: CookieChangeEvent) => {
+          for (const cookie of event.deleted) {
+            if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
               window.location.reload()
-            },
-          },
-        }
-        return
+              return
+            }
+          }
+        })
+      } else if (self.__next_instant_test) {
+        // The server returned a static shell but we couldn't set up the
+        // cookie listener (document.cookie is empty or cookieStore is
+        // unavailable). Reload immediately to get the full response.
+        window.location.reload()
       }
     }
 

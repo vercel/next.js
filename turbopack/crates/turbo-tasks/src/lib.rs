@@ -39,12 +39,14 @@
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
+#![feature(const_type_name)]
 
 pub mod backend;
 mod capture_future;
 mod collectibles;
 mod completion;
 pub mod debug;
+#[doc = include_str!("../FORMATTING.md")]
 pub mod display;
 pub mod duration_span;
 mod effect;
@@ -96,13 +98,13 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_macros::{TaskInput, function, value_impl};
+pub use turbo_tasks_macros::{TaskInput, function, turbobail, turbofmt, value_impl};
 
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
-    display::ValueToString,
+    display::{ValueToString, ValueToStringRef},
     effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
@@ -115,9 +117,10 @@ pub use crate::{
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
-        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
-        mark_session_dependent, mark_stateful, prevent_gc, run, run_once, run_once_with_reason,
-        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
+        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
+        mark_session_dependent, mark_stateful, mark_top_level_task, prevent_gc, run, run_once,
+        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,

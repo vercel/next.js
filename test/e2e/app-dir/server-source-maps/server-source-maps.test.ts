@@ -318,7 +318,6 @@ describe('app-dir - server source maps', () => {
       )
       if (isTurbopack) {
         // TODO(veil): Turbopack errors because it thinks the sources are not part of the project.
-        // TODO(veil-NDX-910): Turbopack's sourcemap loader drops `ignoreList` in browser sourcemaps.
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "ssr-error-log-ignore-listed",
@@ -330,7 +329,6 @@ describe('app-dir - server source maps', () => {
            "stack": [
              "logError app/ssr-error-log-ignore-listed/page.js (9:17)",
              "runWithInternalIgnored app/ssr-error-log-ignore-listed/page.js (19:13)",
-             "runInternalIgnored internal-pkg/ignored.ts (6:10)",
              "runWithExternalSourceMapped app/ssr-error-log-ignore-listed/page.js (18:29)",
              "runWithExternal app/ssr-error-log-ignore-listed/page.js (17:32)",
              "runWithInternalSourceMapped app/ssr-error-log-ignore-listed/page.js (16:18)",
@@ -851,7 +849,9 @@ describe('app-dir - server source maps', () => {
              "description": "ignore-listed frames",
              "environmentLabel": null,
              "label": "Console Error",
-             "source": "internal-pkg/sourcemapped.ts (9:13) @ runSetOfSets",
+             "source": "app/ssr-anonymous-stack-frame-sandwich/page.js (7:29) @ Page
+         >  7 |   runHiddenSetOfSetsInternal('ssr-anonymous-stack-frame-sandwich: internal')
+              |                             ^",
              "stack": [
                "<unknown> internal-pkg/sourcemapped.ts (18:43)",
                "<unknown> internal-pkg/sourcemapped.ts (11:7)",

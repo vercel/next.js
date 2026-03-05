@@ -256,12 +256,16 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
-  /** prerendered */
+  /** supportsPerSegmentPrefetching */
   S: boolean
   /**
    * headVaryParams - vary params for the head (metadata) of the response.
    */
   h: VaryParamsThenable | null
+  /** staleTime in seconds - Only present when Cache Components is enabled. */
+  s?: AsyncIterable<number>
+  /** staticStageByteLength - Resolves when the static stage ends. */
+  l?: Promise<number>
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -270,7 +274,7 @@ export type NavigationFlightResponse = {
   b?: string
   /** flightData */
   f: FlightData
-  /** prerendered */
+  /** supportsPerSegmentPrefetching */
   S: boolean
   /** renderedSearch */
   q: string
@@ -278,8 +282,12 @@ export type NavigationFlightResponse = {
   i: boolean
   /** staleTime - Only present in dynamic runtime prefetch responses. */
   s?: AsyncIterable<number>
+  /** staticStageByteLength - Resolves when the static stage ends. */
+  l?: Promise<number>
   /** headVaryParams */
   h: VaryParamsThenable | null
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

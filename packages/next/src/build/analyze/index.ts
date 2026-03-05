@@ -13,7 +13,6 @@ import { discoverRoutes } from '../route-discovery'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import http from 'node:http'
 
@@ -23,6 +22,7 @@ import { Telemetry } from '../../telemetry/storage'
 import { eventAnalyzeCompleted } from '../../telemetry/events'
 import { traceGlobals } from '../../trace/shared'
 import type { RoutesManifest } from '..'
+import { Bundler } from '../../lib/bundler'
 
 export type AnalyzeOptions = {
   dir: string
@@ -45,6 +45,7 @@ export default async function analyze({
     const config: NextConfigComplete = await loadConfig(PHASE_ANALYZE, dir, {
       silent: false,
       reactProductionProfiling,
+      bundler: Bundler.Turbopack,
     })
 
     process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
@@ -165,7 +166,7 @@ async function collectRoutesForAnalyze(
     config.basePath ? `${config.basePath}${pathPrefix}` : pathPrefix
   )
 
-  const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+  const isAppCacheComponentsEnabled = !!config.cacheComponents
 
   // Generate routes manifest
   const { routesManifest } = generateRoutesManifest({
@@ -177,7 +178,7 @@ async function collectRoutesForAnalyze(
     onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
-    isAppPPREnabled,
+    isAppCacheComponentsEnabled,
   })
 
   return routesManifest.dynamicRoutes

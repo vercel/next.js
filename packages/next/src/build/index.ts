@@ -166,7 +166,6 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import {
@@ -186,10 +185,6 @@ import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
-import {
-  checkIsAppPPREnabled,
-  checkIsRoutePPREnabled,
-} from '../server/lib/experimental/ppr'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -197,7 +192,6 @@ import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
 import { turbopackBuild } from './turbopack-build'
-import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
@@ -217,7 +211,6 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
-  writeRouteTypesEntryFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
 import {
@@ -374,6 +367,8 @@ export type PrerenderManifest = {
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
 }
+
+export type SubresourceIntegrityManifest = Record<string, string>
 
 type ManifestBuiltRoute = {
   /**
@@ -548,12 +543,10 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
-    deploymentId,
   }: {
     buildId: string
     distDir: string
     locales: readonly string[] | undefined
-    deploymentId: string
   }
 ) {
   const ssgPages = new Set<string>(
@@ -570,12 +563,11 @@ async function writeClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
-  // When skew protection is enabled, we instead just rely on the deployment id query string to
-  // load the correct manifests, to avoid the build id.
-  let ssgManifestPath = deploymentId
-    ? path.join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
-    : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
-
+  let ssgManifestPath = path.join(
+    CLIENT_STATIC_FILES_PATH,
+    buildId,
+    '_ssgManifest.js'
+  )
   await writeFileUtf8(
     path.join(distDir, ssgManifestPath),
     clientSsgManifestContent
@@ -781,28 +773,35 @@ async function writeStandaloneDirectory(
     })
 }
 
-function getNumberOfWorkers(config: NextConfigComplete) {
+function getNumberOfWorkers(config: NextConfigComplete, maxTasks?: number) {
+  let workers: number
+
   if (
     config.experimental.cpus &&
     config.experimental.cpus !== defaultConfig.experimental!.cpus
   ) {
-    return config.experimental.cpus
-  }
-
-  if (config.experimental.memoryBasedWorkersCount) {
-    return Math.max(
+    // If it's not set to the default, it's a user override
+    workers = config.experimental.cpus
+  } else if (config.experimental.memoryBasedWorkersCount) {
+    workers = Math.max(
       Math.min(config.experimental.cpus || 1, Math.floor(os.freemem() / 1e9)),
       // enforce a minimum of 4 workers
       4
     )
+  } else if (config.experimental.cpus) {
+    workers = config.experimental.cpus
+  } else {
+    // Fall back to 4 workers if a count is not specified
+    workers = 4
   }
 
-  if (config.experimental.cpus) {
-    return config.experimental.cpus
+  // Cap workers to one more than the number of tasks.
+  // Tasks can be passed to avoid over-allocating workers.
+  if (maxTasks !== undefined && maxTasks > 0) {
+    workers = Math.min(workers, maxTasks + 1)
   }
 
-  // Fall back to 4 workers if a count is not specified
-  return 4
+  return Math.max(workers, 1)
 }
 
 const staticWorkerPath = require.resolve('./worker')
@@ -840,15 +839,22 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
-    forkOptions: process.env.NEXT_CPU_PROF
-      ? {
-          env: {
-            NEXT_CPU_PROF: '1',
-            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
-            __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
-          },
-        }
-      : undefined,
+    forkOptions: {
+      env: {
+        ...(process.env.NEXT_CPU_PROF
+          ? {
+              NEXT_CPU_PROF: '1',
+              NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+              __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
+            }
+          : undefined),
+        // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
+        __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX:
+          config.experimental.immutableAssetToken || config.deploymentId
+            ? `?dpl=${config.experimental.immutableAssetToken || config.deploymentId}`
+            : '',
+      },
+    },
   }) as StaticWorker
 }
 
@@ -965,6 +971,7 @@ export default async function build(
                     ({ key: a }, { key: b }) => a.localeCompare(b)
                   )
                 },
+                bundler,
               }),
             turborepoAccessTraceResult
           )
@@ -990,6 +997,11 @@ export default async function build(
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
+
+      // Set up code frame renderer for error formatting
+      const { installCodeFrameSupport } =
+        require('../server/lib/install-code-frame') as typeof import('../server/lib/install-code-frame')
+      installCodeFrameSupport()
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
@@ -1359,13 +1371,7 @@ export default async function build(
       await nextBuildSpan
         .traceChild('generate-route-types')
         .traceAsyncFn(async () => {
-          // Actual type files go to route-types.d.ts (not routes.d.ts)
-          // routes.d.ts is reserved for the entry file
-          const routeTypesFilePath = path.join(
-            distDir,
-            'types',
-            'route-types.d.ts'
-          )
+          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
           const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
           await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
@@ -1392,20 +1398,6 @@ export default async function build(
             validatorFilePath,
             Boolean(config.experimental.strictRouteTypes)
           )
-
-          // Write the entry file at {distDirRoot}/types/routes.d.ts
-          // This ensures next-env.d.ts has a consistent import path
-          const entryFilePath = path.join(
-            dir,
-            config.distDirRoot,
-            'types',
-            'routes.d.ts'
-          )
-          const actualTypesDir = path.join(distDir, 'types')
-          await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
-            strictRouteTypes: Boolean(config.experimental.strictRouteTypes),
-            typedRoutes: Boolean(config.typedRoutes),
-          })
         })
 
       // Turbopack already handles conflicting app and page routes.
@@ -1496,8 +1488,6 @@ export default async function build(
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
-      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
-
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
       // Generate the routes manifest using the extracted helper
@@ -1513,7 +1503,7 @@ export default async function build(
             onMatchHeaders,
             rewrites,
             restrictedRedirectPaths,
-            isAppPPREnabled,
+            isAppCacheComponentsEnabled,
             deploymentId: config.deploymentId,
           })
         )
@@ -1959,7 +1949,8 @@ export default async function build(
       // #endregion
       // #region Collect data
 
-      const numberOfWorkers = getNumberOfWorkers(config)
+      const totalPageCount = pageKeys.pages.length + (pageKeys.app?.length || 0)
+      const numberOfWorkers = getNumberOfWorkers(config, totalPageCount)
       const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner(
         `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''}`
@@ -2065,9 +2056,10 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
-              pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
+              clientAssetToken:
+                config.experimental.immutableAssetToken || config.deploymentId,
               sriEnabled,
               cacheMaxMemorySize: config.cacheMaxMemorySize,
             })
@@ -2176,7 +2168,10 @@ export default async function build(
                   for (const [originalPath, normalizedPath] of Object.entries(
                     appPathRoutes
                   )) {
-                    if (normalizedPath === page) {
+                    if (
+                      normalizedPath === page &&
+                      mappedAppPages[originalPath]
+                    ) {
                       pagePath = mappedAppPages[originalPath].replace(
                         /^private-next-app-dir/,
                         ''
@@ -2287,9 +2282,11 @@ export default async function build(
                               : config.experimental.isrFlushToDisk,
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
-                            pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
+                            clientAssetToken:
+                              config.experimental.immutableAssetToken ||
+                              config.deploymentId,
                             sriEnabled,
                           })
                         }
@@ -2592,16 +2589,11 @@ export default async function build(
               2
             )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
 
-            let clientMiddlewareManifestPath = config.deploymentId
-              ? path.join(
-                  CLIENT_STATIC_FILES_PATH,
-                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-                )
-              : path.join(
-                  CLIENT_STATIC_FILES_PATH,
-                  buildId,
-                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-                )
+            let clientMiddlewareManifestPath = path.join(
+              CLIENT_STATIC_FILES_PATH,
+              buildId,
+              TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+            )
 
             await writeFileUtf8(
               path.join(distDir, clientMiddlewareManifestPath),
@@ -2624,6 +2616,8 @@ export default async function build(
         buildTracesPromise = nextBuildSpan
           .traceChild('collect-build-traces')
           .traceAsyncFn(() => {
+            const { collectBuildTraces } =
+              require('./collect-build-traces') as typeof import('./collect-build-traces')
             return collectBuildTraces({
               dir,
               config,
@@ -2692,11 +2686,13 @@ export default async function build(
         },
         {
           featureName: 'experimental/ppr',
-          invocationCount: config.experimental.ppr ? 1 : 0,
+          invocationCount: config.cacheComponents ? 1 : 0,
         },
         {
           featureName: 'turbopackFileSystemCache',
-          invocationCount: isFileSystemCacheEnabledForBuild(config) ? 1 : 0,
+          invocationCount: config.experimental?.turbopackFileSystemCacheForBuild
+            ? 1
+            : 0,
         },
       ]
       telemetry.record(
@@ -2876,10 +2872,6 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
-                const isRoutePPREnabled: boolean = appConfig
-                  ? checkIsRoutePPREnabled(config.experimental.ppr)
-                  : false
-
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip
                   // rendering the route. This is because we don't support
@@ -2904,7 +2896,6 @@ export default async function build(
                     _fallbackRouteParams: route.fallbackRouteParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
-                    _isRoutePPREnabled: isRoutePPREnabled,
                     _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
                   }
                 })
@@ -3072,8 +3063,7 @@ export default async function build(
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
-              !isAppRouteHandler &&
-              checkIsRoutePPREnabled(config.experimental.ppr)
+              !isAppRouteHandler && isAppCacheComponentsEnabled
                 ? true
                 : undefined
 
@@ -3213,7 +3203,7 @@ export default async function build(
                 prerenderManifest.routes[route.pathname] = {
                   initialStatus: status,
                   initialHeaders: meta.headers,
-                  renderingMode: isAppPPREnabled
+                  renderingMode: isAppCacheComponentsEnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
                       : RenderingMode.STATIC
@@ -3297,7 +3287,7 @@ export default async function build(
                 let dynamicRoute = routesManifest.dynamicRoutes.find(
                   (r) => r.page === route.pathname
                 )
-                if (!isAppRouteHandler && isAppPPREnabled) {
+                if (!isAppRouteHandler && isAppCacheComponentsEnabled) {
                   // If the dynamic route wasn't found, then we need to create
                   // it. This ensures that for each fallback shell there's an
                   // entry in the app routes manifest which enables routing for
@@ -3400,7 +3390,7 @@ export default async function build(
 
                 prerenderManifest.dynamicRoutes[route.pathname] = {
                   experimentalPPR: isRoutePPREnabled,
-                  renderingMode: isAppPPREnabled
+                  renderingMode: isAppCacheComponentsEnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
                       : RenderingMode.STATIC
@@ -3958,7 +3948,6 @@ export default async function build(
           distDir,
           buildId,
           locales: config.i18n?.locales,
-          deploymentId: config.deploymentId,
         })
       } else {
         await writePrerenderManifest(distDir, {

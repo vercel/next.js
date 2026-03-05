@@ -1,5 +1,3 @@
-import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
-
 // eslint-disable-next-line import/no-extraneous-dependencies
 export {
   createTemporaryReferenceSet,
@@ -40,7 +38,6 @@ export { createMetadataComponents } from '../../lib/metadata/metadata'
 export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
-export { Postpone } from './rsc/postpone'
 export { taintObjectReference } from './rsc/taint'
 export { collectSegmentData } from './collect-segment-data'
 
@@ -49,6 +46,7 @@ export const InstantValidation =
     ? (require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation'))
     : undefined
 
+import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'

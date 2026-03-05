@@ -22,6 +22,7 @@ let appPort
 let stallJs
 let proxyServer
 let nextDataRequests = []
+let buildId
 
 describe('Prefetching Links in viewport', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -29,6 +30,7 @@ describe('Prefetching Links in viewport', () => {
     () => {
       beforeAll(async () => {
         await nextBuild(appDir)
+        buildId = await readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
         const port = await findPort()
         app = await nextStart(appDir, port)
         appPort = await findPort()
@@ -180,7 +182,7 @@ describe('Prefetching Links in viewport', () => {
             `Object.keys(window.next.router.sdc)`
           )
           expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
-            '/_next/data/test-build/ssg/dynamic/one.json',
+            `/_next/data/${buildId}/ssg/dynamic/one.json`,
           ])
         } finally {
           if (browser) await browser.close()
@@ -372,7 +374,7 @@ describe('Prefetching Links in viewport', () => {
             `Object.keys(window.next.router.sdc)`
           )
           expect(hrefs2.map((href) => new URL(href).pathname)).toEqual([
-            '/_next/data/test-build/ssg/basic.json',
+            `/_next/data/${buildId}/ssg/basic.json`,
           ])
         } finally {
           if (browser) await browser.close()
@@ -546,7 +548,7 @@ describe('Prefetching Links in viewport', () => {
 
       it('should correctly omit pre-generated dynamic pages from SSG manifest', async () => {
         const content = await readFile(
-          join(appDir, '.next', 'static', 'test-build', '_ssgManifest.js'),
+          join(appDir, '.next', 'static', buildId, '_ssgManifest.js'),
           'utf8'
         )
 
@@ -573,15 +575,15 @@ describe('Prefetching Links in viewport', () => {
         hrefs.sort()
 
         expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
-          '/_next/data/test-build/ssg/basic.json',
-          '/_next/data/test-build/ssg/catch-all/foo.json',
-          '/_next/data/test-build/ssg/catch-all/foo/bar.json',
-          '/_next/data/test-build/ssg/catch-all/one.json',
-          '/_next/data/test-build/ssg/catch-all/one/two.json',
-          '/_next/data/test-build/ssg/dynamic-nested/foo/bar.json',
-          '/_next/data/test-build/ssg/dynamic-nested/one/two.json',
-          '/_next/data/test-build/ssg/dynamic/one.json',
-          '/_next/data/test-build/ssg/dynamic/two.json',
+          `/_next/data/${buildId}/ssg/basic.json`,
+          `/_next/data/${buildId}/ssg/catch-all/foo.json`,
+          `/_next/data/${buildId}/ssg/catch-all/foo/bar.json`,
+          `/_next/data/${buildId}/ssg/catch-all/one.json`,
+          `/_next/data/${buildId}/ssg/catch-all/one/two.json`,
+          `/_next/data/${buildId}/ssg/dynamic-nested/foo/bar.json`,
+          `/_next/data/${buildId}/ssg/dynamic-nested/one/two.json`,
+          `/_next/data/${buildId}/ssg/dynamic/one.json`,
+          `/_next/data/${buildId}/ssg/dynamic/two.json`,
         ])
       })
 
@@ -593,14 +595,14 @@ describe('Prefetching Links in viewport', () => {
         hrefs.sort()
 
         expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
-          '/_next/data/test-build/ssg/catch-all/foo.json',
-          '/_next/data/test-build/ssg/catch-all/foo/bar.json',
-          '/_next/data/test-build/ssg/catch-all/one.json',
-          '/_next/data/test-build/ssg/catch-all/one/two.json',
-          '/_next/data/test-build/ssg/dynamic-nested/foo/bar.json',
-          '/_next/data/test-build/ssg/dynamic-nested/one/two.json',
-          '/_next/data/test-build/ssg/dynamic/one.json',
-          '/_next/data/test-build/ssg/dynamic/two.json',
+          `/_next/data/${buildId}/ssg/catch-all/foo.json`,
+          `/_next/data/${buildId}/ssg/catch-all/foo/bar.json`,
+          `/_next/data/${buildId}/ssg/catch-all/one.json`,
+          `/_next/data/${buildId}/ssg/catch-all/one/two.json`,
+          `/_next/data/${buildId}/ssg/dynamic-nested/foo/bar.json`,
+          `/_next/data/${buildId}/ssg/dynamic-nested/one/two.json`,
+          `/_next/data/${buildId}/ssg/dynamic/one.json`,
+          `/_next/data/${buildId}/ssg/dynamic/two.json`,
         ])
       })
     }

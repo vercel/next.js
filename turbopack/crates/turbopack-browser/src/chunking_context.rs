@@ -7,7 +7,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{DeterministicHash, encode_hex};
+use turbo_tasks_hash::{DeterministicHash, HashAlgorithm};
 use turbopack_core::{
     asset::Asset,
     chunk::{
@@ -577,15 +577,20 @@ impl ChunkingContext for BrowserChunkingContext {
                 let Some(asset) = asset else {
                     bail!("chunk_path requires an asset when content hashing is enabled");
                 };
-                let hash = asset.content().content_hash().await?.context(
+                let hash = asset
+                    .content()
+                    .content_hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .await?;
+                let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \
                      enabled",
                 )?;
                 let length = length as usize;
+                let hash = &hash[0..length];
                 if let Some(prefix) = prefix {
-                    format!("{prefix}-{hash:0length$x}{extension}").into()
+                    format!("{prefix}-{hash}{extension}").into()
                 } else {
-                    format!("{hash:0length$x}{extension}").into()
+                    format!("{hash}{extension}").into()
                 }
             }
         };
@@ -641,13 +646,13 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn asset_path(
         &self,
-        content_hash: Vc<u64>,
+        content_hash: Vc<RcStr>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
-        let content_hash = encode_hex(*content_hash.await?);
+        let content_hash = content_hash.await?;
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{content_hash}.{ext}",
@@ -679,11 +684,6 @@ impl ChunkingContext for BrowserChunkingContext {
                 static_suffix: ResolvedVc::cell(None),
             })
             .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_hot_module_replacement_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_hot_module_replacement)
     }
 
     #[turbo_tasks::function]

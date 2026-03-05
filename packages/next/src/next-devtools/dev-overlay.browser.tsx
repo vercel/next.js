@@ -22,6 +22,7 @@ import {
   type OverlayState,
   type DispatcherEvent,
   ACTION_CACHE_INDICATOR,
+  ACTION_CACHE_ONLY_TOGGLE,
 } from './dev-overlay/shared'
 
 import {
@@ -73,6 +74,7 @@ export interface Dispatcher {
   segmentExplorerNodeAdd(nodeState: SegmentNodeState): void
   segmentExplorerNodeRemove(nodeState: SegmentNodeState): void
   segmentExplorerUpdateRouteState(page: string): void
+  cacheOnlyToggle(): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -224,6 +226,9 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page })
     }
   ),
+  cacheOnlyToggle: createQueuable((dispatch: Dispatch) => {
+    dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
+  }),
 }
 
 function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {

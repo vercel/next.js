@@ -24,6 +24,7 @@ import {
   NEXT_FONT_MANIFEST,
   PAGES_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
   TURBOPACK_CLIENT_BUILD_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   WEBPACK_STATS,
@@ -33,7 +34,6 @@ import { readFileSync } from 'fs'
 import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundler'
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
-import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
@@ -54,6 +54,7 @@ import {
   processRoute,
   createEdgeRuntimeManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin-utils'
+import type { SubresourceIntegrityManifest } from '../../../build'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -71,6 +72,7 @@ type ManifestName =
   | typeof WEBPACK_STATS
   | typeof APP_PATHS_MANIFEST
   | `${typeof SERVER_REFERENCE_MANIFEST}.json`
+  | `${typeof SUBRESOURCE_INTEGRITY_MANIFEST}.json`
   | `${typeof NEXT_FONT_MANIFEST}.json`
   | typeof REACT_LOADABLE_MANIFEST
   | typeof TURBOPACK_CLIENT_BUILD_MANIFEST
@@ -200,6 +202,8 @@ export class TurbopackManifestLoader {
     new ManifestsMap()
   private webpackStats: ManifestsMap<EntryKey, WebpackStats> =
     new ManifestsMap()
+  private sriManifests: ManifestsMap<EntryKey, SubresourceIntegrityManifest> =
+    new ManifestsMap()
   private encryptionKey: string
   /// interceptionRewrites that have been written to disk
   /// This is used to avoid unnecessary writes if the rewrites haven't changed
@@ -207,27 +211,27 @@ export class TurbopackManifestLoader {
 
   private readonly distDir: string
   private readonly buildId: string
-  private readonly deploymentId: string
   private readonly dev: boolean
+  private readonly sriEnabled: boolean
 
   constructor({
     distDir,
     buildId,
     encryptionKey,
     dev,
-    deploymentId,
+    sriEnabled,
   }: {
     buildId: string
     distDir: string
     encryptionKey: string
     dev: boolean
-    deploymentId: string
+    sriEnabled: boolean
   }) {
     this.distDir = distDir
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dev = dev
-    this.deploymentId = deploymentId
+    this.sriEnabled = sriEnabled
   }
 
   delete(key: EntryKey) {
@@ -363,6 +367,32 @@ export class TurbopackManifestLoader {
     writeFileAtomic(path, JSON.stringify(webpackStats, null, 2))
   }
 
+  private writeSriManifest(): void {
+    if (!this.sriEnabled || !this.sriManifests.takeChanged()) {
+      return
+    }
+    const sriManifest = this.mergeSriManifests(this.sriManifests.values())
+    const pathJson = join(
+      this.distDir,
+      'server',
+      `${SUBRESOURCE_INTEGRITY_MANIFEST}.json`
+    )
+    const pathJs = join(
+      this.distDir,
+      'server',
+      `${SUBRESOURCE_INTEGRITY_MANIFEST}.js`
+    )
+    deleteCache(pathJson)
+    deleteCache(pathJs)
+    writeFileAtomic(pathJson, JSON.stringify(sriManifest, null, 2))
+    writeFileAtomic(
+      pathJs,
+      `self.__SUBRESOURCE_INTEGRITY_MANIFEST=${JSON.stringify(
+        JSON.stringify(sriManifest)
+      )}`
+    )
+  }
+
   loadBuildManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
     this.buildManifests.set(
       getEntryKey(type, 'server', pageName),
@@ -389,6 +419,19 @@ export class TurbopackManifestLoader {
     this.webpackStats.set(
       getEntryKey(type, 'client', pageName),
       readPartialManifestContent(this.distDir, WEBPACK_STATS, pageName, type)
+    )
+  }
+
+  loadSriManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
+    if (!this.sriEnabled) return
+    this.sriManifests.set(
+      getEntryKey(type, 'client', pageName),
+      readPartialManifestContent(
+        this.distDir,
+        `${SUBRESOURCE_INTEGRITY_MANIFEST}.json`,
+        pageName,
+        type
+      )
     )
   }
 
@@ -503,7 +546,11 @@ export class TurbopackManifestLoader {
     }
 
     const interceptionRewrites = JSON.stringify(
-      rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+      rewrites.beforeFiles.filter(
+        (
+          require('../../../lib/is-interception-route-rewrite') as typeof import('../../../lib/is-interception-route-rewrite')
+        ).isInterceptionRouteRewrite
+      )
     )
 
     if (this.cachedInterceptionRewrites === interceptionRewrites) {
@@ -593,25 +640,16 @@ export class TurbopackManifestLoader {
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
 
-    let buildManifestPath
-    let ssgManifestPath
-    if (this.deploymentId && !this.dev) {
-      // When skew protection is enabled, we instead just rely on the deployment id query string to
-      // load the correct manifests, to avoid the build id.
-      buildManifestPath = join(CLIENT_STATIC_FILES_PATH, '_buildManifest.js')
-      ssgManifestPath = join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
-    } else {
-      buildManifestPath = join(
-        CLIENT_STATIC_FILES_PATH,
-        this.buildId,
-        '_buildManifest.js'
-      )
-      ssgManifestPath = join(
-        CLIENT_STATIC_FILES_PATH,
-        this.buildId,
-        '_ssgManifest.js'
-      )
-    }
+    let buildManifestPath = posix.join(
+      CLIENT_STATIC_FILES_PATH,
+      this.buildId,
+      '_buildManifest.js'
+    )
+    let ssgManifestPath = posix.join(
+      CLIENT_STATIC_FILES_PATH,
+      this.buildId,
+      '_ssgManifest.js'
+    )
 
     if (
       this.dev &&
@@ -802,14 +840,11 @@ export class TurbopackManifestLoader {
   private writeMiddlewareManifest(): {
     clientMiddlewareManifestPath: string
   } {
-    let clientMiddlewareManifestPath =
-      this.deploymentId && !this.dev
-        ? join(CLIENT_STATIC_FILES_PATH, TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST)
-        : join(
-            CLIENT_STATIC_FILES_PATH,
-            this.buildId,
-            TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-          )
+    let clientMiddlewareManifestPath = posix.join(
+      CLIENT_STATIC_FILES_PATH,
+      this.buildId,
+      TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+    )
 
     if (this.dev && !this.middlewareManifests.takeChanged()) {
       return {
@@ -882,6 +917,14 @@ export class TurbopackManifestLoader {
     return sortObjectByKey(manifest)
   }
 
+  private mergeSriManifests(manifests: Iterable<SubresourceIntegrityManifest>) {
+    const manifest: SubresourceIntegrityManifest = {}
+    for (const m of manifests) {
+      Object.assign(manifest, m)
+    }
+    return sortObjectByKey(manifest)
+  }
+
   private writePagesManifest(): void {
     if (!this.pagesManifests.takeChanged()) {
       return
@@ -913,6 +956,8 @@ export class TurbopackManifestLoader {
     this.writeInterceptionRouteRewriteManifest(devRewrites, productionRewrites)
     this.writeNextFontManifest()
     this.writePagesManifest()
+
+    this.writeSriManifest()
 
     if (process.env.TURBOPACK_STATS != null) {
       this.writeWebpackStats()

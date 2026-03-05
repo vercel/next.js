@@ -82,6 +82,8 @@ export async function handleRouteType({
       await manifestLoader.loadFontManifest('/_app', 'pages')
       await manifestLoader.loadFontManifest(page, 'pages')
 
+      await manifestLoader.loadSriManifest(page, 'pages')
+
       if (shouldCreateWebpackStats) {
         await manifestLoader.loadWebpackStats(page, 'pages')
       }
@@ -113,6 +115,8 @@ export async function handleRouteType({
       manifestLoader.loadAppPathsManifest(page)
       manifestLoader.loadActionManifest(page)
       manifestLoader.loadFontManifest(page, 'app')
+
+      manifestLoader.loadSriManifest(page, 'app')
 
       if (shouldCreateWebpackStats) {
         manifestLoader.loadWebpackStats(page, 'app')

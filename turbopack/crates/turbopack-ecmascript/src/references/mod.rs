@@ -63,7 +63,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -533,10 +533,8 @@ pub async fn analyze_ecmascript_module(
 
     match result {
         Ok(result) => Ok(result),
-        Err(err) => Err(err.context(format!(
-            "failed to analyze ecmascript module '{}'",
-            module.ident().to_string().await?
-        ))),
+        Err(err) => Err(err
+            .context(turbofmt!("failed to analyze ecmascript module '{}'", module.ident()).await?)),
     }
 }
 
@@ -3089,12 +3087,7 @@ async fn handle_free_var_reference(
                             span.hi.to_u32(),
                         ),
                         Default::default(),
-                        match state.tree_shaking_mode {
-                            Some(
-                                TreeShakingMode::ModuleFragments | TreeShakingMode::ReexportsOnly,
-                            ) => export.clone().map(ModulePart::export),
-                            None => None,
-                        },
+                        export.clone().map(ModulePart::export),
                         ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,

@@ -138,4 +138,54 @@ describe('segment cache (refresh)', () => {
       expect(await docsPage.textContent()).toBe('Static docs page')
     }, 'no-requests')
   })
+
+  it('re-navigation to a fully static page does not overwrite dynamic slots with default content', async () => {
+    // Load the main Dashboard page. The @navbar slot renders dynamic content
+    // (connection() + randomUUID()), but the @main slot is static.
+    let page: Playwright.Page
+    const browser = await next.browser('/dashboard', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Navigate to the Analytics page. This is a fully static page (both the
+    // @main/analytics slot and the @navbar/default slot are static), so the
+    // server responds with a Static completeness marker. The client writes
+    // all segments into the segment cache.
+    await act(async () => {
+      const toggleAnalyticsLink = await browser.elementByCss(
+        'input[data-link-accordion="/dashboard/analytics"]'
+      )
+      await toggleAnalyticsLink.click()
+      const link = await browser.elementByCss('a[href="/dashboard/analytics"]')
+      await link.click()
+    })
+
+    // Navigate back to the Dashboard page.
+    await act(async () => {
+      const toggleDashboardLink = await browser.elementByCss(
+        'input[data-link-accordion="/dashboard"]'
+      )
+      await toggleDashboardLink.click()
+      const link = await browser.elementByCss('a[href="/dashboard"]')
+      await link.click()
+    })
+
+    // Navigate to the Analytics page again. Since it's fully static and was
+    // already visited, this should be served entirely from the segment cache
+    // without any server requests.
+    await act(async () => {
+      const link = await browser.elementByCss('a[href="/dashboard/analytics"]')
+      await link.click()
+    }, 'no-requests')
+
+    // Verify the navbar still shows the dynamic content from the original
+    // /dashboard render, not the static @navbar/default.tsx content.
+    const navbarDynamicRenderCounter = await browser.elementById(
+      'navbar-dynamic-render-counter'
+    )
+    expect(await navbarDynamicRenderCounter.textContent()).toBe('0')
+  })
 })

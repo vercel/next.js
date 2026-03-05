@@ -1169,7 +1169,7 @@ async fn realpath(
     }
     match &result.path_result {
         Ok(path) => Ok(path.clone()),
-        Err(e) => bail!(e.as_error_message(fs_path, &result)),
+        Err(e) => bail!(e.as_error_message(fs_path, &result).await?),
     }
 }
 
@@ -1375,7 +1375,7 @@ async fn find_package(
         if let Some(name) = basepath.get_path_to(package_dir) {
             Ok(name.into())
         } else {
-            bail!("Package directory {package_dir} is not inside the lookup path {basepath}");
+            bail!("Package directory {package_dir} is not inside the lookup path {basepath}",);
         }
     }
 
@@ -1531,7 +1531,7 @@ pub async fn resolve_raw(
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(e) => bail!(e.as_error_message(path, result)),
+            Err(e) => bail!(e.as_error_message(path, result).await?),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
@@ -3121,7 +3121,7 @@ async fn resolved(
     let result = &*fs_path.realpath_with_links().await?;
     let path = match &result.path_result {
         Ok(path) => path,
-        Err(e) => bail!(e.as_error_message(&fs_path, result)),
+        Err(e) => bail!(e.as_error_message(&fs_path, result).await?),
     };
 
     let path_ref = path.clone();
@@ -3668,34 +3668,56 @@ mod tests {
         ));
 
         tt.run_once(async move {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
-            let lookup_path = fs.root().owned().await?;
+            #[turbo_tasks::value(transparent)]
+            struct ResolveRelativeRequestOutput(Vec<(String, String)>);
 
-            let result = resolve_relative_helper(
-                lookup_path,
+            #[turbo_tasks::function(operation)]
+            async fn resolve_relative_request_operation(
+                path: RcStr,
+                pattern: Pattern,
+                enable_typescript_with_output_extension: bool,
+                fully_specified: bool,
+            ) -> anyhow::Result<Vc<ResolveRelativeRequestOutput>> {
+                let fs = DiskFileSystem::new(rcstr!("temp"), path);
+                let lookup_path = fs.root().owned().await?;
+
+                let result = resolve_relative_helper(
+                    lookup_path,
+                    pattern,
+                    enable_typescript_with_output_extension,
+                    fully_specified,
+                )
+                .await?;
+
+                let results: Vec<(String, String)> = result
+                    .primary
+                    .iter()
+                    .map(async |(k, v)| {
+                        Ok((
+                            k.to_string(),
+                            if let ResolveResultItem::Source(source) = v {
+                                source.ident().await?.path.path.to_string()
+                            } else {
+                                unreachable!()
+                            },
+                        ))
+                    })
+                    .try_join()
+                    .await?;
+
+                Ok(Vc::cell(results))
+            }
+
+            let results = resolve_relative_request_operation(
+                path,
                 pattern,
                 enable_typescript_with_output_extension,
                 fully_specified,
             )
+            .read_strongly_consistent()
             .await?;
 
-            let results: Vec<(String, String)> = result
-                .primary
-                .iter()
-                .map(async |(k, v)| {
-                    Ok((
-                        k.to_string(),
-                        if let ResolveResultItem::Source(source) = v {
-                            source.ident().await?.path.path.to_string()
-                        } else {
-                            unreachable!()
-                        },
-                    ))
-                })
-                .try_join()
-                .await?;
-
-            assert_eq!(results, expected_owned);
+            assert_eq!(&*results, &expected_owned);
 
             Ok(())
         })

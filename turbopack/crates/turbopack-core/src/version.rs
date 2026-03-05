@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileContent, LinkType};
-use turbo_tasks_hash::encode_hex;
+use turbo_tasks_hash::HashAlgorithm;
 
 use crate::asset::AssetContent;
 
@@ -66,13 +65,6 @@ pub struct VersionedAssetContent {
     // Otherwise, reading `content` and `version` at two different instants in
     // time might return inconsistent values.
     asset_content: ReadRef<AssetContent>,
-}
-
-#[turbo_tasks::value]
-#[derive(Clone)]
-enum AssetContentSnapshot {
-    File(ReadRef<FileContent>),
-    Redirect { target: String, link_type: LinkType },
 }
 
 #[turbo_tasks::value_impl]
@@ -233,12 +225,14 @@ impl FileHashVersion {
     pub async fn compute(asset_content: &AssetContent) -> Result<Vc<Self>> {
         match asset_content {
             AssetContent::File(file_vc) => {
-                let hash = file_vc.content_hash().await?.context("file not found")?;
-                Ok(Self::cell(FileHashVersion {
-                    hash: encode_hex(hash).into(),
-                }))
+                let hash = file_vc
+                    .content_hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .owned()
+                    .await?
+                    .context("file not found")?;
+                Ok(Self::cell(FileHashVersion { hash }))
             }
-            AssetContent::Redirect { .. } => Err(anyhow!("not a file")),
+            AssetContent::Redirect { .. } => bail!("not a file"),
         }
     }
 }
