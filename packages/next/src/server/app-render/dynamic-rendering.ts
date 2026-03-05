@@ -144,6 +144,7 @@ export function markCurrentScopeAsDynamic(
         // A private cache scope is already dynamic by definition.
         return
       case 'prerender-legacy':
+      case 'prerender-ppr':
       case 'request':
         break
       default:
@@ -164,6 +165,12 @@ export function markCurrentScopeAsDynamic(
 
   if (workUnitStore) {
     switch (workUnitStore.type) {
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
@@ -233,6 +240,7 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'prerender':
     case 'prerender-runtime':
     case 'prerender-legacy':
+    case 'prerender-ppr':
     case 'prerender-client':
     case 'validation-client':
       break
@@ -337,7 +345,12 @@ type PostponeProps = {
   route: string
 }
 export function Postpone({ reason, route }: PostponeProps): never {
-  postponeWithTracking(route, reason, null)
+  const prerenderStore = workUnitAsyncStorage.getStore()
+  const dynamicTracking =
+    prerenderStore && prerenderStore.type === 'prerender-ppr'
+      ? prerenderStore.dynamicTracking
+      : null
+  postponeWithTracking(route, reason, dynamicTracking)
 }
 
 export function postponeWithTracking(
@@ -544,6 +557,7 @@ export function createHangingInputAbortSignal(
       return controller.signal
     case 'prerender-client':
     case 'validation-client':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':
@@ -589,6 +603,17 @@ export function useDynamicRouteParams(expression: string) {
               workStore.route,
               expression
             )
+          )
+        }
+        break
+      }
+      case 'prerender-ppr': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
+          return postponeWithTracking(
+            workStore.route,
+            expression,
+            workUnitStore.dynamicTracking
           )
         }
         break
@@ -642,7 +667,8 @@ export function useDynamicSearchParams(expression: string) {
       )
       break
     }
-    case 'prerender-legacy': {
+    case 'prerender-legacy':
+    case 'prerender-ppr': {
       if (workStore.forceStatic) {
         return
       }
