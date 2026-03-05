@@ -2,8 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('agent-routes', () => {
-  const isTurbopack = !!process.env.IS_TURBOPACK_TEST
-
   const { next } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -154,61 +152,54 @@ describe('agent-routes', () => {
     expect(body).toBe('explicit sitemap markdown route\n')
   })
 
-  if (isTurbopack) {
-    // TODO: enable semantic sitemap assertions for Turbopack once metadata route loader parity lands.
-    it.skip('should serve semantic sitemap JSON when enabled (turbopack)', () => {})
+  it('should serve semantic sitemap JSON when enabled', async () => {
+    let res: Awaited<ReturnType<typeof next.fetch>> | undefined
+    let body: any
 
-    it.skip('should default semanticSitemap routes to markdown-only mode (turbopack)', () => {})
-  } else {
-    it('should serve semantic sitemap JSON when enabled', async () => {
-      let res: Awaited<ReturnType<typeof next.fetch>> | undefined
-      let body: any
+    await retry(async () => {
+      res = await next.fetch('/sitemap.json')
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toContain('application/json')
+      body = await res.json()
+    })
 
-      await retry(async () => {
-        res = await next.fetch('/sitemap.json')
-        expect(res.status).toBe(200)
-        expect(res.headers.get('content-type')).toContain('application/json')
-        body = await res.json()
-      })
+    expect(res!.headers.get('x-robots-tag')).toBe('noindex')
+    expect(body).toEqual([
+      {
+        url: 'https://example.com/',
+        title: 'Home',
+        summary: 'Updated daily. Priority 1.',
+      },
+      {
+        url: 'https://example.com/docs',
+        title: 'Docs',
+        summary: 'Updated weekly. Priority 0.7.',
+      },
+    ])
+  })
 
-      expect(res!.headers.get('x-robots-tag')).toBe('noindex')
-      expect(body).toEqual([
-        {
-          url: 'https://example.com/',
-          title: 'Home',
-          summary: 'Updated daily. Priority 1.',
-        },
-        {
-          url: 'https://example.com/docs',
-          title: 'Docs',
-          summary: 'Updated weekly. Priority 0.7.',
-        },
+  it('should default semanticSitemap routes to markdown-only mode', async () => {
+    let mdRes: Awaited<ReturnType<typeof next.fetch>> | undefined
+    let jsonRes: Awaited<ReturnType<typeof next.fetch>> | undefined
+    let markdownBody = ''
+
+    await retry(async () => {
+      ;[mdRes, jsonRes] = await Promise.all([
+        next.fetch('/blog/sitemap.md'),
+        next.fetch('/blog/sitemap.json'),
       ])
+
+      expect(mdRes.status).toBe(200)
+      expect(mdRes.headers.get('content-type')).toContain('text/markdown')
+      markdownBody = await mdRes.text()
+      expect(markdownBody).toContain(
+        '[Blog Index](https://example.com/blog) - Entry point for all blog content.'
+      )
+
+      expect(jsonRes.status).toBe(404)
+      expect(jsonRes.headers.get('x-robots-tag')).toBe('noindex')
     })
 
-    it('should default semanticSitemap routes to markdown-only mode', async () => {
-      let mdRes: Awaited<ReturnType<typeof next.fetch>> | undefined
-      let jsonRes: Awaited<ReturnType<typeof next.fetch>> | undefined
-      let markdownBody = ''
-
-      await retry(async () => {
-        ;[mdRes, jsonRes] = await Promise.all([
-          next.fetch('/blog/sitemap.md'),
-          next.fetch('/blog/sitemap.json'),
-        ])
-
-        expect(mdRes.status).toBe(200)
-        expect(mdRes.headers.get('content-type')).toContain('text/markdown')
-        markdownBody = await mdRes.text()
-        expect(markdownBody).toContain(
-          '[Blog Index](https://example.com/blog) - Entry point for all blog content.'
-        )
-
-        expect(jsonRes.status).toBe(404)
-        expect(jsonRes.headers.get('x-robots-tag')).toBe('noindex')
-      })
-
-      expect(mdRes!.headers.get('x-robots-tag')).toBe('noindex')
-    })
-  }
+    expect(mdRes!.headers.get('x-robots-tag')).toBe('noindex')
+  })
 })

@@ -6,17 +6,22 @@ use anyhow::{Ok, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::AssetContent,
+    context::AssetContext,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     source::Source,
     virtual_source::VirtualSource,
 };
-use turbopack_ecmascript::utils::StringifyJs;
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    utils::StringifyJs,
+};
 
 use super::get_content_type;
 use crate::{
@@ -68,8 +73,23 @@ pub async fn get_app_metadata_route_entry(
     // dynamic|static metadata route handler.
     let original_path = metadata.clone().into_path();
 
-    let source = Vc::upcast(FileSource::new(original_path));
+    let source = Vc::upcast(FileSource::new(original_path.clone()));
     let segment_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
+    if original_path.file_stem().unwrap_or_default() == "sitemap" {
+        let exports = &*collect_direct_exports(nodejs_context, original_path.clone()).await?;
+        let has_generate_sitemaps = exports.contains(&"generateSitemaps".into());
+        let has_agent = exports.contains(&"agent".into());
+        let has_semantic_sitemap = exports.contains(&"semanticSitemap".into());
+        if has_generate_sitemaps && (has_agent || has_semantic_sitemap) {
+            bail!(
+                "Route \"{}\" cannot combine `generateSitemaps` with `agent` or \
+                 `semanticSitemap`. Semantic sitemap outputs currently support single sitemap \
+                 mode only.",
+                metadata.clone().into_path().value_to_string().await?
+            );
+        }
+    }
+
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
         // is_multi_dynamic is true when config.generateSitemaps or
@@ -367,7 +387,9 @@ async fn dynamic_sitemap_route_without_generate_source(
         r#"
             import {{ NextResponse }} from 'next/server'
             import {{ default as handler }} from {resource_path}
-            import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+            import {{ resolveRouteData, resolveSemanticSitemapRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+
+            const getUserland = () => import({resource_path})
 
             const contentType = {content_type}
             const cacheControl = {cache_control}
@@ -377,7 +399,74 @@ async fn dynamic_sitemap_route_without_generate_source(
                 throw new Error('Default export is missing in {resource_path}')
             }}
 
-            export async function GET() {{
+            export async function GET(request) {{
+                const userland = await getUserland()
+                const agent = userland['agent']
+                const semanticSitemap = userland['semanticSitemap']
+            
+                const requestUrl = request?.url ? new URL(request.url) : null
+                const nextUrl = request?.nextUrl
+                const pathname = nextUrl?.pathname || requestUrl?.pathname || ''
+                const semanticFormatHeader = request?.headers?.get('x-next-sitemap-format')
+                const semanticFormatParam =
+                    semanticFormatHeader ??
+                    nextUrl?.searchParams.get('__nextSitemapFormat') ??
+                    requestUrl?.searchParams.get('__nextSitemapFormat')
+                const semanticFormat =
+                    semanticFormatParam === 'markdown' || semanticFormatParam === 'json'
+                        ? semanticFormatParam
+                        : pathname === '/sitemap.md' || pathname.endsWith('/sitemap.md')
+                            ? 'markdown'
+                            : pathname === '/sitemap.json' || pathname.endsWith('/sitemap.json')
+                                ? 'json'
+                                : null
+                const hasSemanticSitemap = typeof semanticSitemap === 'function'
+                const agentMode = agent ?? (hasSemanticSitemap ? 'markdown' : undefined)
+            
+                if (
+                    typeof agentMode !== 'undefined' &&
+                    agentMode !== 'markdown' &&
+                    agentMode !== 'json' &&
+                    agentMode !== 'all'
+                ) {{
+                    throw new Error('Invalid `agent` export in {resource_path}. Expected "markdown", "json", or "all".')
+                }}
+            
+                if (semanticFormat === 'markdown' || semanticFormat === 'json') {{
+                    const isEnabled =
+                        agentMode === 'all' ||
+                        agentMode === semanticFormat
+            
+                    if (!isEnabled) {{
+                        return new NextResponse('Not Found', {{
+                            status: 404,
+                            headers: {{
+                                'Cache-Control': cacheControl,
+                                'X-Robots-Tag': 'noindex',
+                            }},
+                        }})
+                    }}
+            
+                    const isSemanticInput = hasSemanticSitemap
+                    const data = isSemanticInput ? await semanticSitemap() : await handler()
+                    const content = resolveSemanticSitemapRouteData(
+                        data,
+                        semanticFormat,
+                        isSemanticInput
+                    )
+            
+                    return new NextResponse(content, {{
+                        headers: {{
+                            'Content-Type':
+                                semanticFormat === 'json'
+                                    ? 'application/json; charset=utf-8'
+                                    : 'text/markdown; charset=utf-8',
+                            'Cache-Control': cacheControl,
+                            'X-Robots-Tag': 'noindex',
+                        }},
+                    }})
+                }}
+
                 const data = await handler()
                 const content = resolveRouteData(data, fileType)
 
@@ -404,6 +493,33 @@ async fn dynamic_sitemap_route_without_generate_source(
     );
 
     Ok(Vc::upcast(source))
+}
+
+#[turbo_tasks::function]
+async fn collect_direct_exports(
+    asset_context: Vc<ModuleAssetContext>,
+    path: FileSystemPath,
+) -> Result<Vc<Vec<RcStr>>> {
+    let source = Vc::upcast(FileSource::new(path));
+    let module = asset_context
+        .process(
+            source,
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+        )
+        .module();
+
+    let Some(ecmascript_asset) =
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
+    else {
+        return Ok(Vc::cell(Vec::new()));
+    };
+
+    if let EcmascriptExports::EsmExports(exports) = &*ecmascript_asset.get_exports().await? {
+        let exports = &*exports.await?;
+        return Ok(Vc::cell(exports.exports.keys().cloned().collect()));
+    }
+
+    Ok(Vc::cell(Vec::new()))
 }
 
 #[turbo_tasks::function]
