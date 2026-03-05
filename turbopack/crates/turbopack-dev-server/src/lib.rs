@@ -22,10 +22,11 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use hyper::{
-    Request, Response, Server,
-    server::{Builder, conn::AddrIncoming},
-    service::{make_service_fn, service_fn},
+use http_body_util::{Either, Empty, Full};
+use hyper::{Request, Response, body::Bytes};
+use hyper_util::{
+    rt::{TokioExecutor, TokioIo},
+    server::conn::auto,
 };
 use parking_lot::Mutex;
 use socket2::{Domain, Protocol, Socket, Type};
@@ -42,6 +43,9 @@ use crate::{
     invalidation::{ServerRequest, ServerRequestSideEffects},
     source::ContentSourceSideEffect,
 };
+
+/// The response body type used throughout the dev server.
+pub(crate) type ResponseBody = Either<Full<Bytes>, Empty<Bytes>>;
 
 pub trait SourceProvider: Send + Clone + 'static {
     /// must call a turbo-tasks function internally
@@ -62,7 +66,7 @@ pub struct DevServerBuilder {
     #[turbo_tasks(trace_ignore)]
     pub addr: SocketAddr,
     #[turbo_tasks(trace_ignore)]
-    server: Builder<AddrIncoming>,
+    listener: TcpListener,
 }
 
 #[derive(TraceRawVcs, NonLocalValue)]
@@ -75,12 +79,10 @@ pub struct DevServer {
 
 impl DevServer {
     pub fn listen(addr: SocketAddr) -> Result<DevServerBuilder, anyhow::Error> {
-        // This is annoying. The hyper::Server doesn't allow us to know which port was
-        // bound (until we build it with a request handler) when using the standard
-        // `server::try_bind` approach. This is important when binding the `0` port,
-        // because the OS will remap that to an actual free port, and we need to know
-        // that port before we build the request handler. So we need to construct a
-        // real TCP listener, see if it bound, and get its bound address.
+        // This is annoying. We need to know which port was bound (important when
+        // binding the `0` port, because the OS will remap that to an actual free
+        // port). So we need to construct a real TCP listener, see if it bound,
+        // and get its bound address.
         let socket = Socket::new(Domain::for_address(addr), Type::STREAM, Some(Protocol::TCP))
             .context("unable to create socket")?;
         // Allow the socket to be reused immediately after closing. This ensures that
@@ -98,13 +100,15 @@ impl DevServer {
             .bind(&sock_addr)
             .context("not able to bind address")?;
         socket.listen(128).context("not able to listen on socket")?;
+        socket
+            .set_nonblocking(true)
+            .context("not able to set nonblocking")?;
 
         let listener: TcpListener = socket.into();
         let addr = listener
             .local_addr()
             .context("not able to get bound address")?;
-        let server = Server::from_tcp(listener).context("Not able to start server")?;
-        Ok(DevServerBuilder { addr, server })
+        Ok(DevServerBuilder { addr, listener })
     }
 }
 
@@ -118,182 +122,224 @@ impl DevServerBuilder {
         let ongoing_side_effects = Arc::new(Mutex::new(VecDeque::<
             Arc<tokio::sync::Mutex<Option<JoinHandle<Result<()>>>>>,
         >::with_capacity(16)));
-        let make_svc = make_service_fn(move |_| {
-            let tt = turbo_tasks.clone();
-            let source_provider = source_provider.clone();
-            let get_issue_reporter = get_issue_reporter.clone();
-            let ongoing_side_effects = ongoing_side_effects.clone();
-            async move {
-                let handler = move |request: Request<hyper::Body>| {
-                    let request_span = info_span!(parent: None, "request", name = ?request.uri());
-                    let start = Instant::now();
-                    let tt = tt.clone();
-                    let get_issue_reporter = get_issue_reporter.clone();
-                    let ongoing_side_effects = ongoing_side_effects.clone();
-                    let source_provider = source_provider.clone();
-                    let future = async move {
-                        event!(parent: Span::current(), Level::DEBUG, "request start");
-                        // Wait until all ongoing side effects are completed
-                        // We only need to wait for the ongoing side effects that were started
-                        // before this request. Later added side effects are not relevant for this.
-                        let current_ongoing_side_effects = {
-                            // Cleanup the ongoing_side_effects list
-                            let mut guard = ongoing_side_effects.lock();
-                            while let Some(front) = guard.front() {
-                                let Ok(front_guard) = front.try_lock() else {
-                                    break;
-                                };
-                                if front_guard.is_some() {
-                                    break;
-                                }
-                                drop(front_guard);
-                                guard.pop_front();
-                            }
-                            // Get a clone of the remaining list
-                            (*guard).clone()
-                        };
-                        // Wait for the side effects to complete
-                        for side_effect_mutex in current_ongoing_side_effects {
-                            let mut guard = side_effect_mutex.lock().await;
-                            if let Some(join_handle) = guard.take() {
-                                join_handle.await??;
-                            }
-                            drop(guard);
-                        }
-                        let reason = ServerRequest {
-                            method: request.method().clone(),
-                            uri: request.uri().clone(),
-                        };
-                        let side_effects_reason = ServerRequestSideEffects {
-                            method: request.method().clone(),
-                            uri: request.uri().clone(),
-                        };
-                        run_once_with_reason(tt.clone(), reason, async move {
-                            // TODO: `get_issue_reporter` should be an `OperationVc`, as there's a
-                            // risk it could be a task-local Vc, which is not safe for us to await.
-                            let issue_reporter = get_issue_reporter();
 
-                            if hyper_tungstenite::is_upgrade_request(&request) {
-                                let uri = request.uri();
-                                let path = uri.path();
-
-                                if path == "/turbopack-hmr" {
-                                    let (response, websocket) =
-                                        hyper_tungstenite::upgrade(request, None)?;
-                                    let update_server =
-                                        UpdateServer::new(source_provider, issue_reporter);
-                                    update_server.run(&*tt, websocket);
-                                    return Ok(response);
-                                }
-
-                                println!("[404] {path} (WebSocket)");
-                                if path == "/_next/webpack-hmr" {
-                                    // Special-case requests to webpack-hmr as these are made by
-                                    // Next.js clients built
-                                    // without turbopack, which may be making requests in
-                                    // development.
-                                    println!(
-                                        "A non-turbopack next.js client is trying to connect."
-                                    );
-                                    println!(
-                                        "Make sure to reload/close any browser window which has \
-                                         been opened without --turbo."
-                                    );
-                                }
-
-                                return Ok(Response::builder()
-                                    .status(404)
-                                    .body(hyper::Body::empty())?);
-                            }
-
-                            let uri = request.uri();
-                            let path = uri.path().to_string();
-                            let source_op = source_provider.get_source();
-                            // HACK: Resolve `source` now so that we can get any issues on it
-                            let _ = source_op.resolve_strongly_consistent().await?;
-                            apply_effects(source_op).await?;
-                            handle_issues(
-                                source_op,
-                                issue_reporter,
-                                IssueSeverity::Fatal,
-                                Some(&path),
-                                Some("get source"),
-                            )
-                            .await?;
-                            let (response, side_effects) =
-                                http::process_request_with_content_source(
-                                    // HACK: pass `source` here (instead of `resolved_source`
-                                    // because the underlying API wants to do it's own
-                                    // `resolve_strongly_consistent` call.
-                                    //
-                                    // It's unlikely (the calls happen one-after-another), but this
-                                    // could cause inconsistency between the reported issues and
-                                    // the generated HTTP response.
-                                    source_op,
-                                    request,
-                                    issue_reporter,
-                                )
-                                .await?;
-                            let status = response.status().as_u16();
-                            let is_error = response.status().is_client_error()
-                                || response.status().is_server_error();
-                            let elapsed = start.elapsed();
-                            if is_error
-                                || (cfg!(feature = "log_request_stats")
-                                    && elapsed > Duration::from_secs(1))
-                            {
-                                println!(
-                                    "[{status}] {path} ({duration})",
-                                    duration = FormatDuration(elapsed)
-                                );
-                            }
-                            if !side_effects.is_empty() {
-                                let join_handle = tokio::spawn(run_once_with_reason(
-                                    tt.clone(),
-                                    side_effects_reason,
-                                    async move {
-                                        for side_effect in side_effects {
-                                            side_effect.apply().await?;
-                                        }
-                                        Ok(())
-                                    },
-                                ));
-                                ongoing_side_effects.lock().push_back(Arc::new(
-                                    tokio::sync::Mutex::new(Some(join_handle)),
-                                ));
-                            }
-                            Ok(response)
-                        })
-                        .await
-                    };
-                    async move {
-                        match future.await {
-                            Ok(r) => Ok::<_, hyper::http::Error>(r),
-                            Err(e) => {
-                                println!(
-                                    "[500] error ({}): {}",
-                                    FormatDuration(start.elapsed()),
-                                    PrettyPrintError(&e),
-                                );
-                                Ok(Response::builder()
-                                    .status(500)
-                                    .body(hyper::Body::from(format!("{}", PrettyPrintError(&e))))?)
-                            }
-                        }
-                    }
-                    .instrument(request_span)
-                };
-                anyhow::Ok(service_fn(handler))
-            }
-        });
-        let server = self.server.serve(make_svc);
+        let listener = tokio::net::TcpListener::from_std(self.listener)
+            .expect("failed to create tokio TcpListener");
 
         DevServer {
             addr: self.addr,
             future: Box::pin(async move {
-                server.await?;
-                Ok(())
+                loop {
+                    let (stream, _) = listener.accept().await?;
+                    let io = TokioIo::new(stream);
+
+                    let tt = turbo_tasks.clone();
+                    let source_provider = source_provider.clone();
+                    let get_issue_reporter = get_issue_reporter.clone();
+                    let ongoing_side_effects = ongoing_side_effects.clone();
+
+                    tokio::spawn(async move {
+                        let service = hyper::service::service_fn(
+                            move |request: Request<hyper::body::Incoming>| {
+                                let request_span =
+                                    info_span!(parent: None, "request", name = ?request.uri());
+                                let start = Instant::now();
+                                let tt = tt.clone();
+                                let get_issue_reporter = get_issue_reporter.clone();
+                                let ongoing_side_effects = ongoing_side_effects.clone();
+                                let source_provider = source_provider.clone();
+                                let future = async move {
+                                    event!(parent: Span::current(), Level::DEBUG, "request start");
+                                    // Wait until all ongoing side effects are completed
+                                    // We only need to wait for the ongoing side effects that were
+                                    // started before this
+                                    // request. Later added side effects are not relevant for this.
+                                    let current_ongoing_side_effects = {
+                                        // Cleanup the ongoing_side_effects list
+                                        let mut guard = ongoing_side_effects.lock();
+                                        while let Some(front) = guard.front() {
+                                            let Ok(front_guard) = front.try_lock() else {
+                                                break;
+                                            };
+                                            if front_guard.is_some() {
+                                                break;
+                                            }
+                                            drop(front_guard);
+                                            guard.pop_front();
+                                        }
+                                        // Get a clone of the remaining list
+                                        (*guard).clone()
+                                    };
+                                    // Wait for the side effects to complete
+                                    for side_effect_mutex in current_ongoing_side_effects {
+                                        let mut guard = side_effect_mutex.lock().await;
+                                        if let Some(join_handle) = guard.take() {
+                                            join_handle.await??;
+                                        }
+                                        drop(guard);
+                                    }
+                                    let reason = ServerRequest {
+                                        method: request.method().clone(),
+                                        uri: request.uri().clone(),
+                                    };
+                                    let side_effects_reason = ServerRequestSideEffects {
+                                        method: request.method().clone(),
+                                        uri: request.uri().clone(),
+                                    };
+                                    run_once_with_reason(tt.clone(), reason, async move {
+                                        // TODO: `get_issue_reporter` should be an `OperationVc`, as
+                                        // there's a risk it
+                                        // could be a task-local Vc, which is not safe for us to
+                                        // await.
+                                        let issue_reporter = get_issue_reporter();
+
+                                        if hyper_tungstenite::is_upgrade_request(&request) {
+                                            let uri = request.uri();
+                                            let path = uri.path();
+
+                                            if path == "/turbopack-hmr" {
+                                                let (response, websocket) =
+                                                    hyper_tungstenite::upgrade(request, None)?;
+                                                let update_server = UpdateServer::new(
+                                                    source_provider,
+                                                    issue_reporter,
+                                                );
+                                                update_server.run(&*tt, websocket);
+                                                return Ok(response
+                                                    .map(|b| -> ResponseBody { Either::Left(b) }));
+                                            }
+
+                                            println!("[404] {path} (WebSocket)");
+                                            if path == "/_next/webpack-hmr" {
+                                                // Special-case requests to webpack-hmr as these are
+                                                // made by
+                                                // Next.js clients built
+                                                // without turbopack, which may be making requests
+                                                // in
+                                                // development.
+                                                println!(
+                                                    "A non-turbopack next.js client is trying to \
+                                                     connect."
+                                                );
+                                                println!(
+                                                    "Make sure to reload/close any browser window \
+                                                     which has been opened without --turbo."
+                                                );
+                                            }
+
+                                            return Ok(Response::builder()
+                                                .status(404)
+                                                .body(empty_body())?);
+                                        }
+
+                                        let uri = request.uri();
+                                        let path = uri.path().to_string();
+                                        let source_op = source_provider.get_source();
+                                        // HACK: Resolve `source` now so that we can get any issues
+                                        // on it
+                                        let _ = source_op.resolve_strongly_consistent().await?;
+                                        apply_effects(source_op).await?;
+                                        handle_issues(
+                                            source_op,
+                                            issue_reporter,
+                                            IssueSeverity::Fatal,
+                                            Some(&path),
+                                            Some("get source"),
+                                        )
+                                        .await?;
+                                        let (response, side_effects) =
+                                            crate::http::process_request_with_content_source(
+                                                // HACK: pass `source` here (instead of
+                                                // `resolved_source`
+                                                // because the underlying API wants to do it's own
+                                                // `resolve_strongly_consistent` call.
+                                                //
+                                                // It's unlikely (the calls happen
+                                                // one-after-another), but this
+                                                // could cause inconsistency between the reported
+                                                // issues and
+                                                // the generated HTTP response.
+                                                source_op,
+                                                request,
+                                                issue_reporter,
+                                            )
+                                            .await?;
+                                        let status = response.status().as_u16();
+                                        let is_error = response.status().is_client_error()
+                                            || response.status().is_server_error();
+                                        let elapsed = start.elapsed();
+                                        if is_error
+                                            || (cfg!(feature = "log_request_stats")
+                                                && elapsed > Duration::from_secs(1))
+                                        {
+                                            println!(
+                                                "[{status}] {path} ({duration})",
+                                                duration = FormatDuration(elapsed)
+                                            );
+                                        }
+                                        if !side_effects.is_empty() {
+                                            let join_handle = tokio::spawn(run_once_with_reason(
+                                                tt.clone(),
+                                                side_effects_reason,
+                                                async move {
+                                                    for side_effect in side_effects {
+                                                        side_effect.apply().await?;
+                                                    }
+                                                    Ok(())
+                                                },
+                                            ));
+                                            ongoing_side_effects.lock().push_back(Arc::new(
+                                                tokio::sync::Mutex::new(Some(join_handle)),
+                                            ));
+                                        }
+                                        Ok(response)
+                                    })
+                                    .await
+                                };
+                                async move {
+                                    match future.await {
+                                        Ok(r) => Ok::<_, anyhow::Error>(r),
+                                        Err(e) => {
+                                            println!(
+                                                "[500] error ({}): {}",
+                                                FormatDuration(start.elapsed()),
+                                                PrettyPrintError(&e),
+                                            );
+                                            Ok(Response::builder().status(500).body(full_body(
+                                                format!("{}", PrettyPrintError(&e)),
+                                            ))?)
+                                        }
+                                    }
+                                }
+                                .instrument(request_span)
+                            },
+                        );
+
+                        if let Err(err) = auto::Builder::new(TokioExecutor::new())
+                            .serve_connection_with_upgrades(io, service)
+                            .await
+                        {
+                            // Connection errors are expected when clients disconnect.
+                            // hyper-util wraps errors in Box<dyn Error>, so we downcast
+                            // to check for hyper-specific incomplete message errors.
+                            let is_expected = err
+                                .downcast_ref::<hyper::Error>()
+                                .is_some_and(|e| e.is_incomplete_message());
+                            if !is_expected {
+                                eprintln!("Error serving connection: {err}");
+                            }
+                        }
+                    });
+                }
             }),
         }
     }
+}
+
+pub(crate) fn full_body(content: impl Into<Bytes>) -> ResponseBody {
+    Either::Left(Full::new(content.into()))
+}
+
+pub(crate) fn empty_body() -> ResponseBody {
+    Either::Right(Empty::new())
 }

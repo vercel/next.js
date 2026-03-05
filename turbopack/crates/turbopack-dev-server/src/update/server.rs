@@ -8,6 +8,7 @@ use anyhow::{Context as _, Error, Result};
 use futures::{SinkExt, prelude::*, ready, stream::FusedStream};
 use hyper::{HeaderMap, Uri, upgrade::Upgraded};
 use hyper_tungstenite::{HyperWebsocket, WebSocketStream, tungstenite::Message};
+use hyper_util::rt::TokioIo;
 use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
@@ -239,7 +240,7 @@ fn resource_to_request(resource: &ResourceIdentifier) -> Result<SourceRequest> {
 pin_project! {
     struct UpdateClient {
         #[pin]
-        ws: WebSocketStream<Upgraded>,
+        ws: WebSocketStream<TokioIo<Upgraded>>,
         ended: bool,
     }
 }
@@ -332,8 +333,8 @@ impl<'a> Sink<ClientUpdateInstruction<'a>> for UpdateClient {
     }
 }
 
-impl From<WebSocketStream<Upgraded>> for UpdateClient {
-    fn from(ws: WebSocketStream<Upgraded>) -> Self {
+impl From<WebSocketStream<TokioIo<Upgraded>>> for UpdateClient {
+    fn from(ws: WebSocketStream<TokioIo<Upgraded>>) -> Self {
         Self { ws, ended: false }
     }
 }

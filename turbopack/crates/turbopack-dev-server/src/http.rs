@@ -1,18 +1,18 @@
-use std::{io::Read, iter};
+use std::io::Read;
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
 use flate2::{Compression, bufread::GzEncoder};
-use futures::{StreamExt, TryStreamExt, stream};
+use futures::TryStreamExt;
+use http_body_util::BodyExt;
 use hyper::{
     Request, Response,
-    header::{CONTENT_ENCODING, CONTENT_LENGTH, HeaderName},
-    http::HeaderValue,
+    body::Incoming,
+    header::{CONTENT_ENCODING, CONTENT_LENGTH, HeaderName, HeaderValue},
 };
 use mime::Mime;
 use turbo_tasks::{
     CollectiblesSource, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc, apply_effects,
-    util::SharedError,
 };
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
@@ -22,10 +22,13 @@ use turbopack_core::{
     version::VersionedContent,
 };
 
-use crate::source::{
-    Body, ContentSource, ContentSourceSideEffect, HeaderList, ProxyResult,
-    request::SourceRequest,
-    resolve::{ResolveSourceRequestResult, resolve_source_request},
+use crate::{
+    ResponseBody, empty_body, full_body,
+    source::{
+        Body, ContentSource, ContentSourceSideEffect, HeaderList, ProxyResult,
+        request::SourceRequest,
+        resolve::{ResolveSourceRequestResult, resolve_source_request},
+    },
 };
 
 #[turbo_tasks::value(serialization = "none")]
@@ -75,10 +78,10 @@ async fn get_from_source_operation(
 /// response.
 pub async fn process_request_with_content_source(
     source: OperationVc<Box<dyn ContentSource>>,
-    request: Request<hyper::Body>,
+    request: Request<Incoming>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<(
-    Response<hyper::Body>,
+    Response<ResponseBody>,
     AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
 )> {
     let original_path = request.uri().path().to_string();
@@ -111,14 +114,14 @@ pub async fn process_request_with_content_source(
                 for (header_name, header_value) in headers {
                     header_map.append(
                         HeaderName::try_from(header_name.as_str())?,
-                        hyper::header::HeaderValue::try_from(header_value.as_str())?,
+                        HeaderValue::try_from(header_value.as_str())?,
                     );
                 }
 
                 for (header_name, header_value) in header_overwrites.iter() {
                     header_map.insert(
                         HeaderName::try_from(header_name.as_str())?,
-                        hyper::header::HeaderValue::try_from(header_value.as_str())?,
+                        HeaderValue::try_from(header_value.as_str())?,
                     );
                 }
 
@@ -141,7 +144,7 @@ pub async fn process_request_with_content_source(
                 if let Some(content_type) = file.content_type() {
                     header_map.append(
                         "content-type",
-                        hyper::header::HeaderValue::try_from(content_type.to_string())?,
+                        HeaderValue::try_from(content_type.to_string())?,
                     );
 
                     should_compress = should_compress_predicate(content_type);
@@ -152,7 +155,7 @@ pub async fn process_request_with_content_source(
                     // If a text type, application/javascript, or application/json was
                     // guessed, use a utf-8 charset as we most likely generated it as
                     // such.
-                    entry.insert(hyper::header::HeaderValue::try_from(
+                    entry.insert(HeaderValue::try_from(
                         if (guess.type_() == mime::TEXT
                             || guess.subtype() == mime::JAVASCRIPT
                             || guess.subtype() == mime::JSON)
@@ -167,40 +170,28 @@ pub async fn process_request_with_content_source(
 
                 if !header_map.contains_key("cache-control") {
                     // The dev server contents might change at any time, we can't cache them.
-                    header_map.append(
-                        "cache-control",
-                        hyper::header::HeaderValue::try_from("must-revalidate")?,
-                    );
+                    header_map.append("cache-control", HeaderValue::try_from("must-revalidate")?);
                 }
 
                 let content = file.content();
                 let response = if should_compress {
                     header_map.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
 
-                    // Hyper requires an owned reader... We could do this with streaming by cloning
-                    // each `Bytes` and implementing `BufRead` for `Iterator<bytes::Bytes>`, but
-                    // it's not really worth it, just compressing the whole thing up-front is fine.
-                    //
-                    // Use fast compression, since we're likely just tranferring data over
-                    // localhost.
                     let mut gz_bytes = Vec::new();
                     GzEncoder::new(content.read(), Compression::fast())
                         .read_to_end(&mut gz_bytes)
                         .expect("read of Rope should never fail");
-                    response.body(hyper::Body::wrap_stream(stream::iter(iter::once(
-                        hyper::Result::Ok(gz_bytes),
-                    ))))?
+                    response.body(full_body(gz_bytes))?
                 } else {
-                    // hyper requires an owned stream, so we must clone the iterator items
-                    // this is relatively cheap: each chunk is a `Bytes`, so `Clone` updates a
-                    // refcount
-                    let owned_chunks: Vec<_> =
-                        content.read().cloned().map(hyper::Result::Ok).collect();
+                    let mut all_bytes = Vec::new();
+                    for chunk in content.read() {
+                        all_bytes.extend_from_slice(chunk);
+                    }
                     header_map.insert(
                         CONTENT_LENGTH,
-                        hyper::header::HeaderValue::try_from(content.len().to_string())?,
+                        HeaderValue::try_from(all_bytes.len().to_string())?,
                     );
-                    response.body(hyper::Body::wrap_stream(stream::iter(owned_chunks)))?
+                    response.body(full_body(all_bytes))?
                 };
 
                 return Ok((response, side_effects));
@@ -213,40 +204,42 @@ pub async fn process_request_with_content_source(
             for (name, value) in &proxy_result.headers {
                 headers.append(
                     HeaderName::from_bytes(name.as_bytes())?,
-                    hyper::header::HeaderValue::from_str(value)?,
+                    HeaderValue::from_str(value)?,
                 );
             }
 
-            return Ok((
-                response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?,
-                side_effects,
-            ));
+            // Collect proxy body from async stream into bytes
+            let mut body_bytes = Vec::new();
+            let mut body_stream = proxy_result.body.read();
+            while let Some(chunk) = body_stream.try_next().await? {
+                body_bytes.extend_from_slice(&chunk);
+            }
+
+            return Ok((response.body(full_body(body_bytes))?, side_effects));
         }
         GetFromSourceResult::NotFound => {}
     }
 
     Ok((
-        Response::builder().status(404).body(hyper::Body::empty())?,
+        Response::builder().status(404).body(empty_body())?,
         side_effects,
     ))
 }
 
-async fn http_request_to_source_request(request: Request<hyper::Body>) -> Result<SourceRequest> {
+async fn http_request_to_source_request(request: Request<Incoming>) -> Result<SourceRequest> {
     let (parts, body) = request.into_parts();
 
-    // For simplicity, we fully consume the body now and early return if there were
-    // any errors.
-    let bytes: Vec<_> = body
-        .map(|bytes| {
-            bytes.map_or_else(
-                |e| Err(SharedError::new(anyhow!(e))),
-                // The outer Ok is consumed by try_collect, but the Body type requires a Result, so
-                // we need to double wrap.
-                |b| Ok(Ok(Bytes::from(b))),
-            )
-        })
-        .try_collect::<Vec<_>>()
-        .await?;
+    // Collect the entire body
+    let collected = body
+        .collect()
+        .await
+        .map_err(|e| anyhow!("failed to collect request body: {e}"))?;
+    let body_bytes = collected.to_bytes();
+    let bytes = if body_bytes.is_empty() {
+        vec![]
+    } else {
+        vec![Ok(Bytes::from(body_bytes))]
+    };
 
     Ok(SourceRequest {
         method: parts.method.to_string(),

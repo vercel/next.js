@@ -21,8 +21,10 @@ auto-hash-map = { workspace = true }
 bincode = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
-hyper = { version = "0.14", features = ["full"] }
-hyper-tungstenite = "0.9.0"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-tungstenite = "0.19"
+hyper-util = { version = "0.1", features = ["tokio", "server-auto", "server-graceful"] }
 mime = { workspace = true }
 mime_guess = "2.0.4"
 parking_lot = { workspace = true }
@@ -31,7 +33,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_qs = { workspace = true }
-socket2 = "0.4.9"
+socket2 = "0.5"
 tokio = { workspace = true }
 tokio-stream = "0.1.9"
 tokio-util = { workspace = true }
