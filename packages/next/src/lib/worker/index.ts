@@ -257,7 +257,7 @@ export class Worker {
 
     const onActivityImpl = () => {
       if (hangingTimer) clearTimeout(hangingTimer)
-      if (this._onActivity) this._onActivity()
+      this._onActivity?.()
       hangingTimer =
         activeTasks > 0 && timeout ? setTimeout(onHanging, timeout) : false
     }
@@ -307,7 +307,6 @@ export class Worker {
     }
 
     for (const method of exposedMethods) {
-      if (method.startsWith('_')) continue
       ;(this as any)[method] = timeout
         ? // eslint-disable-next-line no-loop-func
           async (...args: any[]) => {
