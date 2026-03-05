@@ -1854,7 +1854,7 @@ export const defaultConfig = Object.freeze({
     imgOptSequentialRead: null,
     imgOptSkipMetadata: null,
     isrFlushToDisk: true,
-    workerThreads: false,
+    workerThreads: true,
     proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,
