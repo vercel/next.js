@@ -33,14 +33,10 @@ async function main() {
   const [semverStableVersion] = lernaConfig.version.split('-')
   const version = `${semverStableVersion}-preview-${shortSha}-${dateString}`
 
-  const nextPackageJsonPath = path.join(repoRoot, 'packages/next/package.json')
-  const nextPackageJson = JSON.parse(
-    await fs.readFile(nextPackageJsonPath, 'utf8')
-  )
-  nextPackageJson.version = version
-  await fs.writeFile(
-    nextPackageJsonPath,
-    JSON.stringify(nextPackageJson, null, 2) + '\n'
+  await execa(
+    'pnpm',
+    ['lerna', 'version', version, '--no-git-tag-version', '--no-push', '--yes'],
+    { cwd: repoRoot, stdio: 'inherit' }
   )
 
   console.info(`Set preview version: ${version}`)
