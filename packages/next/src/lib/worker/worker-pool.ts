@@ -188,7 +188,7 @@ class WorkerHandle {
  * Low-level worker pool that manages process/thread lifecycle, task dispatch,
  * and queue draining. Workers are spawned lazily on the first dispatch and
  * scale up to `maxWorkers`. Use `dispatch()` to call exported functions in the
- * worker module and `end()` or `close()` to shut down.
+ * worker module and `shutdown()` or `shutdownNow()` to shut down.
  */
 export class WorkerPool {
   private _options: Required<
@@ -208,7 +208,7 @@ export class WorkerPool {
   private _taskQueue: QueuedTask[] = []
   /** Monotonically increasing counter for correlating requests to responses */
   private _nextRequestId = 1
-  /** Set to true once `end()` or `close()` is called; prevents new dispatches */
+  /** Set to true once `shutdown()` or `shutdownNow()` is called; prevents new dispatches */
   private _ending = false
   /** Number of workers currently in the booting state */
   private _bootingCount = 0
@@ -304,7 +304,7 @@ export class WorkerPool {
    * FORCE_EXIT_DELAY safety timeout), and rejects any queued or in-flight
    * requests that haven't completed.
    */
-  async end(): Promise<{ forceExited: boolean }> {
+  async shutdown(): Promise<{ forceExited: boolean }> {
     this._ending = true
 
     // Reject queued tasks that will never be dispatched
@@ -355,7 +355,7 @@ export class WorkerPool {
    * All in-flight requests and queued tasks are rejected.
    * Sends an END message first to allow graceful cleanup, then force-kills.
    */
-  close(): void {
+  shutdownNow(): void {
     this._ending = true
     for (const task of this._taskQueue) {
       task.reject(new Error('Worker pool closed'))

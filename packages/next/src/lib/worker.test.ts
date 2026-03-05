@@ -10,8 +10,8 @@ class WorkerPoolMock {
   _dispatchError: Error | undefined = undefined
   _stdout = new PassThrough()
   _stderr = new PassThrough()
-  _closed = false
-  _ended = false
+  _shutdownNow = false
+  _shutdown = false
 
   constructor(options: any) {
     latestPoolOptions = options
@@ -39,13 +39,13 @@ class WorkerPoolMock {
     return 0
   }
 
-  end() {
-    this._ended = true
+  shutdown() {
+    this._shutdown = true
     return Promise.resolve({ forceExited: false })
   }
 
-  close() {
-    this._closed = true
+  shutdownNow() {
+    this._shutdownNow = true
   }
 }
 
@@ -450,7 +450,7 @@ describe('lib/worker end and close', () => {
 
     const result = await worker.end()
     expect(result).toEqual({ forceExited: false })
-    expect(latestPoolInstance!._ended).toBe(true)
+    expect(latestPoolInstance!._shutdown).toBe(true)
   })
 
   it('end() throws when called after close()', () => {
@@ -481,7 +481,7 @@ describe('lib/worker end and close', () => {
     const worker = new Worker(__filename, noopOptions)
     worker.close()
 
-    expect(latestPoolInstance!._closed).toBe(true)
+    expect(latestPoolInstance!._shutdownNow).toBe(true)
   })
 
   it('close() is idempotent (safe to call multiple times)', () => {

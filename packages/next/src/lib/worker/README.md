@@ -85,7 +85,7 @@ const pool = new WorkerPool({
 })
 
 const result = await pool.dispatch('doWork', [args])
-await pool.end()
+await pool.shutdown()
 ```
 
 ## Worker Module Contract
@@ -127,8 +127,8 @@ The `setupArgs` are provided via `WorkerPoolOptions.setupArgs`. READY is sent af
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `dispatch(method, args)` | `Promise<unknown>` | Call a method on a worker; spawns/queues as needed |
-| `end()` | `Promise<{ forceExited: boolean }>` | Graceful shutdown: sends END to workers, waits for exit (500ms force-kill timeout) |
-| `close()` | `void` | Immediate shutdown: force-kills all workers, rejects in-flight and queued tasks |
+| `shutdown()` | `Promise<{ forceExited: boolean }>` | Graceful shutdown: sends END to workers, waits for exit (5s force-kill timeout) |
+| `shutdownNow()` | `void` | Immediate shutdown: force-kills all workers, rejects in-flight and queued tasks |
 | `getStdout()` | `PassThrough` | Merged stdout stream from all workers |
 | `getStderr()` | `PassThrough` | Merged stderr stream from all workers |
 | `getWorkerCount()` | `number` | Number of currently alive workers |
@@ -165,4 +165,4 @@ The `Worker` class wraps `WorkerPool` and adds timeout/restart logic, NODE_OPTIO
 | `setOnActivity(cb)` | `void` | Replace the activity callback |
 | `setOnActivityAbort(cb)` | `void` | Replace the activity-abort callback |
 
-The Worker class registers a `process.on('exit')` handler that calls `close()` to clean up workers when the parent exits. This handler is removed on `end()`/`close()` to prevent listener leaks.
+The Worker class registers a `process.on('exit')` handler that calls `close()` to clean up workers when the parent exits. This handler is removed on `end()`/`close()` to prevent listener leaks. Internally, `end()` calls `pool.shutdown()` and `close()` calls `pool.shutdownNow()`.

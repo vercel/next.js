@@ -134,7 +134,7 @@ describe('WorkerPool', () => {
       })
       expect(spawnedProcesses).toHaveLength(0)
       expect(pool.getWorkerCount()).toBe(0)
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('spawns one worker on first dispatch', () => {
@@ -145,7 +145,7 @@ describe('WorkerPool', () => {
       pool.dispatch('testMethod', [])
       expect(spawnedProcesses).toHaveLength(1)
       expect(pool.getWorkerCount()).toBe(1)
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('reuses existing worker when it has capacity', () => {
@@ -159,7 +159,7 @@ describe('WorkerPool', () => {
       pool.dispatch('c', [])
       expect(spawnedProcesses).toHaveLength(1)
       expect(pool.getWorkerCount()).toBe(1)
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('spawns additional workers when existing ones are at concurrency limit', () => {
@@ -174,7 +174,7 @@ describe('WorkerPool', () => {
       pool.dispatch('c', [])
       expect(spawnedProcesses).toHaveLength(3)
       expect(pool.getWorkerCount()).toBe(3)
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('does not spawn more workers than maxWorkers', () => {
@@ -190,7 +190,7 @@ describe('WorkerPool', () => {
       pool.dispatch('d', []) // this one too
       expect(spawnedProcesses).toHaveLength(2)
       expect(pool.getWorkerCount()).toBe(2)
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -212,7 +212,7 @@ describe('WorkerPool', () => {
       expect(initMsg).toBeDefined()
       expect(initMsg![2]).toBe('/fake/worker.js')
       expect(initMsg![3]).toEqual(['arg1', 'arg2'])
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('sends INITIALIZE before any CALL messages', () => {
@@ -227,7 +227,7 @@ describe('WorkerPool', () => {
       expect(proc.sent).toHaveLength(1)
       replyReady(proc)
       expect(proc.sent[1][0]).toBe(CHILD_MESSAGE_CALL)
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -249,7 +249,7 @@ describe('WorkerPool', () => {
 
       replyOk(proc, requestId, 42)
       await expect(promise).resolves.toBe(42)
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('rejects when child sends CLIENT_ERROR', async () => {
@@ -265,7 +265,7 @@ describe('WorkerPool', () => {
 
       replyClientError(proc, requestId, 'TypeError', 'bad type')
       await expect(promise).rejects.toThrow('bad type')
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('reconstructs error with properties from CLIENT_ERROR', async () => {
@@ -290,7 +290,7 @@ describe('WorkerPool', () => {
         expect(err.code).toBe('CUSTOM_CODE')
         expect(err.type).toBe('Error')
       }
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('dispatches queued tasks after SETUP_ERROR clears booting', async () => {
@@ -323,7 +323,7 @@ describe('WorkerPool', () => {
       await expect(p1).resolves.toBe('ra')
       await expect(p2).resolves.toBe('rb')
       await expect(p3).resolves.toBe('rc')
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('accepts new work and READY after setup error on same worker', async () => {
@@ -363,7 +363,7 @@ describe('WorkerPool', () => {
       replyOk(proc, requestId, 'result-b')
       await expect(p2).resolves.toBe('result-b')
 
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('dispatches correct method and args', () => {
@@ -377,7 +377,7 @@ describe('WorkerPool', () => {
       const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
       expect(callMsg[2]).toBe('myMethod')
       expect(callMsg[3]).toEqual(['hello', 123, true])
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('uses unique request IDs for each dispatch', () => {
@@ -395,7 +395,7 @@ describe('WorkerPool', () => {
       const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       const ids = callMessages.map((m) => m[1])
       expect(new Set(ids).size).toBe(3)
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -430,7 +430,7 @@ describe('WorkerPool', () => {
 
       replyOk(proc, callMessages2[1][1] as number, 'result2')
       await expect(p2).resolves.toBe('result2')
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('dequeues tasks in FIFO order', async () => {
@@ -473,7 +473,7 @@ describe('WorkerPool', () => {
       await p3
 
       expect(results).toEqual(['r1', 'r2', 'r3'])
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -506,7 +506,7 @@ describe('WorkerPool', () => {
       await expect(p1).resolves.toBe('a-result')
       await expect(p2).resolves.toBe('b-result')
       await expect(p3).resolves.toBe('c-result')
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('queues when concurrency limit is reached', () => {
@@ -523,7 +523,7 @@ describe('WorkerPool', () => {
       replyReady(proc)
       const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(callMessages).toHaveLength(2)
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -543,20 +543,20 @@ describe('WorkerPool', () => {
 
       proc.emit('message', [PARENT_MESSAGE_CUSTOM, { type: 'activity' }])
       expect(onCustomMessage).toHaveBeenCalledWith({ type: 'activity' })
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
   // -----------------------------------------------------------------------
-  // end() and close()
+  // shutdown() and shutdownNow()
   // -----------------------------------------------------------------------
-  describe('end()', () => {
-    it('rejects new dispatches after end() is called', async () => {
+  describe('shutdown()', () => {
+    it('rejects new dispatches after shutdown() is called', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
       })
-      const endPromise = pool.end()
+      const endPromise = pool.shutdown()
       await expect(pool.dispatch('test', [])).rejects.toThrow(
         'Worker pool is ending'
       )
@@ -576,7 +576,7 @@ describe('WorkerPool', () => {
       replyOk(proc, callMsg[1] as number, 'done')
       await p
 
-      const endPromise = pool.end()
+      const endPromise = pool.shutdown()
       // Worker should receive END message
       const endMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_END)
       expect(endMsg).toBeDefined()
@@ -592,11 +592,11 @@ describe('WorkerPool', () => {
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
       })
-      const result = await pool.end()
+      const result = await pool.shutdown()
       expect(result).toEqual({ forceExited: false })
     })
 
-    it('rejects queued tasks when pool ends', async () => {
+    it('rejects queued tasks when pool shuts down', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
@@ -607,7 +607,7 @@ describe('WorkerPool', () => {
 
       const proc = latestProcess()
       // End the pool before resolving the first task
-      const endPromise = pool.end()
+      const endPromise = pool.shutdown()
       proc.emit('exit', 0, null)
       await endPromise
 
@@ -617,13 +617,13 @@ describe('WorkerPool', () => {
     })
   })
 
-  describe('close()', () => {
-    it('rejects new dispatches after close()', async () => {
+  describe('shutdownNow()', () => {
+    it('rejects new dispatches after shutdownNow()', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
       })
-      pool.close()
+      pool.shutdownNow()
       await expect(pool.dispatch('test', [])).rejects.toThrow(
         'Worker pool is ending'
       )
@@ -635,7 +635,7 @@ describe('WorkerPool', () => {
         maxWorkers: 1,
       })
       const promise = pool.dispatch('test', [])
-      pool.close()
+      pool.shutdownNow()
       await expect(promise).rejects.toThrow('Worker pool closed')
     })
 
@@ -649,7 +649,7 @@ describe('WorkerPool', () => {
       pool.dispatch('b', [])
       expect(spawnedProcesses).toHaveLength(2)
 
-      pool.close()
+      pool.shutdownNow()
       expect(spawnedProcesses[0].killed).toBe(true)
       expect(spawnedProcesses[1].killed).toBe(true)
     })
@@ -673,7 +673,7 @@ describe('WorkerPool', () => {
       proc.emit('exit', 1, null)
 
       expect(onWorkerExit).toHaveBeenCalledWith(1, null)
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('rejects in-flight requests with WorkerExitError on unexpected exit', async () => {
@@ -698,7 +698,7 @@ describe('WorkerPool', () => {
         expect((err as WorkerExitError).code).toBe(1)
         expect((err as WorkerExitError).signal).toBeNull()
       }
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('does not call onWorkerExit during graceful shutdown', async () => {
@@ -714,7 +714,7 @@ describe('WorkerPool', () => {
       const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
       replyOk(proc, callMsg[1] as number, 'ok')
 
-      const endPromise = pool.end()
+      const endPromise = pool.shutdown()
       proc.emit('exit', 0, null)
       await endPromise
 
@@ -743,7 +743,7 @@ describe('WorkerPool', () => {
       proc.stdout.write('hello from worker')
       const result = await dataPromise
       expect(result).toBe('hello from worker')
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('pipes worker stderr to pool stderr', async () => {
@@ -763,7 +763,7 @@ describe('WorkerPool', () => {
       proc.stderr.write('error output')
       const result = await dataPromise
       expect(result).toBe('error output')
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -794,7 +794,7 @@ describe('WorkerPool', () => {
       pool.dispatch('d', [])
       expect(pool.getWorkerCount()).toBe(3)
 
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('dequeues tasks to freed worker after task completion', async () => {
@@ -820,7 +820,7 @@ describe('WorkerPool', () => {
       calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(calls).toHaveLength(2)
       expect(calls[1][2]).toBe('second')
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -847,7 +847,7 @@ describe('WorkerPool', () => {
       const options = callArgs[2]
       expect(options.env.MY_VAR).toBe('hello')
       expect(options.execArgv).toEqual(['--max-old-space-size=512'])
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -862,14 +862,14 @@ describe('WorkerPool', () => {
         workerPath: '/absolute/path/worker.js',
         maxWorkers: 1,
       })
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
   // -----------------------------------------------------------------------
-  // end() rejecting in-flight requests
+  // shutdown() rejecting in-flight requests
   // -----------------------------------------------------------------------
-  describe('end() with in-flight requests', () => {
+  describe('shutdown() with in-flight requests', () => {
     it('rejects queued requests when pool ends while worker is booting', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
@@ -880,8 +880,8 @@ describe('WorkerPool', () => {
       const p2 = pool.dispatch('b', [])
       const proc = latestProcess()
 
-      // Tasks are queued (worker is booting), end() rejects them
-      const endPromise = pool.end()
+      // Tasks are queued (worker is booting), shutdown() rejects them
+      const endPromise = pool.shutdown()
       proc.emit('exit', 0, null)
       await endPromise
 
@@ -893,7 +893,7 @@ describe('WorkerPool', () => {
       )
     })
 
-    it('resolves completed requests and rejects lingering ones on end()', async () => {
+    it('resolves completed requests and rejects lingering ones on shutdown()', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
@@ -907,11 +907,11 @@ describe('WorkerPool', () => {
       replyReady(proc)
       const calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
 
-      // Reply to p1 before end()
+      // Reply to p1 before shutdown()
       replyOk(proc, calls[0][1] as number, 'result-a')
       await expect(p1).resolves.toBe('result-a')
 
-      const endPromise = pool.end()
+      const endPromise = pool.shutdown()
       proc.emit('exit', 0, null)
       await endPromise
 
@@ -936,7 +936,7 @@ describe('WorkerPool', () => {
       proc.emit('error', new Error('spawn ENOMEM'))
 
       await expect(promise).rejects.toThrow('spawn ENOMEM')
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -957,7 +957,7 @@ describe('WorkerPool', () => {
       // Crashed worker removed and replacement spawned for queued task
       expect(spawnedProcesses).toHaveLength(2)
       expect(pool.getWorkerCount()).toBe(1)
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('spawns replacement worker for queued tasks after crash', async () => {
@@ -993,7 +993,7 @@ describe('WorkerPool', () => {
 
       replyOk(newProc, calls[1][1] as number, 'ok2')
       await expect(p2).resolves.toBe('ok2')
-      pool.close()
+      pool.shutdownNow()
     })
   })
 
@@ -1010,7 +1010,7 @@ describe('WorkerPool', () => {
       const proc = latestProcess()
 
       // Start graceful end — task is still queued (worker is booting)
-      const endPromise = pool.end()
+      const endPromise = pool.shutdown()
 
       // Worker exits
       proc.emit('exit', 0, null)
@@ -1033,7 +1033,7 @@ describe('WorkerPool', () => {
       replyReady(proc)
 
       // Start graceful end — sends END message
-      const endPromise = pool.end()
+      const endPromise = pool.shutdown()
 
       // Worker exits without completing the request
       proc.emit('exit', 0, null)
@@ -1072,7 +1072,7 @@ describe('WorkerPool', () => {
       expect(spawnedProcesses).toHaveLength(3)
       expect(pool.getWorkerCount()).toBe(3)
 
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('allows maxBootingWorkers=2 to spawn 2 concurrently', () => {
@@ -1098,7 +1098,7 @@ describe('WorkerPool', () => {
       replyReady(spawnedProcesses[1])
       expect(spawnedProcesses).toHaveLength(4)
 
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('spawns all immediately when maxBootingWorkers equals maxWorkers', () => {
@@ -1114,7 +1114,7 @@ describe('WorkerPool', () => {
       pool.dispatch('c', [])
       expect(spawnedProcesses).toHaveLength(3)
 
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('queues tasks when booting limit is reached and dispatches on READY', async () => {
@@ -1156,7 +1156,7 @@ describe('WorkerPool', () => {
       replyOk(proc1, calls1[1][1] as number, 'result2')
       await expect(p2).resolves.toBe('result2')
 
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('queues tasks while worker is booting, dispatches on READY', async () => {
@@ -1188,7 +1188,7 @@ describe('WorkerPool', () => {
       await expect(p1).resolves.toBe('ra')
       await expect(p2).resolves.toBe('rb')
 
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('frees booting slot when a booting worker crashes, allowing new spawn', () => {
@@ -1210,10 +1210,10 @@ describe('WorkerPool', () => {
 
       expect(spawnedProcesses.length).toBeGreaterThanOrEqual(2)
 
-      pool.close()
+      pool.shutdownNow()
     })
 
-    it('shuts down cleanly with booting workers on end()', async () => {
+    it('shuts down cleanly with booting workers on shutdown()', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 2,
@@ -1225,7 +1225,7 @@ describe('WorkerPool', () => {
       expect(spawnedProcesses).toHaveLength(1)
 
       // End the pool while the worker is still booting
-      const endPromise = pool.end()
+      const endPromise = pool.shutdown()
       spawnedProcesses[0].emit('exit', 0, null)
       const result = await endPromise
       expect(result).toEqual({ forceExited: false })
@@ -1258,7 +1258,7 @@ describe('WorkerPool', () => {
       replyReady(spawnedProcesses[2])
       expect(spawnedProcesses).toHaveLength(4)
 
-      pool.close()
+      pool.shutdownNow()
     })
 
     it('throws when maxBootingWorkers is 0', () => {
@@ -1310,7 +1310,7 @@ describe('WorkerPool', () => {
       replyOk(proc1, proc1Calls[1][1] as number, 'result-b')
       await expect(p2).resolves.toBe('result-b')
 
-      pool.close()
+      pool.shutdownNow()
     })
   })
 })

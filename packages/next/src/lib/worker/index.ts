@@ -282,7 +282,7 @@ export class Worker {
       // End the current pool and create a fresh one
       const oldPool = this._pool
       createPool()
-      oldPool.end()
+      oldPool.shutdown()
     }
 
     // TODO: Remove this once callers stop passing non-serializable values
@@ -358,7 +358,7 @@ export class Worker {
     }
     this._pool = undefined
     this._removeExitHandler()
-    return pool.end()
+    return pool.shutdown()
   }
 
   /**
@@ -366,7 +366,7 @@ export class Worker {
    */
   close(): void {
     if (this._pool) {
-      this._pool.close()
+      this._pool.shutdownNow()
       this._pool = undefined
     }
     this._removeExitHandler()
