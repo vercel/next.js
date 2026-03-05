@@ -54,7 +54,7 @@ pub async fn get_typescript_transform_options(
 ) -> Result<Vc<TypescriptTransformOptions>> {
     let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
 
-    let use_define_for_class_fields = if let Some(tsconfig) = tsconfig {
+    let use_define_for_class_fields = if let Some(ref tsconfig) = tsconfig {
         read_from_tsconfigs(&tsconfig, |json, _| {
             json["compilerOptions"]["useDefineForClassFields"].as_bool()
         })
@@ -64,8 +64,19 @@ pub async fn get_typescript_transform_options(
         false
     };
 
+    let verbatim_module_syntax = if let Some(ref tsconfig) = tsconfig {
+        read_from_tsconfigs(tsconfig, |json, _| {
+            json["compilerOptions"]["verbatimModuleSyntax"].as_bool()
+        })
+        .await?
+        .unwrap_or(false)
+    } else {
+        false
+    };
+
     let ts_transform_options = TypescriptTransformOptions {
         use_define_for_class_fields,
+        verbatim_module_syntax,
     };
 
     Ok(ts_transform_options.cell())
