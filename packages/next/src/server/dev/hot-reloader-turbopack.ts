@@ -619,6 +619,7 @@ export async function createHotReloaderTurbopack(
       isAppPage &&
       writtenEndpoint.type !== 'edge'
 
+    const filesToDelete: string[] = []
     for (const file of serverPaths) {
       clearModuleContext(file)
 
@@ -631,9 +632,10 @@ export async function createHotReloaderTurbopack(
         !usesServerHmr ||
         !serverHmrSubscriptions?.has(relativePath)
       ) {
-        deleteCache(file)
+        filesToDelete.push(file)
       }
     }
+    deleteCache(filesToDelete)
 
     // Reset the fetch patch so patchFetch() can re-wrap on the next request.
     if (serverPaths.length > 0) {
@@ -1841,9 +1843,10 @@ export async function createHotReloaderTurbopack(
     serverHmrSubscriptions = setupServerHmr(project, {
       clear: async () => {
         // Clear Node's require cache of all Turbopack-built modules
-        for (const chunkPath of serverHmrSubscriptions?.keys() ?? []) {
-          deleteCache(join(distDir, chunkPath))
-        }
+        const chunkPaths = [...(serverHmrSubscriptions?.keys() ?? [])].map(
+          (chunkPath) => join(distDir, chunkPath)
+        )
+        deleteCache(chunkPaths)
 
         // Clear Turbopack's runtime caches
         if (typeof __next__clear_chunk_cache__ === 'function') {
