@@ -14,6 +14,7 @@ import v8 from 'v8'
 import path from 'path'
 import http from 'http'
 import https from 'https'
+import net from 'net'
 import os from 'os'
 import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
@@ -116,6 +117,60 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
   pidPromise.finally(() => clearTimeout(timeoutId))
 
   return pidPromise
+}
+
+/**
+ * Check if a port is available on a specific host by attempting to bind to it.
+ * Returns true if available, false if in use (EADDRINUSE).
+ * Other bind errors (e.g., EADDRNOTAVAIL for missing IPv6) are treated as available.
+ */
+function isPortAvailableOnHost(port: number, host: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const tester = net.createServer()
+    tester.once('error', (err: NodeJS.ErrnoException) => {
+      resolve(err.code !== 'EADDRINUSE')
+    })
+    tester.once('listening', () => {
+      tester.close(() => resolve(true))
+    })
+    tester.listen(port, host)
+  })
+}
+
+/**
+ * Find an available port starting from the given port.
+ * Checks both IPv4 (0.0.0.0) and IPv6 (::) to detect cross-address-family
+ * conflicts that server.listen() alone may miss on some platforms (e.g., macOS
+ * where an IPv6 bind does not conflict with an existing IPv4 listener).
+ */
+async function findAvailablePort(
+  startPort: number,
+  hostname: string | undefined,
+  maxRetries: number
+): Promise<{ port: number; retryCount: number }> {
+  let port = startPort
+
+  for (let retryCount = 0; retryCount <= maxRetries; retryCount++) {
+    const hostsToCheck = hostname !== undefined ? [hostname] : ['0.0.0.0', '::']
+    let available = true
+
+    for (const host of hostsToCheck) {
+      if (!(await isPortAvailableOnHost(port, host))) {
+        available = false
+        break
+      }
+    }
+
+    if (available) {
+      return { port, retryCount }
+    }
+
+    if (retryCount < maxRetries) {
+      port++
+    }
+  }
+
+  return { port, retryCount: maxRetries }
 }
 
 export interface StartServerOptions {
@@ -292,6 +347,21 @@ export async function startServer(
 
   let portRetryCount = 0
   const originalPort = port
+
+  // Proactively detect port conflicts across address families.
+  // On some platforms (notably macOS), server.listen() with no hostname binds
+  // to IPv6 (::) which does not conflict with an existing IPv4 listener on the
+  // same port. This check catches those cross-family conflicts so the retry
+  // logic can find an available port before calling server.listen().
+  if (allowRetry && isDev) {
+    const { port: availablePort, retryCount } = await findAvailablePort(
+      port,
+      hostname,
+      10
+    )
+    portRetryCount = retryCount
+    port = availablePort
+  }
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (
