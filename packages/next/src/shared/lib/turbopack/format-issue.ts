@@ -1,7 +1,5 @@
 import type { Issue, PlainTraceItem } from '../../../build/swc/types'
 
-import isInternal from '../is-internal'
-import { codeFrameColumns } from '../errors/code-frame'
 import { renderStyledStringToErrorAnsi } from './utils'
 
 const VERBOSE_ISSUES = !!process.env.NEXT_TURBOPACK_VERBOSE_ISSUES
