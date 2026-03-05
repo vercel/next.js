@@ -27,11 +27,17 @@ export interface WorkerOptions {
    */
   maxWorkers?: number
   /**
-   * Maximum concurrent calls per worker (default: 1)
+   * Maximum concurrent calls per worker (default: 1).
+   * When all existing workers are at this limit a new worker is spawned
+   * (up to `maxWorkers`). Tasks that arrive after all workers are at
+   * capacity are placed in a FIFO queue.
    */
   concurrencyPerWorker?: number
   /**
-   * Debugger port offset, or `undefined` if not inspectable (default: undefined)
+   * Offset added to the parent's debugger port for worker processes.
+   * When set (including 0), workers attach a debugger at
+   * `parentPort + 1 + debuggerPortOffset`. When `undefined`, workers
+   * do not attach a debugger. (default: undefined)
    */
   debuggerPortOffset?: number
   /** If true, passes `--enable-source-maps` to worker processes (default: false) */

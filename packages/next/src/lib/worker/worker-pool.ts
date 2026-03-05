@@ -40,7 +40,11 @@ export interface WorkerPoolOptions {
   workerPath: string
   /** Maximum number of workers to spawn */
   maxWorkers: number
-  /** Maximum concurrent calls per worker (default: 1) */
+  /**
+   * Maximum concurrent calls per worker (default: 1).
+   * A new worker is spawned when all existing workers are at this limit
+   * (up to maxWorkers). Beyond that, tasks are queued in FIFO order.
+   */
   concurrencyPerWorker?: number
   /** Use worker_threads instead of child_process (default: false) */
   enableWorkerThreads?: boolean
