@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-pub(super) struct SideEffectsModule {
+pub struct SideEffectsModule {
     /// Original module
     pub module: ResolvedVc<EcmascriptModuleAsset>,
     /// The part of the original module that is the binding

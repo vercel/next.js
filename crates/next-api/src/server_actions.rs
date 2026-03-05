@@ -42,7 +42,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     EcmascriptParsable, chunk::EcmascriptChunkPlaceable, parse::ParseResult,
-    tree_shake::asset::EcmascriptModulePartAsset,
+    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 
 /// Metadata for a server action: (layer, exported_name, filename)

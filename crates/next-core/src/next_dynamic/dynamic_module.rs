@@ -40,6 +40,20 @@ fn dynamic_ref_description() -> RcStr {
     rcstr!("next/dynamic reference")
 }
 
+impl NextDynamicEntryModule {
+    async fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
+        Ok(ResolvedVc::upcast(
+            SingleChunkableModuleReference::new(
+                Vc::upcast(*self.module),
+                dynamic_ref_description(),
+                ExportUsage::all(),
+            )
+            .to_resolved()
+            .await?,
+        ))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Module for NextDynamicEntryModule {
     #[turbo_tasks::function]
@@ -56,15 +70,7 @@ impl Module for NextDynamicEntryModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleChunkableModuleReference::new(
-                Vc::upcast(*self.module),
-                dynamic_ref_description(),
-                ExportUsage::all(),
-            )
-            .to_resolved()
-            .await?,
-        )]))
+        Ok(Vc::cell(vec![self.module_reference().await?]))
     }
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
