@@ -10,6 +10,9 @@ export type DebugChannelPair = {
   clientSide: DebugChannelClient
 }
 
+// Opaque: PassThrough on node, { writable: WritableStream } on web.
+// Each React render API handles its own variant.
+ 
 export type DebugChannelServer = any
 
 type DebugChannelClient = {

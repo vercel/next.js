@@ -3,9 +3,6 @@
  *
  * When __NEXT_USE_NODE_STREAMS is true, uses a Node PassThrough-based channel.
  * Otherwise, uses web WritableStream APIs.
- *
- * Both modules share the same DebugChannelPair type surface via AnyStream,
- * matching the pattern used by stream-ops.ts.
  */
 export type {
   DebugChannelPair,
