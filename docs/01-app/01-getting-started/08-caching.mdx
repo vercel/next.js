@@ -284,6 +284,30 @@ Next.js requires you to explicitly handle components that can't complete during 
 
 > **🎥 Watch:** Why Partial Prerendering and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
+### Opting out of the static shell
+
+Placing a `<Suspense>` boundary with an empty fallback above the document body in your Root Layout causes the entire app to defer to request time. Because the fallback is empty, there is no static shell to send immediately, so every request blocks until the page is fully rendered. To limit this to specific routes, use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout).
+
+```tsx filename="app/layout.tsx" highlight={1,10-12}
+import { Suspense } from 'react'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html>
+      <Suspense fallback={null}>
+        <body>{children}</body>
+      </Suspense>
+    </html>
+  )
+}
+```
+
+> **Good to know**: This same pattern applies when `generateViewport` accesses uncached dynamic data. See [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for a detailed example.
+
 ### Putting it all together
 
 Here's a complete example showing static content, cached dynamic content, and streaming dynamic content working together on a single page:
