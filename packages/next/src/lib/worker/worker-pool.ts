@@ -27,9 +27,7 @@ export class WorkerExitError extends Error {
 
   constructor(code: number | null, signal: string | null, workerName?: string) {
     super(
-      workerName
-        ? `${workerName} exited with code: ${code} and signal: ${signal}`
-        : `Worker exited unexpectedly with code ${code}${signal ? `, signal ${signal}` : ''}`
+      `${workerName ?? 'Worker'} exited with code: ${code} and signal: ${signal}`
     )
     this.name = 'WorkerExitError'
     this.code = code
@@ -93,7 +91,7 @@ interface PoolWorker {
 }
 
 /** Milliseconds to wait for a worker to exit gracefully before force-killing it */
-const FORCE_EXIT_DELAY = 500
+const FORCE_EXIT_DELAY = 5000
 
 /**
  * A worker abstraction that wraps `ChildProcess` and `NodeWorker`,
@@ -165,15 +163,6 @@ class WorkerHandle {
       return this._thread[type]
     }
     return this._process![type] ?? null
-  }
-
-  /** Gracefully kill (SIGINT for processes, terminate for threads) */
-  kill(): void {
-    if (this._thread) {
-      this._thread.terminate()
-    } else {
-      this._process!.kill('SIGINT')
-    }
   }
 
   /** Force-kill (SIGKILL for processes, terminate for threads) */
@@ -258,9 +247,9 @@ export class WorkerPool {
    */
   dispatch(method: string, args: unknown[]): Promise<unknown> {
     if (this._ending) {
-      return Promise.reject(
-        new Error('Worker pool is ending, no more calls can be made')
-      )
+      return Promise.resolve().then(() => {
+        throw new Error('Worker pool is ending, no more calls can be made')
+      })
     }
 
     return new Promise<unknown>((resolve, reject) => {
@@ -313,12 +302,6 @@ export class WorkerPool {
       task.reject(new Error('Worker pool ended before task could be processed'))
     }
     this._taskQueue = []
-
-    if (this._workers.length === 0) {
-      this._stdout.end()
-      this._stderr.end()
-      return { forceExited: false }
-    }
 
     const results = await Promise.all(
       this._workers.map(async (worker) => {
