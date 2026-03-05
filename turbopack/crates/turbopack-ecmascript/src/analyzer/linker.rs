@@ -1,4 +1,4 @@
-use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take};
+use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take, sync::Arc};
 
 use anyhow::Result;
 use parking_lot::Mutex;
@@ -178,11 +178,14 @@ where
             // Visit a function call
             // This need special handling, since we want to replace the function call and process
             // the function return value after that.
-            Step::Visit(JsValue::Call(
-                _,
-                box JsValue::Function(function_nodes, func_ident, return_value),
-                args,
-            )) => {
+            Step::Visit(JsValue::Call(_, callee, args))
+                if matches!(callee.as_ref(), JsValue::Function(..)) =>
+            {
+                let JsValue::Function(function_nodes, func_ident, return_value) =
+                    Arc::unwrap_or_clone(callee)
+                else {
+                    unreachable!()
+                };
                 total_nodes -= 2; // Call + Function
                 if let Entry::Vacant(entry) = fun_args_values.lock().entry(func_ident) {
                     // Return value will stay in total_nodes
@@ -192,7 +195,7 @@ where
                     entry.insert(args);
                     fun_args_depth += 1;
                     work_queue_stack.push(Step::LeaveCall(func_ident));
-                    work_queue_stack.push(Step::Enter(*return_value));
+                    work_queue_stack.push(Step::Enter(Arc::unwrap_or_clone(return_value)));
                 } else {
                     total_nodes -= return_value.total_nodes();
                     for arg in args.iter() {
@@ -201,7 +204,7 @@ where
                     total_nodes += 1;
                     done.push(JsValue::unknown(
                         JsValue::call(
-                            Box::new(JsValue::Function(function_nodes, func_ident, return_value)),
+                            Arc::new(JsValue::Function(function_nodes, func_ident, return_value)),
                             args,
                         ),
                         true,

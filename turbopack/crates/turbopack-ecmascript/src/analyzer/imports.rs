@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display, sync::Arc};
 
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -380,11 +380,11 @@ impl ImportMap {
         if let Some((i, i_sym)) = self.imports.get(id) {
             let r = &self.references[*i];
             return Some(JsValue::member(
-                Box::new(JsValue::Module(ModuleValue {
+                Arc::new(JsValue::Module(ModuleValue {
                     module: r.module_path.clone(),
                     annotations: r.annotations.clone(),
                 })),
-                Box::new(i_sym.clone().into()),
+                Arc::new(i_sym.clone().into()),
             ));
         }
         if let Some(i) = self.namespace_imports.get(id) {

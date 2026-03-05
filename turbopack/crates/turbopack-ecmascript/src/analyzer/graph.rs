@@ -147,7 +147,7 @@ pub enum Effect {
     /// condition evaluates to some compile-time constant, we can use that
     /// to determine which effects are executed and remove the others.
     Conditional {
-        condition: Box<JsValue>,
+        condition: Arc<JsValue>,
         kind: Box<ConditionalKind>,
         /// The ast path to the condition.
         ast_path: Vec<AstParentKind>,
@@ -155,7 +155,7 @@ pub enum Effect {
     },
     /// A function call or a new call of a function.
     Call {
-        func: Box<JsValue>,
+        func: Arc<JsValue>,
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
@@ -164,8 +164,8 @@ pub enum Effect {
     },
     /// A function call or a new call of a property of an object.
     MemberCall {
-        obj: Box<JsValue>,
-        prop: Box<JsValue>,
+        obj: Arc<JsValue>,
+        prop: Arc<JsValue>,
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
@@ -174,8 +174,8 @@ pub enum Effect {
     },
     /// A property access.
     Member {
-        obj: Box<JsValue>,
-        prop: Box<JsValue>,
+        obj: Arc<JsValue>,
+        prop: Arc<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
@@ -194,7 +194,7 @@ pub enum Effect {
     },
     /// A typeof expression
     TypeOf {
-        arg: Box<JsValue>,
+        arg: Arc<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
@@ -232,11 +232,11 @@ impl Effect {
             Effect::Conditional {
                 condition, kind, ..
             } => {
-                condition.normalize();
+                Arc::make_mut(condition).normalize();
                 kind.normalize();
             }
             Effect::Call { func, args, .. } => {
-                func.normalize();
+                Arc::make_mut(func).normalize();
                 for arg in args.iter_mut() {
                     arg.normalize();
                 }
@@ -244,15 +244,15 @@ impl Effect {
             Effect::MemberCall {
                 obj, prop, args, ..
             } => {
-                obj.normalize();
-                prop.normalize();
+                Arc::make_mut(obj).normalize();
+                Arc::make_mut(prop).normalize();
                 for arg in args.iter_mut() {
                     arg.normalize();
                 }
             }
             Effect::Member { obj, prop, .. } => {
-                obj.normalize();
-                prop.normalize();
+                Arc::make_mut(obj).normalize();
+                Arc::make_mut(prop).normalize();
             }
             Effect::DynamicImport { args, .. } => {
                 for arg in args.iter_mut() {
@@ -261,7 +261,7 @@ impl Effect {
             }
             Effect::ImportedBinding { .. } => {}
             Effect::TypeOf { arg, .. } => {
-                arg.normalize();
+                Arc::make_mut(arg).normalize();
             }
             Effect::FreeVar { .. } => {}
             Effect::ImportMeta { .. } => {}
@@ -552,7 +552,7 @@ impl EvalContext {
             }) => {
                 let arg = self.eval(arg);
 
-                JsValue::logical_not(Box::new(arg))
+                JsValue::logical_not(Arc::new(arg))
             }
 
             Expr::Unary(UnaryExpr {
@@ -562,7 +562,7 @@ impl EvalContext {
             }) => {
                 let arg = self.eval(arg);
 
-                JsValue::type_of(Box::new(arg))
+                JsValue::type_of(Arc::new(arg))
             }
 
             Expr::Bin(BinExpr {
@@ -609,28 +609,28 @@ impl EvalContext {
                 left,
                 right,
                 ..
-            }) => JsValue::equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::equal(Arc::new(self.eval(left)), Arc::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("!="),
                 left,
                 right,
                 ..
-            }) => JsValue::not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::not_equal(Arc::new(self.eval(left)), Arc::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("==="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::strict_equal(Arc::new(self.eval(left)), Arc::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("!=="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::strict_not_equal(Arc::new(self.eval(left)), Arc::new(self.eval(right))),
 
             &Expr::Cond(CondExpr {
                 box ref cons,
@@ -647,9 +647,9 @@ impl EvalContext {
                     }
                 } else {
                     JsValue::tenary(
-                        Box::new(test),
-                        Box::new(self.eval(cons)),
-                        Box::new(self.eval(alt)),
+                        Arc::new(test),
+                        Arc::new(self.eval(cons)),
+                        Arc::new(self.eval(alt)),
                     )
                 }
             }
@@ -691,7 +691,7 @@ impl EvalContext {
                 SyntaxContext::empty(),
             )),
 
-            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(Box::new(self.eval(arg))),
+            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(Arc::new(self.eval(arg))),
 
             Expr::Seq(e) => {
                 let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
@@ -713,7 +713,7 @@ impl EvalContext {
                 ..
             }) => {
                 let obj = self.eval(obj);
-                JsValue::member(Box::new(obj), Box::new(prop.sym.clone().into()))
+                JsValue::member(Arc::new(obj), Arc::new(prop.sym.clone().into()))
             }
 
             Expr::Member(MemberExpr {
@@ -723,7 +723,7 @@ impl EvalContext {
             }) => {
                 let obj = self.eval(obj);
                 let prop = self.eval(&computed.expr);
-                JsValue::member(Box::new(obj), Box::new(prop))
+                JsValue::member(Arc::new(obj), Arc::new(prop))
             }
 
             Expr::New(NewExpr {
@@ -741,7 +741,7 @@ impl EvalContext {
                     .flatten()
                     .map(|arg| self.eval(&arg.expr))
                     .collect();
-                let callee = Box::new(self.eval(callee));
+                let callee = Arc::new(self.eval(callee));
 
                 JsValue::new(callee, args)
             }
@@ -761,8 +761,8 @@ impl EvalContext {
 
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
-                    let obj = Box::new(self.eval(obj));
-                    let prop = Box::new(match prop {
+                    let obj = Arc::new(self.eval(obj));
+                    let prop = Arc::new(match prop {
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
                             return JsValue::unknown_empty(
@@ -774,7 +774,7 @@ impl EvalContext {
                     });
                     JsValue::member_call(obj, prop, args)
                 } else {
-                    let callee = Box::new(self.eval(callee));
+                    let callee = Arc::new(self.eval(callee));
 
                     JsValue::call(callee, args)
                 }
@@ -809,7 +809,7 @@ impl EvalContext {
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
-                let callee = Box::new(JsValue::FreeVar(atom!("import")));
+                let callee = Arc::new(JsValue::FreeVar(atom!("import")));
 
                 JsValue::call(callee, args)
             }
@@ -901,7 +901,7 @@ enum EarlyReturn {
         prev_effects: Vec<Effect>,
         start_ast_path: Vec<AstParentKind>,
 
-        condition: Box<JsValue>,
+        condition: Arc<JsValue>,
         then: Option<Box<EffectsBlock>>,
         r#else: Option<Box<EffectsBlock>>,
         /// The ast path to the condition.
@@ -1856,16 +1856,16 @@ impl Analyzer<'_> {
             }
             Callee::Expr(box expr) => {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(expr) {
-                    let obj_value = Box::new(self.eval_context.eval(obj));
+                    let obj_value = Arc::new(self.eval_context.eval(obj));
                     let prop_value = match prop {
                         // TODO avoid clone
-                        MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
-                        MemberProp::PrivateName(_) => Box::new(JsValue::unknown_empty(
+                        MemberProp::Ident(i) => Arc::new(i.sym.clone().into()),
+                        MemberProp::PrivateName(_) => Arc::new(JsValue::unknown_empty(
                             false,
                             "private names in member expressions are not supported",
                         )),
                         MemberProp::Computed(ComputedPropName { expr, .. }) => {
-                            Box::new(self.eval_context.eval(expr))
+                            Arc::new(self.eval_context.eval(expr))
                         }
                     };
                     self.add_effect(Effect::MemberCall {
@@ -1878,7 +1878,7 @@ impl Analyzer<'_> {
                         new,
                     });
                 } else {
-                    let fn_value = Box::new(self.eval_context.eval(expr));
+                    let fn_value = Arc::new(self.eval_context.eval(expr));
                     self.add_effect(Effect::Call {
                         func: fn_value,
                         args,
@@ -1890,7 +1890,7 @@ impl Analyzer<'_> {
                 }
             }
             Callee::Super(_) => self.add_effect(Effect::Call {
-                func: Box::new(
+                func: Arc::new(
                     self.eval_context
                         // Unwrap because `new super(..)` isn't valid anyway
                         .eval(&Expr::Call(n.as_call().unwrap().clone())),
@@ -1913,15 +1913,15 @@ impl Analyzer<'_> {
             return;
         }
 
-        let obj_value = Box::new(self.eval_context.eval(&member_expr.obj));
+        let obj_value = Arc::new(self.eval_context.eval(&member_expr.obj));
         let prop_value = match &member_expr.prop {
             // TODO avoid clone
-            MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
+            MemberProp::Ident(i) => Arc::new(i.sym.clone().into()),
             MemberProp::PrivateName(_) => {
                 return;
             }
             MemberProp::Computed(ComputedPropName { expr, .. }) => {
-                Box::new(self.eval_context.eval(expr))
+                Arc::new(self.eval_context.eval(expr))
             }
         };
         self.add_effect(Effect::Member {
@@ -2395,7 +2395,7 @@ impl VisitAstPath for Analyzer<'_> {
         let iterable = self.eval_context.eval(&n.right);
 
         // TODO n.await is ignored (async interables)
-        self.with_pat_value(Some(JsValue::iterated(Box::new(iterable))), |this| {
+        self.with_pat_value(Some(JsValue::iterated(Arc::new(iterable))), |this| {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Left));
             n.left.visit_with_ast_path(this, &mut ast_path);
@@ -2933,7 +2933,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         if n.op == UnaryOp::TypeOf && self.analyze_mode.is_code_gen() {
-            let arg_value = Box::new(self.eval_context.eval(&n.arg));
+            let arg_value = Arc::new(self.eval_context.eval(&n.arg));
 
             self.add_effect(Effect::TypeOf {
                 arg: arg_value,
@@ -2958,7 +2958,7 @@ impl VisitAstPath for Analyzer<'_> {
         let effects = take(&mut self.effects);
 
         prev_effects.push(Effect::Conditional {
-            condition: Box::new(JsValue::unknown_empty(true, "labeled statement")),
+            condition: Arc::new(JsValue::unknown_empty(true, "labeled statement")),
             kind: Box::new(ConditionalKind::Labeled {
                 body: Box::new(EffectsBlock {
                     effects,
@@ -3041,7 +3041,7 @@ impl Analyzer<'_> {
         {
             return;
         }
-        let condition = Box::new(self.eval_context.eval(test));
+        let condition = Arc::new(self.eval_context.eval(test));
         if condition.is_unknown() {
             if let Some(mut then) = then {
                 self.effects.append(&mut then.effects);
@@ -3113,7 +3113,7 @@ impl Analyzer<'_> {
         span: Span,
         mut cond_kind: ConditionalKind,
     ) {
-        let condition = Box::new(self.eval_context.eval(test));
+        let condition = Arc::new(self.eval_context.eval(test));
         if condition.is_unknown() {
             match &mut cond_kind {
                 ConditionalKind::If { then } => {
@@ -3180,8 +3180,8 @@ impl Analyzer<'_> {
             value => {
                 for (idx, elem) in arr.elems.iter().enumerate() {
                     let pat_value = Some(JsValue::member(
-                        Box::new(value.clone()),
-                        Box::new(JsValue::Constant(ConstantValue::Num(ConstantNumber(
+                        Arc::new(value.clone()),
+                        Arc::new(JsValue::Constant(ConstantValue::Num(ConstantNumber(
                             idx as f64,
                         )))),
                     ));
@@ -3220,8 +3220,8 @@ impl Analyzer<'_> {
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
                     let pat_value = Some(JsValue::member(
-                        Box::new(pat_value.clone()),
-                        Box::new(key_value),
+                        Arc::new(pat_value.clone()),
+                        Arc::new(key_value),
                     ));
                     self.with_pat_value(pat_value, |this| {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::KeyValuePatProp(
@@ -3250,11 +3250,11 @@ impl Analyzer<'_> {
                         if let Some(box value) = value {
                             let value = self.eval_context.eval(value);
                             JsValue::alternatives(vec![
-                                JsValue::member(Box::new(pat_value.clone()), Box::new(key_value)),
+                                JsValue::member(Arc::new(pat_value.clone()), Arc::new(key_value)),
                                 value,
                             ])
                         } else {
-                            JsValue::member(Box::new(pat_value.clone()), Box::new(key_value))
+                            JsValue::member(Arc::new(pat_value.clone()), Arc::new(key_value))
                         },
                     );
                     {

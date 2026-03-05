@@ -1143,7 +1143,7 @@ async fn analyze_ecmascript_module_internal(
                     let condition_has_side_effects = condition.has_side_effects();
 
                     let condition = analysis_state
-                        .link_value(*condition, ImportAttributes::empty_ref())
+                        .link_value(Arc::unwrap_or_clone(condition), ImportAttributes::empty_ref())
                         .await?;
 
                     macro_rules! inactive {
@@ -1306,7 +1306,7 @@ async fn analyze_ecmascript_module_internal(
                     }
 
                     let func = analysis_state
-                        .link_value(*func, eval_context.imports.get_attributes(span))
+                        .link_value(Arc::unwrap_or_clone(func), eval_context.imports.get_attributes(span))
                         .await?;
 
                     handle_call(
@@ -1386,7 +1386,7 @@ async fn analyze_ecmascript_module_internal(
                             mutable,
                             ..
                         } = analysis_state
-                            .link_value(*obj, eval_context.imports.get_attributes(span))
+                            .link_value(Arc::unwrap_or_clone(obj), eval_context.imports.get_attributes(span))
                             .await?
                     {
                         *value = analysis_state
@@ -1477,10 +1477,10 @@ async fn analyze_ecmascript_module_internal(
                     );
 
                     // Intentionally not awaited because `handle_member` reads this only when needed
-                    let obj = analysis_state.link_value(*obj, ImportAttributes::empty_ref());
+                    let obj = analysis_state.link_value(Arc::unwrap_or_clone(obj), ImportAttributes::empty_ref());
 
                     let prop = analysis_state
-                        .link_value(*prop, ImportAttributes::empty_ref())
+                        .link_value(Arc::unwrap_or_clone(prop), ImportAttributes::empty_ref())
                         .await?;
 
                     handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis)
@@ -1561,7 +1561,7 @@ async fn analyze_ecmascript_module_internal(
                         "unexpected Effect::TypeOf in tracing mode"
                     );
                     let arg = analysis_state
-                        .link_value(*arg, ImportAttributes::empty_ref())
+                        .link_value(Arc::unwrap_or_clone(arg), ImportAttributes::empty_ref())
                         .await?;
                     handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
                 }
@@ -2045,10 +2045,12 @@ where
                     url,
                     JsValue::Member(
                         _,
-                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                        box JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)),
+                        obj,
+                        prop,
                     ),
                 ] = &args[..]
+                    && matches!(obj.as_ref(), JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta))
+                    && let JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)) = prop.as_ref()
                     && meta_prop.as_str() == "url"
                 {
                     let pat = js_value_to_pattern(url);
@@ -2383,8 +2385,8 @@ where
             let linked_func_call = state
                 .link_value(
                     JsValue::call(
-                        Box::new(JsValue::WellKnownFunction(
-                            WellKnownFunctionKind::PathResolve(Box::new(
+                        Arc::new(JsValue::WellKnownFunction(
+                            WellKnownFunctionKind::PathResolve(Arc::new(
                                 parent_path.path.as_str().into(),
                             )),
                         )),
@@ -2430,7 +2432,7 @@ where
             let linked_func_call = state
                 .link_value(
                     JsValue::call(
-                        Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
+                        Arc::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
                         args.clone(),
                     ),
                     ImportAttributes::empty_ref(),
@@ -2476,7 +2478,7 @@ where
                 let pat = js_value_to_pattern(&args[0]);
                 if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
                     let first_arg =
-                        JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
+                        JsValue::member(Arc::new(args[1].clone()), Arc::new(0_f64.into()));
                     let first_arg = state
                         .link_value(first_arg, ImportAttributes::empty_ref())
                         .await?;
@@ -2728,7 +2730,7 @@ where
                                 let linked_func_call = state
                                     .link_value(
                                         JsValue::call(
-                                            Box::new(JsValue::WellKnownFunction(
+                                            Arc::new(JsValue::WellKnownFunction(
                                                 WellKnownFunctionKind::PathJoin,
                                             )),
                                             vec![
@@ -2799,7 +2801,7 @@ where
                     let linked_func_call = state
                         .link_value(
                             JsValue::call(
-                                Box::new(JsValue::WellKnownFunction(
+                                Arc::new(JsValue::WellKnownFunction(
                                     WellKnownFunctionKind::PathJoin,
                                 )),
                                 vec![
@@ -3404,22 +3406,29 @@ async fn value_visitor_inner(
     let value = match v {
         JsValue::Call(
             _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-            args,
-        ) => require_resolve_visitor(origin, args).await?,
+            ref callee,
+            ref args,
+        ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)) => {
+            require_resolve_visitor(origin, args.clone()).await?
+        }
         JsValue::Call(
             _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
-            args,
-        ) => require_context_visitor(origin, args).await?,
+            ref callee,
+            ref args,
+        ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)) => {
+            require_context_visitor(origin, args.clone()).await?
+        }
         JsValue::Call(
             _,
-            box JsValue::WellKnownFunction(
+            ref callee,
+            _,
+        ) if matches!(
+            callee.as_ref(),
+            JsValue::WellKnownFunction(
                 WellKnownFunctionKind::RequireContextRequire(..)
                 | WellKnownFunctionKind::RequireContextRequireKeys(..)
                 | WellKnownFunctionKind::RequireContextRequireResolve(..),
-            ),
-            _,
+            )
         ) => {
             // TODO: figure out how to do static analysis without invalidating the whole
             // analysis when a new file gets added
@@ -3430,17 +3439,19 @@ async fn value_visitor_inner(
         }
         JsValue::Call(
             _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
+            ref callee,
             ref args,
-        ) => {
+        ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)) => {
             // Only support `createRequire(import.meta.url)` for now
             if let [
                 JsValue::Member(
                     _,
-                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                    box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
+                    obj,
+                    prop,
                 ),
             ] = &args[..]
+                && matches!(obj.as_ref(), JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta))
+                && let JsValue::Constant(super::analyzer::ConstantValue::Str(prop)) = prop.as_ref()
                 && prop.as_str() == "url"
             {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
@@ -3450,17 +3461,19 @@ async fn value_visitor_inner(
         }
         JsValue::New(
             _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+            ref callee,
             ref args,
-        ) => {
+        ) if matches!(callee.as_ref(), JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor)) => {
             if let [
                 JsValue::Constant(super::analyzer::ConstantValue::Str(url)),
                 JsValue::Member(
                     _,
-                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                    box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
+                    obj,
+                    prop,
                 ),
             ] = &args[..]
+                && matches!(obj.as_ref(), JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta))
+                && let JsValue::Constant(super::analyzer::ConstantValue::Str(prop)) = prop.as_ref()
             {
                 if prop.as_str() == "url" {
                     JsValue::Url(url.clone(), JsValueUrlKind::Relative)
@@ -3571,7 +3584,7 @@ async fn require_resolve_visitor(
         match values.len() {
             0 => JsValue::unknown(
                 JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
+                    Arc::new(JsValue::WellKnownFunction(
                         WellKnownFunctionKind::RequireResolve,
                     )),
                     args,
@@ -3585,7 +3598,7 @@ async fn require_resolve_visitor(
     } else {
         JsValue::unknown(
             JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
+                Arc::new(JsValue::WellKnownFunction(
                     WellKnownFunctionKind::RequireResolve,
                 )),
                 args,
@@ -3605,7 +3618,7 @@ async fn require_context_visitor(
         Err(err) => {
             return Ok(JsValue::unknown(
                 JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
+                    Arc::new(JsValue::WellKnownFunction(
                         WellKnownFunctionKind::RequireContext,
                     )),
                     args,
@@ -4293,10 +4306,8 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
 
     if let JsValue::Member(_, obj, constant) = &args[0] {
         // Is the first argument to spawn `process.argv[]`?
-        if let (
-            &box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
-            &box JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))),
-        ) = (obj, constant)
+        if matches!(obj.as_ref(), JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv))
+            && let JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))) = constant.as_ref()
         {
             // Is it specifically `process.argv[0]`?
             if num.is_zero()
