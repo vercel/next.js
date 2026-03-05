@@ -271,8 +271,7 @@ ${await createReExportsCode(resourcePath, loaderContext)}
 export async function GET(request) {
   const userland = await getUserland()
   const agent = userland['agent']
-  const semanticSitemap =
-    userland['semanticSitemap'] ?? userland['generateAgentSitemap']
+  const semanticSitemap = userland['semanticSitemap']
 
   const requestUrl = request?.url ? new URL(request.url) : null
   const nextUrl = request?.nextUrl
@@ -437,9 +436,7 @@ async function getSitemapRouteCode(
 
   const hasGenerateSitemaps = exportNames.includes('generateSitemaps')
   const hasAgentExport = exportNames.includes('agent')
-  const hasSemanticSitemapExport =
-    exportNames.includes('semanticSitemap') ||
-    exportNames.includes('generateAgentSitemap')
+  const hasSemanticSitemapExport = exportNames.includes('semanticSitemap')
 
   if (hasGenerateSitemaps && (hasAgentExport || hasSemanticSitemapExport)) {
     throw new Error(
