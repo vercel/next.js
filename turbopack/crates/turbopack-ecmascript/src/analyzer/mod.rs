@@ -675,6 +675,11 @@ impl Default for JsValue {
     }
 }
 
+/// A shared default Arc<JsValue> used as a placeholder when swapping Arc children
+/// out of a node. Using a shared static avoids allocating a new Arc on every swap.
+static DEFAULT_JS_VALUE_ARC: Lazy<Arc<JsValue>> =
+    Lazy::new(|| Arc::new(JsValue::unknown_empty(false, "")));
+
 impl Display for ObjectPart {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -2498,6 +2503,175 @@ fn shortcircuit_if_known<T: Copy>(
 
 // Visiting
 impl JsValue {
+    /// Takes all children out of the value by swapping them with defaults.
+    /// For `Arc<JsValue>` children, swaps the Arc itself and uses `Arc::unwrap_or_clone`
+    /// to avoid the unnecessary clone that `Arc::make_mut` would trigger when refcount > 1.
+    /// Each taken child is passed to `visitor`. The remaining shell can be stored for later
+    /// reconstruction via `put_children_from_done`.
+    pub fn take_children(&mut self, visitor: &mut impl FnMut(JsValue)) {
+        fn take_arc(arc: &mut Arc<JsValue>) -> JsValue {
+            let taken = std::mem::replace(arc, DEFAULT_JS_VALUE_ARC.clone());
+            Arc::try_unwrap(taken).unwrap_or_else(|arc| (*arc).clone())
+        }
+
+        match self {
+            JsValue::Alternatives { values: list, .. }
+            | JsValue::Concat(_, list)
+            | JsValue::Add(_, list)
+            | JsValue::Logical(_, _, list)
+            | JsValue::Array { items: list, .. } => {
+                for item in list.iter_mut() {
+                    visitor(take(item));
+                }
+            }
+            JsValue::Not(_, value)
+            | JsValue::Iterated(_, value)
+            | JsValue::TypeOf(_, value)
+            | JsValue::Promise(_, value)
+            | JsValue::Awaited(_, value) => {
+                visitor(take_arc(value));
+            }
+            JsValue::Object { parts, .. } => {
+                for item in parts.iter_mut() {
+                    match item {
+                        ObjectPart::KeyValue(key, value) => {
+                            visitor(take(key));
+                            visitor(take(value));
+                        }
+                        ObjectPart::Spread(value) => {
+                            visitor(take(value));
+                        }
+                    }
+                }
+            }
+            JsValue::New(_, callee, list) | JsValue::Call(_, callee, list) => {
+                visitor(take_arc(callee));
+                for item in list.iter_mut() {
+                    visitor(take(item));
+                }
+            }
+            JsValue::SuperCall(_, list) => {
+                for item in list.iter_mut() {
+                    visitor(take(item));
+                }
+            }
+            JsValue::MemberCall(_, obj, prop, list) => {
+                visitor(take_arc(obj));
+                visitor(take_arc(prop));
+                for item in list.iter_mut() {
+                    visitor(take(item));
+                }
+            }
+            JsValue::Function(_, _, return_value) => {
+                visitor(take_arc(return_value));
+            }
+            JsValue::Binary(_, a, _, b) => {
+                visitor(take_arc(a));
+                visitor(take_arc(b));
+            }
+            JsValue::Tenary(_, test, cons, alt) => {
+                visitor(take_arc(test));
+                visitor(take_arc(cons));
+                visitor(take_arc(alt));
+            }
+            JsValue::Member(_, obj, prop) => {
+                visitor(take_arc(obj));
+                visitor(take_arc(prop));
+            }
+            JsValue::Constant(_)
+            | JsValue::FreeVar(_)
+            | JsValue::Variable(_)
+            | JsValue::Module(..)
+            | JsValue::Url(_, _)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Unknown { .. }
+            | JsValue::Argument(..) => {}
+        }
+    }
+
+    /// Reconstructs children from a done stack (LIFO order).
+    /// This is the inverse of `take_children` — pops children from `done` and puts them back
+    /// into the shell. For `Arc<JsValue>` children, wraps in `Arc::new` directly.
+    /// Updates total_nodes after reconstruction.
+    pub fn put_children_from_done(&mut self, done: &mut Vec<JsValue>) {
+        match self {
+            JsValue::Alternatives { values: list, .. }
+            | JsValue::Concat(_, list)
+            | JsValue::Add(_, list)
+            | JsValue::Logical(_, _, list)
+            | JsValue::Array { items: list, .. } => {
+                for item in list.iter_mut() {
+                    *item = done.pop().unwrap();
+                }
+            }
+            JsValue::Not(_, value)
+            | JsValue::Iterated(_, value)
+            | JsValue::TypeOf(_, value)
+            | JsValue::Promise(_, value)
+            | JsValue::Awaited(_, value) => {
+                *value = Arc::new(done.pop().unwrap());
+            }
+            JsValue::Object { parts, .. } => {
+                for item in parts.iter_mut() {
+                    match item {
+                        ObjectPart::KeyValue(key, value) => {
+                            *key = done.pop().unwrap();
+                            *value = done.pop().unwrap();
+                        }
+                        ObjectPart::Spread(value) => {
+                            *value = done.pop().unwrap();
+                        }
+                    }
+                }
+            }
+            JsValue::New(_, callee, list) | JsValue::Call(_, callee, list) => {
+                *callee = Arc::new(done.pop().unwrap());
+                for item in list.iter_mut() {
+                    *item = done.pop().unwrap();
+                }
+            }
+            JsValue::SuperCall(_, list) => {
+                for item in list.iter_mut() {
+                    *item = done.pop().unwrap();
+                }
+            }
+            JsValue::MemberCall(_, obj, prop, list) => {
+                *obj = Arc::new(done.pop().unwrap());
+                *prop = Arc::new(done.pop().unwrap());
+                for item in list.iter_mut() {
+                    *item = done.pop().unwrap();
+                }
+            }
+            JsValue::Function(_, _, return_value) => {
+                *return_value = Arc::new(done.pop().unwrap());
+            }
+            JsValue::Binary(_, a, _, b) => {
+                *a = Arc::new(done.pop().unwrap());
+                *b = Arc::new(done.pop().unwrap());
+            }
+            JsValue::Tenary(_, test, cons, alt) => {
+                *test = Arc::new(done.pop().unwrap());
+                *cons = Arc::new(done.pop().unwrap());
+                *alt = Arc::new(done.pop().unwrap());
+            }
+            JsValue::Member(_, obj, prop) => {
+                *obj = Arc::new(done.pop().unwrap());
+                *prop = Arc::new(done.pop().unwrap());
+            }
+            JsValue::Constant(_)
+            | JsValue::FreeVar(_)
+            | JsValue::Variable(_)
+            | JsValue::Module(..)
+            | JsValue::Url(_, _)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Unknown { .. }
+            | JsValue::Argument(..) => {}
+        }
+        self.update_total_nodes();
+    }
+
     /// Calls a function for each child of the node. Allows mutating the node.
     /// Updates the total nodes count after mutation.
     pub fn for_each_children_mut(
@@ -2759,6 +2933,118 @@ impl JsValue {
             }
             _ => self.for_each_children_mut(visitor),
         }
+    }
+
+    /// Takes early children out of the value, avoiding `Arc::make_mut`.
+    /// Returns whether any early children were taken.
+    pub fn take_early_children(&mut self, visitor: &mut impl FnMut(JsValue)) -> bool {
+        fn take_arc(arc: &mut Arc<JsValue>) -> JsValue {
+            let taken = std::mem::replace(arc, DEFAULT_JS_VALUE_ARC.clone());
+            Arc::try_unwrap(taken).unwrap_or_else(|arc| (*arc).clone())
+        }
+
+        match self {
+            JsValue::New(_, callee, list) if !list.is_empty() => {
+                visitor(take_arc(callee));
+                true
+            }
+            JsValue::Call(_, callee, list) if !list.is_empty() => {
+                visitor(take_arc(callee));
+                true
+            }
+            JsValue::MemberCall(_, obj, prop, list) if !list.is_empty() => {
+                visitor(take_arc(obj));
+                visitor(take_arc(prop));
+                true
+            }
+            JsValue::Member(_, obj, _) => {
+                visitor(take_arc(obj));
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Puts early children back from done stack.
+    pub fn put_early_children_from_done(&mut self, done: &mut Vec<JsValue>) {
+        match self {
+            JsValue::New(_, callee, list) if !list.is_empty() => {
+                *callee = Arc::new(done.pop().unwrap());
+            }
+            JsValue::Call(_, callee, list) if !list.is_empty() => {
+                *callee = Arc::new(done.pop().unwrap());
+            }
+            JsValue::MemberCall(_, obj, prop, list) if !list.is_empty() => {
+                *obj = Arc::new(done.pop().unwrap());
+                *prop = Arc::new(done.pop().unwrap());
+            }
+            JsValue::Member(_, obj, _) => {
+                *obj = Arc::new(done.pop().unwrap());
+            }
+            _ => {}
+        }
+        self.update_total_nodes();
+    }
+
+    /// Takes late children out of the value, avoiding `Arc::make_mut`.
+    pub fn take_late_children(&mut self, visitor: &mut impl FnMut(JsValue)) {
+        fn take_arc(arc: &mut Arc<JsValue>) -> JsValue {
+            let taken = std::mem::replace(arc, DEFAULT_JS_VALUE_ARC.clone());
+            Arc::try_unwrap(taken).unwrap_or_else(|arc| (*arc).clone())
+        }
+
+        match self {
+            JsValue::New(_, _, list) if !list.is_empty() => {
+                for item in list.iter_mut() {
+                    visitor(take(item));
+                }
+            }
+            JsValue::Call(_, _, list) if !list.is_empty() => {
+                for item in list.iter_mut() {
+                    visitor(take(item));
+                }
+            }
+            JsValue::MemberCall(_, _, _, list) if !list.is_empty() => {
+                for item in list.iter_mut() {
+                    visitor(take(item));
+                }
+            }
+            JsValue::Member(_, _, prop) => {
+                visitor(take_arc(prop));
+            }
+            _ => {
+                self.take_children(visitor);
+            }
+        }
+    }
+
+    /// Puts late children back from done stack.
+    pub fn put_late_children_from_done(&mut self, done: &mut Vec<JsValue>) {
+        match self {
+            JsValue::New(_, _, list) if !list.is_empty() => {
+                for item in list.iter_mut() {
+                    *item = done.pop().unwrap();
+                }
+            }
+            JsValue::Call(_, _, list) if !list.is_empty() => {
+                for item in list.iter_mut() {
+                    *item = done.pop().unwrap();
+                }
+            }
+            JsValue::MemberCall(_, _, _, list) if !list.is_empty() => {
+                for item in list.iter_mut() {
+                    *item = done.pop().unwrap();
+                }
+            }
+            JsValue::Member(_, _, prop) => {
+                *prop = Arc::new(done.pop().unwrap());
+            }
+            _ => {
+                self.put_children_from_done(done);
+                return; // put_children_from_done already calls update_total_nodes
+            }
+        }
+        self.update_total_nodes();
     }
 
     /// Visit the node and all its children with a function.

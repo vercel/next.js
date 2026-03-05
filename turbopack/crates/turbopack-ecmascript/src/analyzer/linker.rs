@@ -1,4 +1,4 @@
-use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take, sync::Arc};
+use std::{collections::hash_map::Entry, fmt::Display, future::Future, sync::Arc};
 
 use anyhow::Result;
 use parking_lot::Mutex;
@@ -241,18 +241,14 @@ where
                 } else {
                     let i = work_queue_stack.len();
                     work_queue_stack.push(Step::TemporarySlot);
-                    let mut has_early_children = false;
-                    val.for_each_early_children_mut(&mut |child| {
-                        has_early_children = true;
-                        work_queue_stack.push(Step::Enter(take(child)));
-                        false
+                    let has_early_children = val.take_early_children(&mut |child| {
+                        work_queue_stack.push(Step::Enter(child));
                     });
                     if has_early_children {
                         work_queue_stack[i] = Step::EarlyVisit(val);
                     } else {
-                        val.for_each_children_mut(&mut |child| {
-                            work_queue_stack.push(Step::Enter(take(child)));
-                            false
+                        val.take_children(&mut |child| {
+                            work_queue_stack.push(Step::Enter(child));
                         });
                         work_queue_stack[i] = Step::Leave(val);
                     }
@@ -263,11 +259,7 @@ where
             // - visit the value
             // - insert late children and process for Leave
             Step::EarlyVisit(mut val) => {
-                val.for_each_early_children_mut(&mut |child| {
-                    let val = done.pop().unwrap();
-                    *child = val;
-                    true
-                });
+                val.put_early_children_from_done(&mut done);
                 val.debug_assert_total_nodes_up_to_date();
                 let count = val.total_nodes();
                 total_nodes -= count;
@@ -305,20 +297,15 @@ where
                     // Otherwise we can just process the late children
                     let i = work_queue_stack.len();
                     work_queue_stack.push(Step::TemporarySlot);
-                    val.for_each_late_children_mut(&mut |child| {
-                        work_queue_stack.push(Step::Enter(take(child)));
-                        false
+                    val.take_late_children(&mut |child| {
+                        work_queue_stack.push(Step::Enter(child));
                     });
                     work_queue_stack[i] = Step::LeaveLate(val);
                 }
             }
             // Leave a value
             Step::Leave(mut val) => {
-                val.for_each_children_mut(&mut |child| {
-                    let val = done.pop().unwrap();
-                    *child = val;
-                    true
-                });
+                val.put_children_from_done(&mut done);
                 val.debug_assert_total_nodes_up_to_date();
 
                 let count = val.total_nodes();
@@ -338,11 +325,7 @@ where
             }
             // Leave a value from EarlyVisit
             Step::LeaveLate(mut val) => {
-                val.for_each_late_children_mut(&mut |child| {
-                    let val = done.pop().unwrap();
-                    *child = val;
-                    true
-                });
+                val.put_late_children_from_done(&mut done);
                 val.debug_assert_total_nodes_up_to_date();
 
                 let count = val.total_nodes();
