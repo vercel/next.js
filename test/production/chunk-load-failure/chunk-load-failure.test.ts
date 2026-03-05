@@ -204,8 +204,8 @@ describe('chunk-load-failure', () => {
 
     // One initial request + one retry attempt.
     expect(chunkRequestCount).toBe(2)
-    // Browsers/runtime paths differ here: some surface the first transient failure
-    // as a page error before retry succeeds, others recover without a pageerror.
+    // Browser/runtime paths differ here: some surface the first transient failure
+    // as a page error before retry succeeds, others recover without one.
     if (pageError) {
       expect(pageError.name).toBe('ChunkLoadError')
     }
