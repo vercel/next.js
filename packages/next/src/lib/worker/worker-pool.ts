@@ -203,6 +203,8 @@ export class WorkerPool {
   private _nextRequestId = 1
   /** Set to true once `end()` or `close()` is called; prevents new dispatches */
   private _ending = false
+  /** Number of workers currently in the booting state */
+  private _bootingCount = 0
   /** Merged stdout from all workers, piped through a PassThrough stream */
   private _stdout: PassThrough
   /** Merged stderr from all workers, piped through a PassThrough stream */
@@ -459,6 +461,7 @@ export class WorkerPool {
     ] satisfies ChildMessageInitialize)
 
     this._workers.push(worker)
+    this._bootingCount++
     return worker
   }
 
@@ -518,7 +521,8 @@ export class WorkerPool {
         this._rejectActiveRequests(worker, error)
         if (worker.booting) {
           worker.booting = false
-          this._onWorkerReady()
+          this._bootingCount--
+          this._onWorkerReady(worker)
         }
         break
       }
@@ -528,7 +532,8 @@ export class WorkerPool {
       }
       case PARENT_MESSAGE_READY: {
         worker.booting = false
-        this._onWorkerReady()
+        this._bootingCount--
+        this._onWorkerReady(worker)
         break
       }
       default:
@@ -583,6 +588,10 @@ export class WorkerPool {
     code: number | null,
     signal: string | null
   ): void {
+    if (worker.booting) {
+      this._bootingCount--
+    }
+
     // During graceful shutdown, exit is expected — reject any lingering
     // in-flight requests that the child didn't respond to before exiting.
     if (worker.ending) {
@@ -604,9 +613,8 @@ export class WorkerPool {
       this._workers.splice(idx, 1)
     }
 
-    // A slot freed up — try to drain queued tasks and spawn replacements
+    // A slot freed up — try to spawn replacements for queued tasks
     if (!this._ending) {
-      this._drainQueueToAvailable()
       this._spawnForQueuedTasks()
     }
   }
@@ -659,16 +667,6 @@ export class WorkerPool {
     }
   }
 
-  /** Drain queued tasks across all workers that have capacity */
-  private _drainQueueToAvailable(): void {
-    while (this._taskQueue.length > 0) {
-      const worker = this._findAvailableWorker()
-      if (!worker) break
-      const task = this._taskQueue.shift()!
-      this._sendCall(worker, task.method, task.args, task.resolve, task.reject)
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // Internal: booting management
   // ---------------------------------------------------------------------------
@@ -677,26 +675,17 @@ export class WorkerPool {
   private _canSpawnWorker(): boolean {
     return (
       this._workers.length < this._options.maxWorkers &&
-      this._bootingCount() < this._options.maxBootingWorkers
+      this._bootingCount < this._options.maxBootingWorkers
     )
-  }
-
-  /** Count workers that are still in the booting state */
-  private _bootingCount(): number {
-    let count = 0
-    for (const worker of this._workers) {
-      if (worker.booting) count++
-    }
-    return count
   }
 
   /**
    * Called when a worker transitions from booting to ready.
-   * Drains queued tasks to workers with capacity, then spawns additional
+   * Drains queued tasks to the newly ready worker, then spawns additional
    * workers for remaining queued tasks (now that a booting slot freed up).
    */
-  private _onWorkerReady(): void {
-    this._drainQueueToAvailable()
+  private _onWorkerReady(worker: PoolWorker): void {
+    this._drainQueue(worker)
     this._spawnForQueuedTasks()
   }
 
