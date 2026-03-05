@@ -1,6 +1,13 @@
+use std::{
+    fmt::Display,
+    hash::{Hash, Hasher},
+    ops::Deref,
+};
+
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use indexmap::Equivalent;
+use num_bigint::BigInt;
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
@@ -108,12 +115,62 @@ macro_rules! free_var_references {
 pub enum CompileTimeDefineValue {
     Null,
     Bool(bool),
-    Number(RcStr),
+    Number(TotalOrderF64),
     String(RcStr),
+    BigInt(
+        #[bincode(with_serde)]
+        #[turbo_tasks(trace_ignore)]
+        Box<BigInt>,
+    ),
     Array(Vec<CompileTimeDefineValue>),
     Object(Vec<(RcStr, CompileTimeDefineValue)>),
     Undefined,
     Evaluate(RcStr),
+}
+
+fn integer_decode(val: f64) -> (u64, i16, i8) {
+    let bits: u64 = val.to_bits();
+    let sign: i8 = if bits >> 63 == 0 { 1 } else { -1 };
+    let mut exponent: i16 = ((bits >> 52) & 0x7ff) as i16;
+    let mantissa = if exponent == 0 {
+        (bits & 0xfffffffffffff) << 1
+    } else {
+        (bits & 0xfffffffffffff) | 0x10000000000000
+    };
+
+    exponent -= 1023 + 52;
+    (mantissa, exponent, sign)
+}
+
+/// Wrapper around f64 that implements total ordering and hashing based on total ordering.
+#[derive(Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub struct TotalOrderF64(f64);
+impl PartialEq for TotalOrderF64 {
+    fn eq(&self, other: &Self) -> bool {
+        integer_decode(self.0) == integer_decode(other.0)
+    }
+}
+impl Eq for TotalOrderF64 {}
+impl Hash for TotalOrderF64 {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        integer_decode(self.0).hash(state);
+    }
+}
+impl From<f64> for TotalOrderF64 {
+    fn from(value: f64) -> Self {
+        Self(value)
+    }
+}
+impl Deref for TotalOrderF64 {
+    type Target = f64;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Display for TotalOrderF64 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
 }
 
 impl From<bool> for CompileTimeDefineValue {
@@ -145,7 +202,11 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
         match value {
             serde_json::Value::Null => Self::Null,
             serde_json::Value::Bool(b) => Self::Bool(b),
-            serde_json::Value::Number(n) => Self::Number(n.to_string().into()),
+            serde_json::Value::Number(n) => Self::Number(
+                n.as_f64()
+                    .expect("unreachable: serde-json has arbitrary_precision disabled")
+                    .into(),
+            ),
             serde_json::Value::String(s) => Self::String(s.into()),
             serde_json::Value::Array(a) => Self::Array(a.into_iter().map(|i| i.into()).collect()),
             serde_json::Value::Object(m) => {
