@@ -229,8 +229,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0
       '@vercel/og':
-        specifier: 0.11.0
-        version: 0.11.0
+        specifier: 0.11.1
+        version: 0.11.1
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -544,8 +544,8 @@ importers:
         specifier: 1.54.0
         version: 1.54.0
       satori:
-        specifier: 0.21.0
-        version: 0.21.0
+        specifier: 0.25.0
+        version: 0.25.0
       scheduler-builtin:
         specifier: npm:scheduler@0.28.0-canary-3bc2d414-20260304
         version: scheduler@0.28.0-canary-3bc2d414-20260304
@@ -7122,8 +7122,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  '@vercel/og@0.11.0':
-    resolution: {integrity: sha512-zrrMMhwOpZ6qsH3yoV+GcqigOkUi76BpYZVohb2qZYh5Hkvfp0irYxiNehJ9bt2HsTGZCimHC9Cv7EDOv8JbvA==}
+  '@vercel/og@0.11.1':
+    resolution: {integrity: sha512-02rXXRABFq1B03w3aNhcVfxkY+8Ba5QFi4ax0zS0oOiD/LL9WUd/LA7BjVPakrQmVhIBjuo2oBM5U25R9IuXMg==}
     engines: {node: '>=16'}
 
   '@vercel/routing-utils@5.2.0':
@@ -16576,8 +16576,8 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
-  satori@0.21.0:
-    resolution: {integrity: sha512-PV5II6Z+gsFFLq4jp6mslt0ObNRzcTi5Xq+8JtJ3ReqBS9k4nF4ajqITFXygPZgRA6l5+22NYIS1WRTqTfDp5g==}
+  satori@0.25.0:
+    resolution: {integrity: sha512-utINfLxrYrmSnLvxFT4ZwgwWa8KOjrz7ans32V5wItgHVmzESl/9i33nE38uG0miycab8hUqQtDlOpqrIpB/iw==}
     engines: {node: '>=16'}
 
   sax@1.2.4:
@@ -24585,10 +24585,10 @@ snapshots:
       - encoding
       - supports-color
 
-  '@vercel/og@0.11.0':
+  '@vercel/og@0.11.1':
     dependencies:
       '@resvg/resvg-wasm': 2.4.0
-      satori: 0.21.0
+      satori: 0.25.0
     optionalDependencies:
       sharp: 0.34.5
 
@@ -36679,7 +36679,7 @@ snapshots:
       immutable: 4.3.7
       source-map-js: 1.2.1
 
-  satori@0.21.0:
+  satori@0.25.0:
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
       css-background-parser: 0.1.0

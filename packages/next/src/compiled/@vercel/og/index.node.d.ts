@@ -1,5 +1,5 @@
 import { ReactElement } from 'react';
-import { I as ImageResponseOptions, a as ImageResponseNodeOptions } from './types-d38469ff.js';
+import { ImageResponseOptions, ImageResponseNodeOptions } from './types.js';
 import { Readable } from 'stream';
 import "next/dist/compiled/@vercel/og/satori";
 import 'http';

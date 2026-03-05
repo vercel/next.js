@@ -71,4 +71,4 @@ declare module 'react' {
     }
 }
 
-export { ImageResponseOptions as I, ImageResponseNodeOptions as a };
+export { ImageResponseNodeOptions, ImageResponseOptions };
