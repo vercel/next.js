@@ -1840,6 +1840,12 @@ let BACKEND;
 /**
  * Maps chunk paths to the corresponding resolver.
  */ const chunkResolvers = new Map();
+// Keep in sync with Next's client chunk retry policy.
+const MAX_CHUNK_LOAD_RETRY_ATTEMPTS = 1;
+const BASE_CHUNK_LOAD_RETRY_DELAY_MS = 200;
+const MAX_CHUNK_LOAD_RETRY_JITTER_MS = 400;
+const MAX_CHUNK_LOAD_RETRY_RTT_MS = 500;
+const MAX_CHUNK_LOAD_RETRY_TOTAL_DELAY_MS = 1500;
 (()=>{
     BACKEND = {
         async registerChunk (chunk, params) {
@@ -1892,6 +1898,7 @@ let BACKEND;
             resolver = {
                 resolved: false,
                 loadingStarted: false,
+                retryAttempts: 0,
                 promise,
                 resolve: ()=>{
                     resolver.resolved = true;
@@ -1909,6 +1916,104 @@ let BACKEND;
             chunkResolvers.delete(chunkUrl);
         }
         resolver.reject(error);
+    }
+    function getChunkLoadRetryDelayMs() {
+        const jitter = Math.floor(Math.random() * (MAX_CHUNK_LOAD_RETRY_JITTER_MS + 1));
+        let rtt = 0;
+        if ('connection' in navigator) {
+            const connection = navigator.connection;
+            if (connection?.rtt) {
+                rtt = Math.min(MAX_CHUNK_LOAD_RETRY_RTT_MS, connection.rtt);
+            }
+        }
+        return Math.min(MAX_CHUNK_LOAD_RETRY_TOTAL_DELAY_MS, BASE_CHUNK_LOAD_RETRY_DELAY_MS + jitter + rtt);
+    }
+    function retryChunkLoad(sourceType, chunkUrl, resolver, error) {
+        if (resolver.retryAttempts >= MAX_CHUNK_LOAD_RETRY_ATTEMPTS || chunkResolvers.get(chunkUrl) !== resolver) {
+            rejectChunkResolver(chunkUrl, resolver, error);
+            return;
+        }
+        resolver.retryAttempts++;
+        setTimeout(()=>{
+            if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+                return;
+            }
+            loadChunkImpl(sourceType, chunkUrl, resolver);
+        }, getChunkLoadRetryDelayMs());
+    }
+    function loadChunkImpl(sourceType, chunkUrl, resolver) {
+        if (typeof importScripts === 'function') {
+            // We're in a web worker
+            if (isCss(chunkUrl)) {
+            // ignore
+            } else if (isJs(chunkUrl)) {
+                self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
+                try {
+                    importScripts(chunkUrl);
+                } catch (error) {
+                    retryChunkLoad(sourceType, chunkUrl, resolver, error);
+                }
+            } else {
+                throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
+            }
+            return;
+        }
+        // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
+        const decodedChunkUrl = decodeURI(chunkUrl);
+        // Escape URLs for safe use in CSS selectors
+        const escapedChunkUrl = CSS.escape(chunkUrl);
+        const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl);
+        if (isCss(chunkUrl)) {
+            const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${escapedChunkUrl}"],link[rel=stylesheet][href^="${escapedChunkUrl}?"],link[rel=stylesheet][href="${escapedDecodedChunkUrl}"],link[rel=stylesheet][href^="${escapedDecodedChunkUrl}?"]`);
+            if (previousLinks.length > 0) {
+                // CSS chunks do not register themselves, and as such must be marked as
+                // loaded instantly.
+                resolver.resolve();
+            } else {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = chunkUrl;
+                link.onerror = ()=>{
+                    link.remove();
+                    retryChunkLoad(sourceType, chunkUrl, resolver);
+                };
+                link.onload = ()=>{
+                    // CSS chunks do not register themselves, and as such must be marked as
+                    // loaded instantly.
+                    resolver.resolve();
+                };
+                // Append to the `head` for webpack compatibility.
+                document.head.appendChild(link);
+            }
+        } else if (isJs(chunkUrl)) {
+            const previousScripts = document.querySelectorAll(`script[src="${escapedChunkUrl}"],script[src^="${escapedChunkUrl}?"],script[src="${escapedDecodedChunkUrl}"],script[src^="${escapedDecodedChunkUrl}?"]`);
+            if (previousScripts.length > 0) {
+                // There is this edge where the script already failed loading, but we
+                // can't detect that. The Promise will never resolve in this case.
+                for (const script of Array.from(previousScripts)){
+                    script.addEventListener('error', ()=>{
+                        script.remove();
+                        retryChunkLoad(sourceType, chunkUrl, resolver);
+                    }, {
+                        once: true
+                    });
+                }
+            } else {
+                const script = document.createElement('script');
+                script.src = chunkUrl;
+                // We'll only mark the chunk as loaded once the script has been executed,
+                // which happens in `registerChunk`. Hence the absence of `resolve()` in
+                // this branch.
+                script.onerror = ()=>{
+                    script.remove();
+                    retryChunkLoad(sourceType, chunkUrl, resolver);
+                };
+                // Append to the `head` for webpack compatibility.
+                document.head.appendChild(script);
+            }
+        } else {
+            throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
+        }
     }
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
@@ -1932,80 +2037,8 @@ let BACKEND;
             // `resolver.resolve()` in this branch.
             return resolver.promise;
         }
-        if (typeof importScripts === 'function') {
-            // We're in a web worker
-            if (isCss(chunkUrl)) {
-            // ignore
-            } else if (isJs(chunkUrl)) {
-                self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
-                try {
-                    importScripts(chunkUrl);
-                } catch (error) {
-                    rejectChunkResolver(chunkUrl, resolver, error);
-                    throw error;
-                }
-            } else {
-                throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
-            }
-        } else {
-            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            const decodedChunkUrl = decodeURI(chunkUrl);
-            // Escape URLs for safe use in CSS selectors
-            const escapedChunkUrl = CSS.escape(chunkUrl);
-            const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl);
-            if (isCss(chunkUrl)) {
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${escapedChunkUrl}"],link[rel=stylesheet][href^="${escapedChunkUrl}?"],link[rel=stylesheet][href="${escapedDecodedChunkUrl}"],link[rel=stylesheet][href^="${escapedDecodedChunkUrl}?"]`);
-                if (previousLinks.length > 0) {
-                    // CSS chunks do not register themselves, and as such must be marked as
-                    // loaded instantly.
-                    resolver.resolve();
-                } else {
-                    const link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = chunkUrl;
-                    link.onerror = ()=>{
-                        link.remove();
-                        rejectChunkResolver(chunkUrl, resolver);
-                    };
-                    link.onload = ()=>{
-                        // CSS chunks do not register themselves, and as such must be marked as
-                        // loaded instantly.
-                        resolver.resolve();
-                    };
-                    // Append to the `head` for webpack compatibility.
-                    document.head.appendChild(link);
-                }
-            } else if (isJs(chunkUrl)) {
-                const previousScripts = document.querySelectorAll(`script[src="${escapedChunkUrl}"],script[src^="${escapedChunkUrl}?"],script[src="${escapedDecodedChunkUrl}"],script[src^="${escapedDecodedChunkUrl}?"]`);
-                if (previousScripts.length > 0) {
-                    // There is this edge where the script already failed loading, but we
-                    // can't detect that. The Promise will never resolve in this case.
-                    for (const script of Array.from(previousScripts)){
-                        script.addEventListener('error', ()=>{
-                            script.remove();
-                            rejectChunkResolver(chunkUrl, resolver);
-                        }, {
-                            once: true
-                        });
-                    }
-                } else {
-                    const script = document.createElement('script');
-                    script.src = chunkUrl;
-                    // We'll only mark the chunk as loaded once the script has been executed,
-                    // which happens in `registerChunk`. Hence the absence of `resolve()` in
-                    // this branch.
-                    script.onerror = ()=>{
-                        script.remove();
-                        rejectChunkResolver(chunkUrl, resolver);
-                    };
-                    // Append to the `head` for webpack compatibility.
-                    document.head.appendChild(script);
-                }
-            } else {
-                throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
-            }
-        }
         resolver.loadingStarted = true;
+        loadChunkImpl(sourceType, chunkUrl, resolver);
         return resolver.promise;
     }
     function fetchWebAssembly(wasmChunkPath) {
