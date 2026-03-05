@@ -7,6 +7,7 @@ import type {
   HeadData,
 } from '../../shared/lib/app-router-types'
 import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -540,7 +541,7 @@ async function renderInlinedPrefetchResponse(
     onError: onSegmentPrerenderError,
   })
   const buffer = await streamToBuffer(prelude)
-  return ['/_inlined' as SegmentRequestKey, buffer]
+  return [('/' + PAGE_SEGMENT_KEY) as SegmentRequestKey, buffer]
 }
 
 async function buildInlinedSegmentPrefetch(
