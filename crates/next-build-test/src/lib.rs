@@ -5,7 +5,7 @@
 
 use std::{str::FromStr, time::Instant};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
     entrypoints::Entrypoints,
@@ -135,7 +135,7 @@ impl FromStr for Strategy {
             "parallel-randomized" => Ok(Strategy::Parallel { randomized: true }),
             "development" => Ok(Strategy::Development { randomized: false }),
             "development-randomized" => Ok(Strategy::Development { randomized: true }),
-            _ => Err(anyhow::anyhow!("invalid strategy")),
+            _ => bail!("invalid strategy"),
         }
     }
 }

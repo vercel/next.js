@@ -21,12 +21,23 @@ pub fn decompress_into_arc(uncompressed_length: u32, block: &[u8]) -> Result<Arc
     let mut buffer = unsafe { buffer.assume_init() };
     // We just created this Arc so refcount is 1; get_mut always succeeds.
     let decompressed = Arc::get_mut(&mut buffer).expect("Arc refcount should be 1");
-    let bytes_written = decompress(block, decompressed)?;
+    let bytes_written = decompress(block, decompressed).with_context(|| {
+        format!(
+            "Failed to decompress block ({} bytes compressed, {} bytes uncompressed)",
+            block.len(),
+            uncompressed_length
+        )
+    })?;
     assert_eq!(
         bytes_written, uncompressed_length as usize,
         "Decompressed length does not match expected length"
     );
     Ok(buffer)
+}
+
+/// Computes a CRC32 checksum of a byte slice.
+pub fn checksum_block(data: &[u8]) -> u32 {
+    crc32fast::hash(data)
 }
 
 #[tracing::instrument(level = "trace", skip_all)]

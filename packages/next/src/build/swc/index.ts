@@ -3,10 +3,6 @@ import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
-import { getParserOptions } from './options'
-import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
-import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
   TurbopackLoaderBuiltinCondition,
@@ -15,12 +11,13 @@ import type {
   TurbopackRuleConfigCollection,
   TurbopackRuleConfigItem,
 } from '../../server/config-shared'
-import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
   NapiSourceDiagnostic,
+  NapiCodeFrameLocation,
+  NapiCodeFrameOptions,
 } from './generated-native'
 import type {
   Binding,
@@ -42,8 +39,8 @@ import type {
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
-import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
+import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
 
 export enum HmrTarget {
   Client = 'client',
@@ -236,9 +233,11 @@ export async function loadBindings(
     if (!lockfilePatchPromise.cur) {
       // always run lockfile check once so that it gets patched
       // even if it doesn't fail to load locally
-      lockfilePatchPromise.cur = patchIncorrectLockfile(process.cwd()).catch(
-        console.error
+      lockfilePatchPromise.cur = (
+        require('../../lib/patch-incorrect-lockfile') as typeof import('../../lib/patch-incorrect-lockfile')
       )
+        .patchIncorrectLockfile(process.cwd())
+        .catch(console.error)
     }
 
     let attempts: any[] = []
@@ -322,7 +321,9 @@ async function tryLoadNativeWithFallback(attempts: Array<string>) {
   )
 
   if (!downloadNativeBindingsPromise) {
-    downloadNativeBindingsPromise = downloadNativeNextSwc(
+    downloadNativeBindingsPromise = (
+      require('../../lib/download-swc') as typeof import('../../lib/download-swc')
+    ).downloadNativeNextSwc(
       nextVersion,
       nativeBindingsDirectory,
       triples.map((triple: any) => triple.platformArchABI)
@@ -345,8 +346,9 @@ async function tryLoadWasmWithFallback(
 ): Promise<Binding | undefined> {
   try {
     let bindings = await loadWasm('')
-    // @ts-expect-error TODO: this event has a wrong type.
-    eventSwcLoadFailure({
+    ;(
+      require('../../telemetry/events/swc-load-failure') as typeof import('../../telemetry/events/swc-load-failure')
+    ).eventSwcLoadFailure({
       wasm: 'enabled',
       nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
     })
@@ -365,12 +367,15 @@ async function tryLoadWasmWithFallback(
       'wasm'
     )
     if (!downloadWasmPromise) {
-      downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
+      downloadWasmPromise = (
+        require('../../lib/download-swc') as typeof import('../../lib/download-swc')
+      ).downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
     let bindings = await loadWasm(wasmDirectory)
-    // @ts-expect-error TODO: this event has a wrong type.
-    eventSwcLoadFailure({
+    ;(
+      require('../../telemetry/events/swc-load-failure') as typeof import('../../telemetry/events/swc-load-failure')
+    ).eventSwcLoadFailure({
       wasm: 'fallback',
       nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
     })
@@ -386,7 +391,7 @@ async function tryLoadWasmWithFallback(
   }
 }
 
-function loadBindingsSync() {
+function loadBindingsSync(): Binding {
   let attempts: any[] = []
   try {
     return loadNative()
@@ -418,8 +423,9 @@ async function logLoadFailure(attempts: any, triedWasm = false) {
     Log.warn(attempt)
   }
 
-  // @ts-expect-error TODO: this event has a wrong type.
-  await eventSwcLoadFailure({
+  await (
+    require('../../telemetry/events/swc-load-failure') as typeof import('../../telemetry/events/swc-load-failure')
+  ).eventSwcLoadFailure({
     wasm: triedWasm ? 'failed' : undefined,
     nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
   })
@@ -1130,7 +1136,10 @@ function bindingToApi(
     function checkLoaderItem(loaderItem: TurbopackLoaderItem, glob: string) {
       if (
         typeof loaderItem !== 'string' &&
-        !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
+        !(require('util') as typeof import('util')).isDeepStrictEqual(
+          loaderItem,
+          JSON.parse(JSON.stringify(loaderItem))
+        )
       ) {
         throw new Error(
           `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
@@ -1430,6 +1439,17 @@ async function loadWasm(importPath = '') {
         imports
       )
     },
+    codeFrameColumns(
+      source: string,
+      location: NapiCodeFrameLocation,
+      options?: NapiCodeFrameOptions
+    ): string | undefined {
+      return rawBindings.codeFrameColumns(
+        Buffer.from(source),
+        location,
+        options
+      )
+    },
     lockfileTryAcquire(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquire` is not supported by the wasm bindings.'
@@ -1456,7 +1476,7 @@ async function loadWasm(importPath = '') {
  * Loads the native (non-wasm) bindings. Prefer `loadBindings` over this API, as that includes a
  * wasm fallback.
  */
-function loadNative(importPath?: string) {
+function loadNative(importPath?: string): Binding {
   if (loadedBindings) {
     return loadedBindings
   }
@@ -1679,8 +1699,13 @@ function loadNative(importPath?: string) {
       lockfileUnlockSync(lockfile: Lockfile) {
         return bindings.lockfileUnlockSync(lockfile)
       },
+      codeFrameColumns(source, location, options) {
+        // napi-rs translates Option::None as null but wasm-bindgen translates it to `null`
+        // convert here for consistency
+        return bindings.codeFrameColumns(source, location, options) ?? undefined
+      },
     }
-    return loadedBindings
+    return loadedBindings!
   }
 
   throw attempts
@@ -1727,7 +1752,9 @@ export function isReactCompilerRequired(filename: string): Promise<boolean> {
 
 export async function parse(src: string, options: any): Promise<any> {
   const bindings = getBindingsSync()
-  const parserOptions = getParserOptions(options)
+  const parserOptions = (
+    require('./options') as typeof import('./options')
+  ).getParserOptions(options)
   const parsed = await bindings.parse(src, parserOptions)
   return JSON.parse(parsed)
 }
