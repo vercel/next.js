@@ -1,0 +1,90 @@
+diff --git a/lib/http-proxy/common.js b/lib/http-proxy/common.js
+index 6513e81d80d5250ea249ea833f819ece67897c7e..09143dd1fe4e67885f40ea916a6ea1ef3e3afa19 100644
+--- a/lib/http-proxy/common.js
++++ b/lib/http-proxy/common.js
+@@ -1,9 +1,9 @@
+ var common   = exports,
+     url      = require('url'),
+-    extend   = require('util')._extend,
+     required = require('requires-port');
+ 
+ var upgradeHeader = /(^|,)\s*upgrade\s*($|,)/i,
++    hopByHopTransferEncodingHeader = /(^|,)\s*transfer-encoding\s*($|,)/i,
+     isSSL = /^https|wss/;
+ 
+ /**
+@@ -40,10 +40,10 @@ common.setupOutgoing = function(outgoing, options, req, forward) {
+   );
+ 
+   outgoing.method = options.method || req.method;
+-  outgoing.headers = extend({}, req.headers);
++  outgoing.headers = Object.assign({}, req.headers);
+ 
+   if (options.headers){
+-    extend(outgoing.headers, options.headers);
++    Object.assign(outgoing.headers, options.headers);
+   }
+ 
+   if (options.auth) {
+@@ -61,13 +61,22 @@ common.setupOutgoing = function(outgoing, options, req, forward) {
+ 
+   outgoing.agent = options.agent || false;
+   outgoing.localAddress = options.localAddress;
++  outgoing.headers = outgoing.headers || {};
++  var hasTransferEncodingHeader = Object.keys(outgoing.headers).some(function (header) {
++    return header.toLowerCase() === 'transfer-encoding'
++      && typeof outgoing.headers[header] !== 'undefined';
++  });
++
++  if (hasTransferEncodingHeader
++      || (typeof outgoing.headers.connection === 'string'
++          && hopByHopTransferEncodingHeader.test(outgoing.headers.connection))
++     ) { outgoing.headers.connection = 'close'; }
+ 
+   //
+   // Remark: If we are false and not upgrading, set the connection: close. This is the right thing to do
+   // as node core doesn't handle this COMPLETELY properly yet.
+   //
+   if (!outgoing.agent) {
+-    outgoing.headers = outgoing.headers || {};
+     if (typeof outgoing.headers.connection !== 'string'
+         || !upgradeHeader.test(outgoing.headers.connection)
+        ) { outgoing.headers.connection = 'close'; }
+diff --git a/lib/http-proxy/index.js b/lib/http-proxy/index.js
+index 977a4b3622b9eaac27689f06347ea4c5173a96cd..88b2d0fcfa03c3aafa47c7e6d38e64412c45a7cc 100644
+--- a/lib/http-proxy/index.js
++++ b/lib/http-proxy/index.js
+@@ -1,5 +1,4 @@
+ var httpProxy = module.exports,
+-    extend    = require('util')._extend,
+     parse_url = require('url').parse,
+     EE3       = require('eventemitter3'),
+     http      = require('http'),
+@@ -47,9 +46,9 @@ function createRightProxy(type) {
+         args[cntr] !== res
+       ) {
+         //Copy global options
+-        requestOptions = extend({}, options);
++        requestOptions = Object.assign({}, options);
+         //Overwrite with request options
+-        extend(requestOptions, args[cntr]);
++        Object.assign(requestOptions, args[cntr]);
+ 
+         cntr--;
+       }
+diff --git a/lib/http-proxy/passes/web-incoming.js b/lib/http-proxy/passes/web-incoming.js
+index 7ae735514190eea569c605fff7d27c045fe8d601..c7c25e7228b21c76b3c7115af82ddcbf13a8e3ec 100644
+--- a/lib/http-proxy/passes/web-incoming.js
++++ b/lib/http-proxy/passes/web-incoming.js
+@@ -33,9 +33,9 @@ module.exports = {
+ 
+   deleteLength: function deleteLength(req, res, options) {
+     if((req.method === 'DELETE' || req.method === 'OPTIONS')
+-       && !req.headers['content-length']) {
++       && typeof req.headers['content-length'] === 'undefined'
++       && typeof req.headers['transfer-encoding'] === 'undefined') {
+       req.headers['content-length'] = '0';
+-      delete req.headers['transfer-encoding'];
+     }
+   },
+ 
