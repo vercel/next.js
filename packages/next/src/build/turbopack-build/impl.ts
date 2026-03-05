@@ -15,7 +15,13 @@ import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
-import { setGlobal } from '../../trace'
+import {
+  setGlobal,
+  trace,
+  initializeTraceState,
+  getTraceEvents,
+} from '../../trace'
+import type { TraceState } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../get-supported-browsers'
@@ -141,7 +147,13 @@ export async function turbopackBuild(): Promise<{
       : undefined
   )
   try {
-    backgroundLogCompilationEvents(project)
+    const buildEventsSpan = trace('turbopack-build-events')
+    // Stop immediately: this span is only used as a parent for
+    // manualTraceChild calls which carry their own timestamps.
+    buildEventsSpan.stop()
+    backgroundLogCompilationEvents(project, {
+      parentSpan: buildEventsSpan,
+    })
 
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
@@ -269,11 +281,15 @@ export async function turbopackBuild(): Promise<{
 let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
+  traceState: TraceState & { shouldSaveTraceEvents: boolean }
 }): Promise<
-  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
+  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'> & {
+    debugTraceEvents?: ReturnType<typeof getTraceEvents>
+  }
 > {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
+  initializeTraceState(workerData.traceState)
 
   /// load the config because it's not serializable
   const config = await loadConfig(
@@ -308,9 +324,14 @@ export async function workerMain(workerData: {
       duration,
     } = await turbopackBuild()
     shutdownPromise = resultShutdownPromise
+    // Wait for shutdown to complete so that all compilation events
+    // (e.g. persistence trace spans) have been processed before we
+    // collect the saved trace events.
+    await shutdownPromise
     return {
       buildTraceContext,
       duration,
+      debugTraceEvents: getTraceEvents(),
     }
   } finally {
     // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)

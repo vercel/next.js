@@ -88,11 +88,7 @@ export function processTopLevelIssues(
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-
-export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
-}
+export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,

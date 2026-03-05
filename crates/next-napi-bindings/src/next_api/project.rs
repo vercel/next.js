@@ -2129,6 +2129,7 @@ pub fn project_compilation_events_subscribe(
             obj.set_named_property("typeName", event.type_name())?;
             obj.set_named_property("severity", event.severity().to_string())?;
             obj.set_named_property("message", event.message())?;
+            obj.set_named_property("eventJson", event.to_json())?;
 
             let external = env.create_external(event, None);
             obj.set_named_property("eventData", external)?;

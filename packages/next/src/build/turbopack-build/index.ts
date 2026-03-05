@@ -2,10 +2,12 @@ import path from 'path'
 
 import { Worker } from '../../lib/worker'
 import { NextBuildContext } from '../build-context'
+import { exportTraceState, recordTraceEvents } from '../../trace'
 
 async function turbopackBuildWithWorker(): ReturnType<
   typeof import('./impl').turbopackBuild
 > {
+  const nextBuildSpan = NextBuildContext.nextBuildSpan!
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain', 'waitForShutdown'],
@@ -28,14 +30,24 @@ async function turbopackBuildWithWorker(): ReturnType<
       },
     }) as Worker & typeof import('./impl')
     const {
-      nextBuildSpan,
+      nextBuildSpan: _nextBuildSpan,
       // Config is not serializable and is loaded in the worker.
       config: _config,
       ...prunedBuildContext
     } = NextBuildContext
-    const { buildTraceContext, duration } = await worker.workerMain({
-      buildContext: prunedBuildContext,
-    })
+    const { buildTraceContext, duration, debugTraceEvents } =
+      await worker.workerMain({
+        buildContext: prunedBuildContext,
+        traceState: {
+          ...exportTraceState(),
+          defaultParentSpanId: nextBuildSpan.getId(),
+          shouldSaveTraceEvents: true,
+        },
+      })
+
+    if (debugTraceEvents) {
+      recordTraceEvents(debugTraceEvents)
+    }
 
     return {
       // destroy worker when Turbopack has shutdown so it's not sticking around using memory
