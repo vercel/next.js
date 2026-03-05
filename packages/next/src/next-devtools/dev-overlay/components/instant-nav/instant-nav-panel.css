@@ -1,49 +1,78 @@
 .instant-nav-panel {
-  padding: 16px 20px;
+  padding: 8px 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
-.instant-nav-description {
-  margin: 0;
-  font-size: 14px;
-  color: var(--color-gray-900);
-}
-
-.instant-nav-or {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-gray-700);
-}
-
-.instant-nav-refresh-button {
-  display: inline-flex;
+/* Waiting state: preference-style sections */
+.instant-nav-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-gray-400);
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: 1px solid var(--color-gray-alpha-400);
-  background: var(--color-background-200);
-  color: var(--color-gray-900);
-  font-size: 13px;
+  gap: 24px;
+}
+
+.instant-nav-section:last-child {
+  border-bottom: none;
+}
+
+.instant-nav-section-header {
+  flex: 1;
+}
+
+.instant-nav-section-header label {
+  font-size: var(--size-14);
   font-weight: 500;
-  cursor: pointer;
-  transition: background 150ms ease;
-  align-self: flex-start;
-}
-
-.instant-nav-refresh-button:hover {
-  background: var(--color-gray-alpha-200);
-}
-
-.instant-nav-hint {
+  color: var(--color-gray-1000);
   margin: 0;
-  font-size: 13px;
-  color: var(--color-gray-700);
 }
 
-.instant-nav-phase-title {
+.instant-nav-section-description {
+  color: var(--color-gray-900);
+  font-size: var(--size-14);
+  margin: 0;
+}
+
+.instant-nav-section-control {
+  flex-shrink: 0;
+}
+
+.instant-nav-section-control .action-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: var(--rounded-lg);
+  font-weight: 400;
+  font-size: var(--size-14);
+  color: var(--color-gray-1000);
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: border-color 150ms var(--timing-swift);
+}
+
+.instant-nav-section-control .action-button:hover {
+  border-color: var(--color-gray-500);
+}
+
+.instant-nav-section-control .action-button svg {
+  width: 14px;
+  height: 14px;
+  overflow: visible;
+}
+
+.instant-nav-helper-text {
+  font-size: var(--size-14);
+  color: var(--color-gray-900);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* Result states (client-nav, initial-load) */
+.instant-nav-status-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;

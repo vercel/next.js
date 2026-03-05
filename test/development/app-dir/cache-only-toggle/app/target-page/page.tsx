@@ -1,86 +1,81 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 import Link from 'next/link'
-import QueryParamReader from './client'
+import { ClientFeatures } from './client'
 
-function Skeleton({
-  width,
-  height,
-  style,
+function Box({
+  label,
+  children,
 }: {
-  width: string | number
-  height: number
-  style?: React.CSSProperties
+  label: string
+  children: React.ReactNode
 }) {
   return (
     <div
-      className="skeleton"
       style={{
-        width,
-        height,
-        borderRadius: 4,
-        background: 'linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%)',
-        backgroundSize: '800px 100%',
-        animation: 'shimmer 1.5s ease-in-out infinite',
-        ...style,
+        background: '#fff',
+        border: '1px solid #ddd',
+        borderRadius: 8,
+        padding: '1rem',
+        marginBottom: '0.75rem',
       }}
-    />
+    >
+      <div
+        style={{
+          fontSize: '0.7rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          color: '#888',
+          marginBottom: '0.5rem',
+        }}
+      >
+        {label}
+      </div>
+      {children}
+    </div>
   )
 }
 
-async function DynamicComments() {
+async function DynamicStats() {
   await connection()
 
-  const comments = [
-    { author: 'Alice', text: 'This loaded dynamically via streaming.' },
-    {
-      author: 'Bob',
-      text: 'With Instant Navigation Mode on, you would see the skeleton instead.',
-    },
-    {
-      author: 'Charlie',
-      text: 'Click the "Instant UI only" indicator to unblock dynamic data.',
-    },
+  const stats = [
+    { label: 'Stat one', value: '123' },
+    { label: 'Stat two', value: '456' },
+    { label: 'Stat three', value: '789' },
   ]
 
   return (
-    <div data-testid="dynamic-content">
-      {comments.map((c, i) => (
-        <div
-          key={i}
-          style={{
-            padding: '0.75rem',
-            borderBottom: '1px solid #eee',
-          }}
-        >
-          <strong>{c.author}</strong>
-          <p style={{ margin: '0.25rem 0 0' }}>{c.text}</p>
+    <div data-testid="dynamic-content" style={{ display: 'flex', gap: '1rem' }}>
+      {stats.map((s) => (
+        <div key={s.label} style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{s.value}</div>
+          <div style={{ fontSize: '0.75rem', color: '#888' }}>{s.label}</div>
         </div>
       ))}
     </div>
   )
 }
 
-function CommentsSkeleton() {
+async function SearchParamReader({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string }>
+}) {
+  const { search } = await searchParams
+
   return (
-    <div data-testid="comments-skeleton">
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          style={{
-            padding: '0.75rem',
-            borderBottom: '1px solid #eee',
-          }}
-        >
-          <Skeleton width={80} height={14} />
-          <Skeleton width="90%" height={14} style={{ marginTop: 8 }} />
-        </div>
-      ))}
-    </div>
+    <p data-testid="search-param-value" style={{ margin: 0 }}>
+      <code>?search={search ?? '(none)'}</code>
+    </p>
   )
 }
 
-export default function TargetPage() {
+export default async function TargetPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string }>
+}) {
   return (
     <div>
       <style>{`
@@ -88,30 +83,110 @@ export default function TargetPage() {
           0% { background-position: -400px 0; }
           100% { background-position: 400px 0; }
         }
+        .skeleton {
+          background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
+          background-size: 800px 100%;
+          animation: shimmer 1.5s ease-in-out infinite;
+          border-radius: 4px;
+        }
       `}</style>
-      <h1>Target Page</h1>
-      <p>The heading and this paragraph are static — they appear instantly.</p>
 
-      <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Query param</h2>
-      <Suspense fallback="Query param loading...">
-        <QueryParamReader />
-      </Suspense>
+      <h1 style={{ marginBottom: '0.25rem' }}>Target Page</h1>
+      <p style={{ color: '#666', marginTop: 0 }}>
+        A sandbox showing Next.js features and how they behave with Instant
+        Navs.
+      </p>
 
-      <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Comments</h2>
-      <p>The comments below are dynamic and stream in after the shell.</p>
       <div
         style={{
-          border: '1px solid #eee',
-          borderRadius: 8,
-          overflow: 'hidden',
-          marginBottom: '1.5rem',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '1.5rem',
+          marginTop: '1.5rem',
         }}
       >
-        <Suspense fallback={<CommentsSkeleton />}>
-          <DynamicComments />
-        </Suspense>
+        {/* Server Components (left column) */}
+        <div
+          style={{
+            background: '#fafafa',
+            border: '1px solid #e5e5e5',
+            borderRadius: 12,
+            padding: '1.25rem',
+          }}
+        >
+          <h2
+            style={{
+              fontSize: '0.85rem',
+              marginTop: 0,
+              marginBottom: '1rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: '#666',
+            }}
+          >
+            Server Components
+          </h2>
+
+          <Box label="Static RSC">
+            <p style={{ margin: 0 }}>
+              This heading and paragraph are static text rendered by a Server
+              Component. They are available immediately.
+            </p>
+          </Box>
+
+          <Box label="Data Fetching">
+            <Suspense
+              fallback={
+                <div data-testid="dynamic-skeleton" style={{ display: 'flex', gap: '1rem' }}>
+                  {['Stat one', 'Stat two', 'Stat three'].map((label) => (
+                    <div key={label} style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                        <span className="skeleton" style={{ display: 'inline-block', width: 48, height: '1em', verticalAlign: 'middle' }} />
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#888' }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              }
+            >
+              <DynamicStats />
+            </Suspense>
+          </Box>
+
+          <Box label="await searchParams">
+            <Suspense fallback={<p data-testid="search-param-skeleton" style={{ margin: 0 }}><span className="skeleton" style={{ display: 'inline-block', width: 120, height: '1em', verticalAlign: 'middle' }} /></p>}>
+              <SearchParamReader searchParams={searchParams} />
+            </Suspense>
+          </Box>
+        </div>
+
+        {/* Client Components (right column) */}
+        <div
+          style={{
+            background: '#fafafa',
+            border: '1px solid #e5e5e5',
+            borderRadius: 12,
+            padding: '1.25rem',
+          }}
+        >
+          <h2
+            style={{
+              fontSize: '0.85rem',
+              marginTop: 0,
+              marginBottom: '1rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: '#666',
+            }}
+          >
+            Client Components
+          </h2>
+
+          <ClientFeatures />
+        </div>
       </div>
-      <nav>
+
+      <nav style={{ marginTop: '1.5rem' }}>
         <Link
           href="/"
           style={{

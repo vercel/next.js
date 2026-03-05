@@ -270,9 +270,9 @@ export const PanelRouter = () => {
             sizeConfig={{
               kind: 'fixed',
               height: 300 / state.scale,
-              width: 400 / state.scale,
+              width: 480 / state.scale,
             }}
-            header={<DevToolsHeader title="Instant Nav" />}
+            header={<DevToolsHeader title="Instant Navs" />}
           >
             <InstantNavPanel />
           </DynamicPanel>
