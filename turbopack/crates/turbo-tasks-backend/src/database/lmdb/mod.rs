@@ -73,7 +73,7 @@ impl LmbdKeyValueDatabase {
         let meta_db = env.create_db(Some("meta"), DatabaseFlags::INTEGER_KEY)?;
         let task_cache_db = env.create_db(Some("task_cache"), DatabaseFlags::empty())?;
         Ok(LmbdKeyValueDatabase {
-            read_tx_cache: read_tx_cache::ReadTxCache::new(),
+            read_tx_cache: read_tx_cache::ReadTxCache::new(&env),
             env,
             infra_db,
             data_db,
@@ -92,7 +92,11 @@ impl LmbdKeyValueDatabase {
     }
 
     fn get_read_tx(&self) -> read_tx_cache::ReadTxGuard<'_> {
-        self.read_tx_cache.get_read_tx(&self.env)
+        self.read_tx_cache.get_read_tx()
+    }
+
+    fn begin_write(&self) -> read_tx_cache::WriteTxGuard<'_> {
+        self.read_tx_cache.begin_write(&self.env)
     }
 
     fn get_from_tx<'tx>(
@@ -148,8 +152,10 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
     fn write_batch(
         &self,
     ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
+        let write_guard = self.begin_write();
         Ok(WriteBatch::serial(LmbdWriteBatch {
             tx: self.env.begin_rw_txn()?,
+            _write_guard: Some(write_guard),
             this: self,
         }))
     }
@@ -157,6 +163,7 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
 
 pub struct LmbdWriteBatch<'l> {
     tx: RwTransaction<'l>,
+    _write_guard: Option<read_tx_cache::WriteTxGuard<'l>>,
     this: &'l LmbdKeyValueDatabase,
 }
 
@@ -175,9 +182,16 @@ impl<'a> BaseWriteBatch<'a> for LmbdWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
-        self.tx.commit()?;
-        // Swap generation after commit so new reads don't reuse old read transactions.
-        self.this.read_tx_cache.swap_generation();
+        let Self {
+            tx,
+            mut _write_guard,
+            ..
+        } = self;
+        tx.commit()?;
+        _write_guard
+            .take()
+            .expect("write guard is always present")
+            .commit();
         Ok(())
     }
 }

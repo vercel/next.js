@@ -1,18 +1,32 @@
-use std::{mem::transmute, ops::Deref, sync::Arc};
+use std::{
+    mem::transmute,
+    ops::Deref,
+    sync::{
+        Arc, Mutex, PoisonError, RwLock, RwLockWriteGuard,
+        atomic::{AtomicU64, Ordering},
+        mpsc::{Receiver, SyncSender, sync_channel},
+    },
+    thread::available_parallelism,
+};
 
-use arc_swap::ArcSwap;
 use lmdb::{Environment, RoTransaction};
-use thread_local::ThreadLocal;
 
-type ReadTransactionsCache = ThreadLocal<SendRoTransaction<'static>>;
+pub struct SendRoTransaction<'tx> {
+    tx: RoTransaction<'tx>,
+    generation: u64,
+}
 
-pub struct SendRoTransaction<'tx>(RoTransaction<'tx>);
+impl<'tx> SendRoTransaction<'tx> {
+    fn generation(&self) -> u64 {
+        self.generation
+    }
+}
 
 impl<'tx> Deref for SendRoTransaction<'tx> {
     type Target = RoTransaction<'tx>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.tx
     }
 }
 
@@ -21,64 +35,161 @@ impl<'tx> Deref for SendRoTransaction<'tx> {
 // LMDB docs: https://github.com/mozilla/lmdb/blob/205300e8aec/libraries/liblmdb/lmdb.h#L576-L584
 //
 // We still do not use a transaction concurrently from multiple threads. This `Send` wrapper only
-// allows moving ownership between threads when `ThreadLocal` internals move stored values at drop
-// time.
+// allows moving ownership between threads when queue internals move transactions across threads.
 unsafe impl<'tx> Send for SendRoTransaction<'tx> {}
+
+struct QueueState {
+    sender: SyncSender<SendRoTransaction<'static>>,
+    receiver: Arc<Mutex<Receiver<SendRoTransaction<'static>>>>,
+}
+
+impl QueueState {
+    fn new(env: &Environment, capacity: usize, generation: u64) -> Self {
+        let (sender, receiver) = sync_channel(capacity);
+        for _ in 0..capacity {
+            let tx = env.begin_ro_txn().unwrap_or_else(|err| {
+                panic!("failed to begin LMDB read transaction: {err}");
+            });
+            // Safety: these cached transactions are owned by `ReadTxCache`, which is dropped
+            // before the LMDB environment field in the parent database type.
+            let tx = unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) };
+            sender
+                .send(SendRoTransaction { tx, generation })
+                .unwrap_or_else(|err| panic!("failed to seed LMDB read transaction queue: {err}"));
+        }
+
+        Self {
+            sender,
+            receiver: Arc::new(Mutex::new(receiver)),
+        }
+    }
+}
+
+struct ReadTxGuardInner<'db> {
+    lease: Option<SendRoTransaction<'db>>,
+    sender: SyncSender<SendRoTransaction<'static>>,
+    generation: &'db AtomicU64,
+}
+
+impl Drop for ReadTxGuardInner<'_> {
+    fn drop(&mut self) {
+        let Some(lease) = self.lease.take() else {
+            return;
+        };
+        if lease.generation() != self.generation.load(Ordering::Acquire) {
+            return;
+        }
+
+        // Safety: `lease` came from a `'static` transaction in the queue. We only narrow the
+        // lifetime while leased and restore it before returning to the shared queue.
+        let lease =
+            unsafe { transmute::<SendRoTransaction<'_>, SendRoTransaction<'static>>(lease) };
+        let _ = self.sender.send(lease);
+    }
+}
 
 #[derive(Clone)]
 pub struct ReadTxGuard<'db> {
-    tx: &'db SendRoTransaction<'db>,
-    // Keep this generation alive so the borrowed read transaction (and value pointers from it)
-    // remain valid until all value buffers/guards from that generation are dropped.
-    _thread_locals: Arc<ReadTransactionsCache>,
+    inner: Arc<ReadTxGuardInner<'db>>,
 }
 
 impl<'db> Deref for ReadTxGuard<'db> {
     type Target = SendRoTransaction<'db>;
 
     fn deref(&self) -> &Self::Target {
-        self.tx
+        self.inner
+            .lease
+            .as_ref()
+            .expect("read transaction lease is always present")
+    }
+}
+
+pub struct WriteTxGuard<'db> {
+    env: &'db Environment,
+    generation: u64,
+    capacity: usize,
+    queue: Option<RwLockWriteGuard<'db, QueueState>>,
+}
+
+impl WriteTxGuard<'_> {
+    fn rebuild_queue(&mut self) {
+        if let Some(queue) = self.queue.as_mut() {
+            **queue = QueueState::new(self.env, self.capacity, self.generation);
+        }
+    }
+
+    pub fn commit(mut self) {
+        self.rebuild_queue();
+        self.queue = None;
+    }
+}
+
+impl Drop for WriteTxGuard<'_> {
+    fn drop(&mut self) {
+        if self.queue.is_some() {
+            self.rebuild_queue();
+        }
     }
 }
 
 pub struct ReadTxCache {
-    // Safety: must be dropped before LMDB `Environment`, as dropping cached transactions touches
-    // LMDB internals tied to the environment.
-    read_transactions_cache: ArcSwap<ReadTransactionsCache>,
+    generation: AtomicU64,
+    queue: RwLock<QueueState>,
+    capacity: usize,
 }
 
 impl ReadTxCache {
-    pub fn new() -> Self {
+    pub fn new(env: &Environment) -> Self {
+        let capacity = available_parallelism().map_or(1, |v| v.get());
         Self {
-            read_transactions_cache: ArcSwap::new(Arc::new(ThreadLocal::new())),
+            generation: AtomicU64::new(0),
+            queue: RwLock::new(QueueState::new(env, capacity, 0)),
+            capacity,
         }
     }
 
-    pub fn get_read_tx<'db>(&'db self, env: &'db Environment) -> ReadTxGuard<'db> {
-        let thread_locals = self.read_transactions_cache.load().clone();
-        let guard_thread_locals = thread_locals.clone();
-        let tx_static = thread_locals.get_or(|| {
-            let tx = env.begin_ro_txn().unwrap_or_else(|err| {
-                panic!("failed to begin LMDB read transaction: {err}");
-            });
-            // Safety: `read_transactions_cache` is dropped before the environment field.
-            SendRoTransaction(unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) })
-        });
-        // Safety: `tx_static` always originates from `env` and `ReadTxCache` is dropped before
-        // the environment in the parent database type. We narrow the externally-visible lifetime
-        // to `'db` so callers cannot observe or depend on `'static`.
-        let tx: &'db SendRoTransaction<'db> = unsafe {
-            transmute::<&SendRoTransaction<'static>, &'db SendRoTransaction<'db>>(tx_static)
-        };
-
-        ReadTxGuard {
-            tx,
-            _thread_locals: guard_thread_locals,
+    pub fn begin_write<'db>(&'db self, env: &'db Environment) -> WriteTxGuard<'db> {
+        let generation = self.generation.fetch_add(1, Ordering::AcqRel) + 1;
+        let queue = self.queue.write().unwrap_or_else(PoisonError::into_inner);
+        WriteTxGuard {
+            env,
+            generation,
+            capacity: self.capacity,
+            queue: Some(queue),
         }
     }
 
-    pub fn swap_generation(&self) {
-        self.read_transactions_cache
-            .store(Arc::new(ThreadLocal::new()));
+    pub fn get_read_tx<'db>(&'db self) -> ReadTxGuard<'db> {
+        loop {
+            let (sender, receiver) = {
+                let queue = self.queue.read().unwrap_or_else(PoisonError::into_inner);
+                (queue.sender.clone(), Arc::clone(&queue.receiver))
+            };
+
+            let lease = {
+                let receiver = receiver.lock().unwrap_or_else(PoisonError::into_inner);
+                match receiver.recv() {
+                    Ok(lease) => lease,
+                    Err(_) => continue,
+                }
+            };
+
+            if lease.generation() != self.generation.load(Ordering::Acquire) {
+                continue;
+            }
+
+            // Safety: all leases come from queue-owned `'static` transactions. We narrow to `'db`
+            // for the borrowed lease lifetime held by `ReadTxGuard`.
+            let lease =
+                unsafe { transmute::<SendRoTransaction<'static>, SendRoTransaction<'db>>(lease) };
+
+            return ReadTxGuard {
+                inner: Arc::new(ReadTxGuardInner {
+                    lease: Some(lease),
+                    sender,
+                    generation: &self.generation,
+                }),
+            };
+        }
     }
 }
