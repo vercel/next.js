@@ -9,15 +9,13 @@ describe('chunk-load-failure', () => {
     files: __dirname,
   })
 
-  async function getNextDynamicChunk() {
+  async function getChunkContainingText(marker: string) {
     const chunksPath = path.join(next.testDir, '.next/static/')
     const browserChunks = await recursiveReadDir(chunksPath, {
       pathnameFilter: (f) => /\.js$/.test(f),
     })
     let nextDynamicChunks = browserChunks.filter((f) =>
-      fs
-        .readFileSync(path.join(chunksPath, f), 'utf8')
-        .includes('this is a lazy loaded async component')
+      fs.readFileSync(path.join(chunksPath, f), 'utf8').includes(marker)
     )
     expect(nextDynamicChunks).toHaveLength(1)
 
@@ -25,7 +23,9 @@ describe('chunk-load-failure', () => {
   }
 
   it('should report async chunk load failures', async () => {
-    let nextDynamicChunk = await getNextDynamicChunk()
+    let nextDynamicChunk = await getChunkContainingText(
+      'this is a lazy loaded async component'
+    )
 
     let chunkRequestCount = 0
     let pageError: Error | undefined
@@ -97,7 +97,9 @@ describe('chunk-load-failure', () => {
   })
 
   it('should recover after a transient async chunk load failure', async () => {
-    let nextDynamicChunk = await getNextDynamicChunk()
+    let nextDynamicChunk = await getChunkContainingText(
+      'this is a lazy loaded async component'
+    )
     let chunkRequestCount = 0
     let pageError: Error | undefined
 
@@ -133,8 +135,85 @@ describe('chunk-load-failure', () => {
     expect(pageError).toBeUndefined()
   })
 
+  it('should fallback to MPA navigation after a persistent RSC fetch failure', async () => {
+    let rscRequestCount = 0
+
+    const browser = await next.browser('/dynamic', {
+      beforePageLoad(page) {
+        page.route('**/other*', async (route) => {
+          if (route.request().url().includes('_rsc=')) {
+            rscRequestCount++
+            await route.abort('connectionreset')
+            return
+          }
+          await route.continue()
+        })
+      },
+    })
+
+    await browser.eval('window.__TEST_NO_RELOAD = true')
+    await browser.elementByCss('#to-other').click()
+
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.pathname')).toBe('/other')
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain('this is other')
+      },
+      10_000,
+      250
+    )
+
+    // MPA fallback reloads the page context.
+    expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
+    // One initial request + one retry attempt.
+    expect(rscRequestCount).toBe(2)
+  })
+
+  it('should recover after a transient pages-router chunk load failure', async () => {
+    let pagesDynamicChunk = await getChunkContainingText(
+      'this is a pages-router lazy loaded async component'
+    )
+    let chunkRequestCount = 0
+    let pageError: Error | undefined
+
+    const browser = await next.browser('/pages-dynamic', {
+      beforePageLoad(page) {
+        page.route(`**/${pagesDynamicChunk}*`, async (route) => {
+          chunkRequestCount++
+          if (chunkRequestCount === 1) {
+            await route.abort('connectionreset')
+            return
+          }
+          await route.continue()
+        })
+        page.on('pageerror', (error: Error) => {
+          pageError = error
+        })
+      },
+    })
+
+    await retry(
+      async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain(
+          'this is a pages-router lazy loaded async component'
+        )
+      },
+      10_000,
+      250
+    )
+
+    // One initial request + one retry attempt.
+    expect(chunkRequestCount).toBe(2)
+    expect(pageError).toBeDefined()
+    expect(pageError.name).toBe('ChunkLoadError')
+  })
+
   it('should report aborted chunks when navigating away', async () => {
-    let nextDynamicChunk = await getNextDynamicChunk()
+    let nextDynamicChunk = await getChunkContainingText(
+      'this is a lazy loaded async component'
+    )
 
     let resolve
     try {

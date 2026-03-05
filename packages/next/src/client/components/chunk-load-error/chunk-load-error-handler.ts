@@ -1,6 +1,9 @@
 /**
  * Shared retry timing utilities for chunk and RSC request retries.
  */
+// Retry budget after the initial attempt.
+export const MAX_RETRY_ATTEMPTS = 1
+
 const BASE_DELAY_MS = 200
 const MAX_JITTER_MS = 400
 const MAX_RTT_MS = 500

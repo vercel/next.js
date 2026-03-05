@@ -31,6 +31,7 @@ import {
 } from '../app-router-headers'
 import { isChunkOrNetworkError } from '../chunk-load-error/is-chunk-load-error'
 import {
+  MAX_RETRY_ATTEMPTS,
   getRetryDelayMs,
   sleep,
 } from '../chunk-load-error/chunk-load-error-handler'
@@ -119,7 +120,6 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
 }
 
 let isPageUnloading = false
-const MAX_RSC_FETCH_RETRIES = 1
 
 if (typeof window !== 'undefined') {
   // Track when the page is unloading, e.g. due to reloading the page or
@@ -310,7 +310,7 @@ async function fetchServerResponseWithRetry(
       err instanceof Error &&
       isChunkOrNetworkError(err) &&
       !isPageUnloading &&
-      retryCount < MAX_RSC_FETCH_RETRIES
+      retryCount < MAX_RETRY_ATTEMPTS
     ) {
       // Retry once after a jittered delay for transient failures.
       await sleep(getRetryDelayMs())

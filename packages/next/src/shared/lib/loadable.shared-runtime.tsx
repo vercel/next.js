@@ -26,6 +26,7 @@ import React from 'react'
 import { LoadableContext } from './loadable-context.shared-runtime'
 import { isChunkLoadError } from '../../client/components/chunk-load-error/is-chunk-load-error'
 import {
+  MAX_RETRY_ATTEMPTS,
   getRetryDelayMs,
   sleep,
 } from '../../client/components/chunk-load-error/chunk-load-error-handler'
@@ -39,14 +40,27 @@ const READY_INITIALIZERS: any[] = []
 let initialized = false
 
 function retryChunkLoadErrorOnce(loader: any) {
-  return loader().catch(async (err: any) => {
-    if (typeof window !== 'undefined' && isChunkLoadError(err)) {
-      await sleep(getRetryDelayMs())
-      return loader()
-    }
+  let retries = 0
 
-    throw err
-  })
+  const run = async (): Promise<any> => {
+    try {
+      return await loader()
+    } catch (err) {
+      if (
+        typeof window !== 'undefined' &&
+        isChunkLoadError(err) &&
+        retries < MAX_RETRY_ATTEMPTS
+      ) {
+        retries++
+        await sleep(getRetryDelayMs())
+        return run()
+      }
+
+      throw err
+    }
+  }
+
+  return run()
 }
 
 function load(loader: any) {

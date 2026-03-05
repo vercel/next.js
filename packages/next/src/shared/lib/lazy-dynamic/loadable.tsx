@@ -4,6 +4,7 @@ import type { ComponentModule } from './types'
 import { PreloadChunks } from './preload-chunks'
 import { isChunkLoadError } from '../../../client/components/chunk-load-error/is-chunk-load-error'
 import {
+  MAX_RETRY_ATTEMPTS,
   getRetryDelayMs,
   sleep,
 } from '../../../client/components/chunk-load-error/chunk-load-error-handler'
@@ -36,15 +37,24 @@ function convertModule<P>(
  */
 function createRetryableLoader<T>(loader: () => Promise<T>): () => Promise<T> {
   return async () => {
-    try {
-      return await loader()
-    } catch (err) {
-      if (typeof window !== 'undefined' && isChunkLoadError(err)) {
-        await sleep(getRetryDelayMs())
-        return loader()
-      }
+    let retries = 0
 
-      throw err
+    while (true) {
+      try {
+        return await loader()
+      } catch (err) {
+        if (
+          typeof window !== 'undefined' &&
+          isChunkLoadError(err) &&
+          retries < MAX_RETRY_ATTEMPTS
+        ) {
+          retries++
+          await sleep(getRetryDelayMs())
+          continue
+        }
+
+        throw err
+      }
     }
   }
 }
