@@ -239,20 +239,17 @@ export class Worker {
 
     this._pool = pool
 
-    // Listen to the worker's stdout and stderr;
-    // if anything is logged, abort the activity spinner first
-    const abortActivityStreamOnLog = new Transform({
-      transform(_chunk, _encoding, callback) {
-        onActivityAbortImpl()
-        callback()
-      },
-    })
-    pool.getStdout().pipe(abortActivityStreamOnLog)
-    pool.getStderr().pipe(abortActivityStreamOnLog)
-
-    // Pipe the worker's stdout and stderr to the parent process
-    pool.getStdout().pipe(process.stdout)
-    pool.getStderr().pipe(process.stderr)
+    // Pipe stdout/stderr through a Transform that aborts the activity
+    // spinner on first output, then forwards data to the parent process.
+    const createAbortTransform = () =>
+      new Transform({
+        transform(chunk, _encoding, callback) {
+          onActivityAbortImpl()
+          callback(null, chunk)
+        },
+      })
+    pool.getStdout().pipe(createAbortTransform()).pipe(process.stdout)
+    pool.getStderr().pipe(createAbortTransform()).pipe(process.stderr)
 
     const dispatchWithRetry = async (
       method: string,
