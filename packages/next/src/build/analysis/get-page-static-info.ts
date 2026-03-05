@@ -262,26 +262,53 @@ function checkExports(
         exportsSet.has(node.declaration.identifier?.value)
       ) {
         const id = node.declaration.identifier.value
-        getServerSideProps = id === 'getServerSideProps'
-        getStaticProps = id === 'getStaticProps'
-        generateImageMetadata = id === 'generateImageMetadata'
-        generateSitemaps = id === 'generateSitemaps'
-        generateStaticParams = id === 'generateStaticParams'
-        generateAgent = id === 'generateAgent'
+
+        if (id === 'getServerSideProps') {
+          getServerSideProps = true
+        }
+        if (id === 'getStaticProps') {
+          getStaticProps = true
+        }
+        if (id === 'generateImageMetadata') {
+          generateImageMetadata = true
+        }
+        if (id === 'generateSitemaps') {
+          generateSitemaps = true
+        }
+        if (id === 'generateStaticParams') {
+          generateStaticParams = true
+        }
+        if (id === 'generateAgent') {
+          generateAgent = true
+        }
       }
 
       if (
         node.type === 'ExportDeclaration' &&
         node.declaration?.type === 'VariableDeclaration'
       ) {
-        const id = node.declaration?.declarations[0]?.id.value
-        if (exportsSet.has(id)) {
-          getServerSideProps = id === 'getServerSideProps'
-          getStaticProps = id === 'getStaticProps'
-          generateImageMetadata = id === 'generateImageMetadata'
-          generateSitemaps = id === 'generateSitemaps'
-          generateStaticParams = id === 'generateStaticParams'
-          generateAgent = id === 'generateAgent'
+        for (const declaration of node.declaration.declarations) {
+          const id = declaration.id.value
+          if (!exportsSet.has(id)) continue
+
+          if (id === 'getServerSideProps') {
+            getServerSideProps = true
+          }
+          if (id === 'getStaticProps') {
+            getStaticProps = true
+          }
+          if (id === 'generateImageMetadata') {
+            generateImageMetadata = true
+          }
+          if (id === 'generateSitemaps') {
+            generateSitemaps = true
+          }
+          if (id === 'generateStaticParams') {
+            generateStaticParams = true
+          }
+          if (id === 'generateAgent') {
+            generateAgent = true
+          }
         }
       }
 
