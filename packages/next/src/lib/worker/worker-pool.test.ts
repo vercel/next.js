@@ -223,6 +223,9 @@ describe('WorkerPool', () => {
       pool.dispatch('myMethod', ['x'])
       const proc = latestProcess()
       expect(proc.sent[0][0]).toBe(CHILD_MESSAGE_INITIALIZE)
+      // CALL is only sent after the worker is ready
+      expect(proc.sent).toHaveLength(1)
+      replyReady(proc)
       expect(proc.sent[1][0]).toBe(CHILD_MESSAGE_CALL)
       pool.close()
     })
@@ -239,6 +242,7 @@ describe('WorkerPool', () => {
       })
       const promise = pool.dispatch('compute', [1, 2])
       const proc = latestProcess()
+      replyReady(proc)
       // The CALL message has a requestId at index 1
       const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
       const requestId = callMsg[1] as number
@@ -255,6 +259,7 @@ describe('WorkerPool', () => {
       })
       const promise = pool.dispatch('fail', [])
       const proc = latestProcess()
+      replyReady(proc)
       const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
       const requestId = callMsg[1] as number
 
@@ -270,6 +275,7 @@ describe('WorkerPool', () => {
       })
       const promise = pool.dispatch('fail', [])
       const proc = latestProcess()
+      replyReady(proc)
       const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
       const requestId = callMsg[1] as number
 
@@ -287,7 +293,7 @@ describe('WorkerPool', () => {
       pool.close()
     })
 
-    it('rejects all in-flight requests when child sends SETUP_ERROR', async () => {
+    it('dispatches queued tasks after SETUP_ERROR clears booting', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
@@ -298,10 +304,25 @@ describe('WorkerPool', () => {
       const p3 = pool.dispatch('c', [])
       const proc = latestProcess()
 
+      // Tasks are queued while the worker is booting — no active requests
+      expect(proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)).toHaveLength(
+        0
+      )
+
+      // Setup error clears booting, drains queue to the (now available) worker
       replySetupError(proc, 'Error', 'setup failed')
-      await expect(p1).rejects.toThrow('Error when calling setup: setup failed')
-      await expect(p2).rejects.toThrow('Error when calling setup: setup failed')
-      await expect(p3).rejects.toThrow('Error when calling setup: setup failed')
+
+      // Queued tasks are now dispatched since the worker is available
+      const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(callMessages).toHaveLength(3)
+
+      // Resolve them
+      replyOk(proc, callMessages[0][1] as number, 'ra')
+      replyOk(proc, callMessages[1][1] as number, 'rb')
+      replyOk(proc, callMessages[2][1] as number, 'rc')
+      await expect(p1).resolves.toBe('ra')
+      await expect(p2).resolves.toBe('rb')
+      await expect(p3).resolves.toBe('rc')
       pool.close()
     })
 
@@ -312,30 +333,33 @@ describe('WorkerPool', () => {
         concurrencyPerWorker: 1,
       })
 
-      // First dispatch triggers worker spawn; setup fails
+      // First dispatch triggers worker spawn; task is queued (worker booting)
       const p1 = pool.dispatch('a', [])
       const proc = latestProcess()
+
+      // Setup error clears booting, drains queue — task 'a' sent to worker
       replySetupError(proc, 'Error', 'setup failed')
-      await expect(p1).rejects.toThrow('Error when calling setup: setup failed')
+      let callMsgs = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(callMsgs).toHaveLength(1)
+      expect(callMsgs[0][2]).toBe('a')
+
+      // Complete 'a' and resolve
+      replyOk(proc, callMsgs[0][1] as number, 'result-a')
+      await expect(p1).resolves.toBe('result-a')
 
       // Worker is still in the pool (booting=false, ending=false, no active requests).
       // No new process should be spawned — the existing one is reused.
       expect(spawnedProcesses).toHaveLength(1)
 
-      // Second dispatch goes to the same (only) worker
+      // Second dispatch goes to the same (only) worker directly (not booting)
       const p2 = pool.dispatch('b', [])
       expect(spawnedProcesses).toHaveLength(1) // still no new process
 
-      // The pool sent a second CALL to the same process
-      const callMsgs = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      callMsgs = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(callMsgs).toHaveLength(2)
       expect(callMsgs[1][2]).toBe('b')
       const requestId = callMsgs[1][1] as number
 
-      // On the child side, initialized=true means setup is skipped.
-      // sendReadyAndExec() sends READY then executes the method.
-      // READY is a no-op on the pool side (booting already false).
-      replyReady(proc)
       replyOk(proc, requestId, 'result-b')
       await expect(p2).resolves.toBe('result-b')
 
@@ -349,6 +373,7 @@ describe('WorkerPool', () => {
       })
       pool.dispatch('myMethod', ['hello', 123, true])
       const proc = latestProcess()
+      replyReady(proc)
       const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
       expect(callMsg[2]).toBe('myMethod')
       expect(callMsg[3]).toEqual(['hello', 123, true])
@@ -366,6 +391,7 @@ describe('WorkerPool', () => {
       pool.dispatch('c', [])
 
       const proc = latestProcess()
+      replyReady(proc)
       const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       const ids = callMessages.map((m) => m[1])
       expect(new Set(ids).size).toBe(3)
@@ -387,6 +413,7 @@ describe('WorkerPool', () => {
       const p2 = pool.dispatch('second', []) // should be queued
 
       const proc = latestProcess()
+      replyReady(proc)
       // Only one CALL should have been sent
       const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(callMessages).toHaveLength(1)
@@ -428,6 +455,7 @@ describe('WorkerPool', () => {
       })
 
       const proc = latestProcess()
+      replyReady(proc)
 
       // Resolve first
       let calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
@@ -464,6 +492,7 @@ describe('WorkerPool', () => {
       const p3 = pool.dispatch('c', [])
 
       const proc = latestProcess()
+      replyReady(proc)
       // All 3 calls should be sent to the same (and only) worker
       const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(callMessages).toHaveLength(3)
@@ -491,6 +520,7 @@ describe('WorkerPool', () => {
       pool.dispatch('c', []) // should be queued
 
       const proc = latestProcess()
+      replyReady(proc)
       const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(callMessages).toHaveLength(2)
       pool.close()
@@ -541,6 +571,7 @@ describe('WorkerPool', () => {
       // Spawn a worker first
       const p = pool.dispatch('test', [])
       const proc = latestProcess()
+      replyReady(proc)
       const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
       replyOk(proc, callMsg[1] as number, 'done')
       await p
@@ -653,6 +684,8 @@ describe('WorkerPool', () => {
       const promise = pool.dispatch('test', [])
       const proc = latestProcess()
 
+      // Worker must be ready and have the task in-flight for WorkerExitError
+      replyReady(proc)
       proc.emit('exit', 1, null)
 
       await expect(promise).rejects.toThrow(
@@ -677,6 +710,7 @@ describe('WorkerPool', () => {
       })
       pool.dispatch('test', [])
       const proc = latestProcess()
+      replyReady(proc)
       const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
       replyOk(proc, callMsg[1] as number, 'ok')
 
@@ -774,6 +808,7 @@ describe('WorkerPool', () => {
       pool.dispatch('second', []) // queued
 
       const proc = latestProcess()
+      replyReady(proc)
       let calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(calls).toHaveLength(1)
 
@@ -835,7 +870,7 @@ describe('WorkerPool', () => {
   // end() rejecting in-flight requests
   // -----------------------------------------------------------------------
   describe('end() with in-flight requests', () => {
-    it('rejects in-flight requests after worker exits during end()', async () => {
+    it('rejects queued requests when pool ends while worker is booting', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
@@ -845,18 +880,17 @@ describe('WorkerPool', () => {
       const p2 = pool.dispatch('b', [])
       const proc = latestProcess()
 
-      // Don't reply to p1 or p2 — they stay in-flight
-
+      // Tasks are queued (worker is booting), end() rejects them
       const endPromise = pool.end()
-      // Worker exits without completing the requests — _handleExit fires
-      // first (worker.ending = true), rejecting with "Worker exited during
-      // shutdown". Then end() also tries to reject, but the map is already
-      // cleared so the second rejection is a no-op.
       proc.emit('exit', 0, null)
       await endPromise
 
-      await expect(p1).rejects.toThrow('Worker exited during shutdown')
-      await expect(p2).rejects.toThrow('Worker exited during shutdown')
+      await expect(p1).rejects.toThrow(
+        'Worker pool ended before task could be processed'
+      )
+      await expect(p2).rejects.toThrow(
+        'Worker pool ended before task could be processed'
+      )
     })
 
     it('resolves completed requests and rejects lingering ones on end()', async () => {
@@ -869,8 +903,11 @@ describe('WorkerPool', () => {
       const p2 = pool.dispatch('b', [])
       const proc = latestProcess()
 
-      // Reply to p1 before end()
+      // Worker becomes ready, both tasks dispatched
+      replyReady(proc)
       const calls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+
+      // Reply to p1 before end()
       replyOk(proc, calls[0][1] as number, 'result-a')
       await expect(p1).resolves.toBe('result-a')
 
@@ -907,7 +944,7 @@ describe('WorkerPool', () => {
   // Worker crash with queued tasks
   // -----------------------------------------------------------------------
   describe('worker crash with queued tasks', () => {
-    it('removes crashed worker from pool', () => {
+    it('removes crashed worker from pool and spawns replacement for queued tasks', () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
@@ -917,8 +954,9 @@ describe('WorkerPool', () => {
 
       proc.emit('exit', 1, null)
 
-      expect(spawnedProcesses).toHaveLength(1)
-      expect(pool.getWorkerCount()).toBe(0)
+      // Crashed worker removed and replacement spawned for queued task
+      expect(spawnedProcesses).toHaveLength(2)
+      expect(pool.getWorkerCount()).toBe(1)
       pool.close()
     })
 
@@ -928,23 +966,33 @@ describe('WorkerPool', () => {
         maxWorkers: 1,
         concurrencyPerWorker: 1,
       })
-      pool.dispatch('first', []) // occupies the worker
-      const p2 = pool.dispatch('second', []) // queued
+      const p1 = pool.dispatch('first', []) // queued (worker booting)
+      const p2 = pool.dispatch('second', []) // also queued
 
       const proc = latestProcess()
       // Worker crashes — queued tasks need a new worker
       proc.emit('exit', 1, null)
 
-      // A new worker should be spawned for the queued task
+      // A new worker should be spawned for the queued tasks
       expect(spawnedProcesses).toHaveLength(2)
 
-      // Resolve the queued task on the new worker
+      // New worker becomes ready — first queued task dispatched
       const newProc = latestProcess()
-      const callMsg = newProc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)
-      if (callMsg) {
-        replyOk(newProc, callMsg[1] as number, 'ok')
-        await expect(p2).resolves.toBe('ok')
-      }
+      replyReady(newProc)
+      let calls = newProc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(calls).toHaveLength(1)
+      expect(calls[0][2]).toBe('first')
+
+      // Complete first task — second dequeued
+      replyOk(newProc, calls[0][1] as number, 'ok1')
+      await expect(p1).resolves.toBe('ok1')
+
+      calls = newProc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(calls).toHaveLength(2)
+      expect(calls[1][2]).toBe('second')
+
+      replyOk(newProc, calls[1][1] as number, 'ok2')
+      await expect(p2).resolves.toBe('ok2')
       pool.close()
     })
   })
@@ -953,6 +1001,26 @@ describe('WorkerPool', () => {
   // Graceful shutdown rejects lingering in-flight requests
   // -----------------------------------------------------------------------
   describe('graceful shutdown with in-flight requests', () => {
+    it('rejects queued requests when pool ends while booting', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+      })
+      const promise = pool.dispatch('test', [])
+      const proc = latestProcess()
+
+      // Start graceful end — task is still queued (worker is booting)
+      const endPromise = pool.end()
+
+      // Worker exits
+      proc.emit('exit', 0, null)
+      await endPromise
+
+      await expect(promise).rejects.toThrow(
+        'Worker pool ended before task could be processed'
+      )
+    })
+
     it('rejects active requests when worker exits during shutdown', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
@@ -960,6 +1028,9 @@ describe('WorkerPool', () => {
       })
       const promise = pool.dispatch('test', [])
       const proc = latestProcess()
+
+      // Worker becomes ready, task dispatched
+      replyReady(proc)
 
       // Start graceful end — sends END message
       const endPromise = pool.end()
@@ -1055,34 +1126,40 @@ describe('WorkerPool', () => {
       })
 
       const p1 = pool.dispatch('first', [])
-      pool.dispatch('second', [])
+      const p2 = pool.dispatch('second', [])
       expect(spawnedProcesses).toHaveLength(1)
 
       const proc1 = spawnedProcesses[0]
-      // Complete the first task
-      const callMsg = proc1.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
-      replyOk(proc1, callMsg[1] as number, 'result1')
+      // No CALL messages yet — worker is still booting
+      expect(
+        proc1.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      ).toHaveLength(0)
+
+      // Worker 1 finishes booting → first task dispatched, second worker spawns
+      replyReady(proc1)
+      let calls1 = proc1.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(calls1).toHaveLength(1)
+      expect(calls1[0][2]).toBe('first')
+      // Second worker spawned for the remaining queued task
+      expect(spawnedProcesses).toHaveLength(2)
+
+      // Complete first task — 'second' dequeued to worker 1 (still in queue)
+      replyOk(proc1, calls1[0][1] as number, 'result1')
       await expect(p1).resolves.toBe('result1')
 
-      // Worker 1 still booting — second task dequeued to worker 1 (it has capacity now)
-      // but no new worker spawns yet
-      const calls1 = proc1.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      // 'second' was dequeued to worker 1 after 'first' completed
+      calls1 = proc1.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(calls1).toHaveLength(2)
-      expect(spawnedProcesses).toHaveLength(1)
+      expect(calls1[1][2]).toBe('second')
 
-      // Worker 1 finishes booting → second worker spawns for any remaining queued tasks
-      replyReady(proc1)
-      // No more queued tasks (second task was dispatched to worker 1), so no new spawn
-      // unless we dispatch more
-      pool.dispatch('third', [])
-      // Worker 1 is at capacity (second task in-flight), so third queues
-      // but now booting count is 0 so a new worker should spawn
-      expect(spawnedProcesses).toHaveLength(2)
+      // Complete second task
+      replyOk(proc1, calls1[1][1] as number, 'result2')
+      await expect(p2).resolves.toBe('result2')
 
       pool.close()
     })
 
-    it('allows CALL messages to booting workers', async () => {
+    it('queues tasks while worker is booting, dispatches on READY', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
         maxWorkers: 1,
@@ -1090,13 +1167,19 @@ describe('WorkerPool', () => {
         concurrencyPerWorker: 2,
       })
 
-      // Dispatch two tasks — both should go to the same booting worker
+      // Dispatch two tasks — both should be queued (worker is booting)
       const p1 = pool.dispatch('a', [])
       const p2 = pool.dispatch('b', [])
       expect(spawnedProcesses).toHaveLength(1)
 
       const proc = spawnedProcesses[0]
-      const callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      // No CALL messages yet — worker is still booting
+      let callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(callMessages).toHaveLength(0)
+
+      // Worker finishes booting — queued tasks are dispatched
+      replyReady(proc)
+      callMessages = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
       expect(callMessages).toHaveLength(2)
 
       // Resolve both
@@ -1202,21 +1285,29 @@ describe('WorkerPool', () => {
       const p2 = pool.dispatch('b', [])
       expect(spawnedProcesses).toHaveLength(1)
 
-      // Worker 1 fails setup — in-flight request rejected, booting slot freed
+      // Worker 1 fails setup — booting slot freed, queued tasks dispatched
+      // Task 'a' goes to worker 1 (now available), worker 2 spawns for remaining
       replySetupError(spawnedProcesses[0], 'Error', 'setup failed')
-      await expect(p1).rejects.toThrow('Error when calling setup: setup failed')
+
+      // Worker 1 should have task 'a' dispatched to it
+      const proc1 = spawnedProcesses[0]
+      let proc1Calls = proc1.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(proc1Calls).toHaveLength(1)
+      expect(proc1Calls[0][2]).toBe('a')
 
       // A second worker should spawn since the booting slot was freed
       expect(spawnedProcesses).toHaveLength(2)
 
-      // The queued task should have been dispatched to the new worker
-      const newProc = spawnedProcesses[1]
-      const callMsg = newProc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
-      expect(callMsg).toBeDefined()
-      expect(callMsg[2]).toBe('b')
+      // Complete task 'a' on worker 1 — 'b' dequeued to worker 1
+      replyOk(proc1, proc1Calls[0][1] as number, 'result-a')
+      await expect(p1).resolves.toBe('result-a')
 
-      // New worker completes the task
-      replyOk(newProc, callMsg[1] as number, 'result-b')
+      // Task 'b' was dequeued to worker 1 after 'a' completed
+      proc1Calls = proc1.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(proc1Calls).toHaveLength(2)
+      expect(proc1Calls[1][2]).toBe('b')
+
+      replyOk(proc1, proc1Calls[1][1] as number, 'result-b')
       await expect(p2).resolves.toBe('result-b')
 
       pool.close()

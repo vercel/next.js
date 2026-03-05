@@ -253,21 +253,22 @@ export class WorkerPool {
     }
 
     return new Promise<unknown>((resolve, reject) => {
-      // Try to find a worker with available concurrency slots
+      // Try to find a ready worker with available concurrency slots
       const worker = this._findAvailableWorker()
       if (worker) {
         this._sendCall(worker, method, args, resolve, reject)
         return
       }
 
-      // If we can spawn more workers and haven't hit the booting limit, do so
+      // If we can spawn more workers and haven't hit the booting limit,
+      // start one but enqueue the task — the worker may take a while to
+      // spawn and another worker could become ready first.
       if (this._canSpawnWorker()) {
-        const newWorker = this._spawnWorker()
-        this._sendCall(newWorker, method, args, resolve, reject)
-        return
+        this._spawnWorker()
       }
 
-      // All workers busy, at max capacity, or booting limit reached — queue
+      // Queue the task; it will be dispatched when a worker becomes ready
+      // or finishes a previous call.
       this._taskQueue.push({ method, args, resolve, reject })
     })
   }
@@ -366,11 +367,12 @@ export class WorkerPool {
   // Internal: worker lifecycle
   // ---------------------------------------------------------------------------
 
-  /** Find a non-ending worker that has available concurrency slots */
+  /** Find a non-ending, non-booting worker that has available concurrency slots */
   private _findAvailableWorker(): PoolWorker | null {
     for (const worker of this._workers) {
       if (
         !worker.ending &&
+        !worker.booting &&
         worker.activeRequests.size < this._options.concurrencyPerWorker
       ) {
         return worker
@@ -511,12 +513,13 @@ export class WorkerPool {
         ;(error as any).type = message[1]
         error.stack = message[3]
         // Setup errors affect all in-flight requests on this worker.
-        // Also clear booting so the slot is freed for other workers.
+        // Reject them first, then clear booting so queued tasks can be
+        // dispatched to this (now available) worker and new workers can spawn.
+        this._rejectActiveRequests(worker, error)
         if (worker.booting) {
           worker.booting = false
           this._onWorkerReady()
         }
-        this._rejectActiveRequests(worker, error)
         break
       }
       case PARENT_MESSAGE_CUSTOM: {
@@ -590,8 +593,6 @@ export class WorkerPool {
       return
     }
 
-    const hasInFlightRequests = worker.activeRequests.size > 0
-
     // Notify the caller about the unexpected exit
     this._options.onWorkerExit?.(code, signal)
 
@@ -603,14 +604,8 @@ export class WorkerPool {
       this._workers.splice(idx, 1)
     }
 
-    // If there are queued tasks, spawn a replacement worker (if limits allow)
-    if (this._taskQueue.length > 0 && !this._ending && this._canSpawnWorker()) {
-      const newWorker = this._spawnWorker()
-      this._drainQueue(newWorker)
-    }
-
-    if (hasInFlightRequests && !this._ending) {
-      // Drain queue to any workers that now have capacity, then spawn more
+    // A slot freed up — try to drain queued tasks and spawn replacements
+    if (!this._ending) {
       this._drainQueueToAvailable()
       this._spawnForQueuedTasks()
     }
@@ -619,9 +614,18 @@ export class WorkerPool {
   /**
    * Handle errors on the child process itself (e.g. ENOMEM, EMFILE, failed
    * to spawn). These are distinct from errors thrown by worker code.
+   * Rejects in-flight requests and also rejects any queued tasks since the
+   * spawn failure likely indicates a system-level problem (ENOMEM, EMFILE).
    */
   private _handleSpawnError(worker: PoolWorker, error: Error): void {
     this._rejectActiveRequests(worker, error)
+
+    // Also reject all queued tasks — spawn errors typically indicate a
+    // system-level problem that would affect new workers too.
+    for (const task of this._taskQueue) {
+      task.reject(error)
+    }
+    this._taskQueue = []
   }
 
   // ---------------------------------------------------------------------------
@@ -698,8 +702,8 @@ export class WorkerPool {
 
   /**
    * Spawn new workers for queued tasks, respecting both maxWorkers and
-   * maxBootingWorkers limits. Each spawned worker drains as many queued
-   * tasks as its concurrency allows.
+   * maxBootingWorkers limits. Workers start in booting state; queued tasks
+   * will be dispatched to them once they send PARENT_MESSAGE_READY.
    */
   private _spawnForQueuedTasks(): void {
     while (
@@ -707,8 +711,7 @@ export class WorkerPool {
       !this._ending &&
       this._canSpawnWorker()
     ) {
-      const newWorker = this._spawnWorker()
-      this._drainQueue(newWorker)
+      this._spawnWorker()
     }
   }
 
