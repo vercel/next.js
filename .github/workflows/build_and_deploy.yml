@@ -115,7 +115,9 @@ jobs:
 
       - name: Set preview version
         if: ${{ needs.deploy-target.outputs.value != 'production' }}
-        run: node scripts/set-preview-version.js "${{ github.sha }}"
+        run: |
+          node scripts/set-preview-version.js "${{ github.sha }}"
+          pnpm install
 
       - run: pnpm run build
 
