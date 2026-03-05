@@ -166,12 +166,8 @@ pub async fn follow_reexports(
             }));
         };
 
-        if !ignore_side_effects
-            && *module.side_effects().await? != ModuleSideEffects::SideEffectFree
+        if !ignore_side_effects && *module.side_effects().await? == ModuleSideEffects::SideEffectful
         {
-            // TODO It's unfortunate that we have to use the whole module here.
-            // This is often the Facade module, which includes all reexports.
-            // Often we could use Locals + the followed reexports instead.
             return Ok(FollowExportsResult::cell(FollowExportsResult {
                 module,
                 export_name: Some(export_name),

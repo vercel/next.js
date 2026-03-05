@@ -253,7 +253,7 @@ async fn follow_reexports_with_side_effects(
     let mut current_module = module;
     let mut current_export_name = export_name;
     let result = loop {
-        if *current_module.side_effects().await? != ModuleSideEffects::SideEffectFree {
+        if *current_module.side_effects().await? == ModuleSideEffects::SideEffectful {
             side_effects.push(only_effects(*current_module).to_resolved().await?);
         }
 
