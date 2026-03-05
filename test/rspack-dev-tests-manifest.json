@@ -5903,7 +5903,6 @@
       "instant validation client navigation client components valid - parent uses sync IO in a client component",
       "instant validation client navigation client components valid - parent uses useSearchPatams() in a client component",
       "instant validation client navigation client errors unable to validate - client error from sibling of children slot without suspense",
-      "instant validation client navigation client errors unable to validate - client error in parent blocks children",
       "instant validation client navigation client errors valid - client error from sibling of children slot with suspense",
       "instant validation client navigation disabling validation in a layout",
       "instant validation client navigation disabling validation in a page",
@@ -5923,7 +5922,6 @@
       "instant validation client navigation invalid - runtime prefetch - missing suspense around dynamic in a layout",
       "instant validation client navigation invalid - runtime prefetch - suspense too high",
       "instant validation client navigation invalid - runtime prefetch - sync IO after public cache with cookie input",
-      "instant validation client navigation invalid - runtime prefetch - sync IO after runtime API",
       "instant validation client navigation invalid - runtime prefetch - sync IO in generateMetadata",
       "instant validation client navigation invalid - runtime prefetch - sync IO in layout generateMetadata when page is prefetchable",
       "instant validation client navigation invalid - runtime prefetch - sync IO in runtime segment with valid static parent",
@@ -5996,7 +5994,10 @@
       "instant validation initial load valid - static prefetch - suspense around runtime and dynamic",
       "instant validation initial load valid - target segment not visible in all navigations"
     ],
-    "failed": [],
+    "failed": [
+      "instant validation client navigation client errors unable to validate - client error in parent blocks children",
+      "instant validation client navigation invalid - runtime prefetch - sync IO after runtime API"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6625,7 +6626,7 @@
   },
   "test/e2e/app-dir/metadata-warnings/metadata-warnings-with-metadatabase.test.ts": {
     "passed": [
-      "app dir - metadata missing metadataBase should not show warning in vercel deployment output in default build output mode",
+      "app dir - metadata missing metadataBase should not show warning in output in default build output mode",
       "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing and a relative URL is used",
       "app dir - metadata missing metadataBase should warn for deprecated fields in other property",
@@ -8674,10 +8675,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "proxy-with-middleware should error when both middleware and proxy files are detected"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11198,7 +11199,8 @@
       "filesystem-caching with cache enabled should allow to change files while stopped (loader change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (next config change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)",
-      "filesystem-caching with cache enabled should cache or not cache loaders"
+      "filesystem-caching with cache enabled should cache or not cache loaders",
+      "filesystem-caching with cache enabled should emit turbopack-persistence trace spans"
     ],
     "flakey": [],
     "runtimeError": false
@@ -14457,8 +14459,7 @@
     "pending": [
       "Config Experimental Warning production mode should not show next app info in next start",
       "Config Experimental Warning production mode should show next app info with all experimental features in next build",
-      "Config Experimental Warning production mode should show unrecognized experimental features in warning but not in start log experiments section",
-      "Config Experimental Warning should show the configured value for string features"
+      "Config Experimental Warning production mode should show unrecognized experimental features in warning but not in start log experiments section"
     ],
     "flakey": [],
     "runtimeError": false
