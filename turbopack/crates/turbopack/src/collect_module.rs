@@ -62,12 +62,14 @@ impl CustomModuleType for CollectModuleType {
 
     #[turbo_tasks::function]
     fn extend_ecmascript_transforms(
-        self: turbo_tasks::Vc<Self>,
+        self: Vc<Self>,
         _preprocess: Vc<EcmascriptInputTransforms>,
         _main: Vc<EcmascriptInputTransforms>,
         _postprocess: Vc<EcmascriptInputTransforms>,
     ) -> Result<Vc<Box<dyn CustomModuleType>>> {
-        bail!("CollectModuleType does not support ECMAScript transforms")
+        // TODO
+        // bail!("CollectModuleType does not support ECMAScript transforms")
+        Ok(Vc::upcast(self))
     }
 }
 

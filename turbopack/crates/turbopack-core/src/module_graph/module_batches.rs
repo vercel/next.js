@@ -47,6 +47,8 @@ impl BatchingConfig {
 pub struct ModuleBatchesGraphEdge {
     pub ty: ChunkingType,
     pub module: Option<ResolvedVc<Box<dyn Module>>>,
+    /// If set, this edge is only active when chunking for this page entry.
+    pub active_for_page_entry: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -155,6 +157,7 @@ impl ModuleBatchesGraph {
             Item = NodeIndex,
             IntoIter = impl Iterator<Item = NodeIndex> + DoubleEndedIterator,
         >,
+        active_page_entries: Option<&FxHashSet<ResolvedVc<Box<dyn Module>>>>,
         state: &mut S,
         mut visit_preorder: impl FnMut(
             Option<(&'a ModuleOrBatch, &'a ModuleBatchesGraphEdge)>,
@@ -201,9 +204,20 @@ impl ModuleBatchesGraph {
                     }
                     stack.push((ReverseDFSPass::Visit, parent, current));
                     if action == GraphTraversalAction::Continue && expanded.insert(current) {
-                        stack.extend(iter_neighbors_rev(graph, current).map(|(edge, child)| {
-                            (ReverseDFSPass::ExpandAndVisit, Some((current, edge)), child)
-                        }));
+                        stack.extend(
+                            iter_neighbors_rev(graph, current)
+                                .filter(|&(edge_idx, _)| {
+                                    let edge = graph.edge_weight(edge_idx).unwrap();
+                                    match &edge.active_for_page_entry {
+                                        None => true,
+                                        Some(entry) => active_page_entries
+                                            .is_some_and(|entries| entries.contains(entry)),
+                                    }
+                                })
+                                .map(|(edge, child)| {
+                                    (ReverseDFSPass::ExpandAndVisit, Some((current, edge)), child)
+                                }),
+                        );
                     }
                 }
             }
@@ -451,7 +465,7 @@ pub async fn compute_module_batches(
 
         let mut chunk_group_indices_with_merged_children = FxHashSet::default();
 
-        // Start with the entries
+        // Start with the entries...
         for chunk_group in &chunk_group_info.chunk_groups {
             for entry in chunk_group.entries() {
                 pre_batches.ensure_pre_batch_for_module(entry, &module_chunk_groups, &mut queue)?;
@@ -459,6 +473,19 @@ pub async fn compute_module_batches(
             if let Some(parent) = chunk_group.get_merged_parent() {
                 chunk_group_indices_with_merged_children.insert(parent);
             }
+        }
+
+        let x = module_graph
+            .collected_modules
+            .as_ref()
+            .iter()
+            .flat_map(|collected| collected.collected_references.values())
+            .flatten()
+            .collect::<Vec<_>>();
+
+        // ...and all collected modules
+        for (_, entry, _) in x {
+            pre_batches.ensure_pre_batch_for_module(*entry, &module_chunk_groups, &mut queue)?;
         }
 
         let mut initial_pre_batch_items = 0;
@@ -870,6 +897,18 @@ pub async fn compute_module_batches(
         span.record("modules", modules_count);
         span.record("edges", edges_count);
 
+        // Build a module -> NodeIndex lookup for all modules in the graph
+        let mut module_to_node: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex> =
+            FxHashMap::default();
+        for (module, batches) in &parallel_module_to_pre_batch {
+            if let Some(&first_batch) = batches.first() {
+                module_to_node.insert(*module, batch_indices[first_batch]);
+            }
+        }
+        for (idx, module) in pre_batches.single_module_entries.iter().enumerate() {
+            module_to_node.insert(*module, single_module_indices[idx]);
+        }
+
         // Add all the edges to the graph
         for (i, pre_batch) in pre_batches.batches.into_iter().enumerate() {
             let index = batch_indices[i];
@@ -886,10 +925,15 @@ pub async fn compute_module_batches(
                                     hoisted: false,
                                 },
                                 module: None,
+                                active_for_page_entry: None,
                             },
                         );
                     }
                     PreBatchItem::NonParallelEdge(ty, module) => {
+                        if matches!(ty, ChunkingType::Emitted { .. }) {
+                            // they are handled via module_graph.collected_modules now
+                            continue;
+                        }
                         if let Some(batch) = pre_batches.entries.get(&module).copied() {
                             graph.add_edge(
                                 index,
@@ -897,6 +941,7 @@ pub async fn compute_module_batches(
                                 ModuleBatchesGraphEdge {
                                     ty,
                                     module: Some(module),
+                                    active_for_page_entry: None,
                                 },
                             );
                             continue;
@@ -912,6 +957,7 @@ pub async fn compute_module_batches(
                             ModuleBatchesGraphEdge {
                                 ty,
                                 module: Some(module),
+                                active_for_page_entry: None,
                             },
                         );
                     }
@@ -920,8 +966,42 @@ pub async fn compute_module_batches(
             }
         }
 
-        debug_assert_eq!(graph.capacity().0, graph.node_count());
-        debug_assert_eq!(graph.capacity().1, graph.edge_count());
+        // Add collected reference edges (conditional on page entry)
+        if let Some(collected_modules) = &module_graph.collected_modules {
+            for ((page_entry, collecting_module), refs) in &collected_modules.collected_references {
+                let Some(&source_node) = module_to_node.get(collecting_module) else {
+                    continue;
+                };
+                for (ref_data, target_module, _graph_node_idx) in refs {
+                    if let Some(batch) = pre_batches.entries.get(target_module).copied() {
+                        graph.add_edge(
+                            source_node,
+                            batch_indices[batch],
+                            ModuleBatchesGraphEdge {
+                                ty: ref_data.chunking_type.clone(),
+                                module: Some(*target_module),
+                                active_for_page_entry: None,
+                            },
+                        );
+                        continue;
+                    }
+                    let idx = pre_batches
+                        .single_module_entries
+                        .get_index_of(target_module)
+                        .context("could not find single module entry index")?;
+                    let idx = single_module_indices[idx];
+                    graph.add_edge(
+                        source_node,
+                        idx,
+                        ModuleBatchesGraphEdge {
+                            ty: ref_data.chunking_type.clone(),
+                            module: Some(*target_module),
+                            active_for_page_entry: Some(*page_entry),
+                        },
+                    );
+                }
+            }
+        }
 
         // Find the NodeIndices for our entries of the graph
         let mut entries = FxHashMap::default();

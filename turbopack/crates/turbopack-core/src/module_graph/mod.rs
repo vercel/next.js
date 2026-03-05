@@ -1017,13 +1017,13 @@ impl ModuleGraphSnapshot {
                 }
 
                 let edge_data = self.get_edge(edge_idx).unwrap();
-                if self.collected_modules.is_some()
-                    && matches!(edge_data.chunking_type, ChunkingType::Emitted { .. })
-                {
-                    // The modules were collected already, so we need to ignore the
-                    // ChunkingType::Emitted version now
-                    continue;
-                }
+                // if self.collected_modules.is_some()
+                //     && matches!(edge_data.chunking_type, ChunkingType::Emitted { .. })
+                // {
+                //     // The modules were collected already, so we need to ignore the
+                //     // ChunkingType::Emitted version now
+                //     continue;
+                // }
 
                 return Some((
                     Some(edge_idx),
