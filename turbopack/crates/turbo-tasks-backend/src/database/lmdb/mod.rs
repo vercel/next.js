@@ -1,4 +1,7 @@
-use std::{fs::create_dir_all, marker::PhantomData, path::Path, thread::available_parallelism};
+mod extended_key;
+mod tx_cache;
+
+use std::{fs::create_dir_all, path::Path, thread::available_parallelism};
 
 use anyhow::{Context, Result};
 use lmdb::{
@@ -7,26 +10,22 @@ use lmdb::{
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
+    lmdb::tx_cache::{ReadTxGuard, TxCache, WriteTxGuard},
     write_batch::{BaseWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer},
 };
-
-mod extended_key;
-mod read_tx_cache;
 
 pub struct LmdbValueBuffer<'l> {
     ptr: *const u8,
     len: usize,
-    _guard: read_tx_cache::ReadTxGuard<'l>,
-    _marker: PhantomData<&'l LmbdKeyValueDatabase>,
+    _guard: ReadTxGuard<'l>,
 }
 
 impl<'l> LmdbValueBuffer<'l> {
-    fn from_raw_parts(ptr: *const u8, len: usize, guard: read_tx_cache::ReadTxGuard<'l>) -> Self {
+    fn from_raw_parts(ptr: *const u8, len: usize, guard: ReadTxGuard<'l>) -> Self {
         Self {
             ptr,
             len,
             _guard: guard,
-            _marker: PhantomData,
         }
     }
 }
@@ -40,8 +39,9 @@ impl AsRef<[u8]> for LmdbValueBuffer<'_> {
 }
 
 pub struct LmbdKeyValueDatabase {
-    // Safety: this cache must be dropped before `env`.
-    read_tx_cache: read_tx_cache::ReadTxCache,
+    // Safety: this cache references data stored inside of `env`'s internals and must be dropped
+    // before `env`.
+    tx_cache: TxCache,
     env: Environment,
     infra_db: Database,
     data_db: Database,
@@ -58,13 +58,15 @@ impl LmbdKeyValueDatabase {
         #[cfg(not(target_arch = "x86"))]
         const MAP_SIZE: usize = 40 * 1024 * 1024 * 1024;
 
+        let max_read_tx_per_generation = available_parallelism().map_or(4, |v| v.get()).max(8);
         let env = Environment::new()
             .set_flags(
                 EnvironmentFlags::WRITE_MAP
                     | EnvironmentFlags::NO_META_SYNC
+                    // NO_TLS is needed for memory safety in `tx_cache`
                     | EnvironmentFlags::NO_TLS,
             )
-            .set_max_readers((available_parallelism().map_or(16, |v| v.get()) * 8) as u32)
+            .set_max_readers(max_read_tx_per_generation as u32 * 8)
             .set_max_dbs(4)
             .set_map_size(MAP_SIZE)
             .open(path)?;
@@ -73,7 +75,7 @@ impl LmbdKeyValueDatabase {
         let meta_db = env.create_db(Some("meta"), DatabaseFlags::INTEGER_KEY)?;
         let task_cache_db = env.create_db(Some("task_cache"), DatabaseFlags::empty())?;
         Ok(LmbdKeyValueDatabase {
-            read_tx_cache: read_tx_cache::ReadTxCache::new(&env),
+            tx_cache: TxCache::new(&env, max_read_tx_per_generation),
             env,
             infra_db,
             data_db,
@@ -91,12 +93,12 @@ impl LmbdKeyValueDatabase {
         }
     }
 
-    fn get_read_tx(&self) -> read_tx_cache::ReadTxGuard<'_> {
-        self.read_tx_cache.get_read_tx()
+    fn get_read_tx(&self) -> ReadTxGuard<'_> {
+        self.tx_cache.get_read_tx()
     }
 
-    fn begin_write(&self) -> read_tx_cache::WriteTxGuard<'_> {
-        self.read_tx_cache.begin_write(&self.env)
+    fn begin_write(&self) -> WriteTxGuard<'_> {
+        self.tx_cache.begin_write(&self.env)
     }
 
     fn get_from_tx<'tx>(
@@ -163,7 +165,7 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
 
 pub struct LmbdWriteBatch<'l> {
     tx: RwTransaction<'l>,
-    _write_guard: Option<read_tx_cache::WriteTxGuard<'l>>,
+    _write_guard: Option<WriteTxGuard<'l>>,
     this: &'l LmbdKeyValueDatabase,
 }
 

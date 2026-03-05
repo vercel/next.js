@@ -6,7 +6,6 @@ use std::{
         atomic::{AtomicU64, Ordering},
         mpsc::{Receiver, SyncSender, sync_channel},
     },
-    thread::available_parallelism,
 };
 
 use lmdb::{Environment, RoTransaction};
@@ -14,12 +13,6 @@ use lmdb::{Environment, RoTransaction};
 pub struct SendRoTransaction<'tx> {
     tx: RoTransaction<'tx>,
     generation: u64,
-}
-
-impl<'tx> SendRoTransaction<'tx> {
-    fn generation(&self) -> u64 {
-        self.generation
-    }
 }
 
 impl<'tx> Deref for SendRoTransaction<'tx> {
@@ -50,7 +43,7 @@ impl QueueState {
             let tx = env.begin_ro_txn().unwrap_or_else(|err| {
                 panic!("failed to begin LMDB read transaction: {err}");
             });
-            // Safety: these cached transactions are owned by `ReadTxCache`, which is dropped
+            // Safety: these cached transactions are owned by `TxCache`, which is dropped
             // before the LMDB environment field in the parent database type.
             let tx = unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) };
             sender
@@ -76,7 +69,7 @@ impl Drop for ReadTxGuardInner<'_> {
         let Some(lease) = self.lease.take() else {
             return;
         };
-        if lease.generation() != self.generation.load(Ordering::Acquire) {
+        if lease.generation != self.generation.load(Ordering::Acquire) {
             return;
         }
 
@@ -132,15 +125,14 @@ impl Drop for WriteTxGuard<'_> {
     }
 }
 
-pub struct ReadTxCache {
+pub struct TxCache {
     generation: AtomicU64,
     queue: RwLock<QueueState>,
     capacity: usize,
 }
 
-impl ReadTxCache {
-    pub fn new(env: &Environment) -> Self {
-        let capacity = available_parallelism().map_or(1, |v| v.get());
+impl TxCache {
+    pub fn new(env: &Environment, capacity: usize) -> Self {
         Self {
             generation: AtomicU64::new(0),
             queue: RwLock::new(QueueState::new(env, capacity, 0)),
@@ -159,6 +151,8 @@ impl ReadTxCache {
         }
     }
 
+    /// NOTE: Callers should avoid acquiring multiple guards at once. If a single thread tries to
+    /// acquire more than `capacity` read transactions, it could deadlock.
     pub fn get_read_tx<'db>(&'db self) -> ReadTxGuard<'db> {
         loop {
             let (sender, receiver) = {
@@ -174,7 +168,7 @@ impl ReadTxCache {
                 }
             };
 
-            if lease.generation() != self.generation.load(Ordering::Acquire) {
+            if lease.generation != self.generation.load(Ordering::Acquire) {
                 continue;
             }
 
