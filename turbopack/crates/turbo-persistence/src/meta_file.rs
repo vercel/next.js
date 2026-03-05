@@ -288,6 +288,10 @@ impl MetaFile {
             .with_context(|| format!("Failed to mmap meta file {}", path.display()))?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Random)?;
+        #[cfg(target_os = "linux")]
+        mmap.advise(memmap2::Advice::DontFork)?;
+        #[cfg(target_os = "linux")]
+        mmap.advise(memmap2::Advice::Unmergeable)?;
         let file = Self {
             db_path,
             sequence_number,

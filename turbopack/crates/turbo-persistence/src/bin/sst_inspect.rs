@@ -230,6 +230,10 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
     let file = File::open(&path).with_context(|| format!("Failed to open {}", filename))?;
     let file_size = file.metadata()?.len();
     let mmap = unsafe { Mmap::map(&file)? };
+    #[cfg(target_os = "linux")]
+    mmap.advise(memmap2::Advice::DontFork)?;
+    #[cfg(target_os = "linux")]
+    mmap.advise(memmap2::Advice::Unmergeable)?;
 
     let mut stats = SstStats {
         block_directory_size: info.block_count as u64 * 4,
