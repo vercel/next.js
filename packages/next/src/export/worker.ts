@@ -485,9 +485,6 @@ export async function exportPages(
           }
           // If prerenderEarlyExit is enabled, we'll exit the build immediately.
           if (nextConfig.experimental.prerenderEarlyExit) {
-            console.error(
-              `Export encountered an error on ${pageKey}, exiting the build.`
-            )
             const exportError = new Error(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
