@@ -81,7 +81,6 @@
       return promise;
     }
     function ignoreReject() {}
-    var retryChunkLoadError = require("next/dist/client/components/chunk-load-error/retry-chunk-load-error").retryChunkLoadError;
     function clearChunkCache(chunkId) {
       chunkCache.delete(chunkId);
     }
@@ -126,9 +125,7 @@
     }
     function loadChunk(chunkId, filename) {
       chunkMap.set(chunkId, filename);
-      return retryChunkLoadError(function () {
-        return __webpack_chunk_load__(chunkId);
-      });
+      return __webpack_chunk_load__(chunkId);
     }
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)

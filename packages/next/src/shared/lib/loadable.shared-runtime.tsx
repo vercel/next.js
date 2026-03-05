@@ -24,7 +24,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 
 import React from 'react'
 import { LoadableContext } from './loadable-context.shared-runtime'
-import { retryChunkLoadError } from '../../client/components/chunk-load-error/retry-chunk-load-error'
 
 function resolve(obj: any) {
   return obj && obj.default ? obj.default : obj
@@ -34,12 +33,8 @@ const ALL_INITIALIZERS: any[] = []
 const READY_INITIALIZERS: any[] = []
 let initialized = false
 
-function retryChunkLoadErrorOnce(loader: any) {
-  return retryChunkLoadError(loader)
-}
-
 function load(loader: any) {
-  let promise = retryChunkLoadErrorOnce(loader)
+  let promise = loader()
 
   let state: any = {
     loading: true,

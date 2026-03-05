@@ -2,6 +2,9 @@ declare const __webpack_require__: any
 declare let __webpack_public_path__: string
 
 import { getAssetToken, getAssetTokenQuery } from '../shared/lib/deployment-id'
+import { patchWebpackChunkLoad } from './patch-webpack-chunk-load'
+
+patchWebpackChunkLoad()
 
 // If we have a deployment ID query string, we need to append it to the webpack chunk names
 // I am keeping the process check explicit so this can be statically optimized

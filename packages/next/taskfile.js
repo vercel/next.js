@@ -1635,80 +1635,22 @@ export async function copy_vendor_react(task_) {
       )
     }
 
-    const retryChunkLoadErrorRequire = `var retryChunkLoadError = require("next/dist/client/components/chunk-load-error/retry-chunk-load-error").retryChunkLoadError;`
-
-    const webpackChunkLoadRetryHelpers = `${retryChunkLoadErrorRequire}
-function clearChunkCache(chunkId) {
+    const webpackChunkLoadCacheHelpers = `function clearChunkCache(chunkId) {
   chunkCache.delete(chunkId);
 }`
 
     function patchReactServerDomWebpackBrowserClient(source) {
-      let newSource = insertAfterIgnoreReject(
+      const newSource = insertAfterIgnoreReject(
         source,
-        webpackChunkLoadRetryHelpers,
-        'insert webpack browser chunk retry helpers'
+        webpackChunkLoadCacheHelpers,
+        'insert webpack browser chunk cache helpers'
       )
 
-      newSource = replaceOnce(
+      return replaceOnce(
         newSource,
         'chunkFilename.then(entry, ignoreReject),',
         'chunkFilename.then(entry, clearChunkCache.bind(null, chunkId)),',
         'clear failed webpack browser chunk cache'
-      )
-
-      if (newSource.includes('function loadChunk(chunkId, filename)')) {
-        return replaceOnce(
-          newSource,
-          /^(\s*)return __webpack_chunk_load__\(chunkId\);$/m,
-          (match, indent) =>
-            `${indent}return retryChunkLoadError(function () {\n${indent}  return __webpack_chunk_load__(chunkId);\n${indent}});`,
-          'wrap webpack browser chunk loader'
-        )
-      }
-
-      return replaceOnce(
-        newSource,
-        /^(\s*)\(chunkFilename = __webpack_chunk_load__\(chunkId\)\),$/m,
-        (match, indent) =>
-          `${indent}(chunkFilename = retryChunkLoadError(function () {\n${indent}  return __webpack_chunk_load__(chunkId);\n${indent}})),`,
-        'wrap webpack browser chunk loader'
-      )
-    }
-
-    const turbopackChunkLoadRetryHelpers = `${retryChunkLoadErrorRequire}
-var retryingChunks = new Map();
-function loadChunk(chunkUrl) {
-  var entry = retryingChunks.get(chunkUrl);
-  if (void 0 === entry) {
-    entry = retryChunkLoadError(function () {
-      return __turbopack_load_by_url__(chunkUrl);
-    }).then(
-      function (value) {
-        retryingChunks.delete(chunkUrl);
-        return value;
-      },
-      function (error) {
-        retryingChunks.delete(chunkUrl);
-        throw error;
-      }
-    );
-    retryingChunks.set(chunkUrl, entry);
-  }
-  return entry;
-}`
-
-    function patchReactServerDomTurbopackBrowserClient(source) {
-      let newSource = insertAfterIgnoreReject(
-        source,
-        turbopackChunkLoadRetryHelpers,
-        'insert turbopack browser chunk retry helpers'
-      )
-
-      return replaceOnce(
-        newSource,
-        '__turbopack_load_by_url__(chunks[i])',
-        'loadChunk(chunks[i])',
-        'wrap turbopack browser chunk loader'
       )
     }
 
@@ -1810,8 +1752,8 @@ function loadChunk(chunkUrl) {
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         // Server builds replace the module loading indirection for Next's
-        // runtime bundle constraints. Browser clients stay upstream except for
-        // a one-shot ChunkLoadError retry around client reference chunk loads.
+        // runtime bundle constraints. Browser clients stay upstream because
+        // runtime-level chunk retries now live below React.
 
         if (
           (file.base.startsWith('react-server-dom-turbopack-client') ||
@@ -1837,12 +1779,6 @@ function loadChunk(chunkUrl) {
           )
 
           file.data = recast.print(ast).code
-        } else if (
-          file.base.startsWith('react-server-dom-turbopack-client.browser')
-        ) {
-          file.data = patchReactServerDomTurbopackBrowserClient(
-            file.data.toString()
-          )
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }

@@ -71,7 +71,6 @@ function requireAsyncModule(id) {
   return promise;
 }
 function ignoreReject() {}
-var retryChunkLoadError = require("next/dist/client/components/chunk-load-error/retry-chunk-load-error").retryChunkLoadError;
 function clearChunkCache(chunkId) {
   chunkCache.delete(chunkId);
 }
@@ -82,9 +81,7 @@ function preloadModule(metadata) {
       entry = chunkCache.get(chunkId);
     void 0 === entry
       ? (chunkMap.set(chunkId, chunkFilename),
-        (chunkFilename = retryChunkLoadError(function () {
-          return __webpack_chunk_load__(chunkId);
-        })),
+        (chunkFilename = __webpack_chunk_load__(chunkId)),
         promises.push(chunkFilename),
         (entry = chunkCache.set.bind(chunkCache, chunkId, null)),
         chunkFilename.then(entry, clearChunkCache.bind(null, chunkId)),

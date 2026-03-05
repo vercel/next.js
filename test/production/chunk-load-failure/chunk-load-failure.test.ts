@@ -240,6 +240,74 @@ describe('chunk-load-failure', () => {
     expect(pageError.message).toContain('/_next/static/' + appRouterChunk)
   })
 
+  it('should recover after a later app-router navigation once a failed chunk is available again', async () => {
+    let appRouterChunk = await getChunkContainingText('this is other')
+    let chunkRequestCount = 0
+    let rscRequestCount = 0
+    let documentRequestCount = 0
+    let pageErrorCount = 0
+
+    const browser = await next.browser('/dynamic', {
+      beforePageLoad(page) {
+        page.route(`**/${appRouterChunk}*`, async (route) => {
+          chunkRequestCount++
+          if (chunkRequestCount <= 2) {
+            await route.abort('connectionreset')
+            return
+          }
+          await route.continue()
+        })
+        page.on('request', (request) => {
+          const url = new URL(request.url())
+          if (
+            request.resourceType() === 'document' &&
+            url.pathname === '/other'
+          ) {
+            documentRequestCount++
+          }
+          if (url.pathname === '/other' && url.searchParams.has('_rsc')) {
+            rscRequestCount++
+          }
+        })
+        page.on('pageerror', () => {
+          pageErrorCount++
+        })
+      },
+    })
+
+    await browser.elementByCss('#to-other').click()
+
+    await retry(async () => {
+      const body = await browser.elementByCss('body')
+      expect(await body.text()).toMatch(/This page couldn\u2019t load/)
+    })
+
+    expect(chunkRequestCount).toBe(2)
+    expect(pageErrorCount).toBe(1)
+
+    await browser.back()
+
+    await retry(async () => {
+      const link = await browser.elementByCss('#to-other')
+      expect(await link.text()).toBe('to other')
+    })
+
+    await browser.elementByCss('#to-other').click()
+
+    await retry(
+      async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain('this is other')
+      },
+      10_000,
+      250
+    )
+
+    expect(chunkRequestCount).toBeGreaterThanOrEqual(3)
+    expect(rscRequestCount).toBe(2)
+    expect(documentRequestCount).toBe(0)
+  })
+
   it('should report aborted chunks when navigating away', async () => {
     let nextDynamicChunk = await getChunkContainingText(
       'this is a lazy loaded async component'
