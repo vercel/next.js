@@ -55,7 +55,7 @@ pub async fn get_typescript_transform_options(
     let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
 
     let use_define_for_class_fields = if let Some(ref tsconfig) = tsconfig {
-        read_from_tsconfigs(&tsconfig, |json, _| {
+        read_from_tsconfigs(tsconfig, |json, _| {
             json["compilerOptions"]["useDefineForClassFields"].as_bool()
         })
         .await?
