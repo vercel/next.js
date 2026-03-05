@@ -6,7 +6,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html>
       <body>
         <nav>
-          <Link href="/">Home</Link>
+          <Link href="/" prefetch={false}>
+            Home
+          </Link>
         </nav>
         {children}
       </body>

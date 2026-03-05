@@ -177,6 +177,7 @@ impl ServerNftJsonAsset {
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
+            false,
         ));
 
         let project_path = self.project.project_path().owned().await?;

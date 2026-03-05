@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
     thread::available_parallelism,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use anyhow::{Ok, Result};
@@ -12,7 +12,11 @@ use smallvec::SmallVec;
 use turbo_persistence::{
     ArcBytes, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
-use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
+use turbo_tasks::{
+    JoinHandle,
+    message_queue::{TimingEvent, TraceEvent},
+    spawn, turbo_tasks,
+};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -169,7 +173,9 @@ fn do_compact(
     max_merge_segment_count: usize,
 ) -> Result<()> {
     let start = Instant::now();
-    // Compact the database with the given max merge segment count
+    // SystemTime for wall-clock timestamps in trace events (Instant has no
+    // defined epoch so it can't be used for cross-process trace correlation).
+    let wall_start = SystemTime::now();
     let ran = db.compact(&CompactConfig {
         max_merge_segment_count,
         ..COMPACT_CONFIG
@@ -181,6 +187,18 @@ fn do_compact(
             turbo_tasks()
                 .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
         }
+        let wall_start_ms = wall_start
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64()
+            * 1000.0;
+        let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
+        turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new(
+            "turbopack-compaction",
+            wall_start_ms,
+            wall_end_ms,
+            vec![],
+        )));
     }
     Ok(())
 }

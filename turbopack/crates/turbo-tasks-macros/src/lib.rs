@@ -17,6 +17,7 @@ mod expand;
 mod ident;
 mod primitive_input;
 mod self_filter;
+mod turbofmt_macro;
 mod value_trait_arguments;
 
 use proc_macro::TokenStream;
@@ -57,6 +58,8 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
 }
 
+/// Derive macro for `ValueToString`. Also generates `ValueToStringify for &T`.
+#[doc = include_str!("../../turbo-tasks/FORMATTING.md")]
 #[proc_macro_derive(ValueToString, attributes(value_to_string))]
 pub fn derive_value_to_string(input: TokenStream) -> TokenStream {
     derive::value_to_string_macro::derive_value_to_string(input)
@@ -119,4 +122,26 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn primitive(input: TokenStream) -> TokenStream {
     primitive_macro::primitive(input)
+}
+
+/// Async format macro. Returns `impl Future<Output = Result<RcStr>>`.
+///
+/// ```ignore
+/// let s: RcStr = turbofmt!("asset {} in path {}", asset.ident(), base_path).await?;
+/// ```
+#[doc = include_str!("../../turbo-tasks/FORMATTING.md")]
+#[proc_macro]
+pub fn turbofmt(input: TokenStream) -> TokenStream {
+    turbofmt_macro::turbofmt(input)
+}
+
+/// Async bail macro. Resolves arguments then calls `anyhow::bail!()`.
+///
+/// ```ignore
+/// turbobail!("asset {} is not in path {}", asset.ident(), base_path);
+/// ```
+#[doc = include_str!("../../turbo-tasks/FORMATTING.md")]
+#[proc_macro]
+pub fn turbobail(input: TokenStream) -> TokenStream {
+    turbofmt_macro::turbobail(input)
 }
