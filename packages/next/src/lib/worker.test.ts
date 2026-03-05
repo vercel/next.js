@@ -394,46 +394,6 @@ describe('lib/worker exposed methods', () => {
 
     worker.close()
   })
-
-  it('sanitizes args when enableWorkerThreads is true', async () => {
-    const { Worker } = require('./worker') as typeof import('./worker')
-
-    const worker = new Worker(__filename, {
-      ...noopOptions,
-      enableWorkerThreads: true,
-      exposedMethods: ['doWork'],
-    }) as any
-
-    // Functions are not serializable with structured clone; sanitization
-    // via JSON round-trip should strip them
-    await worker.doWork({ key: 'value', fn: () => {} })
-
-    expect(latestPoolInstance!.dispatches).toHaveLength(1)
-    const args = latestPoolInstance!.dispatches[0].args
-    expect(args).toEqual([{ key: 'value' }])
-
-    worker.close()
-  })
-
-  it('does not sanitize args when enableWorkerThreads is false', async () => {
-    const { Worker } = require('./worker') as typeof import('./worker')
-
-    const worker = new Worker(__filename, {
-      ...noopOptions,
-      enableWorkerThreads: false,
-      exposedMethods: ['doWork'],
-    }) as any
-
-    const fn = () => {}
-    await worker.doWork({ key: 'value', fn })
-
-    expect(latestPoolInstance!.dispatches).toHaveLength(1)
-    const args = latestPoolInstance!.dispatches[0].args
-    // Function should still be present (not sanitized)
-    expect((args[0] as any).fn).toBe(fn)
-
-    worker.close()
-  })
 })
 
 describe('lib/worker end and close', () => {

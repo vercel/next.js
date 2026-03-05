@@ -285,14 +285,6 @@ export class Worker {
       oldPool.shutdown()
     }
 
-    // TODO: Remove this once callers stop passing non-serializable values
-    // (e.g. functions) in worker method arguments. The structured clone
-    // algorithm used by worker_threads rejects functions, unlike
-    // child_process which silently drops them via JSON serialization.
-    const sanitizeArgs = enableWorkerThreads
-      ? (args: any[]) => JSON.parse(JSON.stringify(args))
-      : (args: any[]) => args
-
     const dispatchWithRetry = async (
       method: string,
       args: unknown[]
@@ -321,17 +313,16 @@ export class Worker {
         ? // eslint-disable-next-line no-loop-func
           async (...args: any[]) => {
             activeTasks++
-            const sanitizedArgs = sanitizeArgs(args)
             try {
               onActivityImpl()
-              return await dispatchWithRetry(method, sanitizedArgs)
+              return await dispatchWithRetry(method, args)
             } finally {
               activeTasks--
               onActivityImpl()
             }
           }
         : (...args: any[]) => {
-            return dispatchWithRetry(method, sanitizeArgs(args))
+            return dispatchWithRetry(method, args)
           }
     }
   }

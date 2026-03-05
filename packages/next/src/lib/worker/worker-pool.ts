@@ -486,7 +486,14 @@ export class WorkerPool {
     if (worker.activeRequests.size >= this._options.concurrencyPerWorker) {
       this._availableWorkers.delete(worker)
     }
-    worker.handle.send([CHILD_MESSAGE_CALL, requestId, method, args])
+    // worker_threads uses structured clone which rejects non-serializable
+    // values (e.g. functions). JSON round-trip strips them, matching the
+    // child_process JSON serialization behaviour.
+    // TODO: Remove once callers stop passing functions in args.
+    const sanitizedArgs = this._options.enableWorkerThreads
+      ? JSON.parse(JSON.stringify(args))
+      : args
+    worker.handle.send([CHILD_MESSAGE_CALL, requestId, method, sanitizedArgs])
   }
 
   // ---------------------------------------------------------------------------

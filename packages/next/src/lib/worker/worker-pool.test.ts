@@ -50,6 +50,16 @@ jest.mock('child_process', () => ({
   }),
 }))
 
+jest.mock('worker_threads', () => ({
+  Worker: jest.fn().mockImplementation(() => {
+    const proc = new FakeChildProcess()
+    // worker_threads.Worker uses postMessage instead of send
+    ;(proc as any).postMessage = (msg: unknown) => proc.send(msg)
+    spawnedProcesses.push(proc)
+    return proc
+  }),
+}))
+
 // We import WorkerPool *after* the mock so `fork` is already stubbed.
 import { WorkerPool, WorkerExitError } from './worker-pool'
 
@@ -847,6 +857,42 @@ describe('WorkerPool', () => {
       const options = callArgs[2]
       expect(options.env.MY_VAR).toBe('hello')
       expect(options.execArgv).toEqual(['--max-old-space-size=512'])
+      pool.shutdownNow()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Arg sanitization for worker_threads
+  // -----------------------------------------------------------------------
+  describe('arg sanitization', () => {
+    it('strips non-serializable values when enableWorkerThreads is true', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+      })
+      pool.dispatch('doWork', [{ key: 'value', fn: () => {} }])
+      const proc = latestProcess()
+      replyReady(proc)
+      const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
+      // Function should be stripped by JSON round-trip
+      expect(callMsg[3]).toEqual([{ key: 'value' }])
+      pool.shutdownNow()
+    })
+
+    it('preserves args as-is when enableWorkerThreads is false', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: false,
+      })
+      const fn = () => {}
+      pool.dispatch('doWork', [{ key: 'value', fn }])
+      const proc = latestProcess()
+      replyReady(proc)
+      const callMsg = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
+      // Function should still be present
+      expect((callMsg[3] as any[])[0].fn).toBe(fn)
       pool.shutdownNow()
     })
   })
