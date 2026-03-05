@@ -4073,7 +4073,7 @@
   },
   "test/e2e/app-dir/metadata-warnings/metadata-warnings-with-metadatabase.test.ts": {
     "passed": [
-      "app dir - metadata missing metadataBase should not show warning in vercel deployment output in default build output mode",
+      "app dir - metadata missing metadataBase should not show warning in output in default build output mode",
       "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing and a relative URL is used",
       "app dir - metadata missing metadataBase should warn for deprecated fields in other property",
@@ -7167,6 +7167,9 @@
   },
   "test/e2e/app-dir/segment-cache/cached-navigations/cached-navigations.test.ts": {
     "passed": [
+      "cached navigations caches a fully static page from the initial HTML for subsequent navigations",
+      "cached navigations caches a partially static page from the initial HTML for subsequent navigations",
+      "cached navigations caches runtime-prefetchable content from a navigation for instant second visit",
       "cached navigations caches static segments when navigating to a known route without a prefetch",
       "cached navigations defers fallback params to the runtime stage",
       "cached navigations includes static params in the cached static stage",
@@ -7393,6 +7396,7 @@
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
     "passed": [
       "segment cache (refresh) Server Action refresh() refreshes dynamic data only, not cached",
+      "segment cache (refresh) re-navigation to a fully static page does not overwrite dynamic slots with default content",
       "segment cache (refresh) router.refresh() refreshes both cached and dynamic data"
     ],
     "failed": [],
@@ -8969,7 +8973,8 @@
       "filesystem-caching with cache enabled should allow to change files while stopped (loader change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (next config change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)",
-      "filesystem-caching with cache enabled should cache or not cache loaders"
+      "filesystem-caching with cache enabled should cache or not cache loaders",
+      "filesystem-caching with cache enabled should emit turbopack-persistence trace spans"
     ],
     "flakey": [],
     "runtimeError": false
@@ -12270,9 +12275,7 @@
       "Config Experimental Warning should show warning with config from object with experimental and multiple keys"
     ],
     "failed": [],
-    "pending": [
-      "Config Experimental Warning should show the configured value for string features"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -21672,11 +21675,11 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-streaming-config/metadata-streaming-config-customized.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
+    "passed": [
       "app-dir - metadata-streaming-config-customized should have the customized streaming metadata config output in routes-manifest.json"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
