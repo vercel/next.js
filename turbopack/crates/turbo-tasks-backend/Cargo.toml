@@ -56,7 +56,6 @@ serde_path_to_error = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-thread_local = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }

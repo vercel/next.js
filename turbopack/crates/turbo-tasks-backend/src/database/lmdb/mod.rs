@@ -4,24 +4,22 @@ mod tx_cache;
 use std::{fs::create_dir_all, path::Path, thread::available_parallelism};
 
 use anyhow::{Context, Result};
-use lmdb::{
-    Database, DatabaseFlags, Environment, EnvironmentFlags, RwTransaction, Transaction, WriteFlags,
-};
+use lmdb::{Database, DatabaseFlags, Environment, EnvironmentFlags, Transaction, WriteFlags};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    lmdb::tx_cache::{ReadTxGuard, TxCache, WriteTxGuard},
+    lmdb::tx_cache::{RoTransactionGuard, RwTransactionGuard, TxCache},
     write_batch::{BaseWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer},
 };
 
 pub struct LmdbValueBuffer<'l> {
     ptr: *const u8,
     len: usize,
-    _guard: ReadTxGuard<'l>,
+    _guard: RoTransactionGuard<'l>,
 }
 
 impl<'l> LmdbValueBuffer<'l> {
-    fn from_raw_parts(ptr: *const u8, len: usize, guard: ReadTxGuard<'l>) -> Self {
+    fn from_raw_parts(ptr: *const u8, len: usize, guard: RoTransactionGuard<'l>) -> Self {
         Self {
             ptr,
             len,
@@ -93,12 +91,12 @@ impl LmbdKeyValueDatabase {
         }
     }
 
-    fn get_read_tx(&self) -> ReadTxGuard<'_> {
+    fn get_read_tx(&self) -> RoTransactionGuard<'_> {
         self.tx_cache.get_read_tx()
     }
 
-    fn begin_write(&self) -> WriteTxGuard<'_> {
-        self.tx_cache.begin_write(&self.env)
+    fn get_write_tx(&self) -> Result<RwTransactionGuard<'_>> {
+        self.tx_cache.get_write_tx(&self.env)
     }
 
     fn get_from_tx<'tx>(
@@ -108,7 +106,7 @@ impl LmbdKeyValueDatabase {
     ) -> Result<Option<&'tx [u8]>> {
         match extended_key::get(tx, db, key) {
             Ok(result) => Ok(Some(result)),
-            Err(err) if err == lmdb::Error::NotFound => Ok(None),
+            Err(lmdb::Error::NotFound) => Ok(None),
             Err(err) => Err(err.into()),
         }
     }
@@ -154,18 +152,15 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
     fn write_batch(
         &self,
     ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
-        let write_guard = self.begin_write();
         Ok(WriteBatch::serial(LmbdWriteBatch {
-            tx: self.env.begin_rw_txn()?,
-            _write_guard: Some(write_guard),
+            write_tx_guard: self.get_write_tx()?,
             this: self,
         }))
     }
 }
 
 pub struct LmbdWriteBatch<'l> {
-    tx: RwTransaction<'l>,
-    _write_guard: Option<WriteTxGuard<'l>>,
+    write_tx_guard: RwTransactionGuard<'l>,
     this: &'l LmbdKeyValueDatabase,
 }
 
@@ -180,21 +175,12 @@ impl<'a> BaseWriteBatch<'a> for LmbdWriteBatch<'a> {
     where
         'a: 'l,
     {
-        LmbdKeyValueDatabase::get_from_tx(&self.tx, self.this.db(key_space), key)
+        LmbdKeyValueDatabase::get_from_tx(&*self.write_tx_guard, self.this.db(key_space), key)
     }
 
     fn commit(self) -> Result<()> {
-        let Self {
-            tx,
-            mut _write_guard,
-            ..
-        } = self;
-        tx.commit()?;
-        _write_guard
-            .take()
-            .expect("write guard is always present")
-            .commit();
-        Ok(())
+        let Self { write_tx_guard, .. } = self;
+        write_tx_guard.commit()
     }
 }
 
@@ -206,7 +192,7 @@ impl<'a> SerialWriteBatch<'a> for LmbdWriteBatch<'a> {
         value: WriteBuffer<'_>,
     ) -> Result<()> {
         extended_key::put(
-            &mut self.tx,
+            &mut self.write_tx_guard,
             self.this.db(key_space),
             &key,
             &value,
@@ -217,7 +203,7 @@ impl<'a> SerialWriteBatch<'a> for LmbdWriteBatch<'a> {
 
     fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         extended_key::delete(
-            &mut self.tx,
+            &mut self.write_tx_guard,
             self.this.db(key_space),
             &key,
             WriteFlags::empty(),

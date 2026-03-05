@@ -1,6 +1,7 @@
 use std::{
     mem::transmute,
-    ops::Deref,
+    ops::{Deref, DerefMut},
+    rc::Rc,
     sync::{
         Arc, Mutex, PoisonError, RwLock, RwLockWriteGuard,
         atomic::{AtomicU64, Ordering},
@@ -8,7 +9,8 @@ use std::{
     },
 };
 
-use lmdb::{Environment, RoTransaction};
+use anyhow::Result;
+use lmdb::{Environment, RoTransaction, RwTransaction, Transaction};
 
 pub struct SendRoTransaction<'tx> {
     tx: RoTransaction<'tx>,
@@ -58,13 +60,14 @@ impl QueueState {
     }
 }
 
-struct ReadTxGuardInner<'db> {
+struct RoTransactionGuardInner<'db> {
+    // Option<> is so that the Drop impl can take ownership of the transaction
     lease: Option<SendRoTransaction<'db>>,
     sender: SyncSender<SendRoTransaction<'static>>,
     generation: &'db AtomicU64,
 }
 
-impl Drop for ReadTxGuardInner<'_> {
+impl Drop for RoTransactionGuardInner<'_> {
     fn drop(&mut self) {
         let Some(lease) = self.lease.take() else {
             return;
@@ -82,46 +85,59 @@ impl Drop for ReadTxGuardInner<'_> {
 }
 
 #[derive(Clone)]
-pub struct ReadTxGuard<'db> {
-    inner: Arc<ReadTxGuardInner<'db>>,
+pub struct RoTransactionGuard<'db> {
+    inner: Rc<RoTransactionGuardInner<'db>>,
 }
 
-impl<'db> Deref for ReadTxGuard<'db> {
+impl<'db> Deref for RoTransactionGuard<'db> {
     type Target = SendRoTransaction<'db>;
 
     fn deref(&self) -> &Self::Target {
-        self.inner
-            .lease
-            .as_ref()
-            .expect("read transaction lease is always present")
+        self.inner.lease.as_ref().unwrap()
     }
 }
 
-pub struct WriteTxGuard<'db> {
+pub struct RwTransactionGuard<'db> {
+    tx: RwTransaction<'db>,
+    _queue_guard: RebuildQueueOnDrop<'db>,
+}
+
+impl<'db> Deref for RwTransactionGuard<'db> {
+    type Target = RwTransaction<'db>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tx
+    }
+}
+
+impl DerefMut for RwTransactionGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tx
+    }
+}
+
+impl RwTransactionGuard<'_> {
+    // We can't use the method provided by Deref<Target = RwTransaction<'_>> here because this
+    // consumes the guard
+    pub fn commit(self) -> Result<()> {
+        self.tx.commit()?;
+        Ok(())
+    }
+}
+
+struct RebuildQueueOnDrop<'db> {
+    queue: RwLockWriteGuard<'db, QueueState>,
     env: &'db Environment,
     generation: u64,
     capacity: usize,
-    queue: Option<RwLockWriteGuard<'db, QueueState>>,
 }
 
-impl WriteTxGuard<'_> {
-    fn rebuild_queue(&mut self) {
-        if let Some(queue) = self.queue.as_mut() {
-            **queue = QueueState::new(self.env, self.capacity, self.generation);
-        }
-    }
-
-    pub fn commit(mut self) {
-        self.rebuild_queue();
-        self.queue = None;
-    }
-}
-
-impl Drop for WriteTxGuard<'_> {
+impl Drop for RebuildQueueOnDrop<'_> {
     fn drop(&mut self) {
-        if self.queue.is_some() {
-            self.rebuild_queue();
-        }
+        // We might avoid some allocation overhead if we used RoTransaction::reset and
+        // InactiveTransaction::renew, but we don't care much about perf here.
+        // https://docs.rs/lmdb/latest/lmdb/struct.RoTransaction.html#method.reset
+        *self.queue = QueueState::new(self.env, self.capacity, self.generation);
     }
 }
 
@@ -140,20 +156,24 @@ impl TxCache {
         }
     }
 
-    pub fn begin_write<'db>(&'db self, env: &'db Environment) -> WriteTxGuard<'db> {
+    pub fn get_write_tx<'db>(&'db self, env: &'db Environment) -> Result<RwTransactionGuard<'db>> {
         let generation = self.generation.fetch_add(1, Ordering::AcqRel) + 1;
         let queue = self.queue.write().unwrap_or_else(PoisonError::into_inner);
-        WriteTxGuard {
-            env,
-            generation,
-            capacity: self.capacity,
-            queue: Some(queue),
-        }
+        let tx = env.begin_rw_txn()?;
+        Ok(RwTransactionGuard {
+            tx,
+            _queue_guard: RebuildQueueOnDrop {
+                queue,
+                env,
+                generation,
+                capacity: self.capacity,
+            },
+        })
     }
 
     /// NOTE: Callers should avoid acquiring multiple guards at once. If a single thread tries to
     /// acquire more than `capacity` read transactions, it could deadlock.
-    pub fn get_read_tx<'db>(&'db self) -> ReadTxGuard<'db> {
+    pub fn get_read_tx<'db>(&'db self) -> RoTransactionGuard<'db> {
         loop {
             let (sender, receiver) = {
                 let queue = self.queue.read().unwrap_or_else(PoisonError::into_inner);
@@ -177,8 +197,8 @@ impl TxCache {
             let lease =
                 unsafe { transmute::<SendRoTransaction<'static>, SendRoTransaction<'db>>(lease) };
 
-            return ReadTxGuard {
-                inner: Arc::new(ReadTxGuardInner {
+            return RoTransactionGuard {
+                inner: Rc::new(RoTransactionGuardInner {
                     lease: Some(lease),
                     sender,
                     generation: &self.generation,
