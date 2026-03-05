@@ -19,6 +19,16 @@ This is especially impactful for pages that combine fast static content (headers
 
 React's server renderer produces HTML in chunks aligned to `<Suspense>` boundaries. Next.js wires this into the App Router so streaming works out of the box.
 
+## Example
+
+The companion [streaming demo](https://streaming-demo.labs.vercel.dev/) ([source](https://github.com/vercel-labs/streaming-demo)) lets you see each concept from this guide in action:
+
+- Page-level streaming with `loading.tsx` (skeleton appears instantly, content streams in after ~2s)
+- Granular streaming with sibling `<Suspense>` boundaries that resolve independently
+- Hydration comparison: a single blocking pass vs split hydration with Suspense boundaries
+- Raw HTML streaming in a Route Handler, with early CSS discovery
+- A configurable `ReadableStream` API endpoint for experimenting with chunk sizes and browser buffering
+
 ## How the App Router delivers a page
 
 When a browser requests a page, two streams work together during the initial page load:
@@ -109,7 +119,7 @@ See the [`loading.js` API reference](/docs/app/api-reference/file-conventions/lo
 
 ### Parallel streaming with sibling boundaries
 
-Wrap each independent section in its own `<Suspense>` boundary. They resolve and stream in whatever order they finish. The fast ones don't wait for the slow ones:
+When multiple components perform async work (fetching data, reading from a database), wrap each one in its own `<Suspense>` boundary. Each boundary streams independently as its async work completes, in whatever order that happens, without blocking each other:
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { Suspense } from 'react'
@@ -547,6 +557,8 @@ See the [Route Handler API reference](/docs/app/api-reference/file-conventions/r
 
 ## Streaming and Web Vitals
 
+[Web Vitals](https://web.dev/articles/vitals) are the metrics Google uses to measure user experience. Streaming directly affects several of them.
+
 ### TTFB and FCP
 
 Without streaming, the server waits for all data before sending any HTML, so TTFB equals the slowest query. With streaming, the server sends the static shell as soon as it's ready. TTFB drops to the time it takes to render your layouts and fallbacks. The browser paints the static shell immediately, so FCP is decoupled from your data fetching time.
@@ -648,9 +660,9 @@ Next.js automatically detects user agents to choose the right behavior. You can 
 
 See the [`loading.js` SEO section](/docs/app/api-reference/file-conventions/loading#seo) for more details.
 
-## Streaming through the infrastructure stack
+## What can affect streaming
 
-Any layer between your server and the client that buffers the response will defeat streaming. The HTML may be fully generated progressively on the server, but if a proxy, CDN, or even the client itself collects all the chunks before rendering them, the user sees a single delayed response instead of progressive rendering.
+Any layer between your server and the client that buffers the response can diminish the benefits of streaming. The HTML may be fully generated progressively on the server, but if a proxy, CDN, or even the client itself collects all the chunks before rendering them, the user sees a single delayed response instead of progressive rendering.
 
 ### Reverse proxies
 
@@ -763,16 +775,6 @@ When the prerenderer encounters any of these, it cannot resolve that subtree sta
 4. **Caching directives** like [`"use cache"`](/docs/app/api-reference/directives/use-cache) let you push work back into the shell. With [Cache Components](/docs/app/getting-started/caching), cached components are prerendered at build time and served from the edge. Their output becomes part of the static shell. Uncached components stream at request time. This means you control the boundary between instant and streamed content by choosing which components use `"use cache"`.
 
 The key decisions are **what to cache** and **where to place Suspense boundaries**. Cache what you can to grow the static shell. Push dynamic access down to the components that need it, and wrap those components in `<Suspense>`. Everything else becomes part of the shell.
-
-## Example
-
-The companion [streaming demo](https://streaming-demo.labs.vercel.dev/) ([source](https://github.com/vercel-labs/streaming-demo)) lets you see each concept from this guide in action:
-
-- Page-level streaming with `loading.tsx` (skeleton appears instantly, content streams in after ~2s)
-- Granular streaming with sibling `<Suspense>` boundaries that resolve independently
-- Hydration comparison: a single blocking pass vs split hydration with Suspense boundaries
-- Raw HTML streaming in a Route Handler, with early CSS discovery
-- A configurable `ReadableStream` API endpoint for experimenting with chunk sizes and browser buffering
 
 ## Further reading
 
