@@ -224,7 +224,15 @@ export const experimentalSchema = {
   dynamicOnHover: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   varyParams: z.boolean().optional(),
-  prefetchInlining: z.boolean().optional(),
+  prefetchInlining: z
+    .union([
+      z.boolean(),
+      z.object({
+        maxSize: z.number().optional(),
+        maxBundleSize: z.number().optional(),
+      }),
+    ])
+    .optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
