@@ -1,7 +1,7 @@
 import type * as Playwright from 'playwright'
 import webdriver from 'next-webdriver'
 import { createRouterAct } from 'router-act'
-import { findPort } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import { isNextDeploy, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { build, start } from './servers.mjs'
 
@@ -38,7 +38,7 @@ describe('segment cache (deployment skew)', () => {
         await cleanup()
       })
 
-      runTests(() => port)
+      runTests('BUILD_ID', () => port)
     })
 
     describe('with NEXT_DEPLOYMENT_ID', () => {
@@ -54,7 +54,7 @@ describe('segment cache (deployment skew)', () => {
         await cleanup()
       })
 
-      runTests(() => port)
+      runTests('DEPLOYMENT_ID', () => port)
     })
   }
 
@@ -84,7 +84,7 @@ describe('segment cache (deployment skew)', () => {
   })
 })
 
-function runTests(getPort: () => number) {
+function runTests(mode: 'BUILD_ID' | 'DEPLOYMENT_ID', getPort: () => number) {
   it(
     'does not crash when prefetching a dynamic, non-PPR page ' +
       'on a different deployment',
@@ -147,6 +147,76 @@ function runTests(getPort: () => number) {
 
       // Should have performed a full-page navigation to the new deployment.
       const buildId = await browser.elementById('build-id')
+      expect(await buildId.text()).toBe('Build ID: 2')
+    },
+    60 * 1000
+  )
+
+  it(
+    'triggers MPA navigation when a server action redirects to a different deployment',
+    async () => {
+      // Verify that when a server action calls redirect() and the redirect
+      // target is served by a different deployment (different build ID), the
+      // client falls back to an MPA navigation instead of attempting to apply
+      // the foreign RSC payload.
+      const browser = await webdriver(getPort(), '/')
+      await browser.eval('window.next.router.push("/action-redirect")')
+      await browser.waitForElementByCss('#action-page')
+      let sawActionRequest = false
+      let sawRedirectActionResponse = false
+      let actionResponseDeploymentId: string | undefined
+      browser.on('request', (request: Playwright.Request) => {
+        const headers = request.headers()
+        if (request.method() === 'POST' && headers['next-action']) {
+          sawActionRequest = true
+        }
+      })
+      browser.on('response', async (response: Playwright.Response) => {
+        const request = response.request()
+        if (request.method() !== 'POST') {
+          return
+        }
+
+        const headers = response.headers()
+        if (headers['x-action-redirect']) {
+          sawRedirectActionResponse = true
+          actionResponseDeploymentId = headers['x-nextjs-deployment-id']
+        }
+      })
+
+      // Verify we're on the action redirect page
+      const heading = await browser.elementById('action-page')
+      expect(await heading.text()).toBe('Action Redirect Page')
+
+      // Click the button that triggers the server action redirect.
+      // In deployment ID mode, the proxy injects a foreign
+      // x-nextjs-deployment-id header to simulate skew. In build ID mode,
+      // the response omits that header so the client falls back to the
+      // build ID carried in the action Flight payload.
+      const button = await browser.elementById('redirect-action-button')
+      await button.click()
+
+      await retry(async () => {
+        expect(sawActionRequest).toBe(true)
+      })
+
+      await retry(async () => {
+        expect(sawRedirectActionResponse).toBe(true)
+      })
+
+      if (mode === 'DEPLOYMENT_ID') {
+        expect(actionResponseDeploymentId).toBe('foreign-deployment')
+      } else {
+        expect(actionResponseDeploymentId).toBeUndefined()
+      }
+
+      // Wait for the navigation to complete.
+      // The client detects the mismatch in either the response header or
+      // the fallback build ID field and discards the flight data,
+      // triggering an MPA navigation (full page load) to the redirect
+      // target. The redirect URL (/dynamic-page?deployment=2) goes through
+      // the proxy to deployment 2.
+      const buildId = await browser.waitForElementByCss('#build-id')
       expect(await buildId.text()).toBe('Build ID: 2')
     },
     60 * 1000
