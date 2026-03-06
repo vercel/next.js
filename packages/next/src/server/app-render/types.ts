@@ -93,6 +93,7 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  isRoutePPREnabled?: boolean
   trailingSlash: boolean
   images: ImageConfigComplete
   supportsDynamicResponse: boolean

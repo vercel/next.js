@@ -713,7 +713,8 @@ export async function handler(
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
               }
             : {}),
-          cacheComponents: Boolean(nextConfig.cacheComponents),
+          cacheComponents: isAppCacheComponentsEnabled,
+          isRoutePPREnabled,
           experimental: {
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
