@@ -1,6 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import retry from 'async-retry'
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { cyan, green, red } from 'picocolors'
 import type { RepoInfo } from './helpers/examples'
@@ -20,8 +20,8 @@ import { isWriteable } from './helpers/is-writeable'
 import { generateAgentFiles } from './helpers/generate-agent-files'
 import { runTypegen } from './helpers/typegen'
 
-import type { Bundler, TemplateMode, TemplateType } from './templates'
-import { getTemplateFile, installTemplate } from './templates'
+import type { TemplateMode, TemplateType } from './templates'
+import { Bundler, getTemplateFile, installTemplate } from './templates'
 
 export class DownloadError extends Error {}
 
@@ -256,6 +256,36 @@ export async function createApp({
       bundler,
       reactCompiler,
     })
+  }
+
+  // If the user selected all default options and next ships a turbopack_seed,
+  // copy it to .next/dev/cache/turbopack so the first `next dev` starts with
+  // a warm Turbopack cache. The seed is only valid for the default template
+  // configuration.
+  const isDefaultSetup =
+    !example &&
+    typescript &&
+    tailwind &&
+    app &&
+    !srcDir &&
+    !empty &&
+    !api &&
+    importAlias === '@/*' &&
+    bundler === Bundler.Turbopack &&
+    !reactCompiler
+
+  if (isDefaultSetup) {
+    const turbopackSeedDir = join(
+      root,
+      'node_modules',
+      'next',
+      'turbopack_seed'
+    )
+    if (existsSync(turbopackSeedDir)) {
+      const turbopackCacheDir = join(root, '.next', 'dev', 'cache', 'turbopack')
+      mkdirSync(turbopackCacheDir, { recursive: true })
+      cpSync(turbopackSeedDir, turbopackCacheDir, { recursive: true })
+    }
   }
 
   if (agentsMd) {
