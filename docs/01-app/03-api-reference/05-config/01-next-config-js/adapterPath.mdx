@@ -172,6 +172,102 @@ Called after the build process completes with detailed information about routes 
 - `nextVersion`: Version of Next.js being used
 - `buildId`: Unique identifier for the current build
 
+## Running Deploy Tests with Custom Scripts
+
+If you want to validate an adapter with Next.js deploy-mode E2E tests, you can replace the default Vercel deployment step with custom scripts.
+
+The deploy harness looks for these environment variables:
+
+- `NEXT_TEST_DEPLOY_SCRIPT_PATH`: Executable that builds and deploys the isolated test app
+- `NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH`: Executable that returns build and runtime logs for that deployment
+- `NEXT_TEST_CLEANUP_SCRIPT_PATH`: Optional executable that tears the deployment down after the test run
+
+When you trigger Next.js's release workflow manually, these map to the `deployScriptPath`, `deployLogsScriptPath`, and `cleanupScriptPath` inputs in `.github/workflows/test_e2e_deploy_release.yml`. If you are running the tests from your own adapter repository, set the environment variables directly in your workflow.
+
+```yaml filename=".github/workflows/test-e2e-deploy.yml"
+- name: Make scripts executable
+  run: |
+    chmod +x adapter/scripts/deploy.sh
+    chmod +x adapter/scripts/logs.sh
+    chmod +x adapter/scripts/cleanup.sh
+
+- name: Run deploy tests
+  working-directory: next.js
+  env:
+    NEXT_TEST_MODE: deploy
+    NEXT_E2E_TEST_TIMEOUT: 240000
+    NEXT_EXTERNAL_TESTS_FILTERS: test/deploy-tests-manifest.json
+    NEXT_TEST_DEPLOY_SCRIPT_PATH: ${{ github.workspace }}/adapter/scripts/deploy.sh
+    NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH: ${{ github.workspace }}/adapter/scripts/logs.sh
+    NEXT_TEST_CLEANUP_SCRIPT_PATH: ${{ github.workspace }}/adapter/scripts/cleanup.sh
+    IS_TURBOPACK_TEST: 1
+    NEXT_TEST_JOB: 1
+    NEXT_TELEMETRY_DISABLED: 1
+  run: node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+```
+
+### Custom deploy script contract
+
+The deploy script is executed with `cwd` set to `NEXT_TEST_DIR`, which is the isolated temporary app created by the Next.js test harness. The full test environment is forwarded to the script, including any fixture-specific environment variables.
+
+Your script must:
+
+- Exit with a non-zero code on failure
+- Print the final deployment URL to `stdout`
+- Avoid writing anything else to `stdout`
+- Write diagnostic output to `stderr` or to files inside `NEXT_TEST_DIR`
+
+Because the deploy script and logs script run as separate processes, any data you want later, such as build IDs or server logs, should be persisted to files inside `NEXT_TEST_DIR`.
+
+```bash filename="scripts/e2e-deploy.sh"
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$NEXT_TEST_DIR"
+
+# Install your adapter, build the app, and deploy or start it.
+# Write any metadata needed later to files in NEXT_TEST_DIR.
+BUILD_ID="$(cat .next/BUILD_ID)"
+DEPLOYMENT_ID="my-adapter-local"
+
+{
+  echo "BUILD_ID: $BUILD_ID"
+  echo "DEPLOYMENT_ID: $DEPLOYMENT_ID"
+} >> .adapter-build.log
+
+# stdout must contain only the deployment URL.
+echo "http://127.0.0.1:3000"
+```
+
+### Custom logs script contract
+
+The logs script is called after deployment. It receives `NEXT_TEST_DIR` and `NEXT_TEST_DEPLOY_URL`, plus the rest of the test environment.
+
+Its output must include lines starting with:
+
+- `BUILD_ID:`
+- `DEPLOYMENT_ID:`
+
+After those markers, you can print any additional build or server logs that would help debug failures.
+
+```bash filename="scripts/e2e-logs.sh"
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$NEXT_TEST_DIR"
+
+if [ -f ".adapter-build.log" ]; then
+  cat ".adapter-build.log"
+fi
+
+if [ -f ".adapter-server.log" ]; then
+  echo "=== .adapter-server.log ==="
+  cat ".adapter-server.log"
+fi
+```
+
+One workable pattern is to have the deploy script write `.adapter-build.log` and `.adapter-server.log`, then have the logs script replay those files so the harness can extract the required markers.
+
 ## Routing with `@next/routing`
 
 You can use [`@next/routing`](https://www.npmjs.com/package/@next/routing) to reproduce Next.js route matching behavior with data from `onBuildComplete`.
