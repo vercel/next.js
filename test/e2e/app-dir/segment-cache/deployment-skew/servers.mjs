@@ -32,9 +32,12 @@ function getEnv(id, mode) {
   }
 }
 
-async function spawnNext(id, mode, port) {
+async function spawnNext(id, mode, port, extraEnv = {}) {
   const child = spawn('pnpm', ['next', 'start', '-p', port, dir], {
-    env: getEnv(id, mode),
+    env: {
+      ...getEnv(id, mode),
+      ...extraEnv,
+    },
     stdio: ['inherit', 'pipe', 'inherit'],
   })
 
@@ -75,24 +78,28 @@ export async function start(
   nextPort2 = mainPort + 2,
   mode = 'BUILD_ID'
 ) {
+  const extraEnv = {
+    TEST_PROXY_ORIGIN: `http://localhost:${mainPort}`,
+  }
+
   // Start two different Next.js servers, one with BUILD_ID=1 and one
   // with BUILD_ID=2
   const [next1, next2] = await Promise.all([
-    spawnNext('1', mode, nextPort1),
-    spawnNext('2', mode, nextPort2),
+    spawnNext('1', mode, nextPort1, extraEnv),
+    spawnNext('2', mode, nextPort2, extraEnv),
   ])
 
   // Create a proxy server. If search params include `deployment=2`, proxy to
   // to the second next server. Otherwise, proxy to the first.
   const proxy = httpProxy.createProxyServer()
 
-  // Simulate deployment skew for server action responses. When a POST
-  // (server action) is handled by deployment 1, inject a foreign
-  // x-nextjs-deployment-id header so the client detects a build ID
-  // mismatch and triggers an MPA navigation. This simulates the real-world
-  // scenario where a CDN/load balancer adds skew protection headers.
+  // Simulate deployment skew for deployment ID-based action responses. When a
+  // POST (server action) is handled by deployment 1, inject a foreign
+  // x-nextjs-deployment-id header so the client detects a mismatch and
+  // triggers an MPA navigation. BUILD_ID mode intentionally skips this so the
+  // test exercises the response.b fallback instead.
   proxy.on('proxyRes', (proxyRes, req) => {
-    if (req.method === 'POST') {
+    if (mode === 'DEPLOYMENT_ID' && req.method === 'POST') {
       proxyRes.headers['x-nextjs-deployment-id'] = 'foreign-deployment'
     }
   })

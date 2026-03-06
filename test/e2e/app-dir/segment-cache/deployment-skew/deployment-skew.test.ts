@@ -38,7 +38,7 @@ describe('segment cache (deployment skew)', () => {
         await cleanup()
       })
 
-      runTests(() => port)
+      runTests('BUILD_ID', () => port)
     })
 
     describe('with NEXT_DEPLOYMENT_ID', () => {
@@ -54,7 +54,7 @@ describe('segment cache (deployment skew)', () => {
         await cleanup()
       })
 
-      runTests(() => port)
+      runTests('DEPLOYMENT_ID', () => port)
     })
   }
 
@@ -84,7 +84,7 @@ describe('segment cache (deployment skew)', () => {
   })
 })
 
-function runTests(getPort: () => number) {
+function runTests(mode: 'BUILD_ID' | 'DEPLOYMENT_ID', getPort: () => number) {
   it(
     'does not crash when prefetching a dynamic, non-PPR page ' +
       'on a different deployment',
@@ -163,6 +163,7 @@ function runTests(getPort: () => number) {
       await browser.eval('window.next.router.push("/action-redirect")')
       await browser.waitForElementByCss('#action-page')
       let sawActionRequest = false
+      let sawRedirectActionResponse = false
       let actionResponseDeploymentId: string | undefined
       browser.on('request', (request: Playwright.Request) => {
         const headers = request.headers()
@@ -178,6 +179,7 @@ function runTests(getPort: () => number) {
 
         const headers = response.headers()
         if (headers['x-action-redirect']) {
+          sawRedirectActionResponse = true
           actionResponseDeploymentId = headers['x-nextjs-deployment-id']
         }
       })
@@ -187,28 +189,34 @@ function runTests(getPort: () => number) {
       expect(await heading.text()).toBe('Action Redirect Page')
 
       // Click the button that triggers the server action redirect.
-      // The proxy intercepts the server action response and injects a
-      // foreign x-nextjs-deployment-id header, simulating a deployment
-      // skew scenario where the server response comes from a different
-      // deployment than the client.
-      await retry(async () => {
-        if (!sawActionRequest) {
-          const button = await browser.elementById('redirect-action-button')
-          await button.click()
-        }
-        expect(sawActionRequest).toBe(true)
-      }, 10_000)
+      // In deployment ID mode, the proxy injects a foreign
+      // x-nextjs-deployment-id header to simulate skew. In build ID mode,
+      // the response omits that header so the client falls back to the
+      // build ID carried in the action Flight payload.
+      const button = await browser.elementById('redirect-action-button')
+      await button.click()
 
       await retry(async () => {
-        expect(actionResponseDeploymentId).toBe('foreign-deployment')
+        expect(sawActionRequest).toBe(true)
       })
 
+      await retry(async () => {
+        expect(sawRedirectActionResponse).toBe(true)
+      })
+
+      if (mode === 'DEPLOYMENT_ID') {
+        expect(actionResponseDeploymentId).toBe('foreign-deployment')
+      } else {
+        expect(actionResponseDeploymentId).toBeUndefined()
+      }
+
       // Wait for the navigation to complete.
-      // The client detects the deployment ID mismatch in the response
-      // header and discards the flight data, triggering an MPA navigation
-      // (full page load) to the redirect target. The redirect URL
-      // (/dynamic-page?deployment=2) goes through the proxy to deployment 2.
-      const buildId = await browser.waitForElementByCss('#build-id', 30000)
+      // The client detects the mismatch in either the response header or
+      // the fallback build ID field and discards the flight data,
+      // triggering an MPA navigation (full page load) to the redirect
+      // target. The redirect URL (/dynamic-page?deployment=2) goes through
+      // the proxy to deployment 2.
+      const buildId = await browser.waitForElementByCss('#build-id')
       expect(await buildId.text()).toBe('Build ID: 2')
     },
     60 * 1000
