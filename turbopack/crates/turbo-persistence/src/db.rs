@@ -34,6 +34,7 @@ use crate::{
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
+    mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile},
@@ -402,17 +403,24 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
-        let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
+        let file = File::open(&path)
+            .with_context(|| format!("Failed to open blob file {}", path.display()))?;
+        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+            format!(
+                "Failed to mmap blob file {} ({} bytes)",
+                path.display(),
+                file.metadata().map(|m| m.len()).unwrap_or(0)
+            )
+        })?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Sequential)?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::WillNeed)?;
-        #[cfg(target_os = "linux")]
-        mmap.advise(memmap2::Advice::DontFork)?;
-        #[cfg(target_os = "linux")]
-        mmap.advise(memmap2::Advice::Unmergeable)?;
+        advise_mmap_for_persistence(&mmap)?;
         let mut reader = &mmap[..];
-        let uncompressed_length = reader.read_u32::<BE>()?;
+        let uncompressed_length = reader
+            .read_u32::<BE>()
+            .context("Failed to read uncompressed length from blob file")?;
         let expected_checksum = reader.read_u32::<BE>()?;
 
         // Verify checksum on the compressed on-disk data before decompression.

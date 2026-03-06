@@ -237,9 +237,6 @@ const FILES = {
           '.vercel/project.json': `{ "projectId": "prj_", "orgId": "team_", "settings": {} }`,
           ...FILES[test],
         },
-        dependencies: {
-          vercel: 'latest',
-        },
         packageJson: {
           scripts: {
             dev: 'next dev',
@@ -247,7 +244,9 @@ const FILES = {
             start: 'next start',
           },
         },
-        buildCommand: 'pnpm vercel build',
+        // We use NEXT_TEST_PREFER_OFFLINE, so just declaring `vercel: latest` as a dependency still
+        // doesn't force the latest version.
+        buildCommand: 'pnpm dlx vercel@latest build',
         env:
           mode === 'adapter'
             ? {

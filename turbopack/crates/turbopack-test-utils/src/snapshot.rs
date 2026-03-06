@@ -6,7 +6,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
@@ -156,14 +156,14 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
 
 async fn get_contents(file: Vc<AssetContent>, path: FileSystemPath) -> Result<Option<String>> {
     Ok(
-        match &*file.await.context(format!(
-            "Unable to read AssetContent of {}",
-            path.value_to_string().await?
-        ))? {
-            AssetContent::File(file) => match &*file.await.context(format!(
-                "Unable to read FileContent of {}",
-                path.value_to_string().await?
-            ))? {
+        match &*file
+            .await
+            .context(turbofmt!("Unable to read AssetContent of {path}").await?)?
+        {
+            AssetContent::File(file) => match &*file
+                .await
+                .context(turbofmt!("Unable to read FileContent of {path}").await?)?
+            {
                 FileContent::NotFound => None,
                 FileContent::Content(expected) => {
                     let rope = expected.content();

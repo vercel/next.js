@@ -5411,6 +5411,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/otel-parent-span-propagation/otel-parent-span-propagation.test.ts": {
+    "passed": [
+      "otel-parent-span-propagation should set http.route on handleRequest span for dynamic routes",
+      "otel-parent-span-propagation should set http.route on handleRequest span for static routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts": {
     "passed": ["pages-to-app-routing should work using browser"],
     "failed": [],
@@ -8142,7 +8152,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/view-transitions/view-transitions.test.ts": {
-    "passed": ["view-transitions smoketest"],
+    "passed": [
+      "view-transitions smoketest",
+      "view-transitions transitionTypes smoketest"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8636,6 +8649,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/css-data-url-global-pages/css-data-url-global-pages.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "css-data-url-global-pages should apply styles from data url correctly"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -20761,6 +20783,7 @@
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -20773,9 +20796,7 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [
-      "config telemetry production mode emits telemetry for filesystem cache in dev mode"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -22148,9 +22169,11 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "deterministic build - changing deployment id .next folder should produce identical build outputs even when changing deployment id",
-      "deterministic build - changing deployment id build output API - adapter should produce identical build outputs even when changing deployment id",
-      "deterministic build - changing deployment id build output API - builder should produce identical build outputs even when changing deployment id"
+      "deterministic build - changing deployment id build output API - cacheComponents adapter should produce identical build outputs even when changing deployment id",
+      "deterministic build - changing deployment id build output API - cacheComponents builder should produce identical build outputs even when changing deployment id",
+      "deterministic build - changing deployment id build output API - standard adapter should produce identical build outputs even when changing deployment id",
+      "deterministic build - changing deployment id build output API - standard builder should produce identical build outputs even when changing deployment id",
+      "deterministic build - changing deployment id standard - .next folder should produce identical build outputs even when changing deployment id"
     ],
     "flakey": [],
     "runtimeError": false

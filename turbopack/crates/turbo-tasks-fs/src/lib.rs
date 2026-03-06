@@ -36,7 +36,7 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     env,
-    fmt::{self, Debug, Display, Formatter},
+    fmt::{self, Debug, Formatter},
     fs::FileType,
     future::Future,
     io::{self, BufRead, BufReader, ErrorKind, Read, Write as _},
@@ -64,8 +64,9 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
-    ResolvedVc, TaskInput, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak,
+    ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
+    debug::ValueDebugFormat, effect, mark_session_dependent, parallel, trace::TraceRawVcs,
+    turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -976,10 +977,7 @@ impl FileSystem for DiskFileSystem {
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
-            bail!(
-                "Cannot write to denied path: {}",
-                fs_path.value_to_string().await?
-            );
+            turbobail!("Cannot write to denied path: {fs_path}");
         }
         let full_path = self.to_sys_path(&fs_path);
 
@@ -1109,10 +1107,7 @@ impl FileSystem for DiskFileSystem {
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
-            bail!(
-                "Cannot write link to denied path: {}",
-                fs_path.value_to_string().await?
-            );
+            turbobail!("Cannot write link to denied path: {fs_path}");
         }
 
         let content = target.await?;
@@ -1322,10 +1317,7 @@ impl FileSystem for DiskFileSystem {
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
         if self.inner.is_path_denied(&fs_path) {
-            bail!(
-                "Cannot read metadata from denied path: {}",
-                fs_path.value_to_string().await?
-            );
+            turbobail!("Cannot read metadata from denied path: {fs_path}");
         }
 
         self.inner.register_read_invalidator(&full_path)?;
@@ -1372,8 +1364,7 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, ValueToString)]
-#[value_to_string("[{fs}]/{path}")]
+#[derive(Debug, Clone, Hash, TaskInput)]
 #[turbo_tasks::value(shared)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
@@ -1383,15 +1374,22 @@ pub struct FileSystemPath {
 impl FileSystemPath {
     /// Mimics `ValueToString::to_string`.
     pub fn value_to_string(&self) -> Vc<RcStr> {
-        value_to_string(self.clone())
+        <FileSystemPath as ValueToString>::to_string(self.clone().cell())
     }
 }
 
-#[turbo_tasks::function]
-async fn value_to_string(path: FileSystemPath) -> Result<Vc<RcStr>> {
-    Ok(Vc::cell(
-        format!("[{}]/{}", path.fs.to_string().await?, path.path).into(),
-    ))
+impl ValueToStringRef for FileSystemPath {
+    async fn to_string_ref(&self) -> Result<RcStr> {
+        turbofmt!("[{}]/{}", self.fs, self.path).await
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for FileSystemPath {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.to_string_ref().await?))
+    }
 }
 
 impl FileSystemPath {
@@ -1694,9 +1692,9 @@ impl FileSystemPath {
     }
 }
 
-impl Display for FileSystemPath {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.path)
+impl std::fmt::Display for FileSystemPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.path)
     }
 }
 
@@ -1716,7 +1714,7 @@ pub async fn rebase(
     } else {
         let base_path = [&old_base.path, "/"].concat();
         if !fs_path.path.starts_with(&base_path) {
-            bail!(
+            turbobail!(
                 "rebasing {fs_path} from {old_base} onto {new_base} doesn't work because it's not \
                  part of the source path",
             );
@@ -1793,7 +1791,7 @@ impl FileSystemPath {
         let result = &(*self.realpath_with_links().await?);
         match &result.path_result {
             Ok(path) => Ok(path.clone()),
-            Err(error) => Err(anyhow::anyhow!(error.as_error_message(self, result))),
+            Err(error) => bail!("{}", error.as_error_message(self, result).await?),
         }
     }
 
@@ -1859,22 +1857,33 @@ pub enum RealPathResultError {
 
 impl RealPathResultError {
     /// Formats the error message
-    pub fn as_error_message(&self, orig: &FileSystemPath, result: &RealPathResult) -> String {
-        match self {
-            RealPathResultError::TooManySymlinks => format!(
-                "Symlink {orig} leads to too many other symlinks ({len} links)",
-                len = result.symlinks.len()
-            ),
+    pub async fn as_error_message(
+        &self,
+        orig: &FileSystemPath,
+        result: &RealPathResult,
+    ) -> Result<RcStr> {
+        Ok(match self {
+            RealPathResultError::TooManySymlinks => {
+                let len = result.symlinks.len();
+                turbofmt!("Symlink {orig} leads to too many other symlinks ({len} links)").await?
+            }
             RealPathResultError::CycleDetected => {
-                format!("Symlink {orig} is in a symlink loop: {:?}", result.symlinks)
+                // symlinks is Vec<FileSystemPath> — format with Debug since
+                // turbofmt can't resolve a whole Vec asynchronously.
+                let symlinks_dbg = format!(
+                    "{:?}",
+                    result.symlinks.iter().map(|s| &s.path).collect::<Vec<_>>()
+                );
+                turbofmt!("Symlink {orig} is in a symlink loop: {symlinks_dbg}").await?
             }
             RealPathResultError::Invalid => {
-                format!("Symlink {orig} is invalid, it points out of the filesystem root")
+                turbofmt!("Symlink {orig} is invalid, it points out of the filesystem root").await?
             }
             RealPathResultError::NotFound => {
-                format!("Symlink {orig} is invalid, it points at a file that doesn't exist")
+                turbofmt!("Symlink {orig} is invalid, it points at a file that doesn't exist")
+                    .await?
             }
-        }
+        })
     }
 }
 
@@ -2401,8 +2410,8 @@ impl ValueToString for FileJsonContent {
     fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.to_string().into())),
-            FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
-            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+            FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {}", e),
+            FileJsonContent::NotFound => bail!("File not found"),
         }
     }
 }
@@ -2413,8 +2422,8 @@ impl FileJsonContent {
     pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
         match &*self.await? {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
-            FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
-            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+            FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {}", e),
+            FileJsonContent::NotFound => bail!("File not found"),
         }
     }
 }
@@ -2491,7 +2500,7 @@ impl DirectoryEntry {
                 Ok(path) => path,
                 Err(error) => {
                     return Ok(DirectoryEntry::Error(
-                        error.as_error_message(symlink, result).into(),
+                        error.as_error_message(symlink, result).await?,
                     ));
                 }
             };
@@ -2500,10 +2509,11 @@ impl DirectoryEntry {
                 FileSystemEntryType::File => DirectoryEntry::File(real_path.clone()),
                 // Happens if the link is to a non-existent file
                 FileSystemEntryType::NotFound => DirectoryEntry::Error(
-                    format!("Symlink {symlink} points at {real_path} which does not exist").into(),
+                    turbofmt!("Symlink {symlink} points at {real_path} which does not exist")
+                        .await?,
                 ),
                 // This is caused by eventual consistency
-                FileSystemEntryType::Symlink => bail!(
+                FileSystemEntryType::Symlink => turbobail!(
                     "Symlink {symlink} points at a symlink but realpath_with_links returned a path"
                 ),
                 _ => self,

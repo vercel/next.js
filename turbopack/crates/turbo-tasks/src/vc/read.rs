@@ -144,6 +144,7 @@ where
     }
 }
 
+#[must_use]
 pub struct ReadVcFuture<T, Cast = VcValueTypeCast<T>>
 where
     T: ?Sized,

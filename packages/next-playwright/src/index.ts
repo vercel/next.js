@@ -1,3 +1,5 @@
+import { step } from './step'
+
 /**
  * Minimal interfaces for Playwright's Page and BrowserContext. We use
  * structural types rather than importing from a specific Playwright package
@@ -41,6 +43,9 @@ const INSTANT_COOKIE = 'next-instant-navigation-testing'
  *     await page.goto(url)
  *     // ...
  *   }, { baseURL: 'http://localhost:3000' })
+ *
+ * When `@playwright/test` is installed, acquire/release actions appear
+ * as labeled steps in the Playwright UI.
  */
 export async function instant<T>(
   page: PlaywrightPage,
@@ -52,11 +57,13 @@ export async function instant<T>(
   // The cookie triggers the CookieStore change event in
   // navigation-testing-lock.ts, which acquires the in-memory navigation lock.
   const { hostname } = new URL(resolveURL(page, options))
-  await page
-    .context()
-    .addCookies([
-      { name: INSTANT_COOKIE, value: '1', domain: hostname, path: '/' },
-    ])
+  await step('Acquire Instant Lock', () =>
+    page
+      .context()
+      .addCookies([
+        { name: INSTANT_COOKIE, value: '1', domain: hostname, path: '/' },
+      ])
+  )
   try {
     return await fn()
   } finally {
@@ -64,7 +71,9 @@ export async function instant<T>(
     // triggers the CookieStore change event which resolves the in-memory
     // lock. For MPA navigations (reload, plain anchor), the listener in
     // app-bootstrap.ts triggers a page reload to fetch dynamic data.
-    await page.context().clearCookies({ name: INSTANT_COOKIE })
+    await step('Release Instant Lock', () =>
+      page.context().clearCookies({ name: INSTANT_COOKIE })
+    )
   }
 }
 
