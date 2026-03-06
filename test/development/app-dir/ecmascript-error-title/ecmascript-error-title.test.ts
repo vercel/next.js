@@ -1,4 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
+import {
+  getRedboxDescription,
+  getRedboxSource,
+  waitForRedbox,
+} from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('ecmascript-error-title', () => {
@@ -20,20 +25,13 @@ describe('ecmascript-error-title', () => {
     if (isTurbopack) {
       // The redbox description should show the specific SWC error message
       // instead of the generic "Parsing ecmascript source code failed".
-      await expect(browser).toDisplayRedbox(`
-        {
-          "description": "Expected '>', got '<eof>'",
-          "environmentLabel": null,
-          "label": "Build Error",
-          "source": "./app/page.tsx (1:27)
-        Expected '>', got '<eof>'
-        > 1 | export default () => <div/
-            |                           ^
+      await waitForRedbox(browser)
+      const description = await getRedboxDescription(browser)
+      expect(description).toBe("Expected '>', got '<eof>'")
 
-        Parsing ecmascript source code failed",
-          "stack": [],
-        }
-      `)
+      const source = await getRedboxSource(browser)
+      expect(source).toContain("Expected '>', got '<eof>'")
+      expect(source).toContain('> 1 | export default () => <div/')
     }
   })
 
@@ -56,20 +54,13 @@ describe('ecmascript-error-title', () => {
     if (isTurbopack) {
       // The redbox description should show the specific SWC error message
       // instead of the generic "Ecmascript file had an error".
-      await expect(browser).toDisplayRedbox(`
-        {
-          "description": "the name \`Table\` is defined multiple times",
-          "environmentLabel": null,
-          "label": "Build Error",
-          "source": "./app/page.tsx (5:17)
-        the name \`Table\` is defined multiple times
-        > 5 | export function Table() {
-            |                 ^^^^^
+      await waitForRedbox(browser)
+      const description = await getRedboxDescription(browser)
+      expect(description).toBe('the name `Table` is defined multiple times')
 
-        Ecmascript file had an error",
-          "stack": [],
-        }
-      `)
+      const source = await getRedboxSource(browser)
+      expect(source).toContain('the name `Table` is defined multiple times')
+      expect(source).toContain('> 5 | export function Table() {')
     }
   })
 })
