@@ -114,7 +114,7 @@ jobs:
       - run: pnpm install
 
       - name: Set preview version
-        if: ${{ needs.deploy-target.outputs.value != 'production' }}
+        if: ${{ contains(fromJSON('["automated-preview","force-preview"]'), needs.deploy-target.outputs.value) }}
         run: |
           node scripts/set-preview-version.js "${{ github.sha }}"
           pnpm install --no-frozen-lockfile
