@@ -4,14 +4,15 @@ use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
+use turbo_tasks_fs::{VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     self,
     chunk::{AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext},
+    context::AssetContext,
     emit_collect::CollectingModule,
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module::{Module, ModuleSideEffects, Modules},
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::ReferenceType,
     source::{OptionSource, Source},
@@ -45,19 +46,21 @@ impl CustomModuleType for CollectModuleType {
     fn create_module(
         self: turbo_tasks::Vc<Self>,
         _source: Vc<Box<dyn Source>>,
-        module_asset_context: Vc<ModuleAssetContext>,
+        asset_context: Vc<ModuleAssetContext>,
         reference_type: ReferenceType,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let ReferenceType::Collect { namespace } = reference_type else {
-            bail!(
-                "CollectModuleType only supports \
-                 EcmaScriptModulesReferenceSubType::ImportWithTurbopackCollect"
-            );
+        let ReferenceType::Collect {
+            namespace,
+            parent_module,
+        } = reference_type
+        else {
+            bail!("CollectModuleType only supports ReferenceType::Collect");
         };
 
         Ok(Vc::upcast(CollectModule::new(
+            *parent_module,
             namespace,
-            module_asset_context,
+            asset_context,
         )))
     }
 
@@ -76,17 +79,25 @@ impl CustomModuleType for CollectModuleType {
 
 #[turbo_tasks::value]
 pub struct CollectModule {
+    // TODO have a different way of having unique collect modules per page. This still breaks if
+    // the collect module is imported in shared code
+    parent_module: ResolvedVc<Box<dyn Module>>,
     namespace: RcStr,
-    module_asset_context: ResolvedVc<ModuleAssetContext>,
+    asset_context: ResolvedVc<ModuleAssetContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl CollectModule {
     #[turbo_tasks::function]
-    pub fn new(namespace: RcStr, module_asset_context: ResolvedVc<ModuleAssetContext>) -> Vc<Self> {
+    pub fn new(
+        parent_module: ResolvedVc<Box<dyn Module>>,
+        namespace: RcStr,
+        asset_context: ResolvedVc<ModuleAssetContext>,
+    ) -> Vc<Self> {
         CollectModule {
+            parent_module,
             namespace,
-            module_asset_context,
+            asset_context,
         }
         .cell()
     }
@@ -103,8 +114,12 @@ fn virtual_fs() -> Vc<VirtualFileSystem> {
 impl Module for CollectModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(virtual_fs().root().owned().await?)
-            .with_modifier(self.namespace.clone()))
+        Ok(self
+            .parent_module
+            .ident()
+            .with_modifier(rcstr!("collect"))
+            .with_modifier(self.namespace.clone())
+            .with_layer(self.asset_context.await?.layer()))
     }
 
     #[turbo_tasks::function]
@@ -135,7 +150,7 @@ impl CollectingModule for CollectModule {
         self: ResolvedVc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_group: ChunkGroup,
+        chunk_group: ResolvedVc<Modules>,
     ) -> Vc<Box<dyn ChunkItem>> {
         CollectModuleWithChunkGroup {
             module: self,
@@ -161,7 +176,7 @@ impl ChunkableModule for CollectModule {
 #[turbo_tasks::value]
 struct CollectModuleWithChunkGroup {
     module: ResolvedVc<CollectModule>,
-    chunk_group: ChunkGroup,
+    chunk_group: ResolvedVc<Modules>,
 }
 
 #[turbo_tasks::value_impl]
@@ -216,7 +231,17 @@ impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunk_item_id_strategy = chunking_context.chunk_item_id_strategy().await?;
 
-        let entries = self.chunk_group.entries().collect::<FxHashSet<_>>();
+        let entries = self
+            .chunk_group
+            .await?
+            .into_iter()
+            .collect::<FxHashSet<_>>();
+
+        // println!(
+        //     "collect codegen, searching for {:?} {:#?}",
+        //     self.module.ident_string().await?,
+        //     entries.iter().map(|m| m.ident_string()).try_join().await?
+        // );
 
         // TODO don't read whole graph
         let module_graph = module_graph.await?;

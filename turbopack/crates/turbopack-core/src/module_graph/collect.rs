@@ -22,6 +22,7 @@ pub struct CollectedModules {
     /// (Page Entry Module, Collecting Module) -> Vec<(Reference, Collected Module)>
     pub collected_references: FxHashMap<
         (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
+        // TODO this GraphNodeIndex can be removed again
         Vec<(RefData, ResolvedVc<Box<dyn Module>>, GraphNodeIndex)>,
     >,
 }

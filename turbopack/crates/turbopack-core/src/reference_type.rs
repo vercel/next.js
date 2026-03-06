@@ -324,6 +324,8 @@ pub enum ReferenceType {
     Loader,
     Collect {
         namespace: RcStr,
+        // TODO this is a hack
+        parent_module: ResolvedVc<Box<dyn Module>>,
     },
     Custom(u8),
     #[default]
@@ -350,7 +352,7 @@ impl Display for ReferenceType {
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
             ReferenceType::Loader => "loader",
-            ReferenceType::Collect { namespace } => return write!(f, "collect({namespace})"),
+            ReferenceType::Collect { namespace, .. } => return write!(f, "collect({namespace})"),
             ReferenceType::Custom(_) => todo!(),
             ReferenceType::Undefined => "undefined",
         };

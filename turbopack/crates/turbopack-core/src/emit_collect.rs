@@ -3,8 +3,8 @@ use turbo_tasks::Vc;
 
 use crate::{
     chunk::{ChunkItem, ChunkingContext},
-    module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module::{Module, Modules},
+    module_graph::ModuleGraph,
 };
 
 /// A module that can collect other modules during the collect phase.
@@ -19,6 +19,6 @@ pub trait CollectingModule: Module {
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_group: ChunkGroup,
+        chunk_group: Vc<Modules>,
     ) -> Vc<Box<dyn ChunkItem>>;
 }

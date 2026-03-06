@@ -1776,6 +1776,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     let &AnalysisState {
         handler,
         origin,
+        module,
         source,
         compile_time_info,
         ignore_dynamic_requests,
@@ -1835,6 +1836,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ignore_dynamic_requests,
                         analysis,
                         origin,
+                        ResolvedVc::upcast(module),
                         compile_time_info,
                         url_rewrite_behavior,
                         source,
@@ -1859,6 +1861,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ignore_dynamic_requests,
                 analysis,
                 origin,
+                ResolvedVc::upcast(module),
                 compile_time_info,
                 url_rewrite_behavior,
                 source,
@@ -2029,6 +2032,7 @@ async fn handle_well_known_function_call<'a, F, Fut>(
     ignore_dynamic_requests: bool,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    parent_module: ResolvedVc<Box<dyn Module>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
     source: ResolvedVc<Box<dyn Source>>,
@@ -3281,7 +3285,7 @@ where
                 };
 
                 analysis.add_reference_code_gen(
-                    CollectReference::new(origin, namespace.as_rcstr()),
+                    CollectReference::new(origin, parent_module, namespace.as_rcstr()),
                     ast_path.to_vec().into(),
                 );
                 return Ok(());

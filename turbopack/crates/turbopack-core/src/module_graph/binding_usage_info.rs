@@ -156,12 +156,6 @@ pub async fn compute_binding_usage_info(
                     return Ok(GraphTraversalAction::Continue);
                 };
 
-                let Some(edge) = edge else {
-                    // One of the synthetic ChunkingType::Collected edges. The ChunkingType::Emitted
-                    // version of this edge is visited with an `edge` though.
-                    return Ok(GraphTraversalAction::Continue);
-                };
-
                 if remove_unused_imports {
                     // If this is an evaluation reference and the target has no side effects
                     // then we can drop it. NOTE: many `imports` create parallel Evaluation
