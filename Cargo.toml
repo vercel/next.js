@@ -45,6 +45,8 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
+debug-assertions = true
+overflow-checks = true
 
 [profile.release.package]
 
