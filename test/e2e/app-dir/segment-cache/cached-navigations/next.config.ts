@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   productionBrowserSourceMaps: true,
   experimental: {
+    cachedNavigations: true,
     exposeTestingApiInProductionBuild: true,
   },
 }
