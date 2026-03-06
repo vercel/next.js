@@ -490,7 +490,7 @@ impl AnalysisState<'_> {
         Ok(link(
             self.var_graph,
             value,
-            &early_value_visitor,
+            &|v: &mut JsValue| early_replace_builtin(v),
             &|value| {
                 value_visitor(
                     *self.origin,
@@ -3365,11 +3365,6 @@ pub fn as_abs_path(path: FileSystemPath) -> String {
 /// Generates an absolute path usable for `require.resolve()` calls.
 fn require_resolve(path: FileSystemPath) -> String {
     format!("/ROOT/{}", path.path.as_str())
-}
-
-async fn early_value_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
-    let modified = early_replace_builtin(&mut v);
-    Ok((v, modified))
 }
 
 async fn value_visitor(

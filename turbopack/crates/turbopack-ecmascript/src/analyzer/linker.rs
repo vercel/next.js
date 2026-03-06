@@ -2,13 +2,13 @@ use std::{collections::hash_map::Entry, fmt::Display, future::Future, sync::Arc}
 
 use anyhow::Result;
 use parking_lot::Mutex;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
 
 use super::{JsValue, graph::VarGraph};
 use crate::analyzer::graph::VarMeta;
 
-pub async fn link<'a, B, RB, F, RF>(
+pub async fn link<'a, B, F, RF>(
     graph: &VarGraph,
     mut val: JsValue,
     early_visitor: &B,
@@ -17,11 +17,17 @@ pub async fn link<'a, B, RB, F, RF>(
     var_cache: &Mutex<FxHashMap<Id, JsValue>>,
 ) -> Result<(JsValue, u32)>
 where
-    RB: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    B: 'a + Fn(JsValue) -> RB + Sync,
+    B: Fn(&mut JsValue) -> bool + Sync,
     RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
     F: 'a + Fn(JsValue) -> RF + Sync,
 {
+    // Fast path: values that are already fully resolved and will pass through
+    // both visitors unchanged. These have no children, no placeholders, and
+    // the visitor catch-all is a no-op for them.
+    if val.is_inert() {
+        return Ok((val, 0));
+    }
+
     val.normalize();
     let (val, steps) = link_internal_iterative(
         graph,
@@ -75,7 +81,7 @@ impl Display for Step {
 }
 // If a variable was already visited in this linking call, don't visit it again.
 
-pub(crate) async fn link_internal_iterative<'a, B, RB, F, RF>(
+pub(crate) async fn link_internal_iterative<'a, B, F, RF>(
     graph: &'a VarGraph,
     val: JsValue,
     early_visitor: &'a B,
@@ -84,22 +90,21 @@ pub(crate) async fn link_internal_iterative<'a, B, RB, F, RF>(
     var_cache: &Mutex<FxHashMap<Id, JsValue>>,
 ) -> Result<(JsValue, u32)>
 where
-    RB: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    B: 'a + Fn(JsValue) -> RB + Sync,
+    B: Fn(&mut JsValue) -> bool + Sync,
     RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
     F: 'a + Fn(JsValue) -> RF + Sync,
 {
-    let initial_capacity = (val.total_nodes() as usize).min(64);
+    // Tracks the number of nodes in the queue and done combined
+    let mut total_nodes = val.total_nodes();
+
+    let initial_capacity = (total_nodes as usize).min(64);
     let mut work_queue_stack: Vec<Step> = Vec::with_capacity(initial_capacity * 2);
     let mut done: Vec<JsValue> = Vec::with_capacity(initial_capacity);
-    // Tracks the number of nodes in the queue and done combined
-    let mut total_nodes = 0;
-    let mut cycle_stack: FxHashSet<Id> = FxHashSet::default();
+    let mut cycle_stack: FxHashSet<Id> = FxHashSet::with_capacity_and_hasher(initial_capacity, FxBuildHasher::default());
     let mut fun_args_depth: u32 = 0;
     // Tracks the number linking steps so far
     let mut steps = 0;
 
-    total_nodes += val.total_nodes();
     work_queue_stack.push(Step::Enter(val));
 
     while let Some(step) = work_queue_stack.pop() {
@@ -269,7 +274,7 @@ where
                     continue;
                 }
 
-                let (mut val, visit_modified) = early_visitor(val).await?;
+                let visit_modified = early_visitor(&mut val);
                 val.debug_assert_total_nodes_up_to_date();
                 if visit_modified && val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;

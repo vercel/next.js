@@ -1145,6 +1145,16 @@ impl JsValue {
 
 // Methods regarding node count
 impl JsValue {
+    /// Returns true if this value is fully resolved and will not be transformed
+    /// by the linker's visitors. These are leaf values with no placeholders and
+    /// no operations — the visitors' catch-all paths are no-ops for them.
+    pub fn is_inert(&self) -> bool {
+        matches!(
+            self,
+            JsValue::Constant(_) | JsValue::Url(_, _) | JsValue::Unknown { .. }
+        )
+    }
+
     pub fn has_children(&self) -> bool {
         self.total_nodes() > 1
     }
@@ -3804,9 +3814,8 @@ pub mod test_utils {
         utils::module_value_to_well_known_object,
     };
 
-    pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
-        let m = early_replace_builtin(&mut v);
-        Ok((v, m))
+    pub fn early_visitor(v: &mut JsValue) -> bool {
+        early_replace_builtin(v)
     }
 
     /// Visitor that replaces well known functions and objects with their
