@@ -12,8 +12,7 @@ describe('instant-nav-panel', () => {
 
   async function clearInstantModeCookie(browser: any) {
     await browser.eval(() => {
-      document.cookie =
-        'next-instant-navigation-testing=; path=/; max-age=0'
+      document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
     })
   }
 
@@ -50,9 +49,7 @@ describe('instant-nav-panel', () => {
         .find((p: any) =>
           p.shadowRoot.querySelector('[data-nextjs-toast]')
         ) as any
-      const panel = portal?.shadowRoot?.querySelector(
-        '.instant-nav-panel'
-      )
+      const panel = portal?.shadowRoot?.querySelector('.instant-nav-panel')
       return panel?.innerText || ''
     })
   }
@@ -75,9 +72,7 @@ describe('instant-nav-panel', () => {
         .find((p: any) =>
           p.shadowRoot.querySelector('[data-nextjs-toast]')
         ) as any
-      portal?.shadowRoot
-        ?.querySelector('#_next-devtools-panel-close')
-        ?.click()
+      portal?.shadowRoot?.querySelector('#_next-devtools-panel-close')?.click()
     })
   }
 
@@ -100,21 +95,22 @@ describe('instant-nav-panel', () => {
 
     await openInstantNavPanel(browser)
 
-    // Panel should show waiting state
+    // Panel should show waiting state with Page load and Client navigation sections
     await retry(async () => {
       const text = await getPanelText(browser)
-      expect(text).toContain('Navigate to a page')
+      expect(text).toContain('Page load')
+      expect(text).toContain('Client navigation')
     })
 
-    // Cookie should be set
+    // Cookie should be set to activate navigation lock
     const cookie = await browser.eval(() => document.cookie)
-    expect(cookie).toContain('next-instant-navigation-testing=1')
+    expect(cookie).toContain('next-instant-navigation-testing=waiting')
 
     // Clean up
     await clearInstantModeCookie(browser)
   })
 
-  it('should show client nav details after SPA navigation', async () => {
+  it('should show client nav state after SPA navigation', async () => {
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
@@ -126,15 +122,17 @@ describe('instant-nav-panel', () => {
       expect(await hasPanelOpen(browser)).toBe(true)
     })
 
-    // Navigate to target page via SPA
-    await browser.elementByCss('#link-to-target').click()
+    // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
+    await browser.eval(() => {
+      document.querySelector<HTMLAnchorElement>('#link-to-target')!.click()
+    })
 
     // Panel should transition to client-nav state
     await retry(async () => {
       const text = await getPanelText(browser)
-      expect(text).toContain('Client nav')
-      expect(text).toContain('From:')
-      expect(text).toContain('To:')
+      expect(text).toContain('Client navigation')
+      expect(text).toContain('prefetched UI')
+      expect(text).toContain('Continue rendering')
     })
 
     // Clean up
@@ -153,13 +151,15 @@ describe('instant-nav-panel', () => {
       expect(await hasPanelOpen(browser)).toBe(true)
     })
 
-    // Navigate to target page via SPA
-    await browser.elementByCss('#link-to-target').click()
+    // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
+    await browser.eval(() => {
+      document.querySelector<HTMLAnchorElement>('#link-to-target')!.click()
+    })
 
-    // The comments skeleton should be visible (dynamic content is locked)
+    // The data fetching skeleton should be visible (dynamic content is locked)
     await retry(async () => {
       const skeleton = await browser.hasElementByCss(
-        '[data-testid="comments-skeleton"]'
+        '[data-testid="dynamic-skeleton"]'
       )
       expect(skeleton).toBe(true)
     })
