@@ -609,6 +609,8 @@ The `outputs` object contains arrays of build output types:
 - `outputs.staticFiles`: Static assets and auto-statically optimized pages
 - `outputs.middleware`: Middleware function (if present)
 
+> **Note:** When `config.output` is set to `'export'`, only `outputs.staticFiles` is populated. All other arrays (`pages`, `appPages`, `pagesApi`, `appRoutes`, `prerenders`) will be empty since the entire application is exported as static files.
+
 ### Pages (`outputs.pages`)
 
 React pages from the `pages/` directory:
@@ -711,7 +713,7 @@ ISR-enabled routes and static prerenders:
   pprChain?: {
     headers: Record<string, string>  // PPR chain headers (e.g., 'x-nextjs-resume': '1')
   }
-  parentFallbackMode?: DynamicPrerenderManifestRoute['fallback']
+  parentFallbackMode?: false | null | string  // false: no additional paths (fallback: false), null: blocking render, string: path to HTML fallback
   fallback?: {
     filePath: string | undefined  // Path to the fallback file (HTML, JSON, or RSC)
     initialStatus?: number  // Initial status code
@@ -724,7 +726,7 @@ ISR-enabled routes and static prerenders:
     allowQuery?: string[]     // Allowed query parameters considered for the cache key
     allowHeader?: string[]    // Allowed headers for ISR
     bypassFor?: RouteHas[]    // Cache bypass conditions
-    renderingMode?: RenderingMode  // Rendering mode (PPR or static)
+    renderingMode?: 'STATIC' | 'PARTIALLY_STATIC'  // STATIC: fully static, PARTIALLY_STATIC: PPR-enabled
     partialFallback?: boolean  // Serves a partial fallback shell that should be upgraded to a full route in the background
     bypassToken?: string      // Generated token that signals the prerender cache should be bypassed
   }
