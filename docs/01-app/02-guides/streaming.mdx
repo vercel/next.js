@@ -17,7 +17,7 @@ In traditional server-side rendering, the server produces the full HTML document
 
 This is especially impactful for pages that combine fast static content (headers, navigation, layout) with slower dynamic content (personalized data, analytics, recommendations). The static parts can be prerendered and served from a CDN, painting instantly, while the dynamic parts stream in from the server as they become ready.
 
-React's server renderer produces HTML in chunks aligned with `<Suspense>` boundaries. Next.js integrates this into the App Router so streaming works without additional configuration. 
+React's server renderer produces HTML in chunks aligned with `<Suspense>` boundaries. Next.js integrates this into the App Router so streaming works without additional configuration.
 
 ## Example
 
@@ -35,7 +35,7 @@ When a browser requests a page, two streams work together during the initial pag
 
 ### The HTML stream
 
-React's server renderer produces progressive HTML chunks. The static parts of your page (layouts, navigation, Suspense fallbacks) render first and are sent immediately. When an async Server Component resolves, React streams its completed HTML along with inline `<script>` tags: one that swaps the fallback DOM node with the new content, and another carrying the [component payload](#the-component-payload) so React can later hydrate it. The browser executes the swap instantly, without waiting for the page's JavaScript bundle to load or hydration to complete. This is what the user _sees_: the page painting progressively, section by section.
+React's server renderer produces progressive HTML chunks. The static parts of your page (layouts, navigation, Suspense fallbacks) render first and are sent immediately. When an async [Server Component](/docs/app/glossary#server-component) resolves, React streams its completed HTML along with inline `<script>` tags: one that swaps the fallback DOM node with the new content, and another carrying the [component payload](#the-component-payload) so React can later hydrate it. The browser executes the swap instantly, without waiting for the page's JavaScript bundle to load or hydration to complete. This is what the user _sees_: the page painting progressively, section by section.
 
 ### The component payload
 
@@ -385,9 +385,9 @@ If a component throws an error after streaming has started, the nearest [`error.
 
 Because the HTTP status code (`200 OK`) has already been sent with the first chunk, it cannot be changed to a `4xx` or `5xx`. The error is handled entirely within the streamed HTML. See [The HTTP contract](#the-http-contract) for more on this constraint.
 
-## Streaming data to Client Components
+## Streaming data to the client
 
-Server Components can pass promises to Client Components, allowing the client to wait for data without blocking the server's HTML stream. The Client Component uses React's [`use`](https://react.dev/reference/react/use) API to read the promise value:
+You can start a fetch in a [Server Component](/docs/app/glossary#server-component) and pass the unresolved promise as a prop to a [Client Component](/docs/app/glossary#client-component). The promise can be passed through as many layers as needed. Only the component that calls React's [`use`](https://react.dev/reference/react/use) API to read the value needs a `<Suspense>` boundary around it:
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { Suspense } from 'react'
@@ -401,6 +401,7 @@ async function getStats(): Promise<Stats> {
 }
 
 export default function Dashboard() {
+  // Start the fetch during server render, don't await it
   const statsPromise = getStats()
 
   return (
@@ -421,6 +422,7 @@ async function getStats() {
 }
 
 export default function Dashboard() {
+  // Start the fetch during server render, don't await it
   const statsPromise = getStats()
 
   return (
@@ -457,13 +459,25 @@ export function StatsChart({ dataPromise }) {
 }
 ```
 
-The Server Component starts the fetch and passes the unresolved promise to the Client Component. The HTML for the `<Suspense>` fallback is sent immediately. When the promise resolves, React streams the completed component to the client.
+The fallback is sent immediately with the static shell. When the promise resolves, React streams the completed HTML into the page.
 
-### Sharing a promise across the client tree
+### Sharing a promise across the tree
 
-When multiple Client Components need the same streamed data, you can store the promise in a React context. A Server Component creates the promise once (in a layout, for example) and passes it to a context provider. Any Client Component in the subtree can then call `useContext` to get the promise and `use()` to resolve it. The data is fetched once and the same promise is shared with every consumer through context.
+When multiple components need the same data, start the fetch once and pass the promise through a context provider so any component in the subtree can resolve it with `use()`:
 
-See [Sharing data with context and React.cache](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for a full example.
+```tsx filename="app/layout.tsx"
+import { getUser } from '@/lib/data'
+// Stores the promise in React context for the subtree
+import { UserProvider } from './user-provider'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const userPromise = getUser()
+
+  return <UserProvider userPromise={userPromise}>{children}</UserProvider>
+}
+```
+
+See [Sharing data with context and React.cache](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for the full pattern including the provider and consumer components.
 
 ## Streaming in Route Handlers
 
@@ -594,11 +608,11 @@ Once streaming begins, the HTTP response headers (including the status code) hav
 
 ### Status codes
 
-When a `<Suspense>` fallback renders or a Server Component suspends, the server must commit to `200 OK` in order to start sending the HTML stream. If a [`notFound()`](/docs/app/api-reference/functions/not-found) fires mid-stream, Next.js cannot go back and change the status to 404. Instead, it injects `<meta name="robots" content="noindex">` into the streamed HTML so that search engines don't index the page. Similarly, a [`redirect()`](/docs/app/api-reference/functions/redirect) mid-stream becomes a client-side redirect rather than an HTTP redirect header.
+When a `<Suspense>` fallback renders or a component suspends, the server must commit to `200 OK` in order to start sending the HTML stream. If a [`notFound()`](/docs/app/api-reference/functions/not-found) fires mid-stream, Next.js cannot go back and change the status to 404. Instead, it injects `<meta name="robots" content="noindex">` into the streamed HTML so that search engines don't index the page. Similarly, a [`redirect()`](/docs/app/api-reference/functions/redirect) mid-stream becomes a client-side redirect rather than an HTTP redirect header.
 
 ### When does streaming start?
 
-The response body begins streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a Server Component suspends under a `<Suspense>` boundary. To get a real HTTP status code for errors, place `notFound()` **before** any `await` or `<Suspense>` boundary:
+The response body begins streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a component suspends under a `<Suspense>` boundary. To get a real HTTP status code for errors, place `notFound()` **before** any `await` or `<Suspense>` boundary:
 
 ```tsx filename="app/post/[slug]/page.tsx" switcher
 import { Suspense } from 'react'
@@ -759,22 +773,11 @@ The `<template id="B:0">` markers are the Suspense fallback placeholders. When a
 
 See the [Self-Hosting guide](/docs/app/guides/self-hosting#streaming-and-suspense) for detailed configuration instructions.
 
-## How the concepts connect
+## Summary
 
-The trigger is **your code**. The framework requires explicitness about three kinds of work:
+The trigger is **your code**: async work, non-deterministic output, or runtime data. When the framework encounters these, it walks up the tree looking for a `<Suspense>` boundary to use as a fallback. Everything above those boundaries forms the [static shell](#the-static-shell), which is sent immediately. As each boundary resolves, React streams the result into the page.
 
-- **Asynchronous work** - database queries, API calls, file reads. These suspend the component while they resolve.
-- **Non-deterministic output** - `new Date()`, `Math.random()`. [Cache Components](/docs/app/getting-started/caching) track these and ask you to decide: cache the result with [`"use cache"`](/docs/app/api-reference/directives/use-cache), or make it per-request by accessing it in a dynamic scope (under [`connection`](/docs/app/api-reference/functions/connection), for example).
-- **Runtime data** - `cookies()`, `headers()`, `searchParams`. These are inherently request-scoped and cannot be known at build time.
-
-When the prerenderer encounters any of these, it cannot resolve that subtree statically. It walks up the component tree looking for the nearest `<Suspense>` boundary to use as a fallback. From there:
-
-1. **`<Suspense>` boundaries** are the catch. They tell React where to stop and what fallback to show while the subtree resolves. `loading.js` is a file convention that creates one automatically, wrapping the page and sibling slots inside the layout.
-2. **The static shell** is everything above and outside those boundaries: layouts, navigation, fallback UI, and cached component output. With Cache Components, this shell is prerendered at build time. It is sent in the first HTML chunk.
-3. **Streaming** delivers the static shell immediately over HTTP. As each boundary resolves, React streams the completed HTML along with a small script that swaps it into the page in-place, without waiting for the full JavaScript bundle.
-4. **Caching directives** like [`"use cache"`](/docs/app/api-reference/directives/use-cache) let you push work back into the shell. With [Cache Components](/docs/app/getting-started/caching), cached components are prerendered at build time and served from the edge. Their output becomes part of the static shell. Uncached components stream at request time. This means you control the boundary between instant and streamed content by choosing which components use `"use cache"`.
-
-The key decisions are **what to cache** and **where to place Suspense boundaries**. Cache what you can to grow the static shell. Push dynamic access down to the components that need it, and wrap those components in `<Suspense>`. Everything else becomes part of the shell.
+The key decisions are **what to cache** and **where to place Suspense boundaries**. Cache what you can with [`"use cache"`](/docs/app/api-reference/directives/use-cache) to grow the static shell. Push dynamic access down to the components that need it, and wrap those in `<Suspense>`. Everything else becomes part of the shell.
 
 ## Further reading
 
