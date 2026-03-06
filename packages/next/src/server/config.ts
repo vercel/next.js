@@ -1764,7 +1764,8 @@ export default async function loadConfig(
 
     if (
       userConfig.experimental?.lightningCssFeatures &&
-      !userConfig.experimental?.useLightningcss
+      !userConfig.experimental?.useLightningcss &&
+      bundler !== Bundler.Turbopack
     ) {
       curLog.warn(
         `experimental.lightningCssFeatures is set but experimental.useLightningcss is not enabled. ` +
