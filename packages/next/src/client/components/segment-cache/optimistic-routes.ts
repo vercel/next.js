@@ -644,8 +644,12 @@ function matchKnownRoutePart(
       if (match !== null) {
         return match
       }
-      // Static child exists but didn't match (e.g., wrong depth).
-      // Fall through to try dynamic.
+      // Static child is a real node (not a placeholder) but its subtree
+      // didn't match the remaining URL parts. This means the route exists
+      // in the static subtree but hasn't been fully discovered yet. Do not
+      // fall through to try the dynamic child — the static match is
+      // authoritative. Bail out to server resolution.
+      return null
     }
   }
 
