@@ -16,6 +16,7 @@ import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { createContext, useContext, useEffect } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
+  ACTION_CACHE_ONLY_TOGGLE,
   ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOLS_POSITION,
   ACTION_DEVTOOLS_SCALE,
@@ -110,7 +111,14 @@ const MenuPanel = () => {
             title: 'Test instant navigation behavior.',
             label: 'Instant Navs',
             value: <ChevronRight />,
-            onClick: () => setPanel('instant-nav'),
+            onClick: () => {
+              document.cookie =
+                'next-instant-navigation-testing=waiting; path=/'
+              if (!state.cacheOnly) {
+                dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
+              }
+              setPanel('instant-nav')
+            },
             attributes: {
               'data-instant-nav': true,
             },

@@ -17,36 +17,22 @@ export function InstantNavPanel() {
       : ''
   )
   const initialPageRef = useRef<string>(state.page)
-  const statusRef = useRef(status)
-  useEffect(() => {
-    statusRef.current = status
-  }, [status])
-
-  // On mount: set cookie if not already set, and enable cacheOnly
-  useEffect(() => {
-    if (panel.status === 'waiting') {
-      document.cookie = 'next-instant-navigation-testing=waiting; path=/'
-    }
-    if (!state.cacheOnly) {
-      dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // Cleanup on unmount: clear cookie, turn off cacheOnly, reset state
   useEffect(() => {
     return () => {
-      document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
+      // Read cookie before clearing to check if we were showing results
+      const match = document.cookie.match(
+        /next-instant-navigation-testing=([^;]*)/
+      )
+      const value = match ? match[1] : null
 
-      // Reset panel state
+      document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
       dispatch({ type: ACTION_INSTANT_NAV_RESET })
       dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
 
       // If we were showing results, reload to restore dynamic content
-      if (
-        statusRef.current === 'client-nav' ||
-        statusRef.current === 'initial-load'
-      ) {
+      if (value && value !== 'waiting') {
         window.location.reload()
       }
     }
