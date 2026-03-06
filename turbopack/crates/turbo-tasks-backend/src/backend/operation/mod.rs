@@ -7,9 +7,11 @@ mod leaf_distance_update;
 mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
+#[cfg(debug_assertions)]
+use std::sync::atomic::Ordering;
 use std::{
     fmt::{Debug, Display, Formatter},
-    sync::{Arc, atomic::Ordering},
+    sync::Arc,
 };
 
 use bincode::{Decode, Encode};
