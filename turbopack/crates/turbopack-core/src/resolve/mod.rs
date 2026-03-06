@@ -2969,21 +2969,27 @@ async fn resolve_import_map_result(
     Ok(match result {
         ImportMapResult::Result(result) => Some(ResolveResultOrCell::Cell(**result)),
         ImportMapResult::Alias(request, alias_lookup_path) => {
-            let request = **request;
-            let lookup_path = match alias_lookup_path {
-                Some(path) => path.clone(),
-                None => lookup_path,
+            let request_vc: Vc<Request> = **request;
+            // Only add query if the aliased request doesn't already have one
+            let request = if request_vc.query().await?.is_empty() && !query.is_empty() {
+                request_vc.with_query(query.clone())
+            } else {
+                request_vc
             };
-            // We must avoid cycles during resolving
-            if request == original_request && lookup_path == original_lookup_path {
+            let lookup_path = alias_lookup_path.clone().unwrap_or(lookup_path);
+
+            // Compare request patterns to avoid cycles (ignoring query differences)
+            let request_pattern = request.request_pattern();
+            let original_pattern = original_request.request_pattern();
+
+            if *request_pattern.await? == *original_pattern.await?
+                && lookup_path == original_lookup_path
+            {
                 None
             } else {
-                let result = resolve_internal(lookup_path, request, options);
                 Some(ResolveResultOrCell::Cell(
-                    result.with_replaced_request_key_pattern(
-                        request.request_pattern(),
-                        original_request.request_pattern(),
-                    ),
+                    resolve_internal(lookup_path, request, options)
+                        .with_replaced_request_key_pattern(request_pattern, original_pattern),
                 ))
             }
         }

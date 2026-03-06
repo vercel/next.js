@@ -1,3 +1,5 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {
@@ -19,6 +21,9 @@ const nextConfig = {
         },
       ],
     },
+    resolveAlias: {
+      '@/*': './app/*',
+    },
   },
   webpack(config) {
     config.module.rules.push({
@@ -33,6 +38,10 @@ const nextConfig = {
       resourceQuery: /\?upper/,
       use: require.resolve('./upper-loader.js'),
     })
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, 'app'),
+    }
     return config
   },
 }
