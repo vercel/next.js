@@ -105,42 +105,6 @@ importers:
       '@mdx-js/react':
         specifier: 2.2.1
         version: 2.2.1(react@19.3.0-canary-5e9eedb5-20260312)
-      '@next/bundle-analyzer':
-        specifier: workspace:*
-        version: link:packages/next-bundle-analyzer
-      '@next/env':
-        specifier: workspace:*
-        version: link:packages/next-env
-      '@next/eslint-plugin-next':
-        specifier: workspace:*
-        version: link:packages/eslint-plugin-next
-      '@next/font':
-        specifier: workspace:*
-        version: link:packages/font
-      '@next/mdx':
-        specifier: workspace:*
-        version: link:packages/next-mdx
-      '@next/playwright':
-        specifier: workspace:*
-        version: link:packages/next-playwright
-      '@next/plugin-storybook':
-        specifier: workspace:*
-        version: link:packages/next-plugin-storybook
-      '@next/polyfill-module':
-        specifier: workspace:*
-        version: link:packages/next-polyfill-module
-      '@next/polyfill-nomodule':
-        specifier: workspace:*
-        version: link:packages/next-polyfill-nomodule
-      '@next/swc':
-        specifier: workspace:*
-        version: link:packages/next-swc
-      '@next/third-parties':
-        specifier: workspace:*
-        version: link:packages/third-parties
-      '@opentelemetry/api':
-        specifier: 1.4.1
-        version: 1.4.1
       '@picocss/pico':
         specifier: 1.5.10
         version: 1.5.10
@@ -228,9 +192,6 @@ importers:
       '@vercel/agent-eval':
         specifier: 0.8.0
         version: 0.8.0
-      '@vercel/devlow-bench':
-        specifier: workspace:*
-        version: link:turbopack/packages/devlow-bench
       '@vercel/kv':
         specifier: 3.0.0
         version: 3.0.0
@@ -267,9 +228,6 @@ importers:
       coveralls:
         specifier: 3.0.3
         version: 3.0.3
-      create-next-app:
-        specifier: workspace:*
-        version: link:packages/create-next-app
       critters:
         specifier: 0.0.6
         version: 0.0.6
@@ -291,9 +249,6 @@ importers:
       eslint:
         specifier: 9.37.0
         version: 9.37.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: workspace:*
-        version: link:packages/eslint-config-next
       eslint-formatter-codeframe:
         specifier: 7.32.1
         version: 7.32.1
@@ -435,9 +390,6 @@ importers:
       nanoid:
         specifier: 3.1.30
         version: 3.1.30
-      next:
-        specifier: workspace:*
-        version: link:packages/next
       node-fetch:
         specifier: 2.6.7
         version: 2.6.7(encoding@0.1.13)
@@ -1956,7 +1908,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.2.0-canary.99
+        specifier: workspace:*
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -1967,6 +1919,15 @@ importers:
       typescript:
         specifier: 5.9.2
         version: 5.9.2
+
+  test:
+    devDependencies:
+      '@next/playwright':
+        specifier: workspace:*
+        version: link:../packages/next-playwright
+      next:
+        specifier: workspace:*
+        version: link:../packages/next
 
   turbopack/crates/turbopack-cli/js:
     dependencies:
@@ -4994,10 +4955,6 @@ packages:
 
   '@open-draft/until@2.1.0':
     resolution: {integrity: sha512-U69T3ItWHvLwGg5eJ0n3I62nWuE6ilHlmz7zM0npLBRvPRd7e6NYmg54vvRtP5mZG7kZqZCFVdsTWo7BPtBujg==}
-
-  '@opentelemetry/api@1.4.1':
-    resolution: {integrity: sha512-O2yRJce1GOc6PAy3QxFM4NzFiWzvScDC1/5ihYBL6BUEVdq0XMWN01sppE+H6bBXbaFYipjwFLEWLg5PaSOThA==}
-    engines: {node: '>=8.0.0'}
 
   '@opentelemetry/api@1.6.0':
     resolution: {integrity: sha512-OWlrQAnWn9577PhVgqjUvMr1pg57Bc4jv0iL4w0PRuOSRvq67rvHW9Ie/dZVMvCzhSCB+UxhcY/PmCmFj33Q+g==}
@@ -22572,8 +22529,6 @@ snapshots:
       outvariant: 1.4.0
 
   '@open-draft/until@2.1.0': {}
-
-  '@opentelemetry/api@1.4.1': {}
 
   '@opentelemetry/api@1.6.0': {}
 

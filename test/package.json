@@ -1,0 +1,9 @@
+{
+  "name": "@next/internal-test",
+  "version": "16.0.2-canary.16",
+  "private": true,
+  "devDependencies": {
+    "@next/playwright": "workspace:*",
+    "next": "workspace:*"
+  }
+}

@@ -60,7 +60,7 @@ export default defineConfig([
           jsx: true,
         },
         babelOptions: {
-          presets: ['next/babel'],
+          presets: ['./packages/next/babel'],
           caller: {
             supportsTopLevelAwait: true,
           },

@@ -5,7 +5,7 @@ try {
   const mod = require('../fontkit').default
   fontFromBuffer = mod.default || mod
 } catch {}
-import type { AdjustFontFallback, FontLoader } from 'next/font'
+import type { AdjustFontFallback, FontLoader } from '../types'
 
 import { promisify } from 'util'
 import { pickFontFileForFallbackGeneration } from './pick-font-file-for-fallback-generation'

@@ -139,13 +139,13 @@ module.exports = (actionInfo) => {
               packageName,
               { packedPackageTarPath },
             ] of pkgDatas.entries()) {
-              if (
-                !packageJson.dependencies ||
-                !packageJson.dependencies[packageName]
-              )
-                continue
               // Edit the pkgData of the current item to point to the packed tgz
-              packageJson.dependencies[packageName] = packedPackageTarPath
+              if (packageJson.dependencies?.[packageName]) {
+                packageJson.dependencies[packageName] = packedPackageTarPath
+              }
+              if (packageJson.devDependencies?.[packageName]) {
+                packageJson.devDependencies[packageName] = packedPackageTarPath
+              }
             }
 
             // make sure native binaries are included in local linking
