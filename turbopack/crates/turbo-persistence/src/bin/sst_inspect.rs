@@ -27,7 +27,10 @@ use turbo_persistence::static_sorted_file::{
     KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
     KEY_BLOCK_ENTRY_TYPE_SMALL,
 };
-use turbo_persistence::{BLOCK_HEADER_SIZE, checksum_block, meta_file::MetaFile};
+use turbo_persistence::{
+    BLOCK_HEADER_SIZE, checksum_block, meta_file::MetaFile,
+    mmap_helper::advise_mmap_for_persistence,
+};
 
 /// Block size information
 #[derive(Default, Debug, Clone)]
@@ -230,6 +233,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
     let file = File::open(&path).with_context(|| format!("Failed to open {}", filename))?;
     let file_size = file.metadata()?.len();
     let mmap = unsafe { Mmap::map(&file)? };
+    advise_mmap_for_persistence(&mmap)?;
 
     let mut stats = SstStats {
         block_directory_size: info.block_count as u64 * 4,

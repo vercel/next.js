@@ -14,6 +14,7 @@ mod lookup_entry;
 mod merge_iter;
 pub mod meta_file;
 mod meta_file_builder;
+pub mod mmap_helper;
 mod parallel_scheduler;
 mod sst_filter;
 pub mod static_sorted_file;

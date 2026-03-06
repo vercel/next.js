@@ -19,6 +19,7 @@ use crate::{
     compression::{checksum_block, decompress_into_arc},
     constants::MAX_INLINE_VALUE_SIZE,
     lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
+    mmap_helper::advise_mmap_for_persistence,
     static_sorted_file_builder::BLOCK_HEADER_SIZE,
 };
 
@@ -185,6 +186,7 @@ impl StaticSortedFile {
             let offset = meta.block_offsets_start(mmap.len());
             let _ = mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
         }
+        advise_mmap_for_persistence(&mmap)?;
         let file = Self {
             meta,
             mmap: Arc::new(mmap),

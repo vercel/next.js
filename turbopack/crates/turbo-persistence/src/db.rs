@@ -34,6 +34,7 @@ use crate::{
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
+    mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile},
@@ -415,10 +416,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         mmap.advise(memmap2::Advice::Sequential)?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::WillNeed)?;
-        #[cfg(target_os = "linux")]
-        mmap.advise(memmap2::Advice::DontFork)?;
-        #[cfg(target_os = "linux")]
-        mmap.advise(memmap2::Advice::Unmergeable)?;
+        advise_mmap_for_persistence(&mmap)?;
         let mut reader = &mmap[..];
         let uncompressed_length = reader
             .read_u32::<BE>()
