@@ -2781,7 +2781,9 @@
                                                 Constant(
                                                     Num(
                                                         ConstantNumber(
-                                                            0.0,
+                                                            TotalOrderF64(
+                                                                0.0,
+                                                            ),
                                                         ),
                                                     ),
                                                 ),
@@ -5491,7 +5493,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -6137,7 +6141,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            0.0,
+                            TotalOrderF64(
+                                0.0,
+                            ),
                         ),
                     ),
                 ),
@@ -6319,7 +6325,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        0.0,
+                                        TotalOrderF64(
+                                            0.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -6331,7 +6339,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -6469,7 +6479,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1.0,
+                            TotalOrderF64(
+                                1.0,
+                            ),
                         ),
                     ),
                 ),
@@ -6651,7 +6663,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -6663,7 +6677,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -6801,7 +6817,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -6983,7 +7001,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -6995,7 +7015,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            17.0,
+                            TotalOrderF64(
+                                17.0,
+                            ),
                         ),
                     ),
                 ),
@@ -7004,7 +7026,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            606105819.0,
+                            TotalOrderF64(
+                                606105819.0,
+                            ),
                         ),
                     ),
                 ),
@@ -7135,7 +7159,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),
@@ -7317,7 +7343,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -7329,7 +7357,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            22.0,
+                            TotalOrderF64(
+                                22.0,
+                            ),
                         ),
                     ),
                 ),
@@ -7467,7 +7497,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -7649,7 +7681,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        4.0,
+                                        TotalOrderF64(
+                                            4.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -7661,7 +7695,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -7799,7 +7835,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -7981,7 +8019,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        5.0,
+                                        TotalOrderF64(
+                                            5.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -7993,7 +8033,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -8002,7 +8044,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1200080426.0,
+                            TotalOrderF64(
+                                1200080426.0,
+                            ),
                         ),
                     ),
                 ),
@@ -8133,7 +8177,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -8315,7 +8361,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        6.0,
+                                        TotalOrderF64(
+                                            6.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -8327,7 +8375,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            17.0,
+                            TotalOrderF64(
+                                17.0,
+                            ),
                         ),
                     ),
                 ),
@@ -8465,7 +8515,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -8647,7 +8699,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        7.0,
+                                        TotalOrderF64(
+                                            7.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -8659,7 +8713,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            22.0,
+                            TotalOrderF64(
+                                22.0,
+                            ),
                         ),
                     ),
                 ),
@@ -8797,7 +8853,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            8.0,
+                            TotalOrderF64(
+                                8.0,
+                            ),
                         ),
                     ),
                 ),
@@ -8979,7 +9037,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        8.0,
+                                        TotalOrderF64(
+                                            8.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -8991,7 +9051,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -9000,7 +9062,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1770035416.0,
+                            TotalOrderF64(
+                                1770035416.0,
+                            ),
                         ),
                     ),
                 ),
@@ -9131,7 +9195,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -9313,7 +9379,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        9.0,
+                                        TotalOrderF64(
+                                            9.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -9325,7 +9393,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -9463,7 +9533,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -9645,7 +9717,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        10.0,
+                                        TotalOrderF64(
+                                            10.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -9657,7 +9731,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            17.0,
+                            TotalOrderF64(
+                                17.0,
+                            ),
                         ),
                     ),
                 ),
@@ -9795,7 +9871,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -9977,7 +10055,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        11.0,
+                                        TotalOrderF64(
+                                            11.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -9989,7 +10069,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            22.0,
+                            TotalOrderF64(
+                                22.0,
+                            ),
                         ),
                     ),
                 ),
@@ -10127,7 +10209,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -10309,7 +10393,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        12.0,
+                                        TotalOrderF64(
+                                            12.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -10321,7 +10407,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -10330,7 +10418,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1804603682.0,
+                            TotalOrderF64(
+                                1804603682.0,
+                            ),
                         ),
                     ),
                 ),
@@ -10461,7 +10551,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            13.0,
+                            TotalOrderF64(
+                                13.0,
+                            ),
                         ),
                     ),
                 ),
@@ -10643,7 +10735,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        13.0,
+                                        TotalOrderF64(
+                                            13.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -10655,7 +10749,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -10793,7 +10889,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -10975,7 +11073,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        14.0,
+                                        TotalOrderF64(
+                                            14.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -10987,7 +11087,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            17.0,
+                            TotalOrderF64(
+                                17.0,
+                            ),
                         ),
                     ),
                 ),
@@ -11125,7 +11227,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -11307,7 +11411,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        15.0,
+                                        TotalOrderF64(
+                                            15.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -11319,7 +11425,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            22.0,
+                            TotalOrderF64(
+                                22.0,
+                            ),
                         ),
                     ),
                 ),
@@ -11328,7 +11436,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1236535329.0,
+                            TotalOrderF64(
+                                1236535329.0,
+                            ),
                         ),
                     ),
                 ),
@@ -11459,7 +11569,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1.0,
+                            TotalOrderF64(
+                                1.0,
+                            ),
                         ),
                     ),
                 ),
@@ -11641,7 +11753,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -11653,7 +11767,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -11791,7 +11907,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -11973,7 +12091,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        6.0,
+                                        TotalOrderF64(
+                                            6.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -11985,7 +12105,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -12123,7 +12245,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -12305,7 +12429,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        11.0,
+                                        TotalOrderF64(
+                                            11.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -12317,7 +12443,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -12326,7 +12454,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            643717713.0,
+                            TotalOrderF64(
+                                643717713.0,
+                            ),
                         ),
                     ),
                 ),
@@ -12457,7 +12587,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            0.0,
+                            TotalOrderF64(
+                                0.0,
+                            ),
                         ),
                     ),
                 ),
@@ -12639,7 +12771,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        0.0,
+                                        TotalOrderF64(
+                                            0.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -12651,7 +12785,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            20.0,
+                            TotalOrderF64(
+                                20.0,
+                            ),
                         ),
                     ),
                 ),
@@ -12789,7 +12925,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -12971,7 +13109,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        5.0,
+                                        TotalOrderF64(
+                                            5.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -12983,7 +13123,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -13121,7 +13263,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -13303,7 +13447,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        10.0,
+                                        TotalOrderF64(
+                                            10.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -13315,7 +13461,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -13324,7 +13472,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            38016083.0,
+                            TotalOrderF64(
+                                38016083.0,
+                            ),
                         ),
                     ),
                 ),
@@ -13455,7 +13605,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -13637,7 +13789,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        15.0,
+                                        TotalOrderF64(
+                                            15.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -13649,7 +13803,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -13787,7 +13943,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -13969,7 +14127,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        4.0,
+                                        TotalOrderF64(
+                                            4.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -13981,7 +14141,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            20.0,
+                            TotalOrderF64(
+                                20.0,
+                            ),
                         ),
                     ),
                 ),
@@ -14119,7 +14281,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -14301,7 +14465,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        9.0,
+                                        TotalOrderF64(
+                                            9.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -14313,7 +14479,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -14322,7 +14490,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            568446438.0,
+                            TotalOrderF64(
+                                568446438.0,
+                            ),
                         ),
                     ),
                 ),
@@ -14453,7 +14623,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -14635,7 +14807,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        14.0,
+                                        TotalOrderF64(
+                                            14.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -14647,7 +14821,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -14785,7 +14961,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),
@@ -14967,7 +15145,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -14979,7 +15159,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -15117,7 +15299,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            8.0,
+                            TotalOrderF64(
+                                8.0,
+                            ),
                         ),
                     ),
                 ),
@@ -15299,7 +15483,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        8.0,
+                                        TotalOrderF64(
+                                            8.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -15311,7 +15497,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            20.0,
+                            TotalOrderF64(
+                                20.0,
+                            ),
                         ),
                     ),
                 ),
@@ -15320,7 +15508,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1163531501.0,
+                            TotalOrderF64(
+                                1163531501.0,
+                            ),
                         ),
                     ),
                 ),
@@ -15451,7 +15641,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            13.0,
+                            TotalOrderF64(
+                                13.0,
+                            ),
                         ),
                     ),
                 ),
@@ -15633,7 +15825,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        13.0,
+                                        TotalOrderF64(
+                                            13.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -15645,7 +15839,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -15783,7 +15979,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -15965,7 +16163,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -15977,7 +16177,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -16115,7 +16317,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -16297,7 +16501,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        7.0,
+                                        TotalOrderF64(
+                                            7.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -16309,7 +16515,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -16318,7 +16526,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1735328473.0,
+                            TotalOrderF64(
+                                1735328473.0,
+                            ),
                         ),
                     ),
                 ),
@@ -16449,7 +16659,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -16631,7 +16843,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        12.0,
+                                        TotalOrderF64(
+                                            12.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -16643,7 +16857,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            20.0,
+                            TotalOrderF64(
+                                20.0,
+                            ),
                         ),
                     ),
                 ),
@@ -16781,7 +16997,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -16963,7 +17181,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        5.0,
+                                        TotalOrderF64(
+                                            5.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -16975,7 +17195,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -17113,7 +17335,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            8.0,
+                            TotalOrderF64(
+                                8.0,
+                            ),
                         ),
                     ),
                 ),
@@ -17295,7 +17519,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        8.0,
+                                        TotalOrderF64(
+                                            8.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -17307,7 +17533,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -17445,7 +17673,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -17627,7 +17857,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        11.0,
+                                        TotalOrderF64(
+                                            11.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -17639,7 +17871,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            16.0,
+                            TotalOrderF64(
+                                16.0,
+                            ),
                         ),
                     ),
                 ),
@@ -17648,7 +17882,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1839030562.0,
+                            TotalOrderF64(
+                                1839030562.0,
+                            ),
                         ),
                     ),
                 ),
@@ -17779,7 +18015,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -17961,7 +18199,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        14.0,
+                                        TotalOrderF64(
+                                            14.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -17973,7 +18213,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            23.0,
+                            TotalOrderF64(
+                                23.0,
+                            ),
                         ),
                     ),
                 ),
@@ -18111,7 +18353,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1.0,
+                            TotalOrderF64(
+                                1.0,
+                            ),
                         ),
                     ),
                 ),
@@ -18293,7 +18537,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -18305,7 +18551,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -18443,7 +18691,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -18625,7 +18875,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        4.0,
+                                        TotalOrderF64(
+                                            4.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -18637,7 +18889,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -18646,7 +18900,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1272893353.0,
+                            TotalOrderF64(
+                                1272893353.0,
+                            ),
                         ),
                     ),
                 ),
@@ -18777,7 +19033,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -18959,7 +19217,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        7.0,
+                                        TotalOrderF64(
+                                            7.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -18971,7 +19231,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            16.0,
+                            TotalOrderF64(
+                                16.0,
+                            ),
                         ),
                     ),
                 ),
@@ -19109,7 +19371,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -19291,7 +19555,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        10.0,
+                                        TotalOrderF64(
+                                            10.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -19303,7 +19569,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            23.0,
+                            TotalOrderF64(
+                                23.0,
+                            ),
                         ),
                     ),
                 ),
@@ -19441,7 +19709,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            13.0,
+                            TotalOrderF64(
+                                13.0,
+                            ),
                         ),
                     ),
                 ),
@@ -19623,7 +19893,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        13.0,
+                                        TotalOrderF64(
+                                            13.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -19635,7 +19907,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -19644,7 +19918,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            681279174.0,
+                            TotalOrderF64(
+                                681279174.0,
+                            ),
                         ),
                     ),
                 ),
@@ -19775,7 +20051,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            0.0,
+                            TotalOrderF64(
+                                0.0,
+                            ),
                         ),
                     ),
                 ),
@@ -19957,7 +20235,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        0.0,
+                                        TotalOrderF64(
+                                            0.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -19969,7 +20249,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -20107,7 +20389,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),
@@ -20289,7 +20573,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -20301,7 +20587,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            16.0,
+                            TotalOrderF64(
+                                16.0,
+                            ),
                         ),
                     ),
                 ),
@@ -20439,7 +20727,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -20621,7 +20911,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        6.0,
+                                        TotalOrderF64(
+                                            6.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -20633,7 +20925,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            23.0,
+                            TotalOrderF64(
+                                23.0,
+                            ),
                         ),
                     ),
                 ),
@@ -20642,7 +20936,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            76029189.0,
+                            TotalOrderF64(
+                                76029189.0,
+                            ),
                         ),
                     ),
                 ),
@@ -20773,7 +21069,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -20955,7 +21253,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        9.0,
+                                        TotalOrderF64(
+                                            9.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -20967,7 +21267,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -21105,7 +21407,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -21287,7 +21591,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        12.0,
+                                        TotalOrderF64(
+                                            12.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -21299,7 +21605,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -21437,7 +21745,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -21619,7 +21929,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        15.0,
+                                        TotalOrderF64(
+                                            15.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -21631,7 +21943,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            16.0,
+                            TotalOrderF64(
+                                16.0,
+                            ),
                         ),
                     ),
                 ),
@@ -21640,7 +21954,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            530742520.0,
+                            TotalOrderF64(
+                                530742520.0,
+                            ),
                         ),
                     ),
                 ),
@@ -21771,7 +22087,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -21953,7 +22271,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -21965,7 +22285,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            23.0,
+                            TotalOrderF64(
+                                23.0,
+                            ),
                         ),
                     ),
                 ),
@@ -22103,7 +22425,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            0.0,
+                            TotalOrderF64(
+                                0.0,
+                            ),
                         ),
                     ),
                 ),
@@ -22285,7 +22609,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        0.0,
+                                        TotalOrderF64(
+                                            0.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -22297,7 +22623,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -22435,7 +22763,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -22617,7 +22947,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        7.0,
+                                        TotalOrderF64(
+                                            7.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -22629,7 +22961,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -22638,7 +22972,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1126891415.0,
+                            TotalOrderF64(
+                                1126891415.0,
+                            ),
                         ),
                     ),
                 ),
@@ -22769,7 +23105,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -22951,7 +23289,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        14.0,
+                                        TotalOrderF64(
+                                            14.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -22963,7 +23303,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -23101,7 +23443,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -23283,7 +23627,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        5.0,
+                                        TotalOrderF64(
+                                            5.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -23295,7 +23641,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            21.0,
+                            TotalOrderF64(
+                                21.0,
+                            ),
                         ),
                     ),
                 ),
@@ -23433,7 +23781,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -23615,7 +23965,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        12.0,
+                                        TotalOrderF64(
+                                            12.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -23627,7 +23979,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -23636,7 +23990,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1700485571.0,
+                            TotalOrderF64(
+                                1700485571.0,
+                            ),
                         ),
                     ),
                 ),
@@ -23767,7 +24123,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),
@@ -23949,7 +24307,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -23961,7 +24321,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -24099,7 +24461,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -24281,7 +24645,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        10.0,
+                                        TotalOrderF64(
+                                            10.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -24293,7 +24659,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -24431,7 +24799,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1.0,
+                            TotalOrderF64(
+                                1.0,
+                            ),
                         ),
                     ),
                 ),
@@ -24613,7 +24983,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -24625,7 +24997,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            21.0,
+                            TotalOrderF64(
+                                21.0,
+                            ),
                         ),
                     ),
                 ),
@@ -24763,7 +25137,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            8.0,
+                            TotalOrderF64(
+                                8.0,
+                            ),
                         ),
                     ),
                 ),
@@ -24945,7 +25321,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        8.0,
+                                        TotalOrderF64(
+                                            8.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -24957,7 +25335,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -24966,7 +25346,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1873313359.0,
+                            TotalOrderF64(
+                                1873313359.0,
+                            ),
                         ),
                     ),
                 ),
@@ -25097,7 +25479,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -25279,7 +25663,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        15.0,
+                                        TotalOrderF64(
+                                            15.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -25291,7 +25677,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -25429,7 +25817,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -25611,7 +26001,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        6.0,
+                                        TotalOrderF64(
+                                            6.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -25623,7 +26015,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -25761,7 +26155,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            13.0,
+                            TotalOrderF64(
+                                13.0,
+                            ),
                         ),
                     ),
                 ),
@@ -25943,7 +26339,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        13.0,
+                                        TotalOrderF64(
+                                            13.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -25955,7 +26353,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            21.0,
+                            TotalOrderF64(
+                                21.0,
+                            ),
                         ),
                     ),
                 ),
@@ -25964,7 +26364,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1309151649.0,
+                            TotalOrderF64(
+                                1309151649.0,
+                            ),
                         ),
                     ),
                 ),
@@ -26095,7 +26497,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -26277,7 +26681,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        4.0,
+                                        TotalOrderF64(
+                                            4.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -26289,7 +26695,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -26427,7 +26835,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -26609,7 +27019,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        11.0,
+                                        TotalOrderF64(
+                                            11.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -26621,7 +27033,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -26759,7 +27173,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -26941,7 +27357,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -26953,7 +27371,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -26962,7 +27382,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            718787259.0,
+                            TotalOrderF64(
+                                718787259.0,
+                            ),
                         ),
                     ),
                 ),
@@ -27093,7 +27515,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -27275,7 +27699,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        9.0,
+                                        TotalOrderF64(
+                                            9.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -27287,7 +27713,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            21.0,
+                            TotalOrderF64(
+                                21.0,
+                            ),
                         ),
                     ),
                 ),

@@ -834,9 +834,9 @@ async fn parse_config_value(
             };
 
             match value {
-                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if *val >= 0.0 => {
                     config.revalidate = Some(NextRevalidate::Frequency {
-                        seconds: val as u32,
+                        seconds: *val as u32,
                     });
                 }
                 JsValue::Constant(ConstantValue::False) => {

@@ -27,6 +27,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
+    TotalOrderF64,
 };
 
 use self::imports::ImportAnnotations;
@@ -57,43 +58,20 @@ impl Default for ObjectPart {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ConstantNumber(pub f64);
-
-fn integer_decode(val: f64) -> (u64, i16, i8) {
-    let bits: u64 = val.to_bits();
-    let sign: i8 = if bits >> 63 == 0 { 1 } else { -1 };
-    let mut exponent: i16 = ((bits >> 52) & 0x7ff) as i16;
-    let mantissa = if exponent == 0 {
-        (bits & 0xfffffffffffff) << 1
-    } else {
-        (bits & 0xfffffffffffff) | 0x10000000000000
-    };
-
-    exponent -= 1023 + 52;
-    (mantissa, exponent, sign)
-}
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ConstantNumber(pub TotalOrderF64);
 
 impl ConstantNumber {
     pub fn as_u32_index(&self) -> Option<usize> {
-        let index: u32 = self.0 as u32;
-        (index as f64 == self.0).then_some(index as usize)
+        let index: u32 = *self.0 as u32;
+        (index as f64 == *self.0).then_some(index as usize)
     }
 }
-
-impl Hash for ConstantNumber {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        integer_decode(self.0).hash(state);
+impl From<f64> for ConstantNumber {
+    fn from(value: f64) -> Self {
+        ConstantNumber(value.into())
     }
 }
-
-impl PartialEq for ConstantNumber {
-    fn eq(&self, other: &Self) -> bool {
-        integer_decode(self.0) == integer_decode(other.0)
-    }
-}
-
-impl Eq for ConstantNumber {}
 
 #[derive(Debug, Clone)]
 pub enum ConstantString {
@@ -206,7 +184,7 @@ impl ConstantValue {
             Self::Undefined | Self::False | Self::Null => false,
             Self::True | Self::Regex(..) => true,
             Self::Str(s) => !s.is_empty(),
-            Self::Num(ConstantNumber(n)) => *n != 0.0,
+            Self::Num(ConstantNumber(n)) => **n != 0.0,
             Self::BigInt(n) => !n.is_zero(),
         }
     }
@@ -264,7 +242,7 @@ impl From<Lit> for ConstantValue {
                 }
             }
             Lit::Null(_) => ConstantValue::Null,
-            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
+            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value.into())),
             Lit::BigInt(v) => ConstantValue::BigInt(v.value),
             Lit::Regex(v) => ConstantValue::Regex(Box::new((v.exp, v.flags))),
             Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
@@ -553,7 +531,7 @@ impl From<Box<BigInt>> for JsValue {
 
 impl From<f64> for JsValue {
     fn from(v: f64) -> Self {
-        ConstantValue::Num(ConstantNumber(v)).into()
+        ConstantValue::Num(ConstantNumber(v.into())).into()
     }
 }
 
@@ -585,13 +563,16 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
     type Error = anyhow::Error;
 
     fn try_from(value: &CompileTimeDefineValue) -> Result<Self> {
-        match value {
-            CompileTimeDefineValue::Null => Ok(JsValue::Constant(ConstantValue::Null)),
-            CompileTimeDefineValue::Bool(b) => Ok(JsValue::Constant((*b).into())),
-            CompileTimeDefineValue::Number(n) => Ok(JsValue::Constant(ConstantValue::Num(
-                ConstantNumber(n.as_str().parse::<f64>()?),
-            ))),
-            CompileTimeDefineValue::String(s) => Ok(JsValue::Constant(s.as_str().into())),
+        Ok(JsValue::Constant(match value {
+            CompileTimeDefineValue::Undefined => ConstantValue::Undefined,
+            CompileTimeDefineValue::Null => ConstantValue::Null,
+            CompileTimeDefineValue::Bool(b) => (*b).into(),
+            CompileTimeDefineValue::Number(n) => ConstantValue::Num(ConstantNumber(*n)),
+            CompileTimeDefineValue::BigInt(n) => ConstantValue::BigInt(n.clone()),
+            CompileTimeDefineValue::String(s) => s.as_str().into(),
+            CompileTimeDefineValue::Regex(pattern, flags) => {
+                ConstantValue::Regex(Box::new((pattern.as_str().into(), flags.as_str().into())))
+            }
             CompileTimeDefineValue::Array(a) => {
                 let mut js_value = JsValue::Array {
                     total_nodes: a.len() as u32,
@@ -599,7 +580,7 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
                     mutable: false,
                 };
                 js_value.update_total_nodes();
-                Ok(js_value)
+                return Ok(js_value);
             }
             CompileTimeDefineValue::Object(m) => {
                 let mut js_value = JsValue::Object {
@@ -616,11 +597,32 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
                     mutable: false,
                 };
                 js_value.update_total_nodes();
-                Ok(js_value)
+                return Ok(js_value);
             }
-            CompileTimeDefineValue::Undefined => Ok(JsValue::Constant(ConstantValue::Undefined)),
-            CompileTimeDefineValue::Evaluate(s) => EvalContext::eval_single_expr_lit(s.clone()),
-        }
+            CompileTimeDefineValue::Evaluate(s) => {
+                return EvalContext::eval_single_expr_lit(s);
+            }
+        }))
+    }
+}
+
+impl TryFrom<&ConstantValue> for CompileTimeDefineValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &ConstantValue) -> Result<Self> {
+        Ok(match value {
+            ConstantValue::Undefined => CompileTimeDefineValue::Undefined,
+            ConstantValue::Null => CompileTimeDefineValue::Null,
+            ConstantValue::True => CompileTimeDefineValue::Bool(true),
+            ConstantValue::False => CompileTimeDefineValue::Bool(false),
+            ConstantValue::Num(n) => CompileTimeDefineValue::Number(n.0),
+            ConstantValue::Str(s) => CompileTimeDefineValue::String(s.as_rcstr()),
+            ConstantValue::BigInt(n) => CompileTimeDefineValue::BigInt(n.clone()),
+            ConstantValue::Regex(regex) => CompileTimeDefineValue::Regex(
+                RcStr::from(regex.0.as_str()),
+                RcStr::from(regex.1.as_str()),
+            ),
+        })
     }
 }
 

@@ -9968,6 +9968,7 @@ dependencies = [
  "data-encoding",
  "either",
  "indexmap 2.13.0",
+ "num-bigint",
  "once_cell",
  "patricia_tree",
  "petgraph 0.8.3",

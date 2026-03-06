@@ -6135,7 +6135,9 @@
                                                                 Constant(
                                                                     Num(
                                                                         ConstantNumber(
-                                                                            493.0,
+                                                                            TotalOrderF64(
+                                                                                493.0,
+                                                                            ),
                                                                         ),
                                                                     ),
                                                                 ),
