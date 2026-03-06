@@ -302,13 +302,18 @@ pub async fn chunk_group_content(
     //     |_, _, _| {},
     // )?;
 
-    println!(
-        "module_batches_graph.traverse_edges_from_entries_dfs {:#?}",
-        x.iter()
-            .map(async |m| Ok((&m.0, m.1.ident_strings().await?)))
-            .try_join()
-            .await?
-    );
+    // println!(
+    //     "module_batches_graph.traverse_edges_from_entries_dfs {:#?} {:#?}",
+    //     if let Some(a) = &active_page_entries {
+    //         Some(a.iter().map(|m| m.ident_string()).try_join().await?)
+    //     } else {
+    //         None
+    //     },
+    //     x.iter()
+    //         .map(async |m| Ok((&m.0, m.1.ident_strings().await?)))
+    //         .try_join()
+    //         .await?
+    // );
 
     module_batches_graph.traverse_edges_from_entries_dfs(
         entries,

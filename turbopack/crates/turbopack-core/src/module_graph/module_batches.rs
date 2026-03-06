@@ -318,6 +318,10 @@ impl PreBatches {
                     |(_, ty)| &ty.chunking_type,
                 );
                 let module = node;
+                if matches!(ty, ChunkingType::Emitted { .. }) {
+                    // they are handled via module_graph.collected_modules now
+                    return Ok(GraphTraversalAction::Exclude);
+                }
                 if !ty.is_parallel() {
                     state.items.push(PreBatchItem::NonParallelEdge(
                         ty.without_inherit_async(),
@@ -399,7 +403,10 @@ pub async fn compute_module_batches(
                     // Already a boundary module, can skip check
                     return Ok(());
                 };
-                if ty.chunking_type.is_parallel() {
+                if matches!(ty.chunking_type, ChunkingType::Emitted { .. }) {
+                    // they are handled via module_graph.collected_modules now
+                    return Ok(());
+                } else if ty.chunking_type.is_parallel() {
                     let parent_chunk_groups = module_chunk_groups
                         .get(&parent)
                         .context("all modules need to have chunk group info")?;
@@ -969,9 +976,9 @@ pub async fn compute_module_batches(
         // Add collected reference edges (conditional on page entry)
         if let Some(collected_modules) = &module_graph.collected_modules {
             for ((page_entry, collecting_module), refs) in &collected_modules.collected_references {
-                let Some(&source_node) = module_to_node.get(collecting_module) else {
-                    continue;
-                };
+                let source_node = *module_to_node
+                    .get(collecting_module)
+                    .context("could not find single module entry index")?;
                 for (ref_data, target_module, _graph_node_idx) in refs {
                     if let Some(batch) = pre_batches.entries.get(target_module).copied() {
                         graph.add_edge(
@@ -980,7 +987,7 @@ pub async fn compute_module_batches(
                             ModuleBatchesGraphEdge {
                                 ty: ref_data.chunking_type.clone(),
                                 module: Some(*target_module),
-                                active_for_page_entry: None,
+                                active_for_page_entry: Some(*page_entry),
                             },
                         );
                         continue;
@@ -1019,6 +1026,34 @@ pub async fn compute_module_batches(
                 entries.insert(module, idx);
             }
         }
+
+        // println!(
+        //     "ModuleBatchesGraph edges {:#?} {:#?}",
+        //     entries
+        //         .iter()
+        //         .map(|m| m.0.ident_string())
+        //         .try_join()
+        //         .await?,
+        //     graph
+        //         .edge_weights()
+        //         .map(async |e| {
+        //             Ok((
+        //                 e.ty.to_string(),
+        //                 if let Some(module) = e.module {
+        //                     module.ident_string().await.ok()
+        //                 } else {
+        //                     None
+        //                 },
+        //                 if let Some(module) = e.active_for_page_entry {
+        //                     module.ident_string().await.ok()
+        //                 } else {
+        //                     None
+        //                 },
+        //             ))
+        //         })
+        //         .try_join()
+        //         .await?,
+        // );
 
         Ok(ModuleBatchesGraph {
             graph: TracedDiGraph(graph),

@@ -194,7 +194,7 @@ pub async fn collect_graph(graph: OperationVc<ModuleGraph>) -> Result<Vc<Collect
     //     "{:#?}",
     //     emitted_references
     //         .iter()
-    //         .map(async |(data, target)| Ok((
+    //         .map(async |(data, target, _)| Ok((
     //             data,
     //             target.ident_string().await?,
     //             module_entry_membership.get(target)

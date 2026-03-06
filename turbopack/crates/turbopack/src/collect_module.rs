@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
+use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
@@ -215,19 +216,28 @@ impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunk_item_id_strategy = chunking_context.chunk_item_id_strategy().await?;
 
-        // TODO don't real whole graph
+        let entries = self.chunk_group.entries().collect::<FxHashSet<_>>();
+
+        // TODO don't read whole graph
         let module_graph = module_graph.await?;
         let collect = module_graph.collected_modules.as_ref().unwrap();
         let items = collect
             .collected_references
             .iter()
-            .filter(|((_, m), _)| *m == ResolvedVc::upcast(self.module))
-            .flat_map(|((_, _), reference)| reference.iter().map(|r| (&r.0, r.1)));
+            .find_map(|((page, collect), references)| {
+                if *collect == ResolvedVc::upcast(self.module) && entries.contains(page) {
+                    Some(references.iter())
+                } else {
+                    None
+                }
+            })
+            .into_iter()
+            .flatten();
 
         let items = items
-            .map(async |(_data, module)| {
+            .map(async |(_data, module, _)| {
                 Ok((
-                    chunk_item_id_strategy.get_id_from_module(*module).await?,
+                    chunk_item_id_strategy.get_id_from_module(**module).await?,
                     None::<()>, // TODO ResolvedVc::try_downcast(data.reference).data()
                 ))
             })
