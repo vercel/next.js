@@ -71,7 +71,7 @@ export interface OverlayState {
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
   readonly cacheOnly: boolean
-  readonly instantNavPanel:
+  readonly instantNavsPanel:
     | { readonly status: 'waiting' }
     | { readonly status: 'initial-load'; readonly toUrl: string }
     | {
@@ -314,7 +314,7 @@ const hasInstantTestCookie = instantNavCookieValue !== null
 
 function parseInstantNavCookie(
   value: string | null
-): OverlayState['instantNavPanel'] {
+): OverlayState['instantNavsPanel'] {
   if (!value) {
     return { status: 'waiting' }
   }
@@ -374,7 +374,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   theme: 'system',
   hideShortcut: null,
   cacheOnly: hasInstantTestCookie,
-  instantNavPanel: parseInstantNavCookie(instantNavCookieValue),
+  instantNavsPanel: parseInstantNavCookie(instantNavCookieValue),
 }
 
 function getInitialState(
@@ -594,7 +594,7 @@ export function useErrorOverlayReducer(
         case ACTION_INSTANT_NAV_SET_STATUS: {
           return {
             ...state,
-            instantNavPanel:
+            instantNavsPanel:
               action.status === 'waiting'
                 ? { status: 'waiting' }
                 : action.status === 'initial-load'
@@ -609,7 +609,7 @@ export function useErrorOverlayReducer(
         case ACTION_INSTANT_NAV_RESET: {
           return {
             ...state,
-            instantNavPanel: { status: 'waiting' },
+            instantNavsPanel: { status: 'waiting' },
           }
         }
         default: {

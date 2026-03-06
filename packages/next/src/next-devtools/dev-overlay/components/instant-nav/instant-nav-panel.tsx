@@ -9,8 +9,8 @@ import './instant-nav-panel.css'
 
 export function InstantNavPanel() {
   const { state, dispatch } = useDevOverlayContext()
-  const { status } = state.instantNavPanel
-  const panel = state.instantNavPanel
+  const { status } = state.instantNavsPanel
+  const panel = state.instantNavsPanel
   const fromUrlRef = useRef<string>(
     typeof window !== 'undefined'
       ? window.location.pathname + window.location.search
