@@ -9,8 +9,11 @@ import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
   convertRootFlightRouterStateToRouteTree,
   getStaleAt,
+  processRuntimePrefetchStream,
+  writeDynamicRenderResponseIntoCache,
   writeStaticStageResponseIntoCache,
 } from '../segment-cache/cache'
+import { FetchStrategy } from '../segment-cache/types'
 import { decodeStaticStage } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -37,6 +40,7 @@ export function createInitialRouterState({
     s: initialStaleTime,
     l: initialStaticStageByteLength,
     h: initialHeadVaryParams,
+    p: initialRuntimePrefetchStream,
   } = initialRSCPayload
 
   // When initialized on the server, the canonical URL is provided as an array of parts.
@@ -161,6 +165,38 @@ export function createInitialRouterState({
     } else {
       // No caching — cancel the unused stream clone.
       initialFlightStreamForCache?.cancel()
+    }
+
+    // If the initial RSC payload includes an embedded runtime prefetch stream,
+    // decode it and write the runtime data into the segment cache. This allows
+    // subsequent navigations to serve runtime-prefetchable content from cache
+    // without a separate prefetch request.
+    if (initialRuntimePrefetchStream != null) {
+      processRuntimePrefetchStream(
+        Date.now(),
+        initialRuntimePrefetchStream,
+        initialTree,
+        initialRenderedSearch
+      )
+        .then((processed) => {
+          if (processed !== null) {
+            writeDynamicRenderResponseIntoCache(
+              Date.now(),
+              FetchStrategy.PPRRuntime,
+              processed.flightDatas,
+              processed.buildId,
+              processed.isResponsePartial,
+              processed.headVaryParams,
+              processed.staleAt,
+              processed.navigationSeed,
+              null
+            )
+          }
+        })
+        .catch(() => {
+          // Runtime prefetch cache write failed. Not fatal — the page rendered
+          // normally, we just won't cache runtime data.
+        })
     }
   }
 
