@@ -340,10 +340,8 @@ pkg.dependencies['adapter']='file:${ADAPTER_DIR}';
 require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2));
 " >&2
 
+# Set the adapter path so that the app uses it.
 export NEXT_ADAPTER_PATH="${ADAPTER_DIR}/dist/index.js"
-
-# Deploy or build + start the app at this point.
-provider-cli-to-deploy
 
 # Write any metadata needed later to files in the working directory.
 BUILD_ID="$(cat .next/BUILD_ID)"
@@ -358,8 +356,14 @@ IMMUTABLE_ASSET_TOKEN="undefined"
   echo "IMMUTABLE_ASSET_TOKEN: $IMMUTABLE_ASSET_TOKEN"
 } >> .adapter-build.log
 
-# stdout must contain only the deployment URL. Replace this with the actual deployment URL.
-echo "http://127.0.0.1:3000"
+# Build the app
+pnpm build
+
+# Start or deploy the app. Capture the URL at this point or make the script output the URL to stdout.
+provider-cli-to-deploy
+
+# Example URL output:
+# echo "http://127.0.0.1:3000"
 ```
 
 ### Custom logs script contract
