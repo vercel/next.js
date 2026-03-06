@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    CollectiblesSource, IntoTraitRef, RawVc, ReadVcFuture, ResolvedVc, TaskInput, TraitRef,
-    UpcastStrict, Vc, VcValueTrait, VcValueType, marker_trait::impl_auto_marker_trait,
+    CollectiblesSource, IntoTraitRef, RawVc, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict, Vc,
+    VcValueTrait, VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait,
     trace::TraceRawVcs,
 };
 
@@ -145,11 +145,11 @@ impl<T: ?Sized> OperationVc<T> {
     /// consistent][crate::ReadConsistency::Strong] read of the value.
     ///
     /// This ensures that all internal tasks are finished before the read is returned.
-    pub async fn read_trait_strongly_consistent(self) -> Result<TraitRef<T>>
+    pub fn read_trait_strongly_consistent(self) -> ReadVcFuture<T, VcValueTraitCast<T>>
     where
         T: VcValueTrait,
     {
-        self.connect().into_trait_ref().strongly_consistent().await
+        self.connect().into_trait_ref().strongly_consistent()
     }
 }
 
