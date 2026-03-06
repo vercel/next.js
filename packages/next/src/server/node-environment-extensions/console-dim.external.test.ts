@@ -33,6 +33,7 @@ declare global {
 }
 
 import { Worker } from 'node:worker_threads'
+import path from '../../shared/lib/isomorphic/path'
 
 type WorkerResult = {
   exitCode: number
@@ -42,10 +43,12 @@ type WorkerResult = {
   messages: Array<ReportableResult>
 }
 
-export function runWorkerCode(fn: Function): Promise<WorkerResult> {
+export function runWorkerCode(
+  fn: (nextDir: string) => Promise<unknown>
+): Promise<WorkerResult> {
   return new Promise((resolve, reject) => {
     const script = `
-      const { parentPort } = require('node:worker_threads');
+      const { parentPort, workerData } = require('node:worker_threads');
       (async () => {
         const { AsyncLocalStorage } = require('node:async_hooks');
         // We need to put this on the global because Next.js does not import it
@@ -58,7 +61,7 @@ export function runWorkerCode(fn: Function): Promise<WorkerResult> {
 
         const fn = (${fn.toString()});
         try {
-          const out = await fn();
+          const out = await fn(workerData.nextDir);
           await new Promise(r => setImmediate(r));
           reportResult({ type: 'result', out });
         } catch (e) {
@@ -69,7 +72,7 @@ export function runWorkerCode(fn: Function): Promise<WorkerResult> {
 
     const w = new Worker(script, {
       eval: true,
-      workerData: null,
+      workerData: { nextDir: path.resolve(__dirname, '../../..') },
       argv: [],
       execArgv: ['--conditions=react-server'],
       stderr: true,
@@ -118,10 +121,10 @@ export function runWorkerCode(fn: Function): Promise<WorkerResult> {
 describe('console-exit patches', () => {
   describe('basic functionality', () => {
     it('should patch console methods to dim when instructed', async () => {
-      async function testForWorker() {
-        const {
-          consoleAsyncStorage,
-        } = require('next/dist/server/app-render/console-async-storage.external')
+      async function testForWorker(nextDir: string) {
+        const { consoleAsyncStorage } = require(
+          nextDir + '/dist/server/app-render/console-async-storage.external'
+        )
 
         // First, replace console.log to track what storage context it runs in
         console.log = function (...args) {
@@ -141,7 +144,10 @@ describe('console-exit patches', () => {
         }
 
         // Install patches - this wraps the current console.log
-        require('next/dist/server/node-environment-extensions/console-dim.external')
+        require(
+          nextDir +
+            '/dist/server/node-environment-extensions/console-dim.external'
+        )
 
         // Test outside storage context
         console.log('outside')
@@ -163,13 +169,16 @@ describe('console-exit patches', () => {
     })
 
     it('should not wrap console methods assigned after patching', async () => {
-      async function testForWorker() {
-        const {
-          consoleAsyncStorage,
-        } = require('next/dist/server/app-render/console-async-storage.external')
+      async function testForWorker(nextDir: string) {
+        const { consoleAsyncStorage } = require(
+          nextDir + '/dist/server/app-render/console-async-storage.external'
+        )
 
         // Install patches first
-        require('next/dist/server/node-environment-extensions/console-dim.external')
+        require(
+          nextDir +
+            '/dist/server/node-environment-extensions/console-dim.external'
+        )
 
         // Assign a new console.log after patching - this will NOT be wrapped
         console.log = function (...args) {
@@ -207,7 +216,7 @@ describe('console-exit patches', () => {
     })
 
     it('should preserve function properties and behavior', async () => {
-      async function testForWorker() {
+      async function testForWorker(nextDir: string) {
         reportResult({
           type: 'serialized',
           key: 'originalName',
@@ -221,7 +230,10 @@ describe('console-exit patches', () => {
         })
 
         // install patch
-        require('next/dist/server/node-environment-extensions/console-dim.external')
+        require(
+          nextDir +
+            '/dist/server/node-environment-extensions/console-dim.external'
+        )
 
         // Test that patched methods preserve name and other properties
         reportResult({
@@ -246,10 +258,10 @@ describe('console-exit patches', () => {
     })
 
     it('should enter a dimming context when a prerender store exists with an aborted renderSignal', async () => {
-      async function testForWorker() {
-        const {
-          workUnitAsyncStorage,
-        } = require('next/dist/server/app-render/work-unit-async-storage.external')
+      async function testForWorker(nextDir: string) {
+        const { workUnitAsyncStorage } = require(
+          nextDir + '/dist/server/app-render/work-unit-async-storage.external'
+        )
 
         // First, replace console.log to track what storage context it runs in
         console.log = function (...args) {
@@ -269,7 +281,10 @@ describe('console-exit patches', () => {
         }
 
         // Install patches - this wraps the current console.log
-        require('next/dist/server/node-environment-extensions/console-dim.external')
+        require(
+          nextDir +
+            '/dist/server/node-environment-extensions/console-dim.external'
+        )
 
         // Test outside storage context
         console.log('outside')
@@ -298,7 +313,7 @@ describe('console-exit patches', () => {
     })
 
     it('should enter a dimming context when a react cacheSignal exists and is aborted', async () => {
-      async function testForWorker() {
+      async function testForWorker(nextDir: string) {
         const originalLog = console.log
         let controller: null | AbortController = new AbortController()
 
@@ -321,12 +336,14 @@ describe('console-exit patches', () => {
         }
 
         // Install patches - this wraps the current console.log
-        require('next/dist/server/node-environment-extensions/console-dim.external')
+        require(
+          nextDir +
+            '/dist/server/node-environment-extensions/console-dim.external'
+        )
 
-        const {
-          registerServerReact,
-          registerClientReact,
-        } = require('next/dist/server/runtime-reacts.external')
+        const { registerServerReact, registerClientReact } = require(
+          nextDir + '/dist/server/runtime-reacts.external'
+        )
 
         registerServerReact({
           cacheSignal() {
@@ -360,20 +377,23 @@ describe('console-exit patches', () => {
 
   describe('inspector-aware dimming', () => {
     it('should skip dimming when inspector is open', async () => {
-      async function testForWorker() {
+      async function testForWorker(nextDir: string) {
         const nodeInspector = require('node:inspector')
         nodeInspector.open(0)
 
-        const {
-          consoleAsyncStorage,
-        } = require('next/dist/server/app-render/console-async-storage.external')
+        const { consoleAsyncStorage } = require(
+          nextDir + '/dist/server/app-render/console-async-storage.external'
+        )
 
         const capturedCalls: Array<{ args: any[] }> = []
         console.error = function (...args) {
           capturedCalls.push({ args })
         }
 
-        require('next/dist/server/node-environment-extensions/console-dim.external')
+        require(
+          nextDir +
+            '/dist/server/node-environment-extensions/console-dim.external'
+        )
 
         consoleAsyncStorage.run({ dim: true }, () => {
           console.error('prefix', { key: 'value' }, 42)
