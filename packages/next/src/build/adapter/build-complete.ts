@@ -2125,7 +2125,7 @@ export async function handleBuildComplete({
             onMatchHeaders: [],
             rewrites,
             restrictedRedirectPaths: [],
-            isAppPPREnabled: config.cacheComponents,
+            isAppCacheComponentsEnabled: config.cacheComponents,
           }).routesManifest.rsc,
         },
         outputs,
