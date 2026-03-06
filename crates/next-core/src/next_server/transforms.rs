@@ -39,6 +39,12 @@ pub async fn get_next_server_transforms_rules(
 
     let modularize_imports_config = &next_config.modularize_imports().await?;
     let mdx_rs = next_config.mdx_rs().await?.is_some();
+    let page_extensions: Vec<String> = next_config
+        .page_extensions()
+        .await?
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
 
     if !foreign_code {
         rules.push(get_next_lint_transform_rule(mdx_rs));
@@ -87,6 +93,7 @@ pub async fn get_next_server_transforms_rules(
                     vec![RuleCondition::ReferenceType(ReferenceType::Entry(
                         EntryReferenceSubType::PageData,
                     ))],
+                    &page_extensions,
                 )?);
             }
             false
@@ -149,7 +156,10 @@ pub async fn get_next_server_transforms_rules(
     };
 
     if is_app_dir {
-        rules.push(get_next_debug_instant_stack_rule(mdx_rs));
+        rules.push(get_next_debug_instant_stack_rule(
+            mdx_rs,
+            page_extensions.clone(),
+        ));
     }
 
     if is_app_dir &&

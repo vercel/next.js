@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
+use turbo_tasks::{Effects, ResolvedVc, TurboTasks, ValueToString, Vc, get_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -222,30 +222,31 @@ async fn run(resource: PathBuf) -> Result<()> {
         noop_backing_storage(),
     ));
     tt.run_once(async move {
-        let emit_op = run_inner_operation(resource.to_str().unwrap().into());
-        emit_op.read_strongly_consistent().await?;
-        apply_effects(emit_op).await?;
+        #[turbo_tasks::function(operation)]
+        async fn inner_operation(resource: RcStr) -> Result<Vc<Effects>> {
+            let out_op = run_test_operation(resource);
+            let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
+
+            let plain_issues = out_op
+                .peek_issues()
+                .get_plain_issues(IssueFilter::everything())
+                .await?;
+
+            snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
+                .await
+                .context("Unable to handle issues")?;
+
+            Ok(get_effects(out_op).await?.cell())
+        }
+        inner_operation(resource.to_str().unwrap().into())
+            .read_strongly_consistent()
+            .await?
+            .apply()
+            .await?;
 
         Ok(())
     })
     .await?;
-
-    Ok(())
-}
-
-#[turbo_tasks::function(operation)]
-async fn run_inner_operation(resource: RcStr) -> Result<()> {
-    let out_op = run_test_operation(resource);
-    let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
-
-    let plain_issues = out_op
-        .peek_issues()
-        .get_plain_issues(IssueFilter::everything())
-        .await?;
-
-    snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
-        .await
-        .context("Unable to handle issues")?;
 
     Ok(())
 }

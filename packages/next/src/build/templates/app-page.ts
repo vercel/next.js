@@ -63,6 +63,7 @@ import {
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
+import { createInstantTestScriptInsertionTransformStream } from '../../server/stream-utils/node-web-streams-helper'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
@@ -548,6 +549,7 @@ export async function handler(
       interceptionRoutePatterns
     )
     res.setHeader('Vary', varyHeader)
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (
       span: Span | undefined,
       context: AppPageRouteHandlerContext
@@ -591,6 +593,13 @@ export async function handler(
             'next.span_name': name,
           })
           span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists (e.g.
+          // a platform-created HTTP span in adapter deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+            parentSpan.updateName(name)
+          }
         } else {
           span.updateName(`${method} ${srcPage}`)
         }
@@ -726,7 +735,11 @@ export async function handler(
               nextConfig.experimental.optimisticRouting
             ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
+            prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+            cachedNavigations: Boolean(
+              nextConfig.experimental.cachedNavigations
+            ),
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:
@@ -922,8 +935,8 @@ export async function handler(
               : normalizedSrcPage
 
           const fallbackRouteParams =
-            // If we're in production and we have fallback route params, then we
-            // can use the manifest fallback route params.
+            // If we're in production and we have fallback route params, always
+            // use them for the fallback shell.
             isProduction && prerenderInfo?.fallbackRouteParams
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
@@ -963,6 +976,57 @@ export async function handler(
 
           // Otherwise, if we did get a fallback response, we should return it.
           if (fallbackResponse) {
+            if (
+              !isMinimalMode &&
+              isRoutePPREnabled &&
+              ssgCacheKey &&
+              incrementalCache &&
+              !isOnDemandRevalidate &&
+              !isDebugFallbackShell &&
+              // The testing API relies on deterministic shell behavior, so
+              // don't upgrade fallback shells in the background when it's
+              // exposed.
+              !exposeTestingApi &&
+              // Instant Navigation Testing API requests intentionally keep
+              // the route in shell mode; don't upgrade these in background.
+              !isInstantNavigationTest &&
+              // Avoid background revalidate during prefetches; this can trigger
+              // static prerender errors that surface as 500s for the prefetch
+              // request itself.
+              !isPrefetchRSCRequest
+            ) {
+              scheduleOnNextTick(async () => {
+                const responseCache = routeModule.getResponseCache(req)
+
+                try {
+                  await responseCache.revalidate(
+                    ssgCacheKey,
+                    incrementalCache,
+                    isRoutePPREnabled,
+                    false,
+                    (c) => {
+                      return doRender({
+                        span: c.span,
+                        // Route shell render should not use the fallback params.
+                        postponed: undefined,
+                        fallbackRouteParams: null,
+                        forceStaticRender: true,
+                      })
+                    },
+                    // We don't have a prior entry for this param-specific shell.
+                    null,
+                    hasResolved,
+                    ctx.waitUntil
+                  )
+                } catch (err) {
+                  console.error(
+                    'Error revalidating the page in the background',
+                    err
+                  )
+                }
+              })
+            }
+
             // Remove the cache control from the response to prevent it from being
             // used in the surrounding cache.
             delete fallbackResponse.cacheControl
@@ -1455,6 +1519,21 @@ export async function handler(
       // This is a request for HTML data.
       const body = cachedData.html
 
+      // When serving a static shell for instant navigation testing, inject
+      // self.__next_instant_test=1 as the first thing inside <head> so the
+      // client can detect the static shell. This must be before any async
+      // bootstrap scripts — otherwise a cached async script can execute
+      // before the global is set.
+      //
+      // TODO: Currently the client skips hydration entirely during
+      // instant navigation testing. Ideally we would still hydrate but
+      // without the dynamic data — the static shell is valid HTML that
+      // could be hydrated. This is just an implementation gap; the
+      // page gets reloaded when the instant scope ends anyway.
+      if (isInstantNavigationTest && isDebugStaticShell) {
+        body.pipeThrough(createInstantTestScriptInsertionTransformStream())
+      }
+
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
@@ -1489,25 +1568,22 @@ export async function handler(
       // HTML will be the static shell so all the Dynamic API's will be used
       // during static generation.
       if (isDebugStaticShell || isDebugDynamicAccesses) {
-        // Since we're not resuming the render, we need to at least add the
-        // closing body and html tags to create valid HTML.
-        body.push(
-          new ReadableStream({
-            start(controller) {
-              if (isInstantNavigationTest) {
-                // Inject a global so the client can detect that this response
-                // is a partial static shell, independent of document.cookie
-                // (which may be empty on the new page in some browsers).
-                const encoder = new TextEncoder()
-                controller.enqueue(
-                  encoder.encode('<script>self.__next_instant_test=1</script>')
-                )
-              }
-              controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
-              controller.close()
-            },
-          })
-        )
+        if (!isInstantNavigationTest) {
+          // Since we're not resuming the render, we need to at least add the
+          // closing body and html tags to create valid HTML.
+          body.push(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+                controller.close()
+              },
+            })
+          )
+        }
+        // When in instant navigation testing mode, we intentionally omit
+        // the closing </body></html> tags so the client interprets the
+        // response as a partial stream rather than a complete document
+        // with incoherent content.
 
         return sendRenderResult({
           req,
@@ -1583,6 +1659,7 @@ export async function handler(
     if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
+      parentSpan = tracer.getActiveScopeSpan()
       return await tracer.withPropagatedContext(
         req.headers,
         () =>

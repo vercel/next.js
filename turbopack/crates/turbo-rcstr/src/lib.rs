@@ -182,6 +182,12 @@ impl Borrow<str> for RcStr {
     }
 }
 
+impl AsRef<str> for RcStr {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl From<BytesStr> for RcStr {
     fn from(s: BytesStr) -> Self {
         let bytes: Vec<u8> = s.into_bytes().into();

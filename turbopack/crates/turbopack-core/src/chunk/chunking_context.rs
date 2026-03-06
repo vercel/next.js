@@ -1,9 +1,11 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs, turbobail,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -367,11 +369,6 @@ pub trait ChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
-    }
-
-    #[turbo_tasks::function]
     fn chunking_configs(self: Vc<Self>) -> Vc<ChunkingConfigs> {
         Vc::cell(Default::default())
     }
@@ -493,10 +490,7 @@ pub trait ChunkingContext {
     /// Returns the worker entrypoint for this chunking context.
     #[turbo_tasks::function]
     async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
-        bail!(
-            "Worker entrypoint is not supported by {name}",
-            name = self.name().await?
-        );
+        turbobail!("Worker entrypoint is not supported by {}", self.name());
     }
 }
 pub trait ChunkingContextExt {
@@ -721,11 +715,10 @@ async fn relative_path_from_chunk_root_to_project_root(
     let output_root = chunking_context.output_root().await?;
     let chunk_to_output_root = chunk_root_path.get_relative_path_to(&output_root);
     let Some(chunk_to_output_root) = chunk_to_output_root else {
-        bail!(
-            "expected chunk_root_path: {chunk_root_path} to be inside of output_root: \
-             {output_root}",
-            chunk_root_path = chunk_root_path.value_to_string().await?,
-            output_root = output_root.value_to_string().await?
+        turbobail!(
+            "expected chunk_root_path: {} to be inside of output_root: {}",
+            chunking_context.chunk_root_path(),
+            chunking_context.output_root()
         );
     };
     let output_root_to_chunk_root_path = chunking_context.output_root_to_root_path().await?;

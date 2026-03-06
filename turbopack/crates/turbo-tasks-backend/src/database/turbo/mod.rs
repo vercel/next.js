@@ -3,15 +3,20 @@ use std::{
     path::PathBuf,
     sync::Arc,
     thread::available_parallelism,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use anyhow::{Ok, Result};
 use parking_lot::Mutex;
+use smallvec::SmallVec;
 use turbo_persistence::{
-    ArcBytes, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+    ArcBytes, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
-use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
+use turbo_tasks::{
+    JoinHandle,
+    message_queue::{TimingEvent, TraceEvent},
+    spawn, turbo_tasks,
+};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -45,7 +50,15 @@ pub struct TurboKeyValueDatabase {
 
 impl TurboKeyValueDatabase {
     pub fn new(versioned_path: PathBuf, is_ci: bool, is_short_session: bool) -> Result<Self> {
-        let db = Arc::new(TurboPersistence::open(versioned_path)?);
+        const CONFIG: DbConfig<FAMILIES> = DbConfig {
+            family_configs: [
+                KeySpace::Infra.family_config(),
+                KeySpace::TaskMeta.family_config(),
+                KeySpace::TaskData.family_config(),
+                KeySpace::TaskCache.family_config(),
+            ],
+        };
+        let db = Arc::new(TurboPersistence::open_with_config(versioned_path, CONFIG)?);
         Ok(Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),
@@ -91,6 +104,15 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         keys: &[&[u8]],
     ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
         self.db.batch_get(key_space as usize, keys)
+    }
+
+    fn get_multiple<'l, 'db: 'l>(
+        &'l self,
+        _transaction: &'l Self::ReadTransaction<'db>,
+        key_space: KeySpace,
+        key: &[u8],
+    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
+        self.db.get_multiple(key_space as usize, &key)
     }
 
     type ConcurrentWriteBatch<'l>
@@ -151,7 +173,9 @@ fn do_compact(
     max_merge_segment_count: usize,
 ) -> Result<()> {
     let start = Instant::now();
-    // Compact the database with the given max merge segment count
+    // SystemTime for wall-clock timestamps in trace events (Instant has no
+    // defined epoch so it can't be used for cross-process trace correlation).
+    let wall_start = SystemTime::now();
     let ran = db.compact(&CompactConfig {
         max_merge_segment_count,
         ..COMPACT_CONFIG
@@ -163,6 +187,18 @@ fn do_compact(
             turbo_tasks()
                 .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
         }
+        let wall_start_ms = wall_start
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64()
+            * 1000.0;
+        let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
+        turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new(
+            "turbopack-compaction",
+            wall_start_ms,
+            wall_end_ms,
+            vec![],
+        )));
     }
     Ok(())
 }

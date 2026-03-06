@@ -11,13 +11,16 @@ use byteorder::{BE, ReadBytesExt};
 use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 
 use crate::{
     QueryKey,
     arc_bytes::ArcBytes,
-    compression::decompress_into_arc,
+    compression::{checksum_block, decompress_into_arc},
     constants::MAX_INLINE_VALUE_SIZE,
     lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
+    mmap_helper::advise_mmap_for_persistence,
+    static_sorted_file_builder::BLOCK_HEADER_SIZE,
 };
 
 /// The block header for an index block.
@@ -47,15 +50,15 @@ const _: () = assert!(
 
 /// The result of a lookup operation.
 pub enum SstLookupResult {
-    /// The key was found.
-    Found(LookupValue),
+    /// One or more values were found.
+    Found(SmallVec<[LookupValue; 1]>),
     /// The key was not found.
     NotFound,
 }
 
 impl From<LookupValue> for SstLookupResult {
     fn from(value: LookupValue) -> Self {
-        SstLookupResult::Found(value)
+        SstLookupResult::Found(smallvec::smallvec![value])
     }
 }
 
@@ -166,7 +169,15 @@ impl StaticSortedFile {
         meta: StaticSortedFileMetaData,
         sequential: bool,
     ) -> Result<Self> {
-        let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
+        let file = File::open(&path)
+            .with_context(|| format!("Failed to open SST file {}", path.display()))?;
+        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+            format!(
+                "Failed to mmap SST file {} ({} bytes)",
+                path.display(),
+                file.metadata().map(|m| m.len()).unwrap_or(0)
+            )
+        })?;
         #[cfg(unix)]
         if sequential {
             mmap.advise(memmap2::Advice::Sequential)?;
@@ -175,6 +186,7 @@ impl StaticSortedFile {
             let offset = meta.block_offsets_start(mmap.len());
             let _ = mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
         }
+        advise_mmap_for_persistence(&mmap)?;
         let file = Self {
             meta,
             mmap: Arc::new(mmap),
@@ -198,7 +210,11 @@ impl StaticSortedFile {
     }
 
     /// Looks up a key in this file.
-    pub fn lookup<K: QueryKey>(
+    ///
+    /// If `FIND_ALL` is false, returns after finding the first match.
+    /// If `FIND_ALL` is true, returns all entries with the same key (useful for
+    /// keyspaces where keys are hashes and collisions are possible).
+    pub fn lookup<K: QueryKey, const FIND_ALL: bool>(
         &self,
         key_hash: u64,
         key: &K,
@@ -215,7 +231,7 @@ impl StaticSortedFile {
                 }
                 BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
                     let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
-                    return self.lookup_key_block(
+                    return self.lookup_key_block::<K, FIND_ALL>(
                         key_block_arc,
                         key_hash,
                         key,
@@ -277,7 +293,10 @@ impl StaticSortedFile {
     }
 
     /// Looks up a key in a key block and the value in a value block.
-    fn lookup_key_block<K: QueryKey>(
+    ///
+    /// If `FIND_ALL` is false, returns after finding the first match.
+    /// If `FIND_ALL` is true, collects all entries with the same key.
+    fn lookup_key_block<K: QueryKey, const FIND_ALL: bool>(
         &self,
         mut block: ArcBytes,
         key_hash: u64,
@@ -292,32 +311,73 @@ impl StaticSortedFile {
 
         let mut l = 0;
         let mut r = entry_count;
-        // binary search for the key
+        // binary search for a matching key
         while l < r {
             let m = (l + r) / 2;
             let GetKeyEntryResult {
                 hash: mid_hash,
                 key: mid_key,
                 ty,
-                val: mid_val,
+                val,
             } = get_key_entry(offsets, entries, entry_count, m, hash_len)?;
 
             let comparison = compare_hash_key(mid_hash, mid_key, key_hash, key);
 
             match comparison {
-                Ordering::Less => {
-                    r = m;
-                }
+                Ordering::Less => r = m,
                 Ordering::Equal => {
-                    return Ok(self
-                        .handle_key_match(ty, mid_val, &block, value_block_cache)?
-                        .into());
+                    if !FIND_ALL {
+                        // SingleValue mode: each key has exactly one entry
+                        // this is enforced when writing
+                        let result = self.handle_key_match(ty, val, &block, value_block_cache)?;
+                        return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
+                    }
+                    // FIND_ALL (MultiValue) mode: collect all values for this key.
+                    // Tombstones (Deleted) sort last within each key group, so we
+                    // scan backward to find the start of the key group, then forward
+                    // to collect all entries. The tombstone, if present, will be the
+                    // last entry in the results.
+                    let mut results = SmallVec::new();
+                    // Backward scan: collect all entries before `m` with the same key
+                    for i in (0..m).rev() {
+                        let GetKeyEntryResult {
+                            hash,
+                            key: entry_key,
+                            ty,
+                            val,
+                        } = get_key_entry(offsets, entries, entry_count, i, hash_len)?;
+                        if compare_hash_key(hash, entry_key, key_hash, key) != Ordering::Equal {
+                            break;
+                        }
+                        results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                    }
+                    // Technically we could `.reverse()` the items collected by the backwards scan,
+                    // but the only ordering constraint we need to maintain for single sst
+                    // multivalue reads is that a deleted token, if it exists comes last.  Because
+                    // all the backwards scan items are strictly before the found item we know they
+                    // don't contain the _last_ item. So we don't care about their order
+
+                    // Add the entry at `m`
+                    results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                    // Forward scan: collect remaining entries with the same key
+                    for i in (m + 1)..entry_count {
+                        let GetKeyEntryResult {
+                            hash,
+                            key: entry_key,
+                            ty,
+                            val,
+                        } = get_key_entry(offsets, entries, entry_count, i, hash_len)?;
+                        if compare_hash_key(hash, entry_key, key_hash, key) != Ordering::Equal {
+                            break;
+                        }
+                        results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                    }
+                    return Ok(SstLookupResult::Found(results));
                 }
-                Ordering::Greater => {
-                    l = m + 1;
-                }
+                Ordering::Greater => l = m + 1,
             }
         }
+
         Ok(SstLookupResult::NotFound)
     }
 
@@ -392,10 +452,38 @@ impl StaticSortedFile {
         self.read_block(block_index)
     }
 
-    /// Reads a block from the file.
+    /// Verifies the CRC32 checksum of on-disk block data. Returns an error on mismatch.
+    fn verify_checksum(&self, data: &[u8], expected: u32, block_index: u16) -> Result<()> {
+        let actual = checksum_block(data);
+        if actual != expected {
+            bail!(
+                "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
+                 {:08x}, got {:08x})",
+                block_index,
+                self.meta.sequence_number,
+                expected,
+                actual
+            );
+        }
+        Ok(())
+    }
+
+    /// Reads a block from the file, decompressing if needed, and verifies its checksum.
+    ///
+    /// The checksum is verified on the raw on-disk data **before** decompression, so
+    /// corruption is caught before passing data to LZ4.
     #[tracing::instrument(level = "info", name = "reading database block", skip_all)]
     fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
-        let (uncompressed_length, block) = self.get_raw_block_slice(block_index)?;
+        let (uncompressed_length, expected_checksum, block) =
+            self.get_raw_block_slice(block_index).with_context(|| {
+                format!(
+                    "Failed to read raw block {} from {:08}.sst",
+                    block_index, self.meta.sequence_number
+                )
+            })?;
+
+        // Verify checksum on the raw on-disk data before decompression.
+        self.verify_checksum(block, expected_checksum, block_index)?;
 
         // 0 means the block was not compressed, return the mmap-backed ArcBytes directly
         if uncompressed_length == 0 {
@@ -413,16 +501,25 @@ impl StaticSortedFile {
             block.len(),
         );
 
-        let buffer = decompress_into_arc(uncompressed_length, block)?;
+        let buffer = decompress_into_arc(uncompressed_length, block).with_context(|| {
+            format!(
+                "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
+                block_index, self.meta.sequence_number, uncompressed_length
+            )
+        })?;
         Ok(ArcBytes::from(buffer))
     }
 
     /// Returns `(uncompressed_length, block_data)` as an owned `ArcBytes` backed by
     /// the mmap. Only use this when the block data needs to outlive the current borrow
     /// (e.g. medium values stored in `LookupEntry`).
-    fn get_raw_block(&self, block_index: u16) -> Result<(u32, ArcBytes)> {
-        let (uncompressed_length, block) = self.get_raw_block_slice(block_index)?;
-        Ok((uncompressed_length, self.mmap_slice_to_arc_bytes(block)))
+    fn get_raw_block(&self, block_index: u16) -> Result<(u32, u32, ArcBytes)> {
+        let (uncompressed_length, checksum, block) = self.get_raw_block_slice(block_index)?;
+        Ok((
+            uncompressed_length,
+            checksum,
+            self.mmap_slice_to_arc_bytes(block),
+        ))
     }
 
     /// Promotes a mmap subslice to an owned `ArcBytes`. This clones the `Arc<Mmap>`.
@@ -433,7 +530,7 @@ impl StaticSortedFile {
 
     /// Gets the raw block slice directly from the memory mapped file, without
     /// cloning the `Arc<Mmap>`. The returned slice borrows from the mmap.
-    fn get_raw_block_slice(&self, block_index: u16) -> Result<(u32, &[u8])> {
+    fn get_raw_block_slice(&self, block_index: u16) -> Result<(u32, u32, &[u8])> {
         #[cfg(feature = "strict_checks")]
         if block_index >= self.meta.block_count {
             bail!(
@@ -460,9 +557,23 @@ impl StaticSortedFile {
         let block_start = if block_index == 0 {
             0
         } else {
-            (&self.mmap[offset - 4..offset]).read_u32::<BE>()? as usize
+            (&self.mmap[offset - 4..offset])
+                .read_u32::<BE>()
+                .with_context(|| {
+                    format!(
+                        "Failed to read block_start offset for block {} in {:08}.sst",
+                        block_index, self.meta.sequence_number
+                    )
+                })? as usize
         };
-        let block_end = (&self.mmap[offset..offset + 4]).read_u32::<BE>()? as usize;
+        let block_end = (&self.mmap[offset..offset + 4])
+            .read_u32::<BE>()
+            .with_context(|| {
+                format!(
+                    "Failed to read block_end offset for block {} in {:08}.sst",
+                    block_index, self.meta.sequence_number
+                )
+            })? as usize;
         #[cfg(feature = "strict_checks")]
         if block_end > self.mmap.len() || block_start > self.mmap.len() {
             bail!(
@@ -475,10 +586,28 @@ impl StaticSortedFile {
                 self.meta.block_offsets_start(self.mmap.len()),
             );
         }
-        let uncompressed_length =
-            u32::from_be_bytes(self.mmap[block_start..block_start + 4].try_into()?);
-        let block = &self.mmap[block_start + 4..block_end];
-        Ok((uncompressed_length, block))
+        let uncompressed_length = u32::from_be_bytes(
+            self.mmap[block_start..block_start + 4]
+                .try_into()
+                .with_context(|| {
+                    format!(
+                        "Failed to read uncompressed_length from block {} header in {:08}.sst",
+                        block_index, self.meta.sequence_number
+                    )
+                })?,
+        );
+        let checksum = u32::from_be_bytes(
+            self.mmap[block_start + 4..block_start + 8]
+                .try_into()
+                .with_context(|| {
+                    format!(
+                        "Failed to read checksum from block {} header in {:08}.sst",
+                        block_index, self.meta.sequence_number
+                    )
+                })?,
+        );
+        let block = &self.mmap[block_start + BLOCK_HEADER_SIZE..block_end];
+        Ok((uncompressed_length, checksum, block))
     }
 }
 
@@ -577,9 +706,10 @@ impl StaticSortedFileIter {
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
                     let mut val = val;
                     let block = val.read_u16::<BE>()?;
-                    let (uncompressed_size, block) = self.this.get_raw_block(block)?;
+                    let (uncompressed_size, checksum, block) = self.this.get_raw_block(block)?;
                     LazyLookupValue::Medium {
                         uncompressed_size,
+                        checksum,
                         block,
                     }
                 } else {

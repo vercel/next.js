@@ -917,9 +917,6 @@ pub enum ModuleIds {
     Deterministic,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionModuleIds(pub Option<ModuleIds>);
-
 #[turbo_tasks::value(operation)]
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1408,9 +1405,6 @@ pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionFileSystemPath(Option<FileSystemPath>);
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionServerActions(Option<ServerActions>);
 
 #[turbo_tasks::value(transparent)]
 pub struct IgnoreIssues(Vec<IgnoreIssue>);
@@ -1931,11 +1925,6 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_gesture_transition(&self) -> Vc<bool> {
         Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_app_new_scroll_handler(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.app_new_scroll_handler.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

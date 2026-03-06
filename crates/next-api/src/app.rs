@@ -41,7 +41,6 @@ use turbo_tasks::{
     Completion, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexset,
     trace::TraceRawVcs,
 };
-use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
@@ -786,14 +785,6 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_env(self: Vc<Self>) -> Vc<Box<dyn ProcessEnv>> {
-        Vc::upcast(CustomProcessEnv::new(
-            self.project().env(),
-            self.project().next_config().env(),
-        ))
-    }
-
-    #[turbo_tasks::function]
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         Ok(get_client_runtime_entries(
             self.project().project_path().owned().await?,
@@ -1097,9 +1088,6 @@ pub fn app_entry_point_to_route(
     }
     .cell()
 }
-
-#[turbo_tasks::value(transparent)]
-struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
