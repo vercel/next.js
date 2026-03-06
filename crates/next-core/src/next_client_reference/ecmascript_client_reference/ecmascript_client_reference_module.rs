@@ -9,7 +9,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
-        ChunkingType, ChunkingTypeOption,
+        ChunkingType,
     },
     code_builder::CodeBuilder,
     context::AssetContext,
@@ -384,11 +384,10 @@ impl ModuleReference for EcmascriptClientReference {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Isolated {
             _ty: self.ty,
             merge_tag: self.merge_tag.clone(),
-        }))
+        })
     }
 }

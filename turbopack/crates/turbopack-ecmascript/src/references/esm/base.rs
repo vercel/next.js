@@ -13,7 +13,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
@@ -501,31 +501,16 @@ impl ModuleReference for EsmAssetReference {
         Ok(result)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Result<Vc<ChunkingTypeOption>> {
-        Ok(Vc::cell(
-            if let Some(chunking_type) = self.annotations.chunking_type() {
-                if chunking_type == "parallel" {
-                    Some(ChunkingType::Parallel {
-                        inherit_async: true,
-                        hoisted: true,
-                    })
-                } else if chunking_type == "none" {
-                    None
-                } else {
-                    bail!("unknown chunking_type: {}", chunking_type.to_string_lossy());
-                }
-            } else {
-                Some(ChunkingType::Parallel {
-                    inherit_async: true,
-                    hoisted: true,
-                })
-            },
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.annotations
+            .chunking_type()
+            .unwrap_or(Some(ChunkingType::Parallel {
+                inherit_async: true,
+                hoisted: true,
+            }))
     }
 
-    #[turbo_tasks::function]
-    fn binding_usage(&self) -> Vc<BindingUsage> {
+    fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
             import: self.import_usage.clone(),
             export: match &self.export_name {
@@ -534,7 +519,6 @@ impl ModuleReference for EsmAssetReference {
                 _ => ExportUsage::All,
             },
         }
-        .cell()
     }
 }
 
@@ -555,7 +539,7 @@ impl EsmAssetReference {
         }
 
         // only chunked references can be imported
-        if this.annotations.chunking_type().is_none_or(|v| v != "none") {
+        if !matches!(this.annotations.chunking_type(), Some(None)) {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;
 
