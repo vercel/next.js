@@ -34,8 +34,7 @@ export function InstantNavsPanel() {
         window.location.reload()
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [dispatch])
 
   // Navigation detection: watch state.page for changes while in waiting state
   useEffect(() => {
@@ -92,8 +91,7 @@ export function InstantNavsPanel() {
               onClick={handleReload}
               data-instant-nav-refresh
             >
-              <ReloadIcon />
-              <span>Reload</span>
+              <span>View page load</span>
             </button>
           </div>
         </div>
@@ -200,23 +198,5 @@ function ShareButton({ getShareUrl }: { getShareUrl: () => string }) {
     >
       {copied ? 'Copied!' : 'Share'}
     </button>
-  )
-}
-
-function ReloadIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-      <path d="M21 3v5h-5" />
-    </svg>
   )
 }
