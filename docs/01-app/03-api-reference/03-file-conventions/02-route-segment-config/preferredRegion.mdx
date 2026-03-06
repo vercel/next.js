@@ -1,0 +1,21 @@
+---
+title: preferredRegion
+description: API reference for the preferredRegion route segment config option.
+---
+
+The `preferredRegion` option allows you to specify the preferred deployment region for a route segment. Support for `preferredRegion` and regions supported is dependent on your deployment platform.
+
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
+export const preferredRegion = 'auto'
+// 'auto' | 'global' | 'home' | ['iad1', 'sfo1']
+```
+
+```js filename="layout.js | page.js | route.js" switcher
+export const preferredRegion = 'auto'
+// 'auto' | 'global' | 'home' | ['iad1', 'sfo1']
+```
+
+> **Good to know**:
+>
+> - If a `preferredRegion` is not specified, it will inherit the option of the nearest parent layout.
+> - The root layout defaults to `all` regions.
