@@ -85,6 +85,7 @@
     "types": "lerna run types --stream",
     "types:test-lib": "tsc --project test/lib/tsconfig.json",
     "check-precompiled": "./scripts/check-pre-compiled.sh",
+    "pnpm:devPreinstall": "node scripts/create-next-bin-placeholder.cjs",
     "prepublishOnly": "turbo run build",
     "lint-staged": "lint-staged",
     "next-with-deps": "./scripts/next-with-deps.sh",
