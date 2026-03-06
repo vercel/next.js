@@ -71,7 +71,7 @@
     "lint-typescript": "turbo run typescript",
     "lint-eslint": "eslint --config eslint.cli.config.mjs",
     "lint-ast-grep": "ast-grep scan",
-    "lint-no-typescript": "run-p prettier-check \"lint-eslint .\" lint-language",
+    "lint-no-typescript": "cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" run-p prettier-check \"lint-eslint .\" lint-language",
     "types-and-precompiled": "run-p \"lint-typescript --log-order=stream\" check-compiler-fixtures types:test-lib && pnpm check-precompiled",
     "check-compiler-fixtures": "find crates/next-custom-transforms/tests/fixture -type f -name 'tsconfig.json' -print0 | xargs --null -n1 -I'{}' pnpm tsc --noEmit --project '{}'",
     "validate-externals-doc": "node ./scripts/validate-externals-doc.js",
