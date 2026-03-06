@@ -1,5 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 import { createTimeController } from './test-utils'
 import { join } from 'path'
 
@@ -8,6 +8,7 @@ describe('app dir - prefetching (custom staleTime)', () => {
     files: {
       app: new FileRef(join(__dirname, 'app')),
     },
+    dependencies: { '@next/router-act': 'latest' },
     skipDeployment: true,
     nextConfig: {
       experimental: {

@@ -1,6 +1,6 @@
 import type * as Playwright from 'playwright'
 import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 import { findPort } from 'next-test-utils'
@@ -36,6 +36,7 @@ describe('segment cache (revalidation)', () => {
 
     next = await createNext({
       files: __dirname,
+      dependencies: { '@next/router-act': 'latest' },
       env: { TEST_DATA_SERVICE_URL: `http://localhost:${port}` },
     })
   })

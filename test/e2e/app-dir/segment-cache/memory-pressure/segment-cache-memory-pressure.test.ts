@@ -1,10 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 import type { CDPSession, Page, Request as PlaywrightRequest } from 'playwright'
 
 describe('segment cache memory pressure', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
   if (isNextDev) {
     test('disabled in development', () => {})

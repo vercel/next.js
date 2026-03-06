@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 import path from 'path'
 import { Playwright } from 'next-webdriver'
 import type { Page as PlaywrightPage } from 'playwright'
@@ -7,6 +7,7 @@ import type { Page as PlaywrightPage } from 'playwright'
 describe('app dir client cache with parallel routes', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'parallel-routes'),
+    dependencies: { '@next/router-act': 'latest' },
   })
 
   if (isNextDev) {

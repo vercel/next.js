@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 
 // Tests prefetch inlining with maxSize and maxBundleSize set to Infinity,
 // which inlines all segments into a single response per route. This
@@ -14,6 +14,7 @@ import { createRouterAct } from 'router-act'
 describe('max prefetch inlining', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
   if (isNextDev) {
     it('disabled in development', () => {})

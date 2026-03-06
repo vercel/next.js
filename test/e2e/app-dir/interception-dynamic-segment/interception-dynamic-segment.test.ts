@@ -1,11 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { Playwright } from 'next-webdriver'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 
 describe('interception-dynamic-segment', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
 
   /**

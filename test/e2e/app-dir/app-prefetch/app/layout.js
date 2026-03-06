@@ -1,3 +1,5 @@
+import { RouterAct } from '@next/router-act/component'
+
 export default function Root({ children }) {
   return (
     <html>
@@ -13,7 +15,10 @@ export default function Root({ children }) {
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <RouterAct />
+        {children}
+      </body>
     </html>
   )
 }

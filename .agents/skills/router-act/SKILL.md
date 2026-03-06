@@ -11,7 +11,7 @@ user-invocable: false
 
 # Router Act Testing
 
-Use this skill when writing or modifying tests that involve prefetch requests, client router navigations, or the segment cache. The `createRouterAct` utility from `test/lib/router-act.ts` lets you assert on prefetch and navigation responses in an end-to-end way without coupling to the exact number of requests or the protocol details. This is why most client router-related tests use this pattern.
+Use this skill when writing or modifying tests that involve prefetch requests, client router navigations, or the segment cache. The `createRouterAct` utility from `@next/router-act` lets you assert on prefetch and navigation responses in an end-to-end way without coupling to the exact number of requests or the protocol details. This is why most client router-related tests use this pattern.
 
 ## When NOT to Use `act`
 
@@ -60,14 +60,14 @@ await act(async () => { ... })
 
 ### What `act` Does Internally
 
-`act` intercepts all router requests — prefetches, navigations, and Server Actions — made during the scope:
+`act` intercepts all router requests — prefetches, navigations, and Server Actions — by monkey-patching `fetch()` in the browser. The `<RouterAct />` component (rendered in the test fixture's root layout) installs the fetch interceptor on mount.
 
-1. Installs a Playwright route handler to intercept router requests
-2. Runs your scope function
-3. Waits for a `requestIdleCallback` (captures IntersectionObserver-triggered prefetches)
-4. Fulfills buffered responses to the browser
+1. Starts a batch (via `page.evaluate`)
+2. Runs your scope function (clicks, toggles, etc.)
+3. Drains the queue: waits for rendering frames (double-rAF) + idle callback to catch IntersectionObserver-triggered prefetches
+4. Processes buffered responses (resolves them to the client)
 5. Repeats steps 3-4 until no more requests arrive
-6. Asserts on the responses based on the config
+6. Ends the batch and asserts on the responses based on the config
 
 Responses are buffered and only forwarded to the browser after the scope function returns. This means you cannot navigate to a new page and wait for it to render within the same scope — that would deadlock. Trigger the navigation (click the link) and let `act` handle the rest. Read destination page content _after_ `act` returns:
 
@@ -82,6 +82,63 @@ await act(
 // Read content after act returns, not inside the scope
 expect(await browser.elementById('my-content').text()).toBe('Page content')
 ```
+
+## Test Fixture Setup
+
+Every test that uses `createRouterAct` needs:
+
+1. **Root layout** renders `<RouterAct />` (installs the fetch interceptor):
+
+```tsx
+// app/layout.tsx
+import { RouterAct } from '@next/router-act/component'
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <RouterAct />
+        {children}
+      </body>
+    </html>
+  )
+}
+```
+
+2. **package.json** declares the dependency:
+
+```json
+{
+  "dependencies": {
+    "@next/router-act": "workspace:*"
+  }
+}
+```
+
+3. **Test file** imports and uses `createRouterAct`:
+
+```typescript
+import type * as Playwright from 'playwright'
+import { createRouterAct } from '@next/router-act'
+
+// In the test:
+const browser = await next.browser('/', {
+  beforePageLoad(page: Playwright.Page) {
+    act = createRouterAct(page)
+  },
+})
+```
+
+4. **`nextTestSetup`** includes the dependency for isolated test mode:
+
+```typescript
+const { next } = nextTestSetup({
+  files: __dirname,
+  dependencies: { '@next/router-act': 'latest' },
+})
+```
+
+**Do NOT** add `transpilePackages` for `@next/router-act` — the bundler handles `'use client'` TypeScript files natively.
 
 ## LinkAccordion Pattern
 
@@ -247,17 +304,18 @@ Segment cache staleness tests use Playwright's clock API to control `Date.now()`
 ```typescript
 async function startBrowserWithFakeClock(url: string) {
   let page!: Playwright.Page
+  let act!: ReturnType<typeof createRouterAct>
   const startDate = Date.now()
 
   const browser = await next.browser(url, {
     async beforePageLoad(p: Playwright.Page) {
       page = p
+      act = createRouterAct(p)
       await page.clock.install()
       await page.clock.setFixedTime(startDate)
     },
   })
 
-  const act = createRouterAct(page)
   return { browser, page, act, startDate }
 }
 ```
@@ -269,6 +327,8 @@ async function startBrowserWithFakeClock(url: string) {
 
 ## Reference
 
-- `createRouterAct`: `test/lib/router-act.ts`
+- `createRouterAct` (Playwright orchestrator): `packages/next-router-act/index.ts`
+- `installRouterActSetup` (browser-side fetch interceptor): `packages/next-router-act/setup.ts`
+- `RouterAct` component: `packages/next-router-act/component.ts`
 - `LinkAccordion`: `test/e2e/app-dir/segment-cache/staleness/components/link-accordion.tsx`
-- Example tests: `test/e2e/app-dir/segment-cache/staleness/`
+- Example tests: `test/e2e/app-dir/segment-cache/staleness/`, `test/e2e/app-dir/segment-cache/revalidation/`

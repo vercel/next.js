@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@next/router-act": "workspace:*"
+  }
+}

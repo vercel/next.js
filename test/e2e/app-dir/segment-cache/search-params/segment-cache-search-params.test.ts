@@ -1,10 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 import { retry } from '../../../../lib/next-test-utils'
 
 describe('segment cache (search params)', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
   if (isNextDev) {
     test('ppr is disabled', () => {})

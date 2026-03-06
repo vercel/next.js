@@ -1,3 +1,4 @@
+import { RouterAct } from '@next/router-act/component'
 import { rootParam } from 'next/root-params'
 
 type Params = { rootParam: string }
@@ -25,6 +26,7 @@ export default async function RootParamsLayout({
   return (
     <html>
       <body>
+        <RouterAct />
         <div data-root-params-layout="true">
           <div data-root-param={param}>
             {`Root param layout - param: ${param}`}

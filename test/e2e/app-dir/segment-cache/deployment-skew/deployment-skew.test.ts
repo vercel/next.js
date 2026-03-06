@@ -1,6 +1,6 @@
 import type * as Playwright from 'playwright'
 import webdriver from 'next-webdriver'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 import { findPort, retry } from 'next-test-utils'
 import { isNextDeploy, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { build, start } from './servers.mjs'
@@ -61,6 +61,7 @@ describe('segment cache (deployment skew)', () => {
   describe('header with deployment id', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: { '@next/router-act': 'latest' },
       env: {
         // rely on skew protection when deployed
         NEXT_DEPLOYMENT_ID: isNextDeploy ? undefined : 'test-deployment-id',
