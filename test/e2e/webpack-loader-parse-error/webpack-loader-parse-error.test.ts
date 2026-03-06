@@ -41,10 +41,19 @@ function extractErrorBlock(output: string, errorTitle: string): string {
   return lines.slice(0, endLine).join('\n')
 }
 
-describe('webpack-loader-parse-error', () => {
-  const { next, isTurbopack } = nextTestSetup({
+describe('webpack-loader-parse-error (development)', () => {
+  const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
+    skipStart: true,
   })
+
+  if (!isNextDev) {
+    it('skipped in production mode', () => {})
+    return
+  }
+
+  beforeAll(() => next.start())
 
   it('should show parse error for JS loader that returns broken code', async () => {
     const outputIndex = next.cliOutput.length
@@ -152,5 +161,34 @@ describe('webpack-loader-parse-error', () => {
             ./app/css-page/page.js [Server Component]"
       `)
     }
+  })
+})
+
+describe('webpack-loader-parse-error (production)', () => {
+  const { next, isNextStart } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+    skipStart: true,
+  })
+
+  if (!isNextStart) {
+    it('skipped in development mode', () => {})
+    return
+  }
+
+  it('should fail the build with JS loader parse error', async () => {
+    await expect(next.start()).rejects.toThrow(
+      'next build failed with code/signal 1'
+    )
+
+    const output = stripAnsi(next.cliOutput)
+
+    // Both Turbopack and Webpack should show an error about the broken JS
+    expect(output).toMatch(
+      /Parsing ecmascript source code failed|Module build failed|Syntax Error|SyntaxError/
+    )
+
+    // Should reference the broken file
+    expect(output).toContain('data.broken.js')
   })
 })
