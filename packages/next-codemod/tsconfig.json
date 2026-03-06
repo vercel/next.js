@@ -5,8 +5,6 @@
     "esModuleInterop": true,
     "noImplicitAny": false,
     "target": "ES2022",
-    "downlevelIteration": true,
-    "ignoreDeprecations": "6.0",
     "preserveWatchOutput": true,
     "strictFunctionTypes": false,
     "strictNullChecks": false,
