@@ -314,7 +314,7 @@ The test harness looks for these environment variables:
 
 The deploy script `NEXT_TEST_DEPLOY_SCRIPT_PATH` is executed with `cwd` set to the isolated temporary app created by the Next.js test harness.
 
-Your script must:
+The deploy script must follow this contract:
 
 - Exit with a non-zero code on failure.
 - Print the deployment URL to `stdout`. This will be used to verify the deployment. Avoid writing anything else to `stdout`.
