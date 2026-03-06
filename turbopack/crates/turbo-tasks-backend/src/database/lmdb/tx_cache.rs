@@ -33,12 +33,12 @@ impl<'tx> Deref for SendRoTransaction<'tx> {
 // allows moving ownership between threads when queue internals move transactions across threads.
 unsafe impl<'tx> Send for SendRoTransaction<'tx> {}
 
-struct QueueState {
+struct QueuePair {
     sender: SyncSender<SendRoTransaction<'static>>,
     receiver: Arc<Mutex<Receiver<SendRoTransaction<'static>>>>,
 }
 
-impl QueueState {
+impl QueuePair {
     fn new(env: &Environment, capacity: usize, generation: u64) -> Self {
         let (sender, receiver) = sync_channel(capacity);
         for _ in 0..capacity {
@@ -126,7 +126,7 @@ impl RwTransactionGuard<'_> {
 }
 
 struct RebuildQueueOnDrop<'db> {
-    queue: RwLockWriteGuard<'db, QueueState>,
+    queue: RwLockWriteGuard<'db, QueuePair>,
     env: &'db Environment,
     generation: u64,
     capacity: usize,
@@ -137,13 +137,13 @@ impl Drop for RebuildQueueOnDrop<'_> {
         // We might avoid some allocation overhead if we used RoTransaction::reset and
         // InactiveTransaction::renew, but we don't care much about perf here.
         // https://docs.rs/lmdb/latest/lmdb/struct.RoTransaction.html#method.reset
-        *self.queue = QueueState::new(self.env, self.capacity, self.generation);
+        *self.queue = QueuePair::new(self.env, self.capacity, self.generation);
     }
 }
 
 pub struct TxCache {
     generation: AtomicU64,
-    queue: RwLock<QueueState>,
+    queue: RwLock<QueuePair>,
     capacity: usize,
 }
 
@@ -151,14 +151,14 @@ impl TxCache {
     pub fn new(env: &Environment, capacity: usize) -> Self {
         Self {
             generation: AtomicU64::new(0),
-            queue: RwLock::new(QueueState::new(env, capacity, 0)),
+            queue: RwLock::new(QueuePair::new(env, capacity, 0)),
             capacity,
         }
     }
 
     pub fn get_write_tx<'db>(&'db self, env: &'db Environment) -> Result<RwTransactionGuard<'db>> {
-        let generation = self.generation.fetch_add(1, Ordering::AcqRel) + 1;
         let queue = self.queue.write().unwrap_or_else(PoisonError::into_inner);
+        let generation = self.generation.fetch_add(1, Ordering::AcqRel) + 1;
         let tx = env.begin_rw_txn()?;
         Ok(RwTransactionGuard {
             tx,
