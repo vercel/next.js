@@ -1799,11 +1799,7 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    ChunkGroup::Entry(
-                        [ResolvedVc::upcast(server_action_manifest_loader)]
-                            .into_iter()
-                            .collect(),
-                    ),
+                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                     module_graph,
                     AvailabilityInfo::root(),
                 );
@@ -1825,33 +1821,32 @@ impl AppEndpoint {
 
                     let client_references = client_references.await?;
                     let span = tracing::trace_span!("server utils");
-                    async {
-                        let server_utils = client_references
-                            .server_utils
-                            .iter()
-                            .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                            .try_join()
-                            .await?;
-                        let chunk_group = chunking_context
-                            .chunk_group(
-                                AssetIdent::from_path(
-                                    this.app_project.project().project_path().owned().await?,
-                                )
-                                .with_modifier(rcstr!("server-utils")),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(server_utils),
-                                module_graph,
-                                AvailabilityInfo::root(),
-                            )
-                            .to_resolved()
-                            .await?;
+                    // async {
+                    //     let server_utils = client_references
+                    //         .server_utils
+                    //         .iter()
+                    //         .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                    //         .try_join()
+                    //         .await?;
+                    //     let chunk_group = chunking_context
+                    //         .chunk_group(
+                    //             AssetIdent::from_path(
+                    //                 this.app_project.project().project_path().owned().await?,
+                    //             )
+                    //             .with_modifier(rcstr!("server-utils")),
+                    //             ChunkGroup::Shared(server_utils),
+                    //             module_graph,
+                    //             AvailabilityInfo::root(),
+                    //         )
+                    //         .to_resolved()
+                    //         .await?;
 
-                        current_chunk_group = chunk_group;
+                    //     current_chunk_group = chunk_group;
 
-                        anyhow::Ok(())
-                    }
-                    .instrument(span)
-                    .await?;
+                    //     anyhow::Ok(())
+                    // }
+                    // .instrument(span)
+                    // .await?;
                     for server_component in client_references
                         .server_component_entries
                         .iter()
@@ -1870,10 +1865,9 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(vec![ResolvedVc::upcast(
+                                ChunkGroup::Shared(ResolvedVc::upcast(
                                     server_component.await?.module,
-                                )]),
+                                )),
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -1892,9 +1886,7 @@ impl AppEndpoint {
                     {
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(
-                                server_action_manifest_loader,
-                            )]),
+                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                             module_graph,
                             current_chunk_group.await?.availability_info,
                         );
