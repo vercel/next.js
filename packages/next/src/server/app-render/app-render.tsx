@@ -6884,7 +6884,7 @@ async function prerenderToStream(
           )
         }
 
-        let htmlStream: ReadableStream<Uint8Array> = prelude
+        let htmlStream: AnyStream = prelude
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
