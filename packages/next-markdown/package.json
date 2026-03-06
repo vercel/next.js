@@ -7,6 +7,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "edge-light": "./dist/edge.js",
       "default": "./dist/index.js"
     }
   },

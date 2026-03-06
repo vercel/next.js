@@ -1,4 +1,4 @@
-import type { MarkdownComponents } from '../../../next-markdown/src'
+import type { MarkdownComponents } from '@next/markdown'
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import Module from 'node:module'
