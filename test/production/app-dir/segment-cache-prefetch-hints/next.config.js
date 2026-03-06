@@ -3,12 +3,6 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    prefetchInlining: {
-      maxSize: Infinity,
-      maxBundleSize: Infinity,
-    },
-  },
 }
 
 module.exports = nextConfig

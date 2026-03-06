@@ -356,7 +356,12 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
-  prefetchInlining?: boolean
+  prefetchInlining?:
+    | boolean
+    | {
+        maxSize?: number
+        maxBundleSize?: number
+      }
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean

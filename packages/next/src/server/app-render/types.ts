@@ -19,6 +19,7 @@ import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { PrefetchHints } from '../../shared/lib/app-router-types'
 
 const dynamicParamTypesSchema = s.enums([
   'c',
@@ -160,7 +161,12 @@ export interface RenderOptsPartial {
     dynamicOnHover: boolean
     optimisticRouting: boolean
     inlineCss: boolean
-    prefetchInlining: boolean
+    prefetchInlining:
+      | boolean
+      | {
+          maxSize?: number
+          maxBundleSize?: number
+        }
     authInterrupts: boolean
     cachedNavigations: boolean
 
@@ -198,6 +204,12 @@ export interface RenderOptsPartial {
    * the response.
    */
   reactMaxHeadersLength: number | undefined
+
+  /**
+   * Per-route prefetch hints from prefetch-hints.json.
+   * Loaded at server startup from the build output.
+   */
+  prefetchHints?: Record<string, PrefetchHints>
 
   isStaticGeneration?: boolean
 

@@ -11,6 +11,7 @@ import type {
   FlightData,
   InitialRSCPayload,
   FlightDataPath,
+  PrefetchHints,
 } from '../../shared/lib/app-router-types'
 import type { Readable } from 'node:stream'
 import {
@@ -606,6 +607,7 @@ async function generateDynamicRSCPayload(
             rootLayoutIncluded: false,
             preloadCallbacks,
             MetadataOutlet,
+            hintTree: ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null,
           })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -1642,8 +1644,10 @@ async function getRSCPayload(
     workStore,
   } = ctx
 
+  const hints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
+    hints,
     getDynamicParamFromSegment,
     query
   )
@@ -1823,8 +1827,10 @@ async function getErrorRSCPayload(
     createElement(Metadata, null)
   )
 
+  const errorHints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
+    errorHints,
     getDynamicParamFromSegment,
     query
   )
@@ -5562,11 +5568,13 @@ async function prerenderToStream(
         ? metadata.flightData.subarray(1)
         : metadata.flightData
 
-      metadata.segmentData = await collectSegmentData(
+      await collectSegmentData(
         flightData,
         finalServerPrerenderStore,
         ComponentMod,
-        renderOpts
+        renderOpts,
+        ctx.pagePath,
+        metadata
       )
 
       if (serverIsDynamic) {
@@ -5816,11 +5824,13 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
-        metadata.segmentData = await collectSegmentData(
+        await collectSegmentData(
           flightData,
           ssrPrerenderStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          ctx.pagePath,
+          metadata
         )
       }
 
@@ -6025,11 +6035,13 @@ async function prerenderToStream(
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
-        metadata.segmentData = await collectSegmentData(
+        await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          ctx.pagePath,
+          metadata
         )
       }
 
@@ -6193,11 +6205,13 @@ async function prerenderToStream(
           reactServerPrerenderResult.asStream()
         )
         metadata.flightData = flightData
-        metadata.segmentData = await collectSegmentData(
+        await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          ctx.pagePath,
+          metadata
         )
       }
 
@@ -6317,8 +6331,10 @@ async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
-  renderOpts: RenderOpts
-): Promise<Map<string, Buffer> | undefined> {
+  renderOpts: RenderOpts,
+  pagePath: string,
+  metadata: AppPageRenderResultMetadata
+): Promise<void> {
   // Per-segment prefetch data
   //
   // All of the segments for a page are generated simultaneously, including
@@ -6349,13 +6365,51 @@ async function collectSegmentData(
 
   const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
   const staleTime = selectStaleTime(prerenderStore.stale)
-  return await ComponentMod.collectSegmentData(
+
+  // Resolve prefetch hints. At runtime (next start / ISR), the precomputed
+  // hints are already loaded from the prefetch-hints.json manifest. During
+  // build, compute them by measuring segment gzip sizes and write them to
+  // metadata so the build pipeline can persist them to the manifest.
+  let hints: PrefetchHints | null
+  if (renderOpts.isBuildTimePrerendering) {
+    // Build time: compute fresh hints and store in metadata for the manifest.
+    const prefetchInlining = renderOpts.experimental.prefetchInlining
+    const maxSize =
+      typeof prefetchInlining === 'object'
+        ? (prefetchInlining.maxSize ?? 2_048)
+        : 2_048
+    const maxBundleSize =
+      typeof prefetchInlining === 'object'
+        ? (prefetchInlining.maxBundleSize ?? 10_240)
+        : 10_240
+    hints = await ComponentMod.collectPrefetchHints(
+      fullPageDataBuffer,
+      staleTime,
+      clientModules,
+      serverConsumerManifest,
+      maxSize,
+      maxBundleSize
+    )
+    metadata.prefetchHints = hints
+  } else {
+    // Runtime: use hints from the manifest. Never compute fresh hints
+    // during ISR/revalidation.
+    hints = renderOpts.prefetchHints?.[pagePath] ?? null
+  }
+
+  // Pass the resolved hints so collectSegmentData can union them into
+  // the TreePrefetch. During the initial build the FlightRouterState in
+  // the buffer doesn't have inlining hints yet (they were just computed
+  // above), so we need to merge them in here. At runtime/ISR the hints
+  // are already embedded in the FlightRouterState, so this is null.
+  metadata.segmentData = await ComponentMod.collectSegmentData(
     renderOpts.cacheComponents,
     fullPageDataBuffer,
     staleTime,
     clientModules,
     serverConsumerManifest,
-    renderOpts.experimental.prefetchInlining
+    Boolean(renderOpts.experimental.prefetchInlining),
+    hints
   )
 }
 

@@ -7,6 +7,7 @@ import type {
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { CacheControl, Revalidate } from '../server/lib/cache-control'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 import '../lib/setup-exception-listeners'
 
@@ -61,6 +62,7 @@ import {
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
@@ -2739,6 +2741,11 @@ export default async function build(
         preview: previewProps,
       }
 
+      // Accumulate per-route segment inlining decisions for
+      // prefetch-hints.json. First-writer-wins: if multiple param
+      // combinations exist for the same route pattern, use the first one.
+      const prefetchHints: Record<string, PrefetchHints> = {}
+
       const tbdPrerenderRoutes: string[] = []
 
       const { i18n } = config
@@ -3194,6 +3201,11 @@ export default async function build(
                 initialCacheControl: cacheControl,
               })
 
+              // Collect prefetch hints (first-writer-wins per page)
+              if (metadata.prefetchHints && !(page in prefetchHints)) {
+                prefetchHints[page] = metadata.prefetchHints
+              }
+
               if (cacheControl.revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
@@ -3368,6 +3380,11 @@ export default async function build(
                     dynamicRoute.prefetchSegmentDataRoutes.push(
                       builtSegmentDataRoute
                     )
+                  }
+
+                  // Collect prefetch hints (first-writer-wins per page)
+                  if (metadata?.prefetchHints && !(page in prefetchHints)) {
+                    prefetchHints[page] = metadata.prefetchHints
                   }
                 }
 
@@ -3958,6 +3975,12 @@ export default async function build(
           config.experimental.allowedRevalidateHeaderKeys
 
         await writePrerenderManifest(distDir, prerenderManifest)
+        if (Object.keys(prefetchHints).length > 0) {
+          await writeManifest(
+            path.join(distDir, SERVER_DIRECTORY, PREFETCH_HINTS),
+            prefetchHints
+          )
+        }
         await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,

@@ -39,6 +39,7 @@ import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
   MIDDLEWARE_MANIFEST,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
@@ -111,6 +112,7 @@ import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
@@ -200,6 +202,10 @@ export default class NextNodeServer extends BaseServer<
     super(options)
 
     installGlobalBehaviors(this.nextConfig)
+
+    // Load prefetch hints from the build output. This must happen before
+    // any render to ensure segment inlining decisions are available.
+    this.renderOpts.prefetchHints = this.getPrefetchHints()
 
     const isDev = options.dev ?? false
     this.isDev = isDev
@@ -1904,6 +1910,28 @@ export default class NextNodeServer extends BaseServer<
     ) as PrerenderManifest
 
     return this._cachedPreviewManifest
+  }
+
+  private _cachedPrefetchHints: Record<string, PrefetchHints> | undefined
+  protected getPrefetchHints(): Record<string, PrefetchHints> {
+    if (this._cachedPrefetchHints) {
+      return this._cachedPrefetchHints
+    }
+
+    this._cachedPrefetchHints =
+      (loadManifest(
+        join(
+          /* turbopackIgnore: true */ this.distDir,
+          SERVER_DIRECTORY,
+          PREFETCH_HINTS
+        ),
+        true,
+        undefined,
+        false,
+        true // handleMissing: don't crash if the file doesn't exist
+      ) as Record<string, PrefetchHints>) ?? {}
+
+    return this._cachedPrefetchHints
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
