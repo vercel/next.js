@@ -9,22 +9,6 @@ const { ConcurrentRoot, DefaultEventPriority } =
     ConcurrentRoot: number
     DefaultEventPriority: number
   }
-const { NodeType, parse } =
-  // eslint-disable-next-line @next/internal/typechecked-require -- Runtime dependency for the standalone renderer package.
-  require('node-html-parser') as {
-    NodeType: {
-      ELEMENT_NODE: number
-      TEXT_NODE: number
-    }
-    parse: (
-      html: string,
-      options: {
-        lowerCaseTagName: boolean
-        comment: boolean
-        blockTextElements: Record<string, boolean>
-      }
-    ) => HtmlElementNode
-  }
 
 export const MARKDOWN_COMPONENT_MARKER_TAG = 'react-markdown-component-marker'
 export const MARKDOWN_SEGMENT_MARKER_TAG = 'react-markdown-segment-marker'
@@ -112,33 +96,6 @@ type MarkReactNodeOptions = {
   segmentByComponent?: Map<any, SegmentMarkerInfo>
 }
 
-type HtmlBaseNode = {
-  nodeType: number
-  rawText: string
-  text: string
-  childNodes: HtmlNode[]
-}
-
-type HtmlTextNode = HtmlBaseNode & {
-  tagName?: never
-  attributes?: never
-  querySelector?: never
-  querySelectorAll?: never
-  getAttribute?: never
-  innerHTML?: never
-}
-
-type HtmlElementNode = HtmlBaseNode & {
-  tagName: string
-  attributes: Record<string, string>
-  querySelector(selector: string): HtmlElementNode | null
-  querySelectorAll(selector: string): HtmlElementNode[]
-  getAttribute(name: string): string | undefined
-  innerHTML: string
-}
-
-type HtmlNode = HtmlTextNode | HtmlElementNode
-
 type MarkdownBaseNode = {
   hidden?: boolean
 }
@@ -146,6 +103,11 @@ type MarkdownBaseNode = {
 type MarkdownTextNode = MarkdownBaseNode & {
   kind: 'text'
   rawText: string
+}
+
+type MarkdownRawHtmlNode = MarkdownBaseNode & {
+  kind: 'raw-html'
+  html: string
 }
 
 type MarkdownElementNode = MarkdownBaseNode & {
@@ -170,6 +132,7 @@ type MarkdownFragmentNode = MarkdownBaseNode & {
 
 type MarkdownNode =
   | MarkdownTextNode
+  | MarkdownRawHtmlNode
   | MarkdownElementNode
   | MarkdownFragmentNode
 
@@ -553,18 +516,6 @@ function sanitizeReactNodeForMarkdown(node: React.ReactNode): React.ReactNode {
   )
 }
 
-export async function renderHtmlToMarkdown(
-  html: string,
-  options: {
-    rootComponents?: MarkdownComponents
-    segments?: Map<string, MarkdownSegmentDefinition>
-  } = {}
-): Promise<string> {
-  const normalizedHtml = html.replace(/<!DOCTYPE[^>]*>/gi, '')
-  const root = parseHtmlFragment(normalizedHtml)
-  return serializeMarkdownNodes(root, options)
-}
-
 const NO_HOST_CONTEXT = {}
 const NOOP = () => {}
 let currentUpdatePriority = DefaultEventPriority
@@ -895,6 +846,14 @@ function createMarkdownText(value: string): MarkdownTextNode {
   }
 }
 
+function createRawHtmlNode(html: string): MarkdownRawHtmlNode {
+  return {
+    kind: 'raw-html',
+    html,
+    hidden: false,
+  }
+}
+
 function createMarkdownFragment(): MarkdownFragmentNode {
   return {
     kind: 'fragment',
@@ -931,7 +890,7 @@ function getDangerouslySetInnerHTMLNodes(
     return []
   }
 
-  return parseHtmlFragment(props.dangerouslySetInnerHTML.__html)
+  return [createRawHtmlNode(props.dangerouslySetInnerHTML.__html)]
 }
 
 function appendMarkdownChild(
@@ -974,50 +933,6 @@ function removeMarkdownChild(
   }
 }
 
-function parseHtmlFragment(html: string): MarkdownNode[] {
-  const root = parse(`<next-markdown-root>${html}</next-markdown-root>`, {
-    lowerCaseTagName: true,
-    comment: false,
-    blockTextElements: {
-      script: false,
-      style: false,
-      pre: true,
-    },
-  })
-
-  const container =
-    (root.querySelector('next-markdown-root') as HtmlElementNode | null) ?? root
-
-  return convertHtmlNodesToMarkdownNodes(container.childNodes)
-}
-
-function convertHtmlNodesToMarkdownNodes(
-  nodes: HtmlNode[] | undefined
-): MarkdownNode[] {
-  return (nodes ?? []).flatMap((node) => {
-    const converted = convertHtmlNodeToMarkdownNode(node)
-    return converted ? [converted] : []
-  })
-}
-
-function convertHtmlNodeToMarkdownNode(node: HtmlNode): MarkdownNode | null {
-  if (isHtmlTextNode(node)) {
-    return createMarkdownText(node.rawText)
-  }
-
-  if (!isHtmlElementNode(node)) {
-    return null
-  }
-
-  return {
-    kind: 'element',
-    tagName: node.tagName.toLowerCase(),
-    attributes: { ...node.attributes },
-    childNodes: convertHtmlNodesToMarkdownNodes(node.childNodes),
-    hidden: false,
-  }
-}
-
 async function serializeMarkdownNodes(
   nodes: MarkdownNode[],
   options: {
@@ -1031,13 +946,31 @@ async function serializeMarkdownNodes(
     childNodes: MarkdownNode[] | undefined,
     state: SerializeState
   ): Promise<string> => {
-    let value = ''
+    const parts: string[] = []
+    let textBuffer = ''
 
-    for (const child of childNodes ?? []) {
-      value += await serializeNode(child, { ...state, inline: true })
+    const flushTextBuffer = () => {
+      if (!textBuffer) {
+        return
+      }
+
+      parts.push(state.inPre ? textBuffer : normalizeWhitespace(textBuffer))
+      textBuffer = ''
     }
 
-    return normalizeWhitespace(value).trim()
+    for (const child of childNodes ?? []) {
+      if (isTextNode(child)) {
+        textBuffer += child.rawText
+        continue
+      }
+
+      flushTextBuffer()
+      parts.push(await serializeNode(child, { ...state, inline: true }))
+    }
+
+    flushTextBuffer()
+
+    return parts.join('').trim()
   }
 
   const serializeBlocks = async (
@@ -1063,7 +996,7 @@ async function serializeMarkdownNodes(
         inlineBuffer = ''
       }
 
-      parts.push(markdown.trim())
+      parts.push(isRawHtmlNode(child) ? markdown : markdown.trim())
     }
 
     if (inlineBuffer.trim()) {
@@ -1217,6 +1150,10 @@ async function serializeMarkdownNodes(
         ? node.rawText
         : normalizeWhitespace(node.rawText)
       return state.inline ? text : text.trim()
+    }
+
+    if (isRawHtmlNode(node)) {
+      return node.html
     }
 
     if (isFragmentNode(node)) {
@@ -1607,19 +1544,11 @@ function getTextContent(node: MarkdownNode): string {
     return node.rawText
   }
 
+  if (isRawHtmlNode(node)) {
+    return node.html
+  }
+
   return (node.childNodes ?? []).map((child) => getTextContent(child)).join('')
-}
-
-function isHtmlElementNode(
-  node: HtmlNode | null | undefined
-): node is HtmlElementNode {
-  return !!node && node.nodeType === NodeType.ELEMENT_NODE
-}
-
-function isHtmlTextNode(
-  node: HtmlNode | null | undefined
-): node is HtmlTextNode {
-  return !!node && node.nodeType === NodeType.TEXT_NODE
 }
 
 function isElementNode(
@@ -1632,6 +1561,12 @@ function isTextNode(
   node: MarkdownNode | null | undefined
 ): node is MarkdownTextNode {
   return !!node && node.kind === 'text'
+}
+
+function isRawHtmlNode(
+  node: MarkdownNode | null | undefined
+): node is MarkdownRawHtmlNode {
+  return !!node && node.kind === 'raw-html'
 }
 
 function isFragmentNode(

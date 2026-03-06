@@ -24,7 +24,6 @@
     "directory": "packages/next-markdown"
   },
   "dependencies": {
-    "node-html-parser": "7.0.1",
     "react-reconciler": "0.33.0"
   },
   "peerDependencies": {

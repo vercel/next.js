@@ -31,16 +31,16 @@ describe('markdown renderer', () => {
     )
   })
 
-  it('serializes dangerouslySetInnerHTML without requiring a top-level html render', async () => {
+  it('emits dangerouslySetInnerHTML as raw html', async () => {
     const markdown = await renderReactToMarkdown(
       <div
         dangerouslySetInnerHTML={{
-          __html: '<h1>Hello</h1><p>World</p>',
+          __html: '<h1>Hello</h1>\n<p>World</p>',
         }}
       />
     )
 
-    expect(markdown).toBe('# Hello\n\nWorld')
+    expect(markdown).toBe('<h1>Hello</h1>\n<p>World</p>')
   })
 
   it('serializes images, tables, and nested lists', async () => {

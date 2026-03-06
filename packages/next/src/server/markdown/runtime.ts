@@ -21,9 +21,9 @@ function getMarkdownRuntime(): MarkdownRuntimeModule {
   let loaded: MarkdownRuntimeModule
   // eslint-disable-next-line no-eval -- Deferred so the packaged build doesn't try to bundle the local workspace source path.
   const dynamicRequire = eval('require') as NodeJS.Require
-   
+
   const fs = dynamicRequire('node:fs') as typeof import('node:fs')
-   
+
   const path = dynamicRequire('node:path') as typeof import('node:path')
 
   const candidates = [
@@ -57,12 +57,6 @@ export function markReactNode(
   ...args: Parameters<MarkdownRuntimeModule['markReactNode']>
 ) {
   return getMarkdownRuntime().markReactNode(...args)
-}
-
-export function renderHtmlToMarkdown(
-  ...args: Parameters<MarkdownRuntimeModule['renderHtmlToMarkdown']>
-) {
-  return getMarkdownRuntime().renderHtmlToMarkdown(...args)
 }
 
 export function renderReactToMarkdown(
