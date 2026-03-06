@@ -568,7 +568,7 @@ const fn usize_from_u32(value: u32) -> usize {
     // This should always be true, as we assume at least a 32-bit width architecture for Turbopack.
     // Since this is a const expression, we expect it to be compiled away.
     const {
-        assert!(u32::BITS < usize::BITS);
+        assert!(u32::BITS <= usize::BITS);
     };
     value as usize
 }
