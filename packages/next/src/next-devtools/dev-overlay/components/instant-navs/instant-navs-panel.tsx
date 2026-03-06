@@ -95,7 +95,8 @@ export function InstantNavsPanel() {
             </button>
           </div>
         </div>
-        <div className="instant-nav-section">
+        {/* TODO: Uncomment when ready to integrate with cookie changes that support from/to paths. */}
+        {/* <div className="instant-nav-section">
           <div className="instant-nav-section-header">
             <label>Client navigation</label>
             <p className="instant-nav-section-description">
@@ -103,7 +104,7 @@ export function InstantNavsPanel() {
               page.
             </p>
           </div>
-        </div>
+        </div> */}
       </div>
     )
   }
@@ -115,7 +116,8 @@ export function InstantNavsPanel() {
           <div className="instant-nav-section-header">
             <label>Client navigation</label>
           </div>
-          <div className="instant-nav-urls">
+          {/* TODO: Need to implement this feature that maps URL to route module path. */}
+          {/* <div className="instant-nav-urls">
             <div className="instant-nav-url-row">
               <span className="instant-nav-url-label">Route:</span>
               <span className="instant-nav-url-value">/target-page/[slug]</span>
@@ -124,14 +126,20 @@ export function InstantNavsPanel() {
               <span className="instant-nav-url-label">From:</span>
               <span className="instant-nav-url-value">{panel.fromUrl}</span>
             </div>
-          </div>
+          </div> */}
           <p className="instant-nav-helper-description">
-            You're viewing the prefetched UI for the current URL. Edit your code
-            and reload the page to see any changes.
+            You're viewing the prefetched UI for the previous navigation to the
+            current URL.
+          </p>
+          <p className="instant-nav-helper-description">
+            Edit your code and reload the page to see any changes.
           </p>
         </div>
         <div className="instant-nav-footer">
-          <ShareButton getShareUrl={getShareUrl} />
+          {/* TODO: Remove hidden wrapper once we add share functionality. */}
+          <span style={{ display: 'none' }}>
+            <ShareButton getShareUrl={getShareUrl} />
+          </span>
           <button
             className="instant-nav-footer-button"
             onClick={handleContinueRendering}
@@ -151,19 +159,26 @@ export function InstantNavsPanel() {
           <div className="instant-nav-section-header">
             <label>Page load</label>
           </div>
-          <div className="instant-nav-urls">
+
+          {/* TODO: Need to implement this feature that maps URL to route module path. */}
+          {/* <div className="instant-nav-urls">
             <div className="instant-nav-url-row">
               <span className="instant-nav-url-label">Route:</span>
               <span className="instant-nav-url-value">/target-page/[slug]</span>
             </div>
-          </div>
+          </div> */}
           <p className="instant-nav-helper-description">
-            You're viewing the pre-rendered static UI for the current URL. Edit
-            your code and reload the page to see any changes.
+            You're viewing the pre-rendered static UI for the current URL.
+          </p>
+          <p className="instant-nav-helper-description">
+            Edit your code and reload the page to see any changes.
           </p>
         </div>
         <div className="instant-nav-footer">
-          <ShareButton getShareUrl={getShareUrl} />
+          {/* TODO: Remove hidden wrapper once we add share functionality. */}
+          <span style={{ display: 'none' }}>
+            <ShareButton getShareUrl={getShareUrl} />
+          </span>
           <button
             className="instant-nav-footer-button"
             onClick={handleContinueRendering}
