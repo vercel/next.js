@@ -71,11 +71,14 @@ export interface OverlayState {
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
   readonly cacheOnly: boolean
-  readonly instantNavPanel: {
-    readonly status: 'waiting' | 'client-nav' | 'initial-load'
-    readonly fromUrl: string | null
-    readonly toUrl: string | null
-  }
+  readonly instantNavPanel:
+    | { readonly status: 'waiting' }
+    | { readonly status: 'initial-load'; readonly toUrl: string }
+    | {
+        readonly status: 'client-nav'
+        readonly fromUrl: string
+        readonly toUrl: string
+      }
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -229,12 +232,19 @@ interface CacheOnlyToggleAction {
   type: typeof ACTION_CACHE_ONLY_TOGGLE
 }
 
-interface InstantNavSetStatusAction {
-  type: typeof ACTION_INSTANT_NAV_SET_STATUS
-  status: 'waiting' | 'client-nav' | 'initial-load'
-  fromUrl: string | null
-  toUrl: string | null
-}
+type InstantNavSetStatusAction =
+  | { type: typeof ACTION_INSTANT_NAV_SET_STATUS; status: 'waiting' }
+  | {
+      type: typeof ACTION_INSTANT_NAV_SET_STATUS
+      status: 'initial-load'
+      toUrl: string
+    }
+  | {
+      type: typeof ACTION_INSTANT_NAV_SET_STATUS
+      status: 'client-nav'
+      fromUrl: string
+      toUrl: string
+    }
 
 interface InstantNavResetAction {
   type: typeof ACTION_INSTANT_NAV_RESET
@@ -302,34 +312,31 @@ const instantNavCookieValue: string | null =
 
 const hasInstantTestCookie = instantNavCookieValue !== null
 
-function parseInstantNavCookie(value: string | null): {
-  status: 'waiting' | 'client-nav' | 'initial-load'
-  fromUrl: string | null
-  toUrl: string | null
-} {
+function parseInstantNavCookie(
+  value: string | null
+): OverlayState['instantNavPanel'] {
   if (!value) {
-    return { status: 'waiting', fromUrl: null, toUrl: null }
+    return { status: 'waiting' }
   }
   if (value === 'initial-load') {
     return {
       status: 'initial-load',
-      fromUrl: null,
       toUrl:
         typeof window !== 'undefined'
           ? window.location.pathname + window.location.search
-          : null,
+          : '',
     }
   }
   if (value.startsWith('client-nav|')) {
     const parts = value.split('|')
     return {
       status: 'client-nav',
-      fromUrl: parts[1] || null,
-      toUrl: parts[2] || null,
+      fromUrl: parts[1] || '',
+      toUrl: parts[2] || '',
     }
   }
   // Any other truthy value (e.g. "waiting", legacy "1") → waiting
-  return { status: 'waiting', fromUrl: null, toUrl: null }
+  return { status: 'waiting' }
 }
 
 export const INITIAL_OVERLAY_STATE: Omit<
@@ -587,21 +594,22 @@ export function useErrorOverlayReducer(
         case ACTION_INSTANT_NAV_SET_STATUS: {
           return {
             ...state,
-            instantNavPanel: {
-              status: action.status,
-              fromUrl: action.fromUrl,
-              toUrl: action.toUrl,
-            },
+            instantNavPanel:
+              action.status === 'waiting'
+                ? { status: 'waiting' }
+                : action.status === 'initial-load'
+                  ? { status: 'initial-load', toUrl: action.toUrl }
+                  : {
+                      status: 'client-nav',
+                      fromUrl: action.fromUrl,
+                      toUrl: action.toUrl,
+                    },
           }
         }
         case ACTION_INSTANT_NAV_RESET: {
           return {
             ...state,
-            instantNavPanel: {
-              status: 'waiting',
-              fromUrl: null,
-              toUrl: null,
-            },
+            instantNavPanel: { status: 'waiting' },
           }
         }
         default: {

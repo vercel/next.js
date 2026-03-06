@@ -9,7 +9,8 @@ import './instant-nav-panel.css'
 
 export function InstantNavPanel() {
   const { state, dispatch } = useDevOverlayContext()
-  const { status, fromUrl, toUrl } = state.instantNavPanel
+  const { status } = state.instantNavPanel
+  const panel = state.instantNavPanel
   const fromUrlRef = useRef<string>(
     typeof window !== 'undefined'
       ? window.location.pathname + window.location.search
@@ -23,7 +24,7 @@ export function InstantNavPanel() {
 
   // On mount: set cookie if not already set, and enable cacheOnly
   useEffect(() => {
-    if (status === 'waiting') {
+    if (panel.status === 'waiting') {
       document.cookie = 'next-instant-navigation-testing=waiting; path=/'
     }
     if (!state.cacheOnly) {
@@ -96,16 +97,16 @@ export function InstantNavPanel() {
   }
 
   function getShareUrl(): string {
-    const targetUrl = toUrl || window.location.pathname
+    const targetUrl = 'toUrl' in panel ? panel.toUrl : window.location.pathname
     const url = new URL(targetUrl, window.location.origin)
     url.searchParams.set('__instant_nav', '1')
-    if (status === 'client-nav' && fromUrl) {
-      url.searchParams.set('from', fromUrl)
+    if (panel.status === 'client-nav') {
+      url.searchParams.set('from', panel.fromUrl)
     }
     return url.toString()
   }
 
-  if (status === 'waiting') {
+  if (panel.status === 'waiting') {
     return (
       <div className="instant-nav-panel">
         <div className="instant-nav-section">
@@ -139,7 +140,7 @@ export function InstantNavPanel() {
     )
   }
 
-  if (status === 'client-nav') {
+  if (panel.status === 'client-nav') {
     return (
       <div className="instant-nav-panel">
         <div className="instant-nav-content">
@@ -153,7 +154,7 @@ export function InstantNavPanel() {
             </div>
             <div className="instant-nav-url-row">
               <span className="instant-nav-url-label">From:</span>
-              <span className="instant-nav-url-value">{fromUrl}</span>
+              <span className="instant-nav-url-value">{panel.fromUrl}</span>
             </div>
           </div>
           <p className="instant-nav-helper-description">
@@ -175,7 +176,7 @@ export function InstantNavPanel() {
     )
   }
 
-  if (status === 'initial-load') {
+  if (panel.status === 'initial-load') {
     return (
       <div className="instant-nav-panel">
         <div className="instant-nav-content">

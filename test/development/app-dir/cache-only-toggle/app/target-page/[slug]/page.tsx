@@ -139,10 +139,10 @@ export default async function TargetPage({
             Server Components
           </h2>
 
-          <Box label="Static RSC">
+          <Box label="Static Server Content">
             <p style={{ margin: 0 }}>
-              This heading and paragraph are static text rendered by a Server
-              Component. They are available immediately.
+              This text is rendered by a Server Component. It is static and
+              renders immediately.
             </p>
           </Box>
 
