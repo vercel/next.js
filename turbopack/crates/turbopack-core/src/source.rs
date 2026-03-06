@@ -1,3 +1,4 @@
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent};
@@ -10,6 +11,14 @@ pub trait Source: Asset {
     /// all properties of the [Source].
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent>;
+
+    /// A human-readable description of this source, explaining where the code
+    /// comes from. For sources that transform another source, this should
+    /// include the inner source's description, creating a readable chain
+    /// like `"loaders [sass-loader] transform of file content of
+    /// ./styles.scss"`.
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr>;
 }
 
 #[turbo_tasks::value(transparent)]

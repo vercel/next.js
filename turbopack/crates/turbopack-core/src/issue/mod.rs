@@ -8,7 +8,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     condition::ContextCondition,
+    generated_code_source::GeneratedCodeSource,
     ident::{AssetIdent, Layer},
     source::Source,
     source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
@@ -180,6 +181,15 @@ pub trait Issue {
     #[turbo_tasks::function]
     fn source(self: Vc<Self>) -> Vc<OptionIssueSource> {
         Vc::cell(None)
+    }
+
+    /// Additional source locations related to this issue (e.g., generated code
+    /// from a loader). Each source includes a description and location.
+    /// These are displayed alongside the primary source to give users full
+    /// context about the error.
+    #[turbo_tasks::function]
+    fn additional_sources(self: Vc<Self>) -> Vc<AdditionalIssueSources> {
+        AdditionalIssueSources::empty()
     }
 }
 
@@ -620,6 +630,39 @@ impl IssueSource {
     pub fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
     }
+
+    /// Returns the underlying source.
+    pub fn source_ref(&self) -> ResolvedVc<Box<dyn Source>> {
+        self.source
+    }
+
+    /// Creates a new `IssueSource` with the same range but a different source.
+    pub fn with_source(&self, source: ResolvedVc<Box<dyn Source>>) -> Self {
+        IssueSource {
+            source,
+            range: self.range,
+        }
+    }
+
+    /// If this source implements `GenerateSourceMap`, returns an
+    /// `AdditionalIssueSource` that wraps the source in a `GeneratedCodeSource`
+    /// (stripping source-map support) so the generated code is shown alongside
+    /// the original in error messages. Returns `None` otherwise.
+    pub async fn to_generated_code_source(&self) -> Result<Option<AdditionalIssueSource>> {
+        let source = self.source_ref();
+        if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).is_some() {
+            let description = source.description().await?;
+            let generated = Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*source))
+                .to_resolved()
+                .await?;
+            let unmapped_source = self.with_source(generated);
+            return Ok(Some(AdditionalIssueSource {
+                description: format!("Generated code of {}", description).into(),
+                source: unmapped_source,
+            }));
+        }
+        Ok(None)
+    }
 }
 
 impl IssueSource {
@@ -700,6 +743,26 @@ pub struct OptionIssueSource(Option<IssueSource>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
+
+/// A labeled issue source used to provide additional context in error messages.
+/// For example, when a webpack loader produces broken code, the primary source
+/// shows the original file, while an additional source shows the generated code.
+#[turbo_tasks::value(shared)]
+pub struct AdditionalIssueSource {
+    pub description: RcStr,
+    pub source: IssueSource,
+}
+
+#[turbo_tasks::value(shared, transparent)]
+pub struct AdditionalIssueSources(Vec<AdditionalIssueSource>);
+
+#[turbo_tasks::value_impl]
+impl AdditionalIssueSources {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
 
 // A structured reference to a file with module level details for displaying in an import trace
 #[derive(
@@ -880,7 +943,15 @@ pub struct PlainIssue {
     pub documentation_link: RcStr,
 
     pub source: Option<PlainIssueSource>,
+    pub additional_sources: Vec<PlainAdditionalIssueSource>,
     pub import_traces: Vec<PlainTrace>,
+}
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Clone, Debug, PartialOrd, Ord)]
+pub struct PlainAdditionalIssueSource {
+    pub description: RcStr,
+    pub source: PlainIssueSource,
 }
 
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
@@ -958,6 +1029,17 @@ impl PlainIssue {
                     None
                 }
             },
+            additional_sources: {
+                let sources = issue.additional_sources().await?;
+                let mut result = Vec::new();
+                for s in sources.iter() {
+                    result.push(PlainAdditionalIssueSource {
+                        description: s.description.clone(),
+                        source: s.source.into_plain().await?,
+                    });
+                }
+                result
+            },
             import_traces: match import_tracer {
                 Some(tracer) => {
                     into_plain_trace(
@@ -985,6 +1067,7 @@ pub struct PlainIssueSource {
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
     pub ident: ReadRef<RcStr>,
+    pub file_path: ReadRef<RcStr>,
     #[turbo_tasks(debug_ignore)]
     pub content: ReadRef<FileContent>,
 }
@@ -1001,6 +1084,7 @@ impl PlainSource {
 
         Ok(PlainSource {
             ident: asset.ident().to_string().await?,
+            file_path: asset.ident().path().to_string().await?,
             content,
         }
         .cell())
@@ -1089,7 +1173,7 @@ pub async fn handle_issues<T: Send>(
             message += &format!(" ({operation})");
         };
 
-        bail!(message)
+        Err(anyhow!(message))
     } else {
         Ok(())
     }

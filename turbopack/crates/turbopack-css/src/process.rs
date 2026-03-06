@@ -23,8 +23,8 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType},
     environment::Environment,
     issue::{
-        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-        StyledString,
+        AdditionalIssueSources, Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
     },
     reference::ModuleReferences,
     reference_type::ImportContext,
@@ -745,6 +745,14 @@ impl Issue for ParsingIssue {
         Ok(Vc::cell(Some(
             StyledString::Text(self.msg.clone()).resolved_cell(),
         )))
+    }
+
+    #[turbo_tasks::function]
+    async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
+        if let Some(source) = self.source.to_generated_code_source().await? {
+            return Ok(Vc::cell(vec![source]));
+        }
+        Ok(AdditionalIssueSources::empty())
     }
 }
 

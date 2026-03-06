@@ -219,11 +219,18 @@ pub struct NapiIssue {
     pub description: Option<serde_json::Value>,
     pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
+    pub additional_sources: Vec<NapiAdditionalIssueSource>,
     pub documentation_link: String,
     pub import_traces: serde_json::Value,
     /// Pre-rendered code frame for the issue's source location, if available.
     /// Rendered in Rust to avoid transferring full source file content to JS.
     pub code_frame: Option<String>,
+}
+
+#[napi(object)]
+pub struct NapiAdditionalIssueSource {
+    pub description: String,
+    pub source: NapiIssueSource,
 }
 
 impl From<&PlainIssue> for NapiIssue {
@@ -242,6 +249,14 @@ impl From<&PlainIssue> for NapiIssue {
             documentation_link: issue.documentation_link.to_string(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_ref().map(|source| source.into()),
+            additional_sources: issue
+                .additional_sources
+                .iter()
+                .map(|s| NapiAdditionalIssueSource {
+                    description: s.description.to_string(),
+                    source: (&s.source).into(),
+                })
+                .collect(),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
             import_traces: serde_json::to_value(&issue.import_traces).unwrap(),
             code_frame: render_issue_code_frame(issue).unwrap_or_default(),
@@ -323,12 +338,22 @@ impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
 #[napi(object)]
 pub struct NapiSource {
     pub ident: String,
+    pub file_path: String,
+    pub content: Option<String>,
 }
 
 impl From<&PlainSource> for NapiSource {
     fn from(source: &PlainSource) -> Self {
         Self {
             ident: source.ident.to_string(),
+            file_path: source.file_path.to_string(),
+            content: match &*source.content {
+                FileContent::Content(content) => match content.content().to_str() {
+                    Ok(str) => Some(str.into_owned()),
+                    Err(_) => None,
+                },
+                FileContent::NotFound => None,
+            },
         }
     }
 }

@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -40,6 +40,11 @@ impl DataUriSource {
 
 #[turbo_tasks::value_impl]
 impl Source for DataUriSource {
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!("data URI content"))
+    }
+
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let content_type = self.media_type.split(";").next().unwrap().into();

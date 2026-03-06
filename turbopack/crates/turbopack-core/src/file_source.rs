@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPath, LinkContent};
@@ -56,6 +56,11 @@ impl Source for FileSource {
         }
         ident
     }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(format!("file content of {}", self.path).into())
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -70,7 +75,7 @@ impl Asset for FileSource {
                     link_type: *link_type,
                 }
                 .cell()),
-                _ => bail!("Invalid symlink"),
+                _ => Err(anyhow::anyhow!("Invalid symlink")),
             },
             FileSystemEntryType::File => {
                 Ok(AssetContent::File(self.path.read().to_resolved().await?).cell())
@@ -78,7 +83,7 @@ impl Asset for FileSource {
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
-            _ => bail!("Invalid file type {:?}", file_type),
+            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }
     }
 }

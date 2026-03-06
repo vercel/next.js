@@ -1,0 +1,6 @@
+/* This file will be processed by broken-css-loader */
+/* The loader will return invalid CSS with a source map */
+.page {
+  color: blue;
+  font-size: 16px;
+}

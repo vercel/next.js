@@ -519,6 +519,7 @@ export interface NapiIssue {
   description?: any
   detail?: any
   source?: NapiIssueSource
+  additionalSources: Array<NapiAdditionalIssueSource>
   documentationLink: string
   importTraces: any
   /**
@@ -526,6 +527,10 @@ export interface NapiIssue {
    * Rendered in Rust to avoid transferring full source file content to JS.
    */
   codeFrame?: string
+}
+export interface NapiAdditionalIssueSource {
+  description: string
+  source: NapiIssueSource
 }
 export interface NapiIssueSource {
   source: NapiSource
@@ -537,6 +542,8 @@ export interface NapiIssueSourceRange {
 }
 export interface NapiSource {
   ident: string
+  filePath: string
+  content?: string
 }
 export interface NapiSourcePos {
   line: number

@@ -175,6 +175,12 @@ impl Source for PostCssTransformedAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(format!("PostCSS transform of {}", inner).into()))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -285,6 +291,11 @@ impl JsonSource {
 #[turbo_tasks::value_impl]
 impl Source for JsonSource {
     #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(format!("JSON content of {}", self.path).into())
+    }
+
+    #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         match &*self.key.await? {
             Some(key) => Ok(AssetIdent::from_path(
@@ -323,7 +334,7 @@ impl Asset for JsonSource {
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
-            _ => bail!("Invalid file type {:?}", file_type),
+            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }
     }
 }

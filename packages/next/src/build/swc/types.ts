@@ -112,6 +112,33 @@ export type StyledString =
       value: StyledString[]
     }
 
+export interface IssueSource {
+  source: {
+    ident: string
+    filePath: string
+    content?: string
+  }
+  range?: {
+    start: {
+      // 0-indexed
+      line: number
+      // 0-indexed
+      column: number
+    }
+    end: {
+      // 0-indexed
+      line: number
+      // 0-indexed
+      column: number
+    }
+  }
+}
+
+export interface AdditionalIssueSource {
+  description: string
+  source: IssueSource
+}
+
 export interface Issue {
   severity: string
   stage: string
@@ -119,25 +146,8 @@ export interface Issue {
   title: StyledString
   description?: StyledString
   detail?: StyledString
-  source?: {
-    source: {
-      ident: string
-    }
-    range?: {
-      start: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-      end: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-    }
-  }
+  source?: IssueSource
+  additionalSources?: AdditionalIssueSource[]
   documentationLink: string
   importTraces?: PlainTraceItem[][]
   /** Pre-rendered code frame from the Rust NAPI layer */
