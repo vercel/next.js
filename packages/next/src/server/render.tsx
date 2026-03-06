@@ -112,10 +112,14 @@ import {
   appendAcceptVaryHeader,
 } from './markdown/accepts-markdown'
 import {
+  getMarkdownRouteConfig,
+  loadMarkdownRootComponents,
+  type MarkdownRouteConfig,
+} from './markdown/config'
+import {
   markReactNode,
-  type MarkdownComponents,
   type MarkdownSegmentDefinition,
-  renderHtmlToMarkdown,
+  renderReactToMarkdown,
 } from './markdown/runtime'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
@@ -139,16 +143,6 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   postProcessHTML = async (html: string) => html
 }
 
-function loadMarkdownRootComponents(): MarkdownComponents {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    return {}
-  }
-
-  return (
-    require('../lib/require-markdown-components') as typeof import('../lib/require-markdown-components')
-  ).requireMarkdownComponents()
-}
-
 function noRouter() {
   const message =
     'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
@@ -161,33 +155,90 @@ async function renderToString(element: React.ReactElement) {
   return streamToString(renderStream)
 }
 
-function normalizeMarkdownRouteConfig(markdown: unknown): {
-  enabled: boolean
-  components: MarkdownComponents
-} {
-  if (markdown === true) {
-    return {
-      enabled: true,
-      components: {},
-    }
+type PagesMarkdownRouteConfig = MarkdownRouteConfig<
+  NonNullable<PagesModule['generateMarkdown']>
+>
+
+async function renderPageToMarkdown({
+  App,
+  Component,
+  props,
+  query,
+  router,
+  metadata,
+  res,
+  routeConfig,
+}: {
+  App: AppType
+  Component: NextComponentType<any, any, any>
+  props: Record<string, any>
+  query: NextParsedUrlQuery
+  router: NextRouter
+  metadata: PagesRenderResultMetadata
+  res: ServerResponse
+  routeConfig: PagesMarkdownRouteConfig
+}): Promise<RenderResult> {
+  const render = routeConfig.render
+  const pageDefinition: MarkdownSegmentDefinition = {
+    id: 'page',
+    props: {},
+    components: routeConfig.components,
+    render: render
+      ? async (pageProps, { content }) =>
+          render(
+            {
+              props: pageProps,
+              query,
+            },
+            {
+              content,
+            }
+          )
+      : undefined,
   }
 
-  if (markdown && typeof markdown === 'object') {
-    return {
-      enabled: true,
-      components:
-        'components' in markdown &&
-        markdown.components &&
-        typeof markdown.components === 'object'
-          ? (markdown.components as MarkdownComponents)
-          : {},
-    }
+  const markdownSegmentByComponent = new Map([
+    [
+      Component,
+      {
+        id: pageDefinition.id,
+        registerProps(componentProps: any) {
+          pageDefinition.props = componentProps
+        },
+      },
+    ],
+  ])
+
+  const MarkdownPageComponent = function NextMarkdownPageComponent(
+    pageProps: Record<string, any>
+  ) {
+    return markReactNode(React.createElement(Component, pageProps), {
+      segmentByComponent: markdownSegmentByComponent,
+    }) as React.ReactElement
   }
 
-  return {
-    enabled: false,
-    components: {},
-  }
+  MarkdownPageComponent.displayName = `NextMarkdownPage(${getDisplayName(
+    Component
+  )})`
+
+  const pageContent = renderPageTree(App, MarkdownPageComponent, {
+    ...props,
+    router,
+  })
+
+  const markdown = await renderReactToMarkdown(pageContent, {
+    rootComponents: loadMarkdownRootComponents(),
+    segments: new Map([[pageDefinition.id, pageDefinition]]),
+  })
+
+  metadata.headers ??= {}
+  metadata.headers['Content-Type'] = MARKDOWN_CONTENT_TYPE_HEADER
+  metadata.statusCode = res.statusCode
+
+  return new RenderResult(markdown, {
+    metadata,
+    contentType: MARKDOWN_CONTENT_TYPE_HEADER,
+  })
 }
 
 class ServerRouter implements NextRouter {
@@ -1284,18 +1335,14 @@ export async function renderToHTMLImpl(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return RenderResult.EMPTY
 
-  const markdownConfig = normalizeMarkdownRouteConfig(
-    (renderOpts.ComponentMod as any).markdown
-  )
-  const generateMarkdown =
-    typeof (renderOpts.ComponentMod as any).generateMarkdown === 'function'
-      ? (renderOpts.ComponentMod as any).generateMarkdown
-      : undefined
+  const markdownRoute = getMarkdownRouteConfig<
+    NonNullable<PagesModule['generateMarkdown']>
+  >(renderOpts.ComponentMod as any)
   const supportsMarkdownResponse =
     renderOpts.experimental.markdown === true &&
     process.env.NEXT_RUNTIME !== 'edge' &&
     (req.method === 'GET' || req.method === 'HEAD') &&
-    (markdownConfig.enabled || generateMarkdown)
+    markdownRoute.enabled
   const acceptsMarkdownRequest = acceptsMarkdown(req.headers.accept)
   const wantsMarkdown = supportsMarkdownResponse && acceptsMarkdownRequest
 
@@ -1307,66 +1354,15 @@ export async function renderToHTMLImpl(
   }
 
   if (wantsMarkdown) {
-    const pageDefinition: MarkdownSegmentDefinition = {
-      id: 'page',
-      props: {},
-      components: markdownConfig.components,
-      render: generateMarkdown
-        ? async (pageProps, { content }) =>
-            generateMarkdown(
-              {
-                props: pageProps,
-                query,
-              },
-              {
-                content,
-              }
-            )
-        : undefined,
-    }
-
-    const markdownSegmentByComponent = new Map([
-      [
-        Component,
-        {
-          id: pageDefinition.id,
-          registerProps(componentProps: any) {
-            pageDefinition.props = componentProps
-          },
-        },
-      ],
-    ])
-
-    const MarkdownPageComponent = function NextMarkdownPageComponent(
-      pageProps: Record<string, any>
-    ) {
-      return markReactNode(React.createElement(Component, pageProps), {
-        segmentByComponent: markdownSegmentByComponent,
-      }) as React.ReactElement
-    }
-
-    MarkdownPageComponent.displayName = `NextMarkdownPage(${getDisplayName(
-      Component
-    )})`
-
-    const pageContent = renderPageTree(App, MarkdownPageComponent, {
-      ...props,
+    return renderPageToMarkdown({
+      App,
+      Component,
+      props,
+      query,
       router,
-    })
-
-    const html = await renderToString(pageContent as React.ReactElement)
-    const markdown = await renderHtmlToMarkdown(html, {
-      rootComponents: loadMarkdownRootComponents(),
-      segments: new Map([[pageDefinition.id, pageDefinition]]),
-    })
-
-    metadata.headers ??= {}
-    metadata.headers['Content-Type'] = MARKDOWN_CONTENT_TYPE_HEADER
-    metadata.statusCode = res.statusCode
-
-    return new RenderResult(markdown, {
       metadata,
-      contentType: MARKDOWN_CONTENT_TYPE_HEADER,
+      res,
+      routeConfig: markdownRoute,
     })
   }
 

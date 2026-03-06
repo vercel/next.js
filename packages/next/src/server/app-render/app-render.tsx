@@ -259,20 +259,14 @@ import {
   appendAcceptVaryHeader,
 } from '../markdown/accepts-markdown'
 import {
+  getMarkdownRouteConfig,
+  loadMarkdownRootComponents,
+} from '../markdown/config'
+import {
   type MarkdownComponents,
-  renderHtmlToMarkdown,
+  renderReactToMarkdown,
   type MarkdownSegmentDefinition,
 } from '../markdown/runtime'
-
-function loadMarkdownRootComponents(): MarkdownComponents {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    return {}
-  }
-
-  return (
-    require('../../lib/require-markdown-components') as typeof import('../../lib/require-markdown-components')
-  ).requireMarkdownComponents()
-}
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -1656,21 +1650,17 @@ async function collectAppMarkdownSegments(
     (isLayout || isPage) &&
     (modType === 'layout' || modType === 'page')
   ) {
-    const markdown = normalizeMarkdownRouteConfig(
-      (layoutOrPageMod as any).markdown
-    )
-    const generateMarkdown =
-      typeof (layoutOrPageMod as any).generateMarkdown === 'function'
-        ? (layoutOrPageMod as any).generateMarkdown
-        : undefined
+    const markdownRoute = getMarkdownRouteConfig<
+      NonNullable<MarkdownSegmentDefinition['render']>
+    >(layoutOrPageMod as any)
 
-    if (markdown.enabled || generateMarkdown) {
+    if (markdownRoute.enabled) {
       const id = `segment-${segments.size}`
       const definition: MarkdownSegmentDefinition = {
         id,
         props: {},
-        components: markdown.components,
-        render: generateMarkdown,
+        components: markdownRoute.components,
+        render: markdownRoute.render,
       }
 
       segments.set(id, definition)
@@ -1737,24 +1727,18 @@ async function withAppMarkdownSegmentContext<T>(
   }
 }
 
-function applyMarkdownVaryHeader(
-  ctx: AppRenderContext,
-  metadata: AppPageRenderResultMetadata
-) {
+function applyMarkdownVaryHeader(metadata: AppPageRenderResultMetadata) {
   metadata.headers ??= {}
-  metadata.headers.vary = appendAcceptVaryHeader(
-    ctx.res.getHeader('vary') ?? metadata.headers.vary
-  )
+  metadata.headers.vary = appendAcceptVaryHeader(metadata.headers.vary)
 }
 
 function createMarkdownRenderResult(
-  ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
   markdown: string
 ): RenderResult {
   metadata.headers ??= {}
   metadata.headers['Content-Type'] = MARKDOWN_CONTENT_TYPE_HEADER
-  applyMarkdownVaryHeader(ctx, metadata)
+  applyMarkdownVaryHeader(metadata)
 
   return new RenderResult(markdown, {
     metadata,
@@ -1762,78 +1746,112 @@ function createMarkdownRenderResult(
   })
 }
 
+async function finalizeAppMarkdownResponse(
+  markdownContext: AppMarkdownRenderContext | null,
+  wantsMarkdown: boolean,
+  requestStore: RequestStore,
+  req: BaseNextRequest,
+  ctx: AppRenderContext,
+  tree: LoaderTree,
+  metadata: AppPageRenderResultMetadata
+): Promise<RenderResult | null> {
+  if (markdownContext && wantsMarkdown) {
+    const markdown = await renderAppRouteToMarkdown(
+      markdownContext,
+      requestStore,
+      req,
+      ctx,
+      tree
+    )
+
+    return createMarkdownRenderResult(metadata, markdown)
+  }
+
+  if (markdownContext) {
+    applyMarkdownVaryHeader(metadata)
+  }
+
+  return null
+}
+
 async function renderAppRouteToMarkdown(
   markdownContext: AppMarkdownRenderContext,
   requestStore: RequestStore,
   req: BaseNextRequest,
-  res: BaseNextResponse,
   ctx: AppRenderContext,
-  tree: LoaderTree,
-  formState: any,
-  postponedState: PostponedState | null,
-  metadata: AppPageRenderResultMetadata,
-  devFallbackParams: OpaqueFallbackRouteParams | null
+  tree: LoaderTree
 ): Promise<string> {
-  const previousShouldWaitOnAllReady = ctx.renderOpts.shouldWaitOnAllReady
-  ctx.renderOpts.shouldWaitOnAllReady = true
+  const { clientModules } = getClientReferenceManifest()
+  const { onInstrumentationRequestError, isBuildTimePrerendering = false } =
+    ctx.renderOpts
+  const { reactServerErrorsByDigest } = ctx.workStore
 
-  try {
-    const htmlStream = await withAppMarkdownSegmentContext(
-      ctx,
-      markdownContext.segmentByComponent,
-      () =>
-        renderToStream(
-          requestStore,
-          req,
-          res,
-          ctx,
-          tree,
-          formState,
-          postponedState,
-          metadata,
-          undefined,
-          devFallbackParams
-        )
+  function onMarkdownRenderRSCError(err: DigestedError, silenceLog: boolean) {
+    return onInstrumentationRequestError?.(
+      err,
+      req,
+      createErrorContext(ctx, 'react-server-components'),
+      silenceLog
     )
-
-    return renderHtmlToMarkdown(await streamToString(htmlStream), {
-      rootComponents: markdownContext.rootComponents,
-      segments: markdownContext.segments,
-    })
-  } finally {
-    ctx.renderOpts.shouldWaitOnAllReady = previousShouldWaitOnAllReady
   }
-}
 
-function normalizeMarkdownRouteConfig(markdown: unknown): {
-  enabled: boolean
-  components: MarkdownComponents
-} {
-  if (markdown === true) {
-    return {
-      enabled: true,
-      components: {},
+  const serverComponentsErrorHandler = createReactServerErrorHandler(
+    process.env.NODE_ENV === 'development',
+    isBuildTimePrerendering,
+    reactServerErrorsByDigest,
+    onMarkdownRenderRSCError
+  )
+
+  const initialPayload = await withAppMarkdownSegmentContext(
+    ctx,
+    markdownContext.segmentByComponent,
+    async () => {
+      const payload = await workUnitAsyncStorage.run(
+        requestStore,
+        getRSCPayload,
+        tree,
+        ctx,
+        { is404: ctx.res.statusCode === 404 }
+      )
+
+      const flightStream = workUnitAsyncStorage.run(
+        requestStore,
+        renderToFlightStream,
+        ctx.componentMod,
+        payload,
+        clientModules,
+        {
+          filterStackFrame,
+          onError: serverComponentsErrorHandler,
+        }
+      )
+
+      return workUnitAsyncStorage.run(
+        requestStore,
+        getFlightStream<InitialRSCPayload>,
+        flightStream,
+        undefined,
+        undefined,
+        ctx.nonce
+      )
     }
+  )
+
+  const initialPath = initialPayload.f[0]
+  const seedData =
+    Array.isArray(initialPath) && initialPath.length > 1 ? initialPath[1] : null
+
+  if (!seedData) {
+    throw new InvariantError(
+      'Expected InitialRSCPayload to include seed data for markdown rendering.'
+    )
   }
 
-  if (markdown && typeof markdown === 'object') {
-    return {
-      enabled: true,
-      components:
-        'components' in markdown &&
-        markdown.components &&
-        typeof markdown.components === 'object'
-          ? (markdown.components as MarkdownComponents)
-          : {},
-    }
-  }
-
-  return {
-    enabled: false,
-    components: {},
-  }
+  return renderReactToMarkdown(seedData[0], {
+    rootComponents: markdownContext.rootComponents,
+    segments: markdownContext.segments,
+  })
 }
-
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
 async function getRSCPayload(
   tree: LoaderTree,
@@ -2506,9 +2524,19 @@ async function renderToHTMLOrFlightImpl(
     !parsedRequestHeaders.isRouteTreePrefetchRequest &&
     !parsedRequestHeaders.isHmrRefresh
   const wantsMarkdown = canNegotiateMarkdown && acceptsMarkdownRequest
-  const markdownContextPromise = canNegotiateMarkdown
-    ? getAppMarkdownRenderContext(loaderTree)
-    : Promise.resolve(null)
+  let markdownContextPromise:
+    | Promise<AppMarkdownRenderContext | null>
+    | undefined
+  const getMarkdownContext = () => {
+    if (!canNegotiateMarkdown) {
+      return Promise.resolve(null)
+    }
+
+    markdownContextPromise ??= getAppMarkdownRenderContext(loaderTree)
+    return markdownContextPromise
+  }
+  const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
+  const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
 
   if (isStaticGeneration) {
     // We're either building or revalidating. In either case we need to
@@ -2524,41 +2552,15 @@ async function renderToHTMLOrFlightImpl(
       prerenderToStream
     )
 
-    const markdownContext = await markdownContextPromise
-    const previousShouldWaitOnAllReady = ctx.renderOpts.shouldWaitOnAllReady
-    if (markdownContext) {
-      ctx.renderOpts.shouldWaitOnAllReady = true
-    }
-
-    let response: PrerenderToStreamResult
-    try {
-      response = markdownContext
-        ? await withAppMarkdownSegmentContext(
-            ctx,
-            markdownContext.segmentByComponent,
-            () =>
-              prerenderToStreamWithTracing(
-                req,
-                res,
-                ctx,
-                metadata,
-                loaderTree,
-                fallbackRouteParams
-              )
-          )
-        : await prerenderToStreamWithTracing(
-            req,
-            res,
-            ctx,
-            metadata,
-            loaderTree,
-            fallbackRouteParams
-          )
-    } finally {
-      if (markdownContext) {
-        ctx.renderOpts.shouldWaitOnAllReady = previousShouldWaitOnAllReady
-      }
-    }
+    const markdownContext = await getMarkdownContext()
+    const response = await prerenderToStreamWithTracing(
+      req,
+      res,
+      ctx,
+      metadata,
+      loaderTree,
+      fallbackRouteParams
+    )
 
     // If we're debugging partial prerendering, print all the dynamic API accesses
     // that occurred during the render.
@@ -2618,19 +2620,38 @@ async function renderToHTMLOrFlightImpl(
       metadata.renderResumeDataCache = response.renderResumeDataCache
     }
 
-    const streamString = await streamToString(response.stream)
-    if (markdownContext && wantsMarkdown) {
-      const markdown = await renderHtmlToMarkdown(streamString, {
-        rootComponents: markdownContext.rootComponents,
-        segments: markdownContext.segments,
-      })
-
-      return createMarkdownRenderResult(ctx, metadata, markdown)
-    }
-
     if (markdownContext) {
-      applyMarkdownVaryHeader(ctx, metadata)
+      const requestStore = createRequestStoreForRender(
+        req,
+        res,
+        url,
+        rootParams,
+        implicitTags,
+        renderOpts.onUpdateCookies,
+        renderOpts.previewProps,
+        isHmrRefresh,
+        serverComponentsHmrCache,
+        response.renderResumeDataCache ??
+          renderOpts.renderResumeDataCache ??
+          null,
+        fallbackParams
+      )
+      const markdownResult = await finalizeAppMarkdownResponse(
+        markdownContext,
+        wantsMarkdown,
+        requestStore,
+        req,
+        ctx,
+        loaderTree,
+        metadata
+      )
+
+      if (markdownResult) {
+        return markdownResult
+      }
     }
+
+    const streamString = await streamToString(response.stream)
 
     return new RenderResult(streamString, options)
   } else {
@@ -2639,9 +2660,6 @@ async function renderToHTMLOrFlightImpl(
       renderOpts.renderResumeDataCache ??
       postponedState?.renderResumeDataCache ??
       null
-
-    const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
-    const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
 
     const createRequestStore = createRequestStoreForRender.bind(
       null,
@@ -2754,28 +2772,21 @@ async function renderToHTMLOrFlightImpl(
 
     const markdownContext =
       !didExecuteServerAction && canNegotiateMarkdown
-        ? await markdownContextPromise
+        ? await getMarkdownContext()
         : null
 
-    if (markdownContext && wantsMarkdown) {
-      const markdown = await renderAppRouteToMarkdown(
-        markdownContext,
-        requestStore,
-        req,
-        res,
-        ctx,
-        loaderTree,
-        formState,
-        postponedState,
-        metadata,
-        fallbackParams
-      )
+    const markdownResult = await finalizeAppMarkdownResponse(
+      markdownContext,
+      wantsMarkdown,
+      requestStore,
+      req,
+      ctx,
+      loaderTree,
+      metadata
+    )
 
-      return createMarkdownRenderResult(ctx, metadata, markdown)
-    }
-
-    if (markdownContext) {
-      applyMarkdownVaryHeader(ctx, metadata)
+    if (markdownResult) {
+      return markdownResult
     }
 
     const options: RenderResultOptions = {

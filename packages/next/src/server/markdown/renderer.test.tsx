@@ -1,22 +1,29 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- Test fixtures use concise JSX trees to exercise React-to-Markdown instrumentation. */
 import React from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 
 import {
+  MARKDOWN_SEGMENT_MARKER_TAG,
   markReactNode,
-  renderHtmlToMarkdown,
+  renderReactToMarkdown,
   type MarkdownSegmentDefinition,
 } from '../../../../next-markdown/src'
 
 describe('markdown renderer', () => {
   it('serializes basic markdown blocks', async () => {
-    const markdown = await renderHtmlToMarkdown(
-      [
-        '<h1>Hello</h1>',
-        '<p><strong>World</strong> <a href="/docs">docs</a></p>',
-        '<pre><code class="language-ts">const value = 1</code></pre>',
-        '<ul><li>One</li><li>Two</li></ul>',
-      ].join('')
+    const markdown = await renderReactToMarkdown(
+      <>
+        <h1>Hello</h1>
+        <p>
+          <strong>World</strong> <a href="/docs">docs</a>
+        </p>
+        <pre>
+          <code className="language-ts">const value = 1</code>
+        </pre>
+        <ul>
+          <li>One</li>
+          <li>Two</li>
+        </ul>
+      </>
     )
 
     expect(markdown).toBe(
@@ -24,21 +31,44 @@ describe('markdown renderer', () => {
     )
   })
 
-  it('normalizes full-document html before serializing markdown', async () => {
-    const markdown = await renderHtmlToMarkdown(
-      '<!DOCTYPE html><html><body><h1>Hello</h1><p>World</p></body></html>'
+  it('serializes dangerouslySetInnerHTML without requiring a top-level html render', async () => {
+    const markdown = await renderReactToMarkdown(
+      <div
+        dangerouslySetInnerHTML={{
+          __html: '<h1>Hello</h1><p>World</p>',
+        }}
+      />
     )
 
     expect(markdown).toBe('# Hello\n\nWorld')
   })
 
   it('serializes images, tables, and nested lists', async () => {
-    const markdown = await renderHtmlToMarkdown(
-      [
-        '<img src="/logo.png" alt="Logo" />',
-        '<table><tr><th>Name</th><th>Value</th></tr><tr><td>A</td><td>1</td></tr></table>',
-        '<ul><li>One<ul><li>Nested</li></ul></li><li>Two</li></ul>',
-      ].join('')
+    const markdown = await renderReactToMarkdown(
+      <>
+        <img src="/logo.png" alt="Logo" />
+        <table>
+          <tbody>
+            <tr>
+              <th>Name</th>
+              <th>Value</th>
+            </tr>
+            <tr>
+              <td>A</td>
+              <td>1</td>
+            </tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>
+            One
+            <ul>
+              <li>Nested</li>
+            </ul>
+          </li>
+          <li>Two</li>
+        </ul>
+      </>
     )
 
     expect(markdown).toBe(
@@ -54,11 +84,9 @@ describe('markdown renderer', () => {
       </div>
     )
 
-    const html = renderToStaticMarkup(
-      markReactNode(<Interactive />) as React.ReactElement
-    )
-    const withoutOverride = await renderHtmlToMarkdown(html)
-    const withOverride = await renderHtmlToMarkdown(html, {
+    const marked = markReactNode(<Interactive />) as React.ReactElement
+    const withoutOverride = await renderReactToMarkdown(marked)
+    const withOverride = await renderReactToMarkdown(marked, {
       rootComponents: {
         div({ attributes, children, renderDefault }) {
           if (attributes['data-react-markdown-interactive'] === 'true') {
@@ -82,20 +110,19 @@ describe('markdown renderer', () => {
       return <button>Download</button>
     }
 
-    const html = renderToStaticMarkup(
-      markReactNode(<FancyButton />) as React.ReactElement
+    const markdown = await renderReactToMarkdown(
+      markReactNode(<FancyButton />),
+      {
+        rootComponents: {
+          button() {
+            return 'tag override'
+          },
+          FancyButton() {
+            return 'component override'
+          },
+        },
+      }
     )
-
-    const markdown = await renderHtmlToMarkdown(html, {
-      rootComponents: {
-        button() {
-          return 'tag override'
-        },
-        FancyButton() {
-          return 'component override'
-        },
-      },
-    })
 
     expect(markdown).toBe('component override')
   })
@@ -110,32 +137,34 @@ describe('markdown renderer', () => {
       return <p>Memo note</p>
     })
 
-    const html = renderToStaticMarkup(
+    const markdown = await renderReactToMarkdown(
       markReactNode(
         <>
           <FancyAction />
           <MemoNote />
         </>
-      ) as React.ReactElement
+      ),
+      {
+        rootComponents: {
+          FancyAction() {
+            return 'forward-ref override'
+          },
+          MemoNote() {
+            return 'memo override'
+          },
+        },
+      }
     )
-
-    const markdown = await renderHtmlToMarkdown(html, {
-      rootComponents: {
-        FancyAction() {
-          return 'forward-ref override'
-        },
-        MemoNote() {
-          return 'memo override'
-        },
-      },
-    })
 
     expect(markdown).toBe('forward-ref override\n\nmemo override')
   })
 
   it('allows overrides to omit output by returning null', async () => {
-    const markdown = await renderHtmlToMarkdown(
-      '<p>Keep me?</p><img src="/x.png" alt="X" />',
+    const markdown = await renderReactToMarkdown(
+      <>
+        <p>Keep me?</p>
+        <img src="/x.png" alt="X" />
+      </>,
       {
         rootComponents: {
           p() {
@@ -149,8 +178,10 @@ describe('markdown renderer', () => {
   })
 
   it('preserves inline spacing and formatting for paragraph overrides', async () => {
-    const markdown = await renderHtmlToMarkdown(
-      '<p>Hello <strong>wide</strong> world</p>',
+    const markdown = await renderReactToMarkdown(
+      <p>
+        Hello <strong>wide</strong> world
+      </p>,
       {
         rootComponents: {
           p({ children }) {
@@ -197,16 +228,18 @@ describe('markdown renderer', () => {
       ],
     ])
 
-    const markdown = await renderHtmlToMarkdown(
-      [
-        '<react-markdown-segment-marker data-segment-id="layout">',
-        '<section>',
-        '<react-markdown-segment-marker data-segment-id="page">',
-        '<p>Hello</p>',
-        '</react-markdown-segment-marker>',
-        '</section>',
-        '</react-markdown-segment-marker>',
-      ].join(''),
+    const markdown = await renderReactToMarkdown(
+      React.createElement(
+        MARKDOWN_SEGMENT_MARKER_TAG,
+        { 'data-segment-id': 'layout' },
+        <section>
+          {React.createElement(
+            MARKDOWN_SEGMENT_MARKER_TAG,
+            { 'data-segment-id': 'page' },
+            <p>Hello</p>
+          )}
+        </section>
+      ),
       {
         rootComponents: {
           p({ children }) {
@@ -220,14 +253,14 @@ describe('markdown renderer', () => {
     expect(markdown).toBe('layout-start\npage:Hello\nlayout-end')
   })
 
-  it('registers segment props while instrumenting components', () => {
+  it('registers segment props while instrumenting components', async () => {
     const captured: Array<any> = []
 
     function Page(props: { title: string }) {
       return <p>{props.title}</p>
     }
 
-    const html = renderToStaticMarkup(
+    const markdown = await renderReactToMarkdown(
       markReactNode(<Page title="Hello" />, {
         segmentByComponent: new Map([
           [
@@ -244,7 +277,40 @@ describe('markdown renderer', () => {
     )
 
     expect(captured).toEqual([{ title: 'Hello' }])
-    expect(html).toContain('data-segment-id="page"')
+    expect(markdown).toBe('Hello')
+  })
+
+  it('strips internal segment explorer wrappers from markdown instrumentation', async () => {
+    const SegmentViewNode = function SegmentViewNode() {
+      throw new Error('should not be rendered')
+    }
+    const SegmentViewStateNode = function SegmentViewStateNode() {
+      throw new Error('should not be rendered')
+    }
+
+    ;(SegmentViewNode as any).$$typeof = Symbol.for('react.client.reference')
+    ;(SegmentViewNode as any).$$id =
+      '/next-devtools/userspace/app/segment-explorer-node#SegmentViewNode'
+    ;(SegmentViewStateNode as any).$$typeof = Symbol.for(
+      'react.client.reference'
+    )
+    ;(SegmentViewStateNode as any).$$id =
+      '/next-devtools/userspace/app/segment-explorer-node#SegmentViewStateNode'
+
+    const markdown = await renderReactToMarkdown(
+      markReactNode(
+        <>
+          {React.createElement(
+            SegmentViewNode as any,
+            null,
+            <p>Hello from app route</p>
+          )}
+          {React.createElement(SegmentViewStateNode as any)}
+        </>
+      )
+    )
+
+    expect(markdown).toBe('Hello from app route')
   })
 
   it('does not invoke client reference component types while instrumenting', () => {

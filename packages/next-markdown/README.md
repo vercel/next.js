@@ -10,11 +10,10 @@ change without notice.
 
 ## What it does
 
-This package contains the generic React and HTML to Markdown logic used by
-Next.js:
+This package contains the generic React-to-Markdown logic used by Next.js:
 
 - React tree instrumentation for Markdown-specific markers
-- HTML to Markdown serialization
+- direct React tree rendering into an in-memory Markdown tree
 - root and segment-level component overrides
 - default heuristics for omitting interactive controls
 
@@ -26,7 +25,7 @@ Next.js-specific routing, content negotiation, and route export handling live in
 The package currently exposes:
 
 - `markReactNode`
-- `renderHtmlToMarkdown`
+- `renderReactToMarkdown`
 - marker constants
 - Markdown component and segment types
 
@@ -35,4 +34,3 @@ The package currently exposes:
 ```bash
 pnpm --filter @next/markdown build
 ```
-

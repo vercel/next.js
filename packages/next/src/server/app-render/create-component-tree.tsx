@@ -446,7 +446,8 @@ async function createComponentTreeInternal(
       : parentOptionalCatchAllParamName
 
   // Resolve the segment param
-  const isSegmentViewEnabled = !!process.env.__NEXT_DEV_SERVER
+  const isSegmentViewEnabled =
+    !!process.env.__NEXT_DEV_SERVER && !ctx.markdownSegmentByComponent
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -669,13 +670,15 @@ async function createComponentTreeInternal(
   )
 
   // Convert the parallel route map into an object after all promises have been resolved.
+  const isMarkdownRender = !!ctx.markdownSegmentByComponent
   let parallelRouteProps: { [key: string]: React.ReactNode } = {}
   let parallelRouteCacheNodeSeedData: {
     [key: string]: CacheNodeSeedData | null
   } = {}
   for (const parallelRoute of parallelRouteMap) {
     const [parallelRouteKey, parallelRouteProp, flightData] = parallelRoute
-    parallelRouteProps[parallelRouteKey] = parallelRouteProp
+    parallelRouteProps[parallelRouteKey] =
+      isMarkdownRender && flightData ? flightData[0] : parallelRouteProp
     parallelRouteCacheNodeSeedData[parallelRouteKey] = flightData
   }
 
@@ -1234,7 +1237,8 @@ async function createBoundaryConventionElement({
   const {
     componentMod: { createElement, Fragment },
   } = ctx
-  const isSegmentViewEnabled = !!process.env.__NEXT_DEV_SERVER
+  const isSegmentViewEnabled =
+    !!process.env.__NEXT_DEV_SERVER && !ctx.markdownSegmentByComponent
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
