@@ -4,7 +4,7 @@ import {
   ACTION_INSTANT_NAVS_SET_STATUS,
   ACTION_INSTANT_NAVS_RESET,
 } from '../../shared'
-import './instant-nav-panel.css'
+import './instant-navs-panel.css'
 
 export function InstantNavsPanel() {
   const { state, dispatch } = useDevOverlayContext()
