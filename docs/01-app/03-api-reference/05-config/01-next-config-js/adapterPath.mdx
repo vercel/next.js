@@ -1,12 +1,12 @@
 ---
 title: adapterPath
-description: Configure a custom adapter for Next.js to hook into the build process with modifyConfig and onBuildComplete callbacks.
+description: Configure a custom adapter for Next.js to hook into the build process.
 version: experimental
 ---
 
-Next.js provides an experimental API that allows you to create custom adapters to hook into the build process. This is useful for deployment platforms or custom build integrations that need to modify Next.js configuration or process build outputs.
+Next.js provides a built-in adapters API. It allows deployment platforms or build systems to integrate with the Next.js build process.
 
-For a full reference implementation, see [`nextjs/adapter-vercel`](https://github.com/nextjs/adapter-vercel).
+For a full reference implementation, see the [`nextjs/adapter-vercel`](https://github.com/nextjs/adapter-vercel) adapter.
 
 ## Configuration
 
@@ -23,9 +23,19 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+Alternatively `NEXT_ADAPTER_PATH` can be set to enable zero-config usage in deployment platforms.
+
 ## Creating an Adapter
 
-An adapter is a module that exports an object implementing the `NextAdapter` interface:
+An adapter is a module that exports an object implementing the `NextAdapter` interface.
+
+The interface can be imported from the `next` package:
+
+```typescript
+import type { NextAdapter } from 'next'
+```
+
+The interface is defined as follows:
 
 ```typescript
 type Route = {
@@ -55,6 +65,7 @@ export interface NextAdapter {
     config: NextConfigComplete,
     ctx: {
       phase: PHASE_TYPE
+      nextVersion: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
@@ -138,24 +149,25 @@ module.exports = adapter
 
 ## API Reference
 
-### `modifyConfig(config, context)`
+### `async modifyConfig(config, context)`
 
-Called for any CLI command that loads the next.config to allow modification of the configuration.
+Called for any CLI command that loads the `next.config.js` file to allow modification of the configuration.
 
 **Parameters:**
 
 - `config`: The complete Next.js configuration object
 - `context.phase`: The current build phase (see [phases](/docs/app/api-reference/config/next-config-js#phase))
+- `context.nextVersion`: Version of Next.js being used
 
 **Returns:** The modified configuration object (can be async)
 
-### `onBuildComplete(context)`
+### `async onBuildComplete(context)`
 
 Called after the build process completes with detailed information about routes and outputs.
 
 **Parameters:**
 
-- `routing`: Object containing Next.js routing phases and metadata
+- `context.routing`: Object containing Next.js routing phases and metadata
   - `routing.beforeMiddleware`: Routes executed before middleware (includes header and redirect handling)
   - `routing.beforeFiles`: Rewrite routes checked before filesystem route matching
   - `routing.afterFiles`: Rewrite routes checked after filesystem route matching
@@ -164,13 +176,13 @@ Called after the build process completes with detailed information about routes 
   - `routing.fallback`: Final rewrite fallback routes
   - `routing.shouldNormalizeNextData`: Whether `/_next/data/<buildId>/...` URLs should be normalized during matching
   - `routing.rsc`: Route metadata used for React Server Components routing behavior
-- `outputs`: Detailed information about all build outputs organized by type
-- `projectDir`: Absolute path to the Next.js project directory
-- `repoRoot`: Absolute path to the detected repository root
-- `distDir`: Absolute path to the build output directory
-- `config`: The final Next.js configuration (with `modifyConfig` applied)
-- `nextVersion`: Version of Next.js being used
-- `buildId`: Unique identifier for the current build
+- `context.outputs`: Detailed information about all build outputs organized by type
+- `context.projectDir`: Absolute path to the Next.js project directory
+- `context.repoRoot`: Absolute path to the detected repository root
+- `context.distDir`: Absolute path to the build output directory
+- `context.config`: The final Next.js configuration (with `modifyConfig` applied)
+- `context.nextVersion`: Version of Next.js being used
+- `context.buildId`: Unique identifier for the current build
 
 ## Testing Adapters
 
@@ -547,26 +559,32 @@ requestMeta.onCacheEntryV2 callback
 
 ## Invoking Entrypoints
 
-Build output entrypoints now use a `handler(..., ctx)` interface, with runtime-specific request/response types.
+Build output entrypoints use a `handler(..., ctx)` interface, with runtime-specific request/response types.
 
 ### Node.js runtime (`runtime: 'nodejs'`)
 
-Node entrypoints (see `packages/next/src/build/templates/app-page.ts`, `packages/next/src/build/templates/app-route.ts`, and `packages/next/src/build/templates/pages-api.ts`) use:
+Node.js entrypoints use the following interface:
 
 ```typescript
 handler(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: {
-    waitUntil?: (prom: Promise<void>) => void
+    waitUntil?: (promise: Promise<void>) => void
     requestMeta?: RequestMeta
   }
 ): Promise<void>
 ```
 
+Relevant files in the Next.js core:
+
+- [`packages/next/src/build/templates/app-page.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/app-page.ts)
+- [`packages/next/src/build/templates/app-route.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/app-route.ts)
+- and [`packages/next/src/build/templates/pages-api.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/pages-api.ts)
+
 ### Edge runtime (`runtime: 'edge'`)
 
-Edge entrypoints (see `packages/next/src/build/templates/edge-ssr.ts`, `packages/next/src/build/templates/edge-app-route.ts`, `packages/next/src/build/templates/pages-edge-api.ts`, and `packages/next/src/build/templates/middleware.ts`) use:
+Edge entrypoints use the following interface:
 
 ```typescript
 handler(
@@ -579,11 +597,28 @@ handler(
 ): Promise<Response>
 ```
 
-The shape is aligned around `handler(..., ctx)`, but node and edge runtimes use different request/response primitives.
+The shape is aligned around `handler(..., ctx)`, but Node.js and Edge runtimes use different request/response primitives.
+
+Relevant files in the Next.js core:
+
+- [`packages/next/src/build/templates/edge-ssr.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/edge-ssr.ts)
+- [`packages/next/src/build/templates/edge-app-route.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/edge-app-route.ts)
+- [`packages/next/src/build/templates/pages-edge-api.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/pages-edge-api.ts)
+- and [`packages/next/src/build/templates/middleware.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/middleware.ts)
 
 ## Output Types
 
-The `outputs` object contains arrays of different output types:
+The `outputs` object contains arrays of build output types:
+
+- `outputs.pages`: React pages from the `pages/` directory
+- `outputs.pagesApi`: API routes from `pages/api/`
+- `outputs.appPages`: React pages from the `app/` directory
+- `outputs.appRoutes`: API and metadata routes from `app/`
+- `outputs.prerenders`: ISR-enabled routes and static prerenders
+- `outputs.staticFiles`: Static assets and auto-statically optimized pages
+- `outputs.middleware`: Middleware function (if present)
+
+> **Note:** When `config.output` is set to `'export'`, only `outputs.staticFiles` is populated. All other arrays (`pages`, `appPages`, `pagesApi`, `appRoutes`, `prerenders`) will be empty since the entire application is exported as static files.
 
 ### Pages (`outputs.pages`)
 
@@ -600,8 +635,8 @@ React pages from the `pages/` directory:
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
   config: {
-    maxDuration?: number
-    preferredRegion?: string | string[]
+    maxDuration?: number  // Maximum duration of the route in seconds
+    preferredRegion?: string | string[]  // Preferred deployment region
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -614,61 +649,61 @@ API routes from `pages/api/`:
 ```typescript
 {
   type: 'PAGES_API'
-  id: string
-  filePath: string
-  pathname: string
+  id: string           // Route identifier
+  filePath: string     // Path to the built file
+  pathname: string     // URL pathname
   sourcePage: string   // Original relative source file path
   runtime: 'nodejs' | 'edge'
-  assets: Record<string, string>
-  wasmAssets?: Record<string, string>
+  assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
+  wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
   config: {
-    maxDuration?: number
-    preferredRegion?: string | string[]
-    env?: Record<string, string>
+    maxDuration?: number  // Maximum duration of the route in seconds
+    preferredRegion?: string | string[]  // Preferred deployment region
+    env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
 ```
 
 ### App Pages (`outputs.appPages`)
 
-React pages from the `app/` directory with `page.{js,ts,jsx,tsx}`:
+React pages from the `app/` directory:
 
 ```typescript
 {
   type: 'APP_PAGE'
-  id: string
-  filePath: string
-  pathname: string     // Includes .rsc suffix for RSC routes
+  id: string           // Route identifier
+  filePath: string     // Path to the built file
+  pathname: string     // URL pathname.Includes .rsc suffix for RSC routes
   sourcePage: string   // Original relative source file path
-  runtime: 'nodejs' | 'edge'
-  assets: Record<string, string>
-  wasmAssets?: Record<string, string>
+  runtime: 'nodejs' | 'edge' // Runtime the route is built for
+  assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
+  wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
   config: {
-    maxDuration?: number
-    preferredRegion?: string | string[]
-    env?: Record<string, string>
+    maxDuration?: number  // Maximum duration of the route in seconds
+    preferredRegion?: string | string[]  // Preferred deployment region
+    env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
 ```
 
 ### App Routes (`outputs.appRoutes`)
 
-API and metadata routes from `app/` with `route.{js,ts,jsx,tsx}`:
+API and metadata routes from the `app/` directory:
 
 ```typescript
 {
   type: 'APP_ROUTE'
-  id: string
-  filePath: string
-  pathname: string
-  sourcePage: string
-  runtime: 'nodejs' | 'edge'
-  assets: Record<string, string>
-  wasmAssets?: Record<string, string>
+  id: string           // Route identifier
+  filePath: string     // Path to the built file
+  pathname: string     // URL pathname
+  sourcePage: string   // Original relative source file path
+  runtime: 'nodejs' | 'edge' // Runtime the route is built for
+  assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
+  wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
   config: {
-    maxDuration?: number
-    preferredRegion?: string | string[]
-    env?: Record<string, string>
+    maxDuration?: number  // Maximum duration of the route in seconds
+    preferredRegion?: string | string[]  // Preferred deployment region
+    env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
 ```
@@ -680,28 +715,29 @@ ISR-enabled routes and static prerenders:
 ```typescript
 {
   type: 'PRERENDER'
-  id: string
-  pathname: string
+  id: string           // Route identifier
+  pathname: string     // URL pathname
   parentOutputId: string  // ID of the source page/route
   groupId: number        // Revalidation group identifier (prerenders with same groupId revalidate together)
   pprChain?: {
     headers: Record<string, string>  // PPR chain headers (e.g., 'x-nextjs-resume': '1')
   }
-  parentFallbackMode?: DynamicPrerenderManifestRoute['fallback']
+  parentFallbackMode?: false | null | string  // false: no additional paths (fallback: false), null: blocking render, string: path to HTML fallback
   fallback?: {
-    filePath: string | undefined
-    initialStatus?: number
-    initialHeaders?: Record<string, string | string[]>
-    initialExpiration?: number
-    initialRevalidate?: number
-    postponedState: string | undefined
+    filePath: string | undefined  // Path to the fallback file (HTML, JSON, or RSC)
+    initialStatus?: number  // Initial status code
+    initialHeaders?: Record<string, string | string[]>  // Initial headers
+    initialExpiration?: number  // Initial expiration time in seconds
+    initialRevalidate?: number | false  // Initial revalidate time in seconds, or false for fully static
+    postponedState: string | undefined  // Serialized PPR state used for resuming rendering
   }
   config: {
-    allowQuery?: string[]     // Allowed query parameters
+    allowQuery?: string[]     // Allowed query parameters considered for the cache key
     allowHeader?: string[]    // Allowed headers for ISR
     bypassFor?: RouteHas[]    // Cache bypass conditions
-    renderingMode?: RenderingMode
-    bypassToken?: string
+    renderingMode?: 'STATIC' | 'PARTIALLY_STATIC'  // STATIC: fully static, PARTIALLY_STATIC: PPR-enabled
+    partialFallback?: boolean  // Serves a partial fallback shell that should be upgraded to a full route in the background
+    bypassToken?: string      // Generated token that signals the prerender cache should be bypassed
   }
 }
 ```
@@ -713,35 +749,36 @@ Static assets and auto-statically optimized pages:
 ```typescript
 {
   type: 'STATIC_FILE'
-  id: string
-  filePath: string
-  pathname: string
+  id: string // Route identifier
+  filePath: string // Path to the built file
+  pathname: string // URL pathname
+  immutableHash: string | undefined // Content hash when the filename contains a hash, indicating the file is immutable
 }
 ```
 
 ### Middleware (`outputs.middleware`)
 
-Middleware function (if present):
+`middleware.ts` (`.js`/`.ts`) or `proxy.ts` (`.js`/`.ts`) function (if present):
 
 ```typescript
 {
   type: 'MIDDLEWARE'
-  id: string
-  filePath: string
+  id: string           // Route identifier
+  filePath: string     // Path to the built file
   pathname: string      // Always '/_middleware'
   sourcePage: string    // Always 'middleware'
-  runtime: 'nodejs' | 'edge'
-  assets: Record<string, string>
-  wasmAssets?: Record<string, string>
+  runtime: 'nodejs' | 'edge' // Runtime the route is built for
+  assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
+  wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
   config: {
-    maxDuration?: number
-    preferredRegion?: string | string[]
-    env?: Record<string, string>
+    maxDuration?: number  // Maximum duration of the route in seconds
+    preferredRegion?: string | string[]  // Preferred deployment region
+    env?: Record<string, string>  // Environment variables (edge runtime only)
     matchers?: Array<{
-      source: string
-      sourceRegex: string
-      has: RouteHas[] | undefined
-      missing: RouteHas[] | undefined
+      source: string  // Source pattern
+      sourceRegex: string  // Compiled regex for matching requests
+      has: RouteHas[] | undefined  // Positive matching conditions
+      missing: RouteHas[] | undefined  // Negative matching conditions
     }>
   }
 }
