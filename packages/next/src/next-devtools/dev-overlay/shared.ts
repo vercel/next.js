@@ -310,14 +310,11 @@ const instantNavCookieValue: string | null =
       })()
     : null
 
-const hasInstantTestCookie = instantNavCookieValue !== null
+const hasInstantNavCookie = instantNavCookieValue !== null
 
 function parseInstantNavCookie(
   value: string | null
 ): OverlayState['instantNavsPanel'] {
-  if (!value) {
-    return { status: 'waiting' }
-  }
   if (value === 'initial-load') {
     return {
       status: 'initial-load',
@@ -327,7 +324,7 @@ function parseInstantNavCookie(
           : '',
     }
   }
-  if (value.startsWith('client-nav|')) {
+  if (value?.startsWith('client-nav|')) {
     const parts = value.split('|')
     return {
       status: 'client-nav',
@@ -335,7 +332,6 @@ function parseInstantNavCookie(
       toUrl: parts[2] || '',
     }
   }
-  // Any other truthy value (e.g. "waiting", legacy "1") → waiting
   return { status: 'waiting' }
 }
 
@@ -358,7 +354,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   // When cache-only is active, show the indicator immediately so the user
   // can toggle it off. Normally this is set to true by the HMR connection,
   // but the HMR WebSocket is only created during hydration.
-  showIndicator: hasInstantTestCookie,
+  showIndicator: hasInstantNavCookie,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
@@ -373,7 +369,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   page: '',
   theme: 'system',
   hideShortcut: null,
-  cacheOnly: hasInstantTestCookie,
+  cacheOnly: hasInstantNavCookie,
   instantNavsPanel: parseInstantNavCookie(instantNavCookieValue),
 }
 

@@ -112,8 +112,6 @@ const MenuPanel = () => {
             label: 'Instant Navs',
             value: <ChevronRight />,
             onClick: () => {
-              document.cookie =
-                'next-instant-navigation-testing=waiting; path=/'
               if (!state.cacheOnly) {
                 dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
               }

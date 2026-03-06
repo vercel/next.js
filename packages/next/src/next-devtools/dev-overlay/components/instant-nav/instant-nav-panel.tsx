@@ -32,26 +32,12 @@ export function InstantNavPanel() {
       dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
 
       // If we were showing results, reload to restore dynamic content
-      if (value && value !== 'waiting') {
+      if (value) {
         window.location.reload()
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // While in waiting state, treat any page unload (e.g. browser reload) as
-  // an initial-load capture — same as clicking the Reload button.
-  useEffect(() => {
-    if (status !== 'waiting') return
-
-    const handleBeforeUnload = () => {
-      document.cookie = 'next-instant-navigation-testing=initial-load; path=/'
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [status])
 
   // Navigation detection: watch state.page for changes while in waiting state
   useEffect(() => {
