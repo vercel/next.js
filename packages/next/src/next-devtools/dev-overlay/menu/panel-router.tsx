@@ -16,7 +16,7 @@ import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { createContext, useContext, useEffect } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
-  ACTION_INSTANT_NAV_TOGGLE,
+  ACTION_INSTANT_NAVS_TOGGLE,
   ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOLS_POSITION,
   ACTION_DEVTOOLS_SCALE,
@@ -29,7 +29,7 @@ import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/de
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
-import { InstantNavPanel } from '../components/instant-nav/instant-nav-panel'
+import { InstantNavsPanel } from '../components/instant-nav/instant-nav-panel'
 import './panel-router.css'
 
 const MenuPanel = () => {
@@ -112,10 +112,10 @@ const MenuPanel = () => {
             label: 'Instant Navs',
             value: <ChevronRight />,
             onClick: () => {
-              if (!state.instantNav) {
-                dispatch({ type: ACTION_INSTANT_NAV_TOGGLE })
+              if (!state.instantNavs) {
+                dispatch({ type: ACTION_INSTANT_NAVS_TOGGLE })
               }
-              setPanel('instant-nav')
+              setPanel('instant-navs')
             },
             attributes: {
               'data-instant-nav': true,
@@ -183,8 +183,8 @@ export const PanelRouter = () => {
 
   // Auto-open instant nav panel if the cookie is present on page load
   useEffect(() => {
-    if (state.instantNav) {
-      setPanel('instant-nav')
+    if (state.instantNavs) {
+      setPanel('instant-navs')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -280,7 +280,7 @@ export const PanelRouter = () => {
             }}
             header={<DevToolsHeader title="Instant Navs" />}
           >
-            <InstantNavPanel />
+            <InstantNavsPanel />
           </DynamicPanel>
         </PanelRoute>
       )}

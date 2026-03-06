@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import {
-  ACTION_INSTANT_NAV_SET_STATUS,
-  ACTION_INSTANT_NAV_RESET,
+  ACTION_INSTANT_NAVS_SET_STATUS,
+  ACTION_INSTANT_NAVS_RESET,
 } from '../../shared'
 import './instant-nav-panel.css'
 
-export function InstantNavPanel() {
+export function InstantNavsPanel() {
   const { state, dispatch } = useDevOverlayContext()
   const { status } = state.instantNavsPanel
   const panel = state.instantNavsPanel
@@ -27,7 +27,7 @@ export function InstantNavPanel() {
       const value = match ? match[1] : null
 
       document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
-      dispatch({ type: ACTION_INSTANT_NAV_RESET })
+      dispatch({ type: ACTION_INSTANT_NAVS_RESET })
 
       // If we were showing results, reload to restore dynamic content
       if (value) {
@@ -48,7 +48,7 @@ export function InstantNavPanel() {
       // Sync cookie so this state survives a refresh
       document.cookie = `next-instant-navigation-testing=client-nav|${from}|${to}; path=/`
       dispatch({
-        type: ACTION_INSTANT_NAV_SET_STATUS,
+        type: ACTION_INSTANT_NAVS_SET_STATUS,
         status: 'client-nav',
         fromUrl: from,
         toUrl: to,

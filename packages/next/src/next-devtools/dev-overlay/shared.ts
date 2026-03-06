@@ -70,7 +70,7 @@ export interface OverlayState {
   readonly page: string
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
-  readonly instantNav: boolean
+  readonly instantNavs: boolean
   readonly instantNavsPanel:
     | { readonly status: 'waiting' }
     | { readonly status: 'initial-load'; readonly toUrl: string }
@@ -110,9 +110,9 @@ export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
-export const ACTION_INSTANT_NAV_TOGGLE = 'instant-nav-toggle'
-export const ACTION_INSTANT_NAV_SET_STATUS = 'instant-nav-set-status'
-export const ACTION_INSTANT_NAV_RESET = 'instant-nav-reset'
+export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
+export const ACTION_INSTANT_NAVS_SET_STATUS = 'instant-navs-set-status'
+export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -229,25 +229,25 @@ interface DevToolsConfigAction {
 }
 
 interface CacheOnlyToggleAction {
-  type: typeof ACTION_INSTANT_NAV_TOGGLE
+  type: typeof ACTION_INSTANT_NAVS_TOGGLE
 }
 
 type InstantNavSetStatusAction =
-  | { type: typeof ACTION_INSTANT_NAV_SET_STATUS; status: 'waiting' }
+  | { type: typeof ACTION_INSTANT_NAVS_SET_STATUS; status: 'waiting' }
   | {
-      type: typeof ACTION_INSTANT_NAV_SET_STATUS
+      type: typeof ACTION_INSTANT_NAVS_SET_STATUS
       status: 'initial-load'
       toUrl: string
     }
   | {
-      type: typeof ACTION_INSTANT_NAV_SET_STATUS
+      type: typeof ACTION_INSTANT_NAVS_SET_STATUS
       status: 'client-nav'
       fromUrl: string
       toUrl: string
     }
 
 interface InstantNavResetAction {
-  type: typeof ACTION_INSTANT_NAV_RESET
+  type: typeof ACTION_INSTANT_NAVS_RESET
 }
 
 export type DispatcherEvent =
@@ -300,7 +300,7 @@ const shouldDisableDevIndicator =
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 
-const instantNavCookieValue: string | null =
+const instantNavsCookieValue: string | null =
   !!process.env.__NEXT_INSTANT_NAV_TOGGLE && typeof document !== 'undefined'
     ? (() => {
         const match = document.cookie.match(
@@ -310,9 +310,9 @@ const instantNavCookieValue: string | null =
       })()
     : null
 
-const hasInstantNavCookie = instantNavCookieValue !== null
+const hasInstantNavsCookie = instantNavsCookieValue !== null
 
-function parseInstantNavCookie(
+function parseInstantNavsCookie(
   value: string | null
 ): OverlayState['instantNavsPanel'] {
   if (value === 'initial-load') {
@@ -354,7 +354,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   // When instant nav is active, show the indicator immediately so the user
   // can toggle it off. Normally this is set to true by the HMR connection,
   // but the HMR WebSocket is only created during hydration.
-  showIndicator: hasInstantNavCookie,
+  showIndicator: hasInstantNavsCookie,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
@@ -369,8 +369,8 @@ export const INITIAL_OVERLAY_STATE: Omit<
   page: '',
   theme: 'system',
   hideShortcut: null,
-  instantNav: hasInstantNavCookie,
-  instantNavsPanel: parseInstantNavCookie(instantNavCookieValue),
+  instantNavs: hasInstantNavsCookie,
+  instantNavsPanel: parseInstantNavsCookie(instantNavsCookieValue),
 }
 
 function getInitialState(
@@ -584,10 +584,10 @@ export function useErrorOverlayReducer(
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
         }
-        case ACTION_INSTANT_NAV_TOGGLE: {
-          return { ...state, instantNav: !state.instantNav }
+        case ACTION_INSTANT_NAVS_TOGGLE: {
+          return { ...state, instantNavs: !state.instantNavs }
         }
-        case ACTION_INSTANT_NAV_SET_STATUS: {
+        case ACTION_INSTANT_NAVS_SET_STATUS: {
           return {
             ...state,
             instantNavsPanel:
@@ -602,10 +602,10 @@ export function useErrorOverlayReducer(
                     },
           }
         }
-        case ACTION_INSTANT_NAV_RESET: {
+        case ACTION_INSTANT_NAVS_RESET: {
           return {
             ...state,
-            instantNav: false,
+            instantNavs: false,
             instantNavsPanel: { status: 'waiting' },
           }
         }
