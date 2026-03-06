@@ -2768,7 +2768,7 @@ async function renderToHTMLOrFlightImpl(
         formState,
         postponedState,
         metadata,
-        devFallbackParams
+        fallbackParams
       )
 
       return createMarkdownRenderResult(ctx, metadata, markdown)

@@ -62,6 +62,14 @@ type SegmentParams<T extends Object = any> = T extends Record<string, any>
   ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
   : T
 
+type MarkdownPageHelpers = {
+  content: string
+}
+
+type MarkdownLayoutHelpers = MarkdownPageHelpers & {
+  children: string
+}
+
 // Check that the entry is a valid entry
 checkFields<Diff<{
   ${
@@ -161,7 +169,9 @@ if ('generateMarkdown' in entry) {
   checkFields<Diff<${
     options.type === 'page' ? 'PageProps' : 'LayoutProps'
   }, FirstArg<MaybeField<TEntry, 'generateMarkdown'>>, 'generateMarkdown'>>()
-  checkFields<Diff<any, SecondArg<MaybeField<TEntry, 'generateMarkdown'>>, 'generateMarkdown'>>()
+  checkFields<Diff<${
+    options.type === 'page' ? 'MarkdownPageHelpers' : 'MarkdownLayoutHelpers'
+  }, SecondArg<MaybeField<TEntry, 'generateMarkdown'>>, 'generateMarkdown'>>()
 }
 
 // Check the arguments and return type of the generateViewport function

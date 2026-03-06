@@ -6,8 +6,8 @@ export function getServerSideProps() {
   }
 }
 
-export async function generateMarkdown(_context, { renderDefault }) {
-  return renderDefault()
+export function generateMarkdown(_context, { content }) {
+  return content
 }
 
 export default function Page(props) {

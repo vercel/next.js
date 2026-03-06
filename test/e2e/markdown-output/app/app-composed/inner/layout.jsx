@@ -6,8 +6,8 @@ export const markdown = {
   },
 }
 
-export async function generateMarkdown(_props, { children }) {
-  return `inner-start\n${await children}\ninner-end`
+export function generateMarkdown(_props, { children }) {
+  return `inner-start\n${children}\ninner-end`
 }
 
 export default function InnerLayout({ children }) {

@@ -1312,14 +1312,14 @@ export async function renderToHTMLImpl(
       props: {},
       components: markdownConfig.components,
       render: generateMarkdown
-        ? async (pageProps, { renderDefault }) =>
+        ? async (pageProps, { content }) =>
             generateMarkdown(
               {
                 props: pageProps,
                 query,
               },
               {
-                renderDefault,
+                content,
               }
             )
         : undefined,

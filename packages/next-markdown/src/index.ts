@@ -143,8 +143,8 @@ export type MarkdownSegmentDefinition = {
   render?: (
     props: any,
     helpers: {
-      children: Promise<string>
-      renderDefault: () => Promise<string>
+      content: string
+      children: string
     }
   ) => string | Promise<string> | null | undefined
 }
@@ -518,9 +518,6 @@ export async function renderHtmlToMarkdown(
       components: mergedComponents,
     }
 
-    const renderDefault = async () =>
-      serializeBlocks(node.childNodes, segmentState)
-
     const childrenPromise = Promise.all(
       getDirectChildSegments(node.childNodes).map((child) =>
         composeSegment(child, segmentState)
@@ -528,16 +525,21 @@ export async function renderHtmlToMarkdown(
     ).then((children) => children.filter(Boolean).join('\n\n'))
 
     const promise = (async () => {
+      const [content, children] = await Promise.all([
+        serializeBlocks(node.childNodes, segmentState),
+        childrenPromise,
+      ])
+
       if (typeof segment.render === 'function') {
         const result = await segment.render(segment.props, {
-          children: childrenPromise,
-          renderDefault,
+          content,
+          children,
         })
 
         return result == null ? '' : String(result).trim()
       }
 
-      return renderDefault()
+      return content
     })()
 
     segmentCache.set(segmentId, promise)

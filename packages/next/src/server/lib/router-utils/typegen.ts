@@ -496,6 +496,18 @@ export function generateValidatorFile(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
+  if (appPageValidations || layoutValidations || pagesRouterPageValidations) {
+    typeDefinitions += `type MarkdownPageHelpers = {
+  content: string
+}
+
+type MarkdownLayoutHelpers = MarkdownPageHelpers & {
+  children: string
+}
+
+`
+  }
+
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
@@ -506,7 +518,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   generateMarkdown?: (
     props: { params: Promise<ParamMap[Route]> } & any,
-    parent: any
+    helpers: MarkdownPageHelpers
   ) => Promise<any> | any
   generateViewport?: (
     props: { params: Promise<ParamMap[Route]> } & any,
@@ -527,7 +539,7 @@ export function generateValidatorFile(
   getStaticPaths?: (context: any) => Promise<any> | any
   getServerSideProps?: (context: any) => Promise<any> | any
   getInitialProps?: (context: any) => Promise<any> | any
-  generateMarkdown?: (...args: any[]) => Promise<any> | any
+  generateMarkdown?: (context: any, helpers: MarkdownPageHelpers) => Promise<any> | any
   markdown?: any
   /**
    * Segment configuration for legacy Pages Router pages.
@@ -553,7 +565,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   generateMarkdown?: (
     props: { params: Promise<ParamMap[Route]> } & any,
-    parent: any
+    helpers: MarkdownLayoutHelpers
   ) => Promise<any> | any
   generateViewport?: (
     props: { params: Promise<ParamMap[Route]> } & any,
@@ -743,6 +755,18 @@ export function generateValidatorFileStrict(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
+  if (appPageValidations || layoutValidations || pagesRouterPageValidations) {
+    typeDefinitions += `type MarkdownPageHelpers = {
+  content: string
+}
+
+type MarkdownLayoutHelpers = MarkdownPageHelpers & {
+  children: string
+}
+
+`
+  }
+
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.JSXElementConstructor<PageProps<Route>>
@@ -753,7 +777,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   generateMarkdown?: (
     props: { params: Promise<ParamMap[Route]> } & any,
-    parent: any
+    helpers: MarkdownPageHelpers
   ) => Promise<any> | any
   generateViewport?: (
     props: PageProps<Route>,
@@ -774,7 +798,7 @@ export function generateValidatorFileStrict(
   getStaticPaths?: (context: any) => Promise<any> | any
   getServerSideProps?: (context: any) => Promise<any> | any
   getInitialProps?: (context: any) => Promise<any> | any
-  generateMarkdown?: (...args: any[]) => Promise<any> | any
+  generateMarkdown?: (context: any, helpers: MarkdownPageHelpers) => Promise<any> | any
   markdown?: any
   /**
    * Segment configuration for legacy Pages Router pages.
@@ -800,7 +824,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   generateMarkdown?: (
     props: { params: Promise<ParamMap[Route]> } & any,
-    parent: any
+    helpers: MarkdownLayoutHelpers
   ) => Promise<any> | any
   generateViewport?: (
     props: { params: Promise<ParamMap[Route]> } & any,

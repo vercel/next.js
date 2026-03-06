@@ -175,8 +175,8 @@ describe('markdown renderer', () => {
               return `layout:${children}`
             },
           },
-          async render(_props, { children }) {
-            return `layout-start\n${await children}\nlayout-end`
+          render(_props, { children }) {
+            return `layout-start\n${children}\nlayout-end`
           },
         },
       ],
@@ -190,8 +190,8 @@ describe('markdown renderer', () => {
               return `page:${children}`
             },
           },
-          render(_props, { renderDefault }) {
-            return renderDefault()
+          render(_props, { content }) {
+            return content
           },
         },
       ],

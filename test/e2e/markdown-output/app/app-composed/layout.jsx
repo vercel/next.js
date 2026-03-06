@@ -6,8 +6,8 @@ export const markdown = {
   },
 }
 
-export async function generateMarkdown(_props, { children }) {
-  return `outer-start\n${await children}\nouter-end`
+export function generateMarkdown(_props, { children }) {
+  return `outer-start\n${children}\nouter-end`
 }
 
 export default function OuterLayout({ children }) {

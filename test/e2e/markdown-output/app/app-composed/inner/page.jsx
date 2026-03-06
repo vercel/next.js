@@ -7,8 +7,8 @@ export const markdown = {
 }
 export const dynamic = 'force-dynamic'
 
-export async function generateMarkdown(_props, { renderDefault }) {
-  return renderDefault()
+export function generateMarkdown(_props, { content }) {
+  return content
 }
 
 export default function AppComposedPage() {

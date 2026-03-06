@@ -72,7 +72,7 @@ export type PagesUserlandModule = {
    */
   readonly generateMarkdown?: (
     context: { props: any; query: ParsedUrlQuery },
-    helpers: { renderDefault(): Promise<string> }
+    helpers: { content: string }
   ) => Promise<string> | string
 }
 

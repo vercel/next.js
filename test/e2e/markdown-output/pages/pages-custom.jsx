@@ -8,14 +8,12 @@ export async function getServerSideProps(context) {
   }
 }
 
-export async function generateMarkdown(context, { renderDefault }) {
-  const defaultMarkdown = await renderDefault()
-
+export function generateMarkdown(context, { content }) {
   return [
     'custom-start',
     `message:${context.props.message}`,
     `query:${context.query.id}`,
-    `default:${defaultMarkdown}`,
+    `default:${content}`,
     'custom-end',
   ].join('\n')
 }

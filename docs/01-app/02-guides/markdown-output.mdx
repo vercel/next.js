@@ -142,14 +142,12 @@ Use `generateMarkdown` when you want to wrap, replace, or post-process the defau
 
 <AppOnly>
 
-Pages receive the same props as the route component, plus a `renderDefault` helper:
+Pages receive the same props as the route component, plus the default serialized `content`:
 
 ```jsx filename="app/products/[id]/page.js"
 export const markdown = true
 
-export async function generateMarkdown(props, { renderDefault }) {
-  const content = await renderDefault()
-
+export function generateMarkdown(props, { content }) {
   return ['# Product export', content].join('\n\n')
 }
 
@@ -158,13 +156,13 @@ export default function Page({ params }) {
 }
 ```
 
-Layouts can compose child Markdown with the `children` helper:
+Layouts can compose child Markdown with the `children` value:
 
 ```jsx filename="app/products/layout.js"
 export const markdown = true
 
-export async function generateMarkdown(_props, { children }) {
-  return ['catalog-start', await children, 'catalog-end'].join('\n')
+export function generateMarkdown(_props, { children }) {
+  return ['catalog-start', children, 'catalog-end'].join('\n')
 }
 
 export default function Layout({ children }) {
@@ -181,9 +179,7 @@ Pages receive a `context` object containing the resolved page props and query:
 ```jsx filename="pages/products/[id].js"
 export const markdown = true
 
-export async function generateMarkdown(context, { renderDefault }) {
-  const content = await renderDefault()
-
+export function generateMarkdown(context, { content }) {
   return [
     `product:${context.props.product.id}`,
     `query:${context.query.id}`,
