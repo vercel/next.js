@@ -21,7 +21,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    resolve::ModulePart,
+    reference_type::ReferenceType,
     source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
@@ -45,7 +45,7 @@ impl CustomModuleType for RawEcmascriptModuleType {
         &self,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        _part: Option<ModulePart>,
+        _reference_type: ReferenceType,
     ) -> Vc<Box<dyn Module>> {
         Vc::upcast(RawEcmascriptModule::new(
             source,
