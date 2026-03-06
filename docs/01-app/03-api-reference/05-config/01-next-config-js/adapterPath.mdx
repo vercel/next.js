@@ -209,9 +209,6 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 'latest' }
-
       - name: Setup pnpm
         run: npm i -g corepack@0.31 && corepack enable
 
@@ -273,9 +270,6 @@ jobs:
 
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 'latest' }
 
       - name: Setup pnpm
         run: npm i -g corepack@0.31 && corepack enable
