@@ -1,5 +1,5 @@
 ---
-name: write-guides
+name: write-guide
 description: |
   Generates technical guides that teach real-world use cases through progressive examples.
 

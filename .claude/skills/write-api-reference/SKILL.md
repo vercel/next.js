@@ -120,11 +120,13 @@ description: {API Reference for the {API name} {function|component|file conventi
 
 ## Workflow
 
-1. **Identify the API category** (function, component, file convention, directive, config).
-2. **Research the implementation.** Read the source code to understand params, return types, edge cases, and defaults.
-3. **Check existing related docs** for linking opportunities and to avoid duplication.
-4. **Write using the appropriate category template.** Follow the rules above.
-5. **Review against the rules.** Verify: one sentence opener, immediate code example, correct `switcher`/`filename` usage, tables vs subsections, "Good to know" format, no em dashes, mechanical language.
+1. **Ask for reference material.** Ask the user if they have any RFCs, PRs, design docs, or other context that should inform the doc.
+2. **Identify the API category** (function, component, file convention, directive, config).
+3. **Research the implementation.** Read the source code to understand params, return types, edge cases, and defaults.
+4. **Check e2e tests.** Search `test/` for tests exercising the API to find real usage patterns, edge cases, and expected behavior.
+5. **Check existing related docs** for linking opportunities and to avoid duplication.
+6. **Write using the appropriate category template.** Follow the rules above.
+7. **Review against the rules.** Verify: one sentence opener, immediate code example, correct `switcher`/`filename` usage, tables vs subsections, "Good to know" format, no em dashes, mechanical language.
 
 ## References
 
