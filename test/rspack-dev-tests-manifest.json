@@ -4132,7 +4132,7 @@
       "app dir - basic searchParams prop server component should have the correct search params",
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -4195,7 +4195,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -6625,7 +6625,7 @@
   },
   "test/e2e/app-dir/metadata-warnings/metadata-warnings-with-metadatabase.test.ts": {
     "passed": [
-      "app dir - metadata missing metadataBase should not show warning in vercel deployment output in default build output mode",
+      "app dir - metadata missing metadataBase should not show warning in output in default build output mode",
       "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing and a relative URL is used",
       "app dir - metadata missing metadataBase should warn for deprecated fields in other property",
@@ -8674,10 +8674,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "proxy-with-middleware should error when both middleware and proxy files are detected"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9645,8 +9645,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
-    "passed": [],
-    "failed": ["prefetch-partial-rsc resolves after a client-side navigation"],
+    "passed": ["prefetch-partial-rsc resolves after a client-side navigation"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11198,7 +11198,8 @@
       "filesystem-caching with cache enabled should allow to change files while stopped (loader change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (next config change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)",
-      "filesystem-caching with cache enabled should cache or not cache loaders"
+      "filesystem-caching with cache enabled should cache or not cache loaders",
+      "filesystem-caching with cache enabled should emit turbopack-persistence trace spans"
     ],
     "flakey": [],
     "runtimeError": false
