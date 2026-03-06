@@ -1601,14 +1601,22 @@ export async function handleBuildComplete({
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
             htmlAllowQuery = fallbackRootParams as string[]
-          } // We additionally vary based on if there's a postponed prerender
+          }
+
+          // We additionally vary based on if there's a postponed prerender
           // because if there isn't, then that means that we generated an
           // empty shell, and producing an empty RSC shell would be a waste.
           // If there is a postponed prerender, then the RSC shell would be
           // non-empty, and it would be valuable to also generate an empty
           // RSC shell.
           else if (meta.postponed) {
-            htmlAllowQuery = []
+            // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
+            // For partial fallbacks in cache components, keep route allowQuery so
+            // fallback shells can be upgraded per-param instead of sharing one cache key.
+            htmlAllowQuery =
+              partialFallback && routesManifest.rsc.clientParamParsing
+                ? allowQuery
+                : []
           }
         }
 
