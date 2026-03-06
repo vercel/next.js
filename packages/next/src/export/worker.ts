@@ -36,7 +36,6 @@ import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
@@ -603,12 +602,6 @@ async function exportPage(
 }
 
 process.on('unhandledRejection', (err: unknown) => {
-  // if it's a postpone error, it'll be handled later
-  // when the postponed promise is actually awaited.
-  if (isPostpone(err)) {
-    return
-  }
-
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
     return
