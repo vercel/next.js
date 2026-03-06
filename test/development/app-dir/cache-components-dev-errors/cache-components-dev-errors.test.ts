@@ -173,18 +173,13 @@ describe('Cache Components Dev Errors', () => {
         } else {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+             "description": "Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
              "environmentLabel": null,
              "label": "Build Error",
-             "source": "./app/page.tsx
-           Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
-              ,-[1:1]
-            1 | export const revalidate = 10
-              :              ^^^^^^^^^^
-            2 | export default function Page() {
-            3 |   return (
-            4 |     <div>Hello World</div>
-              \`----",
+             "source": "./test/tmp/next-test-1772811463056-47/app/page.tsx (1:14)
+           Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+           > 1 | export const revalidate = 10
+               |              ^^^^^^^^^^",
              "stack": [],
            }
           `)

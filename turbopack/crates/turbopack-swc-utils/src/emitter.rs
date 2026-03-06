@@ -137,12 +137,17 @@ impl Emitter for IssueEmitter {
         };
 
         let title;
+        let mut message_split = message.split('\n');
+        title = message_split.next().unwrap().trim().to_string().into();
+        let remaining = message_split.remainder().unwrap_or("").trim().to_string();
         if let Some(t) = self.title.as_ref() {
-            title = t.clone();
+            if remaining.is_empty() {
+                message = t.to_string();
+            } else {
+                message = format!("{}\n{}", t, remaining);
+            }
         } else {
-            let mut message_split = message.split('\n');
-            title = message_split.next().unwrap().trim().to_string().into();
-            message = message_split.remainder().unwrap_or("").trim().to_string();
+            message = remaining;
         }
 
         let source = db.span.primary_span().map(|span| {

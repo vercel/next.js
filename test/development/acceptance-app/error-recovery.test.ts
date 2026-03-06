@@ -170,19 +170,13 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  x Expected '}', got '<eof>'",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/server/page.js
-       Error:   x Expected '}', got '<eof>'
-          ,-[2:1]
-        1 | export default function Page() {
-        2 |   return <p>Hello world</p>
-          \`----
-       Caused by:
-           Syntax Error
-       Import trace for requested module:
-       ./app/server/page.js",
+         "source": "./test/tmp/next-test-1772811459767-756/app/server/page.js (2:28)
+       Expected '}', got '<eof>'
+       > 2 |   return <p>Hello world</p>
+           |                            ^",
          "stack": [],
        }
       `)
@@ -254,19 +248,13 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  x Expected '}', got '<eof>'",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/client/page.js
-       Error:   x Expected '}', got '<eof>'
-          ,-[2:1]
-        1 | export default function Page() {
-        2 |   return <p>Hello world</p>
-          \`----
-       Caused by:
-           Syntax Error
-       Import trace for requested module:
-       ./app/client/page.js",
+         "source": "./test/tmp/next-test-1772811459767-756/app/client/page.js (2:28)
+       Expected '}', got '<eof>'
+       > 2 |   return <p>Hello world</p>
+           |                            ^",
          "stack": [],
        }
       `)
@@ -1147,16 +1135,13 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  x Expected '}', got '<eof>'",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/page.js
-       Error:   x Expected '}', got '<eof>'
-          ,----
-        1 | {{{
-          \`----
-       Caused by:
-           Syntax Error",
+         "source": "./test/tmp/next-test-1772811459767-756/app/page.js (1:4)
+       Expected '}', got '<eof>'
+       > 1 | {{{
+           |    ^",
          "stack": [],
        }
       `)
