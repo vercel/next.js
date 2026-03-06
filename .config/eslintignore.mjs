@@ -56,4 +56,8 @@ export default globalIgnores([
   'test/e2e/app-dir/app-external/app/mixed/import/mixed-mod.mjs',
   'turbopack/crates/*/tests/**/*',
   'turbopack/crates/*/js/src/compiled',
+  // Eval fixtures are deliberately imperfect code for agents to fix.
+  // EVAL.ts is still linted since it's not part of the fixture.
+  'evals/evals/*/**/*',
+  '!evals/evals/*/EVAL.ts',
 ])

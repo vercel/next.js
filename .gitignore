@@ -47,7 +47,9 @@ test/traces
 
 # examples
 examples/**/out/*
-examples/**/.env*.local
+
+# env
+.env*.local
 
 pr-stats.md
 test-timings.json
@@ -76,3 +78,9 @@ CLAUDE.local.md
 !.conductor/scripts/
 
 index.scip
+
+# Evals
+evals/.tarballs/
+evals/experiments/
+evals/results/
+evals/agent-results.json
