@@ -2,11 +2,9 @@
 title: Large Page Data
 ---
 
-> **Note:** This warning only applies to the **Pages Router**. The App Router does not use `__NEXT_DATA__` and is not affected by this limit.
-
 ## Why This Error Occurred
 
-One of your pages includes a large amount of page data (>= 128kB). In the Pages Router, data returned from `getStaticProps`, `getServerSideProps`, or `getInitialProps` is serialized as JSON and embedded in the HTML inside a `<script id="__NEXT_DATA__">` tag. The browser must download, parse, and deserialize this JSON before React can hydrate the page.
+One of your pages includes a large amount of page data (> 128 kB). This warning applies only to the Pages Router, where page data is serialized as `__NEXT_DATA__` JSON and must be parsed by the client before the page is hydrated. It does not apply to the App Router, which streams data via Server Components.
 
 Large page data impacts performance in several ways:
 
