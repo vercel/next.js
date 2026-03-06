@@ -2151,18 +2151,20 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn lightningcss_feature_flags(&self) -> Vc<turbopack_css::LightningCssFeatureFlags> {
-        turbopack_css::LightningCssFeatureFlags {
+    pub fn lightningcss_feature_flags(
+        &self,
+    ) -> Result<Vc<turbopack_css::LightningCssFeatureFlags>> {
+        Ok(turbopack_css::LightningCssFeatureFlags {
             include: lightningcss_features_field_mask(
                 &self.experimental.lightning_css_features,
                 |f| f.include.as_ref(),
-            ),
+            )?,
             exclude: lightningcss_features_field_mask(
                 &self.experimental.lightning_css_features,
                 |f| f.exclude.as_ref(),
-            ),
+            )?,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -2329,12 +2331,12 @@ impl JsConfig {
 fn lightningcss_features_field_mask(
     features: &Option<LightningCssFeatures>,
     field: impl FnOnce(&LightningCssFeatures) -> Option<&Vec<RcStr>>,
-) -> u32 {
+) -> Result<u32> {
     features
         .as_ref()
         .and_then(field)
         .map(|names| lightningcss_feature_names_to_mask(names))
-        .unwrap_or(0)
+        .unwrap_or(Ok(0))
 }
 
 /// Convert dash-case feature name strings to a lightningcss `Features` bitmask.
@@ -2345,7 +2347,9 @@ fn lightningcss_features_field_mask(
 ///
 /// Feature names must match: `packages/next/src/server/config-shared.ts`
 /// (`LIGHTNINGCSS_FEATURE_NAMES`)
-pub fn lightningcss_feature_names_to_mask(names: &[impl std::ops::Deref<Target = str>]) -> u32 {
+pub fn lightningcss_feature_names_to_mask(
+    names: &[impl std::ops::Deref<Target = str>],
+) -> Result<u32> {
     use lightningcss::targets::Features;
     let mut mask = Features::empty();
     for name in names {
@@ -2375,13 +2379,10 @@ pub fn lightningcss_feature_names_to_mask(names: &[impl std::ops::Deref<Target =
             "selectors" => Features::Selectors,
             "media-queries" => Features::MediaQueries,
             "colors" => Features::Colors,
-            _ => {
-                tracing::warn!("Unknown lightningcss feature: {}", &**name);
-                Features::empty()
-            }
+            _ => bail!("Unknown lightningcss feature: {}", &**name),
         };
     }
-    mask.bits()
+    Ok(mask.bits())
 }
 
 #[cfg(test)]

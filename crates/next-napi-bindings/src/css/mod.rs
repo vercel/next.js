@@ -18,8 +18,9 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
 /// `Features` bitmask (u32). Called from the webpack lightningcss-loader to
 /// avoid duplicating the name-to-bit mapping in JavaScript.
 #[napi]
-fn lightningcss_feature_names_to_mask_napi(names: Vec<String>) -> u32 {
+fn lightningcss_feature_names_to_mask_napi(names: Vec<String>) -> napi::Result<u32> {
     lightningcss_feature_names_to_mask(&names)
+        .map_err(|e| napi::Error::from_reason(format!("{}", e)))
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), module_exports)]
