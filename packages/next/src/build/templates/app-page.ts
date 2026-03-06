@@ -1251,7 +1251,9 @@ export async function handler(
       // Set the build ID header for RSC navigation requests when deploymentId is configured. This
       // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
       // from the RSC payload when deploymentId is set (relying on this header instead). Server
-      // actions are excluded because the client doesn't check the build ID for action responses.
+      // actions are excluded here because action redirect responses get the deployment ID header
+      // from the pre-fetched redirect target (via createRedirectRenderResult in action-handler.ts
+      // which copies headers from the internal RSC fetch).
       // For static prerenders served from CDN, routes-manifest.json adds a header.
       if (isRSCRequest && !isPossibleServerAction && deploymentId) {
         res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
