@@ -124,7 +124,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
     }
 
     fn should_restore_from_backing_storage(&self) -> bool {
-        self.backend.should_restore() && self.backend.local_is_partial.load(Ordering::Acquire)
+        self.backend.should_restore() && self.backend.local_is_partial
     }
 
     fn restore_task_data(
