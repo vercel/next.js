@@ -1,0 +1,228 @@
+---
+title: How to generate Markdown output from your Next.js routes
+nav_title: Markdown output
+description: Learn how to have App Router and Pages Router routes return Markdown from the React tree they render.
+version: experimental
+related:
+  title: Related APIs
+  links:
+    - app/api-reference/config/next-config-js/markdown
+    - app/api-reference/file-conventions/markdown-components
+    - app/api-reference/functions/generate-markdown
+    - app/guides/mdx
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+Markdown output is different from file-based Markdown and MDX. Instead of compiling `.md` or `.mdx` files into HTML, Next.js can render your route and serialize the result to Markdown when the request prefers `text/markdown`.
+
+This is useful when you want the same route to serve HTML to browsers and Markdown to AI clients, feeds, or downstream systems that prefer plain text.
+
+Markdown output is currently supported in the Node.js runtime only. Routes that run in the Edge runtime continue to return their normal HTML responses.
+
+## Enable the experiment
+
+Enable the feature in `next.config.js`:
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    markdown: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+This enables the runtime, but routes still need to opt in individually.
+
+## Add `markdown-components`
+
+Create a `markdown-components.js` (or `.tsx`) file in the root of your project, next to `app` or `pages`, or inside `src` if your project uses `src/`.
+
+```js filename="markdown-components.js"
+export function useMarkdownComponents() {
+  return {
+    p({ children }) {
+      return `paragraph:${children}`
+    },
+    button({ children }) {
+      return children ? `action:${children}` : null
+    },
+  }
+}
+```
+
+These serializers are used as the root-level defaults for Markdown responses. You can override them per route segment or page with the `markdown` export.
+
+## Opt a route into Markdown
+
+Use the `markdown` export to opt a route into Markdown responses.
+
+<AppOnly>
+
+You can export `markdown` from `layout.js` or `page.js`:
+
+```jsx filename="app/blog/[slug]/page.js"
+export const markdown = true
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Hello</h1>
+      <p>Rendered as Markdown when requested.</p>
+    </main>
+  )
+}
+```
+
+You can also provide segment-level component overrides:
+
+```jsx filename="app/blog/[slug]/layout.js"
+export const markdown = {
+  components: {
+    p({ children }) {
+      return `segment:${children}`
+    },
+  },
+}
+
+export default function Layout({ children }) {
+  return <section>{children}</section>
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+You can export `markdown` from a page:
+
+```jsx filename="pages/blog/[slug].js"
+export const markdown = true
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Hello</h1>
+      <p>Rendered as Markdown when requested.</p>
+    </main>
+  )
+}
+```
+
+You can also provide page-level component overrides:
+
+```jsx filename="pages/blog/[slug].js"
+export const markdown = {
+  components: {
+    p({ children }) {
+      return `page:${children}`
+    },
+  },
+}
+```
+
+</PagesOnly>
+
+## Request Markdown
+
+Markdown is returned from the same route when the request prefers `text/markdown`:
+
+```bash filename="Terminal"
+curl -H "Accept: text/markdown" http://localhost:3000/blog/hello
+```
+
+Normal browser requests still receive HTML by default.
+
+## Customize the generated Markdown
+
+Use `generateMarkdown` when you want to wrap, replace, or post-process the default serialization.
+
+<AppOnly>
+
+Pages receive the same props as the route component, plus a `renderDefault` helper:
+
+```jsx filename="app/products/[id]/page.js"
+export const markdown = true
+
+export async function generateMarkdown(props, { renderDefault }) {
+  const content = await renderDefault()
+
+  return ['# Product export', content].join('\n\n')
+}
+
+export default function Page({ params }) {
+  return <p>Product {params.id}</p>
+}
+```
+
+Layouts can compose child Markdown with the `children` helper:
+
+```jsx filename="app/products/layout.js"
+export const markdown = true
+
+export async function generateMarkdown(_props, { children }) {
+  return ['catalog-start', await children, 'catalog-end'].join('\n')
+}
+
+export default function Layout({ children }) {
+  return <section>{children}</section>
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+Pages receive a `context` object containing the resolved page props and query:
+
+```jsx filename="pages/products/[id].js"
+export const markdown = true
+
+export async function generateMarkdown(context, { renderDefault }) {
+  const content = await renderDefault()
+
+  return [
+    `product:${context.props.product.id}`,
+    `query:${context.query.id}`,
+    content,
+  ].join('\n')
+}
+
+export default function Page({ product }) {
+  return <p>{product.name}</p>
+}
+```
+
+</PagesOnly>
+
+## Default behavior
+
+By default, the serializer:
+
+- maps headings, paragraphs, emphasis, links, images, code blocks, lists, blockquotes, and tables to Markdown
+- omits interactive controls such as `button`, `input`, `select`, `textarea`, and `form`
+- omits nodes that expose event-handler props like `onClick`
+- lets overrides return a string to replace the default output, or `null` / `undefined` to omit it
+
+Override precedence is:
+
+1. Child route segment or page overrides
+2. Parent layout overrides
+3. Root `markdown-components`
+
+When both a component-name override and a host tag override match, the component-name override wins.
+
+## Stable component names
+
+Component-name overrides work best with named exports or components that set `displayName`. Client Components also use their exported name when it is available at runtime.
+
+If a component does not have a stable runtime name, prefer a host tag override instead.
+
+## Version History
+
+| Version             | Changes                                  |
+| ------------------- | ---------------------------------------- |
+| `v16.2.0-canary.81` | Experimental Markdown output introduced. |

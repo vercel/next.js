@@ -138,6 +138,8 @@ const myAdapter = {
           appPagePathnames.set(basePathname, { rsc: false, nonRsc: false })
         }
         appPagePathnames.get(basePathname).rsc = true
+      } else if (pathname.endsWith('.markdown')) {
+        continue
       } else {
         const normalizedPathname = normalizePathname(pathname)
         if (!appPagePathnames.has(normalizedPathname)) {
@@ -167,6 +169,47 @@ const myAdapter = {
     if (appPagePathnames.size > 0) {
       console.log(
         `Validated ${appPagePathnames.size} app page pathname(s) have matching .rsc and non .rsc versions`
+      )
+    }
+
+    const markdownVariantSets = [...ctx.outputs.appPages, ...ctx.outputs.pages]
+    const markdownPathnames = new Map()
+
+    for (const output of markdownVariantSets) {
+      const pathname = output.pathname
+      if (pathname.endsWith('.markdown')) {
+        const basePathname = normalizePathname(pathname.slice(0, -9))
+        if (!markdownPathnames.has(basePathname)) {
+          markdownPathnames.set(basePathname, { markdown: false, base: false })
+        }
+        markdownPathnames.get(basePathname).markdown = true
+      } else if (!pathname.endsWith('.rsc')) {
+        const normalizedPathname = normalizePathname(pathname)
+        if (!markdownPathnames.has(normalizedPathname)) {
+          markdownPathnames.set(normalizedPathname, {
+            markdown: false,
+            base: false,
+          })
+        }
+        markdownPathnames.get(normalizedPathname).base = true
+      }
+    }
+
+    for (const [pathname, versions] of markdownPathnames.entries()) {
+      if (versions.markdown && !versions.base) {
+        validationErrors.push(
+          `Markdown output ${pathname}.markdown is missing corresponding base pathname`
+        )
+      }
+    }
+
+    const markdownVariantCount = Array.from(markdownPathnames.values()).filter(
+      (versions) => versions.markdown
+    ).length
+
+    if (markdownVariantCount > 0) {
+      console.log(
+        `Validated ${markdownVariantCount} markdown pathname variant(s) have matching base pathnames`
       )
     }
 

@@ -40,7 +40,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|generateMarkdown|markdown|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
 export type ProxyMatcher = {
   regexp: string
@@ -82,6 +82,7 @@ export interface AppPageStaticInfo {
   runtime: AppSegmentConfig['runtime'] | undefined
   preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
+  supportsMarkdown: boolean
   hadUnsupportedValue: boolean
 }
 
@@ -102,6 +103,7 @@ export interface PagesPageStaticInfo {
   runtime: PagesSegmentConfig['runtime'] | undefined
   preferredRegion: PagesSegmentConfigConfig['regions'] | undefined
   maxDuration: number | undefined
+  supportsMarkdown: boolean
   hadUnsupportedValue: boolean
 }
 
@@ -173,6 +175,8 @@ function checkExports(
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
   generateStaticParams?: boolean
+  hasMarkdownExport?: boolean
+  hasGenerateMarkdownExport?: boolean
   directives?: Set<string>
   exports?: Set<string>
 } {
@@ -193,6 +197,8 @@ function checkExports(
     let generateImageMetadata: boolean = false
     let generateSitemaps: boolean = false
     let generateStaticParams = false
+    let hasMarkdownExport = false
+    let hasGenerateMarkdownExport = false
     let exports = new Set<string>()
     let directives = new Set<string>()
     let hasLeadingNonDirectiveNode = false
@@ -223,6 +229,12 @@ function checkExports(
           if (expectedExports.includes(declaration.id.value)) {
             exports.add(declaration.id.value)
           }
+          if (declaration.id.value === 'markdown') {
+            hasMarkdownExport = true
+          }
+          if (declaration.id.value === 'generateMarkdown') {
+            hasGenerateMarkdownExport = true
+          }
         }
       }
 
@@ -237,6 +249,14 @@ function checkExports(
         generateImageMetadata = id === 'generateImageMetadata'
         generateSitemaps = id === 'generateSitemaps'
         generateStaticParams = id === 'generateStaticParams'
+      }
+
+      if (
+        node.type === 'ExportDeclaration' &&
+        node.declaration?.type === 'FunctionDeclaration' &&
+        node.declaration.identifier?.value === 'generateMarkdown'
+      ) {
+        hasGenerateMarkdownExport = true
       }
 
       if (
@@ -276,6 +296,14 @@ function checkExports(
             if (!generateStaticParams && value === 'generateStaticParams') {
               generateStaticParams = true
             }
+            const exportedIdentifier = specifier.exported || specifier.orig
+            const exportName = exportedIdentifier.value
+            if (exportName === 'markdown') {
+              hasMarkdownExport = true
+            }
+            if (exportName === 'generateMarkdown') {
+              hasGenerateMarkdownExport = true
+            }
             if (expectedExports.includes(value) && !exports.has(value)) {
               // An export was found that was actually a re-export, and not a
               // literal value. We should warn here.
@@ -294,6 +322,8 @@ function checkExports(
       generateImageMetadata,
       generateSitemaps,
       generateStaticParams,
+      hasMarkdownExport,
+      hasGenerateMarkdownExport,
       directives,
       exports,
     }
@@ -620,6 +650,7 @@ export async function getAppPageStaticInfo({
       runtime: undefined,
       preferredRegion: undefined,
       maxDuration: undefined,
+      supportsMarkdown: false,
       hadUnsupportedValue: false,
     }
   }
@@ -636,6 +667,8 @@ export async function getAppPageStaticInfo({
     generateStaticParams,
     generateImageMetadata,
     generateSitemaps,
+    hasMarkdownExport,
+    hasGenerateMarkdownExport,
     exports,
     directives,
   } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
@@ -702,6 +735,8 @@ export async function getAppPageStaticInfo({
     runtime: config.runtime,
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
+    supportsMarkdown:
+      Boolean(hasMarkdownExport) || Boolean(hasGenerateMarkdownExport),
     hadUnsupportedValue,
   }
 }
@@ -720,6 +755,7 @@ export async function getPagesPageStaticInfo({
       runtime: undefined,
       preferredRegion: undefined,
       maxDuration: undefined,
+      supportsMarkdown: false,
       hadUnsupportedValue: false,
     }
   }
@@ -732,11 +768,13 @@ export async function getPagesPageStaticInfo({
     isDev,
   })
 
-  const { getServerSideProps, getStaticProps, exports } = checkExports(
-    ast,
-    PagesSegmentConfigSchemaKeys,
-    page
-  )
+  const {
+    getServerSideProps,
+    getStaticProps,
+    hasMarkdownExport,
+    hasGenerateMarkdownExport,
+    exports,
+  } = checkExports(ast, PagesSegmentConfigSchemaKeys, page)
 
   const { type: rsc } = getRSCModuleInformation(content, true)
 
@@ -811,6 +849,8 @@ export async function getPagesPageStaticInfo({
     runtime: resolvedRuntime,
     preferredRegion: config.config?.regions,
     maxDuration: config.maxDuration ?? config.config?.maxDuration,
+    supportsMarkdown:
+      Boolean(hasMarkdownExport) || Boolean(hasGenerateMarkdownExport),
     hadUnsupportedValue,
   }
 }

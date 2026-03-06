@@ -1,0 +1,32 @@
+{
+  "name": "@next/markdown",
+  "version": "16.2.0-canary.81",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "prebuild": "node ../../scripts/rm.mjs dist",
+    "build": "tsc --project tsconfig.json"
+  },
+  "license": "MIT",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/next-markdown"
+  },
+  "dependencies": {
+    "node-html-parser": "7.0.1"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0 || ^19.0.0"
+  }
+}

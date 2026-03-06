@@ -5,6 +5,7 @@ const require = Module.createRequire(import.meta.url)
 const nextConfig = {
   experimental: {
     adapterPath: require.resolve('./my-adapter.mjs'),
+    markdown: true,
   },
   cacheComponents: process.env.TEST_CACHE_COMPONENTS === '1',
   rewrites() {

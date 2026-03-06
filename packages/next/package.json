@@ -98,6 +98,7 @@
   },
   "dependencies": {
     "@next/env": "16.2.0-canary.81",
+    "@next/markdown": "16.2.0-canary.81",
     "@swc/helpers": "0.5.15",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",

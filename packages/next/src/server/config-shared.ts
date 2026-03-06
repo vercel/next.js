@@ -338,6 +338,7 @@ export interface LoggingConfig {
 export interface ExperimentalConfig {
   adapterPath?: string
   appNewScrollHandler?: boolean
+  markdown?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']
@@ -1637,6 +1638,7 @@ export const defaultConfig = Object.freeze({
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     appNewScrollHandler: false,
+    markdown: false,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
@@ -1787,6 +1789,7 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
+    | 'markdown'
     | 'ppr'
     | 'taint'
     | 'serverActions'
@@ -1896,6 +1899,7 @@ export function getNextConfigRuntime(
         devCacheControlNoCache: ex.devCacheControlNoCache,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
         immutableAssetToken: ex.immutableAssetToken,
+        markdown: ex.markdown,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

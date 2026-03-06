@@ -6,6 +6,10 @@ export function getServerSideProps() {
   }
 }
 
+export async function generateMarkdown(_context, { renderDefault }) {
+  return renderDefault()
+}
+
 export default function Page(props) {
   return (
     <>

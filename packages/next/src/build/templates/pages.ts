@@ -20,6 +20,8 @@ export const getStaticPaths = hoist(userland, 'getStaticPaths')
 export const getServerSideProps = hoist(userland, 'getServerSideProps')
 export const config = hoist(userland, 'config')
 export const reportWebVitals = hoist(userland, 'reportWebVitals')
+export const markdown = hoist(userland, 'markdown')
+export const generateMarkdown = hoist(userland, 'generateMarkdown')
 
 // Re-export legacy methods.
 export const unstable_getStaticProps = hoist(
@@ -71,4 +73,6 @@ export const handler = getHandler({
   getStaticPaths,
   getStaticProps,
   getServerSideProps,
+  markdown,
+  generateMarkdown,
 })

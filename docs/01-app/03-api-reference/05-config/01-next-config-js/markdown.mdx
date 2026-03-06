@@ -1,0 +1,34 @@
+---
+title: markdown
+description: Enable experimental Markdown output for App Router and Pages Router routes.
+version: experimental
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+Enable experimental Markdown output for routes that opt into `text/markdown` responses.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    markdown: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Good to know
+
+- This flag enables the Markdown runtime, but routes must still opt in with `export const markdown = true` or `export const markdown = { components: ... }`.
+- Markdown is only returned for full document `GET` and `HEAD` requests that prefer `text/markdown`.
+- RSC requests, prefetch requests, and data requests keep their existing response formats.
+- The feature works in both App Router and Pages Router when the route runs in the Node.js runtime.
+- Edge runtime routes ignore Markdown negotiation and continue to return their normal responses.
+
+## Version History
+
+| Version             | Changes                             |
+| ------------------- | ----------------------------------- |
+| `v16.2.0-canary.81` | `experimental.markdown` introduced. |

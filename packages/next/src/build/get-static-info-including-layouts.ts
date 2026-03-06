@@ -87,6 +87,7 @@ export async function getStaticInfoIncludingLayouts({
   }
 
   const config = reduceAppConfig(segments)
+  const supportsMarkdown = segments.some((segment) => segment.supportsMarkdown)
 
   return {
     ...pageStaticInfo,
@@ -94,5 +95,6 @@ export async function getStaticInfoIncludingLayouts({
     runtime: config.runtime,
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
+    supportsMarkdown,
   }
 }

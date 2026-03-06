@@ -14,6 +14,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import type {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  MARKDOWN_CONTENT_TYPE_HEADER,
   TEXT_PLAIN_CONTENT_TYPE_HEADER,
 } from '../lib/constants'
 import type { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
@@ -21,6 +22,7 @@ import type { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-he
 type ContentTypeOption =
   | typeof RSC_CONTENT_TYPE_HEADER // For App Page RSC responses
   | typeof HTML_CONTENT_TYPE_HEADER // For App Page, Pages HTML responses
+  | typeof MARKDOWN_CONTENT_TYPE_HEADER // For App Page, Pages Markdown responses
   | typeof JSON_CONTENT_TYPE_HEADER // For API routes, Next.js data requests
   | typeof TEXT_PLAIN_CONTENT_TYPE_HEADER // For simplified errors
 
@@ -63,6 +65,8 @@ export type PagesRenderResultMetadata = {
   mutableAssetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
+  headers?: OutgoingHttpHeaders
+  statusCode?: number
 }
 
 export type StaticRenderResultMetadata = {}

@@ -61,7 +61,12 @@ interface SharedRouteFields {
    */
   filePath: string
   /**
-   * pathname is the URL pathname the asset should be served at
+   * pathname is the URL pathname the asset should be served at.
+   * Some outputs have alternate representation suffixes like `.rsc`
+   * or `.markdown`.
+   * Document outputs can still negotiate alternate response content types
+   * such as `text/html` or `text/markdown` at runtime without a pathname
+   * change.
    */
   pathname: string
 
@@ -104,7 +109,6 @@ interface SharedRouteFields {
      * region preferences to the provider being used
      */
     preferredRegion?: string | string[]
-
     /**
      * env is the environment variables to expose, this is only
      * populated for edge runtime currently
@@ -116,6 +120,9 @@ interface SharedRouteFields {
 export interface AdapterOutput {
   /**
    * `PAGES` represents all the React pages that are under `pages/`.
+   * These are document endpoints, so the same pathname may negotiate
+   * alternate response representations such as `text/html` or
+   * `text/markdown` at runtime.
    */
   PAGES: SharedRouteFields & {
     type: AdapterOutputType.PAGES
@@ -130,6 +137,9 @@ export interface AdapterOutput {
   /**
    * `APP_PAGE` represents all the React pages that are under `app/` with the
    * filename of `page.{j,t}s{,x}`.
+   * These are document endpoints, so the same pathname may negotiate
+   * alternate response representations such as `text/html` or
+   * `text/markdown` at runtime.
    */
   APP_PAGE: SharedRouteFields & {
     type: AdapterOutputType.APP_PAGE
@@ -297,6 +307,12 @@ export interface AdapterOutputs {
   staticFiles: Array<AdapterOutput['STATIC_FILE']>
 }
 
+const MARKDOWN_OUTPUT_SUFFIX = '.markdown'
+
+function getMarkdownOutputPathname(pathname: string): string {
+  return `${normalizePagePath(pathname)}${MARKDOWN_OUTPUT_SUFFIX}`
+}
+
 type RewriteItem = {
   source: string
   sourceRegex: string
@@ -363,6 +379,13 @@ export interface NextAdapter {
       shouldNormalizeNextData: boolean
       rsc: RoutesManifest['rsc']
     }
+    /**
+     * outputs describe the deployable entrypoints and static artifacts.
+     * For document endpoints (`PAGES` and `APP_PAGE`), adapters should not
+     * assume a single response content type for a pathname. The same output
+     * may negotiate alternate representations like `text/html` and
+     * `text/markdown` at runtime.
+     */
     outputs: AdapterOutputs
     /**
      * projectDir is the absolute directory the Next.js application is in
@@ -919,6 +942,10 @@ export async function handleBuildComplete({
 
         sourcePage = sourcePage === 'api' ? 'api/index' : sourcePage
 
+        const baseConfig = {
+          maxDuration: functionConfig.maxDuration,
+          preferredRegion: functionConfig.regions,
+        }
         const output: AdapterOutput['PAGES'] | AdapterOutput['PAGES_API'] = {
           id: route,
           type: page.startsWith('/api')
@@ -929,15 +956,21 @@ export async function handleBuildComplete({
           sourcePage,
           assets,
           runtime: 'nodejs',
-          config: {
-            maxDuration: functionConfig.maxDuration,
-            preferredRegion: functionConfig.regions,
-          },
+          config: baseConfig,
         }
         pageOutputMap[page] = output
 
         if (output.type === AdapterOutputType.PAGES) {
           outputs.pages.push(output)
+
+          if (functionConfig.markdown) {
+            const markdownPathname = getMarkdownOutputPathname(route)
+            outputs.pages.push({
+              ...output,
+              pathname: markdownPathname,
+              id: markdownPathname,
+            })
+          }
 
           // if page is get server side props we need to create
           // the _next/data output as well
@@ -951,6 +984,7 @@ export async function handleBuildComplete({
               ...output,
               pathname: dataPathname,
               id: dataPathname,
+              config: baseConfig,
             })
 
             if (appPageKeys && appPageKeys.length > 0) {
@@ -975,6 +1009,15 @@ export async function handleBuildComplete({
               pathname: localePage,
             })
 
+            if (functionConfig.markdown) {
+              const markdownPathname = getMarkdownOutputPathname(localePage)
+              outputs.pages.push({
+                ...output,
+                pathname: markdownPathname,
+                id: markdownPathname,
+              })
+            }
+
             if (serverPropsPages.has(page)) {
               const dataPathname = path.posix.join(
                 '/_next/data',
@@ -985,6 +1028,7 @@ export async function handleBuildComplete({
                 ...output,
                 pathname: dataPathname,
                 id: dataPathname,
+                config: baseConfig,
               })
               if (appPageKeys && appPageKeys.length > 0) {
                 outputs.staticFiles.push({
@@ -1078,6 +1122,11 @@ export async function handleBuildComplete({
           const functionConfig =
             functionsConfigManifest.functions[normalizedPage] || {}
 
+          const baseConfig = {
+            maxDuration: functionConfig.maxDuration,
+            preferredRegion: functionConfig.regions,
+          }
+
           const output: AdapterOutput['APP_PAGE'] | AdapterOutput['APP_ROUTE'] =
             {
               pathname: normalizedPage,
@@ -1089,10 +1138,7 @@ export async function handleBuildComplete({
                 : AdapterOutputType.APP_PAGE,
               runtime: 'nodejs',
               filePath: pageFile,
-              config: {
-                maxDuration: functionConfig.maxDuration,
-                preferredRegion: functionConfig.regions,
-              },
+              config: baseConfig,
             }
           appOutputMap[normalizedPage] = output
 
@@ -1101,7 +1147,19 @@ export async function handleBuildComplete({
               ...output,
               pathname: normalizePagePath(output.pathname) + '.rsc',
               id: normalizePagePath(output.pathname) + '.rsc',
+              config: baseConfig,
             })
+            if (functionConfig.markdown) {
+              const markdownPathname = getMarkdownOutputPathname(
+                output.pathname
+              )
+              outputs.appPages.push({
+                ...output,
+                pathname: markdownPathname,
+                id: markdownPathname,
+                config: baseConfig,
+              })
+            }
             outputs.appPages.push(output)
           } else {
             outputs.appRoutes.push(output)

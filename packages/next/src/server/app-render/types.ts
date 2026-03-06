@@ -142,6 +142,7 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined
   experimental: {
+    markdown?: boolean
     /**
      * When true, it indicates that the current page supports partial
      * prerendering.

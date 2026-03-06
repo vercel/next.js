@@ -5,6 +5,7 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
+  MARKDOWN_COMPONENTS_ALIAS,
   RSC_ACTION_PROXY_ALIAS,
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
@@ -136,6 +137,11 @@ export function createWebpackAliases({
     ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
     ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
     [ROOT_DIR_ALIAS]: dir,
+    [MARKDOWN_COMPONENTS_ALIAS]: [
+      `${ROOT_DIR_ALIAS}/src/markdown-components`,
+      `${ROOT_DIR_ALIAS}/markdown-components`,
+      'next/dist/server/markdown/default-markdown-components',
+    ],
     ...(isClient
       ? {
           'private-next-instrumentation-client': [

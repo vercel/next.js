@@ -188,6 +188,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 
 export const experimentalSchema = {
   adapterPath: z.string().optional(),
+  markdown: z.boolean().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),

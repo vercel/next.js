@@ -54,6 +54,7 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  MARKDOWN_CONTENT_TYPE_HEADER,
 } from '../lib/constants'
 import {
   NEXT_BUILTIN_DOCUMENT,
@@ -106,6 +107,16 @@ import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
+import {
+  acceptsMarkdown,
+  appendAcceptVaryHeader,
+} from './markdown/accepts-markdown'
+import {
+  markReactNode,
+  type MarkdownComponents,
+  type MarkdownSegmentDefinition,
+  renderHtmlToMarkdown,
+} from './markdown/runtime'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -128,6 +139,16 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   postProcessHTML = async (html: string) => html
 }
 
+function loadMarkdownRootComponents(): MarkdownComponents {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return {}
+  }
+
+  return (
+    require('../lib/require-markdown-components') as typeof import('../lib/require-markdown-components')
+  ).requireMarkdownComponents()
+}
+
 function noRouter() {
   const message =
     'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
@@ -138,6 +159,35 @@ async function renderToString(element: React.ReactElement) {
   const renderStream = await ReactDOMServerPages.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
+}
+
+function normalizeMarkdownRouteConfig(markdown: unknown): {
+  enabled: boolean
+  components: MarkdownComponents
+} {
+  if (markdown === true) {
+    return {
+      enabled: true,
+      components: {},
+    }
+  }
+
+  if (markdown && typeof markdown === 'object') {
+    return {
+      enabled: true,
+      components:
+        'components' in markdown &&
+        markdown.components &&
+        typeof markdown.components === 'object'
+          ? (markdown.components as MarkdownComponents)
+          : {},
+    }
+  }
+
+  return {
+    enabled: false,
+    components: {},
+  }
 }
 
 class ServerRouter implements NextRouter {
@@ -285,6 +335,7 @@ export type RenderOptsPartial = {
   isBot?: boolean
   expireTime?: number
   experimental: {
+    markdown?: boolean
     clientTraceMetadata?: string[]
   }
 }
@@ -1232,6 +1283,92 @@ export async function renderToHTMLImpl(
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return RenderResult.EMPTY
+
+  const markdownConfig = normalizeMarkdownRouteConfig(
+    (renderOpts.ComponentMod as any).markdown
+  )
+  const generateMarkdown =
+    typeof (renderOpts.ComponentMod as any).generateMarkdown === 'function'
+      ? (renderOpts.ComponentMod as any).generateMarkdown
+      : undefined
+  const supportsMarkdownResponse =
+    renderOpts.experimental.markdown === true &&
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    (req.method === 'GET' || req.method === 'HEAD') &&
+    (markdownConfig.enabled || generateMarkdown)
+  const acceptsMarkdownRequest = acceptsMarkdown(req.headers.accept)
+  const wantsMarkdown = supportsMarkdownResponse && acceptsMarkdownRequest
+
+  if (supportsMarkdownResponse) {
+    metadata.headers ??= {}
+    metadata.headers.vary = appendAcceptVaryHeader(
+      res.getHeader('vary') ?? metadata.headers.vary
+    )
+  }
+
+  if (wantsMarkdown) {
+    const pageDefinition: MarkdownSegmentDefinition = {
+      id: 'page',
+      props: {},
+      components: markdownConfig.components,
+      render: generateMarkdown
+        ? async (pageProps, { renderDefault }) =>
+            generateMarkdown(
+              {
+                props: pageProps,
+                query,
+              },
+              {
+                renderDefault,
+              }
+            )
+        : undefined,
+    }
+
+    const markdownSegmentByComponent = new Map([
+      [
+        Component,
+        {
+          id: pageDefinition.id,
+          registerProps(componentProps: any) {
+            pageDefinition.props = componentProps
+          },
+        },
+      ],
+    ])
+
+    const MarkdownPageComponent = function NextMarkdownPageComponent(
+      pageProps: Record<string, any>
+    ) {
+      return markReactNode(React.createElement(Component, pageProps), {
+        segmentByComponent: markdownSegmentByComponent,
+      }) as React.ReactElement
+    }
+
+    MarkdownPageComponent.displayName = `NextMarkdownPage(${getDisplayName(
+      Component
+    )})`
+
+    const pageContent = renderPageTree(App, MarkdownPageComponent, {
+      ...props,
+      router,
+    })
+
+    const html = await renderToString(pageContent as React.ReactElement)
+    const markdown = await renderHtmlToMarkdown(html, {
+      rootComponents: loadMarkdownRootComponents(),
+      segments: new Map([[pageDefinition.id, pageDefinition]]),
+    })
+
+    metadata.headers ??= {}
+    metadata.headers['Content-Type'] = MARKDOWN_CONTENT_TYPE_HEADER
+    metadata.statusCode = res.statusCode
+
+    return new RenderResult(markdown, {
+      metadata,
+      contentType: MARKDOWN_CONTENT_TYPE_HEADER,
+    })
+  }
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values

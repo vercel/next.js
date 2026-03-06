@@ -11,6 +11,7 @@ import {
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
+import { markReactNode } from '../markdown/runtime'
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import type { AppRenderContext, GetDynamicParamFromSegment } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
@@ -855,6 +856,12 @@ async function createComponentTreeInternal(
       }
     }
 
+    if (ctx.markdownSegmentByComponent) {
+      pageElement = markReactNode(pageElement, {
+        segmentByComponent: ctx.markdownSegmentByComponent,
+      })
+    }
+
     const isDefaultSegment = segment === DEFAULT_SEGMENT_KEY
     const pageFilePath =
       getConventionPathByType(tree, dir, 'page') ??
@@ -1040,6 +1047,12 @@ async function createComponentTreeInternal(
           // See https://github.com/facebook/react/pull/34846
           parallelRouteProps.children
         )
+      }
+
+      if (ctx.markdownSegmentByComponent) {
+        serverSegment = markReactNode(serverSegment, {
+          segmentByComponent: ctx.markdownSegmentByComponent,
+        })
       }
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {

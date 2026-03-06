@@ -6,6 +6,7 @@ import type {
   NextComponentType,
   PageConfig,
 } from '../../../types'
+import type { ParsedUrlQuery } from 'querystring'
 import type { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
 import type { NextParsedUrlQuery } from '../../request-meta'
 import type {
@@ -60,6 +61,19 @@ export type PagesUserlandModule = {
    * The exported `getServerSideProps` function.
    */
   readonly getServerSideProps?: GetServerSideProps
+
+  /**
+   * Enables Markdown output for this page route.
+   */
+  readonly markdown?: unknown
+
+  /**
+   * Generates Markdown output for this page route.
+   */
+  readonly generateMarkdown?: (
+    context: { props: any; query: ParsedUrlQuery },
+    helpers: { renderDefault(): Promise<string> }
+  ) => Promise<string> | string
 }
 
 /**

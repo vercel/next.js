@@ -48,6 +48,7 @@ import type {
   GetStaticPaths,
   GetStaticProps,
 } from '../../../types'
+import { acceptsMarkdown } from '../../markdown/accepts-markdown'
 
 export const getHandler = ({
   srcPage: originalSrcPage,
@@ -58,6 +59,8 @@ export const getHandler = ({
   getStaticPaths,
   getStaticProps,
   getServerSideProps,
+  markdown,
+  generateMarkdown,
 }: {
   srcPage: string
   config: Record<string, any> | undefined
@@ -67,6 +70,8 @@ export const getHandler = ({
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
+  markdown?: unknown
+  generateMarkdown?: unknown
 }) => {
   return async function handler(
     req: IncomingMessage,
@@ -162,6 +167,11 @@ export const getHandler = ({
     let isIsrFallback = false
     let isNextDataRequest =
       prepareResult.isNextDataRequest && (hasStaticProps || hasServerProps)
+    const isMarkdownRequest =
+      nextConfig.experimental.markdown === true &&
+      (req.method === 'GET' || req.method === 'HEAD') &&
+      !isNextDataRequest &&
+      acceptsMarkdown(req.headers.accept)
 
     const is404Page = srcPage === '/404'
     const is500Page = srcPage === '/500'
@@ -180,6 +190,10 @@ export const getHandler = ({
 
       // ensure /index and / is normalized to one key
       cacheKey = cacheKey === '/index' ? '/' : cacheKey
+
+      if (cacheKey && isMarkdownRequest) {
+        cacheKey += '?__next_markdown=1'
+      }
     }
 
     if (hasStaticPaths && !isDraftMode) {
@@ -277,7 +291,14 @@ export const getHandler = ({
                     page: srcPage,
                     pageConfig: config || {},
                     Component: interopDefault(userland),
-                    ComponentMod: userland,
+                    ComponentMod:
+                      markdown !== undefined || generateMarkdown !== undefined
+                        ? {
+                            ...userland,
+                            markdown,
+                            generateMarkdown,
+                          }
+                        : userland,
                     getStaticProps,
                     getStaticPaths,
                     getServerSideProps,
@@ -309,6 +330,7 @@ export const getHandler = ({
                     isExperimentalCompile,
 
                     experimental: {
+                      markdown: Boolean(nextConfig.experimental.markdown),
                       clientTraceMetadata:
                         nextConfig.experimental.clientTraceMetadata ||
                         ([] as any),

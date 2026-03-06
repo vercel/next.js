@@ -583,6 +583,7 @@ export interface FunctionsConfigManifest {
   functions: Record<
     string,
     {
+      markdown?: boolean | undefined
       maxDuration?: number | undefined
       runtime?: 'nodejs'
       regions?: string[] | string
@@ -2216,9 +2217,20 @@ export default async function build(
                   errorFromUnsupportedSegmentConfig()
                 }
 
-                // If there's any thing that would contribute to the functions
+                const pageRuntime = middlewareManifest.functions[
+                  originalAppPath || page
+                ]
+                  ? 'edge'
+                  : staticInfo?.runtime
+                const supportsMarkdown =
+                  config.experimental.markdown === true &&
+                  staticInfo?.supportsMarkdown === true &&
+                  !isEdgeRuntime(pageRuntime)
+
+                // If there's anything that would contribute to the functions
                 // configuration, we need to add it to the manifest.
                 if (
+                  supportsMarkdown ||
                   typeof staticInfo?.runtime !== 'undefined' ||
                   typeof staticInfo?.maxDuration !== 'undefined' ||
                   typeof staticInfo?.preferredRegion !== 'undefined'
@@ -2232,14 +2244,9 @@ export default async function build(
                   functionsConfigManifest.functions[page] = {
                     maxDuration: staticInfo?.maxDuration,
                     ...(regions && { regions }),
+                    ...(supportsMarkdown && { markdown: true }),
                   }
                 }
-
-                const pageRuntime = middlewareManifest.functions[
-                  originalAppPath || page
-                ]
-                  ? 'edge'
-                  : staticInfo?.runtime
 
                 if (!isCompileMode) {
                   isServerComponent =

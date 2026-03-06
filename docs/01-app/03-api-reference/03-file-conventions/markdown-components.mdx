@@ -1,0 +1,71 @@
+---
+title: markdown-components.js
+description: API reference for the markdown-components.js file.
+version: experimental
+related:
+  title: Learn more about Markdown output
+  links:
+    - app/guides/markdown-output
+    - app/api-reference/functions/generate-markdown
+---
+
+The `markdown-components.js|tsx` file defines root-level Markdown serializers for routes that respond with `text/markdown`.
+
+Use the file `markdown-components.tsx` (or `.js`) in the root of your project, next to `app` or `pages`, or inside `src` if applicable.
+
+```tsx filename="markdown-components.tsx" switcher
+const components = {
+  p({ children }: { children: string }) {
+    return `paragraph:${children}`
+  },
+}
+
+export function useMarkdownComponents() {
+  return components
+}
+```
+
+```js filename="markdown-components.js" switcher
+const components = {
+  p({ children }) {
+    return `paragraph:${children}`
+  },
+}
+
+export function useMarkdownComponents() {
+  return components
+}
+```
+
+## Exports
+
+### `useMarkdownComponents`
+
+The file must export a function named `useMarkdownComponents`. It does not accept any arguments and should return an object whose keys are either:
+
+- host tags such as `p`, `a`, `code`, or `button`
+- component names such as `ArticleCard` or `ClientWidget`
+
+Each serializer receives:
+
+- `tagName` when the override matched a host element
+- `componentName` when the override matched a component
+- `attributes` as a map of rendered HTML attributes
+- `children` as the already-serialized Markdown for the node's children
+- `textContent` as the rendered text content for the node
+- `renderDefault()` to reuse the built-in serializer
+
+Return a string to replace the default output, or return `null` / `undefined` to omit the node.
+
+## Good to know
+
+- `markdown-components` only affects Markdown responses. It does not affect HTML rendering or MDX rendering.
+- Route-level `markdown.components` overrides take precedence over `markdown-components`.
+- Interactive elements are omitted by default unless you explicitly override them.
+- Component-name overrides take precedence over tag overrides.
+
+## Version History
+
+| Version             | Changes                                      |
+| ------------------- | -------------------------------------------- |
+| `v16.2.0-canary.81` | `markdown-components` file convention added. |

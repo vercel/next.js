@@ -504,11 +504,16 @@ export function generateValidatorFile(
     props: { params: Promise<ParamMap[Route]> } & any,
     parent: ResolvingMetadata
   ) => Promise<any> | any
+  generateMarkdown?: (
+    props: { params: Promise<ParamMap[Route]> } & any,
+    parent: any
+  ) => Promise<any> | any
   generateViewport?: (
     props: { params: Promise<ParamMap[Route]> } & any,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
+  markdown?: any
   viewport?: any
 }
 
@@ -522,6 +527,8 @@ export function generateValidatorFile(
   getStaticPaths?: (context: any) => Promise<any> | any
   getServerSideProps?: (context: any) => Promise<any> | any
   getInitialProps?: (context: any) => Promise<any> | any
+  generateMarkdown?: (...args: any[]) => Promise<any> | any
+  markdown?: any
   /**
    * Segment configuration for legacy Pages Router pages.
    * Validated at build-time by parsePagesSegmentConfig.
@@ -544,11 +551,16 @@ export function generateValidatorFile(
     props: { params: Promise<ParamMap[Route]> } & any,
     parent: ResolvingMetadata
   ) => Promise<any> | any
+  generateMarkdown?: (
+    props: { params: Promise<ParamMap[Route]> } & any,
+    parent: any
+  ) => Promise<any> | any
   generateViewport?: (
     props: { params: Promise<ParamMap[Route]> } & any,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
+  markdown?: any
   viewport?: any
 }
 
@@ -739,11 +751,16 @@ export function generateValidatorFileStrict(
     props: PageProps<Route>,
     parent: ResolvingMetadata
   ) => Promise<any> | any
+  generateMarkdown?: (
+    props: { params: Promise<ParamMap[Route]> } & any,
+    parent: any
+  ) => Promise<any> | any
   generateViewport?: (
     props: PageProps<Route>,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
+  markdown?: any
   viewport?: any
 }
 
@@ -757,6 +774,8 @@ export function generateValidatorFileStrict(
   getStaticPaths?: (context: any) => Promise<any> | any
   getServerSideProps?: (context: any) => Promise<any> | any
   getInitialProps?: (context: any) => Promise<any> | any
+  generateMarkdown?: (...args: any[]) => Promise<any> | any
+  markdown?: any
   /**
    * Segment configuration for legacy Pages Router pages.
    * Validated at build-time by parsePagesSegmentConfig.
@@ -779,11 +798,16 @@ export function generateValidatorFileStrict(
     props: { params: Promise<ParamMap[Route]> } & any,
     parent: ResolvingMetadata
   ) => Promise<any> | any
+  generateMarkdown?: (
+    props: { params: Promise<ParamMap[Route]> } & any,
+    parent: any
+  ) => Promise<any> | any
   generateViewport?: (
     props: { params: Promise<ParamMap[Route]> } & any,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
+  markdown?: any
   viewport?: any
 }
 

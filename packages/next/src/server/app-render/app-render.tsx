@@ -24,7 +24,7 @@ import type {
   ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
-import type { LoaderTree } from '../lib/app-dir-module'
+import { getLayoutOrPageModule, type LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
@@ -203,7 +203,11 @@ import {
   finishStaleTimeTracking,
 } from './stale-time'
 
-import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
+import {
+  HTML_CONTENT_TYPE_HEADER,
+  INFINITE_CACHE,
+  MARKDOWN_CONTENT_TYPE_HEADER,
+} from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import {
@@ -249,6 +253,26 @@ import { createNodeStreamWithLateRelease } from './instant-validation/stream-uti
 // NOTE: Only use this for types, access implementations via ComponentMod
 import type * as InstantValidation from './instant-validation/instant-validation'
 import { createValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import { interopDefault } from './interop-default'
+import {
+  acceptsMarkdown,
+  appendAcceptVaryHeader,
+} from '../markdown/accepts-markdown'
+import {
+  type MarkdownComponents,
+  renderHtmlToMarkdown,
+  type MarkdownSegmentDefinition,
+} from '../markdown/runtime'
+
+function loadMarkdownRootComponents(): MarkdownComponents {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return {}
+  }
+
+  return (
+    require('../../lib/require-markdown-components') as typeof import('../../lib/require-markdown-components')
+  ).requireMarkdownComponents()
+}
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -298,6 +322,10 @@ export type AppRenderContext = {
    * work unit store.
    */
   implicitTags: ImplicitTags
+  markdownSegmentByComponent?: Map<
+    any,
+    { id: string; registerProps: (props: any) => void }
+  >
 }
 
 function maybeAppendBuildIdToRSCPayload<T extends RSCPayload>(
@@ -1605,6 +1633,207 @@ function getRenderedSearch(query: NextParsedUrlQuery): string {
   return '?' + pairs.join('&')
 }
 
+async function collectAppMarkdownSegments(
+  tree: LoaderTree,
+  segments: Map<string, MarkdownSegmentDefinition>,
+  segmentByComponent: Map<
+    any,
+    { id: string; registerProps: (props: any) => void }
+  >
+): Promise<void> {
+  const {
+    page,
+    modules: { layout },
+    parallelRoutes,
+  } = parseLoaderTree(tree)
+
+  const isLayout = typeof layout !== 'undefined'
+  const isPage = typeof page !== 'undefined'
+
+  const { mod: layoutOrPageMod, modType } = await getLayoutOrPageModule(tree)
+  if (
+    layoutOrPageMod &&
+    (isLayout || isPage) &&
+    (modType === 'layout' || modType === 'page')
+  ) {
+    const markdown = normalizeMarkdownRouteConfig(
+      (layoutOrPageMod as any).markdown
+    )
+    const generateMarkdown =
+      typeof (layoutOrPageMod as any).generateMarkdown === 'function'
+        ? (layoutOrPageMod as any).generateMarkdown
+        : undefined
+
+    if (markdown.enabled || generateMarkdown) {
+      const id = `segment-${segments.size}`
+      const definition: MarkdownSegmentDefinition = {
+        id,
+        props: {},
+        components: markdown.components,
+        render: generateMarkdown,
+      }
+
+      segments.set(id, definition)
+
+      const component = interopDefault(layoutOrPageMod)
+      if (component) {
+        segmentByComponent.set(component, {
+          id,
+          registerProps(props) {
+            definition.props = props
+          },
+        })
+      }
+    }
+  }
+
+  for (const childTree of Object.values(parallelRoutes)) {
+    await collectAppMarkdownSegments(childTree, segments, segmentByComponent)
+  }
+}
+
+type AppMarkdownRenderContext = {
+  rootComponents: MarkdownComponents
+  segments: Map<string, MarkdownSegmentDefinition>
+  segmentByComponent: Map<
+    any,
+    { id: string; registerProps: (props: any) => void }
+  >
+}
+
+async function getAppMarkdownRenderContext(
+  tree: LoaderTree
+): Promise<AppMarkdownRenderContext | null> {
+  const segments = new Map<string, MarkdownSegmentDefinition>()
+  const segmentByComponent = new Map<
+    any,
+    { id: string; registerProps: (props: any) => void }
+  >()
+
+  await collectAppMarkdownSegments(tree, segments, segmentByComponent)
+
+  if (segments.size === 0) {
+    return null
+  }
+
+  return {
+    rootComponents: loadMarkdownRootComponents(),
+    segments,
+    segmentByComponent,
+  }
+}
+
+async function withAppMarkdownSegmentContext<T>(
+  ctx: AppRenderContext,
+  segmentByComponent: AppMarkdownRenderContext['segmentByComponent'],
+  callback: () => Promise<T>
+): Promise<T> {
+  ctx.markdownSegmentByComponent = segmentByComponent
+
+  try {
+    return await callback()
+  } finally {
+    delete ctx.markdownSegmentByComponent
+  }
+}
+
+function applyMarkdownVaryHeader(
+  ctx: AppRenderContext,
+  metadata: AppPageRenderResultMetadata
+) {
+  metadata.headers ??= {}
+  metadata.headers.vary = appendAcceptVaryHeader(
+    ctx.res.getHeader('vary') ?? metadata.headers.vary
+  )
+}
+
+function createMarkdownRenderResult(
+  ctx: AppRenderContext,
+  metadata: AppPageRenderResultMetadata,
+  markdown: string
+): RenderResult {
+  metadata.headers ??= {}
+  metadata.headers['Content-Type'] = MARKDOWN_CONTENT_TYPE_HEADER
+  applyMarkdownVaryHeader(ctx, metadata)
+
+  return new RenderResult(markdown, {
+    metadata,
+    contentType: MARKDOWN_CONTENT_TYPE_HEADER,
+  })
+}
+
+async function renderAppRouteToMarkdown(
+  markdownContext: AppMarkdownRenderContext,
+  requestStore: RequestStore,
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  ctx: AppRenderContext,
+  tree: LoaderTree,
+  formState: any,
+  postponedState: PostponedState | null,
+  metadata: AppPageRenderResultMetadata,
+  devFallbackParams: OpaqueFallbackRouteParams | null
+): Promise<string> {
+  const previousShouldWaitOnAllReady = ctx.renderOpts.shouldWaitOnAllReady
+  ctx.renderOpts.shouldWaitOnAllReady = true
+
+  try {
+    const htmlStream = await withAppMarkdownSegmentContext(
+      ctx,
+      markdownContext.segmentByComponent,
+      () =>
+        renderToStream(
+          requestStore,
+          req,
+          res,
+          ctx,
+          tree,
+          formState,
+          postponedState,
+          metadata,
+          undefined,
+          devFallbackParams
+        )
+    )
+
+    return renderHtmlToMarkdown(await streamToString(htmlStream), {
+      rootComponents: markdownContext.rootComponents,
+      segments: markdownContext.segments,
+    })
+  } finally {
+    ctx.renderOpts.shouldWaitOnAllReady = previousShouldWaitOnAllReady
+  }
+}
+
+function normalizeMarkdownRouteConfig(markdown: unknown): {
+  enabled: boolean
+  components: MarkdownComponents
+} {
+  if (markdown === true) {
+    return {
+      enabled: true,
+      components: {},
+    }
+  }
+
+  if (markdown && typeof markdown === 'object') {
+    return {
+      enabled: true,
+      components:
+        'components' in markdown &&
+        markdown.components &&
+        typeof markdown.components === 'object'
+          ? (markdown.components as MarkdownComponents)
+          : {},
+    }
+  }
+
+  return {
+    enabled: false,
+    components: {},
+  }
+}
+
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
 async function getRSCPayload(
   tree: LoaderTree,
@@ -2265,6 +2494,22 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
+  const acceptsMarkdownRequest = acceptsMarkdown(req.headers['accept'])
+  const canNegotiateMarkdown =
+    renderOpts.experimental.markdown === true &&
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    !isPossibleActionRequest &&
+    (req.method === 'GET' || req.method === 'HEAD') &&
+    !parsedRequestHeaders.isRSCRequest &&
+    !parsedRequestHeaders.isPrefetchRequest &&
+    !parsedRequestHeaders.isRuntimePrefetchRequest &&
+    !parsedRequestHeaders.isRouteTreePrefetchRequest &&
+    !parsedRequestHeaders.isHmrRefresh
+  const wantsMarkdown = canNegotiateMarkdown && acceptsMarkdownRequest
+  const markdownContextPromise = canNegotiateMarkdown
+    ? getAppMarkdownRenderContext(loaderTree)
+    : Promise.resolve(null)
+
   if (isStaticGeneration) {
     // We're either building or revalidating. In either case we need to
     // prerender our page rather than render it.
@@ -2279,14 +2524,41 @@ async function renderToHTMLOrFlightImpl(
       prerenderToStream
     )
 
-    const response = await prerenderToStreamWithTracing(
-      req,
-      res,
-      ctx,
-      metadata,
-      loaderTree,
-      fallbackRouteParams
-    )
+    const markdownContext = await markdownContextPromise
+    const previousShouldWaitOnAllReady = ctx.renderOpts.shouldWaitOnAllReady
+    if (markdownContext) {
+      ctx.renderOpts.shouldWaitOnAllReady = true
+    }
+
+    let response: PrerenderToStreamResult
+    try {
+      response = markdownContext
+        ? await withAppMarkdownSegmentContext(
+            ctx,
+            markdownContext.segmentByComponent,
+            () =>
+              prerenderToStreamWithTracing(
+                req,
+                res,
+                ctx,
+                metadata,
+                loaderTree,
+                fallbackRouteParams
+              )
+          )
+        : await prerenderToStreamWithTracing(
+            req,
+            res,
+            ctx,
+            metadata,
+            loaderTree,
+            fallbackRouteParams
+          )
+    } finally {
+      if (markdownContext) {
+        ctx.renderOpts.shouldWaitOnAllReady = previousShouldWaitOnAllReady
+      }
+    }
 
     // If we're debugging partial prerendering, print all the dynamic API accesses
     // that occurred during the render.
@@ -2347,6 +2619,19 @@ async function renderToHTMLOrFlightImpl(
     }
 
     const streamString = await streamToString(response.stream)
+    if (markdownContext && wantsMarkdown) {
+      const markdown = await renderHtmlToMarkdown(streamString, {
+        rootComponents: markdownContext.rootComponents,
+        segments: markdownContext.segments,
+      })
+
+      return createMarkdownRenderResult(ctx, metadata, markdown)
+    }
+
+    if (markdownContext) {
+      applyMarkdownVaryHeader(ctx, metadata)
+    }
+
     return new RenderResult(streamString, options)
   } else {
     // We're rendering dynamically
@@ -2465,6 +2750,32 @@ async function renderToHTMLOrFlightImpl(
       }
 
       didExecuteServerAction = true
+    }
+
+    const markdownContext =
+      !didExecuteServerAction && canNegotiateMarkdown
+        ? await markdownContextPromise
+        : null
+
+    if (markdownContext && wantsMarkdown) {
+      const markdown = await renderAppRouteToMarkdown(
+        markdownContext,
+        requestStore,
+        req,
+        res,
+        ctx,
+        loaderTree,
+        formState,
+        postponedState,
+        metadata,
+        devFallbackParams
+      )
+
+      return createMarkdownRenderResult(ctx, metadata, markdown)
+    }
+
+    if (markdownContext) {
+      applyMarkdownVaryHeader(ctx, metadata)
     }
 
     const options: RenderResultOptions = {

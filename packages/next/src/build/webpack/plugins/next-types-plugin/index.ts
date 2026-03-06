@@ -85,6 +85,8 @@ checkFields<Diff<{
       : `
   metadata?: any
   generateMetadata?: Function
+  markdown?: any
+  generateMarkdown?: Function
   viewport?: any
   generateViewport?: Function
   `
@@ -152,6 +154,14 @@ if ('generateMetadata' in entry) {
     options.type === 'page' ? 'PageProps' : 'LayoutProps'
   }, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
   checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
+}
+
+// Check the arguments and return type of the generateMarkdown function
+if ('generateMarkdown' in entry) {
+  checkFields<Diff<${
+    options.type === 'page' ? 'PageProps' : 'LayoutProps'
+  }, FirstArg<MaybeField<TEntry, 'generateMarkdown'>>, 'generateMarkdown'>>()
+  checkFields<Diff<any, SecondArg<MaybeField<TEntry, 'generateMarkdown'>>, 'generateMarkdown'>>()
 }
 
 // Check the arguments and return type of the generateViewport function

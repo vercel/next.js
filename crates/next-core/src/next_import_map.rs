@@ -997,6 +997,10 @@ pub fn mdx_import_source_file() -> RcStr {
     format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source").into()
 }
 
+pub fn markdown_import_source_file() -> RcStr {
+    rcstr!("next-markdown-import-source-file")
+}
+
 // Insert aliases for Next.js stubs of fetch, object-assign, and url
 // Keep in sync with getOptimizedModuleAliases in webpack-config.ts
 async fn insert_optimized_module_aliases(
@@ -1041,6 +1045,19 @@ async fn insert_next_shared_aliases(
             request_to_import_mapping(project_path.clone(), rcstr!("./src/mdx-components")),
             request_to_import_mapping(project_path.clone(), rcstr!("@mdx-js/react")),
             request_to_import_mapping(project_path.clone(), rcstr!("@next/mdx/mdx-components.js")),
+        ],
+    );
+
+    insert_alias_to_alternatives(
+        import_map,
+        markdown_import_source_file(),
+        vec![
+            request_to_import_mapping(project_path.clone(), rcstr!("./markdown-components")),
+            request_to_import_mapping(project_path.clone(), rcstr!("./src/markdown-components")),
+            request_to_import_mapping(
+                project_path.clone(),
+                rcstr!("next/dist/server/markdown/default-markdown-components"),
+            ),
         ],
     );
 

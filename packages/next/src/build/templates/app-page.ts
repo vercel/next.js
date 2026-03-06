@@ -38,6 +38,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
@@ -72,6 +73,7 @@ import {
   getPostponedStateExceededErrorMessage,
   readBodyWithSizeLimit,
 } from '../../server/lib/postponed-request-body'
+import { acceptsMarkdown } from '../../server/markdown/accepts-markdown'
 
 // These are injected by the loader afterwards.
 
@@ -226,6 +228,14 @@ export async function handler(
     getRequestMeta(req, 'isRSCRequest') ?? Boolean(req.headers[RSC_HEADER])
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
+  const isMarkdownRequest =
+    nextConfig.experimental.markdown === true &&
+    (req.method === 'GET' || req.method === 'HEAD') &&
+    !isPossibleServerAction &&
+    !isRSCRequest &&
+    !isPrefetchRSCRequest &&
+    !req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] &&
+    acceptsMarkdown(req.headers.accept)
 
   /**
    * If the route being rendered is an app page, and the ppr feature has been
@@ -480,7 +490,8 @@ export async function handler(
     !supportsDynamicResponse &&
     !isPossibleServerAction &&
     !minimalPostponed &&
-    !isDynamicRSCRequest
+    !isDynamicRSCRequest &&
+    !isMarkdownRequest
   ) {
     ssgCacheKey = resolvedPathname
   }
@@ -727,6 +738,7 @@ export async function handler(
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
           experimental: {
+            markdown: Boolean(nextConfig.experimental.markdown),
             isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,

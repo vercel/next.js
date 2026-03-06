@@ -51,6 +51,8 @@ describe('adapter-config', () => {
       ...outputs.pages,
       ...outputs.pagesApi,
     ]
+    const routeByPathname = (pathname: string) =>
+      combinedRouteOutputs.find((output) => output.pathname === pathname)
 
     type PageRoutesType =
       | AdapterOutput['APP_PAGE']
@@ -88,6 +90,27 @@ describe('adapter-config', () => {
     expect(edgeOutputs.length).toBeGreaterThan(0)
     expect(staticOutputs.length).toBeGreaterThan(0)
     expect(prerenderOutputs.length).toBeGreaterThan(0)
+    expect(routeByPathname('/docs/node-app.markdown')).toMatchObject({
+      pathname: '/docs/node-app.markdown',
+      runtime: 'nodejs',
+      filePath: routeByPathname('/docs/node-app')?.filePath,
+    })
+    expect(routeByPathname('/docs/node-app/[slug].markdown')).toMatchObject({
+      pathname: '/docs/node-app/[slug].markdown',
+      runtime: 'nodejs',
+      filePath: routeByPathname('/docs/node-app/[slug]')?.filePath,
+    })
+    expect(routeByPathname('/docs/node-pages.markdown')).toMatchObject({
+      pathname: '/docs/node-pages.markdown',
+      runtime: 'nodejs',
+      filePath: routeByPathname('/docs/node-pages')?.filePath,
+    })
+    expect(routeByPathname('/docs/node-app.rsc.markdown')).toBe(undefined)
+    expect(
+      routeByPathname(`/_next/data/${ctx.buildId}/node-pages.json.markdown`)
+    ).toBe(undefined)
+    expect(routeByPathname('/docs/edge-app.markdown')).toBe(undefined)
+    expect(routeByPathname('/docs/edge-pages.markdown')).toBe(undefined)
 
     for (const output of staticOutputs) {
       expect(output.id).toBeTruthy()
