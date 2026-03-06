@@ -96,7 +96,7 @@ export function InstantNavsPanel() {
           </div>
         </div>
         {/* TODO: Uncomment when ready to integrate with cookie changes that support from/to paths. */}
-        {/* <div className="instant-nav-section">
+        <div className="instant-nav-section">
           <div className="instant-nav-section-header">
             <label>Client navigation</label>
             <p className="instant-nav-section-description">
@@ -104,7 +104,7 @@ export function InstantNavsPanel() {
               page.
             </p>
           </div>
-        </div> */}
+        </div>
       </div>
     )
   }
