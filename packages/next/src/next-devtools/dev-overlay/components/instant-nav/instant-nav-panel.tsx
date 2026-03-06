@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import {
-  ACTION_CACHE_ONLY_TOGGLE,
   ACTION_INSTANT_NAV_SET_STATUS,
   ACTION_INSTANT_NAV_RESET,
 } from '../../shared'
@@ -29,7 +28,6 @@ export function InstantNavPanel() {
 
       document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
       dispatch({ type: ACTION_INSTANT_NAV_RESET })
-      dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
 
       // If we were showing results, reload to restore dynamic content
       if (value) {

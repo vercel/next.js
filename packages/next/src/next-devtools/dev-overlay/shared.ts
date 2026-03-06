@@ -605,6 +605,7 @@ export function useErrorOverlayReducer(
         case ACTION_INSTANT_NAV_RESET: {
           return {
             ...state,
+            cacheOnly: false,
             instantNavsPanel: { status: 'waiting' },
           }
         }
