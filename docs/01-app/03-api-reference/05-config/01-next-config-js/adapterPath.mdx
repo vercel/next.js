@@ -332,9 +332,18 @@ Example deploy script:
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Install your adapter, build the app, and deploy or start it.
+# Install the adapter, build the app, and deploy or start it.
+node -e "
+const pkg=JSON.parse(require('fs').readFileSync('package.json','utf8'));
+pkg.dependencies=pkg.dependencies||{};
+pkg.dependencies['adapter']='file:${ADAPTER_DIR}';
+require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2));
+" >&2
 
+export NEXT_ADAPTER_PATH="${ADAPTER_DIR}/dist/index.js"
 
+# Deploy or build + start the app at this point.
+provider-cli-to-deploy
 
 # Write any metadata needed later to files in the working directory.
 BUILD_ID="$(cat .next/BUILD_ID)"
@@ -349,7 +358,7 @@ IMMUTABLE_ASSET_TOKEN="undefined"
   echo "IMMUTABLE_ASSET_TOKEN: $IMMUTABLE_ASSET_TOKEN"
 } >> .adapter-build.log
 
-# stdout must contain only the deployment URL.
+# stdout must contain only the deployment URL. Replace this with the actual deployment URL.
 echo "http://127.0.0.1:3000"
 ```
 
