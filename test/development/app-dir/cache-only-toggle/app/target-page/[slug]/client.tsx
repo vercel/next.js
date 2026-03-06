@@ -80,7 +80,15 @@ export function ClientFeatures() {
         <Suspense
           fallback={
             <p style={{ margin: 0 }}>
-              <span className="skeleton" style={{ display: 'inline-block', width: 120, height: '1em', verticalAlign: 'middle' }} />
+              <span
+                className="skeleton"
+                style={{
+                  display: 'inline-block',
+                  width: 120,
+                  height: '1em',
+                  verticalAlign: 'middle',
+                }}
+              />
             </p>
           }
         >
@@ -92,7 +100,15 @@ export function ClientFeatures() {
         <Suspense
           fallback={
             <p style={{ margin: 0 }}>
-              <span className="skeleton" style={{ display: 'inline-block', width: 120, height: '1em', verticalAlign: 'middle' }} />
+              <span
+                className="skeleton"
+                style={{
+                  display: 'inline-block',
+                  width: 120,
+                  height: '1em',
+                  verticalAlign: 'middle',
+                }}
+              />
             </p>
           }
         >
@@ -104,7 +120,15 @@ export function ClientFeatures() {
         <Suspense
           fallback={
             <p style={{ margin: 0 }}>
-              <span className="skeleton" style={{ display: 'inline-block', width: 120, height: '1em', verticalAlign: 'middle' }} />
+              <span
+                className="skeleton"
+                style={{
+                  display: 'inline-block',
+                  width: 120,
+                  height: '1em',
+                  verticalAlign: 'middle',
+                }}
+              />
             </p>
           }
         >
