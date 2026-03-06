@@ -6,7 +6,6 @@ const path = require('node:path')
 
 async function main() {
   const [
-    githubSha,
     githubHeadSha,
     tarballDirectory = path.join(os.tmpdir(), 'vercel-nextjs-preview-tarballs'),
   ] = process.argv.slice(2)
@@ -14,27 +13,12 @@ async function main() {
 
   await fs.mkdir(tarballDirectory, { recursive: true })
 
-  const [{ stdout: shortSha }, { stdout: dateString }] = await Promise.all([
-    execa('git', ['rev-parse', '--short', githubSha]),
-    // Source: https://github.com/facebook/react/blob/767f52237cf7892ad07726f21e3e8bacfc8af839/scripts/release/utils.js#L114
-    execa(`git`, [
-      'show',
-      '-s',
-      '--no-show-signature',
-      '--format=%cd',
-      '--date=format:%Y%m%d',
-      githubSha,
-    ]),
-  ])
-
-  const lernaConfig = JSON.parse(
-    await fs.readFile(path.join(repoRoot, 'lerna.json'), 'utf8')
+  // The preview version is set in packages/next/package.json by
+  // scripts/set-preview-version.js before the build step.
+  const nextPackageJson = JSON.parse(
+    await fs.readFile(path.join(repoRoot, 'packages/next/package.json'), 'utf8')
   )
-
-  // 15.0.0-canary.17 -> 15.0.0
-  // 15.0.0 -> 15.0.0
-  const [semverStableVersion] = lernaConfig.version.split('-')
-  const version = `${semverStableVersion}-preview-${shortSha}-${dateString}`
+  const version = nextPackageJson.version
   console.info(`Designated version: ${version}`)
 
   const nativePackagesDir = path.join(repoRoot, 'crates/next-napi-bindings/npm')
