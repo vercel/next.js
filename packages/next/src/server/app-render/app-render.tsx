@@ -246,9 +246,10 @@ import {
 } from './debug-channel-server'
 import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
 
-// NOTE: Only use this for types, access implementations via ComponentMod
-import type * as InstantValidation from './instant-validation/instant-validation'
-import { createValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import {
+  createValidationBoundaryTracking,
+  type ValidationBoundaryTracking,
+} from './instant-validation/boundary-tracking'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -4096,6 +4097,7 @@ async function spawnStaticShellValidationInDevImpl(
       ctx,
       hmrRefreshHash
     )
+
     if (instantConfigsResult.length > 0) {
       return logMessagesAndSendErrorsToBrowser(instantConfigsResult, ctx)
     }
@@ -4434,6 +4436,14 @@ async function validateStagedShell(
   }
 }
 
+/**
+ * Validates instant configs by iterating URL depths from deepest to
+ * shallowest. At each depth, builds a combined payload where segments
+ * above the boundary use Dynamic stage (already mounted) and segments
+ * below use Static/Runtime stage (being prefetched). If the new subtree
+ * contains any `unstable_instant` configs, the payload is rendered to
+ * detect dynamic holes without Suspense.
+ */
 async function validateInstantConfigs(
   accumulatedChunks: AccumulatedStreamChunks,
   debugChunks: null | Array<Uint8Array>,
@@ -4445,37 +4455,18 @@ async function validateInstantConfigs(
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
 
-  const { findNavigationsToValidate, collectStagedSegmentData } =
-    ctx.componentMod.InstantValidation!
-
-  debug?.('\nStarting instant validation...')
-
-  let init: Awaited<ReturnType<typeof findNavigationsToValidate>>
-  // We throw for invalid configurations, so errors should be surfaced.
-  try {
-    init = await findNavigationsToValidate(
-      ctx.componentMod.routeModule.userland.loaderTree,
-      ctx.getDynamicParamFromSegment,
-      ctx.query
-    )
-  } catch (err) {
-    debug?.('Error while planning validations.')
-    return [err]
-  }
   const {
-    tree: validationRouteTree,
-    treeNodes,
-    validationTasks,
-    segmentsWithInstantConfigs,
-  } = init
+    createCombinedPayloadAtDepth,
+    createCombinedPayloadStream,
+    collectStagedSegmentData,
+  } = ctx.componentMod.InstantValidation!
 
-  const hasRuntimePrefetch = segmentsWithInstantConfigs.some((segmentPath) => {
-    const treeNode = treeNodes.get(segmentPath)!
-    const instantConfig = treeNode.module!.instantConfig!
-    return instantConfig && typeof instantConfig === 'object'
-      ? instantConfig.prefetch === 'runtime'
-      : false
-  })
+  debug?.('\nStarting depth-based instant validation...')
+
+  const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
+
+  // Only affects a debug environment name label, not functional behavior.
+  const hasRuntimePrefetch = true
 
   const clientReferenceManifest = getClientReferenceManifest()
 
@@ -4495,268 +4486,244 @@ async function validateInstantConfigs(
     clientReferenceManifest
   )
 
-  const getFilepathForSegment = (segmentPath: InstantValidation.SegmentPath) =>
-    treeNodes.get(segmentPath)?.module?.conventionPath
-  const getCreateInstantStackForSegment = (
-    segmentPath: InstantValidation.SegmentPath
-  ) => treeNodes.get(segmentPath)?.module?.createInstantStack ?? null
-
-  for (const { parents, target } of validationTasks) {
-    const createInstantStack = getCreateInstantStackForSegment(target)
-    for (const navigationParent of parents) {
-      debug?.(
-        `-------------------------------\n` +
-          `Validating navigation\n` +
-          `  from '${navigationParent}/*' (${getFilepathForSegment(navigationParent) ?? '<no file>'})\n` +
-          `  to   '${workAsyncStorage.getStore()!.route}'`
-      )
-      const initialResults = await validateInstantConfigNavigation(
-        initialRscPayload,
-        cache,
-        startTime,
-        stageEndTimes,
-        rootParams,
-        ctx,
-        hmrRefreshHash,
-        validationRouteTree,
-        navigationParent,
-        false, // use static stage for static segments
-        createInstantStack
-      )
-      if (initialResults.errors.length === 0) {
-        debug?.(`  ✅ Validation successful`)
-      }
-
-      if (initialResults.errors.length > 0) {
-        if (initialResults.dynamicHoleKind !== DynamicHoleKind.Dynamic) {
-          debug?.('  Retrying to gather more info...')
-          const runtimeResults = await validateInstantConfigNavigation(
-            initialRscPayload,
-            cache,
-            startTime,
-            stageEndTimes,
-            rootParams,
-            ctx,
-            hmrRefreshHash,
-            validationRouteTree,
-            navigationParent,
-            true, // use runtime stage for static segments instead
-            createInstantStack
-          )
-          if (runtimeResults.errors.length > 0) {
-            // The errors remained in the runtime stage, so they were caused by a dynamic access.
-            debug?.(
-              `  ❌ Failed after runtime retry (${runtimeResults.errors.length} errors)`
-            )
-            return runtimeResults.errors
-          }
-          // Otherwise, the errors disappeared in the runtime stage, so they were caused
-          // by a runtime access. report the original errors.
-        }
-
-        debug?.(`  ❌ Failed (${initialResults.errors.length} errors)`)
-        return initialResults.errors
-      }
-    }
-  }
-
-  debug?.(`✅ Passed`)
-  return []
-}
-
-async function validateInstantConfigNavigation(
-  initialRscPayload: InitialRSCPayload,
-  cache: InstantValidation.SegmentCache,
-  startTime: number,
-  stageEndTimes: InstantValidation.StageEndTimes,
-  rootParams: Params,
-  ctx: AppRenderContext,
-  hmrRefreshHash: string | undefined,
-  routeTree: InstantValidation.RouteTree,
-  navigationParent: InstantValidation.SegmentPath,
-  useRuntimeStageForPartialSegments: boolean,
-  createInstantStack: (() => Error) | null
-): Promise<{ dynamicHoleKind: DynamicHoleKind; errors: Array<unknown> }> {
   const { implicitTags, nonce, workStore } = ctx
   const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
-  const { createCombinedPayload, createCombinedPayloadStream } =
-    ctx.componentMod.InstantValidation!
 
-  const clientDynamicTracking = createDynamicTrackingState(
-    false //isDebugDynamicAccesses
-  )
-  const clientReactController = new AbortController()
-  const clientRenderController = new AbortController()
-
-  const preinitScripts = () => {}
-  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
-
-  const dynamicValidation = createInstantValidationState(createInstantStack)
-  const boundaryState = createValidationBoundaryTracking()
-
-  const finalClientPrerenderStore: PrerenderStore = {
-    type: 'validation-client',
-    phase: 'render',
-    rootParams,
-    implicitTags,
-    renderSignal: clientRenderController.signal,
-    controller: clientReactController,
-    // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
-    cacheSignal: null,
-    dynamicTracking: clientDynamicTracking,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [...implicitTags.tags],
-    // TODO should this be removed from client stores?
-    prerenderResumeDataCache: null,
-    renderResumeDataCache: null,
-    hmrRefreshHash,
-    // We don't need to track vary params during validation.
-    varyParamsAccumulator: null,
-    boundaryState,
+  /**
+   * Build and validate a combined payload at the given URL depth.
+   *
+   * Returns null if no instant config exists at this depth.
+   * Returns an empty array if validation passed.
+   * Returns a non-empty array of errors if validation failed.
+   *
+   * When the initial validation uses static segments and finds errors,
+   * automatically retries with runtime stages to discriminate between
+   * runtime and dynamic errors, returning the more specific result.
+   */
+  async function validateAtDepth(
+    depth: number
+  ): Promise<Array<unknown> | null> {
+    return validateAtDepthImpl(depth, null)
   }
 
-  const clientReferenceManifest = getClientReferenceManifest()
+  async function validateAtDepthImpl(
+    depth: number,
+    previousBoundaryState: null | ValidationBoundaryTracking
+  ): Promise<null | Array<unknown>> {
+    const extraChunksController = new AbortController()
 
-  const usedSegmentKinds = new Set<InstantValidation.SegmentStage>()
-  const { stream: serverStream, debugStream } =
-    await createCombinedPayloadStream(
-      (extraChunksReleaseSignal) =>
-        createCombinedPayload(
-          initialRscPayload,
-          cache,
-          routeTree,
-          navigationParent,
-          extraChunksReleaseSignal,
-          boundaryState,
-          clientReferenceManifest,
-          stageEndTimes,
-          useRuntimeStageForPartialSegments,
-          usedSegmentKinds
-        ),
-      clientReactController.signal, // release chunks before the abort
-      clientReferenceManifest,
-      startTime,
-      isDebugChannelEnabled
-    )
-
-  // If we have static segments, we don't know if the error comes from a runtime or dynamic access.
-  // In that case, we report messages as if the failure is a runtime access.
-  // if we get errors, we'll retry this validation, forcing all the static segements into runtime stage.
-  // If the error disappears in the runtime stage, then we'll use the original runtime message.
-  // If it doesn't disappears, it has to come from a dynamic access, so we'll use the message from the retry.
-  const dynamicHoleKind = usedSegmentKinds.has(RenderStage.Static)
-    ? DynamicHoleKind.Runtime
-    : DynamicHoleKind.Dynamic
-
-  try {
-    let { prelude: unprocessedPrelude } = await runInSequentialTasks(
-      () => {
-        const pendingFinalClientResult = workUnitAsyncStorage.run(
-          finalClientPrerenderStore,
-          getClientPrerender,
-          // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
-          <App
-            reactServerStream={serverStream}
-            reactDebugStream={debugStream ?? undefined}
-            // Debug info is already filtered when constructing the combined payload.
-            debugEndTime={undefined}
-            preinitScripts={preinitScripts}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            nonce={nonce}
-            images={ctx.renderOpts.images}
-          />,
-          {
-            signal: clientReactController.signal,
-            onError: (err: unknown, errorInfo: ErrorInfo) => {
-              if (
-                isPrerenderInterruptedError(err) ||
-                clientReactController.signal.aborted
-              ) {
-                const componentStack = errorInfo.componentStack
-                if (typeof componentStack === 'string') {
-                  trackDynamicHoleInNavigation(
-                    workStore,
-                    componentStack,
-                    dynamicValidation,
-                    clientDynamicTracking,
-                    dynamicHoleKind,
-                    boundaryState
-                  )
-                }
-                return
-              } else if (!clientReactController.signal.aborted) {
-                const componentStack = errorInfo.componentStack
-                if (typeof componentStack === 'string') {
-                  trackThrownErrorInNavigation(
-                    dynamicValidation,
-                    err,
-                    componentStack
-                  )
-                }
-              }
-
-              if (isReactLargeShellError(err)) {
-                // TODO: Aggregate
-                console.error(err)
-                return undefined
-              }
-
-              return getDigestForWellKnownError(err)
-            },
-            // We don't need bootstrap scripts in this prerender
-            // bootstrapScripts: [bootstrapScript],
-          }
-        )
-
-        // The listener to abort our own render controller must be added after
-        // React has added its listener, to ensure that pending I/O is not
-        // aborted/rejected too early.
-        clientReactController.signal.addEventListener(
-          'abort',
-          () => {
-            clientRenderController.abort()
-          },
-          { once: true }
-        )
-
-        return pendingFinalClientResult
-      },
-      () => {
-        clientReactController.abort()
+    const boundaryState = createValidationBoundaryTracking()
+    let useRuntimeStageForPartialSegments = false
+    if (previousBoundaryState) {
+      // We're doing a followup render to better discriminate error types
+      useRuntimeStageForPartialSegments = true
+      for (const id of previousBoundaryState.expectedIds) {
+        boundaryState.expectedIds.add(id)
       }
-    )
-
-    const { preludeIsEmpty } = await processPreludeOp(unprocessedPrelude)
-
-    const reasons = getNavigationDisallowedDynamicReasons(
-      workStore,
-      preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
-      dynamicValidation,
-      boundaryState
-    )
-
-    return { dynamicHoleKind, errors: reasons }
-  } catch (thrownValue) {
-    // Even if the root errors we still want to report any cache components errors
-    // that were discovered before the root errored.
-    let errors: Array<unknown> = getNavigationDisallowedDynamicReasons(
-      workStore,
-      PreludeState.Errored,
-      dynamicValidation,
-      boundaryState
-    )
-
-    if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
-      errors.unshift(
-        'During dynamic validation the root of the page errored. The next logged error is the thrown value. It may be a duplicate of errors reported during the normal development mode render.',
-        thrownValue
-      )
     }
 
-    return { dynamicHoleKind, errors }
+    const payloadResult = await createCombinedPayloadAtDepth(
+      initialRscPayload,
+      cache,
+      loaderTree,
+      ctx.getDynamicParamFromSegment,
+      ctx.query,
+      depth,
+      extraChunksController.signal,
+      boundaryState,
+      clientReferenceManifest,
+      stageEndTimes,
+      useRuntimeStageForPartialSegments
+    )
+
+    if (payloadResult === null) {
+      return null
+    }
+
+    const reactController = new AbortController()
+    const renderController = new AbortController()
+    const preinitScripts = () => {}
+    const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
+
+    const { stream: serverStream, debugStream } =
+      await createCombinedPayloadStream(
+        payloadResult.payload,
+        extraChunksController,
+        reactController.signal,
+        clientReferenceManifest,
+        startTime,
+        isDebugChannelEnabled
+      )
+
+    const dynamicValidation = createInstantValidationState(
+      payloadResult.createInstantStack
+    )
+    const clientDynamicTracking = createDynamicTrackingState(false)
+
+    const prerenderStore: PrerenderStore = {
+      type: 'validation-client',
+      phase: 'render',
+      rootParams,
+      implicitTags,
+      renderSignal: renderController.signal,
+      controller: reactController,
+      cacheSignal: null,
+      dynamicTracking: clientDynamicTracking,
+      revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
+      tags: [...implicitTags.tags],
+      prerenderResumeDataCache: null,
+      renderResumeDataCache: null,
+      hmrRefreshHash,
+      varyParamsAccumulator: null,
+      boundaryState,
+    }
+
+    let errors: Array<unknown>
+    try {
+      const { prelude: unprocessedPrelude } = await runInSequentialTasks(
+        () => {
+          const pendingResult = workUnitAsyncStorage.run(
+            prerenderStore,
+            getClientPrerender,
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
+            <App
+              reactServerStream={serverStream}
+              reactDebugStream={debugStream ?? undefined}
+              debugEndTime={undefined}
+              preinitScripts={preinitScripts}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              nonce={nonce}
+              images={ctx.renderOpts.images}
+            />,
+            {
+              signal: reactController.signal,
+              onError: (err: unknown, errorInfo: ErrorInfo) => {
+                if (
+                  isPrerenderInterruptedError(err) ||
+                  reactController.signal.aborted
+                ) {
+                  const componentStack = errorInfo.componentStack
+                  if (typeof componentStack === 'string') {
+                    trackDynamicHoleInNavigation(
+                      workStore,
+                      componentStack,
+                      dynamicValidation,
+                      clientDynamicTracking,
+                      payloadResult.hasAmbiguousErrors
+                        ? DynamicHoleKind.Runtime
+                        : DynamicHoleKind.Dynamic,
+                      boundaryState
+                    )
+                  }
+                  return
+                } else if (!reactController.signal.aborted) {
+                  const componentStack = errorInfo.componentStack
+                  if (typeof componentStack === 'string') {
+                    trackThrownErrorInNavigation(
+                      dynamicValidation,
+                      err,
+                      componentStack
+                    )
+                  }
+                }
+
+                if (isReactLargeShellError(err)) {
+                  console.error(err)
+                  return undefined
+                }
+
+                return getDigestForWellKnownError(err)
+              },
+            }
+          )
+
+          reactController.signal.addEventListener(
+            'abort',
+            () => {
+              renderController.abort()
+            },
+            { once: true }
+          )
+
+          return pendingResult
+        },
+        () => {
+          reactController.abort()
+        }
+      )
+
+      const { preludeIsEmpty } = await processPreludeOp(unprocessedPrelude)
+
+      errors = getNavigationDisallowedDynamicReasons(
+        workStore,
+        preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+        dynamicValidation,
+        boundaryState
+      )
+    } catch (thrownValue) {
+      errors = getNavigationDisallowedDynamicReasons(
+        workStore,
+        PreludeState.Errored,
+        dynamicValidation,
+        boundaryState
+      )
+
+      if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
+        // TODO(instant-validation) we should switch to pushing an Error with a cause of the
+        // thrownValue. Since we want to report the issue to code that largely expects
+        // Error objects we should aim to provide this whereever possible
+        errors.unshift(
+          'During dynamic validation the root of the page errored.',
+          thrownValue
+        )
+      }
+    }
+
+    if (errors === null || errors.length === 0) {
+      // This prerender did not produce any errors
+      return null
+    }
+
+    if (previousBoundaryState === null && payloadResult.hasAmbiguousErrors) {
+      // This is the first validation attempt. we prepared a payload where dynamic holes might be runtime data dependencies
+      // or dynamic data dependencies. We do a followup validation using a payload with only Runtime segments to discriminate
+      const dynamicOnlyErrors = await validateAtDepthImpl(depth, boundaryState)
+
+      if (dynamicOnlyErrors !== null && dynamicOnlyErrors.length > 0) {
+        // The dynamic errors only validation found errors to report so we favor those
+        return dynamicOnlyErrors
+      }
+    }
+
+    // If we didn't return some other errors at this point the only thing to return is this validation's errors
+    return errors
   }
+
+  const urlSegments = ctx.url.pathname.split('/').filter(Boolean)
+  const maxDepth = urlSegments.length + 1 // +1 for root
+
+  for (let depth = maxDepth - 1; depth >= 0; depth--) {
+    debug?.(`Trying depth ${depth}...`)
+
+    const errors = await validateAtDepth(depth)
+
+    if (errors === null) {
+      debug?.(`  No config at depth ${depth}, skipping.`)
+      continue
+    }
+
+    if (errors.length > 0) {
+      debug?.(`  Depth ${depth}: ❌ Failed (${errors.length} errors)`)
+      return errors
+    }
+
+    debug?.(`  Depth ${depth}: ✅ Passed`)
+  }
+
+  debug?.(`✅ All depths passed`)
+  return []
 }
 
 type PrerenderToStreamResult = {
