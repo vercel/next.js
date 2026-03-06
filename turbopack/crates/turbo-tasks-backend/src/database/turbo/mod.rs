@@ -40,14 +40,6 @@ const COMPACT_CONFIG: CompactConfig = CompactConfig {
     max_merge_segment_count: 16,
 };
 
-pub struct TurboValueBuffer(ArcBytes);
-
-impl AsRef<[u8]> for TurboValueBuffer {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
     compact_join_handle: Mutex<Option<JoinHandle<Result<()>>>>,
@@ -83,12 +75,12 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     }
 
     type ValueBuffer<'l>
-        = TurboValueBuffer
+        = ArcBytes
     where
         Self: 'l;
 
     fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>> {
-        Ok(self.db.get(key_space as usize, &key)?.map(TurboValueBuffer))
+        self.db.get(key_space as usize, &key)
     }
 
     fn batch_get<'l>(
@@ -96,12 +88,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         key_space: KeySpace,
         keys: &[&[u8]],
     ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
-        Ok(self
-            .db
-            .batch_get(key_space as usize, keys)?
-            .into_iter()
-            .map(|value| value.map(TurboValueBuffer))
-            .collect())
+        self.db.batch_get(key_space as usize, keys)
     }
 
     fn get_multiple<'l>(
@@ -109,12 +96,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         key_space: KeySpace,
         key: &[u8],
     ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
-        Ok(self
-            .db
-            .get_multiple(key_space as usize, &key)?
-            .into_iter()
-            .map(TurboValueBuffer)
-            .collect())
+        self.db.get_multiple(key_space as usize, &key)
     }
 
     type ConcurrentWriteBatch<'l>
@@ -214,7 +196,7 @@ pub struct TurboWriteBatch<'a> {
 
 impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     type ValueBuffer<'l>
-        = TurboValueBuffer
+        = ArcBytes
     where
         Self: 'l,
         'a: 'l;
@@ -223,7 +205,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     where
         'a: 'l,
     {
-        Ok(self.db.get(key_space as usize, &key)?.map(TurboValueBuffer))
+        self.db.get(key_space as usize, &key)
     }
 
     fn commit(self) -> Result<()> {

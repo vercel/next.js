@@ -58,6 +58,12 @@ impl Borrow<[u8]> for ArcBytes {
     }
 }
 
+impl AsRef<[u8]> for ArcBytes {
+    fn as_ref(&self) -> &[u8] {
+        self
+    }
+}
+
 impl Hash for ArcBytes {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.deref().hash(state)
