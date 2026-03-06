@@ -70,7 +70,7 @@ export interface OverlayState {
   readonly page: string
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
-  readonly cacheOnly: boolean
+  readonly instantNav: boolean
   readonly instantNavsPanel:
     | { readonly status: 'waiting' }
     | { readonly status: 'initial-load'; readonly toUrl: string }
@@ -110,7 +110,7 @@ export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
-export const ACTION_CACHE_ONLY_TOGGLE = 'cache-only-toggle'
+export const ACTION_INSTANT_NAV_TOGGLE = 'instant-nav-toggle'
 export const ACTION_INSTANT_NAV_SET_STATUS = 'instant-nav-set-status'
 export const ACTION_INSTANT_NAV_RESET = 'instant-nav-reset'
 
@@ -229,7 +229,7 @@ interface DevToolsConfigAction {
 }
 
 interface CacheOnlyToggleAction {
-  type: typeof ACTION_CACHE_ONLY_TOGGLE
+  type: typeof ACTION_INSTANT_NAV_TOGGLE
 }
 
 type InstantNavSetStatusAction =
@@ -351,7 +351,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
     whether the indicator is in disabled state or not.
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  // When cache-only is active, show the indicator immediately so the user
+  // When instant nav is active, show the indicator immediately so the user
   // can toggle it off. Normally this is set to true by the HMR connection,
   // but the HMR WebSocket is only created during hydration.
   showIndicator: hasInstantNavCookie,
@@ -369,7 +369,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   page: '',
   theme: 'system',
   hideShortcut: null,
-  cacheOnly: hasInstantNavCookie,
+  instantNav: hasInstantNavCookie,
   instantNavsPanel: parseInstantNavCookie(instantNavCookieValue),
 }
 
@@ -584,8 +584,8 @@ export function useErrorOverlayReducer(
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
         }
-        case ACTION_CACHE_ONLY_TOGGLE: {
-          return { ...state, cacheOnly: !state.cacheOnly }
+        case ACTION_INSTANT_NAV_TOGGLE: {
+          return { ...state, instantNav: !state.instantNav }
         }
         case ACTION_INSTANT_NAV_SET_STATUS: {
           return {
@@ -605,7 +605,7 @@ export function useErrorOverlayReducer(
         case ACTION_INSTANT_NAV_RESET: {
           return {
             ...state,
-            cacheOnly: false,
+            instantNav: false,
             instantNavsPanel: { status: 'waiting' },
           }
         }

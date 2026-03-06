@@ -16,7 +16,7 @@ import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { createContext, useContext, useEffect } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
-  ACTION_CACHE_ONLY_TOGGLE,
+  ACTION_INSTANT_NAV_TOGGLE,
   ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOLS_POSITION,
   ACTION_DEVTOOLS_SCALE,
@@ -112,8 +112,8 @@ const MenuPanel = () => {
             label: 'Instant Navs',
             value: <ChevronRight />,
             onClick: () => {
-              if (!state.cacheOnly) {
-                dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
+              if (!state.instantNav) {
+                dispatch({ type: ACTION_INSTANT_NAV_TOGGLE })
               }
               setPanel('instant-nav')
             },
@@ -183,7 +183,7 @@ export const PanelRouter = () => {
 
   // Auto-open instant nav panel if the cookie is present on page load
   useEffect(() => {
-    if (state.cacheOnly) {
+    if (state.instantNav) {
       setPanel('instant-nav')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

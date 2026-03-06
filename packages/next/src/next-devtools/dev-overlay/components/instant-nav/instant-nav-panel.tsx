@@ -17,7 +17,7 @@ export function InstantNavPanel() {
   )
   const initialPageRef = useRef<string>(state.page)
 
-  // Cleanup on unmount: clear cookie, turn off cacheOnly, reset state
+  // Cleanup on unmount: clear cookie and reset state
   useEffect(() => {
     return () => {
       // Read cookie before clearing to check if we were showing results
