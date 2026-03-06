@@ -117,7 +117,7 @@ jobs:
         if: ${{ needs.deploy-target.outputs.value != 'production' }}
         run: |
           node scripts/set-preview-version.js "${{ github.sha }}"
-          pnpm install
+          pnpm install --no-frozen-lockfile
 
       - run: pnpm run build
 
