@@ -85,11 +85,9 @@ export function startListeningForInstantNavigationCookie(): void {
       for (const cookie of event.changed) {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
           if (lockState !== null) {
-            console.error(
-              'Navigation lock already acquired. Concurrent locks ' +
-                'are not allowed. Did you forget to release the ' +
-                'previous lock?'
-            )
+            // Lock is already held — cookie value was updated (e.g. from
+            // 'waiting' to 'client-nav|…'). This is not a concurrent lock,
+            // just a value change. Keep the existing lock.
             return
           }
           acquireLock()
