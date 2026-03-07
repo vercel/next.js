@@ -15,6 +15,7 @@ use swc_core::{
                 helpers::{HELPERS, HelperData, Helpers},
             },
             react::react,
+            typescript::{Config, typescript},
         },
         utils::IsDirective,
     },
@@ -233,7 +234,6 @@ impl EcmascriptInputTransform {
                 use_define_for_class_fields: _use_define_for_class_fields,
                 verbatim_module_syntax,
             } => {
-                use swc_core::ecma::transforms::typescript::{Config, typescript};
                 let config = Config {
                     verbatim_module_syntax: *verbatim_module_syntax,
                     ..Default::default()
