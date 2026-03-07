@@ -206,7 +206,8 @@ import {
 import {
   HTML_CONTENT_TYPE_HEADER,
   INFINITE_CACHE,
-  MARKDOWN_CONTENT_TYPE_HEADER,
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP,
 } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
@@ -255,13 +256,14 @@ import type * as InstantValidation from './instant-validation/instant-validation
 import { createValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import { interopDefault } from './interop-default'
 import {
-  acceptsMarkdown,
-  appendAcceptVaryHeader,
-} from '../markdown/accepts-markdown'
-import {
-  getMarkdownRouteConfig,
-  loadMarkdownRootComponents,
-} from '../markdown/config'
+  applyNegotiatedDocumentVary,
+  createNegotiatedDocumentRenderResult,
+  supportsNegotiatedDocumentRepresentation,
+  wantsNegotiatedDocumentRepresentation,
+} from '../document-representation'
+import { getMarkdownRouteConfig } from '../markdown/config'
+import { markdownDocumentRepresentation } from '../markdown/representation'
+import { loadMarkdownRootComponents } from '../markdown/root-components'
 import {
   type MarkdownComponents,
   renderReactToMarkdown,
@@ -316,7 +318,7 @@ export type AppRenderContext = {
    * work unit store.
    */
   implicitTags: ImplicitTags
-  markdownSegmentByComponent?: Map<
+  markdownSegmentRegistry?: Map<
     any,
     { id: string; registerProps: (props: any) => void }
   >
@@ -1630,10 +1632,7 @@ function getRenderedSearch(query: NextParsedUrlQuery): string {
 async function collectAppMarkdownSegments(
   tree: LoaderTree,
   segments: Map<string, MarkdownSegmentDefinition>,
-  segmentByComponent: Map<
-    any,
-    { id: string; registerProps: (props: any) => void }
-  >
+  segmentRegistry: Map<any, { id: string; registerProps: (props: any) => void }>
 ): Promise<void> {
   const {
     page,
@@ -1667,7 +1666,7 @@ async function collectAppMarkdownSegments(
 
       const component = interopDefault(layoutOrPageMod)
       if (component) {
-        segmentByComponent.set(component, {
+        segmentRegistry.set(component, {
           id,
           registerProps(props) {
             definition.props = props
@@ -1678,72 +1677,52 @@ async function collectAppMarkdownSegments(
   }
 
   for (const childTree of Object.values(parallelRoutes)) {
-    await collectAppMarkdownSegments(childTree, segments, segmentByComponent)
+    await collectAppMarkdownSegments(childTree, segments, segmentRegistry)
   }
 }
 
 type AppMarkdownRenderContext = {
   rootComponents: MarkdownComponents
   segments: Map<string, MarkdownSegmentDefinition>
-  segmentByComponent: Map<
-    any,
-    { id: string; registerProps: (props: any) => void }
-  >
+  segmentRegistry: Map<any, { id: string; registerProps: (props: any) => void }>
 }
 
 async function getAppMarkdownRenderContext(
-  tree: LoaderTree
+  tree: LoaderTree,
+  projectDir: string,
+  tsconfigPath?: string
 ): Promise<AppMarkdownRenderContext | null> {
   const segments = new Map<string, MarkdownSegmentDefinition>()
-  const segmentByComponent = new Map<
+  const segmentRegistry = new Map<
     any,
     { id: string; registerProps: (props: any) => void }
   >()
 
-  await collectAppMarkdownSegments(tree, segments, segmentByComponent)
+  await collectAppMarkdownSegments(tree, segments, segmentRegistry)
 
   if (segments.size === 0) {
     return null
   }
 
   return {
-    rootComponents: loadMarkdownRootComponents(),
+    rootComponents: await loadMarkdownRootComponents(projectDir, tsconfigPath),
     segments,
-    segmentByComponent,
+    segmentRegistry,
   }
 }
 
 async function withAppMarkdownSegmentContext<T>(
   ctx: AppRenderContext,
-  segmentByComponent: AppMarkdownRenderContext['segmentByComponent'],
+  segmentRegistry: AppMarkdownRenderContext['segmentRegistry'],
   callback: () => Promise<T>
 ): Promise<T> {
-  ctx.markdownSegmentByComponent = segmentByComponent
+  ctx.markdownSegmentRegistry = segmentRegistry
 
   try {
     return await callback()
   } finally {
-    delete ctx.markdownSegmentByComponent
+    delete ctx.markdownSegmentRegistry
   }
-}
-
-function applyMarkdownVaryHeader(metadata: AppPageRenderResultMetadata) {
-  metadata.headers ??= {}
-  metadata.headers.vary = appendAcceptVaryHeader(metadata.headers.vary)
-}
-
-function createMarkdownRenderResult(
-  metadata: AppPageRenderResultMetadata,
-  markdown: string
-): RenderResult {
-  metadata.headers ??= {}
-  metadata.headers['Content-Type'] = MARKDOWN_CONTENT_TYPE_HEADER
-  applyMarkdownVaryHeader(metadata)
-
-  return new RenderResult(markdown, {
-    metadata,
-    contentType: MARKDOWN_CONTENT_TYPE_HEADER,
-  })
 }
 
 async function finalizeAppMarkdownResponse(
@@ -1764,11 +1743,19 @@ async function finalizeAppMarkdownResponse(
       tree
     )
 
-    return createMarkdownRenderResult(metadata, markdown)
+    return createNegotiatedDocumentRenderResult(
+      markdownDocumentRepresentation,
+      metadata,
+      markdown
+    )
   }
 
   if (markdownContext) {
-    applyMarkdownVaryHeader(metadata)
+    metadata.headers ??= {}
+    applyNegotiatedDocumentVary(
+      markdownDocumentRepresentation,
+      metadata.headers
+    )
   }
 
   return null
@@ -1804,7 +1791,7 @@ async function renderAppRouteToMarkdown(
 
   const initialPayload = await withAppMarkdownSegmentContext(
     ctx,
-    markdownContext.segmentByComponent,
+    markdownContext.segmentRegistry,
     async () => {
       const payload = await workUnitAsyncStorage.run(
         requestStore,
@@ -2512,18 +2499,24 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
-  const acceptsMarkdownRequest = acceptsMarkdown(req.headers['accept'])
   const canNegotiateMarkdown =
-    renderOpts.experimental.markdown === true &&
-    process.env.NEXT_RUNTIME !== 'edge' &&
+    supportsNegotiatedDocumentRepresentation({
+      experimentalEnabled: renderOpts.experimental.markdown === true,
+      routeEnabled: true,
+      runtime: process.env.NEXT_RUNTIME,
+      method: req.method,
+    }) &&
     !isPossibleActionRequest &&
-    (req.method === 'GET' || req.method === 'HEAD') &&
     !parsedRequestHeaders.isRSCRequest &&
     !parsedRequestHeaders.isPrefetchRequest &&
     !parsedRequestHeaders.isRuntimePrefetchRequest &&
     !parsedRequestHeaders.isRouteTreePrefetchRequest &&
     !parsedRequestHeaders.isHmrRefresh
-  const wantsMarkdown = canNegotiateMarkdown && acceptsMarkdownRequest
+  const wantsMarkdown = wantsNegotiatedDocumentRepresentation(
+    markdownDocumentRepresentation,
+    canNegotiateMarkdown,
+    req.headers['accept']
+  )
   let markdownContextPromise:
     | Promise<AppMarkdownRenderContext | null>
     | undefined
@@ -2532,7 +2525,11 @@ async function renderToHTMLOrFlightImpl(
       return Promise.resolve(null)
     }
 
-    markdownContextPromise ??= getAppMarkdownRenderContext(loaderTree)
+    markdownContextPromise ??= getAppMarkdownRenderContext(
+      loaderTree,
+      renderOpts.dir ?? '',
+      renderOpts.tsconfigPath
+    )
     return markdownContextPromise
   }
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
@@ -6592,6 +6589,8 @@ const getGlobalErrorStyles = async (
         createElement(
           SegmentViewNode,
           {
+            [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+              MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
             key: 'ge-svn',
             type: 'global-error',
             pagePath: globalErrorModulePath,

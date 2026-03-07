@@ -2,6 +2,11 @@
 import React from 'react'
 
 import {
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_OMIT,
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP,
+} from '../../lib/constants'
+import {
   MARKDOWN_SEGMENT_MARKER_TAG,
   markReactNode,
   renderReactToMarkdown,
@@ -262,7 +267,7 @@ describe('markdown renderer', () => {
 
     const markdown = await renderReactToMarkdown(
       markReactNode(<Page title="Hello" />, {
-        segmentByComponent: new Map([
+        segmentRegistry: new Map([
           [
             Page,
             {
@@ -302,10 +307,16 @@ describe('markdown renderer', () => {
         <>
           {React.createElement(
             SegmentViewNode as any,
-            null,
+            {
+              [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
+            },
             <p>Hello from app route</p>
           )}
-          {React.createElement(SegmentViewStateNode as any)}
+          {React.createElement(SegmentViewStateNode as any, {
+            [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+              MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_OMIT,
+          })}
         </>
       )
     )

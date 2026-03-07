@@ -3467,7 +3467,7 @@ export default async function build(
             page: string,
             file: string,
             isSsg: boolean,
-            ext: 'html' | 'json',
+            ext: 'html' | 'json' | 'markdown',
             additionalSsgFile = false
           ) => {
             return staticGenerationSpan
@@ -3502,6 +3502,7 @@ export default async function build(
                   .replace(/\\/g, '/')
 
                 if (
+                  ext !== 'markdown' &&
                   !isSsg &&
                   !(
                     // don't add static status page to manifest if it's
@@ -3570,7 +3571,7 @@ export default async function build(
                       updatedRelativeDest
                     )
 
-                    if (!isSsg) {
+                    if (ext !== 'markdown' && !isSsg) {
                       pagesManifest[curPath] = updatedRelativeDest
                     }
                     await fs.mkdir(path.dirname(updatedDest), {
@@ -3719,9 +3720,14 @@ export default async function build(
             // fallback is enabled. Below, we handle the specific prerenders
             // of these.
             const hasHtmlOutput = !(isSsg && isDynamic && !isStaticSsgFallback)
+            const hasMarkdownOutput =
+              functionsConfigManifest.functions[page]?.markdown === true
 
             if (hasHtmlOutput) {
               await moveExportedPage(page, page, file, isSsg, 'html')
+              if (hasMarkdownOutput) {
+                await moveExportedPage(page, page, file, isSsg, 'markdown')
+              }
             }
 
             if (isSsg) {
@@ -3789,6 +3795,16 @@ export default async function build(
                     'html',
                     true
                   )
+                  if (hasMarkdownOutput) {
+                    await moveExportedPage(
+                      page,
+                      route.pathname,
+                      pageFile,
+                      isSsg,
+                      'markdown',
+                      true
+                    )
+                  }
                   await moveExportedPage(
                     page,
                     route.pathname,

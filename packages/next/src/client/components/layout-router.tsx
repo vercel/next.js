@@ -44,6 +44,11 @@ import {
   NavigationPromisesContext,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
+import {
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_OMIT,
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP,
+} from '../../lib/constants'
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
 import { isDeferredRsc } from './router-reducer/ppr-navigations'
@@ -746,12 +751,24 @@ export default function OuterLayoutRouter({
 
       const pagePrefix = normalizeAppPath(url)
       segmentViewStateNode = (
-        <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />
+        <SegmentViewStateNode
+          key={pagePrefix}
+          page={pagePrefix}
+          {...{
+            [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+              MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_OMIT,
+          }}
+        />
       )
 
       segmentBoundaryTriggerNode = (
         <>
-          <SegmentBoundaryTriggerNode />
+          <SegmentBoundaryTriggerNode
+            {...{
+              [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_OMIT,
+            }}
+          />
         </>
       )
     }
@@ -863,7 +880,13 @@ export default function OuterLayoutRouter({
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
       child = (
-        <SegmentStateProvider key={stateKey}>
+        <SegmentStateProvider
+          key={stateKey}
+          {...{
+            [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+              MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
+          }}
+        >
           {child}
           {segmentViewBoundaries}
         </SegmentStateProvider>

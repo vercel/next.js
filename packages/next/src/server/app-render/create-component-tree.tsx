@@ -36,6 +36,10 @@ import type {
 } from '../use-cache/use-cache-wrapper'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP,
+} from '../../lib/constants'
+import {
   BOUNDARY_PREFIX,
   BOUNDARY_SUFFIX,
   BUILTIN_PREFIX,
@@ -447,7 +451,7 @@ async function createComponentTreeInternal(
 
   // Resolve the segment param
   const isSegmentViewEnabled =
-    !!process.env.__NEXT_DEV_SERVER && !ctx.markdownSegmentByComponent
+    !!process.env.__NEXT_DEV_SERVER && !ctx.markdownSegmentRegistry
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -596,6 +600,8 @@ async function createComponentTreeInternal(
             ? createElement(
                 SegmentViewNode,
                 {
+                  [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                    MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
                   type: 'error',
                   pagePath: errorFilePath,
                 },
@@ -613,21 +619,29 @@ async function createComponentTreeInternal(
               null,
               notFoundFilePath &&
                 createElement(SegmentViewNode, {
+                  [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                    MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
                   type: `${BOUNDARY_PREFIX}not-found`,
                   pagePath: notFoundFilePath + fileNameSuffix,
                 }),
               loadingFilePath &&
                 createElement(SegmentViewNode, {
+                  [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                    MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
                   type: `${BOUNDARY_PREFIX}loading`,
                   pagePath: loadingFilePath + fileNameSuffix,
                 }),
               errorFilePath &&
                 createElement(SegmentViewNode, {
+                  [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                    MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
                   type: `${BOUNDARY_PREFIX}error`,
                   pagePath: errorFilePath + fileNameSuffix,
                 }),
               globalErrorFilePath &&
                 createElement(SegmentViewNode, {
+                  [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                    MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
                   type: `${BOUNDARY_PREFIX}global-error`,
                   pagePath: isNextjsBuiltinFilePath(globalErrorFilePath)
                     ? `${BUILTIN_PREFIX}global-error.js${fileNameSuffix}`
@@ -648,6 +662,8 @@ async function createComponentTreeInternal(
                 ? createElement(
                     SegmentViewNode,
                     {
+                      [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                        MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
                       type: 'template',
                       pagePath: templateFilePath,
                     },
@@ -670,7 +686,7 @@ async function createComponentTreeInternal(
   )
 
   // Convert the parallel route map into an object after all promises have been resolved.
-  const isMarkdownRender = !!ctx.markdownSegmentByComponent
+  const isMarkdownRender = !!ctx.markdownSegmentRegistry
   let parallelRouteProps: { [key: string]: React.ReactNode } = {}
   let parallelRouteCacheNodeSeedData: {
     [key: string]: CacheNodeSeedData | null
@@ -693,6 +709,8 @@ async function createComponentTreeInternal(
       loadingElement = createElement(
         SegmentViewNode,
         {
+          [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+            MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
           key: cacheNodeKey + '-loading',
           type: 'loading',
           pagePath: loadingFilePath,
@@ -859,9 +877,9 @@ async function createComponentTreeInternal(
       }
     }
 
-    if (ctx.markdownSegmentByComponent) {
+    if (ctx.markdownSegmentRegistry) {
       pageElement = markReactNode(pageElement, {
-        segmentByComponent: ctx.markdownSegmentByComponent,
+        segmentRegistry: ctx.markdownSegmentRegistry,
       })
     }
 
@@ -875,6 +893,8 @@ async function createComponentTreeInternal(
         ? createElement(
             SegmentViewNode,
             {
+              [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
               key: cacheNodeKey + '-' + segmentType,
               type: segmentType,
               pagePath: pageFilePath,
@@ -1052,9 +1072,9 @@ async function createComponentTreeInternal(
         )
       }
 
-      if (ctx.markdownSegmentByComponent) {
+      if (ctx.markdownSegmentRegistry) {
         serverSegment = markReactNode(serverSegment, {
-          segmentByComponent: ctx.markdownSegmentByComponent,
+          segmentRegistry: ctx.markdownSegmentRegistry,
         })
       }
 
@@ -1105,6 +1125,8 @@ async function createComponentTreeInternal(
         ? createElement(
             SegmentViewNode,
             {
+              [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+                MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
               key: 'layout',
               type: 'layout',
               pagePath: layoutFilePath,
@@ -1238,7 +1260,7 @@ async function createBoundaryConventionElement({
     componentMod: { createElement, Fragment },
   } = ctx
   const isSegmentViewEnabled =
-    !!process.env.__NEXT_DEV_SERVER && !ctx.markdownSegmentByComponent
+    !!process.env.__NEXT_DEV_SERVER && !ctx.markdownSegmentRegistry
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -1255,6 +1277,8 @@ async function createBoundaryConventionElement({
       ? createElement(
           SegmentViewNode,
           {
+            [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+              MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PASSTHROUGH,
             key: cacheNodeKey + '-' + conventionName,
             type: conventionName,
             // TODO: Discovered when moving to `createElement`.

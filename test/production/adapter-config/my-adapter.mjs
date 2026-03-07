@@ -172,7 +172,13 @@ const myAdapter = {
       )
     }
 
-    const markdownVariantSets = [...ctx.outputs.appPages, ...ctx.outputs.pages]
+    const markdownVariantSets = [
+      ...ctx.outputs.appPages,
+      ...ctx.outputs.pages,
+      ...ctx.outputs.staticFiles.filter(
+        (output) => !output.pathname.endsWith('.rsc')
+      ),
+    ]
     const markdownPathnames = new Map()
 
     for (const output of markdownVariantSets) {

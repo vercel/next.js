@@ -10,6 +10,8 @@ import { recursiveReadDir } from '../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
+import { getNegotiatedDocumentPathname } from '../../server/document-representation'
+import { markdownDocumentRepresentation } from '../../server/markdown/representation'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -305,12 +307,6 @@ export interface AdapterOutputs {
   appRoutes: Array<AdapterOutput['APP_ROUTE']>
   prerenders: Array<AdapterOutput['PRERENDER']>
   staticFiles: Array<AdapterOutput['STATIC_FILE']>
-}
-
-const MARKDOWN_OUTPUT_SUFFIX = '.markdown'
-
-function getMarkdownOutputPathname(pathname: string): string {
-  return `${normalizePagePath(pathname)}${MARKDOWN_OUTPUT_SUFFIX}`
 }
 
 type RewriteItem = {
@@ -871,6 +867,48 @@ export async function handleBuildComplete({
 
         const route = normalizePagePath(page)
         const pageFile = path.join(pagesDistDir, `${route}.js`)
+        const functionConfig = functionsConfigManifest.functions[route] || {}
+        let sourcePage = route.replace(/^\//, '')
+
+        sourcePage = sourcePage === 'api' ? 'api/index' : sourcePage
+
+        const baseConfig = {
+          maxDuration: functionConfig.maxDuration,
+          preferredRegion: functionConfig.regions,
+        }
+
+        const createStaticMarkdownFileOutput = async (
+          pathname: string
+        ): Promise<AdapterOutput['STATIC_FILE'] | null> => {
+          if (!functionConfig.markdown) {
+            return null
+          }
+
+          const staticHtmlPath = path.join(
+            pagesDistDir,
+            `${normalizePagePath(pathname)}.html`
+          )
+          const markdownFilePath = staticHtmlPath.replace(
+            /\.html$/,
+            markdownDocumentRepresentation.outputSuffix
+          )
+
+          return {
+            id: getNegotiatedDocumentPathname(
+              markdownDocumentRepresentation,
+              pathname
+            ),
+            pathname: getNegotiatedDocumentPathname(
+              markdownDocumentRepresentation,
+              pathname
+            ),
+            type: AdapterOutputType.STATIC_FILE,
+            filePath: markdownFilePath,
+            immutableHash: undefined,
+          }
+        }
+
+        const pageTraceFile = `${pageFile}.nft.json`
 
         // if it's an auto static optimized page it's just
         // a static file
@@ -893,6 +931,12 @@ export async function handleBuildComplete({
 
               outputs.staticFiles.push(localeOutput)
 
+              const markdownOutput =
+                await createStaticMarkdownFileOutput(localePage)
+              if (markdownOutput) {
+                outputs.staticFiles.push(markdownOutput)
+              }
+
               if (appPageKeys && appPageKeys.length > 0) {
                 outputs.staticFiles.push({
                   id: `${localePage}.rsc`,
@@ -914,6 +958,11 @@ export async function handleBuildComplete({
 
             outputs.staticFiles.push(staticOutput)
 
+            const markdownOutput = await createStaticMarkdownFileOutput(route)
+            if (markdownOutput) {
+              outputs.staticFiles.push(markdownOutput)
+            }
+
             if (appPageKeys && appPageKeys.length > 0) {
               outputs.staticFiles.push({
                 id: `${page}.rsc`,
@@ -928,7 +977,6 @@ export async function handleBuildComplete({
           continue
         }
 
-        const pageTraceFile = `${pageFile}.nft.json`
         const assets = await handleTraceFiles(pageTraceFile, 'pages').catch(
           (err) => {
             if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
@@ -937,15 +985,6 @@ export async function handleBuildComplete({
             return {} as Record<string, string>
           }
         )
-        const functionConfig = functionsConfigManifest.functions[route] || {}
-        let sourcePage = route.replace(/^\//, '')
-
-        sourcePage = sourcePage === 'api' ? 'api/index' : sourcePage
-
-        const baseConfig = {
-          maxDuration: functionConfig.maxDuration,
-          preferredRegion: functionConfig.regions,
-        }
         const output: AdapterOutput['PAGES'] | AdapterOutput['PAGES_API'] = {
           id: route,
           type: page.startsWith('/api')
@@ -964,7 +1003,10 @@ export async function handleBuildComplete({
           outputs.pages.push(output)
 
           if (functionConfig.markdown) {
-            const markdownPathname = getMarkdownOutputPathname(route)
+            const markdownPathname = getNegotiatedDocumentPathname(
+              markdownDocumentRepresentation,
+              route
+            )
             outputs.pages.push({
               ...output,
               pathname: markdownPathname,
@@ -1010,7 +1052,10 @@ export async function handleBuildComplete({
             })
 
             if (functionConfig.markdown) {
-              const markdownPathname = getMarkdownOutputPathname(localePage)
+              const markdownPathname = getNegotiatedDocumentPathname(
+                markdownDocumentRepresentation,
+                localePage
+              )
               outputs.pages.push({
                 ...output,
                 pathname: markdownPathname,
@@ -1150,7 +1195,8 @@ export async function handleBuildComplete({
               config: baseConfig,
             })
             if (functionConfig.markdown) {
-              const markdownPathname = getMarkdownOutputPathname(
+              const markdownPathname = getNegotiatedDocumentPathname(
+                markdownDocumentRepresentation,
                 output.pathname
               )
               outputs.appPages.push({

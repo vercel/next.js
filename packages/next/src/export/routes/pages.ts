@@ -14,14 +14,19 @@ import type {
   MockedRequest,
   MockedResponse,
 } from '../../server/lib/mock-request'
+import { createRequestResponseMocks } from '../../server/lib/mock-request'
 import {
   HTML_CONTENT_TYPE_HEADER,
   NEXT_DATA_SUFFIX,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
+import { getMarkdownRouteConfig } from '../../server/markdown/config'
+import { markdownDocumentRepresentation } from '../../server/markdown/representation'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { interopDefault } from '../../lib/interop-default'
 import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
+import { getRequestMeta, setRequestMeta } from '../../server/request-meta'
 
 /**
  * Renders & exports a page associated with the /pages directory
@@ -104,6 +109,50 @@ export async function exportPagesPage(
       )
     } catch (err) {
       if (!isBailoutToCSRError(err)) throw err
+    }
+  }
+
+  const markdownRoute = getMarkdownRouteConfig(
+    renderOpts.ComponentMod as {
+      markdown?: unknown
+      generateMarkdown?: unknown
+    }
+  )
+
+  if (renderOpts.experimental.markdown === true && markdownRoute.enabled) {
+    const markdownFilepath = htmlFilepath.replace(/\.html$/, '.markdown')
+    const { req: markdownReq, res: markdownRes } = createRequestResponseMocks({
+      url: req.url || path,
+      method: 'GET',
+      headers: {
+        ...req.headers,
+        accept: markdownDocumentRepresentation.contentType,
+      },
+    })
+
+    markdownRes.statusCode = res.statusCode
+    setRequestMeta(markdownReq, { ...getRequestMeta(req) })
+
+    const markdownRenderOpts =
+      typeof renderOpts.Component === 'string'
+        ? {
+            ...renderOpts,
+            Component: interopDefault(renderOpts.ComponentMod),
+          }
+        : renderOpts
+
+    const markdownResult = await lazyRenderPagesPage(
+      markdownReq,
+      markdownRes,
+      page,
+      searchAndDynamicParams,
+      markdownRenderOpts,
+      sharedContext,
+      renderContext
+    )
+
+    if (markdownResult && !markdownResult.isNull) {
+      fileWriter.append(markdownFilepath, markdownResult.toUnchunkedString())
     }
   }
 

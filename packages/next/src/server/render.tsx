@@ -54,7 +54,6 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
-  MARKDOWN_CONTENT_TYPE_HEADER,
 } from '../lib/constants'
 import {
   NEXT_BUILTIN_DOCUMENT,
@@ -108,14 +107,17 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
 import {
-  acceptsMarkdown,
-  appendAcceptVaryHeader,
-} from './markdown/accepts-markdown'
+  applyNegotiatedDocumentVary,
+  createNegotiatedDocumentRenderResult,
+  supportsNegotiatedDocumentRepresentation,
+  wantsNegotiatedDocumentRepresentation,
+} from './document-representation'
 import {
   getMarkdownRouteConfig,
-  loadMarkdownRootComponents,
   type MarkdownRouteConfig,
 } from './markdown/config'
+import { markdownDocumentRepresentation } from './markdown/representation'
+import { loadMarkdownRootComponents } from './markdown/root-components'
 import {
   markReactNode,
   type MarkdownSegmentDefinition,
@@ -167,6 +169,8 @@ async function renderPageToMarkdown({
   router,
   metadata,
   res,
+  projectDir,
+  tsconfigPath,
   routeConfig,
 }: {
   App: AppType
@@ -176,6 +180,8 @@ async function renderPageToMarkdown({
   router: NextRouter
   metadata: PagesRenderResultMetadata
   res: ServerResponse
+  projectDir: string
+  tsconfigPath?: string
   routeConfig: PagesMarkdownRouteConfig
 }): Promise<RenderResult> {
   const render = routeConfig.render
@@ -197,7 +203,7 @@ async function renderPageToMarkdown({
       : undefined,
   }
 
-  const markdownSegmentByComponent = new Map([
+  const markdownSegmentRegistry = new Map([
     [
       Component,
       {
@@ -213,7 +219,7 @@ async function renderPageToMarkdown({
     pageProps: Record<string, any>
   ) {
     return markReactNode(React.createElement(Component, pageProps), {
-      segmentByComponent: markdownSegmentByComponent,
+      segmentRegistry: markdownSegmentRegistry,
     }) as React.ReactElement
   }
 
@@ -227,18 +233,15 @@ async function renderPageToMarkdown({
   })
 
   const markdown = await renderReactToMarkdown(pageContent, {
-    rootComponents: loadMarkdownRootComponents(),
+    rootComponents: await loadMarkdownRootComponents(projectDir, tsconfigPath),
     segments: new Map([[pageDefinition.id, pageDefinition]]),
   })
-
-  metadata.headers ??= {}
-  metadata.headers['Content-Type'] = MARKDOWN_CONTENT_TYPE_HEADER
   metadata.statusCode = res.statusCode
-
-  return new RenderResult(markdown, {
+  return createNegotiatedDocumentRenderResult(
+    markdownDocumentRepresentation,
     metadata,
-    contentType: MARKDOWN_CONTENT_TYPE_HEADER,
-  })
+    markdown
+  )
 }
 
 class ServerRouter implements NextRouter {
@@ -362,6 +365,8 @@ export type RenderOptsPartial = {
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
+  projectDir?: string
+  tsconfigPath?: string
   locale?: string
   locales?: readonly string[]
   defaultLocale?: string
@@ -1338,17 +1343,23 @@ export async function renderToHTMLImpl(
   const markdownRoute = getMarkdownRouteConfig<
     NonNullable<PagesModule['generateMarkdown']>
   >(renderOpts.ComponentMod as any)
-  const supportsMarkdownResponse =
-    renderOpts.experimental.markdown === true &&
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    (req.method === 'GET' || req.method === 'HEAD') &&
-    markdownRoute.enabled
-  const acceptsMarkdownRequest = acceptsMarkdown(req.headers.accept)
-  const wantsMarkdown = supportsMarkdownResponse && acceptsMarkdownRequest
+  const supportsMarkdownResponse = supportsNegotiatedDocumentRepresentation({
+    experimentalEnabled: renderOpts.experimental.markdown === true,
+    routeEnabled: markdownRoute.enabled,
+    runtime: process.env.NEXT_RUNTIME,
+    method: req.method,
+  })
+  const wantsMarkdown = wantsNegotiatedDocumentRepresentation(
+    markdownDocumentRepresentation,
+    supportsMarkdownResponse,
+    req.headers.accept
+  )
 
   if (supportsMarkdownResponse) {
     metadata.headers ??= {}
-    metadata.headers.vary = appendAcceptVaryHeader(
+    applyNegotiatedDocumentVary(
+      markdownDocumentRepresentation,
+      metadata.headers,
       res.getHeader('vary') ?? metadata.headers.vary
     )
   }
@@ -1362,6 +1373,8 @@ export async function renderToHTMLImpl(
       router,
       metadata,
       res,
+      projectDir: renderOpts.projectDir ?? '',
+      tsconfigPath: renderOpts.tsconfigPath,
       routeConfig: markdownRoute,
     })
   }

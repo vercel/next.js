@@ -6,16 +6,6 @@ export type MarkdownRouteConfig<TRender = (...args: any[]) => unknown> = {
   render?: TRender
 }
 
-export function loadMarkdownRootComponents(): MarkdownComponents {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    return {}
-  }
-
-  return (
-    require('../../lib/require-markdown-components') as typeof import('../../lib/require-markdown-components')
-  ).requireMarkdownComponents()
-}
-
 export function getMarkdownRouteConfig<
   TRender = (...args: any[]) => unknown,
 >(routeModule: {

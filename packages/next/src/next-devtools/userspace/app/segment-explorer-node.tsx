@@ -11,6 +11,10 @@ import {
 } from 'react'
 import { useLayoutEffect } from 'react'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
+import {
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_OMIT,
+  MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP,
+} from '../../../lib/constants'
 import { notFound } from '../../../client/components/not-found'
 
 export type SegmentBoundaryType =
@@ -29,13 +33,17 @@ export type SegmentNodeState = {
   setBoundaryType: (type: SegmentBoundaryType | null) => void
 }
 
+type MarkdownInternalBehaviorProps = {
+  __nextMarkdownBehavior?: 'omit' | 'passthrough'
+}
+
 function SegmentTrieNode({
   type,
   pagePath,
 }: {
   type: string
   pagePath: string
-}): React.ReactNode {
+} & MarkdownInternalBehaviorProps): React.ReactNode {
   const { boundaryType, setBoundaryType } = useSegmentState()
   const nodeState: SegmentNodeState = useMemo(() => {
     return {
@@ -72,7 +80,9 @@ function LoadingSegmentNode(): React.ReactNode {
   return null
 }
 
-export function SegmentViewStateNode({ page }: { page: string }) {
+export function SegmentViewStateNode({
+  page,
+}: { page: string } & MarkdownInternalBehaviorProps) {
   useLayoutEffect(() => {
     dispatcher.segmentExplorerUpdateRouteState(page)
     return () => {
@@ -82,7 +92,9 @@ export function SegmentViewStateNode({ page }: { page: string }) {
   return null
 }
 
-export function SegmentBoundaryTriggerNode() {
+export function SegmentBoundaryTriggerNode(
+  _props: MarkdownInternalBehaviorProps
+) {
   const { boundaryType } = useSegmentState()
   let segmentNode: React.ReactNode = null
   if (boundaryType === 'loading') {
@@ -103,9 +115,17 @@ export function SegmentViewNode({
   type: string
   pagePath: string
   children?: ReactNode
-}): React.ReactNode {
+} & MarkdownInternalBehaviorProps): React.ReactNode {
   const segmentNode = (
-    <SegmentTrieNode key={type} type={type} pagePath={pagePath} />
+    <SegmentTrieNode
+      key={type}
+      type={type}
+      pagePath={pagePath}
+      {...{
+        [MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_PROP]:
+          MARKDOWN_INTERNAL_COMPONENT_BEHAVIOR_OMIT,
+      }}
+    />
   )
 
   return (
@@ -124,7 +144,9 @@ const SegmentStateContext = createContext<{
   setBoundaryType: () => {},
 })
 
-export function SegmentStateProvider({ children }: { children: ReactNode }) {
+export function SegmentStateProvider({
+  children,
+}: { children: ReactNode } & MarkdownInternalBehaviorProps) {
   const [boundaryType, setBoundaryType] = useState<SegmentBoundaryType | null>(
     null
   )

@@ -105,6 +105,14 @@ describe('adapter-config', () => {
       runtime: 'nodejs',
       filePath: routeByPathname('/docs/node-pages')?.filePath,
     })
+    expect(
+      staticOutputs.find(
+        (output) => output.pathname === '/docs/automatic-static-pages.markdown'
+      )
+    ).toMatchObject({
+      pathname: '/docs/automatic-static-pages.markdown',
+      filePath: expect.stringMatching(/automatic-static-pages\.markdown$/),
+    })
     expect(routeByPathname('/docs/node-app.rsc.markdown')).toBe(undefined)
     expect(
       routeByPathname(`/_next/data/${ctx.buildId}/node-pages.json.markdown`)
@@ -117,6 +125,8 @@ describe('adapter-config', () => {
 
       if (output.filePath.endsWith('.html')) {
         expect(output.pathname.endsWith('.html')).toBe(false)
+      } else if (output.filePath.endsWith('.markdown')) {
+        expect(output.pathname.endsWith('.markdown')).toBe(true)
       } else if (output.pathname.endsWith('.rsc')) {
         expect(output.filePath.endsWith('rsc-fallback.json')).toBe(true)
       } else if (output.filePath.endsWith('.body')) {

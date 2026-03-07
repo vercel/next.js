@@ -48,7 +48,11 @@ import type {
   GetStaticPaths,
   GetStaticProps,
 } from '../../../types'
-import { acceptsMarkdown } from '../../markdown/accepts-markdown'
+import {
+  supportsNegotiatedDocumentRepresentation,
+  wantsNegotiatedDocumentRepresentation,
+} from '../../document-representation'
+import { markdownDocumentRepresentation } from '../../markdown/representation'
 
 export const getHandler = ({
   srcPage: originalSrcPage,
@@ -167,11 +171,18 @@ export const getHandler = ({
     let isIsrFallback = false
     let isNextDataRequest =
       prepareResult.isNextDataRequest && (hasStaticProps || hasServerProps)
-    const isMarkdownRequest =
-      nextConfig.experimental.markdown === true &&
-      (req.method === 'GET' || req.method === 'HEAD') &&
-      !isNextDataRequest &&
-      acceptsMarkdown(req.headers.accept)
+    const canNegotiateMarkdown =
+      supportsNegotiatedDocumentRepresentation({
+        experimentalEnabled: nextConfig.experimental.markdown === true,
+        routeEnabled: markdown !== undefined || generateMarkdown !== undefined,
+        runtime: process.env.NEXT_RUNTIME,
+        method: req.method,
+      }) && !isNextDataRequest
+    const isMarkdownRequest = wantsNegotiatedDocumentRepresentation(
+      markdownDocumentRepresentation,
+      canNegotiateMarkdown,
+      req.headers.accept
+    )
 
     const is404Page = srcPage === '/404'
     const is500Page = srcPage === '/500'
@@ -339,6 +350,11 @@ export const getHandler = ({
                     locale,
                     locales,
                     defaultLocale,
+                    projectDir: path.join(
+                      /* turbopackIgnore: true */
+                      process.cwd(),
+                      routeModule.relativeProjectDir
+                    ),
                     setIsrStatus: routerServerContext?.setIsrStatus,
 
                     isNextDataRequest:

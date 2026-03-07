@@ -477,6 +477,8 @@ async function exportAppImpl(
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
+    projectDir: dir,
+    tsconfigPath: nextConfig.typescript.tsconfigPath,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
     trailingSlash: nextConfig.trailingSlash,
@@ -501,6 +503,7 @@ async function exportAppImpl(
     images: nextConfig.images,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
+      markdown: nextConfig.experimental.markdown,
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,

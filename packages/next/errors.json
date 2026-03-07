@@ -1088,5 +1088,6 @@
   "1087": "Failed to parse \"%s\":\\n%s%s",
   "1088": "Expected RSC navigation response to have a body",
   "1089": "RSC fetch failed after all retry attempts",
-  "1090": "Markdown output is not supported in the Edge runtime."
+  "1090": "Markdown output is not supported in the Edge runtime.",
+  "1091": "Expected InitialRSCPayload to include seed data for markdown rendering."
 }

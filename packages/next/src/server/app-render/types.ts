@@ -89,6 +89,7 @@ export type ServerOnInstrumentationRequestError = (
 
 export interface RenderOptsPartial {
   dir?: string
+  tsconfigPath?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   basePath: string

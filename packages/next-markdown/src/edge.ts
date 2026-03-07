@@ -1,8 +1,10 @@
 import type React from 'react'
 
-export const MARKDOWN_COMPONENT_MARKER_TAG = 'react-markdown-component-marker'
-export const MARKDOWN_SEGMENT_MARKER_TAG = 'react-markdown-segment-marker'
-export const MARKDOWN_INTERACTIVE_ATTR = 'data-react-markdown-interactive'
+export {
+  MARKDOWN_COMPONENT_MARKER_TAG,
+  MARKDOWN_INTERACTIVE_ATTR,
+  MARKDOWN_SEGMENT_MARKER_TAG,
+} from './constants'
 
 export function markReactNode(node: React.ReactNode): React.ReactNode {
   return node
@@ -17,4 +19,4 @@ export type {
   MarkdownComponentContext,
   MarkdownComponents,
   MarkdownSegmentDefinition,
-} from './index'
+} from './types'

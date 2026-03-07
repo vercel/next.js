@@ -222,7 +222,8 @@ function checkExports(
         hasLeadingNonDirectiveNode = true
       }
       if (
-        node.type === 'ExportDeclaration' &&
+        (node.type === 'ExportDeclaration' ||
+          node.type === 'ExportNamedDeclaration') &&
         node.declaration?.type === 'VariableDeclaration'
       ) {
         for (const declaration of node.declaration?.declarations) {
@@ -239,7 +240,8 @@ function checkExports(
       }
 
       if (
-        node.type === 'ExportDeclaration' &&
+        (node.type === 'ExportDeclaration' ||
+          node.type === 'ExportNamedDeclaration') &&
         node.declaration?.type === 'FunctionDeclaration' &&
         exportsSet.has(node.declaration.identifier?.value)
       ) {
@@ -252,7 +254,8 @@ function checkExports(
       }
 
       if (
-        node.type === 'ExportDeclaration' &&
+        (node.type === 'ExportDeclaration' ||
+          node.type === 'ExportNamedDeclaration') &&
         node.declaration?.type === 'FunctionDeclaration' &&
         node.declaration.identifier?.value === 'generateMarkdown'
       ) {
@@ -260,7 +263,8 @@ function checkExports(
       }
 
       if (
-        node.type === 'ExportDeclaration' &&
+        (node.type === 'ExportDeclaration' ||
+          node.type === 'ExportNamedDeclaration') &&
         node.declaration?.type === 'VariableDeclaration'
       ) {
         const id = node.declaration?.declarations[0]?.id.value
