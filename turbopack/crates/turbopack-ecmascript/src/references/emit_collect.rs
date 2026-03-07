@@ -10,6 +10,7 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
+    emit_collect::EmittedModuleReference,
     issue::IssueSource,
     module::Module,
     reference::ModuleReference,
@@ -118,6 +119,14 @@ impl ModuleReference for EmitReference {
             import: Default::default(),
             export: self.export_usage.clone(),
         }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EmittedModuleReference for EmitReference {
+    #[turbo_tasks::function]
+    fn data(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.data.clone())
     }
 }
 
