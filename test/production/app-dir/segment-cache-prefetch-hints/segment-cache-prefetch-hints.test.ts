@@ -1,4 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
+import type * as Playwright from 'playwright'
+import { createRouterAct } from 'router-act'
 
 // Bit values from PrefetchHint enum (const enum, so we duplicate values here)
 const ParentInlinedIntoSelf = 0b100000 // 32
@@ -138,6 +140,34 @@ describe('segment-cache-prefetch-hints', () => {
      outlined ■      └── "__PAGE__"
      "
     `)
+
+    // Verify client navigation works with the inlined data: prefetch via
+    // link accordion, then navigate. All segment data should be available
+    // without additional requests.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-small-chain"]')
+          .click()
+      },
+      { includes: 'Small chain page' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-small-chain"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-small-chain').text()).toBe(
+      'Small chain page'
+    )
   })
 
   it('outlined: large segment breaks the inlining chain', async () => {
@@ -154,6 +184,32 @@ describe('segment-cache-prefetch-hints', () => {
      outlined ■      └── "__PAGE__"
      "
     `)
+
+    // Even with a large outlined segment, navigation should still work.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-outlined"]')
+          .click()
+      },
+      { includes: 'Outlined test page' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-outlined"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-outlined').text()).toBe(
+      'Outlined test page'
+    )
   })
 
   it('parallel routes: parent inlines into one slot only', async () => {
@@ -190,6 +246,31 @@ describe('segment-cache-prefetch-hints', () => {
        "
       `)
     }
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-parallel"]')
+          .click()
+      },
+      { includes: 'Main content' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-parallel"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-parallel').text()).toBe(
+      'Main content'
+    )
   })
 
   it('home: root inlines directly into page', async () => {
@@ -223,6 +304,40 @@ describe('segment-cache-prefetch-hints', () => {
      outlined ■              └── "__PAGE__"
      "
     `)
+
+    // Navigate to the restart route. Two inlining groups means multiple
+    // segment responses, but navigation should still work correctly.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    // Prefetch and then navigate. This route has a large outlined segment
+    // in the middle which produces multiple inlining groups and multiple
+    // segment responses.
+    await act(
+      async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/test-restart/large-middle/after"]'
+          )
+          .click()
+      },
+      { includes: 'After page' }
+    )
+
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/test-restart/large-middle/after"]')
+        .click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-restart').text()).toBe(
+      'After page'
+    )
   })
 
   it('deep chain: all small segments inline to the leaf', async () => {
@@ -239,6 +354,31 @@ describe('segment-cache-prefetch-hints', () => {
      outlined ■                  └── "__PAGE__"
      "
     `)
+
+    // Navigate to the deep chain. All segments are inlined into the page's
+    // response, so a single prefetch request covers everything.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-deep/a/b/c"]')
+          .click()
+      },
+      { includes: 'Deep page' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-deep/a/b/c"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-deep').text()).toBe('Deep page')
   })
 
   it('dynamic route: hints are based on concrete params, not fallback shell', async () => {
@@ -264,5 +404,30 @@ describe('segment-cache-prefetch-hints', () => {
     // pattern, not concrete path)
     const data2 = await fetchRouteTreePrefetch(next, '/test-dynamic/world')
     expect(renderInliningTree(data2.tree)).toBe(helloTree)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-dynamic/hello"]')
+          .click()
+      },
+      { includes: 'Dynamic page: hello' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-dynamic/hello"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-dynamic').text()).toBe(
+      'Dynamic page: hello'
+    )
   })
 })

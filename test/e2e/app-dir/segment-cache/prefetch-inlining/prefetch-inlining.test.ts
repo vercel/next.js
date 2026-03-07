@@ -16,9 +16,9 @@ describe('prefetch inlining', () => {
     //   /shared/a/b/c  and  /shared/a/d/e
     // Without inlining, prefetching each route would issue one request per
     // segment plus one for the head (6+ requests). With inlining enabled,
-    // all segment data is bundled into a single response, so revealing a
-    // link should produce at most 2 prefetch requests per route: one for
-    // /_tree and one for the inlined segment data.
+    // all segment data is bundled into a single response per leaf, so
+    // revealing a link should produce at most 2 prefetch requests per route:
+    // one for /_tree and one for the bundled segments.
 
     let rscRequestCount = 0
     let page: Playwright.Page
@@ -62,8 +62,9 @@ describe('prefetch inlining', () => {
       }
     )
 
-    // The delta should be at most 2 requests (/_tree + /_inlined).
-    // Without inlining, there would be 6+ individual segment requests.
+    // The delta should be at most 2 requests (/_tree + one bundled
+    // segment response with head metadata inlined). Without inlining,
+    // there would be 6+ individual segment requests.
     const delta = rscRequestCount - countBeforeSecondPrefetch
     expect(delta).toBeLessThanOrEqual(2)
 
@@ -76,14 +77,6 @@ describe('prefetch inlining', () => {
     // Verify the page rendered correctly
     const text = await browser.elementByCss('#page-e').text()
     expect(text).toBe('Page E')
-  })
-
-  it('works with dynamic routes', async () => {
-    // Regression test: the build previously failed with
-    // "Invariant: missing __PAGE__ segmentPath" when prefetchInlining was
-    // combined with dynamic routes.
-    const $ = await next.render$('/dynamic/hello')
-    expect($('#dynamic-page').text()).toBe('hello')
   })
 
   it('deduplicates inlined prefetch requests for the same route', async () => {

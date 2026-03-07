@@ -345,6 +345,10 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 
 ## Commit and PR Style
 
+- **Always use StGit (`stg`) for patch-stack history operations.** In this repo, do not use raw `git rebase`, `git commit --amend`, or ad-hoc branch surgery when updating an existing patch series or PR branch unless the user explicitly asks for raw git.
+- When a branch needs to be refreshed onto a newer base, use the StGit workflow (`stg rebase`, `stg refresh`, `stg push/pop`, `stg goto`, etc.) rather than rebasing branch refs directly.
+- When amending or splitting changes that belong to an existing PR/patch stack, treat the stack as the source of truth and update the relevant patch with `stg`, then push the corresponding branch.
+- If a branch is checked out in another worktree, do not work around that with raw git history edits on refs. Use the StGit workflow in the appropriate worktree, or stop and ask how the user wants to proceed.
 - Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs
 - Keep commit messages concise and descriptive
 - PR descriptions should focus on what changed and why

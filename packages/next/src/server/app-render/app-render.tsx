@@ -6371,9 +6371,11 @@ async function collectSegmentData(
   // build, compute them by measuring segment gzip sizes and write them to
   // metadata so the build pipeline can persist them to the manifest.
   let hints: PrefetchHints | null
-  if (renderOpts.isBuildTimePrerendering) {
+  const prefetchInlining = renderOpts.experimental.prefetchInlining
+  if (!prefetchInlining) {
+    hints = null
+  } else if (renderOpts.isBuildTimePrerendering) {
     // Build time: compute fresh hints and store in metadata for the manifest.
-    const prefetchInlining = renderOpts.experimental.prefetchInlining
     const maxSize =
       typeof prefetchInlining === 'object'
         ? (prefetchInlining.maxSize ?? 2_048)
