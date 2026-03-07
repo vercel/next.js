@@ -1,24 +1,33 @@
 const fs = require('node:fs')
 const path = require('node:path')
 
-const binPath = path.join(
-  __dirname,
-  '..',
-  'packages',
-  'next',
-  'dist',
-  'bin',
-  'next'
-)
+const repoRoot = path.join(__dirname, '..')
 
-if (!fs.existsSync(binPath)) {
+const placeholders = [
+  path.join(repoRoot, 'packages', 'next', 'dist', 'bin', 'next'),
+  path.join(repoRoot, 'packages', 'create-next-app', 'dist', 'index.js'),
+  path.join(
+    repoRoot,
+    'turbopack',
+    'packages',
+    'devlow-bench',
+    'dist',
+    'cli.js'
+  ),
+]
+
+for (const binPath of placeholders) {
+  if (fs.existsSync(binPath)) {
+    continue
+  }
+
   fs.mkdirSync(path.dirname(binPath), { recursive: true })
 
   fs.writeFileSync(
     binPath,
     `#!/usr/bin/env node
 console.error(
-  'Local workspace \'next\' has not been built yet. Run \'pnpm build\' first.'
+  'Local workspace has not been built yet. Run \'pnpm build\' first.'
 )
 process.exit(1)
 `,
