@@ -236,6 +236,52 @@ impl CompilationEvent for DiagnosticEvent {
     }
 }
 
+/// A generic trace event that carries a name, wall-clock timing, and arbitrary attributes.
+/// Forwarded as a `CompilationEvent` to the JS side for inclusion in `.next/trace`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceEvent {
+    pub name: &'static str,
+    pub start_time_ms: f64,
+    pub end_time_ms: f64,
+    pub attributes: Vec<(&'static str, serde_json::Value)>,
+}
+
+impl TraceEvent {
+    pub fn new(
+        name: &'static str,
+        start_time_ms: f64,
+        end_time_ms: f64,
+        attributes: Vec<(&'static str, serde_json::Value)>,
+    ) -> Self {
+        Self {
+            name,
+            start_time_ms,
+            end_time_ms,
+            attributes,
+        }
+    }
+}
+
+impl CompilationEvent for TraceEvent {
+    fn type_name(&self) -> &'static str {
+        "TraceEvent"
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Event
+    }
+
+    fn message(&self) -> String {
+        let duration_ms = self.end_time_ms - self.start_time_ms;
+        format!("{} in {:.0}ms", self.name, duration_ms)
+    }
+
+    fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

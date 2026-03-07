@@ -165,6 +165,7 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:

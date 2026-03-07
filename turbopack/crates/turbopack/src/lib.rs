@@ -33,8 +33,7 @@ use turbopack_core::{
     output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, InnerAssets,
-        ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -54,8 +53,11 @@ use turbopack_ecmascript::{
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
         follow_reexports,
     },
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::asset::EcmascriptModulePartAsset,
+    rename::module::EcmascriptModuleRenameModule,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    },
+    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
 use turbopack_resolve::{
@@ -78,15 +80,23 @@ async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
-    part: Option<ModulePart>,
+    reference_type: ReferenceType,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
-    css_import_context: Option<ResolvedVc<ImportContext>>,
-    runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let tree_shaking_mode = module_asset_context
         .module_options_context()
         .await?
         .tree_shaking_mode;
+    let part = match &reference_type {
+        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
+            Some(part)
+        }
+        _ => None,
+    };
+    let css_import_context = match reference_type {
+        ReferenceType::Css(CssReferenceSubType::AtImport(import)) => import,
+        _ => None,
+    };
     let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
 
     let module_type = &*module_type.await?;
@@ -173,7 +183,7 @@ async fn apply_module_type(
             }
 
             let module = builder.build().to_resolved().await?;
-            if runtime_code {
+            if matches!(reference_type, ReferenceType::Runtime) {
                 ResolvedVc::upcast(module)
             } else {
                 // Check side effect free on the intermediate module before following reexports
@@ -192,26 +202,40 @@ async fn apply_module_type(
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
                             *module,
-                            part.unwrap_or(ModulePart::facade()),
+                            part.cloned().unwrap_or(ModulePart::facade()),
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
-                        // Returns the split module if necessary due to re-exports
-                        if let Some(part) = part {
-                            match part {
-                                ModulePart::Evaluation => Vc::upcast(module.get_locals_if_split()),
-                                ModulePart::Export(_) => {
-                                    apply_reexport_tree_shaking(module.get_facade_if_split(), part)
+                        if *module.get_exports().split_locals_and_reexports().await? {
+                            if let Some(part) = part {
+                                match part {
+                                    ModulePart::Evaluation => {
+                                        Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
+                                    }
+                                    ModulePart::Export(_) => {
+                                        apply_reexport_tree_shaking(
+                                            Vc::upcast(
+                                                EcmascriptModuleFacadeModule::new(Vc::upcast(
+                                                    *module,
+                                                ))
+                                                .resolve()
+                                                .await?,
+                                            ),
+                                            part.clone(),
+                                        )
                                         .await?
+                                    }
+                                    _ => bail!(
+                                        "Invalid module part \"{}\" for reexports only tree \
+                                         shaking mode",
+                                        part
+                                    ),
                                 }
-                                _ => bail!(
-                                    "Invalid module part \"{}\" for reexports only tree shaking \
-                                     mode",
-                                    part
-                                ),
+                            } else {
+                                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
                             }
                         } else {
-                            Vc::upcast(module.get_facade_if_split())
+                            Vc::upcast(*module)
                         }
                     }
                     None => Vc::upcast(*module),
@@ -261,7 +285,7 @@ async fn apply_module_type(
         ),
         ModuleType::Custom(custom) => {
             custom
-                .create_module(*source, module_asset_context, part)
+                .create_module(*source, module_asset_context, reference_type)
                 .to_resolved()
                 .await?
         }
@@ -292,13 +316,13 @@ async fn apply_reexport_tree_shaking(
             if *new_export == *export {
                 Vc::upcast(**final_module)
             } else {
-                Vc::upcast(EcmascriptModuleFacadeModule::new(
+                Vc::upcast(EcmascriptModuleRenameModule::new(
                     **final_module,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
-            Vc::upcast(EcmascriptModuleFacadeModule::new(
+            Vc::upcast(EcmascriptModuleRenameModule::new(
                 **final_module,
                 ModulePart::renamed_namespace(export.clone()),
             ))
@@ -632,12 +656,6 @@ async fn process_default_internal(
         module_asset_context.resolve_options_context(),
     );
 
-    let part: Option<ModulePart> = match &reference_type {
-        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
-            Some(part.clone())
-        }
-        _ => None,
-    };
     let inner_assets = match &reference_type {
         ReferenceType::Internal(inner_assets) => Some(*inner_assets),
         _ => None,
@@ -743,10 +761,8 @@ async fn process_default_internal(
                         current_source,
                         module_asset_context,
                         module_type.cell(),
-                        part,
+                        reference_type,
                         inner_assets,
-                        None,
-                        false,
                     )
                     .await;
                 }
@@ -876,14 +892,8 @@ async fn process_default_internal(
         current_source,
         module_asset_context,
         module_type.cell(),
-        part,
+        reference_type,
         inner_assets,
-        if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) = reference_type {
-            import
-        } else {
-            None
-        },
-        matches!(reference_type, ReferenceType::Runtime),
     )
     .await?;
 
@@ -893,9 +903,15 @@ async fn process_default_internal(
 #[turbo_tasks::function]
 pub async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
+    resolve_typescript: bool,
 ) -> Result<Vc<ModuleAssetContext>> {
+    let mut extensions = vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")];
+    if resolve_typescript {
+        extensions.insert(0, rcstr!(".ts"));
+    }
+
     let resolve_options = ResolveOptionsContext {
-        enable_node_native_modules: true,
+        custom_extensions: Some(extensions),
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         collect_affecting_sources: true,
@@ -1078,6 +1094,7 @@ impl AssetContext for ModuleAssetContext {
                                     let origin = PlainResolveOrigin::new(
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
+                                            false,
                                         )),
                                         // If target is specified, a symlink will be created to
                                         // make the folder

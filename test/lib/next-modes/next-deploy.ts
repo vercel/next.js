@@ -137,16 +137,21 @@ export class NextDeployInstance extends NextInstance {
       ...this.env,
     }
 
-    const cleanupRes = await execa(cleanupScriptPath, [], {
+    const cleanupChild = execa(cleanupScriptPath, [], {
       cwd: this.testDir,
       env: scriptEnv,
       reject: false,
       stderr: 'inherit',
     })
 
-    if (cleanupRes.exitCode !== 0) {
+    cleanupChild.stdout?.pipe(process.stdout)
+    cleanupChild.stderr?.pipe(process.stderr)
+
+    const { exitCode } = await cleanupChild
+
+    if (exitCode !== 0) {
       throw new Error(
-        `Custom cleanup script failed: ${cleanupRes.stdout} ${cleanupRes.stderr} (${cleanupRes.exitCode})`
+        `Custom cleanup script failed with exit code: ${exitCode}`
       )
     }
   }
@@ -348,6 +353,11 @@ export class NextDeployInstance extends NextInstance {
     if (process.env.__NEXT_CACHE_COMPONENTS) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
+      )
+    }
+    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
       )
     }
     if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {

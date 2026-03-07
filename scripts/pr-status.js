@@ -372,6 +372,7 @@ function getPRComments(prNumber) {
 // ============================================================================
 
 function replyToThread(threadId, body) {
+  body = ':robot: ' + body
   const mutation = `
     mutation($threadId: ID!, $body: String!) {
       addPullRequestReviewThreadReply(input: {

@@ -737,6 +737,9 @@ export async function handler(
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+            cachedNavigations: Boolean(
+              nextConfig.experimental.cachedNavigations
+            ),
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:
@@ -932,8 +935,8 @@ export async function handler(
               : normalizedSrcPage
 
           const fallbackRouteParams =
-            // If we're in production and we have fallback route params, then we
-            // can use the manifest fallback route params.
+            // If we're in production and we have fallback route params, always
+            // use them for the fallback shell.
             isProduction && prerenderInfo?.fallbackRouteParams
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
@@ -973,6 +976,57 @@ export async function handler(
 
           // Otherwise, if we did get a fallback response, we should return it.
           if (fallbackResponse) {
+            if (
+              !isMinimalMode &&
+              isRoutePPREnabled &&
+              ssgCacheKey &&
+              incrementalCache &&
+              !isOnDemandRevalidate &&
+              !isDebugFallbackShell &&
+              // The testing API relies on deterministic shell behavior, so
+              // don't upgrade fallback shells in the background when it's
+              // exposed.
+              !exposeTestingApi &&
+              // Instant Navigation Testing API requests intentionally keep
+              // the route in shell mode; don't upgrade these in background.
+              !isInstantNavigationTest &&
+              // Avoid background revalidate during prefetches; this can trigger
+              // static prerender errors that surface as 500s for the prefetch
+              // request itself.
+              !isPrefetchRSCRequest
+            ) {
+              scheduleOnNextTick(async () => {
+                const responseCache = routeModule.getResponseCache(req)
+
+                try {
+                  await responseCache.revalidate(
+                    ssgCacheKey,
+                    incrementalCache,
+                    isRoutePPREnabled,
+                    false,
+                    (c) => {
+                      return doRender({
+                        span: c.span,
+                        // Route shell render should not use the fallback params.
+                        postponed: undefined,
+                        fallbackRouteParams: null,
+                        forceStaticRender: true,
+                      })
+                    },
+                    // We don't have a prior entry for this param-specific shell.
+                    null,
+                    hasResolved,
+                    ctx.waitUntil
+                  )
+                } catch (err) {
+                  console.error(
+                    'Error revalidating the page in the background',
+                    err
+                  )
+                }
+              })
+            }
+
             // Remove the cache control from the response to prevent it from being
             // used in the surrounding cache.
             delete fallbackResponse.cacheControl
@@ -1197,7 +1251,9 @@ export async function handler(
       // Set the build ID header for RSC navigation requests when deploymentId is configured. This
       // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
       // from the RSC payload when deploymentId is set (relying on this header instead). Server
-      // actions are excluded because the client doesn't check the build ID for action responses.
+      // actions are excluded here because action redirect responses get the deployment ID header
+      // from the pre-fetched redirect target (via createRedirectRenderResult in action-handler.ts
+      // which copies headers from the internal RSC fetch).
       // For static prerenders served from CDN, routes-manifest.json adds a header.
       if (isRSCRequest && !isPossibleServerAction && deploymentId) {
         res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
