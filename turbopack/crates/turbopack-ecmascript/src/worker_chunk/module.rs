@@ -6,7 +6,7 @@ use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
         ChunkingContextExt, ChunkingType, ChunkingTypeOption, ChunksData, EvaluatableAsset,
-        EvaluatableAssets, availability_info::AvailabilityInfo,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     ident::AssetIdent,
@@ -91,7 +91,7 @@ impl WorkerLoaderModule {
                 let entry_result = chunking_context
                     .root_entry_chunk_group(
                         worker_path,
-                        EvaluatableAssets::one(*evaluatable),
+                        ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),

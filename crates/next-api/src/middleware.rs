@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
@@ -130,17 +130,13 @@ impl MiddlewareEndpoint {
         let userland_module = self.entry_module().to_resolved().await?;
         let module_graph = this.project.module_graph(*userland_module);
 
-        let Some(module) = ResolvedVc::try_downcast(userland_module) else {
-            bail!("Entry module must be evaluatable");
-        };
-
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .root_entry_chunk_group(
                 this.project
                     .node_root()
                     .await?
                     .join("server/middleware.js")?,
-                Vc::cell(vec![module]),
+                ChunkGroup::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
