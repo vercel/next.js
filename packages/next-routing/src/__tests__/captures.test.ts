@@ -563,6 +563,137 @@ describe('Has Condition Captures in Destination', () => {
     expect(result.redirect).toBeDefined()
     expect(result.redirect?.url.pathname).toBe('/es/home')
   })
+
+  it('should interpolate source and has captures in route headers', async () => {
+    const headers = new Headers({
+      'x-language': 'es',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/users/123'),
+      headers,
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/users/([^/]+)$',
+            headers: {
+              Location: '/profiles/$1',
+              'x-user-id': '$1',
+              'x-language': '$xlanguage',
+              'x-combined': '$1-$xlanguage',
+            },
+            has: [
+              {
+                type: 'header',
+                key: 'x-language',
+              },
+            ],
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/users/123'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/users/123')
+    expect(result.resolvedHeaders?.get('Location')).toBe('/profiles/123')
+    expect(result.resolvedHeaders?.get('x-user-id')).toBe('123')
+    expect(result.resolvedHeaders?.get('x-language')).toBe('es')
+    expect(result.resolvedHeaders?.get('x-combined')).toBe('123-es')
+  })
+
+  it('should interpolate source and has captures in onMatch headers', async () => {
+    const headers = new Headers({
+      'x-language': 'fr',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/api/posts'),
+      headers,
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [
+          {
+            sourceRegex: '^/api/(?<resource>[^/]+)$',
+            headers: {
+              'x-resource': '$resource',
+              'x-language': '$xlanguage',
+              'x-combined': '$resource-$xlanguage',
+            },
+            has: [
+              {
+                type: 'header',
+                key: 'x-language',
+              },
+            ],
+          },
+          {
+            sourceRegex: '^/admin$',
+            headers: {
+              'x-should-not-match': 'true',
+            },
+          },
+        ],
+        fallback: [],
+      },
+      pathnames: ['/api/posts'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/api/posts')
+    expect(result.resolvedHeaders?.get('x-resource')).toBe('posts')
+    expect(result.resolvedHeaders?.get('x-language')).toBe('fr')
+    expect(result.resolvedHeaders?.get('x-combined')).toBe('posts-fr')
+    expect(result.resolvedHeaders?.get('x-should-not-match')).toBeNull()
+  })
+
+  it('should interpolate has captures in dynamic route destinations', async () => {
+    const headers = new Headers({
+      'x-language': 'fr',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/profile/john'),
+      headers,
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^/profile/([^/]+)$',
+            destination: '/$xlanguage/profile/$1',
+            has: [
+              {
+                type: 'header',
+                key: 'x-language',
+              },
+            ],
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/fr/profile/john'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/fr/profile/john')
+    expect(result.routeMatches).toEqual({
+      '1': 'john',
+    })
+  })
 })
 
 describe('Complex Capture Scenarios', () => {
