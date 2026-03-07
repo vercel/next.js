@@ -59,13 +59,15 @@ type NavigationLockState = {
 }
 
 let lockState: NavigationLockState | null = null
+let lockCookieValue: string | null = null
 
-function acquireLock(): void {
+function acquireLock(cookieValue: string): void {
   let resolve: () => void
   const promise = new Promise<void>((r) => {
     resolve = r
   })
   lockState = { promise, resolve: resolve! }
+  lockCookieValue = cookieValue
 }
 
 /**
@@ -85,12 +87,19 @@ export function startListeningForInstantNavigationCookie(): void {
       for (const cookie of event.changed) {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
           if (lockState !== null) {
-            // Lock is already held — cookie value was updated (e.g. from
-            // 'waiting' to 'client-nav|…'). This is not a concurrent lock,
-            // just a value change. Keep the existing lock.
+            // Lock is already held. Distinguish between legitimate cookie
+            // value updates (e.g. devtools updating from 'waiting' to
+            // 'client-nav|…') and improper nested instant() scopes
+            // (which re-set the same value).
+            if (cookie.value === lockCookieValue) {
+              console.error(
+                'Navigation lock already acquired. Concurrent locks are ' +
+                  'not allowed. Check for nested instant() scopes.'
+              )
+            }
             return
           }
-          acquireLock()
+          acquireLock(cookie.value ?? '')
           return
         }
       }
@@ -101,6 +110,7 @@ export function startListeningForInstantNavigationCookie(): void {
           if (lockState !== null) {
             lockState.resolve()
             lockState = null
+            lockCookieValue = null
           }
           return
         }

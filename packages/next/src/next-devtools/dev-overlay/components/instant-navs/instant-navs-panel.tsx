@@ -39,7 +39,13 @@ export function InstantNavsPanel() {
   // Navigation detection: watch state.page for changes while in waiting state
   useEffect(() => {
     if (status !== 'waiting') return
-    if (!state.page || !initialPageRef.current) return
+    if (!state.page) return
+
+    // Capture the first non-empty page as baseline (state.page starts as '')
+    if (!initialPageRef.current) {
+      initialPageRef.current = state.page
+      return
+    }
 
     if (state.page !== initialPageRef.current) {
       const from = fromUrlRef.current
