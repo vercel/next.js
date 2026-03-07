@@ -20,6 +20,7 @@ function matchRoute(
 ): {
   matched: boolean
   destination?: string
+  headers?: Record<string, string>
   regexMatches?: RegExpMatchArray
   hasCaptures?: Record<string, string>
 } {
@@ -47,10 +48,19 @@ function matchRoute(
   const destination = route.destination
     ? replaceDestination(route.destination, regexMatches, hasResult.captures)
     : undefined
+  const resolvedHeaders = route.headers
+    ? Object.fromEntries(
+        Object.entries(route.headers).map(([key, value]) => [
+          replaceDestination(key, regexMatches, hasResult.captures),
+          replaceDestination(value, regexMatches, hasResult.captures),
+        ])
+      )
+    : undefined
 
   return {
     matched: true,
     destination,
+    headers: resolvedHeaders,
     regexMatches,
     hasCaptures: hasResult.captures,
   }
@@ -81,8 +91,8 @@ function processRoutes(
     const match = matchRoute(route, currentUrl, headers)
 
     if (match.matched) {
-      if (route.headers) {
-        for (const [key, value] of Object.entries(route.headers)) {
+      if (match.headers) {
+        for (const [key, value] of Object.entries(match.headers)) {
           headers.set(key, value)
         }
       }
@@ -95,8 +105,8 @@ function processRoutes(
         // Check if route has redirect status and Location/Refresh header
         if (
           isRedirectStatus(route.status) &&
-          route.headers &&
-          hasRedirectHeaders(route.headers)
+          match.headers &&
+          hasRedirectHeaders(match.headers)
         ) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
@@ -166,7 +176,7 @@ function matchDynamicRoute(
 ): {
   matched: boolean
   params?: Record<string, string>
-  destinationPathname?: string
+  regexMatches?: RegExpMatchArray
 } {
   const regex = new RegExp(route.sourceRegex)
   const match = pathname.match(regex)
@@ -189,27 +199,24 @@ function matchDynamicRoute(
     Object.assign(params, match.groups)
   }
 
-  // Compute destination pathname by applying the destination template
-  let destinationPathname: string | undefined
-  if (route.destination) {
-    const replaced = replaceDestination(route.destination, match, {})
-    // Extract just the pathname part (before any query string)
-    const [pathPart] = replaced.split('?')
-    destinationPathname = pathPart
-  }
-
-  return { matched: true, params, destinationPathname }
+  return { matched: true, params, regexMatches: match }
 }
 
 /**
  * Applies headers from onMatch routes
  */
-function applyOnMatchHeaders(routes: Route[], headers: Headers): Headers {
+function applyOnMatchHeaders(
+  routes: Route[],
+  url: URL,
+  headers: Headers
+): Headers {
   const newHeaders = new Headers(headers)
 
   for (const route of routes) {
-    if (route.headers) {
-      for (const [key, value] of Object.entries(route.headers)) {
+    const match = matchRoute(route, url, headers)
+
+    if (match.matched && match.headers) {
+      for (const [key, value] of Object.entries(match.headers)) {
         newHeaders.set(key, value)
       }
     }
@@ -257,10 +264,20 @@ function checkDynamicRoutes(
       if (hasResult.matched && missingMatched) {
         // Check if the destination pathname (template path) is in the provided pathnames list
         // For dynamic routes, the destination contains the template path like /dynamic/[slug]
-        const pathnameToCheck = match.destinationPathname || checkUrl.pathname
+        const pathnameToCheck = route.destination
+          ? replaceDestination(
+              route.destination,
+              match.regexMatches || null,
+              hasResult.captures
+            ).split('?')[0]
+          : checkUrl.pathname
         const matchedPath = matchesPathname(pathnameToCheck, pathnames)
         if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(onMatchRoutes, headers)
+          const finalHeaders = applyOnMatchHeaders(
+            onMatchRoutes,
+            checkUrl,
+            headers
+          )
           return {
             matched: true,
             result: {
@@ -542,6 +559,7 @@ export async function resolveRoutes(
         if (hasResult.matched && missingMatched) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
+            currentUrl,
             currentHeaders
           )
           return {
@@ -555,7 +573,11 @@ export async function resolveRoutes(
     }
 
     // No dynamic route matched, return without route matches
-    const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
+    const finalHeaders = applyOnMatchHeaders(
+      routes.onMatch,
+      currentUrl,
+      currentHeaders
+    )
     return {
       matchedPathname: matchedPath,
       resolvedHeaders: finalHeaders,
@@ -573,8 +595,8 @@ export async function resolveRoutes(
     const match = matchRoute(route, currentUrl, currentHeaders)
 
     if (match.matched) {
-      if (route.headers) {
-        for (const [key, value] of Object.entries(route.headers)) {
+      if (match.headers) {
+        for (const [key, value] of Object.entries(match.headers)) {
           currentHeaders.set(key, value)
         }
       }
@@ -587,8 +609,8 @@ export async function resolveRoutes(
         // Check if route has redirect status and Location/Refresh header
         if (
           isRedirectStatus(route.status) &&
-          route.headers &&
-          hasRedirectHeaders(route.headers)
+          match.headers &&
+          hasRedirectHeaders(match.headers)
         ) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
@@ -660,6 +682,7 @@ export async function resolveRoutes(
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
+            pathnameCheckUrl,
             currentHeaders
           )
           return {
@@ -692,11 +715,18 @@ export async function resolveRoutes(
       if (hasResult.matched && missingMatched) {
         // Check if the destination pathname (template path) is in the provided pathnames list
         // For dynamic routes, the destination contains the template path like /dynamic/[slug]
-        const pathnameToCheck = match.destinationPathname || currentUrl.pathname
+        const pathnameToCheck = route.destination
+          ? replaceDestination(
+              route.destination,
+              match.regexMatches || null,
+              hasResult.captures
+            ).split('?')[0]
+          : currentUrl.pathname
         matchedPath = matchesPathname(pathnameToCheck, pathnames)
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
+            currentUrl,
             currentHeaders
           )
           return {
@@ -715,8 +745,8 @@ export async function resolveRoutes(
     const match = matchRoute(route, currentUrl, currentHeaders)
 
     if (match.matched) {
-      if (route.headers) {
-        for (const [key, value] of Object.entries(route.headers)) {
+      if (match.headers) {
+        for (const [key, value] of Object.entries(match.headers)) {
           currentHeaders.set(key, value)
         }
       }
@@ -729,8 +759,8 @@ export async function resolveRoutes(
         // Check if route has redirect status and Location/Refresh header
         if (
           isRedirectStatus(route.status) &&
-          route.headers &&
-          hasRedirectHeaders(route.headers)
+          match.headers &&
+          hasRedirectHeaders(match.headers)
         ) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
@@ -802,6 +832,7 @@ export async function resolveRoutes(
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
+            pathnameCheckUrl,
             currentHeaders
           )
           return {
