@@ -4132,7 +4132,7 @@
       "app dir - basic searchParams prop server component should have the correct search params",
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -4195,7 +4195,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5933,6 +5933,12 @@
       "instant validation client navigation invalid - static prefetch - missing suspense around runtime",
       "instant validation client navigation invalid - static prefetch - missing suspense around search params",
       "instant validation client navigation invalid - static prefetch - suspense too high",
+      "instant validation client navigation route group shared boundary invalid - route group boundary is shared but validation treats it as new",
+      "instant validation client navigation route groups invalid - config on both route group and segment layout - cookies() blocks below",
+      "instant validation client navigation route groups invalid - config on route group layout - cookies() blocks below",
+      "instant validation client navigation route groups invalid - config on route group layout - cookies() blocks in deeper segment",
+      "instant validation client navigation route groups invalid - config on segment layout - cookies() blocks through route group below",
+      "instant validation client navigation route groups invalid - config on segment layout inside route group - cookies() blocks below",
       "instant validation client navigation valid - no suspense needed around dynamic in page if loading.js is present",
       "instant validation client navigation valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above",
       "instant validation client navigation valid - runtime prefetch - does not require Suspense around params",
@@ -5985,6 +5991,12 @@
       "instant validation initial load invalid - static prefetch - missing suspense around runtime",
       "instant validation initial load invalid - static prefetch - missing suspense around search params",
       "instant validation initial load invalid - static prefetch - suspense too high",
+      "instant validation initial load route group shared boundary invalid - route group boundary is shared but validation treats it as new",
+      "instant validation initial load route groups invalid - config on both route group and segment layout - cookies() blocks below",
+      "instant validation initial load route groups invalid - config on route group layout - cookies() blocks below",
+      "instant validation initial load route groups invalid - config on route group layout - cookies() blocks in deeper segment",
+      "instant validation initial load route groups invalid - config on segment layout - cookies() blocks through route group below",
+      "instant validation initial load route groups invalid - config on segment layout inside route group - cookies() blocks below",
       "instant validation initial load valid - no suspense needed around dynamic in page if loading.js is present",
       "instant validation initial load valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above",
       "instant validation initial load valid - runtime prefetch - does not require Suspense around params",
@@ -8316,6 +8328,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
+    "passed": ["partial-fallback-shell-upgrade skipped in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/phase-changes/cookies.test.ts": {
     "passed": [
       "setting cookies stops cookie mutations when changing phases from a route handler to after via closure",
@@ -8674,10 +8693,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "proxy-with-middleware should error when both middleware and proxy files are detected"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9645,8 +9664,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
-    "passed": ["prefetch-partial-rsc resolves after a client-side navigation"],
-    "failed": [],
+    "passed": [],
+    "failed": ["prefetch-partial-rsc resolves after a client-side navigation"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10049,10 +10068,9 @@
   },
   "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
     "passed": [
-      "typed-links should generate types for next/link",
       "typed-links should include handler route from app/api-test/route.ts in generated link route definitions"
     ],
-    "failed": [],
+    "failed": ["typed-links should generate types for next/link"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10276,11 +10294,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
-    "passed": [
-      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
-      "use-cache-without-experimental-flag should show a build error"
+    "passed": ["use-cache-without-experimental-flag should show a build error"],
+    "failed": [
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
