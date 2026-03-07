@@ -614,6 +614,7 @@ function filteringUnhandledRejectionHandler(
         }
         break
       }
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':

@@ -316,6 +316,7 @@ impl<F: Future> Future for SuppressTopLevelTaskCheckFuture<F> {
     }
 }
 
+#[must_use]
 pub struct ReadRawVcFuture {
     current: RawVc,
     read_output_options: ReadOutputOptions,
