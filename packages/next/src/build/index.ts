@@ -221,6 +221,7 @@ import {
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
+import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
 import { Lockfile } from './lockfile'
 import {
   buildPrefetchSegmentDataRoute,
@@ -1420,6 +1421,12 @@ export default async function build(
             Boolean(config.experimental.strictRouteTypes)
           )
           writeCacheLifeTypes(config.cacheLife, cacheLifeFilePath)
+
+          await writeRootParamsTypes(
+            routeTypesManifest,
+            path.join(distDir, 'types', 'root-params.d.ts'),
+            config
+          )
         })
 
       // Turbopack already handles conflicting app and page routes.
