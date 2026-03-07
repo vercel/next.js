@@ -13,6 +13,24 @@ type RouteMatchResult = {
   params?: Params
 }
 
+/** decodeURI that returns the original string on malformed input. */
+function tryDecodeURI(value: string): string {
+  try {
+    return decodeURI(value)
+  } catch {
+    return value
+  }
+}
+
+/** decodeURIComponent that returns the original string on malformed input. */
+function tryDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
 export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {
   private readonly dynamic?: RouteMatchFn
 
@@ -52,12 +70,24 @@ export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {
   public test(pathname: string): RouteMatchResult | null {
     if (this.dynamic) {
       const params = this.dynamic(pathname)
-      if (!params) return null
+      if (params) return { params }
 
-      return { params }
+      // Try decoding for non-ASCII pathnames (e.g. /%D1%82%D0%B5%D1%81%D1%82 → /тест).
+      const decoded = tryDecodeURI(pathname)
+      if (decoded !== pathname) {
+        const decodedParams = this.dynamic(decoded)
+        if (decodedParams) return { params: decodedParams }
+      }
+
+      return null
     }
 
     if (pathname === this.definition.pathname) {
+      return {}
+    }
+
+    // Try decoding for non-ASCII pathnames (e.g. /%D1%82%D0%B5%D1%81%D1%82 → /тест).
+    if (tryDecodeURIComponent(pathname) === this.definition.pathname) {
       return {}
     }
 

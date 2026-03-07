@@ -9,8 +9,6 @@ import { DecodeError } from '../../../shared/lib/utils'
  * Japanese characters.
  * */
 function decodePathParams(pathname: string): string {
-  // TODO: investigate adding this handling for non-SSG
-  // pages so non-ascii names also work there.
   return pathname
     .split('/')
     .map((seg) => {

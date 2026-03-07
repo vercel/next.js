@@ -80,7 +80,13 @@ function encodeToFilesystemAndURLSafeString(value: string) {
   }
   // If there are any unsafe characters, base64url-encode the entire value.
   // We also add a ! prefix so it doesn't collide with the simple case.
-  const base64url = btoa(value)
+  // btoa() only supports Latin1 characters, so we need to encode non-ASCII
+  // strings to UTF-8 bytes first (e.g. Cyrillic page names like "тест").
+  const base64url = btoa(
+    typeof TextEncoder !== 'undefined'
+      ? String.fromCharCode(...new TextEncoder().encode(value))
+      : Buffer.from(value, 'utf-8').toString('binary')
+  )
     .replace(/\+/g, '-') // Replace '+' with '-'
     .replace(/\//g, '_') // Replace '/' with '_'
     .replace(/=+$/, '') // Remove trailing '='

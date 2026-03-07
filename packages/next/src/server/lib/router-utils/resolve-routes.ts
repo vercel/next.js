@@ -303,6 +303,18 @@ export function getResolveRoutes(
       }
       const localeResult = fsChecker.handleLocale(curPathname || '')
 
+      // Try decoded pathname for non-ASCII route segments
+      // (e.g. /%D0%B1%D0%BB%D0%BE%D0%B3/hello → /блог/hello)
+      let decodedLocalePathname: string | undefined
+      try {
+        const decoded = decodeURI(localeResult.pathname)
+        if (decoded !== localeResult.pathname) {
+          decodedLocalePathname = decoded
+        }
+      } catch {
+        // malformed percent-encoded sequence; leave decodedLocalePathname undefined
+      }
+
       for (const route of dynamicRoutes) {
         // when resolving fallback: false the
         // render worker may return a no-fallback response
@@ -312,7 +324,9 @@ export function getResolveRoutes(
         if (invokedOutputs?.has(route.page)) {
           continue
         }
-        const params = route.match(localeResult.pathname)
+        const params =
+          route.match(localeResult.pathname) ||
+          (decodedLocalePathname && route.match(decodedLocalePathname))
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
