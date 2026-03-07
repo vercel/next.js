@@ -138,15 +138,17 @@ impl Emitter for IssueEmitter {
 
         let title;
         let mut message_split = message.split('\n');
-        title = message_split.next().unwrap().trim().to_string().into();
+        let first_line = message_split.next().unwrap().trim().to_string();
         let remaining = message_split.remainder().unwrap_or("").trim().to_string();
         if let Some(t) = self.title.as_ref() {
             if remaining.is_empty() {
-                message = t.to_string();
+                title = first_line.into();
             } else {
-                message = format!("{}\n{}", t, remaining);
+                title = format!("{}\n{}", first_line, remaining).into();
             }
+            message = t.to_string();
         } else {
+            title = first_line.into();
             message = remaining;
         }
 

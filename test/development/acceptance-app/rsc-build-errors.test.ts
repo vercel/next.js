@@ -177,6 +177,7 @@ describe('Error overlay - RSC build errors', () => {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./app/server-with-errors/client-only-in-server/client-only-lib.js (1:1)
        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+           Learn more: https://nextjs.org/docs/app/building-your-application/rendering
        > 1 | import 'client-only'
            | ^^^^^^^^^^^^^^^^^^^^
          2 |
@@ -184,7 +185,6 @@ describe('Error overlay - RSC build errors', () => {
          4 |   return 'client-only-lib'
 
        Ecmascript file had an error
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
 
        Import trace:
          Server Component:
@@ -424,11 +424,11 @@ describe('Error overlay - RSC build errors', () => {
         .toMatchInlineSnapshot(`
        "./app/server-with-errors/error-file/error.js (1:1)
        app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+           Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
        > 1 | export default function Error() {}
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-       Ecmascript file had an error
-       Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
+       Ecmascript file had an error"
       `)
     } else {
       await expect(session.getRedboxSource()).resolves.toMatch(
