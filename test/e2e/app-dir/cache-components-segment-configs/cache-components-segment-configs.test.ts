@@ -34,7 +34,7 @@ describe('cache-components-segment-configs', () => {
 
       if (isTurbopack) {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
@@ -95,7 +95,7 @@ describe('cache-components-segment-configs', () => {
 
           if (isTurbopack) {
             expect(redbox.description).toMatchInlineSnapshot(
-              `"Ecmascript file had an error"`
+              `"Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
             )
           } else {
             expect(redbox.description).toMatchInlineSnapshot(
