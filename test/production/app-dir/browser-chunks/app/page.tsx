@@ -1,3 +1,10 @@
+import { CacheClient } from './cache-client'
+
 export default function Page() {
-  return <p>hello world</p>
+  return (
+    <div>
+      <p>hello world</p>
+      <CacheClient />
+    </div>
+  )
 }

@@ -18,6 +18,7 @@ export type HtmlProps = {
   }
   buildManifest: BuildManifest
   isDevelopment: boolean
+  deploymentId: string | undefined
   dynamicImports: string[]
   /**
    * This manifest is only needed for Pages dir, Production, Webpack
@@ -29,6 +30,7 @@ export type HtmlProps = {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   assetQueryString: string
+  mutableAssetQueryString: string
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]

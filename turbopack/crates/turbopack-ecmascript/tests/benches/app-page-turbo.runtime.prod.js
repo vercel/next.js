@@ -24267,7 +24267,7 @@ Read more: https://nextjs.org/docs/messages/failed-to-find-server-action`),
               injectedJS: Q,
             })
           : [],
-        ev = 'unstable_runtime' === (ef ? ef.unstable_prefetch : void 0),
+        ev = 'unstable_runtime' === (ef ? ef.unstable_instant : void 0),
         [eb, e_] =
           m && J
             ? await rg({

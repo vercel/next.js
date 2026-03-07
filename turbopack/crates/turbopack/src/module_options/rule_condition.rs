@@ -45,6 +45,10 @@ pub enum RuleCondition {
     },
     ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
     ResourceQueryContains(String),
+    ResourceQueryEquals(String),
+    ResourceQueryEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ContentTypeGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
+    ContentTypeEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
 }
 
 impl RuleCondition {
@@ -283,6 +287,28 @@ impl RuleCondition {
                         let ident = source.ident().await?;
                         return Ok(ident.query.contains(query));
                     }
+                    RuleCondition::ResourceQueryEquals(query) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident.query == *query);
+                    }
+                    RuleCondition::ResourceQueryEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(regex.is_match(&ident.query));
+                    }
+                    RuleCondition::ContentTypeGlob(glob) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident
+                            .content_type
+                            .as_ref()
+                            .is_some_and(|ct| glob.matches(ct)));
+                    }
+                    RuleCondition::ContentTypeEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident
+                            .content_type
+                            .as_ref()
+                            .is_some_and(|ct| regex.is_match(ct)));
+                    }
                 }
             }
         }
@@ -451,13 +477,13 @@ pub mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_leaves_test().await })
+        tt.run_once(async { run_leaves_test_operation().read_strongly_consistent().await })
             .await
             .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_leaves_test() -> Result<()> {
+    #[turbo_tasks::function(operation)]
+    pub async fn run_leaves_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
@@ -584,13 +610,17 @@ pub mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_rule_condition_tree_test().await })
-            .await
-            .unwrap();
+        tt.run_once(async {
+            run_rule_condition_tree_test_operation()
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+        .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_rule_condition_tree_test() -> Result<()> {
+    #[turbo_tasks::function(operation)]
+    pub async fn run_rule_condition_tree_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(

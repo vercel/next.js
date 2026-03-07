@@ -1508,10 +1508,10 @@ describe('ReactRefreshLogBox app', () => {
          "description": "Module not found: Can't resolve './boom.css'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/styles2.css (1:2)
+         "source": "./app/styles2.css (1:1)
        Module not found: Can't resolve './boom.css'
        > 1 | @import "./boom.css"
-           |  ^",
+           | ^",
          "stack": [],
        }
       `)
@@ -1558,6 +1558,7 @@ describe('ReactRefreshLogBox app', () => {
       if (isRspack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -1577,6 +1578,7 @@ describe('ReactRefreshLogBox app', () => {
       } else if (!isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",

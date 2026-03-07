@@ -28,8 +28,10 @@ import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import {
   formatIssue,
-  getIssueKey,
   isRelevantWarning,
+} from '../../shared/lib/turbopack/format-issue'
+import {
+  getIssueKey,
   processIssues,
   renderStyledStringToErrorAnsi,
   type EntryIssuesMap,
@@ -86,11 +88,7 @@ export function processTopLevelIssues(
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-
-export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
-}
+export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
@@ -995,9 +993,10 @@ export function normalizedPageToTurbopackStructureRoute(
       if (entrypointKey.endsWith('/[__metadata_id__]')) {
         entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
       }
-      if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
-        // For dynamic sitemap route, remove the extension
-        entrypointKey = entrypointKey.slice(0, -'.xml'.length)
+      // After stripping [__metadata_id__], add .xml for dynamic sitemap routes
+      // to match the Turbopack entry key from normalize_metadata_route
+      if (entrypointKey.endsWith('/sitemap') && ext !== '.xml') {
+        entrypointKey = entrypointKey + '.xml'
       }
     }
     entrypointKey = entrypointKey + '/route'

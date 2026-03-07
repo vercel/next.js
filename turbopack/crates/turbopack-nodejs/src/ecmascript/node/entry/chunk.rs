@@ -1,9 +1,8 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::writedoc;
-use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -24,6 +23,8 @@ use crate::NodeJsChunkingContext;
 /// An Ecmascript chunk that loads a list of parallel chunks, then instantiates
 /// runtime entries.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Build Node Entry Chunk")]
 pub(crate) struct EcmascriptBuildNodeEntryChunk {
     path: FileSystemPath,
     other_chunks: ResolvedVc<OutputAssets>,
@@ -74,7 +75,7 @@ impl EcmascriptBuildNodeEntryChunk {
             if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
                 path
             } else {
-                bail!(
+                turbobail!(
                     "cannot find a relative path from the chunk ({chunk_path}) to the runtime \
                      chunk ({runtime_path})",
                 );
@@ -82,7 +83,7 @@ impl EcmascriptBuildNodeEntryChunk {
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
-            bail!("chunk path ({chunk_path}) is not in output root ({output_root})");
+            turbobail!("chunk path ({chunk_path}) is not in output root ({output_root})");
         };
 
         let mut code = CodeBuilder::default();
@@ -126,7 +127,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     r#"
                         R.m({})
                     "#,
-                    StringifyJs(&*runtime_module_id),
+                    StringifyJs(&runtime_module_id),
                 )?;
             }
         }
@@ -141,7 +142,7 @@ impl EcmascriptBuildNodeEntryChunk {
             r#"
                 module.exports=R.m({}).exports
             "#,
-            StringifyJs(&*runtime_module_id),
+            StringifyJs(&runtime_module_id),
         )?;
 
         Ok(Code::cell(code.build()))
@@ -159,14 +160,6 @@ impl EcmascriptBuildNodeEntryChunk {
             this.path.clone(),
             Vc::upcast(self),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBuildNodeEntryChunk {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Evaluate Chunk"))
     }
 }
 

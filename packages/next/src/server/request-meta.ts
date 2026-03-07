@@ -81,9 +81,16 @@ export interface RequestMeta {
   didStripLocale?: boolean
 
   /**
-   * If the request had it's URL rewritten, this is the URL it was rewritten to.
+   * If the request had its URL rewritten, this is the pathname it was rewritten
+   * to (not a full URL, just the pathname).
    */
-  rewroteURL?: string
+  rewrittenPathname?: string
+
+  /**
+   * The resolved pathname for the request. Dynamic route params are
+   * interpolated, the pathname is decoded, and the trailing slash is removed.
+   */
+  resolvedPathname?: string
 
   /**
    * The cookies that were added by middleware and were added to the response.
@@ -144,6 +151,13 @@ export interface RequestMeta {
    * lookup).
    */
   postponed?: string
+
+  /**
+   * The action body extracted from a server action request when the postponed
+   * state was prepended to the body by the proxy. This allows the action
+   * handler to read the action payload without re-reading the consumed stream.
+   */
+  actionBody?: Buffer
 
   /**
    * If provided, this will be called when a response cache entry was generated
@@ -263,9 +277,10 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
-   * DEV only: The fallback params that should be used when validating prerenders during dev
+   * The fallback params for this route. In dev, used for validating prerenders.
+   * In production, used to defer params resolution during staged rendering.
    */
-  devFallbackParams?: OpaqueFallbackRouteParams
+  fallbackParams?: OpaqueFallbackRouteParams
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()
@@ -279,6 +294,16 @@ export interface RequestMeta {
    * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
    */
   devGenerateStaticParamsDuration?: bigint
+
+  /**
+   * DEV only: Server action log info to be logged after the request log
+   */
+  devServerActionLog?: {
+    functionName: string
+    args: unknown[]
+    location: string
+    duration: number
+  }
 }
 
 /**

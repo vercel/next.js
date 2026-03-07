@@ -88,7 +88,11 @@ class NextRootCommand extends Command {
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-      if (commandName !== 'dev' && event.getOptionValue('inspect') === true) {
+      if (
+        commandName !== 'dev' &&
+        commandName !== 'start' &&
+        event.getOptionValue('inspect') === true
+      ) {
         console.error(
           `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${commandName}`
         )
@@ -183,13 +187,17 @@ program
   )
   .option(
     '--debug-build-paths <patterns>',
-    'Comma-separated glob patterns or explicit paths for selective builds. Examples: "app/*", "app/page.tsx", "app/**/page.tsx"'
+    'Comma-separated glob patterns or explicit paths for selective builds. Use "!" prefix to exclude. Examples: "app/*", "app/page.tsx", "app/**/page.tsx", "app/**,!app/[slug]/**"'
   )
   .option(
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profile is saved to .next/cpu-profiles/ on completion.'
   )
   .action((directory: string, options: NextBuildOptions) => {
+    if (options.debugPrerender) {
+      // @ts-expect-error not readonly
+      process.env.NODE_ENV = 'development'
+    }
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
@@ -306,6 +314,10 @@ program
     'Path to a HTTPS certificate authority file.'
   )
   .option(
+    '--experimental-server-fast-refresh',
+    'Enable experimental server-side Fast Refresh.'
+  )
+  .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
@@ -379,6 +391,12 @@ program
   .option(
     '-H, --hostname <hostname>',
     'Specify a hostname on which to start the application (default: 0.0.0.0).'
+  )
+  .addOption(
+    new Option(
+      '--inspect [[host:]port]',
+      'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+    ).argParser(parseValidInspectAddress)
   )
   .addOption(
     new Option(

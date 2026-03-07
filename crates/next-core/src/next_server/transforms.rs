@@ -12,10 +12,11 @@ use crate::{
     next_config::NextConfig,
     next_server::context::ServerContextType,
     next_shared::transforms::{
-        get_import_type_bytes_rule, get_next_dynamic_transform_rule, get_next_font_transform_rule,
-        get_next_image_rule, get_next_lint_transform_rule, get_next_modularize_imports_rule,
-        get_next_pages_transforms_rule, get_next_track_dynamic_imports_transform_rule,
-        get_server_actions_transform_rule, next_cjs_optimizer::get_next_cjs_optimizer_rule,
+        get_next_debug_instant_stack_rule, get_next_dynamic_transform_rule,
+        get_next_font_transform_rule, get_next_image_rule, get_next_lint_transform_rule,
+        get_next_modularize_imports_rule, get_next_pages_transforms_rule,
+        get_next_track_dynamic_imports_transform_rule, get_server_actions_transform_rule,
+        next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_edge_node_api_assert::next_edge_node_api_assert,
         next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
@@ -38,6 +39,12 @@ pub async fn get_next_server_transforms_rules(
 
     let modularize_imports_config = &next_config.modularize_imports().await?;
     let mdx_rs = next_config.mdx_rs().await?.is_some();
+    let page_extensions: Vec<String> = next_config
+        .page_extensions()
+        .await?
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
 
     if !foreign_code {
         rules.push(get_next_lint_transform_rule(mdx_rs));
@@ -86,6 +93,7 @@ pub async fn get_next_server_transforms_rules(
                     vec![RuleCondition::ReferenceType(ReferenceType::Entry(
                         EntryReferenceSubType::PageData,
                     ))],
+                    &page_extensions,
                 )?);
             }
             false
@@ -146,6 +154,13 @@ pub async fn get_next_server_transforms_rules(
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
     };
+
+    if is_app_dir {
+        rules.push(get_next_debug_instant_stack_rule(
+            mdx_rs,
+            page_extensions.clone(),
+        ));
+    }
 
     if is_app_dir &&
         // `cacheComponents` is not supported in the edge runtime.
@@ -213,10 +228,6 @@ pub async fn get_next_server_transforms_rules(
                 vec![ModuleRuleEffect::Ignore],
             ));
         }
-    }
-
-    if *next_config.turbopack_import_type_bytes().await? {
-        rules.push(get_import_type_bytes_rule());
     }
 
     Ok(rules)

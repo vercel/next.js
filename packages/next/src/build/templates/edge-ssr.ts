@@ -110,13 +110,14 @@ async function requestHandler(
     params,
     buildId,
     nextConfig,
+    deploymentId,
     isNextDataRequest,
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
+    clientAssetToken,
   } = prepareResult
 
   initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
@@ -128,7 +129,8 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
-      deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+      deploymentId,
+      clientAssetToken,
       customServer: undefined,
     },
 
@@ -168,7 +170,6 @@ async function requestHandler(
       buildManifest,
       subresourceIntegrityManifest,
       reactLoadableManifest,
-      clientReferenceManifest,
       dynamicCssManifest,
     },
   }

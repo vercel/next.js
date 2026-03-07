@@ -22,15 +22,16 @@ import {
 } from '../../response-cache'
 
 import {
-  setResponseCacheControlHeaders,
+  getCacheControlHeader,
   type CacheControl,
 } from '../../lib/cache-control'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
 } from '../../../lib/constants'
 import path from 'path'
 import { sendRenderResult } from '../../send-payload'
@@ -47,7 +48,6 @@ import type {
   GetStaticPaths,
   GetStaticProps,
 } from '../../../types'
-import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
 export const getHandler = ({
   srcPage: originalSrcPage,
@@ -145,6 +145,8 @@ export const getHandler = ({
       nextConfig,
       resolvedPathname,
       encodedResolvedPathname,
+      deploymentId,
+      clientAssetToken,
     } = prepareResult
 
     const isExperimentalCompile =
@@ -234,6 +236,7 @@ export const getHandler = ({
         query: hasStaticProps ? {} : originalQuery,
       })
 
+      let parentSpan: Span | undefined
       const handleResponse = async (span?: Span) => {
         const responseGenerator: ResponseGenerator = async ({
           previousCacheEntry,
@@ -265,7 +268,8 @@ export const getHandler = ({
                     buildId,
                     customServer:
                       Boolean(routerServerContext?.isCustomServer) || undefined,
-                    deploymentId: getDeploymentId(),
+                    deploymentId,
+                    clientAssetToken,
                   },
                   renderOpts: {
                     params,
@@ -338,7 +342,6 @@ export const getHandler = ({
 
                     ErrorDebug: getRequestMeta(req, 'PagesErrorDebug'),
                     err: getRequestMeta(req, 'invokeError'),
-                    dev: routeModule.isDev,
 
                     // needed for experimental.optimizeCss feature
                     distDir: path.join(
@@ -420,6 +423,14 @@ export const getHandler = ({
                       'next.span_name': name,
                     })
                     span.updateName(name)
+
+                    // Propagate http.route to the parent span if one exists
+                    // (e.g. a platform-created HTTP span in adapter
+                    // deployments).
+                    if (parentSpan && parentSpan !== span) {
+                      parentSpan.setAttribute('http.route', route)
+                      parentSpan.updateName(name)
+                    }
                   } else {
                     span.updateName(`${method} ${srcPage}`)
                   }
@@ -607,7 +618,7 @@ export const getHandler = ({
           } else {
             // revalidate: false
             cacheControl = {
-              revalidate: CACHE_ONE_YEAR,
+              revalidate: CACHE_ONE_YEAR_SECONDS,
               expire: undefined,
             }
           }
@@ -616,11 +627,7 @@ export const getHandler = ({
         // If cache control is already set on the response we don't
         // override it to allow users to customize it via next.config
         if (cacheControl && !res.getHeader('Cache-Control')) {
-          setResponseCacheControlHeaders(
-            res,
-            cacheControl,
-            nextConfig.experimental.cdnCacheControlHeader
-          )
+          res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
         }
 
         // notFound: true case
@@ -638,6 +645,9 @@ export const getHandler = ({
           res.statusCode = 404
 
           if (isNextDataRequest) {
+            if (deploymentId) {
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+            }
             res.end('{"notFound":true}')
             return
           }
@@ -646,6 +656,9 @@ export const getHandler = ({
 
         if (result.value.kind === CachedRouteKind.REDIRECT) {
           if (isNextDataRequest) {
+            if (deploymentId) {
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+            }
             res.setHeader('content-type', JSON_CONTENT_TYPE_HEADER)
             res.end(JSON.stringify(result.value.props))
             return
@@ -718,6 +731,13 @@ export const getHandler = ({
           return null
         }
 
+        // Add deployment ID header for data requests
+        if (isNextDataRequest && !isErrorPage && !is500Page) {
+          if (deploymentId) {
+            res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+          }
+        }
+
         await sendRenderResult({
           req,
           res,
@@ -736,7 +756,6 @@ export const getHandler = ({
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           cacheControl: routeModule.isDev ? undefined : cacheControl,
-          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -745,6 +764,7 @@ export const getHandler = ({
       if (activeSpan) {
         await handleResponse()
       } else {
+        parentSpan = tracer.getActiveScopeSpan()
         await tracer.withPropagatedContext(req.headers, () =>
           tracer.trace(
             BaseServerSpan.handleRequest,

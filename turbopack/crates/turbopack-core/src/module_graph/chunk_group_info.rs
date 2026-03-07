@@ -13,13 +13,13 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
 
 use crate::{
     chunk::ChunkingType,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraphRef, RefData},
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
 
 #[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
@@ -82,9 +82,12 @@ impl Hash for RoaringBitmapWrapper {
     }
 }
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
+
 #[turbo_tasks::value]
 pub struct ChunkGroupInfo {
-    pub module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+    pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
     #[turbo_tasks(trace_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_groups: FxIndexSet<ChunkGroup>,
@@ -95,6 +98,11 @@ pub struct ChunkGroupInfo {
 
 #[turbo_tasks::value_impl]
 impl ChunkGroupInfo {
+    #[turbo_tasks::function]
+    pub fn module_chunk_groups(&self) -> Vc<ModuleToChunkGroups> {
+        *self.module_chunk_groups
+    }
+
     #[turbo_tasks::function]
     pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
         if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
@@ -220,18 +228,15 @@ impl ChunkGroup {
                     .try_join()
                     .await?
             ),
-            ChunkGroup::Async(entry) => {
-                format!("ChunkGroup::Async({:?})", entry.ident().to_string().await?)
-            }
-            ChunkGroup::Isolated(entry) => {
-                format!(
-                    "ChunkGroup::Isolated({:?})",
-                    entry.ident().to_string().await?
-                )
-            }
-            ChunkGroup::Shared(entry) => {
-                format!("ChunkGroup::Shared({:?})", entry.ident().to_string().await?)
-            }
+            ChunkGroup::Async(entry) => turbofmt!("ChunkGroup::Async({:?})", entry.ident())
+                .await?
+                .to_string(),
+            ChunkGroup::Isolated(entry) => turbofmt!("ChunkGroup::Isolated({:?})", entry.ident())
+                .await?
+                .to_string(),
+            ChunkGroup::Shared(entry) => turbofmt!("ChunkGroup::Shared({:?})", entry.ident())
+                .await?
+                .to_string(),
             ChunkGroup::IsolatedMerged {
                 parent,
                 merge_tag,
@@ -307,11 +312,11 @@ impl ChunkGroupKey {
                     .await?
             ),
             ChunkGroupKey::Async(module) => {
-                format!("Async({:?})", module.ident().to_string().await?)
+                turbofmt!("Async({:?})", module.ident()).await?.to_string()
             }
-            ChunkGroupKey::Isolated(module) => {
-                format!("Isolated({:?})", module.ident().to_string().await?)
-            }
+            ChunkGroupKey::Isolated(module) => turbofmt!("Isolated({:?})", module.ident())
+                .await?
+                .to_string(),
             ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
                 format!(
                     "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
@@ -320,7 +325,7 @@ impl ChunkGroupKey {
                 )
             }
             ChunkGroupKey::Shared(module) => {
-                format!("Shared({:?})", module.ident().to_string().await?)
+                turbofmt!("Shared({:?})", module.ident()).await?.to_string()
             }
             ChunkGroupKey::SharedMerged { parent, merge_tag } => {
                 format!(
@@ -372,7 +377,7 @@ impl Ord for TraversalPriority {
     }
 }
 
-pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<ChunkGroupInfo>> {
+pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGroupInfo>> {
     let span_outer = tracing::info_span!(
         "compute chunk group info",
         module_count = tracing::field::Empty,
@@ -736,7 +741,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
         }
 
         Ok(ChunkGroupInfo {
-            module_chunk_groups,
+            module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunk_groups: chunk_groups_map
                 .into_iter()

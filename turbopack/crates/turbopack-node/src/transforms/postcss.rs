@@ -12,11 +12,11 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    changed::any_content_changed_of_module,
+    changed::any_source_content_changed_of_module,
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
@@ -84,6 +84,9 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".postcssrc.js",
             ".postcssrc.mjs",
             ".postcssrc.cjs",
+            ".postcssrc.ts",
+            ".postcssrc.mts",
+            ".postcssrc.cts",
             ".config/postcssrc",
             ".config/postcssrc.json",
             ".config/postcssrc.yaml",
@@ -91,9 +94,15 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".config/postcssrc.js",
             ".config/postcssrc.mjs",
             ".config/postcssrc.cjs",
+            ".config/postcssrc.ts",
+            ".config/postcssrc.mts",
+            ".config/postcssrc.cts",
             "postcss.config.js",
             "postcss.config.mjs",
             "postcss.config.cjs",
+            "postcss.config.ts",
+            "postcss.config.mts",
+            "postcss.config.cts",
             "postcss.config.json",
         ]
         .into_iter()
@@ -195,7 +204,7 @@ async fn config_changed(
         .module();
 
     Ok(Vc::<Completions>::cell(vec![
-        any_content_changed_of_module(config_asset)
+        any_source_content_changed_of_module(config_asset)
             .to_resolved()
             .await?,
         extra_configs_changed(asset_context, postcss_config_path)
@@ -231,9 +240,11 @@ async fn extra_configs_changed(
                         .try_into_module()
                         .await?
                     {
-                        Some(module) => {
-                            Some(any_content_changed_of_module(*module).to_resolved().await?)
-                        }
+                        Some(module) => Some(
+                            any_source_content_changed_of_module(*module)
+                                .to_resolved()
+                                .await?,
+                        ),
                         None => None,
                     }
                 } else {
@@ -312,7 +323,7 @@ impl Asset for JsonSource {
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
-            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
+            _ => bail!("Invalid file type {:?}", file_type),
         }
     }
 }
@@ -434,7 +445,7 @@ async fn find_config_in_location(
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
-        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*self.source).await?;
+        let source = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source);
         match source {
             Some(source) => Ok(source.generate_source_map()),
             None => Ok(FileContent::NotFound.cell()),
@@ -450,6 +461,7 @@ impl PostCssTransformedAsset {
             project_path,
             chunking_context,
             env,
+            node_backend,
         } = &*self.execution_context.await?;
 
         // For this postcss transform, there is no guarantee that looking up for the
@@ -497,13 +509,19 @@ impl PostCssTransformedAsset {
         let postcss_executor =
             postcss_executor(*evaluate_context, project_path.clone(), config_path).module();
 
-        let entries = get_evaluate_entries(postcss_executor, *evaluate_context, None)
-            .to_resolved()
-            .await?;
+        let entries =
+            get_evaluate_entries(postcss_executor, *evaluate_context, **node_backend, None)
+                .to_resolved()
+                .await?;
 
-        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false)
-            .to_resolved()
-            .await?;
+        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        ))
+        .connect()
+        .to_resolved()
+        .await?;
 
         let css_fs_path = self.source.ident().path();
 
@@ -521,6 +539,7 @@ impl PostCssTransformedAsset {
             entries,
             cwd: project_path.clone(),
             env: *env,
+            node_backend: *node_backend,
             context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             module_graph,

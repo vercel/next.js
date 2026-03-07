@@ -9,11 +9,10 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_shared::transforms::{
-        debug_fn_name::get_debug_fn_name_rule, get_import_type_bytes_rule,
-        get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
-        get_next_lint_transform_rule, get_next_modularize_imports_rule,
-        get_next_pages_transforms_rule, get_server_actions_transform_rule,
-        next_cjs_optimizer::get_next_cjs_optimizer_rule,
+        debug_fn_name::get_debug_fn_name_rule, get_next_dynamic_transform_rule,
+        get_next_font_transform_rule, get_next_image_rule, get_next_lint_transform_rule,
+        get_next_modularize_imports_rule, get_next_pages_transforms_rule,
+        get_server_actions_transform_rule, next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
@@ -33,6 +32,12 @@ pub async fn get_next_client_transforms_rules(
 
     let modularize_imports_config = &next_config.modularize_imports().await?;
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+    let page_extensions: Vec<String> = next_config
+        .page_extensions()
+        .await?
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
 
     if !foreign_code {
         rules.push(get_next_lint_transform_rule(enable_mdx_rs));
@@ -78,6 +83,7 @@ pub async fn get_next_client_transforms_rules(
                     ExportFilter::StripDataExports,
                     enable_mdx_rs,
                     vec![],
+                    &page_extensions,
                 )?);
                 rules.push(get_next_disallow_export_all_in_page_rule(
                     enable_mdx_rs,
@@ -111,10 +117,6 @@ pub async fn get_next_client_transforms_rules(
         );
 
         rules.push(get_next_image_rule().await?);
-    }
-
-    if *next_config.turbopack_import_type_bytes().await? {
-        rules.push(get_import_type_bytes_rule());
     }
 
     Ok(rules)

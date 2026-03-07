@@ -170,7 +170,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 7 : 6,
+                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -578,7 +578,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 10 : 8,
+                          'next.clientComponentLoadCount': isNextDev ? 12 : 10,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -701,7 +701,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -1380,7 +1380,7 @@ describe('opentelemetry with custom server', () => {
                   },
                   {
                     attributes: {
-                      'next.clientComponentLoadCount': isNextDev ? 7 : 6,
+                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
                       'next.span_type': 'NextNodeServer.clientComponentLoading',
                     },
                     kind: 0,
@@ -1417,6 +1417,66 @@ describe('opentelemetry with custom server', () => {
     ])
   })
 })
+
+if (!isNextDev) {
+  describe('opentelemetry with direct entrypoint handler', () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      dependencies: require('./package.json').dependencies,
+      startCommand: 'pnpm start-entrypoint',
+      packageJson: {
+        scripts: {
+          'start-entrypoint': 'pnpm tsx custom-entrypoint-server.ts',
+        },
+      },
+      serverReadyPattern: /- Local:/,
+      env: {
+        TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+        NEXT_TELEMETRY_DISABLED: '1',
+        NODE_ENV: 'production',
+      },
+    })
+
+    if (skipped) {
+      return
+    }
+
+    let collector: Collector
+
+    function getCollector(): Collector {
+      return collector
+    }
+
+    beforeEach(async () => {
+      collector = await connectCollector({ port: COLLECTOR_PORT })
+    })
+
+    afterEach(async () => {
+      await collector.shutdown()
+    })
+
+    it('should propagate incoming context without next-server wrapper', async () => {
+      await next.fetch('/app/param/rsc-fetch', {
+        headers: {
+          traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+        },
+      })
+
+      await expectTrace(getCollector(), [
+        {
+          name: 'GET /app/[param]/rsc-fetch/page',
+          traceId: EXTERNAL.traceId,
+          parentId: EXTERNAL.spanId,
+          attributes: {
+            'http.target': '/app/param/rsc-fetch',
+            'next.span_type': 'BaseServer.handleRequest',
+          },
+        },
+      ])
+    })
+  })
+}
 
 type HierSavedSpan = SavedSpan & { spans?: HierSavedSpan[] }
 type SpanMatch = Omit<Partial<HierSavedSpan>, 'spans'> & { spans?: SpanMatch[] }

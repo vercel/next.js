@@ -1,5 +1,12 @@
-import type { NonStaticRenderStage } from './app-render/staged-rendering'
-import type { RequestStore } from './app-render/work-unit-async-storage.external'
+import {
+  RenderStage,
+  type AdvanceableRenderStage,
+  type StagedRenderingController,
+} from './app-render/staged-rendering'
+import type {
+  PrerenderStoreModernRuntime,
+  RequestStore,
+} from './app-render/work-unit-async-storage.external'
 
 export function isHangingPromiseRejectionError(
   err: unknown
@@ -79,7 +86,7 @@ function ignoreReject() {}
 export function makeDevtoolsIOAwarePromise<T>(
   underlying: T,
   requestStore: RequestStore,
-  stage: NonStaticRenderStage
+  stage: AdvanceableRenderStage
 ): Promise<T> {
   if (requestStore.stagedRendering) {
     // We resolve each stage in a timeout, so React DevTools will pick this up as IO.
@@ -97,4 +104,47 @@ export function makeDevtoolsIOAwarePromise<T>(
       resolve(underlying)
     }, 0)
   })
+}
+
+/**
+ * Returns the appropriate runtime stage for the current point in the render.
+ * Runtime-prefetchable segments render in the early stages and should wait
+ * for EarlyRuntime. Non-prefetchable segments render in the later stages
+ * and should wait for Runtime.
+ */
+export function getRuntimeStage(
+  stagedRendering: StagedRenderingController
+): RenderStage.EarlyRuntime | RenderStage.Runtime {
+  if (
+    stagedRendering.currentStage === RenderStage.EarlyStatic ||
+    stagedRendering.currentStage === RenderStage.EarlyRuntime
+  ) {
+    return RenderStage.EarlyRuntime
+  }
+  return RenderStage.Runtime
+}
+
+/**
+ * Delays until the appropriate runtime stage based on the current stage of
+ * the rendering pipeline:
+ *
+ * - Early stages → wait for EarlyRuntime
+ *   (for runtime-prefetchable segments)
+ * - Later stages → wait for Runtime
+ *   (for segments not using runtime prefetch)
+ *
+ * This ensures that cookies()/headers()/etc. resolve at the right time for
+ * each segment type.
+ */
+export function delayUntilRuntimeStage<T>(
+  prerenderStore: PrerenderStoreModernRuntime,
+  result: Promise<T>
+): Promise<T> {
+  const { stagedRendering } = prerenderStore
+  if (!stagedRendering) {
+    return result
+  }
+  return stagedRendering
+    .waitForStage(getRuntimeStage(stagedRendering))
+    .then(() => result)
 }

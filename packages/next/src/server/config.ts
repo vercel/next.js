@@ -45,6 +45,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
+import { Bundler } from '../lib/bundler'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -194,6 +195,16 @@ function checkDeprecations(
         silent
       )
     }
+  }
+
+  // browserDebugInfoInTerminal has moved to logging.browserToTerminal
+  if (userConfig.experimental?.browserDebugInfoInTerminal !== undefined) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.browserDebugInfoInTerminal',
+      `\`experimental.browserDebugInfoInTerminal\` has been moved to \`logging.browserToTerminal\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
   }
 }
 
@@ -374,6 +385,29 @@ function assignDefaultsAndValidate(
     result.experimental.trustHostHeader = true
   }
 
+  // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
+  if (
+    result.logging !== false &&
+    result.experimental?.browserDebugInfoInTerminal !== undefined
+  ) {
+    const loggingConfig = result.logging || {}
+    if (!('browserToTerminal' in loggingConfig)) {
+      const expConfig = result.experimental.browserDebugInfoInTerminal
+      // Convert object config to simple format (level or true)
+      const level =
+        typeof expConfig === 'object' && expConfig !== null
+          ? (expConfig.level ?? true)
+          : expConfig
+      // Map 'verbose' to true since browserToTerminal doesn't support 'verbose'
+      const normalizedValue = level === 'verbose' ? true : level
+
+      result.logging = {
+        ...loggingConfig,
+        browserToTerminal: normalizedValue,
+      }
+    }
+  }
+
   if (
     result.experimental?.allowDevelopmentBuild &&
     process.env.NODE_ENV !== 'development'
@@ -393,6 +427,12 @@ function assignDefaultsAndValidate(
       `The "sassOptions.functions" option is not supported when using Turbopack. ` +
         `Custom Sass functions are only available with webpack. ` +
         `Please remove the "functions" property from your sassOptions in ${configFileName}.`
+    )
+  }
+
+  if (result.experimental.cachedNavigations && !result.cacheComponents) {
+    throw new Error(
+      `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
   }
 
@@ -946,6 +986,18 @@ function assignDefaultsAndValidate(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
+  // Only read process.env.__NEXT_IMMUTABLE_ASSET_TOKEN to make our testing setup easier. This is
+  // actually done by the adapter's modifyConfig
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.IS_TURBOPACK_TEST &&
+    result.deploymentId &&
+    process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+  ) {
+    result.experimental.immutableAssetToken =
+      process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+  }
+
   const tracingRoot = result?.outputFileTracingRoot
   const turbopackRoot = result?.turbopack?.root
 
@@ -1366,12 +1418,9 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
-  // Store the distDirRoot in the config before it is modified by the isolatedDevBuild flag
+  // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  if (
-    phase === PHASE_DEVELOPMENT_SERVER &&
-    result.experimental.isolatedDevBuild
-  ) {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }
 
@@ -1399,6 +1448,7 @@ async function applyModifyConfig(
 
       config = await adapterMod.modifyConfig(config, {
         phase,
+        nextVersion: process.env.__NEXT_VERSION as string,
       })
     }
   }
@@ -1448,6 +1498,7 @@ type LoadConfigOptions = {
   ) => void
   reactProductionProfiling?: boolean
   debugPrerender?: boolean
+  bundler?: Bundler
 }
 
 export default async function loadConfig(
@@ -1476,6 +1527,7 @@ export default async function loadConfig(
     reportExperimentalFeatures,
     reactProductionProfiling,
     debugPrerender,
+    bundler,
   }: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
@@ -1696,6 +1748,16 @@ export default async function loadConfig(
       )
     }
 
+    if (
+      phase === PHASE_PRODUCTION_BUILD &&
+      bundler !== Bundler.Turbopack &&
+      userConfig.experimental?.immutableAssetToken
+    ) {
+      // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
+      // in `static/chunks` are always immutable without checking the manifest.
+      userConfig.experimental.immutableAssetToken = undefined
+    }
+
     if (reactProductionProfiling) {
       userConfig.reactProductionProfiling = reactProductionProfiling
     }
@@ -1864,6 +1926,13 @@ function enforceExperimentalFeatures(
       false,
       configuredExperimentalFeatures
     )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'allowDevelopmentBuild',
+      true,
+      configuredExperimentalFeatures
+    )
   }
 
   // TODO: Remove this once we've made Cache Components the default.
@@ -1876,21 +1945,40 @@ function enforceExperimentalFeatures(
     config.cacheComponents = true
   }
 
-  // TODO: Remove this once using the debug channel is the default.
+  // TODO: Remove this once cachedNavigations is the default.
   if (
-    process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
+    process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.reactDebugChannel === undefined ||
-      (isDefaultConfig && !config.experimental.reactDebugChannel))
+    (config.experimental.cachedNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.cachedNavigations))
   ) {
-    config.experimental.reactDebugChannel = true
+    config.experimental.cachedNavigations = true
 
     if (configuredExperimentalFeatures) {
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
-        'reactDebugChannel',
+        'cachedNavigations',
         true,
-        'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
+        'enabled by `__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once appNewScrollHandler is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.appNewScrollHandler === undefined ||
+      (isDefaultConfig && !config.experimental.appNewScrollHandler))
+  ) {
+    config.experimental.appNewScrollHandler = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'appNewScrollHandler',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
       )
     }
   }

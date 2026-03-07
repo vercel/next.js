@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use either::Either;
 use strsim::jaro;
 use swc_core::{
@@ -10,27 +10,27 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
+    loader::ResolvedWebpackLoaderItem,
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
-    reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
-        ModuleResolveResultItem, RequestKey,
+        ModuleResolveResultItem, RequestKey, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
+        resolve,
     },
+    source::Source,
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
@@ -49,7 +49,7 @@ use crate::{
         util::throw_module_not_found_expr,
     },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
-    tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
+    tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
 };
 
@@ -321,7 +321,8 @@ impl EsmAssetReferences {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("import {request} with {annotations}")]
 pub struct EsmAssetReference {
     pub module: ResolvedVc<EcmascriptModuleAsset>,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -410,10 +411,35 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if self.annotations.module_type().is_some_and(|v| v == "json") {
-            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
-        } else if self.annotations.module_type().is_some_and(|v| v == "bytes") {
-            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Bytes)
+        let ty = if let Some(loader) = self.annotations.turbopack_loader() {
+            // Resolve the loader path relative to the importing file
+            let origin = self.get_origin();
+            let origin_path = origin.origin_path().await?;
+            let loader_request = Request::parse(loader.loader.clone().into());
+            let resolved = resolve(
+                origin_path.parent(),
+                ReferenceType::Loader,
+                loader_request,
+                origin.resolve_options(),
+            );
+            let loader_fs_path = if let Some(source) = *resolved.first_source().await? {
+                (*source.ident().path().await?).clone()
+            } else {
+                bail!("Unable to resolve turbopackLoader '{}'", loader.loader);
+            };
+
+            EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
+                loader: ResolvedWebpackLoaderItem {
+                    loader: loader_fs_path,
+                    options: loader.options.clone(),
+                },
+                rename_as: self.annotations.turbopack_rename_as().cloned(),
+                module_type: self.annotations.turbopack_module_type().cloned(),
+            }
+        } else if let Some(module_type) = self.annotations.module_type() {
+            EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
+                &*module_type.to_string_lossy(),
+            ))
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
         } else {
@@ -451,7 +477,7 @@ impl ModuleReference for EsmAssetReference {
             self.get_origin(),
             request,
             ty,
-            false,
+            ResolveErrorMode::Error,
             Some(self.issue_source),
         )
         .await?;
@@ -474,18 +500,7 @@ impl ModuleReference for EsmAssetReference {
 
         Ok(result)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("import {} with {}", self.request, self.annotations).into())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Result<Vc<ChunkingTypeOption>> {
         Ok(Vc::cell(
@@ -498,10 +513,7 @@ impl ChunkableModuleReference for EsmAssetReference {
                 } else if chunking_type == "none" {
                     None
                 } else {
-                    return Err(anyhow!(
-                        "unknown chunking_type: {}",
-                        chunking_type.to_string_lossy()
-                    ));
+                    bail!("unknown chunking_type: {}", chunking_type.to_string_lossy());
                 }
             } else {
                 Some(ChunkingType::Parallel {
@@ -528,14 +540,15 @@ impl ChunkableModuleReference for EsmAssetReference {
 
 impl EsmAssetReference {
     pub async fn code_generation(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
-        if *chunking_context
-            .is_reference_unused(Vc::upcast(self))
+        if chunking_context
+            .unused_references()
+            .contains_key(&ResolvedVc::upcast(self))
             .await?
         {
             return Ok(CodeGeneration::empty());
@@ -653,11 +666,10 @@ impl EsmAssetReference {
                                             .supports_esm_externals()
                                             .await?
                                         {
-                                            bail!(
+                                            turbobail!(
                                                 "the chunking context ({}) does not support \
-                                                 external modules (esm request: {})",
-                                                chunking_context.name().await?,
-                                                request
+                                                 external modules (esm request: {request})",
+                                                chunking_context.name()
                                             );
                                         }
                                         let (sym, ctxt) =
@@ -704,11 +716,10 @@ impl EsmAssetReference {
                                             .supports_commonjs_externals()
                                             .await?
                                         {
-                                            bail!(
+                                            turbobail!(
                                                 "the chunking context ({}) does not support \
-                                                 external modules (request: {})",
-                                                chunking_context.name().await?,
-                                                request
+                                                 external modules (request: {request})",
+                                                chunking_context.name()
                                             );
                                         }
                                         let (sym, ctxt) =

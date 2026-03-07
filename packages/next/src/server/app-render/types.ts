@@ -49,6 +49,10 @@ const segmentSchema = s.union([
     s.string(),
     // Dynamic param type
     dynamicParamTypesSchema,
+    // Static siblings at the same URL level. Used by the client router to
+    // determine if a prefetch can be reused when navigating to a static
+    // sibling of a dynamic route. null means siblings are unknown.
+    s.nullable(s.array(s.string())),
   ]),
 ])
 
@@ -71,7 +75,7 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
       ])
     )
   ),
-  s.optional(s.boolean()),
+  s.optional(s.number()),
 ])
 
 export type ServerOnInstrumentationRequestError = (
@@ -87,7 +91,6 @@ export interface RenderOptsPartial {
   dir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
-  dev?: boolean
   basePath: string
   cacheComponents: boolean
   trailingSlash: boolean
@@ -118,11 +121,10 @@ export interface RenderOptsPartial {
     errorsRscStream: ReadableStream<Uint8Array>,
     htmlRequestId: string
   ) => void
-  nextExport?: boolean
+  isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
-  deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
     phase: string,
@@ -135,6 +137,7 @@ export interface RenderOptsPartial {
     bodySizeLimit?: SizeLimit
     allowedOrigins?: string[]
   }
+  logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined
@@ -155,8 +158,11 @@ export interface RenderOptsPartial {
      */
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
+    optimisticRouting: boolean
     inlineCss: boolean
+    prefetchInlining: boolean
     authInterrupts: boolean
+    cachedNavigations: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume
@@ -187,13 +193,6 @@ export interface RenderOptsPartial {
   isDebugDynamicAccesses?: boolean
 
   /**
-   * This is true when:
-   * - source maps are generated
-   * - source maps are applied
-   * - minification is disabled
-   */
-  hasReadableErrorStacks?: boolean
-
   /**
    * The maximum length of the headers that are emitted by React and added to
    * the response.

@@ -129,6 +129,8 @@ pub struct OriginalToken {
     pub original_line: u32,
     pub original_column: u32,
     pub name: Option<RcStr>,
+    /// Whether this token's source is in the sourcemap's `ignoreList`.
+    pub is_ignored: bool,
 }
 
 impl Token {
@@ -159,6 +161,7 @@ impl Token {
                 original_line: t.original_line,
                 original_column: t.original_column,
                 name: t.name.clone(),
+                is_ignored: t.is_ignored,
             }),
             Self::Synthetic(t) => Self::Synthetic(SyntheticToken {
                 generated_line: t.generated_line + line_offset,
@@ -187,6 +190,10 @@ impl From<swc_sourcemap::Token<'_>> for Token {
                 original_line: t.get_src_line(),
                 original_column: t.get_src_col(),
                 name: t.get_name().cloned().map(RcStr::from),
+                // Set to false initially; will be updated by
+                // lookup_token_and_source_internal which has access to the full
+                // source map's ignoreList.
+                is_ignored: false,
             })
         } else {
             Token::Synthetic(SyntheticToken {
@@ -546,22 +553,32 @@ impl SourceMap {
                 *guessed_original_file = Some(RcStr::from(source));
             }
 
-            if need_source_content
-                && content.is_none()
-                && let Some(map) = map.as_regular_source_map()
-            {
-                content = tok.and_then(|tok| {
-                    let src_id = tok.get_src_id();
+            // Check ignoreList and resolve source content using the regular
+            // (possibly flattened) source map. For Index maps,
+            // SourceMapIndex::flatten() correctly transfers ignoreList entries
+            // from each section into the flattened map.
+            if let Some(flat_map) = map.as_regular_source_map() {
+                if let Token::Original(ref mut orig) = token
+                    && let Some(source_name) = tok.and_then(|t| t.get_source().cloned())
+                    && let Some(idx) = flat_map.sources().position(|s| *s == *source_name)
+                {
+                    orig.is_ignored = flat_map.ignore_list().any(|id| *id == idx as u32);
+                }
 
-                    let name = map.get_source(src_id);
-                    let content = map.get_source_contents(src_id);
+                if need_source_content && content.is_none() {
+                    content = tok.and_then(|tok| {
+                        let src_id = tok.get_src_id();
 
-                    let (name, content) = name.zip(content)?;
-                    Some(sourcemap_content_source(
-                        name.clone().into(),
-                        content.clone().into(),
-                    ))
-                });
+                        let name = flat_map.get_source(src_id);
+                        let content = flat_map.get_source_contents(src_id);
+
+                        let (name, content) = name.zip(content)?;
+                        Some(sourcemap_content_source(
+                            name.clone().into(),
+                            content.clone().into(),
+                        ))
+                    });
+                }
             }
 
             token

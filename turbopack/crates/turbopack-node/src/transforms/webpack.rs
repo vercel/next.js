@@ -8,10 +8,11 @@ use futures::try_join;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue, json};
 use serde_with::serde_as;
+use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc, trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
+    trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -30,7 +31,7 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
@@ -50,14 +51,15 @@ use turbopack_resolve::{
 
 use crate::{
     AssetsForSourceMapping,
+    backend::NodeBackend,
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluationIssue, custom_evaluate,
-        get_evaluate_entries, get_evaluate_pool,
+        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluatePool, EvaluationIssue,
+        custom_evaluate, get_evaluate_entries, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
-    pool::{FormattingMode, NodeJsPool},
+    format::FormattingMode,
     source_map::{StackFrame, StructuredError},
     transforms::util::{EmittedAsset, emitted_assets_to_virtual_sources},
 };
@@ -82,29 +84,7 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-pub struct WebpackLoaderItem {
-    pub loader: RcStr,
-    #[serde(default)]
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    pub options: serde_json::Map<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone)]
-#[turbo_tasks::value(shared, transparent)]
-pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
+pub use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
 
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
@@ -218,117 +198,143 @@ impl WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn process(&self) -> Result<Vc<ProcessWebpackLoadersResult>> {
         let transform = self.transform.await?;
-
-        let ExecutionContext {
-            project_path,
-            chunking_context,
-            env,
-        } = &*transform.execution_context.await?;
-        let source_content = self.source.content();
-        let AssetContent::File(file) = *source_content.await? else {
-            bail!("Webpack Loaders transform only support transforming files");
-        };
-        let FileContent::Content(file_content) = &*file.await? else {
-            return Ok(ProcessWebpackLoadersResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
-                assets: Vec::new(),
-                source_map: FileContent::NotFound.resolved_cell(),
-            }
-            .cell());
-        };
-
-        // If the content is not a valid string (e.g. binary file), handle the error and pass a
-        // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
-        let content: JsonValue = match file_content.content().to_str() {
-            Ok(utf8_str) => utf8_str.to_string().into(),
-            Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
-                "binary".to_string(),
-                JsonValue::from(
-                    base64::engine::general_purpose::STANDARD
-                        .encode(file_content.content().to_bytes()),
-                ),
-            )))),
-        };
-        let evaluate_context = transform.evaluate_context;
-
-        let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
-
-        let entries = get_evaluate_entries(webpack_loaders_executor, *evaluate_context, None)
-            .to_resolved()
-            .await?;
-
-        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false)
-            .to_resolved()
-            .await?;
-
-        let resource_fs_path = self.source.ident().path().await?;
-        let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
-            bail!(format!(
-                "Resource path \"{}\" need to be on project filesystem \"{}\"",
-                resource_fs_path, project_path
-            ));
-        };
         let loaders = transform.loaders.await?;
-        let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            entries,
-            cwd: project_path.clone(),
-            env: *env,
-            context_source_for_issue: self.source,
-            chunking_context: *chunking_context,
-            module_graph,
-            resolve_options_context: Some(transform.resolve_options_context),
-            args: vec![
-                ResolvedVc::cell(content),
-                // We need to pass the query string to the loader
-                ResolvedVc::cell(resource_path.to_string().into()),
-                ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
-                ResolvedVc::cell(json!(*loaders)),
-                ResolvedVc::cell(transform.source_maps.into()),
-            ],
-            additional_invalidation: Completion::immutable().to_resolved().await?,
-        })
-        .await?;
 
-        let Some(val) = &*config_value else {
-            // An error happened, which has already been converted into an issue.
-            return Ok(ProcessWebpackLoadersResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
-                assets: Vec::new(),
-                source_map: FileContent::NotFound.resolved_cell(),
-            }
-            .cell());
-        };
-        let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(val)
-            .context("Unable to deserializate response from webpack loaders transform operation")?;
+        let webpack_span = tracing::info_span!(
+            "webpack loader",
+            name = display(ReadRef::<WebpackLoaderItems>::as_raw_ref(&loaders))
+        );
 
-        // handle SourceMap
-        let source_map = if !transform.source_maps {
-            None
-        } else {
-            processed
-                .map
-                .map(|source_map| Rope::from(source_map.into_owned()))
-        };
-        let source_map = resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
+        async {
+            let ExecutionContext {
+                project_path,
+                chunking_context,
+                env,
+                node_backend,
+            } = &*transform.execution_context.await?;
+            let source_content = self.source.content();
+            let AssetContent::File(file) = *source_content.await? else {
+                bail!("Webpack Loaders transform only support transforming files");
+            };
+            let FileContent::Content(file_content) = &*file.await? else {
+                return Ok(ProcessWebpackLoadersResult {
+                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
+                        .resolved_cell(),
+                    assets: Vec::new(),
+                    source_map: FileContent::NotFound.resolved_cell(),
+                }
+                .cell());
+            };
 
-        let file = match processed.source {
-            Either::Left(str) => File::from(str),
-            Either::Right(bytes) => File::from(bytes.binary),
-        };
-        let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
+            // If the content is not a valid string (e.g. binary file), handle the error and pass a
+            // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
+            let content: JsonValue = match file_content.content().to_str() {
+                Ok(utf8_str) => utf8_str.to_string().into(),
+                Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
+                    "binary".to_string(),
+                    JsonValue::from(
+                        base64::engine::general_purpose::STANDARD
+                            .encode(file_content.content().to_bytes()),
+                    ),
+                )))),
+            };
+            let evaluate_context = transform.evaluate_context;
 
-        let content =
-            AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
-        Ok(ProcessWebpackLoadersResult {
-            content,
-            assets,
-            source_map: if let Some(source_map) = source_map {
-                FileContent::Content(File::from(source_map)).resolved_cell()
+            let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
+
+            let entries = get_evaluate_entries(
+                webpack_loaders_executor,
+                *evaluate_context,
+                **node_backend,
+                None,
+            )
+            .to_resolved()
+            .await?;
+
+            let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+                entries.graph_entries().to_resolved().await?,
+                false,
+                false,
+            ))
+            .connect()
+            .to_resolved()
+            .await?;
+
+            let resource_fs_path = self.source.ident().path().await?;
+            let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
+                turbobail!(
+                    "Resource path \"{resource_fs_path}\" needs to be on project filesystem \
+                     \"{project_path}\"",
+                );
+            };
+            let config_value = evaluate_webpack_loader(WebpackLoaderContext {
+                entries,
+                cwd: project_path.clone(),
+                env: *env,
+                node_backend: *node_backend,
+                context_source_for_issue: self.source,
+                chunking_context: *chunking_context,
+                module_graph,
+                resolve_options_context: Some(transform.resolve_options_context),
+                args: vec![
+                    ResolvedVc::cell(content),
+                    // We need to pass the query string to the loader
+                    ResolvedVc::cell(resource_path.to_string().into()),
+                    ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
+                    ResolvedVc::cell(json!(*loaders)),
+                    ResolvedVc::cell(transform.source_maps.into()),
+                ],
+                additional_invalidation: Completion::immutable().to_resolved().await?,
+            })
+            .await?;
+
+            let Some(val) = &*config_value else {
+                // An error happened, which has already been converted into an issue.
+                return Ok(ProcessWebpackLoadersResult {
+                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
+                        .resolved_cell(),
+                    assets: Vec::new(),
+                    source_map: FileContent::NotFound.resolved_cell(),
+                }
+                .cell());
+            };
+            let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(val)
+                .context(
+                    "Unable to deserializate response from webpack loaders transform operation",
+                )?;
+
+            // handle SourceMap
+            let source_map = if !transform.source_maps {
+                None
             } else {
-                FileContent::NotFound.resolved_cell()
-            },
+                processed
+                    .map
+                    .map(|source_map| Rope::from(source_map.into_owned()))
+            };
+            let source_map =
+                resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
+
+            let file = match processed.source {
+                Either::Left(str) => File::from(str),
+                Either::Right(bytes) => File::from(bytes.binary),
+            };
+            let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
+
+            let content =
+                AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
+            Ok(ProcessWebpackLoadersResult {
+                content,
+                assets,
+                source_map: if let Some(source_map) = source_map {
+                    FileContent::Content(File::from(source_map)).resolved_cell()
+                } else {
+                    FileContent::NotFound.resolved_cell()
+                },
+            }
+            .cell())
         }
-        .cell())
+        .instrument(webpack_span)
+        .await
     }
 }
 
@@ -436,6 +442,7 @@ pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -450,11 +457,12 @@ impl EvaluateContext for WebpackLoaderContext {
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
+    fn pool(&self) -> OperationVc<EvaluatePool> {
         get_evaluate_pool(
             self.entries,
             self.cwd.clone(),
             self.env,
+            self.node_backend,
             self.chunking_context,
             self.module_graph,
             self.additional_invalidation,
@@ -478,7 +486,7 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
-    async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
+    async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
             source: IssueSource::from_source_only(self.context_source_for_issue),
@@ -495,7 +503,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         state: &mut Self::State,
         data: Self::InfoMessage,
-        pool: &NodeJsPool,
+        pool: &EvaluatePool,
     ) -> Result<()> {
         match data {
             InfoMessage::Dependencies {
@@ -571,7 +579,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         _state: &mut Self::State,
         data: Self::RequestMessage,
-        _pool: &NodeJsPool,
+        _pool: &EvaluatePool,
     ) -> Result<Self::ResponseMessage> {
         match data {
             RequestMessage::Resolve {
@@ -602,18 +610,13 @@ impl EvaluateContext for WebpackLoaderContext {
                     {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
-                        bail!(
-                            "Resolving {} in {} ends up on a different filesystem",
-                            request.to_string().await?,
-                            lookup_path.value_to_string().await?
+                        turbobail!(
+                            "Resolving {request} in {lookup_path} ends up on a different \
+                             filesystem"
                         );
                     }
                 } else {
-                    bail!(
-                        "Unable to resolve {} in {}",
-                        request.to_string().await?,
-                        lookup_path.value_to_string().await?
-                    );
+                    turbobail!("Unable to resolve {request} in {lookup_path}");
                 }
             }
             RequestMessage::TrackFileRead { file } => {
@@ -625,7 +628,7 @@ impl EvaluateContext for WebpackLoaderContext {
         }
     }
 
-    async fn finish(&self, state: Self::State, pool: &NodeJsPool) -> Result<()> {
+    async fn finish(&self, state: Self::State, pool: &EvaluatePool) -> Result<()> {
         let has_errors = state.iter().any(|log| log.log_type == LogType::Error);
         let has_warnings = state.iter().any(|log| log.log_type == LogType::Warn);
         if has_errors || has_warnings {

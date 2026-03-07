@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use either::Either;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
@@ -84,7 +84,7 @@ impl EcmascriptBrowserChunkContent {
                 let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
                     path
                 } else {
-                    bail!("chunk path {chunk_path} is not in output root {output_root}");
+                    turbobail!("chunk path {chunk_path} is not in output root {output_root}");
                 };
                 Either::Left(StringifyJs(chunk_server_path))
             }
@@ -99,16 +99,18 @@ impl EcmascriptBrowserChunkContent {
 
         // When a chunk is executed, it will either register itself with the current
         // instance of the runtime, or it will push itself onto the list of pending
-        // chunks (`self.TURBOPACK`).
+        // chunks (using the configured chunk loading global variable).
         //
         // When the runtime executes (see the `evaluate` module), it will pick up and
         // register all pending chunks, and replace the list of pending chunks
         // with itself so later chunks can register directly with it.
+        let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
         write!(
             code,
             // `||=` would be better but we need to be es2020 compatible
             //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
-            "(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([{script_or_path},"
+            r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
+            chunk_loading_global = StringifyJs(&chunk_loading_global),
         )?;
 
         let content = this.content.await?;
@@ -177,7 +179,7 @@ impl GenerateSourceMap for EcmascriptBrowserChunkContent {
         if let Ok(id) = ModuleId::parse(&section) {
             let entries = self.entries().await?;
             for (entry_id, entry) in entries.iter() {
-                if id == **entry_id {
+                if id == *entry_id {
                     let sm = entry.code.generate_source_map();
                     return Ok(sm);
                 }

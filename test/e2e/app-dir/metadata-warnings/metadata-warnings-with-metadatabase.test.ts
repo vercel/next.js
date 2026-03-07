@@ -34,7 +34,7 @@ describe('app dir - metadata missing metadataBase', () => {
     return isNextDev ? next.cliOutput.slice(logStartPosition) : next.cliOutput
   }
 
-  it('should not show warning in vercel deployment output in default build output mode', async () => {
+  it('should not show warning in output in default build output mode', async () => {
     const logStartPosition = next.cliOutput.length
     await next.fetch('/og-image-convention')
     const output = getCliOutput(logStartPosition)
@@ -69,5 +69,13 @@ describe('app dir - metadata missing metadataBase', () => {
     // during merging the metadata, if the value is still nullable.
     const output = next.cliOutput.slice(outputLength)
     expect(output).not.toContain('Unsupported metadata viewport')
+  })
+
+  it('should warn for deprecated fields in other property', async () => {
+    const logStartPosition = next.cliOutput.length
+    await next.fetch('/deprecated-other-fields')
+    const output = getCliOutput(logStartPosition)
+    expect(output).toInclude('Use appleWebApp instead')
+    expect(output).toInclude('Use icons.apple instead')
   })
 })

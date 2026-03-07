@@ -17,10 +17,11 @@ use image::{
 };
 use mime::Mime;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, PrettyPrintError, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
-    error::PrettyPrintError,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,

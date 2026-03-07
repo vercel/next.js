@@ -15,6 +15,14 @@ import React from 'react'
 
 export interface NavigateOptions {
   scroll?: boolean
+  /**
+   * Transition types to apply when navigating. These types are passed to
+   * [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType)
+   * inside the navigation transition, enabling
+   * [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) components
+   * to apply different animations based on the type of navigation.
+   */
+  transitionTypes?: string[]
 }
 
 export interface PrefetchOptions {
@@ -54,6 +62,12 @@ export interface AppRouterInstance {
    * Prefetch the provided href.
    */
   prefetch(href: string, options?: PrefetchOptions): void
+  /**
+   * Perform a gesture navigation using prefetched data.
+   * Only available when experimental.gestureTransition is enabled.
+   * @experimental
+   */
+  experimental_gesturePush?(href: string, options?: NavigateOptions): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(

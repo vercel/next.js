@@ -5,13 +5,9 @@ use swc_core::{
     ecma::ast::{Ident, Lit},
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
     module::Module,
     reference::ModuleReference,
     resolve::{BindingUsage, ExportUsage, ImportUsage, ModulePart, ModuleResolveResult},
@@ -22,6 +18,7 @@ use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
+    rename::module::EcmascriptModuleRenameModule,
     runtime_functions::TURBOPACK_IMPORT,
     side_effect_optimization::{
         facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
@@ -38,6 +35,8 @@ enum EcmascriptModulePartReferenceMode {
 /// A reference to the [EcmascriptModuleLocalsModule] variant of an original
 /// module.
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string(self.part)]
 pub struct EcmascriptModulePartReference {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
@@ -88,14 +87,6 @@ impl EcmascriptModulePartReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptModulePartReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.part.to_string().into())
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
@@ -111,11 +102,15 @@ impl ModuleReference for EcmascriptModulePartReference {
                         };
                         Vc::upcast::<Box<dyn Module>>(EcmascriptModuleLocalsModule::new(*module))
                     }
-                    ModulePart::Facade
-                    | ModulePart::RenamedExport { .. }
-                    | ModulePart::RenamedNamespace { .. } => Vc::upcast(
-                        EcmascriptModuleFacadeModule::new(*self.module, self.part.clone()),
-                    ),
+                    ModulePart::Facade => {
+                        Vc::upcast(EcmascriptModuleFacadeModule::new(*self.module))
+                    }
+                    ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. } => {
+                        Vc::upcast(EcmascriptModuleRenameModule::new(
+                            *self.module,
+                            self.part.clone(),
+                        ))
+                    }
                     _ => {
                         bail!(
                             "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
@@ -131,10 +126,7 @@ impl ModuleReference for EcmascriptModulePartReference {
 
         Ok(*ModuleResolveResult::module(module))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Parallel {
@@ -146,7 +138,7 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn binding_usage(&self) -> Result<Vc<BindingUsage>> {
         Ok(BindingUsage {
-            import: ImportUsage::SideEffects,
+            import: ImportUsage::TopLevel,
             export: self.export_usage.owned().await?,
         }
         .cell())
@@ -192,7 +184,9 @@ impl EcmascriptModulePartReference {
                     chunking_context,
                     match &*export_usage {
                         ExportUsage::Named(export) => Some(export.clone()),
-                        ExportUsage::All | ExportUsage::Evaluation => None,
+                        ExportUsage::PartialNamespaceObject(_)
+                        | ExportUsage::All
+                        | ExportUsage::Evaluation => None,
                     },
                     scope_hoisting_context,
                 )

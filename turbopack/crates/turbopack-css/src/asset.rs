@@ -1,9 +1,8 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
     environment::Environment,
@@ -172,14 +171,6 @@ impl StyleModule for CssModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for CssModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkableModule for CssModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
@@ -286,13 +277,10 @@ impl CssChunkItem for CssModuleChunkItem {
                         ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
                         let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
-                        if let Some(css_item) =
-                            Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
-                        {
-                            imports.push(CssImport::Internal(
-                                import_ref,
-                                css_item.to_resolved().await?,
-                            ));
+                        if let Some(css_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(
+                            item.to_resolved().await?,
+                        ) {
+                            imports.push(CssImport::Internal(import_ref, css_item));
                         }
                     }
                 }
@@ -311,10 +299,10 @@ impl CssChunkItem for CssModuleChunkItem {
                         ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
                         let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
-                        if let Some(css_item) =
-                            Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
-                        {
-                            imports.push(CssImport::Composes(css_item.to_resolved().await?));
+                        if let Some(css_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(
+                            item.to_resolved().await?,
+                        ) {
+                            imports.push(CssImport::Composes(css_item));
                         }
                     }
                 }
@@ -356,11 +344,10 @@ impl CssChunkItem for CssModuleChunkItem {
             .cell())
         } else {
             Ok(CssChunkItemContent {
-                inner_code: format!(
-                    "/* unparsable {} */",
-                    self.module.ident().to_string().await?
-                )
-                .into(),
+                inner_code: turbofmt!("/* unparsable {} */", self.module.ident())
+                    .await?
+                    .to_string()
+                    .into(),
                 imports: vec![],
                 import_context: None,
                 source_map: FileContent::NotFound.resolved_cell(),

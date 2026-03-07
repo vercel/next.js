@@ -34,11 +34,89 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
+export declare function registerWorkerScheduler(
+  creator: (arg: NapiWorkerCreation) => any,
+  terminator: (arg: NapiWorkerTermination) => any
+): void
+export declare function workerCreated(workerId: number): void
+export interface NapiWorkerCreation {
+  options: NapiWorkerOptions
+}
+export interface NapiWorkerOptions {
+  filename: RcStr
+  cwd: RcStr
+}
+export interface NapiWorkerTermination {
+  options: NapiWorkerOptions
+  workerId: number
+}
+export interface NapiTaskMessage {
+  taskId: number
+  data: Buffer
+}
+export declare function recvTaskMessageInWorker(
+  workerId: number
+): Promise<NapiTaskMessage>
+export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
+export interface NapiLocation {
+  line: number
+  column?: number
+}
+export interface NapiCodeFrameLocation {
+  start: NapiLocation
+  end?: NapiLocation
+}
+export interface NapiCodeFrameOptions {
+  /** Number of lines to show above the error (default: 2) */
+  linesAbove?: number
+  /** Number of lines to show below the error (default: 3) */
+  linesBelow?: number
+  /** Maximum width of the output in columns (default: 100) */
+  maxWidth?: number
+  /** Whether to use ANSI colors (default: false) */
+  color?: boolean
+  /**
+   * Whether to highlight code syntax (default: follows color)
+   *
+   * This might be useful if syntax highlighting is very expensive or known to be useless for
+   * this file.  The current syntax rules are optimized for javascript but should work well with
+   * other C-like languages.
+   */
+  highlightCode?: boolean
+  /** Optional message to display with the code frame */
+  message?: string
+  /** Language hint for keyword highlighting: "javascript" (default) or "css" */
+  language?: string
+}
+/**
+ * Renders a code frame showing the location of an error in source code
+ *
+ * This is a Rust implementation that replaces Babel's code-frame for better:
+ * - Performance on large files
+ * - Handling of long lines
+ * - Memory efficiency
+ *
+ * # Arguments
+ * * `source` - The source code to render
+ * * `location` - The location to highlight (line and column numbers are 1-indexed)
+ * * `options` - Optional configuration
+ *
+ * # Returns
+ * The formatted code frame string, or `undefined` if the location is out of
+ * range (e.g., empty source or line number past end of file).
+ */
+export declare function codeFrameColumns(
+  source: string,
+  location: NapiCodeFrameLocation,
+  options?: NapiCodeFrameOptions | undefined | null
+): string | null
 export declare function lockfileTryAcquireSync(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): { __napiType: 'Lockfile' } | null
 export declare function lockfileTryAcquire(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): Promise<{ __napiType: 'Lockfile' } | null>
 export declare function lockfileUnlockSync(lockfile: {
   __napiType: 'Lockfile'
@@ -65,7 +143,7 @@ export declare function minify(
 ): Promise<TransformOutput>
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
-export interface NapiServerPath {
+export interface NapiAssetPath {
   path: string
   contentHash: string
 }
@@ -73,7 +151,7 @@ export interface NapiWrittenEndpoint {
   type: string
   entryPath?: string
   clientPaths: Array<string>
-  serverPaths: Array<NapiServerPath>
+  serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
 }
 export declare function endpointWriteToDisk(endpoint: {
@@ -159,6 +237,16 @@ export interface NapiProjectOptions {
   writeRoutesHashesManifest: boolean
   /** The version of Node.js that is available/currently running. */
   currentNodeJsVersion: RcStr
+  /**
+   * Debug build paths for selective builds.
+   * When set, only routes matching these paths will be included in the build.
+   */
+  debugBuildPaths?: NapiDebugBuildPaths
+  /** App-router page routes that should be built after non-deferred routes. */
+  deferredEntries?: Array<RcStr>
+  isPersistentCachingEnabled: boolean
+  /** The version of Next.js that is running. */
+  nextVersion: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -210,8 +298,6 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** Use the new backend with filesystem cache enabled. */
-  persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
@@ -291,6 +377,10 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
+export interface NapiDebugBuildPaths {
+  app: Array<RcStr>
+  pages: Array<RcStr>
+}
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
@@ -304,14 +394,16 @@ export declare function projectEntrypointsSubscribe(
 ): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
-  identifier: RcStr,
+  chunkName: RcStr,
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export interface HmrIdentifiers {
-  identifiers: Array<RcStr>
+export interface HmrChunkNames {
+  chunkNames: Array<RcStr>
 }
-export declare function projectHmrIdentifiersSubscribe(
+export declare function projectHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface NapiUpdateMessage {
@@ -348,7 +440,7 @@ export declare function projectCompilationEventsSubscribe(
 ): void
 export interface StackFrame {
   isServer: boolean
-  isInternal?: boolean
+  isIgnored?: boolean
   originalFile?: RcStr
   file: RcStr
   /** 1-indexed, unlike source map tokens */
@@ -397,8 +489,10 @@ export interface NapiNextTurbopackCallbacksJsObject {
     conversionError: Error | null,
     opts: TurbopackInternalErrorOpts
   ) => never
+  /** Called before deferred entries are processed in a production build. */
+  onBeforeDeferredEntries?: () => Promise<void>
 }
-/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+/** Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`. */
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string

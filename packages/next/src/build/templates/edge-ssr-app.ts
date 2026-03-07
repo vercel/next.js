@@ -85,6 +85,7 @@ async function requestHandler(
     interceptionRoutePatterns,
     routerServerContext,
     deploymentId,
+    clientAssetToken,
   } = prepareResult
 
   // Initialize the cache handlers interface.
@@ -106,6 +107,8 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
+      deploymentId,
+      clientAssetToken,
     },
     fallbackRouteParams: null,
 
@@ -141,7 +144,6 @@ async function requestHandler(
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
@@ -150,14 +152,20 @@ async function requestHandler(
       cacheLifeProfiles: nextConfig.cacheLife,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
+      logServerFunctions:
+        typeof nextConfig.logging === 'object' &&
+        Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
+        optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
@@ -193,7 +201,6 @@ async function requestHandler(
           silenceLog,
           routerServerContext
         ),
-      dev: pageRouteModule.isDev,
     },
   }
   let finalStatus = 200

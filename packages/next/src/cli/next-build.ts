@@ -85,8 +85,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
   if (debugPrerender) {
     warn(
-      `Prerendering is running in debug mode. ${italic(
-        'Note: This may affect performance and should not be used for production.'
+      `Prerendering is running in debug mode with NODE_ENV='development'. ${italic(
+        'This will affect performance and should not be used for production.'
       )}`
     )
   }
@@ -103,8 +103,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   }
 
   // Resolve selective build paths
-  let resolvedAppPaths: string[] | undefined
-  let resolvedPagePaths: string[] | undefined
+  let resolvedBuildPaths: { app: string[]; pages: string[] } | undefined
 
   if (debugBuildPaths) {
     try {
@@ -112,9 +111,10 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
       if (patterns.length > 0) {
         const resolved = await resolveBuildPaths(patterns, dir)
-        // Pass empty arrays to indicate "build nothing" vs undefined for "build everything"
-        resolvedAppPaths = resolved.appPaths
-        resolvedPagePaths = resolved.pagePaths
+        resolvedBuildPaths = {
+          app: resolved.appPaths,
+          pages: resolved.pagePaths,
+        }
       }
     } catch (err) {
       printAndExit(
@@ -122,6 +122,15 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
       )
     }
   }
+
+  const enabledFeatures = Object.fromEntries(
+    Object.entries({
+      experimentalDebugMemoryUsage,
+      experimentalBuildMode:
+        experimentalBuildMode !== 'default' ? experimentalBuildMode : undefined,
+      experimentalCpuProf: options.experimentalCpuProf,
+    }).filter(([_, value]) => value !== undefined && value !== false)
+  )
 
   return build(
     dir,
@@ -134,8 +143,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     bundler,
     experimentalBuildMode,
     traceUploadUrl,
-    resolvedAppPaths,
-    resolvedPagePaths
+    resolvedBuildPaths,
+    enabledFeatures
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

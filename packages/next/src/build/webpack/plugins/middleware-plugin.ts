@@ -34,7 +34,7 @@ import {
   WEBPACK_LAYERS,
 } from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
-import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../../lib/is-interception-route-rewrite'
 import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
 import { getModuleReferencesInOrder } from '../utils'
 
