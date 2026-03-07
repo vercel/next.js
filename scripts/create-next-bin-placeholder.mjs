@@ -1,7 +1,9 @@
-const fs = require('node:fs')
-const path = require('node:path')
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const repoRoot = path.join(__dirname, '..')
+const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.join(scriptDir, '..')
 
 const placeholders = [
   path.join(repoRoot, 'packages', 'next', 'dist', 'bin', 'next'),
@@ -27,7 +29,7 @@ for (const binPath of placeholders) {
     binPath,
     `#!/usr/bin/env node
 console.error(
-  'Local workspace has not been built yet. Run \'pnpm build\' first.'
+  "Local workspace has not been built yet. Run 'pnpm build' first."
 )
 process.exit(1)
 `,
