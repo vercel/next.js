@@ -37,12 +37,12 @@ function filterBrowserLogs(output: string): string {
         waitForRedbox(browser)
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
            "environmentLabel": null,
            "label": "Build Error",
-           "source": "./app/edge-with-layout/edge/page.tsx (1:14)
-         Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
-         > 1 | export const runtime = 'edge'
+           "source": "./app/edge-with-layout/layout.tsx (1:14)
+         Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         > 1 | export const dynamic = 'force-dynamic'
              |              ^^^^^^^",
            "stack": [],
          }
