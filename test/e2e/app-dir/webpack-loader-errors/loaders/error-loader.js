@@ -1,3 +1,7 @@
+const { createError } = require('./create-error')
 module.exports = function errorLoader(source) {
-  throw new Error('An error thrown by error-loader')
+  const callback = this.async()
+  setTimeout(() => {
+    callback(createError('An error thrown by error-loader'))
+  }, 0)
 }

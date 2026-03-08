@@ -1,5 +1,7 @@
-const fs = require('fs')
-
+const { createFsError } = require('./create-error')
 module.exports = function fsErrorLoader(source) {
-  fs.readFileSync('/does/not/exist/file.txt')
+  const callback = this.async()
+  setTimeout(() => {
+    callback(createFsError())
+  }, 0)
 }

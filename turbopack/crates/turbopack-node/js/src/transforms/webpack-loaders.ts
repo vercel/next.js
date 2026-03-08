@@ -494,17 +494,16 @@ const transform = (
         if (err) {
           // Resolve loader paths to include in the error message using
           // the same "(from ...)" style as webpack's format-webpack-messages.
-          const loaderPaths = loadersWithOptions
-            .map((l) => {
-              try {
-                return __turbopack_external_require__.resolve(l.loader, {
-                  paths: [contextDir, resourceDir],
-                })
-              } catch {
-                return l.loader
-              }
-            })
-            .join(', ')
+          const loaderPathList = loadersWithOptions.map((l) => {
+            try {
+              return __turbopack_external_require__.resolve(l.loader, {
+                paths: [contextDir, resourceDir],
+              })
+            } catch {
+              return l.loader
+            }
+          })
+          const loaderPaths = loaderPathList.join(', ')
 
           if (!(err instanceof Error)) {
             // String throws lose their stack trace, so we create a
@@ -516,9 +515,12 @@ const transform = (
             return reject(wrappedErr)
           }
 
-          // Append "(from ...)" to the error message so the loader path
-          // is visible in the error overlay, matching webpack's style.
-          err.message += `\n  (from ${loaderPaths})`
+          // Only append "(from ...)" when no loader path is already
+          // visible in the stack trace, to avoid redundant noise.
+          const stack = typeof err.stack === 'string' ? err.stack : ''
+          if (!loaderPathList.some((p) => stack.includes(p))) {
+            err.message += `\n  (from ${loaderPaths})`
+          }
           return reject(err)
         }
         if (!result.result) return reject(new Error('No result from loaders'))
