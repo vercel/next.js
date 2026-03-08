@@ -34,14 +34,22 @@ async function cacheNewResult<T>(
   fetchIdx: number,
   fetchUrl: string
 ): Promise<unknown> {
+  let serializedBody: string
+  try {
+    serializedBody = JSON.stringify(result)
+  } catch (err) {
+    throw new Error(
+      `unstable_cache callback returned a value that is not JSON serializable: ${err}`
+    )
+  }
+
   await incrementalCache.set(
     cacheKey,
     {
       kind: CachedRouteKind.FETCH,
       data: {
         headers: {},
-        // TODO: handle non-JSON values?
-        body: JSON.stringify(result),
+        body: serializedBody,
         status: 200,
         url: '',
       } satisfies CachedFetchData,
