@@ -47,4 +47,23 @@ describe('Vary Header Tests', () => {
       'next-router-prefetch',
     ])
   })
+
+  it('should preserve middleware vary header in app pages', async () => {
+    const res = await next.fetch('/page-test')
+    const varyHeader = res.headers.get('vary')
+    const customHeader = res.headers.get('my-custom-header')
+
+    // Middleware header is set
+    expect(customHeader).toBe('test')
+
+    // Middleware vary header is preserved
+    expectVaryHeaderToContain(varyHeader, ['my-custom-header'])
+
+    // Next.js internal headers are still present
+    expectVaryHeaderToContain(varyHeader, [
+      'rsc',
+      'next-router-state-tree',
+      'next-router-prefetch',
+    ])
+  })
 })

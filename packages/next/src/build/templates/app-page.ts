@@ -548,7 +548,30 @@ export async function handler(
       resolvedPathname,
       interceptionRoutePatterns
     )
-    res.setHeader('Vary', varyHeader)
+    // Merge with any existing Vary values (e.g. from middleware) to avoid
+    // overwriting them. Uses a Set for case-insensitive deduplication.
+    const existingVary = res.getHeader('Vary')
+    const existingValues =
+      typeof existingVary === 'string'
+        ? existingVary.split(',').map((v) => v.trim())
+        : Array.isArray(existingVary)
+          ? existingVary.flatMap((v) =>
+              String(v)
+                .split(',')
+                .map((s) => s.trim())
+            )
+          : []
+    const newValues = varyHeader.split(',').map((v) => v.trim())
+    const seen = new Set<string>()
+    const merged: string[] = []
+    for (const value of [...existingValues, ...newValues]) {
+      const lower = value.toLowerCase()
+      if (value && !seen.has(lower)) {
+        seen.add(lower)
+        merged.push(value)
+      }
+    }
+    res.setHeader('Vary', merged.join(', '))
     let parentSpan: Span | undefined
     const invokeRouteModule = async (
       span: Span | undefined,

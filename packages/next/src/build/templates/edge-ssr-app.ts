@@ -235,16 +235,32 @@ async function requestHandler(
       headers.set('Vary', varyHeader)
     }
 
-    // Add existing headers
+    // Add existing headers, merging multi-value headers like Vary to avoid
+    // overwriting values set above (e.g. from middleware).
     for (const [key, value] of Object.entries({
       ...baseRes.getHeaders(),
       ...metadata.headers,
     })) {
       if (value !== undefined) {
         if (Array.isArray(value)) {
-          // Handle multiple header values
           for (const v of value) {
             headers.append(key, String(v))
+          }
+        } else if (key.toLowerCase() === 'vary') {
+          // Merge Vary values to preserve any previously set entries
+          const existing = headers.get('Vary')
+          const existingValues = existing
+            ? existing.split(',').map((v) => v.trim().toLowerCase())
+            : []
+          const additions = String(value)
+            .split(',')
+            .map((v) => v.trim())
+            .filter((v) => v && !existingValues.includes(v.toLowerCase()))
+          if (additions.length > 0) {
+            headers.set(
+              'Vary',
+              existing ? `${existing}, ${additions.join(', ')}` : additions.join(', ')
+            )
           }
         } else {
           headers.set(key, String(value))
