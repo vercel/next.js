@@ -1,7 +1,4 @@
-const { createFsError } = require('./create-error')
+const { callbackWithFsError } = require('./create-error')
 module.exports = function fsErrorLoader(source) {
-  const callback = this.async()
-  setTimeout(() => {
-    callback(createFsError())
-  }, 0)
+  callbackWithFsError(this.async())
 }
