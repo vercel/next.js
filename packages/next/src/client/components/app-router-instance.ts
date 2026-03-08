@@ -192,12 +192,15 @@ function dispatchAction(
     payload.type === ACTION_RESTORE
   ) {
     // Navigations (including back/forward) take priority over any pending actions.
-    // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
-    actionQueue.pending.discarded = true
+    // Discard all currently queued actions so stale server actions cannot
+    // commit updates that were started for the previous route.
+    let pendingAction: ActionQueueNode | null = actionQueue.pending
+    while (pendingAction !== null) {
+      pendingAction.discarded = true
+      pendingAction = pendingAction.next
+    }
 
-    // The rest of the current queue should still execute after this navigation.
-    // (Note that it can't contain any earlier navigations, because we always put those into `actionQueue.pending` by calling `runAction`)
-    newAction.next = actionQueue.pending.next
+    actionQueue.last = newAction
 
     runAction({
       actionQueue,

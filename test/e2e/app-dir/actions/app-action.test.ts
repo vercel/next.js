@@ -1949,6 +1949,28 @@ describe('app-dir action handling', () => {
   describe('action discarding', () => {
     // TODO: Investigate flaky behavior when deployed
     if (!isNextDeploy) {
+      it('should discard queued server actions when navigating away', async () => {
+        let browser = await next.browser('/action-discarding')
+        await browser.waitForIdleNetwork()
+
+        // Queue up multiple server actions from the current page.
+        for (let i = 0; i < 5; i++) {
+          await browser.elementByCss('#slow-action').click()
+        }
+
+        // Navigate away while actions are still in-flight/queued.
+        await browser.elementByCss('#navigate-destination').click()
+
+        // Wait for all queued actions to settle.
+        await waitFor(2500)
+
+        await retry(async () => {
+          expect(await browser.url()).toContain(
+            '/action-discarding/destination'
+          )
+        })
+      })
+
       it('should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
         let browser = await next.browser('/action-discarding')
         await browser.waitForIdleNetwork()
