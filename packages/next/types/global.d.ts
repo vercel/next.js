@@ -19,8 +19,7 @@ declare namespace NodeJS {
   }
 
   interface ProcessEnv {
-    // TODO: Should be optional and possibly undefined
-    readonly NODE_ENV: 'development' | 'production' | 'test'
+    readonly NODE_ENV?: 'development' | 'production' | 'test'
   }
 }
 
