@@ -41,13 +41,10 @@ export type ContinueFizzStreamOptions = ContinueStreamSharedOptions & {
   suffix?: string
 }
 
-export type ContinueStaticPrerenderOptions = ContinueStreamSharedOptions & {
+export type ContinuePrerenderStreamOptions = ContinueStreamSharedOptions & {
   inlinedDataStream: AnyStream
-}
-
-export type ContinueDynamicHTMLResumeOptions = ContinueStreamSharedOptions & {
-  inlinedDataStream: AnyStream
-  delayDataUntilFirstHtmlChunk: boolean
+  insertClientResumeScript?: boolean
+  delayDataUntilFirstHtmlChunk?: boolean
 }
 
 export type FlightComponentMod = {
@@ -73,10 +70,8 @@ export type FizzStreamResult = {
 // ---------------------------------------------------------------------------
 
 export {
-  continueStaticPrerender,
+  continuePrerenderStream,
   continueDynamicPrerender,
-  continueStaticFallbackPrerender,
-  continueDynamicHTMLResume,
   streamToBuffer,
   chainStreams,
   createDocumentClosingStream,

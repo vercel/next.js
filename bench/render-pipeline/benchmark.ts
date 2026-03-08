@@ -21,9 +21,8 @@ import {
   createBufferedTransformNode,
 } from '../../packages/next/src/server/stream-utils/node-stream-helpers'
 import {
-  continueDynamicHTMLResume,
+  continuePrerenderStream,
   continueDynamicPrerender,
-  continueStaticPrerender,
 } from '../../packages/next/src/server/stream-utils/node-web-streams-helper'
 
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url))
@@ -579,7 +578,7 @@ function buildMicroBenchCases(
       },
     },
     {
-      name: 'Web continueStaticPrerender',
+      name: 'Web continuePrerenderStream',
       group: 'integration',
       run: async () => {
         const renderStream = createWebStream(webHtmlChunks)
@@ -588,7 +587,7 @@ function buildMicroBenchCases(
           undefined,
           null
         )
-        const stream = await continueStaticPrerender(renderStream, {
+        const stream = await continuePrerenderStream(renderStream, {
           inlinedDataStream,
           getServerInsertedHTML: async () => '',
           getServerInsertedMetadata: async () => '',
@@ -611,7 +610,7 @@ function buildMicroBenchCases(
       },
     },
     {
-      name: 'Web continueDynamicHTMLResume',
+      name: 'Web continuePrerenderStream (delay=false)',
       group: 'integration',
       run: async () => {
         const renderStream = createWebStream(webHtmlChunks)
@@ -620,7 +619,7 @@ function buildMicroBenchCases(
           undefined,
           null
         )
-        const stream = await continueDynamicHTMLResume(renderStream, {
+        const stream = await continuePrerenderStream(renderStream, {
           inlinedDataStream,
           delayDataUntilFirstHtmlChunk: false,
           getServerInsertedHTML: async () => '',
@@ -631,7 +630,7 @@ function buildMicroBenchCases(
       },
     },
     {
-      name: `Web continueDynamicHTMLResume (${secondaryFlightLabel})`,
+      name: `Web continuePrerenderStream (${secondaryFlightLabel}, delay=false)`,
       group: 'integration',
       run: async () => {
         const renderStream = createWebStream(webHtmlChunks)
@@ -640,7 +639,7 @@ function buildMicroBenchCases(
           undefined,
           null
         )
-        const stream = await continueDynamicHTMLResume(renderStream, {
+        const stream = await continuePrerenderStream(renderStream, {
           inlinedDataStream,
           delayDataUntilFirstHtmlChunk: false,
           getServerInsertedHTML: async () => '',
