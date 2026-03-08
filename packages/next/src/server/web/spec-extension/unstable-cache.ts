@@ -23,6 +23,73 @@ import type {
 
 type Callback = (...args: any[]) => Promise<any>
 
+/**
+ * Recursively validates that a value is JSON-serializable.
+ * Detects functions, symbols, BigInt, and cyclic references, and throws
+ * with a developer-friendly message including the path to the offending value.
+ */
+function validateSerializable(value: unknown): void {
+  const seen = new Set<unknown>()
+
+  function walk(current: unknown, path: string): void {
+    if (current === null || current === undefined) {
+      return
+    }
+
+    const type = typeof current
+
+    if (type === 'function') {
+      throw new Error(
+        `unstable_cache callback returned a value with a function at "${path}". ` +
+          `Functions are not JSON serializable.`
+      )
+    }
+
+    if (type === 'symbol') {
+      throw new Error(
+        `unstable_cache callback returned a value with a symbol at "${path}". ` +
+          `Symbols are not JSON serializable.`
+      )
+    }
+
+    if (type === 'bigint') {
+      throw new Error(
+        `unstable_cache callback returned a value with a BigInt at "${path}". ` +
+          `BigInt values are not JSON serializable.`
+      )
+    }
+
+    if (type !== 'object') {
+      // string, number, boolean — all safe
+      return
+    }
+
+    // Cyclic reference check
+    if (seen.has(current)) {
+      throw new Error(
+        `unstable_cache callback returned a value with a circular reference at "${path}". ` +
+          `Circular structures are not JSON serializable.`
+      )
+    }
+
+    seen.add(current)
+
+    if (Array.isArray(current)) {
+      for (let i = 0; i < current.length; i++) {
+        walk(current[i], `${path}[${i}]`)
+      }
+    } else {
+      for (const key of Object.keys(current as Record<string, unknown>)) {
+        walk((current as Record<string, unknown>)[key], `${path}.${key}`)
+      }
+    }
+
+    seen.delete(current)
+  }
+
+  walk(value, '')
+}
+
 let noStoreFetchIdx = 0
 
 async function cacheNewResult<T>(
@@ -34,6 +101,8 @@ async function cacheNewResult<T>(
   fetchIdx: number,
   fetchUrl: string
 ): Promise<unknown> {
+  validateSerializable(result)
+
   let serializedBody: string
   try {
     serializedBody = JSON.stringify(result)
