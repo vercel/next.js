@@ -217,34 +217,14 @@ function getRunMetadata(runId) {
 }
 
 function getFailedJobs(runId) {
-  const failedJobs = []
-  let page = 1
-
-  while (true) {
-    const jqQuery = '.jobs[] | select(.conclusion == "failure") | {id, name}'
-    let output
-    try {
-      output = exec(
-        `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
-      )
-    } catch {
-      break
-    }
-
-    if (!output.trim()) break
-
-    const jobs = output
-      .split('\n')
-      .filter((line) => line.trim())
-      .map((line) => JSON.parse(line))
-
-    failedJobs.push(...jobs)
-
-    if (jobs.length < 100) break
-    page++
-  }
-
-  return failedJobs
+  // Fetch all jobs first, then filter for failures in JS.
+  // We can't use jq filtering during pagination because a page full of
+  // non-failure jobs produces empty jq output, which would incorrectly
+  // stop pagination before reaching later pages that contain failures.
+  const allJobs = getAllJobs(runId)
+  return allJobs
+    .filter((j) => j.conclusion === 'failure')
+    .map((j) => ({ id: j.id, name: j.name }))
 }
 
 function getAllJobs(runId) {
