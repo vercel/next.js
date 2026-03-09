@@ -280,8 +280,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         &[KeySpace::TaskMeta, KeySpace::TaskData],
                         |&key_space| {
                             let _span = span.clone().entered();
-                            // Safety: We already finished all processing of the task data and task
-                            // meta
+                            // Safety: `process_task_data` has returned, so no concurrent `put` or
+                            // `delete` on `TaskMeta`/`TaskData` key spaces are in-flight. The
+                            // `parallel::try_for_each` below flushes disjoint key spaces, so
+                            // concurrent flushes on different key spaces are safe.
                             unsafe { batch.flush(key_space) }
                         },
                     )?;

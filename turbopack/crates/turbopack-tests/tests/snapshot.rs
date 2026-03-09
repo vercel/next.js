@@ -5,7 +5,7 @@ mod util;
 
 use std::{collections::VecDeque, fs, io, path::PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use dunce::canonicalize;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
@@ -30,7 +30,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        EvaluatableAssets, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
+        MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{
@@ -51,7 +51,6 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, UrlReferenceSubType},
-    source::Source,
 };
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
@@ -430,36 +429,22 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Layer::new(rcstr!("test")),
     ));
 
-    let runtime_entries = maybe_load_env(asset_context, project_path.clone())
-        .await?
-        .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
-
     let entry_module = asset_context
         .process(
             Vc::upcast(FileSource::new(entry_asset)),
             ReferenceType::Entry(EntryReferenceSubType::Undefined),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
-    let (evaluatable_assets, entry_modules) = if let Some(ecmascript) =
-        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module.to_resolved().await?)
-    {
-        let evaluatable_assets = runtime_entries
-            .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(*ecmascript);
-        (
-            evaluatable_assets,
-            evaluatable_assets
-                .await?
-                .iter()
-                .copied()
-                .map(ResolvedVc::upcast)
-                .collect::<Vec<_>>(),
-        )
-    } else {
-        // TODO convert into a serve-able asset
-        bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
-    };
+    let entry_modules: Vec<ResolvedVc<Box<dyn Module>>> =
+        maybe_load_env(asset_context, project_path.clone())
+            .await?
+            .into_iter()
+            .map(ResolvedVc::upcast)
+            .chain(std::iter::once(entry_module))
+            .collect();
 
     let single_graph = SingleModuleGraph::new_with_entries(
         ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
@@ -607,7 +592,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             chunk_root_path
                                 .join(entry_module.ident().path().await?.file_stem().unwrap())?
                                 .with_extension("entry.js"),
-                            evaluatable_assets,
+                            ChunkGroup::Entry(entry_modules),
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),
@@ -666,9 +651,9 @@ async fn walk_asset(
 }
 
 async fn maybe_load_env(
-    _context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     path: FileSystemPath,
-) -> Result<Option<Vc<Box<dyn Source>>>> {
+) -> Result<Option<ResolvedVc<Box<dyn EvaluatableAsset>>>> {
     let dotenv_path = path.join("input/.env")?;
 
     if !dotenv_path.read().await?.is_content() {
@@ -676,6 +661,10 @@ async fn maybe_load_env(
     }
 
     let env = DotenvProcessEnv::new(None, dotenv_path.clone());
-    let asset = ProcessEnvAsset::new(dotenv_path, Vc::upcast(env));
-    Ok(Some(Vc::upcast(asset)))
+    let asset = ProcessEnvAsset::new(dotenv_path, Vc::upcast(env))
+        .to_evaluatable(asset_context)
+        .to_resolved()
+        .await?;
+
+    Ok(Some(asset))
 }
