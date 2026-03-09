@@ -3,49 +3,47 @@ import { ESCAPE_REGEX } from '../htmlescape'
 export function getScriptNonceFromHeader(
   cspHeaderValue: string
 ): string | undefined {
+  // CSP processing notes:
+  // - Directives are ';'-separated; tokens inside are separated by arbitrary ASCII whitespace.
+  // - Directive names are ASCII case-insensitive.
+  // - Must match *exactly* 'script-src' (fallback to 'default-src'), not prefixes like 'script-src-attr/elem'.
+  // - Nonce sources have the form: `'nonce-<value>'` (quotes included).
+
+  if (!cspHeaderValue) return
+
   const directives = cspHeaderValue
-    // Directives are split by ';'.
     .split(';')
-    .map((directive) => directive.trim())
+    .map((d) => d.trim())
+    .filter(Boolean)
 
-  // First try to find the directive for the 'script-src', otherwise try to
-  // fallback to the 'default-src'.
-  const directive =
-    directives.find((dir) => dir.startsWith('script-src')) ||
-    directives.find((dir) => dir.startsWith('default-src'))
+  type Parsed = { name: string; sources: string[] }
 
-  // If no directive could be found, then we're done.
-  if (!directive) {
-    return
-  }
+  const parsed: Parsed[] = directives.map((d) => {
+    const tokens = d.split(/\s+/).filter(Boolean) // handle spaces/tabs/multiple spaces
+    const name = (tokens[0] || '').toLowerCase()
+    const sources = tokens.slice(1)
+    return { name, sources }
+  })
 
-  // Extract the nonce from the directive
-  const nonce = directive
-    .split(' ')
-    // Remove the 'strict-src'/'default-src' string, this can't be the nonce.
-    .slice(1)
-    .map((source) => source.trim())
-    // Find the first source with the 'nonce-' prefix.
-    .find(
-      (source) =>
-        source.startsWith("'nonce-") &&
-        source.length > 8 &&
-        source.endsWith("'")
-    )
-    // Grab the nonce by trimming the 'nonce-' prefix.
-    ?.slice(7, -1)
+  // Prefer script-src; if absent, fall back to default-src
+  const scriptSrc =
+    parsed.find((p) => p.name === 'script-src') ??
+    parsed.find((p) => p.name === 'default-src')
 
-  // If we could't find the nonce, then we're done.
-  if (!nonce) {
-    return
-  }
+  if (!scriptSrc) return
 
-  // Don't accept the nonce value if it contains HTML escape characters.
-  // Technically, the spec requires a base64'd value, but this is just an
-  // extra layer.
+  // Look for a token exactly like `'nonce-…'` and capture the value.
+  const nonceToken = scriptSrc.sources.find((s) => /^'nonce-[^']+'$/.test(s))
+  if (!nonceToken) return
+
+  // Strip surrounding quotes and the 'nonce-' prefix
+  const nonce = nonceToken.slice(1, -1).slice('nonce-'.length)
+
+  // Defense-in-depth: reject values containing HTML escape characters
   if (ESCAPE_REGEX.test(nonce)) {
     throw new Error(
-      'Nonce value from Content-Security-Policy contained HTML escape characters.\nLearn more: https://nextjs.org/docs/messages/nonce-contained-invalid-characters'
+      'Nonce value from Content-Security-Policy contained HTML escape characters.\n' +
+        'Learn more: https://nextjs.org/docs/messages/nonce-contained-invalid-characters'
     )
   }
 
