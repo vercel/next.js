@@ -105,7 +105,6 @@ export async function proxyRequest(
       })
     })
     proxy.ws(req, res, upgradeHead)
-    detached.resolve(true)
   } else {
     proxy.on('proxyReq', (proxyReq) => {
       proxyReq.on('close', () => {
