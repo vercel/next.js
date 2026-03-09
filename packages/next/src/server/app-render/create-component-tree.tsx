@@ -123,10 +123,6 @@ async function createComponentTreeInternal(
       createElement,
       Fragment,
       SegmentViewNode,
-      HTTPAccessFallbackBoundary,
-      ClientSegmentRoot,
-      createServerParamsForServerSegment,
-      createPrerenderParamsForClientSegment,
       serverHooks: { DynamicServerError },
       Postpone,
     },
@@ -561,108 +557,157 @@ async function createComponentTreeInternal(
       isPossiblyPartialResponse
     )
   } else {
-    const SegmentComponent = Component
-    const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
+    return renderLayoutComponent(
+      ctx,
+      Component,
+      isClientComponent,
       rootLayoutAtThisLevel &&
-      'children' in parallelRoutes &&
-      Object.keys(parallelRoutes).length > 1
+        'children' in parallelRoutes &&
+        Object.keys(parallelRoutes).length > 1,
+      currentParams,
+      parallelRouteProps,
+      optionalCatchAllParamName,
+      varyParamsAccumulator,
+      isRuntimePrefetchable,
+      NotFound,
+      Forbidden,
+      Unauthorized,
+      notFoundElement,
+      forbiddenElement,
+      unauthorizedElement,
+      notFoundStyles,
+      layerAssets,
+      tree,
+      dir,
+      isSegmentViewEnabled,
+      parallelRouteCacheNodeSeedData,
+      loadingData,
+      isPossiblyPartialResponse
+    )
+  }
+}
 
-    let segmentNode: React.ReactNode
+function renderLayoutComponent(
+  ctx: AppRenderContext,
+  SegmentComponent: ComponentType<any>,
+  isClientComponent: boolean,
+  isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot: boolean,
+  currentParams: Params,
+  parallelRouteProps: { [key: string]: React.ReactNode },
+  optionalCatchAllParamName: string | null,
+  varyParamsAccumulator: VaryParamsAccumulator | null,
+  isRuntimePrefetchable: boolean,
+  NotFound: ComponentType<any> | undefined,
+  Forbidden: ComponentType<any> | undefined,
+  Unauthorized: ComponentType<any> | undefined,
+  notFoundElement: React.ReactNode | undefined,
+  forbiddenElement: React.ReactNode | undefined,
+  unauthorizedElement: React.ReactNode | undefined,
+  notFoundStyles: React.ReactNode | undefined,
+  layerAssets: React.ReactNode,
+  tree: LoaderTree,
+  dir: string,
+  isSegmentViewEnabled: boolean,
+  parallelRouteCacheNodeSeedData: Record<string, CacheNodeSeedData | null>,
+  loadingData: LoadingModuleData,
+  isPossiblyPartialResponse: boolean
+): CacheNodeSeedData {
+  const {
+    renderOpts: { cacheComponents },
+    workStore: { isStaticGeneration },
+    componentMod: {
+      createElement,
+      Fragment,
+      SegmentViewNode,
+      HTTPAccessFallbackBoundary,
+      ClientSegmentRoot,
+      createServerParamsForServerSegment,
+      createPrerenderParamsForClientSegment,
+    },
+  } = ctx
 
-    if (isClientComponent) {
-      let clientSegment: React.ReactNode
-      if (cacheComponents) {
-        // Params are omitted when Cache Components is enabled
-        clientSegment = createElement(ClientSegmentRoot, {
-          Component: SegmentComponent,
-          slots: parallelRouteProps,
-          serverProvidedParams: null,
-        })
-      } else if (isStaticGeneration) {
-        const promiseOfParams =
-          createPrerenderParamsForClientSegment(currentParams)
+  let segmentNode: React.ReactNode
 
-        clientSegment = createElement(ClientSegmentRoot, {
-          Component: SegmentComponent,
-          slots: parallelRouteProps,
-          serverProvidedParams: {
-            params: currentParams,
-            promises: [promiseOfParams],
+  if (isClientComponent) {
+    let clientSegment: React.ReactNode
+    if (cacheComponents) {
+      clientSegment = createElement(ClientSegmentRoot, {
+        Component: SegmentComponent,
+        slots: parallelRouteProps,
+        serverProvidedParams: null,
+      })
+    } else if (isStaticGeneration) {
+      const promiseOfParams =
+        createPrerenderParamsForClientSegment(currentParams)
+
+      clientSegment = createElement(ClientSegmentRoot, {
+        Component: SegmentComponent,
+        slots: parallelRouteProps,
+        serverProvidedParams: {
+          params: currentParams,
+          promises: [promiseOfParams],
+        },
+      })
+    } else {
+      clientSegment = createElement(ClientSegmentRoot, {
+        Component: SegmentComponent,
+        slots: parallelRouteProps,
+        serverProvidedParams: {
+          params: currentParams,
+          promises: null,
+        },
+      })
+    }
+
+    if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+      // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
+      // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
+      // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
+      // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
+      // rely on the `NotFound` behavior.
+      const notfoundClientSegment = createErrorBoundaryClientSegmentRoot({
+        ctx,
+        ErrorBoundaryComponent: NotFound,
+        errorElement: notFoundElement,
+        ClientSegmentRoot,
+        layerAssets,
+        SegmentComponent,
+        currentParams,
+      })
+      const forbiddenClientSegment = createErrorBoundaryClientSegmentRoot({
+        ctx,
+        ErrorBoundaryComponent: Forbidden,
+        errorElement: forbiddenElement,
+        ClientSegmentRoot,
+        layerAssets,
+        SegmentComponent,
+        currentParams,
+      })
+      const unauthorizedClientSegment = createErrorBoundaryClientSegmentRoot({
+        ctx,
+        ErrorBoundaryComponent: Unauthorized,
+        errorElement: unauthorizedElement,
+        ClientSegmentRoot,
+        layerAssets,
+        SegmentComponent,
+        currentParams,
+      })
+      if (
+        notfoundClientSegment ||
+        forbiddenClientSegment ||
+        unauthorizedClientSegment
+      ) {
+        segmentNode = createElement(
+          HTTPAccessFallbackBoundary,
+          {
+            key: cacheNodeKey,
+            notFound: notfoundClientSegment,
+            forbidden: forbiddenClientSegment,
+            unauthorized: unauthorizedClientSegment,
           },
-        })
-      } else {
-        clientSegment = createElement(ClientSegmentRoot, {
-          Component: SegmentComponent,
-          slots: parallelRouteProps,
-          serverProvidedParams: {
-            params: currentParams,
-            promises: null,
-          },
-        })
-      }
-
-      if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
-        let notfoundClientSegment: React.ReactNode
-        let forbiddenClientSegment: React.ReactNode
-        let unauthorizedClientSegment: React.ReactNode
-        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
-        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
-        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
-        // rely on the `NotFound` behavior.
-        notfoundClientSegment = createErrorBoundaryClientSegmentRoot({
-          ctx,
-          ErrorBoundaryComponent: NotFound,
-          errorElement: notFoundElement,
-          ClientSegmentRoot,
           layerAssets,
-          SegmentComponent,
-          currentParams,
-        })
-        forbiddenClientSegment = createErrorBoundaryClientSegmentRoot({
-          ctx,
-          ErrorBoundaryComponent: Forbidden,
-          errorElement: forbiddenElement,
-          ClientSegmentRoot,
-          layerAssets,
-          SegmentComponent,
-          currentParams,
-        })
-        unauthorizedClientSegment = createErrorBoundaryClientSegmentRoot({
-          ctx,
-          ErrorBoundaryComponent: Unauthorized,
-          errorElement: unauthorizedElement,
-          ClientSegmentRoot,
-          layerAssets,
-          SegmentComponent,
-          currentParams,
-        })
-        if (
-          notfoundClientSegment ||
-          forbiddenClientSegment ||
-          unauthorizedClientSegment
-        ) {
-          segmentNode = createElement(
-            HTTPAccessFallbackBoundary,
-            {
-              key: cacheNodeKey,
-              notFound: notfoundClientSegment,
-              forbidden: forbiddenClientSegment,
-              unauthorized: unauthorizedClientSegment,
-            },
-            layerAssets,
-            clientSegment
-          )
-        } else {
-          segmentNode = createElement(
-            Fragment,
-            {
-              key: cacheNodeKey,
-            },
-            layerAssets,
-            clientSegment
-          )
-        }
+          clientSegment
+        )
       } else {
         segmentNode = createElement(
           Fragment,
@@ -674,110 +719,118 @@ async function createComponentTreeInternal(
         )
       }
     } else {
-      const params = createServerParamsForServerSegment(
-        currentParams,
-        optionalCatchAllParamName,
-        varyParamsAccumulator,
-        isRuntimePrefetchable
+      segmentNode = createElement(
+        Fragment,
+        {
+          key: cacheNodeKey,
+        },
+        layerAssets,
+        clientSegment
       )
+    }
+  } else {
+    const params = createServerParamsForServerSegment(
+      currentParams,
+      optionalCatchAllParamName,
+      varyParamsAccumulator,
+      isRuntimePrefetchable
+    )
 
-      let serverSegment: React.ReactNode
+    let serverSegment: React.ReactNode
 
-      if (isUseCacheFunction(SegmentComponent)) {
-        const UseCacheLayoutComponent: ComponentType<UseCacheLayoutProps> =
-          SegmentComponent
+    if (isUseCacheFunction(SegmentComponent)) {
+      const UseCacheLayoutComponent: ComponentType<UseCacheLayoutProps> =
+        SegmentComponent
 
-        serverSegment = createElement(
-          UseCacheLayoutComponent,
-          {
-            ...parallelRouteProps,
-            params: params,
-            $$isLayout: true,
-          },
-          // Force static children here so that they're validated.
-          // See https://github.com/facebook/react/pull/34846
-          parallelRouteProps.children
-        )
-      } else {
-        serverSegment = createElement(
-          SegmentComponent,
-          {
-            ...parallelRouteProps,
-            params: params,
-          },
-          // Force static children here so that they're validated.
-          // See https://github.com/facebook/react/pull/34846
-          parallelRouteProps.children
-        )
-      }
-
-      if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
-        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
-        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
-        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
-        // rely on the `NotFound` behavior.
-        segmentNode = createElement(
-          HTTPAccessFallbackBoundary,
-          {
-            key: cacheNodeKey,
-            notFound: notFoundElement
-              ? createElement(
-                  Fragment,
-                  null,
-                  layerAssets,
-                  createElement(
-                    SegmentComponent,
-                    {
-                      params: params,
-                    },
-                    notFoundStyles,
-                    notFoundElement
-                  )
-                )
-              : undefined,
-          },
-          layerAssets,
-          serverSegment
-        )
-      } else {
-        segmentNode = createElement(
-          Fragment,
-          {
-            key: cacheNodeKey,
-          },
-          layerAssets,
-          serverSegment
-        )
-      }
+      serverSegment = createElement(
+        UseCacheLayoutComponent,
+        {
+          ...parallelRouteProps,
+          params: params,
+          $$isLayout: true,
+        },
+        // Force static children here so that they're validated.
+        // See https://github.com/facebook/react/pull/34846
+        parallelRouteProps.children
+      )
+    } else {
+      serverSegment = createElement(
+        SegmentComponent,
+        {
+          ...parallelRouteProps,
+          params: params,
+        },
+        // Force static children here so that they're validated.
+        // See https://github.com/facebook/react/pull/34846
+        parallelRouteProps.children
+      )
     }
 
-    const layoutFilePath = getConventionPathByType(tree, dir, 'layout')
-    const wrappedSegmentNode =
-      isSegmentViewEnabled && layoutFilePath
-        ? createElement(
-            SegmentViewNode,
-            {
-              key: 'layout',
-              type: 'layout',
-              pagePath: layoutFilePath,
-            },
-            segmentNode
-          )
-        : segmentNode
-
-    // For layouts we just render the component
-    return createSeedData(
-      ctx,
-      wrappedSegmentNode,
-      parallelRouteCacheNodeSeedData,
-      loadingData,
-      isPossiblyPartialResponse,
-      isRuntimePrefetchable,
-
-      varyParamsAccumulator
-    )
+    if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+      // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
+      // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
+      // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
+      // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
+      // rely on the `NotFound` behavior.
+      segmentNode = createElement(
+        HTTPAccessFallbackBoundary,
+        {
+          key: cacheNodeKey,
+          notFound: notFoundElement
+            ? createElement(
+                Fragment,
+                null,
+                layerAssets,
+                createElement(
+                  SegmentComponent,
+                  {
+                    params: params,
+                  },
+                  notFoundStyles,
+                  notFoundElement
+                )
+              )
+            : undefined,
+        },
+        layerAssets,
+        serverSegment
+      )
+    } else {
+      segmentNode = createElement(
+        Fragment,
+        {
+          key: cacheNodeKey,
+        },
+        layerAssets,
+        serverSegment
+      )
+    }
   }
+
+  const layoutFilePath = getConventionPathByType(tree, dir, 'layout')
+  const wrappedSegmentNode =
+    isSegmentViewEnabled && layoutFilePath
+      ? createElement(
+          SegmentViewNode,
+          {
+            key: 'layout',
+            type: 'layout',
+            pagePath: layoutFilePath,
+          },
+          segmentNode
+        )
+      : segmentNode
+
+  return createSeedData(
+    ctx,
+    wrappedSegmentNode,
+    parallelRouteCacheNodeSeedData,
+    loadingData,
+    isPossiblyPartialResponse,
+    isRuntimePrefetchable,
+
+    varyParamsAccumulator
+  )
 }
 
 function renderPageComponent(
