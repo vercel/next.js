@@ -18,7 +18,15 @@ function boot() {
   }
 
   const bridge = createFrontendBridge(window, shared.wall)
-  const store = createStore(bridge)
+  const store = createStore(bridge, {
+    // @ts-expect-error - TODO: There is a config, type mismatch.
+    supportsInspectMatchingDOMElement: true,
+    supportsClickToInspect: true,
+    // original at createStore of react-devtools-inline/frontend
+    checkBridgeProtocolCompatibility: true,
+    supportsTraceUpdates: true,
+    supportsTimeline: true,
+  })
   const DevTools = initFrontend(window, { bridge, store })
 
   createRoot(container, { identifierPrefix: 'nrdt-' }).render(
