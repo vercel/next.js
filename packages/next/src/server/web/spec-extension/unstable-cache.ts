@@ -24,9 +24,25 @@ import type {
 type Callback = (...args: any[]) => Promise<any>
 
 /**
+ * Non-plain-object constructors whose instances serialize to `{}` or lose
+ * data when passed through `JSON.stringify`. We detect these early so the
+ * developer gets a clear error instead of silent data loss.
+ */
+const NON_SERIALIZABLE_TYPES: [constructor: Function, label: string][] = [
+  [Map, 'Map'],
+  [Set, 'Set'],
+  [RegExp, 'RegExp'],
+  [WeakMap, 'WeakMap'],
+  [WeakSet, 'WeakSet'],
+  // Note: Date is intentionally omitted — JSON.stringify(date) produces a
+  // valid ISO-8601 string, which is a reasonable serialization.
+]
+
+/**
  * Recursively validates that a value is JSON-serializable.
- * Detects functions, symbols, BigInt, and cyclic references, and throws
- * with a developer-friendly message including the path to the offending value.
+ * Detects functions, symbols, BigInt, cyclic references, and non-plain
+ * objects (Map, Set, RegExp, …) and throws with a developer-friendly
+ * message including the path to the offending value.
  */
 function validateSerializable(value: unknown): void {
   const seen = new Set<unknown>()
@@ -62,6 +78,16 @@ function validateSerializable(value: unknown): void {
     if (type !== 'object') {
       // string, number, boolean — all safe
       return
+    }
+
+    // Detect non-plain objects that silently serialize to `{}`
+    for (const [ctor, label] of NON_SERIALIZABLE_TYPES) {
+      if (current instanceof ctor) {
+        throw new Error(
+          `unstable_cache callback returned a value with a ${label} instance at "${path}". ` +
+            `${label} instances are not JSON serializable.`
+        )
+      }
     }
 
     // Cyclic reference check
@@ -105,7 +131,14 @@ async function cacheNewResult<T>(
 
   let serializedBody: string
   try {
-    serializedBody = JSON.stringify(result)
+    const json = JSON.stringify(result)
+    if (json === undefined) {
+      // JSON.stringify returns undefined (without throwing) for top-level
+      // undefined, functions, and symbols. validateSerializable already
+      // catches functions and symbols, so this handles the undefined case.
+      throw new Error('value is undefined')
+    }
+    serializedBody = json
   } catch (err) {
     throw new Error(
       `unstable_cache callback returned a value that is not JSON serializable: ${err}`
