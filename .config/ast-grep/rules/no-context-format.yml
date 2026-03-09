@@ -19,4 +19,4 @@ note: >
 severity: error
 language: Rust
 rule:
-  pattern: $OBJ.context(turbofmt!($$$ARGS))
+  pattern: $OBJ.context(turbofmt!($$$ARGS).await?)

@@ -13,6 +13,6 @@ valid:
   - 'foo.context("static string")'
   - 'foo.context(msg)'
 invalid:
-  - 'foo.context(turbofmt!("error: {}", msg))'
-  - 'foo.context(turbofmt!("simple message"))'
-  - 'foo.bar().context(turbofmt!("{} failed", name))'
+  - 'foo.context(turbofmt!("error: {}", msg).await?)'
+  - 'foo.context(turbofmt!("simple message").await?)'
+  - 'foo.bar().context(turbofmt!("{} failed", name).await?)'
