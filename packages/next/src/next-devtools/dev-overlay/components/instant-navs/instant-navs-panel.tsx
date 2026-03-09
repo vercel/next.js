@@ -85,7 +85,7 @@ export function InstantNavsPanel() {
           <div className="instant-nav-section-header">
             <label>Page load</label>
             <p className="instant-nav-section-description">
-              View the initial static UI for the current page.
+              Reload to view the initial static UI for this page.
             </p>
           </div>
           <div className="instant-nav-section-control">
@@ -94,7 +94,19 @@ export function InstantNavsPanel() {
               onClick={handleReload}
               data-instant-nav-refresh
             >
-              <span>View page load</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2.5 8a5.5 5.5 0 0 1 9.68-3.578L11.092 5.5H14.5V2.092l-1.395 1.395A7 7 0 1 0 15 8h-1.5A5.5 5.5 0 0 1 2.5 8Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span>Reload</span>
             </button>
           </div>
         </div>
