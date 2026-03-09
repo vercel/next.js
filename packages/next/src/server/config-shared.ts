@@ -353,6 +353,11 @@ export interface ExperimentalConfig {
    */
   clientParamParsingOrigins?: string[]
   cachedNavigations?: boolean
+  /**
+   * Enables partial fallback shells for cache-components routes while the
+   * feature stabilizes.
+   */
+  partialFallbacks?: boolean
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
@@ -1648,6 +1653,7 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
+    partialFallbacks: false,
     dynamicOnHover: false,
     varyParams: false,
     prefetchInlining: false,
@@ -1828,6 +1834,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'cachedNavigations'
+    | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
     | 'immutableAssetToken'
   > & {
@@ -1898,6 +1905,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         cachedNavigations: ex.cachedNavigations,
+        partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
         immutableAssetToken: ex.immutableAssetToken,
 
