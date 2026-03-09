@@ -375,7 +375,7 @@ async fn build_internal(
                                 ..Default::default()
                             },
                         )
-                        .use_content_hashing(ContentHashing::Direct { length: 16 })
+                        .use_content_hashing(ContentHashing::Direct { length: 13 })
                         .nested_async_availability(true)
                         .module_merging(scope_hoist);
                 }

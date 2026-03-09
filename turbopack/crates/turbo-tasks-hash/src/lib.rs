@@ -4,6 +4,7 @@
 //! invalidation, and encoding the hash to an hexadecimal string for use in a
 //! file name.
 
+mod base40;
 mod deterministic_hash;
 mod hex;
 mod sha;
@@ -18,6 +19,10 @@ pub enum HashAlgorithm {
     #[default]
     Xxh3Hash64Hex,
     Xxh3Hash128Hex,
+    /// xxh3 64-bit hash encoded as a 13-character base40 string (0-9 a-z _ - ~ .)
+    Xxh3Hash64Base40,
+    /// xxh3 128-bit hash encoded as a 25-character base40 string (0-9 a-z _ - ~ .)
+    Xxh3Hash128Base40,
     /// Used for https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
     Sha256Base64,
     /// Used for https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
@@ -38,6 +43,16 @@ pub fn deterministic_hash<T: DeterministicHash>(input: T, algorithm: HashAlgorit
             input.deterministic_hash(&mut hasher);
             encode_hex_128(hasher.finish())
         }
+        HashAlgorithm::Xxh3Hash64Base40 => {
+            let mut hasher = Xxh3Hash64Hasher::new();
+            input.deterministic_hash(&mut hasher);
+            encode_base40(hasher.finish())
+        }
+        HashAlgorithm::Xxh3Hash128Base40 => {
+            let mut hasher = Xxh3Hash128Hasher::new();
+            input.deterministic_hash(&mut hasher);
+            encode_base40_128(hasher.finish())
+        }
         HashAlgorithm::Sha256Base64 => {
             let mut hasher = ShaHasher::new_sha256();
             input.deterministic_hash(&mut hasher);
@@ -57,6 +72,7 @@ pub fn deterministic_hash<T: DeterministicHash>(input: T, algorithm: HashAlgorit
 }
 
 pub use crate::{
+    base40::{encode_base40, encode_base40_128},
     deterministic_hash::{DeterministicHash, DeterministicHasher},
     hex::{encode_hex, encode_hex_128},
     sha::ShaHasher,

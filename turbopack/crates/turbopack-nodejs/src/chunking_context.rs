@@ -465,11 +465,11 @@ impl ChunkingContext for NodeJsChunkingContext {
             Some(ext) => format!(
                 "{basename}.{content_hash}.{ext}",
                 basename = &basename[..basename.len() - ext.len() - 1],
-                content_hash = &content_hash[..8]
+                content_hash = &content_hash[..7]
             ),
             None => format!(
                 "{basename}.{content_hash}",
-                content_hash = &content_hash[..8]
+                content_hash = &content_hash[..7]
             ),
         };
 

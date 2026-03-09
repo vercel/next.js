@@ -72,8 +72,8 @@ pub enum ContentHashing {
     /// Benefit: No hash manifest needed.
     /// Downside: Causes cascading hash invalidation.
     Direct {
-        /// The length of the content hash in hex chars. Anything lower than 8 is not recommended
-        /// due to the high risk of collisions.
+        /// The length of the content hash in base40 chars. Anything lower than 7 is not
+        /// recommended due to the high risk of collisions.
         length: u8,
     },
 }
@@ -579,7 +579,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 };
                 let hash = asset
                     .content()
-                    .content_hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .content_hash(HashAlgorithm::Xxh3Hash128Base40)
                     .await?;
                 let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \
@@ -657,11 +657,11 @@ impl ChunkingContext for BrowserChunkingContext {
             Some(ext) => format!(
                 "{basename}.{content_hash}.{ext}",
                 basename = &basename[..basename.len() - ext.len() - 1],
-                content_hash = &content_hash[..8]
+                content_hash = &content_hash[..7]
             ),
             None => format!(
                 "{basename}.{content_hash}",
-                content_hash = &content_hash[..8]
+                content_hash = &content_hash[..7]
             ),
         };
 
