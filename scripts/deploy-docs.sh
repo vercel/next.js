@@ -35,7 +35,7 @@ npm i -g vercel@latest 1>&2
 echo "Linking Vercel project..." >&2
 vercel link --cwd "$CWD" --scope vercel --project "$PROJECT" --token "$VERCEL_API_TOKEN" --yes 1>&2
 
-echo "Pulling env for $DEPLOY_ENVIRONMENT..." >&2
+echo "Pulling env for ${DEPLOY_ENVIRONMENT:-preview}..." >&2
 vercel pull --cwd "$CWD" --yes --environment="${DEPLOY_ENVIRONMENT:-preview}" --token="$VERCEL_API_TOKEN" 1>&2
 
 echo "Building locally with Vercel..." >&2
