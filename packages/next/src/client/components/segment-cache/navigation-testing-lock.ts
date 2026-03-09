@@ -85,11 +85,10 @@ export function startListeningForInstantNavigationCookie(): void {
       for (const cookie of event.changed) {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
           if (lockState !== null) {
-            // Lock is already held — this is a nested instant() scope
-            // or other improper concurrent usage.
             console.error(
-              'Navigation lock already acquired. Concurrent locks are ' +
-                'not allowed. Check for nested instant() scopes.'
+              'Navigation lock already acquired. Concurrent locks ' +
+                'are not allowed. Did you forget to release the ' +
+                'previous lock?'
             )
             return
           }
