@@ -17,5 +17,7 @@ pub mod failed_to_analyze {
         pub const NEW_URL_IMPORT_META: &str = "TP1201";
         pub const FREE_VAR_REFERENCE: &str = "TP1202";
         pub const NEW_WORKER: &str = "TP1203";
+        pub const MODULE_HOT_ACCEPT: &str = "TP1204";
+        pub const MODULE_HOT_DECLINE: &str = "TP1205";
     }
 }

@@ -7,6 +7,7 @@ pub mod dynamic_expression;
 pub mod esm;
 pub mod exports_info;
 pub mod external_module;
+pub mod hot_module;
 pub mod ident;
 pub mod member;
 pub mod node;
@@ -107,7 +108,7 @@ use crate::{
         graph::{
             ConditionalKind, DeclUsage, Effect, EffectArg, EvalContext, VarGraph, create_graph,
         },
-        imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
+        imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol, Reexport},
         linker::link,
         parse_require_context, side_effects,
         top_level_await::has_top_level_await,
@@ -136,6 +137,7 @@ use crate::{
             base::EsmAssetReferences, export::EsmExport, module_id::EsmModuleIdAssetReference,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
+        hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
         member::MemberReplacement,
         node::PackageJsonReference,
@@ -482,6 +484,12 @@ struct AnalysisState<'a> {
     // Whether we are only tracing dependencies (no code generation). When true, synthetic
     // wrapper modules like WorkerLoaderModule should not be created.
     tracing_only: bool,
+    // Whether the module is an ESM module (affects resolution for hot module dependencies).
+    is_esm: bool,
+    // ESM import references (indexed to match eval_context.imports.references()).
+    import_references: &'a [ResolvedVc<EsmAssetReference>],
+    // The import map from the eval context, used to match dep strings to import references.
+    imports: &'a ImportMap,
 }
 
 impl AnalysisState<'_> {
@@ -1091,6 +1099,9 @@ async fn analyze_ecmascript_module_internal(
             url_rewrite_behavior: options.url_rewrite_behavior,
             collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
             tracing_only: !options.analyze_mode.is_code_gen(),
+            is_esm,
+            import_references: &import_references,
+            imports: &eval_context.imports,
         };
 
         enum Action {
@@ -1717,6 +1728,7 @@ async fn compile_time_info_for_module_options(
         environment: compile_time_info.environment,
         defines: CompileTimeDefines(defines).resolved_cell(),
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
+        hot_module_replacement_enabled: compile_time_info.hot_module_replacement_enabled,
     }
     .cell())
 }
@@ -2912,10 +2924,89 @@ where
                 ),
             )
         }
+        kind @ (WellKnownFunctionKind::ModuleHotAccept
+        | WellKnownFunctionKind::ModuleHotDecline) => {
+            let is_accept = matches!(kind, WellKnownFunctionKind::ModuleHotAccept);
+            let args = linked_args().await?;
+            if let Some(first_arg) = args.first() {
+                if let Some(dep_strings) = extract_hot_dep_strings(first_arg) {
+                    let mut references = Vec::new();
+                    let mut esm_references = Vec::new();
+                    for dep_str in &dep_strings {
+                        let request = Request::parse_string(dep_str.clone()).to_resolved().await?;
+                        let reference = ModuleHotReferenceAssetReference::new(
+                            *origin,
+                            *request,
+                            issue_source(source, span),
+                            error_mode,
+                            state.is_esm,
+                        )
+                        .to_resolved()
+                        .await?;
+                        analysis.add_reference(reference);
+                        references.push(reference);
+
+                        // For accept, find a matching ESM import so we can
+                        // re-assign the namespace binding after the update.
+                        let esm_ref = if is_accept {
+                            state
+                                .imports
+                                .references()
+                                .enumerate()
+                                .find(|(_, r)| r.module_path.to_string_lossy() == dep_str.as_str())
+                                .and_then(|(idx, _)| state.import_references.get(idx).copied())
+                        } else {
+                            None
+                        };
+                        esm_references.push(esm_ref);
+                    }
+                    analysis.add_code_gen(ModuleHotReferenceCodeGen::new(
+                        references,
+                        esm_references,
+                        ast_path.to_vec().into(),
+                    ));
+                } else if first_arg.is_unknown() {
+                    let (args_str, hints) = explain_args(args);
+                    let method = if is_accept { "accept" } else { "decline" };
+                    let error_code = if is_accept {
+                        errors::failed_to_analyze::ecmascript::MODULE_HOT_ACCEPT
+                    } else {
+                        errors::failed_to_analyze::ecmascript::MODULE_HOT_DECLINE
+                    };
+                    handler.span_warn_with_code(
+                        span,
+                        &format!(
+                            "module.hot.{method}({args_str}) is not statically analyzable{hints}",
+                        ),
+                        DiagnosticId::Error(error_code.to_string()),
+                    )
+                }
+            }
+        }
         _ => {}
     };
     Ok(())
 }
+
+/// Extracts dependency strings from the first argument of module.hot.accept/decline.
+/// Returns None if the argument is not a string or array of strings (e.g., it's a function
+/// for self-accept).
+fn extract_hot_dep_strings(arg: &JsValue) -> Option<Vec<RcStr>> {
+    // Single string: module.hot.accept('./dep', cb)
+    if let Some(s) = arg.as_str() {
+        return Some(vec![s.into()]);
+    }
+    // Array of strings: module.hot.accept(['./dep-a', './dep-b'], cb)
+    if let JsValue::Array { items, .. } = arg {
+        let mut deps = Vec::new();
+        for item in items {
+            deps.push(item.as_str()?.into());
+        }
+        return Some(deps);
+    }
+    None
+}
+
 async fn handle_member(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue>> + Send + Sync,

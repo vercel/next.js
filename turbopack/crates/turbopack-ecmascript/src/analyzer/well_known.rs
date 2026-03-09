@@ -60,6 +60,17 @@ pub async fn replace_well_known(
             ),
             _ => (value, false),
         },
+        // module.hot → WellKnownObject(ModuleHot) (only when HMR is enabled)
+        JsValue::Member(_, box JsValue::FreeVar(ref name), box ref prop)
+            if &**name == "module"
+                && prop.as_str() == Some("hot")
+                && compile_time_info.await?.hot_module_replacement_enabled =>
+        {
+            (
+                JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
+                true,
+            )
+        }
         _ => (value, false),
     })
 }
@@ -624,6 +635,32 @@ async fn well_known_object_member(
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
+        WellKnownObjectKind::ImportMeta => match prop.as_str() {
+            // import.meta.turbopackHot is the ESM equivalent of module.hot for HMR
+            Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
+                JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
+            }
+            _ => {
+                return Ok((
+                    JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
+                    false,
+                ));
+            }
+        },
+        WellKnownObjectKind::ModuleHot => match prop.as_str() {
+            Some("accept") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotAccept),
+            Some("decline") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotDecline),
+            _ => {
+                return Ok((
+                    JsValue::unknown(
+                        JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
+                        true,
+                        "unsupported property on module.hot",
+                    ),
+                    true,
+                ));
+            }
+        },
         #[allow(unreachable_patterns)]
         _ => {
             return Ok((

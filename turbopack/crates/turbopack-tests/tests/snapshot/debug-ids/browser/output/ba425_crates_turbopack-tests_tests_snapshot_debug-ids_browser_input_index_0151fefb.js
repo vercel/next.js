@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="cb072996-4c5d-3896-d500-93f5d8c2afe9")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="b5ab4371-5d1a-1509-bb15-0bc83eda8ed0")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -902,6 +902,7 @@ function formatDependencyChain(dependencyChain) {
  *                           This is used for server-side HMR where pages auto-accept at the top level.
  */ function getAffectedModuleEffects(moduleId, autoAcceptRootModules) {
     const outdatedModules = new Set();
+    const outdatedDependencies = new Map();
     const queue = [
         {
             moduleId,
@@ -924,7 +925,8 @@ function formatDependencyChain(dependencyChain) {
                 return {
                     type: 'accepted',
                     moduleId,
-                    outdatedModules
+                    outdatedModules,
+                    outdatedDependencies
                 };
             }
             return {
@@ -964,8 +966,32 @@ function formatDependencyChain(dependencyChain) {
             if (!parent) {
                 continue;
             }
-            // TODO(alexkirsz) Dependencies: check accepted and declined
-            // dependencies here.
+            const parentHotState = moduleHotState.get(parent);
+            // Check if parent declined this dependency
+            if (parentHotState?.declinedDependencies[moduleId]) {
+                return {
+                    type: 'declined',
+                    dependencyChain: [
+                        ...dependencyChain,
+                        moduleId
+                    ],
+                    moduleId,
+                    parentId
+                };
+            }
+            // Skip if parent is already outdated
+            if (outdatedModules.has(parentId)) {
+                continue;
+            }
+            // Check if parent accepts this dependency
+            if (parentHotState?.acceptedDependencies[moduleId]) {
+                if (!outdatedDependencies.has(parentId)) {
+                    outdatedDependencies.set(parentId, new Set());
+                }
+                outdatedDependencies.get(parentId).add(moduleId);
+                continue;
+            }
+            // Neither accepted nor declined — propagate to parent
             queue.push({
                 moduleId: parentId,
                 dependencyChain: [
@@ -982,8 +1008,23 @@ function formatDependencyChain(dependencyChain) {
     return {
         type: 'accepted',
         moduleId,
-        outdatedModules
+        outdatedModules,
+        outdatedDependencies
     };
+}
+/**
+ * Merges source dependency map into target dependency map.
+ */ function mergeDependencies(target, source) {
+    for (const [parentId, deps] of source){
+        const existing = target.get(parentId);
+        if (existing) {
+            for (const dep of deps){
+                existing.add(dep);
+            }
+        } else {
+            target.set(parentId, new Set(deps));
+        }
+    }
 }
 /**
  * Computes all modules that need to be invalidated based on which modules changed.
@@ -992,6 +1033,7 @@ function formatDependencyChain(dependencyChain) {
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
  */ function computedInvalidatedModules(invalidated, autoAcceptRootModules) {
     const outdatedModules = new Set();
+    const outdatedDependencies = new Map();
     for (const moduleId of invalidated){
         const effect = getAffectedModuleEffects(moduleId, autoAcceptRootModules);
         switch(effect.type){
@@ -999,17 +1041,22 @@ function formatDependencyChain(dependencyChain) {
                 throw new UpdateApplyError(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
             case 'self-declined':
                 throw new UpdateApplyError(`cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
+            case 'declined':
+                throw new UpdateApplyError(`cannot apply update: declined dependency. ${formatDependencyChain(effect.dependencyChain)}. Declined by ${effect.parentId}.`, effect.dependencyChain);
             case 'accepted':
                 for (const outdatedModuleId of effect.outdatedModules){
                     outdatedModules.add(outdatedModuleId);
                 }
+                mergeDependencies(outdatedDependencies, effect.outdatedDependencies);
                 break;
-            // TODO(alexkirsz) Dependencies: handle dependencies effects.
             default:
                 invariant(effect, (effect)=>`Unknown effect type: ${effect?.type}`);
         }
     }
-    return outdatedModules;
+    return {
+        outdatedModules,
+        outdatedDependencies
+    };
 }
 /**
  * Creates the module.hot API object and its internal state.
@@ -1019,7 +1066,10 @@ function formatDependencyChain(dependencyChain) {
         selfAccepted: false,
         selfDeclined: false,
         selfInvalidated: false,
-        disposeHandlers: []
+        disposeHandlers: [],
+        acceptedDependencies: {},
+        acceptedErrorHandlers: {},
+        declinedDependencies: {}
     };
     const hot = {
         // TODO(alexkirsz) This is not defined in the HMR API. It was used to
@@ -1027,21 +1077,30 @@ function formatDependencyChain(dependencyChain) {
         // modules. We might want to remove it.
         active: true,
         data: hotData ?? {},
-        // TODO(alexkirsz) Support full (dep, callback, errorHandler) form.
-        accept: (modules, _callback, _errorHandler)=>{
+        accept: (modules, callback, errorHandler)=>{
             if (modules === undefined) {
                 hotState.selfAccepted = true;
             } else if (typeof modules === 'function') {
                 hotState.selfAccepted = modules;
+            } else if (typeof modules === 'object' && modules !== null) {
+                for(let i = 0; i < modules.length; i++){
+                    hotState.acceptedDependencies[modules[i]] = callback || function() {};
+                    hotState.acceptedErrorHandlers[modules[i]] = errorHandler;
+                }
             } else {
-                throw new Error('unsupported `accept` signature');
+                hotState.acceptedDependencies[modules] = callback || function() {};
+                hotState.acceptedErrorHandlers[modules] = errorHandler;
             }
         },
         decline: (dep)=>{
             if (dep === undefined) {
                 hotState.selfDeclined = true;
+            } else if (typeof dep === 'object' && dep !== null) {
+                for(let i = 0; i < dep.length; i++){
+                    hotState.declinedDependencies[dep[i]] = true;
+                }
             } else {
-                throw new Error('unsupported `decline` signature');
+                hotState.declinedDependencies[dep] = true;
             }
         },
         dispose: (callback)=>{
@@ -1083,14 +1142,19 @@ function formatDependencyChain(dependencyChain) {
  *
  * @param outdatedModules - The current set of outdated modules
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
- */ function applyInvalidatedModules(outdatedModules, autoAcceptRootModules) {
+ */ function applyInvalidatedModules(outdatedModules, outdatedDependencies, autoAcceptRootModules) {
     if (queuedInvalidatedModules.size > 0) {
-        computedInvalidatedModules(queuedInvalidatedModules, autoAcceptRootModules).forEach((moduleId)=>{
+        const result = computedInvalidatedModules(queuedInvalidatedModules, autoAcceptRootModules);
+        for (const moduleId of result.outdatedModules){
             outdatedModules.add(moduleId);
-        });
+        }
+        mergeDependencies(outdatedDependencies, result.outdatedDependencies);
         queuedInvalidatedModules.clear();
     }
-    return outdatedModules;
+    return {
+        outdatedModules,
+        outdatedDependencies
+    };
 }
 /**
  * Computes which outdated modules have self-accepted and can be hot reloaded.
@@ -1135,7 +1199,6 @@ function formatDependencyChain(dependencyChain) {
         module.hot.active = false;
     }
     moduleHotState.delete(module);
-    // TODO(alexkirsz) Dependencies: delete the module from outdated deps.
     // Remove the disposed module from its children's parent list.
     // It will be added back once the module re-instantiates and imports its
     // children again.
@@ -1164,7 +1227,7 @@ function formatDependencyChain(dependencyChain) {
 /**
  * Dispose phase: runs dispose handlers and cleans up outdated/disposed modules.
  * Returns the parent modules of outdated modules for use in the apply phase.
- */ function disposePhase(outdatedModules, disposedModules) {
+ */ function disposePhase(outdatedModules, disposedModules, outdatedDependencies) {
     for (const moduleId of outdatedModules){
         disposeModule(moduleId, 'replace');
     }
@@ -1179,8 +1242,21 @@ function formatDependencyChain(dependencyChain) {
         outdatedModuleParents.set(moduleId, oldModule?.parents);
         delete devModuleCache[moduleId];
     }
-    // TODO(alexkirsz) Dependencies: remove outdated dependency from module
-    // children.
+    // Remove outdated dependencies from parent module's children list.
+    // When a parent accepts a child's update, the child is re-instantiated
+    // but the parent stays alive. We remove the old child reference so it
+    // gets re-added when the child re-imports.
+    for (const [parentId, deps] of outdatedDependencies){
+        const module = devModuleCache[parentId];
+        if (module) {
+            for (const dep of deps){
+                const idx = module.children.indexOf(dep);
+                if (idx >= 0) {
+                    module.children.splice(idx, 1);
+                }
+            }
+        }
+    }
     return {
         outdatedModuleParents
     };
@@ -1332,27 +1408,72 @@ function formatDependencyChain(dependencyChain) {
         }
     }
     // Walk dependency tree to find all modules affected by modifications
-    const outdatedModules = computedInvalidatedModules(modified.keys(), autoAcceptRootModules);
+    const { outdatedModules, outdatedDependencies } = computedInvalidatedModules(modified.keys(), autoAcceptRootModules);
     // Compile modified modules
     for (const [moduleId, entry] of modified){
         newModuleFactories.set(moduleId, evalModuleEntry(entry));
     }
     return {
         outdatedModules,
+        outdatedDependencies,
         newModuleFactories
     };
 }
 /**
  * Updates module factories and re-instantiates self-accepted modules.
  * Uses the instantiateModule function (platform-specific via callback).
- */ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError) {
+ */ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError) {
     // Update module factories
     for (const [moduleId, factory] of newModuleFactories.entries()){
         applyModuleFactoryNameFn(factory);
         moduleFactories.set(moduleId, factory);
     }
     // TODO(alexkirsz) Run new runtime entries here.
-    // TODO(alexkirsz) Dependencies: call accept handlers for outdated deps.
+    // Call accept handlers for outdated dependencies.
+    // This runs BEFORE re-instantiating self-accepted modules, matching
+    // webpack's behavior.
+    for (const [parentId, deps] of outdatedDependencies){
+        const module = devModuleCache[parentId];
+        if (!module) continue;
+        const hotState = moduleHotState.get(module);
+        if (!hotState) continue;
+        // Group deps by callback, deduplicating callbacks that handle multiple deps.
+        // Each callback receives only the deps it was registered for.
+        const callbackDeps = new Map();
+        const callbackErrorHandlers = new Map();
+        for (const dep of deps){
+            const acceptCallback = hotState.acceptedDependencies[dep];
+            if (acceptCallback) {
+                let depList = callbackDeps.get(acceptCallback);
+                if (!depList) {
+                    depList = [];
+                    callbackDeps.set(acceptCallback, depList);
+                    callbackErrorHandlers.set(acceptCallback, hotState.acceptedErrorHandlers[dep]);
+                }
+                depList.push(dep);
+            }
+        }
+        for (const [callback, cbDeps] of callbackDeps){
+            try {
+                callback.call(null, cbDeps);
+            } catch (err) {
+                const errorHandler = callbackErrorHandlers.get(callback);
+                if (typeof errorHandler === 'function') {
+                    try {
+                        errorHandler(err, {
+                            moduleId: parentId,
+                            dependencyId: cbDeps[0]
+                        });
+                    } catch (err2) {
+                        reportError(err2);
+                        reportError(err);
+                    }
+                } else {
+                    reportError(err);
+                }
+            }
+        }
+    }
     // Re-instantiate all outdated self-accepted modules
     for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules){
         try {
@@ -1379,23 +1500,24 @@ function formatDependencyChain(dependencyChain) {
  * invalidation, disposal, and application of new modules.
  *
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
- */ function applyInternal(outdatedModules, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules) {
-    outdatedModules = applyInvalidatedModules(outdatedModules, autoAcceptRootModules);
+ */ function applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules) {
+    ;
+    ({ outdatedModules, outdatedDependencies } = applyInvalidatedModules(outdatedModules, outdatedDependencies, autoAcceptRootModules));
     // Find self-accepted modules to re-instantiate
     const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
     // Run dispose handlers, save hot.data, clear caches
-    const { outdatedModuleParents } = disposePhase(outdatedModules, disposedModules);
+    const { outdatedModuleParents } = disposePhase(outdatedModules, disposedModules, outdatedDependencies);
     let error;
     function reportError(err) {
         if (!error) error = err; // Keep first error
     }
-    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError);
+    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError);
     if (error) {
         throw error;
     }
     // Recursively apply any queued invalidations from new module execution
     if (queuedInvalidatedModules.size > 0) {
-        applyInternal(new Set(), [], new Map(), moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules);
+        applyInternal(new Set(), new Map(), [], new Map(), moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules);
     }
 }
 /**
@@ -1407,8 +1529,8 @@ function formatDependencyChain(dependencyChain) {
  *                                   auto-accept at the top level.
  */ function applyEcmascriptMergedUpdateShared(options) {
     const { added, modified, disposedModules, evalModuleEntry, instantiateModule, applyModuleFactoryName, moduleFactories, devModuleCache, autoAcceptRootModules } = options;
-    const { outdatedModules, newModuleFactories } = computeOutdatedModules(added, modified, evalModuleEntry, autoAcceptRootModules);
-    applyInternal(outdatedModules, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModule, applyModuleFactoryName, autoAcceptRootModules);
+    const { outdatedModules, outdatedDependencies, newModuleFactories } = computeOutdatedModules(added, modified, evalModuleEntry, autoAcceptRootModules);
+    applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModule, applyModuleFactoryName, autoAcceptRootModules);
 }
 /// <reference path="../../../shared/runtime/dev-globals.d.ts" />
 /// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
@@ -2095,5 +2217,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=cb072996-4c5d-3896-d500-93f5d8c2afe9
+//# debugId=b5ab4371-5d1a-1509-bb15-0bc83eda8ed0
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map

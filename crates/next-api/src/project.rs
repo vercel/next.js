@@ -367,6 +367,9 @@ pub struct ProjectOptions {
 
     /// The version of Next.js that is running.
     pub next_version: RcStr,
+
+    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    pub server_hmr: bool,
 }
 
 #[derive(Default)]
@@ -797,6 +800,7 @@ impl ProjectContainer {
         let debug_build_paths;
         let deferred_entries;
         let is_persistent_caching_enabled;
+        let server_hmr;
         {
             let options = self.options_state.get();
             let options = options
@@ -824,6 +828,7 @@ impl ProjectContainer {
             debug_build_paths = options.debug_build_paths.clone();
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
+            server_hmr = options.server_hmr;
         }
 
         let dist_dir = next_config.dist_dir().owned().await?;
@@ -853,6 +858,7 @@ impl ProjectContainer {
             debug_build_paths,
             deferred_entries,
             is_persistent_caching_enabled,
+            server_hmr,
         }
         .cell())
     }
@@ -953,6 +959,9 @@ pub struct Project {
 
     /// Whether to enable persistent caching
     is_persistent_caching_enabled: bool,
+
+    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    server_hmr: bool,
 }
 
 #[turbo_tasks::value]
@@ -1258,12 +1267,14 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(
+    pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
+        let next_mode = self.mode.await?;
+        Ok(get_client_compile_time_info(
             self.browserslist_query.clone(),
             self.define_env.client(),
             self.next_config.report_system_env_inlining(),
-        )
+            next_mode.is_development(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1515,6 +1526,7 @@ impl Project {
             this.define_env.nodejs(),
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
+            this.server_hmr,
         ))
     }
 

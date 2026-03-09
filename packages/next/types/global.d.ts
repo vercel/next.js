@@ -70,6 +70,26 @@ declare module 'client-only' {
    */
 }
 
+interface TurbopackHotApi {
+  accept(): void
+  accept(cb: () => void): void
+  accept(dep: string | string[], cb?: () => void): void
+  decline(): void
+  decline(dep: string | string[]): void
+  dispose(cb: (data: Record<string, unknown>) => void): void
+  invalidate(): void
+  readonly data: Record<string, unknown>
+}
+
+interface ImportMeta {
+  /**
+   * The HMR API for ESM modules when using Turbopack.
+   * Equivalent to `module.hot` in CommonJS modules.
+   * Only available in development mode.
+   */
+  turbopackHot?: TurbopackHotApi
+}
+
 interface Window {
   MSInputMethodContext?: unknown
   /** @internal */

@@ -197,6 +197,7 @@ fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
+    hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
     let node_env = node_env.await?;
     CompileTimeInfo::builder(
@@ -216,6 +217,7 @@ pub async fn get_client_compile_time_info(
     .free_var_references(
         free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
     )
+    .hot_module_replacement_enabled(hot_module_replacement_enabled)
     .cell()
     .await
 }

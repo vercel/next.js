@@ -22,13 +22,16 @@ interface HotState {
   selfDeclined: boolean
   selfInvalidated: boolean
   disposeHandlers: ((data: object) => void)[]
+  acceptedDependencies: Record<ModuleId, AcceptCallback | (() => void)>
+  acceptedErrorHandlers: Record<ModuleId, AcceptErrorHandler | undefined>
+  declinedDependencies: Record<ModuleId, true>
 }
 
 type AcceptErrorHandler = (
   err: Error,
-  context: { moduleId: ModuleId; dependencyId: string | number }
+  context: { moduleId: ModuleId; dependencyId: ModuleId }
 ) => void
-type AcceptCallback = (outdatedDependencies: string[]) => void
+type AcceptCallback = (outdatedDependencies: ModuleId[]) => void
 
 interface AcceptFunction {
   // accept updates for self

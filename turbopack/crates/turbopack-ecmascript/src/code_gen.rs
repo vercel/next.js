@@ -33,6 +33,7 @@ use crate::{
             url::UrlAssetReferenceCodeGen,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
+        hot_module::ModuleHotReferenceCodeGen,
         ident::IdentReplacement,
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
@@ -199,6 +200,7 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
 }
 
 impl CodeGen {
@@ -231,6 +233,9 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ModuleHotReferenceCodeGen(v) => {
+                v.code_generation(ctx, scope_hoisting_context).await
+            }
         }
     }
 }
