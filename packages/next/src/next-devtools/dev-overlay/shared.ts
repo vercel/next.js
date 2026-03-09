@@ -300,40 +300,10 @@ const shouldDisableDevIndicator =
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 
-const instantNavsCookieValue: string | null =
-  !!process.env.__NEXT_INSTANT_NAV_TOGGLE && typeof document !== 'undefined'
-    ? (() => {
-        const match = document.cookie.match(
-          /next-instant-navigation-testing=([^;]*)/
-        )
-        return match ? match[1] : null
-      })()
-    : null
-
-const hasInstantNavsCookie = instantNavsCookieValue !== null
-
-function parseInstantNavsCookie(
-  value: string | null
-): OverlayState['instantNavsPanel'] {
-  if (value === 'initial-load') {
-    return {
-      status: 'initial-load',
-      toUrl:
-        typeof window !== 'undefined'
-          ? window.location.pathname + window.location.search
-          : '',
-    }
-  }
-  if (value?.startsWith('client-nav|')) {
-    const parts = value.split('|')
-    return {
-      status: 'client-nav',
-      fromUrl: parts[1] || '',
-      toUrl: parts[2] || '',
-    }
-  }
-  return { status: 'waiting' }
-}
+const hasInstantNavsCookie =
+  !!process.env.__NEXT_INSTANT_NAV_TOGGLE &&
+  typeof document !== 'undefined' &&
+  document.cookie.includes('next-instant-navigation-testing=')
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -370,7 +340,15 @@ export const INITIAL_OVERLAY_STATE: Omit<
   theme: 'system',
   hideShortcut: null,
   instantNavs: hasInstantNavsCookie,
-  instantNavsPanel: parseInstantNavsCookie(instantNavsCookieValue),
+  instantNavsPanel: hasInstantNavsCookie
+    ? {
+        status: 'initial-load',
+        toUrl:
+          typeof window !== 'undefined'
+            ? window.location.pathname + window.location.search
+            : '',
+      }
+    : { status: 'waiting' },
 }
 
 function getInitialState(

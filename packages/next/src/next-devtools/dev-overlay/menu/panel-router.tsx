@@ -115,7 +115,7 @@ const MenuPanel = () => {
               // Set cookie to activate the navigation lock (read by
               // navigation-testing-lock.ts via CookieStore change event)
               document.cookie =
-                'next-instant-navigation-testing=waiting; path=/'
+                'next-instant-navigation-testing=1; path=/'
               if (!state.instantNavs) {
                 dispatch({ type: ACTION_INSTANT_NAVS_TOGGLE })
               }

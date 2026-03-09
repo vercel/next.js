@@ -104,7 +104,7 @@ describe('instant-nav-panel', () => {
 
     // Cookie should be set to activate navigation lock
     const cookie = await browser.eval(() => document.cookie)
-    expect(cookie).toContain('next-instant-navigation-testing=waiting')
+    expect(cookie).toContain('next-instant-navigation-testing=1')
 
     // Clean up
     await clearInstantModeCookie(browser)

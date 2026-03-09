@@ -48,21 +48,18 @@ export function InstantNavsPanel() {
     }
 
     if (state.page !== initialPageRef.current) {
-      const from = fromUrlRef.current
-      const to = window.location.pathname + window.location.search
-      // Sync cookie so this state survives a refresh
-      document.cookie = `next-instant-navigation-testing=client-nav|${from}|${to}; path=/`
       dispatch({
         type: ACTION_INSTANT_NAVS_SET_STATUS,
         status: 'client-nav',
-        fromUrl: from,
-        toUrl: to,
+        fromUrl: fromUrlRef.current,
+        toUrl: window.location.pathname + window.location.search,
       })
     }
   }, [state.page, status, dispatch])
 
   function handleReload() {
-    document.cookie = 'next-instant-navigation-testing=initial-load; path=/'
+    // Cookie is already set to '1' from when the panel opened.
+    // Just reload — the server will see the cookie and render the static shell.
     window.location.reload()
   }
 
@@ -101,7 +98,6 @@ export function InstantNavsPanel() {
             </button>
           </div>
         </div>
-        {/* TODO: Uncomment when ready to integrate with cookie changes that support from/to paths. */}
         <div className="instant-nav-section">
           <div className="instant-nav-section-header">
             <label>Client navigation</label>
@@ -122,24 +118,24 @@ export function InstantNavsPanel() {
           <div className="instant-nav-section-header">
             <label>Client navigation</label>
           </div>
-          {/* TODO: Need to implement this feature that maps URL to route module path. */}
-          {/* <div className="instant-nav-urls">
-            <div className="instant-nav-url-row">
-              <span className="instant-nav-url-label">Route:</span>
-              <span className="instant-nav-url-value">/target-page/[slug]</span>
-            </div>
+          <div className="instant-nav-urls">
             <div className="instant-nav-url-row">
               <span className="instant-nav-url-label">From:</span>
               <span className="instant-nav-url-value">{panel.fromUrl}</span>
             </div>
-          </div> */}
+            <div className="instant-nav-url-row">
+              <span className="instant-nav-url-label">To:</span>
+              <span className="instant-nav-url-value">{panel.toUrl}</span>
+            </div>
+          </div>
           <p className="instant-nav-helper-description">
             You're viewing the prefetched UI for the previous navigation to the
             current URL.
           </p>
-          <p className="instant-nav-helper-description">
+          {/* TODO: Add back in after the navigation cookie supports reloads. */}
+          {/* <p className="instant-nav-helper-description">
             Edit your code and reload the page to see any changes.
-          </p>
+          </p> */}
         </div>
         <div className="instant-nav-footer">
           {/* TODO: Remove hidden wrapper once we add share functionality. */}
@@ -166,19 +162,19 @@ export function InstantNavsPanel() {
             <label>Page load</label>
           </div>
 
-          {/* TODO: Need to implement this feature that maps URL to route module path. */}
-          {/* <div className="instant-nav-urls">
+          <div className="instant-nav-urls">
             <div className="instant-nav-url-row">
               <span className="instant-nav-url-label">Route:</span>
-              <span className="instant-nav-url-value">/target-page/[slug]</span>
+              <span className="instant-nav-url-value">{panel.toUrl}</span>
             </div>
-          </div> */}
+          </div>
           <p className="instant-nav-helper-description">
             You're viewing the pre-rendered static UI for the current URL.
           </p>
-          <p className="instant-nav-helper-description">
+          {/* TODO: Add back in after the navigation cookie supports reloads. */}
+          {/* <p className="instant-nav-helper-description">
             Edit your code and reload the page to see any changes.
-          </p>
+          </p> */}
         </div>
         <div className="instant-nav-footer">
           {/* TODO: Remove hidden wrapper once we add share functionality. */}
