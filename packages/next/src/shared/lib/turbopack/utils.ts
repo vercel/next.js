@@ -1,5 +1,6 @@
 import type {
   Issue,
+  IssueSource,
   PlainTraceItem,
   StyledString,
   TurbopackResult,
@@ -100,6 +101,31 @@ function formatFilePath(filePath: string): string {
     .replace('\\\\?\\', '')
 }
 
+/**
+ * Formats an IssueSource as a code frame with file location header.
+ * Returns empty string if the source has no range, no content, or
+ * points to an internal (Next.js/React) file.
+ */
+function formatSourceCodeFrame(source: IssueSource, filePath: string): string {
+  if (!source.range || !source.source.content || isInternal(filePath)) {
+    return ''
+  }
+  const { start, end } = source.range
+  let result = `${formatFilePath(filePath)}:${start.line + 1}:${start.column + 1}\n`
+  const frame = codeFrameColumns(
+    source.source.content,
+    {
+      start: { line: start.line + 1, column: start.column + 1 },
+      end: { line: end.line + 1, column: end.column + 1 },
+    },
+    { color: true }
+  )
+  if (frame) {
+    result += frame.trimEnd() + '\n\n'
+  }
+  return result
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, detail, source, importTraces } = issue
   let { documentationLink } = issue
@@ -156,36 +182,13 @@ export function formatIssue(issue: Issue) {
   }
 
   // Render additional sources (e.g., generated code from a loader)
-  if (issue.additionalSources?.length) {
-    for (const additional of issue.additionalSources) {
-      const { description: desc, source: additionalSource } = additional
-      if (
-        additionalSource.range &&
-        additionalSource.source.content &&
-        // ignore Next.js/React internals, as these can often be huge bundled files.
-        !isInternal(additionalSource.source.filePath)
-      ) {
-        message += `${desc}:\n`
-        const { start, end } = additionalSource.range
-        message += `${formatFilePath(additionalSource.source.filePath)}:${start.line + 1}:${start.column + 1}\n`
-        const additionalFrame = codeFrameColumns(
-          additionalSource.source.content,
-          {
-            start: {
-              line: start.line + 1,
-              column: start.column + 1,
-            },
-            end: {
-              line: end.line + 1,
-              column: end.column + 1,
-            },
-          },
-          { color: true }
-        )
-        if (additionalFrame) {
-          message += additionalFrame.trimEnd() + '\n\n'
-        }
-      }
+  for (const additional of issue.additionalSources ?? []) {
+    const codeFrame = formatSourceCodeFrame(
+      additional.source,
+      additional.source.source.filePath
+    )
+    if (codeFrame) {
+      message += `${additional.description}:\n${codeFrame}`
     }
   }
 

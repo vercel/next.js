@@ -277,10 +277,11 @@ impl WebpackLoadersProcessedAsset {
 
             let resource_fs_path = self.source.ident().path().await?;
             let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
-                bail!(format!(
-                    "Resource path \"{}\" need to be on project filesystem \"{}\"",
-                    resource_fs_path, project_path
-                ));
+                bail!(
+                    "Resource path \"{}\" needs to be on project filesystem \"{}\"",
+                    resource_fs_path,
+                    project_path
+                );
             };
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,

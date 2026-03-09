@@ -8,7 +8,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -631,34 +631,22 @@ impl IssueSource {
         self.source.ident().path()
     }
 
-    /// Returns the underlying source.
-    pub fn source_ref(&self) -> ResolvedVc<Box<dyn Source>> {
-        self.source
-    }
-
-    /// Creates a new `IssueSource` with the same range but a different source.
-    pub fn with_source(&self, source: ResolvedVc<Box<dyn Source>>) -> Self {
-        IssueSource {
-            source,
-            range: self.range,
-        }
-    }
-
     /// If this source implements `GenerateSourceMap`, returns an
     /// `AdditionalIssueSource` that wraps the source in a `GeneratedCodeSource`
     /// (stripping source-map support) so the generated code is shown alongside
     /// the original in error messages. Returns `None` otherwise.
     pub async fn to_generated_code_source(&self) -> Result<Option<AdditionalIssueSource>> {
-        let source = self.source_ref();
-        if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).is_some() {
-            let description = source.description().await?;
-            let generated = Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*source))
+        if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source).is_some() {
+            let description = self.source.description().await?;
+            let generated = Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*self.source))
                 .to_resolved()
                 .await?;
-            let unmapped_source = self.with_source(generated);
             return Ok(Some(AdditionalIssueSource {
                 description: format!("Generated code of {}", description).into(),
-                source: unmapped_source,
+                source: IssueSource {
+                    source: generated,
+                    range: self.range,
+                },
             }));
         }
         Ok(None)
@@ -1173,7 +1161,7 @@ pub async fn handle_issues<T: Send>(
             message += &format!(" ({operation})");
         };
 
-        Err(anyhow!(message))
+        bail!(message)
     } else {
         Ok(())
     }

@@ -112,6 +112,12 @@ export type StyledString =
       value: StyledString[]
     }
 
+/** 0-indexed line and column position within a source file. */
+export interface SourcePosition {
+  line: number
+  column: number
+}
+
 export interface IssueSource {
   source: {
     ident: string
@@ -119,18 +125,8 @@ export interface IssueSource {
     content?: string
   }
   range?: {
-    start: {
-      // 0-indexed
-      line: number
-      // 0-indexed
-      column: number
-    }
-    end: {
-      // 0-indexed
-      line: number
-      // 0-indexed
-      column: number
-    }
+    start: SourcePosition
+    end: SourcePosition
   }
 }
 

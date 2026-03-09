@@ -2,12 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-/** Replace the dynamic test directory path with a fixed placeholder. */
+/**
+ * Strips the dynamic test directory prefix from paths so snapshots are stable.
+ * Handles both absolute paths (/full/path/test/tmp/next-test-XXX/) and
+ * relative paths (./test/tmp/next-test-XXX/).
+ */
 function normalizePaths(output: string, testDir: string): string {
-  // Replace absolute path form
   let result = output.replaceAll(testDir + '/', '')
-  // Also replace relative path forms that contain the unique test dir name
-  // (e.g. "test/tmp/next-test-XXX/" or "./test/tmp/next-test-XXX/")
   const relMatch = testDir.match(/(test\/tmp\/next-test-[^/]+)/)
   if (relMatch) {
     result = result.replaceAll('./' + relMatch[1] + '/', './')
@@ -17,51 +18,58 @@ function normalizePaths(output: string, testDir: string): string {
 }
 
 /**
- * Extracts an error block from CLI output containing the given title.
- * Finds the start by looking for `⨯` (dev) or file path line (prod) before
- * the title, and the end after the Import trace section.
+ * Extracts a single error block from CLI output by searching for a title string.
+ *
+ * Start boundary: the nearest `⨯` marker (dev) or file-path line (prod)
+ * before the title.
+ * End boundary: the first blank line after an "Import trace" section that
+ * isn't followed by continuation content (indented lines or file paths).
  */
 function extractErrorBlock(output: string, errorTitle: string): string {
   const titleIdx = output.indexOf(errorTitle)
   if (titleIdx === -1) return ''
 
-  // Find the start: ⨯ marker (dev) or file path line (prod)
   const beforeTitle = output.substring(0, titleIdx)
+
+  // In dev mode, errors start with a `⨯` marker on the same line as the file path.
+  // In prod mode, errors start with a bare file-path line above the title.
   const markerIdx = beforeTitle.lastIndexOf('⨯ ')
   let startIdx: number
   if (markerIdx !== -1) {
     startIdx = markerIdx
   } else {
-    // Production: find the file path line before the title (e.g. ./file:line:col)
-    // The title is on the line after the file path, so go back two newlines
-    const lastNewline = beforeTitle.lastIndexOf('\n')
-    const prevNewline =
-      lastNewline > 0 ? beforeTitle.lastIndexOf('\n', lastNewline - 1) : -1
-    startIdx = prevNewline !== -1 ? prevNewline + 1 : 0
+    // Go back two lines: title is preceded by a file-path line (e.g. ./file:3:1)
+    const lines = beforeTitle.split('\n')
+    startIdx =
+      lines.length >= 2
+        ? beforeTitle.length -
+          lines[lines.length - 1].length -
+          lines[lines.length - 2].length -
+          1
+        : 0
   }
 
-  // Find the end: after "Import trace" section, look for a blank line
-  // not followed by indented content (for turbopack) or file paths (for webpack)
-  const afterStart = output.substring(startIdx)
-  const lines = afterStart.split('\n')
-  let foundImportTrace = false
-  let endLine = lines.length
+  // Scan forward to find the end of the Import trace section
+  const block = output.substring(startIdx)
+  const lines = block.split('\n')
+  let inImportTrace = false
   for (let i = 0; i < lines.length; i++) {
     if (/^Import trace/.test(lines[i])) {
-      foundImportTrace = true
+      inImportTrace = true
     }
-    if (foundImportTrace && lines[i].trim() === '' && i > 0) {
+    // A blank line after the import trace ends the block, unless the next
+    // line is a continuation (indented or a file path)
+    if (inImportTrace && lines[i].trim() === '' && i > 0) {
+      const nextLine = lines[i + 1]
       if (
-        i + 1 >= lines.length ||
-        (!lines[i + 1].startsWith('  ') && !lines[i + 1].startsWith('./'))
+        !nextLine ||
+        (!nextLine.startsWith('  ') && !nextLine.startsWith('./'))
       ) {
-        endLine = i
-        break
+        return lines.slice(0, i).join('\n')
       }
     }
   }
-
-  return lines.slice(0, endLine).join('\n')
+  return block.trimEnd()
 }
 
 describe('webpack-loader-parse-error (development)', () => {
