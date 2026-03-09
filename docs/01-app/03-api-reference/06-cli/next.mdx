@@ -178,12 +178,20 @@ Learn more about [Telemetry](/telemetry).
 
 Previously, route types were only generated during `next dev` or `next build`, which meant running `tsc --noEmit` directly wouldn't validate your route types. Now you can generate types independently and validate them externally:
 
-```bash filename="Terminal"
-# Generate route types first, then validate with TypeScript
-next typegen && tsc --noEmit
+```bash package="pnpm"
+pnpm next typegen && tsc --noEmit
+```
 
-# Or in CI workflows for type checking without building
-next typegen && npm run type-check
+```bash package="npm"
+npx next typegen && tsc --noEmit
+```
+
+```bash package="yarn"
+yarn next typegen && tsc --noEmit
+```
+
+```bash package="bun"
+bunx next typegen && tsc --noEmit
 ```
 
 The following options are available for the `next typegen` command:
@@ -195,10 +203,28 @@ The following options are available for the `next typegen` command:
 
 Output files are written to `<distDir>/types` (typically: `.next/dev/types` in development or `.next/types` in production):
 
-```bash filename="Terminal"
-next typegen
+```bash package="pnpm"
+pnpm next typegen
 # or for a specific app
-next typegen ./apps/web
+pnpm next typegen ./apps/web
+```
+
+```bash package="npm"
+npx next typegen
+# or for a specific app
+npx next typegen ./apps/web
+```
+
+```bash package="yarn"
+yarn next typegen
+# or for a specific app
+yarn next typegen ./apps/web
+```
+
+```bash package="bun"
+bunx next typegen
+# or for a specific app
+bunx next typegen ./apps/web
 ```
 
 Additionally, `next typegen` generates a `next-env.d.ts` file. We recommend adding `next-env.d.ts` to your `.gitignore` file.
@@ -252,9 +278,33 @@ See [Package Bundling](/docs/app/guides/package-bundling#optimizing-large-bundle
 
 To write the analysis output to disk without starting the server, use the `--output` flag. The output is written to `.next/diagnostics/analyze` and contains static files that can be copied elsewhere or shared with others:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+# Write output to .next/diagnostics/analyze
+pnpm next experimental-analyze --output
+
+# Copy the output for comparison with a future analysis
+cp -r .next/diagnostics/analyze ./analyze-before-refactor
+```
+
+```bash package="npm"
 # Write output to .next/diagnostics/analyze
 npx next experimental-analyze --output
+
+# Copy the output for comparison with a future analysis
+cp -r .next/diagnostics/analyze ./analyze-before-refactor
+```
+
+```bash package="yarn"
+# Write output to .next/diagnostics/analyze
+yarn next experimental-analyze --output
+
+# Copy the output for comparison with a future analysis
+cp -r .next/diagnostics/analyze ./analyze-before-refactor
+```
+
+```bash package="bun"
+# Write output to .next/diagnostics/analyze
+bunx next experimental-analyze --output
 
 # Copy the output for comparison with a future analysis
 cp -r .next/diagnostics/analyze ./analyze-before-refactor
@@ -277,8 +327,20 @@ The following options are available for the `next experimental-analyze` command:
 
 If you encounter prerendering errors during `next build`, you can pass the `--debug-prerender` flag to get more detailed output:
 
-```bash filename="Terminal"
-next build --debug-prerender
+```bash package="pnpm"
+pnpm next build --debug-prerender
+```
+
+```bash package="npm"
+npx next build --debug-prerender
+```
+
+```bash package="yarn"
+yarn next build --debug-prerender
+```
+
+```bash package="bun"
+bunx next build --debug-prerender
 ```
 
 This enables several experimental options to make debugging easier:
@@ -301,30 +363,90 @@ This helps surface more readable stack traces and code frames in the build outpu
 
 You can build only specific routes in the App and Pages Routers using the `--debug-build-paths` option. This is useful for faster debugging when working with large applications. The `--debug-build-paths` option accepts comma-separated file paths and supports glob patterns:
 
-```bash filename="Terminal"
+```bash package="pnpm"
 # Build a specific route
-next build --debug-build-paths="app/page.tsx"
+pnpm next build --debug-build-paths="app/page.tsx"
 
 # Build more than one route
-next build --debug-build-paths="app/page.tsx,pages/index.tsx"
+pnpm next build --debug-build-paths="app/page.tsx,pages/index.tsx"
 
 # Use glob patterns
-next build --debug-build-paths="app/**/page.tsx"
-next build --debug-build-paths="pages/*.tsx"
+pnpm next build --debug-build-paths="app/**/page.tsx"
+pnpm next build --debug-build-paths="pages/*.tsx"
+```
+
+```bash package="npm"
+# Build a specific route
+npx next build --debug-build-paths="app/page.tsx"
+
+# Build more than one route
+npx next build --debug-build-paths="app/page.tsx,pages/index.tsx"
+
+# Use glob patterns
+npx next build --debug-build-paths="app/**/page.tsx"
+npx next build --debug-build-paths="pages/*.tsx"
+```
+
+```bash package="yarn"
+# Build a specific route
+yarn next build --debug-build-paths="app/page.tsx"
+
+# Build more than one route
+yarn next build --debug-build-paths="app/page.tsx,pages/index.tsx"
+
+# Use glob patterns
+yarn next build --debug-build-paths="app/**/page.tsx"
+yarn next build --debug-build-paths="pages/*.tsx"
+```
+
+```bash package="bun"
+# Build a specific route
+bunx next build --debug-build-paths="app/page.tsx"
+
+# Build more than one route
+bunx next build --debug-build-paths="app/page.tsx,pages/index.tsx"
+
+# Use glob patterns
+bunx next build --debug-build-paths="app/**/page.tsx"
+bunx next build --debug-build-paths="pages/*.tsx"
 ```
 
 ### Changing the default port
 
 By default, Next.js uses `http://localhost:3000` during development and with `next start`. The default port can be changed with the `-p` option, like so:
 
-```bash filename="Terminal"
-next dev -p 4000
+```bash package="pnpm"
+pnpm next dev -p 4000
+```
+
+```bash package="npm"
+npx next dev -p 4000
+```
+
+```bash package="yarn"
+yarn next dev -p 4000
+```
+
+```bash package="bun"
+bunx next dev -p 4000
 ```
 
 Or using the `PORT` environment variable:
 
-```bash filename="Terminal"
-PORT=4000 next dev
+```bash package="pnpm"
+PORT=4000 pnpm next dev
+```
+
+```bash package="npm"
+PORT=4000 npx next dev
+```
+
+```bash package="yarn"
+PORT=4000 yarn next dev
+```
+
+```bash package="bun"
+PORT=4000 bunx next dev
 ```
 
 > **Good to know**: `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
@@ -333,16 +455,40 @@ PORT=4000 next dev
 
 For certain use cases like webhooks or authentication, you can use [HTTPS](https://developer.mozilla.org/en-US/docs/Glossary/HTTPS) to have a secure environment on `localhost`. Next.js can generate a self-signed certificate with `next dev` using the `--experimental-https` flag:
 
-```bash filename="Terminal"
-next dev --experimental-https
+```bash package="pnpm"
+pnpm next dev --experimental-https
+```
+
+```bash package="npm"
+npx next dev --experimental-https
+```
+
+```bash package="yarn"
+yarn next dev --experimental-https
+```
+
+```bash package="bun"
+bunx next dev --experimental-https
 ```
 
 With the generated certificate, the Next.js development server will exist at `https://localhost:3000`. The default port `3000` is used unless a port is specified with `-p`, `--port`, or `PORT`.
 
 You can also provide a custom certificate and key with `--experimental-https-key` and `--experimental-https-cert`. Optionally, you can provide a custom CA certificate with `--experimental-https-ca` as well.
 
-```bash filename="Terminal"
-next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
+```bash package="pnpm"
+pnpm next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
+```
+
+```bash package="npm"
+npx next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
+```
+
+```bash package="yarn"
+yarn next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
+```
+
+```bash package="bun"
+bunx next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
 ```
 
 `next dev --experimental-https` is only intended for development and creates a locally trusted certificate with [`mkcert`](https://github.com/FiloSottile/mkcert). In production, use properly issued certificates from trusted authorities.
@@ -353,33 +499,96 @@ When deploying Next.js behind a downstream proxy (e.g. a load-balancer like AWS 
 
 To configure the timeout values for the production Next.js server, pass `--keepAliveTimeout` (in milliseconds) to `next start`, like so:
 
-```bash filename="Terminal"
-next start --keepAliveTimeout 70000
+```bash package="pnpm"
+pnpm next start --keepAliveTimeout 70000
+```
+
+```bash package="npm"
+npx next start --keepAliveTimeout 70000
+```
+
+```bash package="yarn"
+yarn next start --keepAliveTimeout 70000
+```
+
+```bash package="bun"
+bunx next start --keepAliveTimeout 70000
 ```
 
 ### Passing Node.js arguments
 
 You can pass any [node arguments](https://nodejs.org/api/cli.html#cli_node_options_options) to `next` commands. For example:
 
-```bash filename="Terminal"
-NODE_OPTIONS='--throw-deprecation' next
-NODE_OPTIONS='-r esm' next
-NODE_OPTIONS='--inspect' next
+```bash package="pnpm"
+NODE_OPTIONS='--throw-deprecation' pnpm next
+NODE_OPTIONS='-r esm' pnpm next
+NODE_OPTIONS='--inspect' pnpm next
+```
+
+```bash package="npm"
+NODE_OPTIONS='--throw-deprecation' npx next
+NODE_OPTIONS='-r esm' npx next
+NODE_OPTIONS='--inspect' npx next
+```
+
+```bash package="yarn"
+NODE_OPTIONS='--throw-deprecation' yarn next
+NODE_OPTIONS='-r esm' yarn next
+NODE_OPTIONS='--inspect' yarn next
+```
+
+```bash package="bun"
+NODE_OPTIONS='--throw-deprecation' bunx next
+NODE_OPTIONS='-r esm' bunx next
+NODE_OPTIONS='--inspect' bunx next
 ```
 
 ### CPU profiling
 
 You can capture CPU profiles to analyze performance bottlenecks in your Next.js application. The `--experimental-cpu-prof` flag enables V8's built-in CPU profiler and saves profiles to `.next/cpu-profiles/` when the process exits:
 
-```bash filename="Terminal"
+```bash package="pnpm"
 # Profile the build process
-next build --experimental-cpu-prof
+pnpm next build --experimental-cpu-prof
 
 # Profile the dev server (profile saved on Ctrl+C or SIGTERM)
-next dev --experimental-cpu-prof
+pnpm next dev --experimental-cpu-prof
 
 # Profile the production server
-next start --experimental-cpu-prof
+pnpm next start --experimental-cpu-prof
+```
+
+```bash package="npm"
+# Profile the build process
+npx next build --experimental-cpu-prof
+
+# Profile the dev server (profile saved on Ctrl+C or SIGTERM)
+npx next dev --experimental-cpu-prof
+
+# Profile the production server
+npx next start --experimental-cpu-prof
+```
+
+```bash package="yarn"
+# Profile the build process
+yarn next build --experimental-cpu-prof
+
+# Profile the dev server (profile saved on Ctrl+C or SIGTERM)
+yarn next dev --experimental-cpu-prof
+
+# Profile the production server
+yarn next start --experimental-cpu-prof
+```
+
+```bash package="bun"
+# Profile the build process
+bunx next build --experimental-cpu-prof
+
+# Profile the dev server (profile saved on Ctrl+C or SIGTERM)
+bunx next dev --experimental-cpu-prof
+
+# Profile the production server
+bunx next start --experimental-cpu-prof
 ```
 
 The generated `.cpuprofile` files can be opened in Chrome DevTools (Performance tab → Load profile) or other V8-compatible profiling tools.
