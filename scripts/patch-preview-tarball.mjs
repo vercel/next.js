@@ -10,6 +10,7 @@ const PACKAGES_TO_PATCH = [
   '@next/mdx',
   '@next/env',
   '@next/bundle-analyzer',
+  '@next/swc-linux-x64-gnu',
 ]
 
 // --- Argument parsing ---
@@ -185,6 +186,12 @@ async function patchPackageJson(projectPath, tarballUrls) {
   for (const [name, url] of entries) {
     pkg.resolutions[name] = url
   }
+
+  // Add @next/swc-linux-x64-gnu to dependencies
+  pkg.dependencies = pkg.dependencies || {}
+  pkg.dependencies['@next/swc-linux-x64-gnu'] = tarballUrls.get(
+    '@next/swc-linux-x64-gnu'
+  )
 
   await fs.writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n')
 
