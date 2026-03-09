@@ -1799,11 +1799,7 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    ChunkGroup::Entry(
-                        [ResolvedVc::upcast(server_action_manifest_loader)]
-                            .into_iter()
-                            .collect(),
-                    ),
+                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                     module_graph,
                     AvailabilityInfo::root(),
                 );
@@ -1823,9 +1819,20 @@ impl AppEndpoint {
                 async {
                     let mut current_chunk_group = ChunkGroupResult::empty_resolved();
 
+                    let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
+
+                    let chunk_group_info = module_graph.chunk_group_info();
+
                     let client_references = client_references.await?;
                     let span = tracing::trace_span!("server utils");
                     async {
+                        let parent_chunk_group = *chunk_group_info
+                            .get_index_of(entry_chunk_group.clone())
+                            .await?;
+
+                        // This is basically a manual shared chunk. But it's particularly helpful
+                        // for development, so that we share more layout segment chunks across
+                        // pages.
                         let server_utils = client_references
                             .server_utils
                             .iter()
@@ -1838,8 +1845,11 @@ impl AppEndpoint {
                                     this.app_project.project().project_path().owned().await?,
                                 )
                                 .with_modifier(rcstr!("server-utils")),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(server_utils),
+                                ChunkGroup::SharedMerged {
+                                    merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                                    entries: server_utils,
+                                    parent: parent_chunk_group,
+                                },
                                 module_graph,
                                 AvailabilityInfo::root(),
                             )
@@ -1870,10 +1880,9 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(vec![ResolvedVc::upcast(
+                                ChunkGroup::Shared(ResolvedVc::upcast(
                                     server_component.await?.module,
-                                )]),
+                                )),
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -1892,9 +1901,7 @@ impl AppEndpoint {
                     {
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(
-                                server_action_manifest_loader,
-                            )]),
+                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                             module_graph,
                             current_chunk_group.await?.availability_info,
                         );
@@ -1919,7 +1926,7 @@ impl AppEndpoint {
                                             "app{original_name}.js",
                                             original_name = app_entry.original_name
                                         ))?,
-                                        ChunkGroup::Entry(vec![app_entry.rsc_entry]),
+                                        entry_chunk_group,
                                         module_graph,
                                         *current_chunks,
                                         current_referenced_assets,

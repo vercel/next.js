@@ -122,25 +122,20 @@ impl ChunkGroupInfo {
     }
 }
 
+/// See [ChunkGroup] for documentation
 #[derive(
     Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum ChunkGroupEntry {
-    /// e.g. a page
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
-    /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming non-merged isolated edge
     Isolated(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming merging isolated edge
     IsolatedMerged {
         parent: Box<ChunkGroupEntry>,
         merge_tag: RcStr,
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
     },
-    /// a module with an incoming non-merging shared edge
     Shared(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming merging shared edge
     SharedMerged {
         parent: Box<ChunkGroupEntry>,
         merge_tag: RcStr,
@@ -162,21 +157,26 @@ impl ChunkGroupEntry {
 
 #[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroup {
-    /// e.g. a page
+    /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
+    /// for Next.js.
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
-    /// a module with an incoming async edge
+    /// An async chunk group. Corresponds to an incoming [ChunkingType::Async] reference
     Async(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming non-merged isolated edge
+    /// An isolated chunk group. Corresponds to an incoming [ChunkingType::Isolated] reference with
+    /// `merge_tag: None`
     Isolated(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming merging isolated edge
+    /// An isolated chunk group. Corresponds to an incoming [ChunkingType::Isolated] reference with
+    /// `merge_tag: Some(_)`
     IsolatedMerged {
         parent: usize,
         merge_tag: RcStr,
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
     },
-    /// a module with an incoming non-merging shared edge
+    /// A shared chunk group. Corresponds to an incoming [ChunkingType::Shared] reference with
+    /// `merge_tag: None`
     Shared(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming merging shared edge
+    /// A shared chunk group. Corresponds to an incoming [ChunkingType::Shared] reference with
+    /// `merge_tag: Some(_)`
     SharedMerged {
         parent: usize,
         merge_tag: RcStr,
@@ -275,22 +275,17 @@ impl ChunkGroup {
     }
 }
 
+/// See [ChunkGroup] for documentation
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum ChunkGroupKey {
-    /// e.g. a page
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
-    /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming non-merging isolated edge
     Isolated(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming merging isolated edge
     IsolatedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
     },
-    /// a module with an incoming non-merging shared edge
     Shared(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming merging shared edge
     SharedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
