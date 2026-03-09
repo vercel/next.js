@@ -1754,7 +1754,7 @@ export default class NextNodeServer extends BaseServer<
     }
 
     if (!result) {
-      this.render404(params.request, params.response, params.parsed)
+      await this.render404(params.request, params.response, params.parsed)
       return { finished: true }
     }
 
