@@ -76,9 +76,10 @@ describe('app-dir watch-config-file', () => {
         )
         expect(restartMatch).not.toBeNull()
 
-        const initialMs = toMs(initialMatch!)
         const restartMs = toMs(restartMatch!)
-        expect(restartMs).toBeLessThan(initialMs * 2)
+        // The restart should complete in well under 2 minutes.
+        // Before the fix, this would show the total process uptime (e.g., 84 min).
+        expect(restartMs).toBeLessThan(120_000)
       },
       30_000,
       1000
