@@ -144,7 +144,11 @@ where
             }
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
-                // Safety: self is actually valid for 'a, so it's safe to transmute 'l to 'a
+                // Safety: `self.backend.backing_storage` lives for at least `'e`. The
+                // transaction returned by `start_read_transaction()` borrows it for `'e`.
+                // Since `'tx: 'e`, transmuting to `'tx` is sound because the transaction
+                // is stored in `self.transaction` (as `Owned`) and dropped with `self`,
+                // while `self.backend` remains alive for `'e`.
                 unsafe { transmute::<B::ReadTransaction<'_>, B::ReadTransaction<'tx>>(tx) }
             });
             self.transaction = TransactionState::Owned(tx);
