@@ -131,7 +131,9 @@ export function unstable_cache<T extends Callback>(
       // Construct the complete cache key for this function invocation
       // @TODO stringify is likely not safe here. We will coerce undefined to null which will make
       // the keyspace smaller than the execution space
-      const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
+      const invocationKey = `${fixedKey}-${JSON.stringify(args, (_, value) =>
+        value === undefined ? '__undefined__' : value
+      )}`
       const cacheKey = await incrementalCache.generateCacheKey(invocationKey)
       // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
       const fetchUrl = `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`
