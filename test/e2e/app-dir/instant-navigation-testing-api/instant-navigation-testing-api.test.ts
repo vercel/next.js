@@ -134,10 +134,10 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
-  it('logs a warning when attempting to nest instant scopes', async () => {
+  it('logs an error when attempting to nest instant scopes', async () => {
     const page = await openPage('/')
 
-    // Listen for the specific warning message
+    // Listen for the specific error message
     const consolePromise = page.waitForEvent('console', {
       predicate: (msg) =>
         msg.type() === 'error' && msg.text().includes('already acquired'),
@@ -147,7 +147,7 @@ describe('instant-navigation-testing-api', () => {
     await instant(page, async () => {
       // Attempt to acquire the lock again by nesting instant() calls.
       // The inner call sets the cookie again, and the handler detects
-      // that the lock is already held, logging a warning.
+      // that the lock is already held, logging an error.
       await instant(page, async () => {})
       const msg = await consolePromise
       expect(msg.text()).toContain('already acquired')
