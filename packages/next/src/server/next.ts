@@ -364,6 +364,7 @@ export class NextServer implements NextWrapperServer {
 /** The wrapper server used for `import next from "next" (in a custom server)` */
 class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
+  private attachedUpgradeServer?: import('http').Server
   protected cleanupListeners?: AsyncCallbackSet
 
   protected init?: ServerInitResult
@@ -431,17 +432,35 @@ class NextCustomServer implements NextWrapperServer {
     customServer?: import('http').Server,
     _req?: IncomingMessage
   ) {
-    if (!this.didWebSocketSetup) {
-      this.didWebSocketSetup = true
-      customServer = customServer || (_req?.socket as any)?.server
+    // Resolve the underlying HTTP server (if available)
+    const server =
+      customServer ??
+      (((_req?.socket as any)?.server as import('http').Server | undefined))
 
-      if (customServer) {
-        customServer.on('upgrade', async (req, socket, head) => {
-          this.upgradeHandler(req, socket, head)
-        })
-      }
+    // If we don't have a server yet, do nothing; try again on the next request.
+    if (!server) {
+      return
     }
-  }
+    
+    // Already set up websocket handling
+    if (this.didWebSocketSetup) {
+      // Warn if a different server is being used
+      if (this.attachedUpgradeServer !== server) {
+        log.warn(
+          'Detected multiple HTTP servers. WebSocket upgrades are only attached to the first server encountered.'
+        )
+      }
+      return
+    }
+
+    server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+      this.upgradeHandler(req, socket, head)
+    })
+
+    this.didWebSocketSetup = true
+    this.attachedUpgradeServer = server
+   }
+
 
   getRequestHandler(): RequestHandler {
     return async (
