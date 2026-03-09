@@ -22,11 +22,11 @@ describe('use-cache-segment-configs', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Ecmascript file had an error",
+           "description": "Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/runtime/page.tsx (1:14)
-         Ecmascript file had an error
+         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^",
            "stack": [],
@@ -80,14 +80,14 @@ describe('use-cache-segment-configs', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "Error: Turbopack build failed with 1 errors:
          ./app/runtime/page.tsx:1:14
-         Ecmascript file had an error
+         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^
            2 |
            3 | export default function Page() {
            4 |   return <div>This page uses \`export const runtime\`.</div>
 
-         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         Ecmascript file had an error
 
 
              at <unknown> (./app/runtime/page.tsx:1:14)

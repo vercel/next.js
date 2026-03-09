@@ -176,15 +176,15 @@ describe('Error overlay - RSC build errors', () => {
       // turbopack emits the resolve issue first instead of the transform issue.
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./app/server-with-errors/client-only-in-server/client-only-lib.js (1:1)
-       Ecmascript file had an error
+       You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+           Learn more: https://nextjs.org/docs/app/building-your-application/rendering
        > 1 | import 'client-only'
            | ^^^^^^^^^^^^^^^^^^^^
          2 |
          3 | export default function ClientOnlyLib() {
          4 |   return 'client-only-lib'
 
-       You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+       Ecmascript file had an error
 
        Import trace:
          Server Component:
@@ -423,12 +423,12 @@ describe('Error overlay - RSC build errors', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./app/server-with-errors/error-file/error.js (1:1)
-       Ecmascript file had an error
+       app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+           Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
        > 1 | export default function Error() {}
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-       app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-       Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
+       Ecmascript file had an error"
       `)
     } else {
       await expect(session.getRedboxSource()).resolves.toMatch(

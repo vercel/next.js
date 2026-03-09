@@ -1,4 +1,4 @@
-error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts:2:4  Parsing ecmascript source code failed
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts:2:4  Cannot assign to this
        1 | function x() {
          +     v
        2 +   ;[1, 2] = [1, 2]
@@ -8,7 +8,7 @@ error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-par
        5 | console.log(x());
        6 | 
   
-  Cannot assign to this
+  Parsing ecmascript source code failed
   
   Import trace:
     test:
