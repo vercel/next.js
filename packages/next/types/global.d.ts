@@ -82,6 +82,8 @@ interface Window {
     | 'top-right'
     | 'bottom-left'
     | 'bottom-right'
+  /** @internal - Set by the server when serving a static shell for instant navigation tests */
+  __next_instant_test?: 1
 }
 
 interface NextFetchRequestConfig {

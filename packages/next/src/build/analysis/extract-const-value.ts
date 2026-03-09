@@ -16,8 +16,6 @@ import type {
   VariableDeclaration,
 } from '@swc/core'
 
-export class NoSuchDeclarationError extends Error {}
-
 function isExportDeclaration(node: Node): node is ExportDeclaration {
   return node.type === 'ExportDeclaration'
 }
@@ -70,60 +68,52 @@ function isTsSatisfiesExpression(node: Node): node is TsSatisfiesExpression {
   return node.type === 'TsSatisfiesExpression'
 }
 
-export class UnsupportedValueError extends Error {
-  /** @example `config.runtime[0].value` */
-  path?: string
+export type ExtractValueResult =
+  | { value: any }
+  | { unsupported: string; path?: string }
 
-  constructor(message: string, paths?: string[]) {
-    super(message)
-
-    // Generating "path" that looks like "config.runtime[0].value"
-    let codePath: string | undefined
-    if (paths) {
-      codePath = ''
-      for (const path of paths) {
-        if (path[0] === '[') {
-          // "array" + "[0]"
-          codePath += path
-        } else {
-          if (codePath === '') {
-            codePath = path
-          } else {
-            // "object" + ".key"
-            codePath += `.${path}`
-          }
-        }
-      }
+/** Formats a path array like `["config", "runtime", "[0]", "value"]` → `"config.runtime[0].value"` */
+function formatCodePath(paths?: string[]): string | undefined {
+  if (!paths) return undefined
+  let codePath = ''
+  for (const path of paths) {
+    if (path[0] === '[') {
+      // "array" + "[0]"
+      codePath += path
+    } else if (codePath === '') {
+      codePath = path
+    } else {
+      // "object" + ".key"
+      codePath += `.${path}`
     }
-
-    this.path = codePath
   }
+  return codePath
 }
 
-function extractValue(node: Node, path?: string[]): any {
+function extractValue(node: Node, path?: string[]): ExtractValueResult {
   if (isNullLiteral(node)) {
-    return null
+    return { value: null }
   } else if (isBooleanLiteral(node)) {
     // e.g. true / false
-    return node.value
+    return { value: node.value }
   } else if (isStringLiteral(node)) {
     // e.g. "abc"
-    return node.value
+    return { value: node.value }
   } else if (isNumericLiteral(node)) {
     // e.g. 123
-    return node.value
+    return { value: node.value }
   } else if (isRegExpLiteral(node)) {
     // e.g. /abc/i
-    return new RegExp(node.pattern, node.flags)
+    return { value: new RegExp(node.pattern, node.flags) }
   } else if (isIdentifier(node)) {
     switch (node.value) {
       case 'undefined':
-        return undefined
+        return { value: undefined }
       default:
-        throw new UnsupportedValueError(
-          `Unknown identifier "${node.value}"`,
-          path
-        )
+        return {
+          unsupported: `Unknown identifier "${node.value}"`,
+          path: formatCodePath(path),
+        }
     }
   } else if (isArrayExpression(node)) {
     // e.g. [1, 2, 3]
@@ -133,30 +123,35 @@ function extractValue(node: Node, path?: string[]): any {
       if (elem) {
         if (elem.spread) {
           // e.g. [ ...a ]
-          throw new UnsupportedValueError(
-            'Unsupported spread operator in the Array Expression',
-            path
-          )
+          return {
+            unsupported: 'Unsupported spread operator in the Array Expression',
+            path: formatCodePath(path),
+          }
         }
 
-        arr.push(extractValue(elem.expression, path && [...path, `[${i}]`]))
+        const result = extractValue(
+          elem.expression,
+          path && [...path, `[${i}]`]
+        )
+        if ('unsupported' in result) return result
+        arr.push(result.value)
       } else {
         // e.g. [1, , 2]
         //         ^^
         arr.push(undefined)
       }
     }
-    return arr
+    return { value: arr }
   } else if (isObjectExpression(node)) {
     // e.g. { a: 1, b: 2 }
     const obj: any = {}
     for (const prop of node.properties) {
       if (!isKeyValueProperty(prop)) {
         // e.g. { ...a }
-        throw new UnsupportedValueError(
-          'Unsupported spread operator in the Object Expression',
-          path
-        )
+        return {
+          unsupported: 'Unsupported spread operator in the Object Expression',
+          path: formatCodePath(path),
+        }
       }
 
       let key
@@ -167,24 +162,26 @@ function extractValue(node: Node, path?: string[]): any {
         // e.g. { "a": 1, "b": 2 }
         key = prop.key.value
       } else {
-        throw new UnsupportedValueError(
-          `Unsupported key type "${prop.key.type}" in the Object Expression`,
-          path
-        )
+        return {
+          unsupported: `Unsupported key type "${prop.key.type}" in the Object Expression`,
+          path: formatCodePath(path),
+        }
       }
 
-      obj[key] = extractValue(prop.value, path && [...path, key])
+      const result = extractValue(prop.value, path && [...path, key])
+      if ('unsupported' in result) return result
+      obj[key] = result.value
     }
 
-    return obj
+    return { value: obj }
   } else if (isTemplateLiteral(node)) {
     // e.g. `abc`
     if (node.expressions.length !== 0) {
       // TODO: should we add support for `${'e'}d${'g'}'e'`?
-      throw new UnsupportedValueError(
-        'Unsupported template literal with expressions',
-        path
-      )
+      return {
+        unsupported: 'Unsupported template literal with expressions',
+        path: formatCodePath(path),
+      }
     }
 
     // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
@@ -198,21 +195,21 @@ function extractValue(node: Node, path?: string[]): any {
     // https://exploringjs.com/impatient-js/ch_template-literals.html#template-strings-cooked-vs-raw
     const [{ cooked, raw }] = node.quasis
 
-    return cooked ?? raw
+    return { value: cooked ?? raw }
   } else if (isTsSatisfiesExpression(node)) {
     return extractValue(node.expression)
   } else {
-    throw new UnsupportedValueError(
-      `Unsupported node type "${node.type}"`,
-      path
-    )
+    return {
+      unsupported: `Unsupported node type "${node.type}"`,
+      path: formatCodePath(path),
+    }
   }
 }
 
 /**
  * Extracts the value of an exported const variable named `exportedName`
  * (e.g. "export const config = { runtime: 'edge' }") from swc's AST.
- * The value must be one of (or throws UnsupportedValueError):
+ * The value must be one of (or returns unsupported):
  *   - string
  *   - boolean
  *   - number
@@ -221,12 +218,14 @@ function extractValue(node: Node, path?: string[]): any {
  *   - array containing values listed in this list
  *   - object containing values listed in this list
  *
- * Throws NoSuchDeclarationError if the declaration is not found.
+ * Returns null if the declaration is not found.
+ * Returns { unsupported, path? } if the value contains unsupported nodes.
  */
 export function extractExportedConstValue(
-  module: Module,
+  module: Module | null,
   exportedName: string
-): any {
+): ExtractValueResult | null {
+  if (!module) return null
   for (const moduleItem of module.body) {
     if (!isExportDeclaration(moduleItem)) {
       continue
@@ -252,5 +251,5 @@ export function extractExportedConstValue(
     }
   }
 
-  throw new NoSuchDeclarationError()
+  return null
 }

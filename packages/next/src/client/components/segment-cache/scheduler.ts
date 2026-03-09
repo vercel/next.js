@@ -3,16 +3,14 @@ import type {
   Segment as FlightRouterStateSegment,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import {
-  HasLoadingBoundary,
-  PrefetchHint,
-} from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
   readOrCreateSegmentCacheEntry,
   fetchRouteOnCacheMiss,
   fetchSegmentOnCacheMiss,
+  fetchInlinedSegmentsOnCacheMiss,
   EntryStatus,
   type FulfilledRouteCacheEntry,
   type RouteCacheEntry,
@@ -29,6 +27,7 @@ import {
   overwriteRevalidatingSegmentCacheEntry,
   canNewFetchStrategyProvideMoreContent,
   attemptToFulfillDynamicSegmentFromBFCache,
+  attemptToUpgradeSegmentFromBFCache,
 } from './cache'
 import { getSegmentVaryPathForRequest, type SegmentVaryPath } from './vary-path'
 import type { RouteCacheKey } from './cache-key'
@@ -624,7 +623,7 @@ function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
         if (background(task)) {
           routeWithoutSearch.status = EntryStatus.Pending
           spawnPrefetchSubtask(
-            fetchRouteOnCacheMiss(routeWithoutSearch, task, keyWithoutSearch)
+            fetchRouteOnCacheMiss(routeWithoutSearch, keyWithoutSearch)
           )
         }
         break
@@ -666,7 +665,7 @@ function pingRootRouteTree(
       // behavior if PPR is disabled for a route (via the incremental opt-in).
       //
       // Those cases will be handled here.
-      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task, task.key))
+      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task.key))
 
       // If the request takes longer than a minute, a subsequent request should
       // retry instead of waiting for this one. When the response is received,
@@ -729,7 +728,7 @@ function pingRootRouteTree(
         // continue to work until you opt into `instant`.
         fetchStrategy = FetchStrategy.PPR
       } else if (task.fetchStrategy === FetchStrategy.PPR) {
-        fetchStrategy = route.isPPREnabled
+        fetchStrategy = route.supportsPerSegmentPrefetching
           ? FetchStrategy.PPR
           : FetchStrategy.LoadingBoundary
       } else {
@@ -795,6 +794,7 @@ function pingRootRouteTree(
               )
             }
           }
+
           return PrefetchTaskExitStatus.Done
         }
         case FetchStrategy.Full:
@@ -1107,8 +1107,10 @@ function diffRouteTreeAgainstCurrent(
             // anywhere in the tree, the server will never return any data, so
             // we can skip the request.
             const subtreeHasLoadingBoundary =
-              newTreeChild.hasLoadingBoundary !==
-              HasLoadingBoundary.SubtreeHasNoLoadingBoundary
+              (newTreeChild.prefetchHints &
+                (PrefetchHint.SegmentHasLoadingBoundary |
+                  PrefetchHint.SubtreeHasLoadingBoundary)) !==
+              0
             const requestTreeChild = subtreeHasLoadingBoundary
               ? pingPPRDisabledRouteTreeUpToLoadingBoundary(
                   now,
@@ -1179,7 +1181,6 @@ function diffRouteTreeAgainstCurrent(
     requestTreeChildren,
     null,
     null,
-    newTree.isRootLayout,
   ]
   return requestTree
 }
@@ -1239,7 +1240,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     case EntryStatus.Fulfilled: {
       // The segment is already cached.
       const segmentHasLoadingBoundary =
-        tree.hasLoadingBoundary === HasLoadingBoundary.SegmentHasLoadingBoundary
+        (tree.prefetchHints & PrefetchHint.SegmentHasLoadingBoundary) !== 0
       if (segmentHasLoadingBoundary) {
         // This segment has a loading boundary, which means the server won't
         // render its children. So there's nothing left to prefetch along this
@@ -1287,7 +1288,6 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     requestTreeChildren,
     null,
     refetchMarker,
-    tree.isRootLayout,
   ]
   return requestTree
 }
@@ -1350,11 +1350,22 @@ function pingRouteTreeAndIncludeDynamicData(
           fetchStrategy
         )
       ) {
-        // The cached segment contains dynamic holes, and was prefetched using a less specific strategy than the current one.
-        // This means we're in one of these cases:
+        // The cached segment contains dynamic holes, and was prefetched using a
+        // less specific strategy than the current one. This means we're in one
+        // of these cases:
         //   - we have a static prefetch, and we're doing a runtime prefetch
-        //   - we have a static or runtime prefetch, and we're doing a Full prefetch (or a navigation).
-        // In either case, we need to include it in the request to get a more specific (or full) version.
+        //   - we have a static or runtime prefetch, and we're doing a Full
+        //     prefetch (or a navigation).
+        // In either case, we need to include it in the request to get a more
+        // specific (or full) version. However, if there's a non-stale bfcache
+        // entry from a previous navigation, prefer that over making a new
+        // request.
+        if (fetchStrategy === FetchStrategy.Full) {
+          const fulfilled = attemptToUpgradeSegmentFromBFCache(now, tree)
+          if (fulfilled !== null) {
+            break
+          }
+        }
         spawnedSegment = pingFullSegmentRevalidation(now, tree, fetchStrategy)
       }
       break
@@ -1407,7 +1418,6 @@ function pingRouteTreeAndIncludeDynamicData(
     requestTreeChildren,
     null,
     refetchMarker,
-    tree.isRootLayout,
   ]
   return requestTree
 }
@@ -1474,6 +1484,25 @@ function pingStaticSegmentData(
 ): void {
   switch (segment.status) {
     case EntryStatus.Empty:
+      if (process.env.__NEXT_PREFETCH_INLINING) {
+        // All segment data for this route is bundled into a single
+        // /_inlined response. Walk the full route tree to collect all
+        // Empty segments, upgrade them to Pending, and spawn one
+        // bundled request. Subsequent calls for other segments in the
+        // same tree will see them as Pending and skip.
+        const inlinedEntries = collectInlinedEntries(now, route)
+        if (inlinedEntries.size > 0) {
+          spawnPrefetchSubtask(
+            fetchInlinedSegmentsOnCacheMiss(
+              route,
+              routeKey,
+              route.tree,
+              inlinedEntries
+            )
+          )
+        }
+        break
+      }
       // Upgrade to Pending so we know there's already a request in progress
       spawnPrefetchSubtask(
         fetchSegmentOnCacheMiss(
@@ -1547,6 +1576,51 @@ function pingStaticSegmentData(
   // Segments do not have dependent tasks, so once the prefetch is initiated,
   // there's nothing else for us to do (except write the server data into the
   // entry, which is handled by `fetchSegmentOnCacheMiss`).
+}
+
+/**
+ * Walks the RouteTree (including the head metadata) and collects any segments
+ * that are still Empty into a Map, upgrading them to Pending. These entries
+ * will be fulfilled by the inlined prefetch response.
+ */
+function collectInlinedEntries(
+  now: number,
+  route: FulfilledRouteCacheEntry
+): Map<SegmentRequestKey, PendingSegmentCacheEntry> {
+  const entries = new Map<SegmentRequestKey, PendingSegmentCacheEntry>()
+  collectInlinedEntriesImpl(now, route.tree, entries)
+  // Also collect the head/metadata entry.
+  const headEntry = readOrCreateSegmentCacheEntry(
+    now,
+    FetchStrategy.PPR,
+    route.metadata
+  )
+  if (headEntry.status === EntryStatus.Empty) {
+    entries.set(
+      route.metadata.requestKey,
+      upgradeToPendingSegment(headEntry, FetchStrategy.PPR)
+    )
+  }
+  return entries
+}
+
+function collectInlinedEntriesImpl(
+  now: number,
+  tree: RouteTree,
+  entries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
+): void {
+  const entry = readOrCreateSegmentCacheEntry(now, FetchStrategy.PPR, tree)
+  if (entry.status === EntryStatus.Empty) {
+    entries.set(
+      tree.requestKey,
+      upgradeToPendingSegment(entry, FetchStrategy.PPR)
+    )
+  }
+  if (tree.slots !== null) {
+    for (const parallelRouteKey in tree.slots) {
+      collectInlinedEntriesImpl(now, tree.slots[parallelRouteKey], entries)
+    }
+  }
 }
 
 function pingPPRSegmentRevalidation(

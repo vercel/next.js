@@ -1466,7 +1466,22 @@ module.exports = (sourcePath)=>({
     });
 /// <reference path="../../shared/runtime/dev-protocol.d.ts" />
 /// <reference path="../../shared/runtime/hmr-runtime.ts" />
-/* eslint-disable @typescript-eslint/no-unused-vars */ let serverHmrUpdateHandler = null;
+/* eslint-disable @typescript-eslint/no-unused-vars */ /**
+ * Appends the module code with //# sourceURL and //# sourceMappingURL so
+ * that Node.js can resolve stack frames from `eval`ed server HMR modules back to
+ * their original source files. Mirrors the browser's _eval in dev-backend-dom.ts.
+ */ function inlineSourcemaps(entry) {
+    const [chunkPath, moduleId] = entry.url.split('?', 2);
+    const absolutePath = path.resolve(RUNTIME_ROOT, chunkPath);
+    const fileHref = url.pathToFileURL(absolutePath).href;
+    const sourceURL = moduleId ? `${fileHref}?${moduleId}` : fileHref;
+    let code = entry.code + '\n\n//# sourceURL=' + sourceURL;
+    if (entry.map) {
+        code += '\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,' + Buffer.from(entry.map).toString('base64');
+    }
+    return code;
+}
+let serverHmrUpdateHandler = null;
 function initializeServerHmr(moduleFactories, devModuleCache) {
     if (serverHmrUpdateHandler != null) {
         throw new Error('[Server HMR] Server HMR client is already initialized');
@@ -1508,10 +1523,9 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
     }
     try {
         const { entries = {}, chunks = {} } = instruction;
-        // Node.js eval function (no source maps)
         const evalModuleEntry = (entry)=>{
             // eslint-disable-next-line no-eval
-            return (0, eval)(entry.code);
+            return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code);
         };
         const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
         );

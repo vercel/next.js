@@ -123,6 +123,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: None, // not a trait method
+                is_root: false,
             };
 
             let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -148,9 +149,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         pub(self) #inline_signature #inline_block
                     }
 
-                    static #native_function_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+                    static #native_function_ident: #native_function_ty = #native_function_def;
 
                     // Register the function for deserialization
                     turbo_tasks::macro_helpers::inventory_submit! {
@@ -244,6 +243,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_method: turbo_fn.is_method(),
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
+                    is_root: false,
                 };
 
                 let native_function_ident =
@@ -276,9 +276,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #inline_signature #inline_block
                     }
 
-                    static #native_function_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+                    static #native_function_ident: #native_function_ty = #native_function_def;
 
                     // Register the function for deserialization
                     turbo_tasks::macro_helpers::inventory_submit! {

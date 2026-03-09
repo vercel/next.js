@@ -131,13 +131,12 @@ export type FlightRouterState = [
    *   overloaded with concerns.
    */
   refresh?: 'refetch' | 'inside-shared-layout' | 'metadata-only' | null,
-  isRootLayout?: boolean,
   /**
-   * Only present when responding to a tree prefetch request. Indicates whether
-   * there is a loading boundary somewhere in the tree. The client cache uses
-   * this to determine if it can skip the data prefetch request.
+   * Bitmask of PrefetchHint flags. Encodes route structure metadata:
+   * root layout, loading boundaries, instant configs, and runtime prefetch
+   * hints. Only set when non-zero.
    */
-  hasLoadingBoundary?: HasLoadingBoundary,
+  prefetchHints?: number,
 ]
 
 /**
@@ -152,24 +151,21 @@ export type FlightRouterState = [
  */
 export type CompressedRefreshState = [url: string, renderedSearch: string]
 
-export const enum HasLoadingBoundary {
-  // There is a loading boundary in this particular segment
-  SegmentHasLoadingBoundary = 1,
-  // There is a loading boundary somewhere in the subtree (but not in
-  // this segment)
-  SubtreeHasLoadingBoundary = 2,
-  // There is no loading boundary in this segment or any of its descendants
-  SubtreeHasNoLoadingBoundary = 3,
-}
-
 export const enum PrefetchHint {
   // This segment has a runtime prefetch enabled (via unstable_instant with
   // prefetch: 'runtime'). Per-segment only, does not propagate to ancestors.
-  HasRuntimePrefetch = 0b01,
+  HasRuntimePrefetch = 0b00001,
   // This segment or one of its descendants has an instant config defined
   // (any truthy unstable_instant, regardless of prefetch mode). Propagates
   // upward so the root segment reflects the entire subtree.
-  SubtreeHasInstant = 0b10,
+  SubtreeHasInstant = 0b00010,
+  // This segment itself has a loading.tsx boundary.
+  SegmentHasLoadingBoundary = 0b00100,
+  // A descendant segment (but not this one) has a loading.tsx boundary.
+  // Propagates upward so the root reflects the entire subtree.
+  SubtreeHasLoadingBoundary = 0b01000,
+  // This segment is the root layout of the application.
+  IsRootLayout = 0b10000,
 }
 
 /**
@@ -203,8 +199,6 @@ export type CacheNodeSeedData = [
   // TODO: This field is no longer used. Remove it.
   loading: null,
   isPartial: boolean,
-  /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
-  prefetchHints: number,
   /**
    * A thenable that resolves to the set of route params this segment accessed
    * during server rendering. Used by the client router to determine cache key
@@ -262,12 +256,18 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
-  /** prerendered */
+  /** supportsPerSegmentPrefetching */
   S: boolean
   /**
    * headVaryParams - vary params for the head (metadata) of the response.
    */
   h: VaryParamsThenable | null
+  /** staleTime in seconds - Only present when Cache Components is enabled. */
+  s?: AsyncIterable<number>
+  /** staticStageByteLength - Resolves when the static stage ends. */
+  l?: Promise<number>
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -276,16 +276,20 @@ export type NavigationFlightResponse = {
   b?: string
   /** flightData */
   f: FlightData
-  /** prerendered */
+  /** supportsPerSegmentPrefetching */
   S: boolean
   /** renderedSearch */
   q: string
   /** couldBeIntercepted */
   i: boolean
-  /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
-  rp?: [boolean, number]
+  /** staleTime - Only present in dynamic runtime prefetch responses. */
+  s?: AsyncIterable<number>
+  /** staticStageByteLength - Resolves when the static stage ends. */
+  l?: Promise<number>
   /** headVaryParams */
   h: VaryParamsThenable | null
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

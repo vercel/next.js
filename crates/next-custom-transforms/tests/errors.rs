@@ -2,12 +2,12 @@ use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
@@ -17,7 +17,7 @@ use swc_core::{
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
     },
 };
@@ -115,6 +115,7 @@ fn react_server_components_errors(input: PathBuf) {
                     cache_components_enabled,
                     use_cache_enabled,
                     taint_enabled,
+                    page_extensions: vec![],
                 }),
                 tr.comments.as_ref().clone(),
                 app_dir.clone(),
@@ -174,6 +175,7 @@ fn react_server_actions_errors(input: PathBuf) {
                         cache_components_enabled: true,
                         use_cache_enabled: true,
                         taint_enabled: true,
+                        page_extensions: vec![],
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -243,6 +245,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         cache_components_enabled: false,
                         use_cache_enabled: false,
                         taint_enabled: true,
+                        page_extensions: vec![],
                     }),
                     tr.comments.as_ref().clone(),
                     None,

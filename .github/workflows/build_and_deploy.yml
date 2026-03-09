@@ -19,7 +19,7 @@ concurrency:
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.5.5
+  TURBO_VERSION: 2.8.11
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -112,6 +112,12 @@ jobs:
           # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - run: pnpm install
+
+      - name: Set preview version
+        if: ${{ contains(fromJSON('["automated-preview","force-preview"]'), needs.deploy-target.outputs.value) }}
+        run: |
+          node scripts/set-preview-version.js "${{ github.sha }}"
+          pnpm install --no-frozen-lockfile
 
       - run: pnpm run build
 
@@ -542,7 +548,7 @@ jobs:
       - name: Create tarballs
         # github.event.after is available on push and pull_request#synchronize events.
         # For workflow_dispatch events, github.sha is the head commit.
-        run: node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs"
+        run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs"
 
       - name: Upload tarballs
         uses: actions/upload-artifact@v4

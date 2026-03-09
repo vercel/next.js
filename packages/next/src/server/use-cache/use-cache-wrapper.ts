@@ -23,6 +23,7 @@ import type {
   RequestStore,
   RevalidateStore,
   UseCacheStore,
+  ValidationStoreClient,
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
@@ -37,6 +38,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 
 import {
+  getRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
@@ -83,7 +85,7 @@ interface PublicCacheContext {
   readonly kind: 'public'
   // TODO: We should probably forbid nesting "use cache" inside unstable_cache.
   readonly outerWorkUnitStore:
-    | Exclude<WorkUnitStore, PrerenderStoreModernClient>
+    | Exclude<WorkUnitStore, PrerenderStoreModernClient | ValidationStoreClient>
     | undefined
 }
 
@@ -350,6 +352,15 @@ function propagateCacheLifeAndTagsToRevalidateStore(
   }
 }
 
+function propagateCacheStaleTimeToRequestStore(
+  requestStore: RequestStore,
+  entry: CacheEntry
+): void {
+  if (requestStore.stale !== undefined && requestStore.stale > entry.stale) {
+    requestStore.stale = entry.stale
+  }
+}
+
 function propagateCacheLifeAndTags(
   cacheContext: CacheContext,
   entry: CacheEntry
@@ -364,6 +375,11 @@ function propagateCacheLifeAndTags(
         )
         break
       case 'request':
+        propagateCacheStaleTimeToRequestStore(
+          cacheContext.outerWorkUnitStore,
+          entry
+        )
+        break
       case undefined:
         break
       default:
@@ -383,6 +399,11 @@ function propagateCacheLifeAndTags(
         )
         break
       case 'request':
+        propagateCacheStaleTimeToRequestStore(
+          cacheContext.outerWorkUnitStore,
+          entry
+        )
+        break
       case 'unstable-cache':
       case undefined:
         break
@@ -952,6 +973,7 @@ export async function cache(
           workUnitStore
         )
       case 'prerender-client':
+      case 'validation-client':
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being allowed in client components statically, but did not in this case.`
         )
@@ -998,6 +1020,7 @@ export async function cache(
   } else {
     switch (workUnitStore?.type) {
       case 'prerender-client':
+      case 'validation-client':
         const expression = '"use cache"'
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being allowed in client components statically, but did not in this case.`
@@ -1052,22 +1075,25 @@ export async function cache(
     switch (outerWorkUnitStore.type) {
       case 'prerender-runtime': {
         // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
-        // are resolved with a delay, in the runtime stage. Private caches are one of these.
+        // are resolved with a delay, in the appropriate runtime stage. Private caches read from
+        // Segments not using runtime prefetch resolve at EarlyRuntime,
+        // while runtime-prefetchable segments resolve at Runtime.
         const stagedRendering = outerWorkUnitStore.stagedRendering
         if (stagedRendering) {
-          await stagedRendering.waitForStage(RenderStage.Runtime)
+          await stagedRendering.waitForStage(getRuntimeStage(stagedRendering))
         }
         break
       }
       case 'request': {
         if (process.env.NODE_ENV === 'development') {
           // Similar to runtime prerenders, private caches should not resolve in the static stage
-          // of a dev request, so we delay them.
-          await makeDevtoolsIOAwarePromise(
-            undefined,
-            outerWorkUnitStore,
-            RenderStage.Runtime
-          )
+          // of a dev request, so we delay them. We pick the appropriate runtime stage based on
+          // whether we're in the early or late stages.
+          const stagedRendering = outerWorkUnitStore.stagedRendering
+          const stage = stagedRendering
+            ? getRuntimeStage(stagedRendering)
+            : RenderStage.Runtime
+          await makeDevtoolsIOAwarePromise(undefined, outerWorkUnitStore, stage)
         }
         break
       }
@@ -1132,7 +1158,7 @@ export async function cache(
               // using a hanging promise for search params. For cached pages
               // that do access them, which is an invalid dynamic usage, we
               // need to ensure that an error is shown.
-              makeErroringSearchParamsForUseCache(workStore),
+              makeErroringSearchParamsForUseCache(),
           },
           ...otherInnerArgs,
         ]),
@@ -1363,10 +1389,12 @@ export async function cache(
             case 'prerender-runtime': {
               // In the final phase of a runtime prerender, we have to make
               // sure that APIs that would hang during a static prerender
-              // are resolved with a delay, in the runtime stage.
+              // are resolved with a delay, in the appropriate runtime stage.
               const stagedRendering = workUnitStore.stagedRendering
               if (stagedRendering) {
-                await stagedRendering.waitForStage(RenderStage.Runtime)
+                await stagedRendering.waitForStage(
+                  getRuntimeStage(stagedRendering)
+                )
               }
               break
             }
@@ -1396,10 +1424,14 @@ export async function cache(
                 // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
                 // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
                 // and thus will cause a restart even if all caches are filled.
+                const stagedRendering = workUnitStore.stagedRendering
+                const stage = stagedRendering
+                  ? getRuntimeStage(stagedRendering)
+                  : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
-                  RenderStage.Runtime
+                  stage
                 )
               }
               break
@@ -1649,11 +1681,11 @@ export async function cache(
             // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
             // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
             // and thus will cause a restart even if all caches are filled.
-            await makeDevtoolsIOAwarePromise(
-              undefined,
-              workUnitStore,
-              RenderStage.Runtime
-            )
+            const stagedRendering = workUnitStore.stagedRendering
+            const stage = stagedRendering
+              ? getRuntimeStage(stagedRendering)
+              : RenderStage.Runtime
+            await makeDevtoolsIOAwarePromise(undefined, workUnitStore, stage)
           }
           break
         }
@@ -1912,6 +1944,7 @@ function shouldForceRevalidate(
       case 'prerender-runtime':
       case 'prerender':
       case 'prerender-client':
+      case 'validation-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
@@ -1955,6 +1988,7 @@ function shouldDiscardCacheEntry(
         return false
       case 'prerender-runtime':
       case 'prerender-client':
+      case 'validation-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':

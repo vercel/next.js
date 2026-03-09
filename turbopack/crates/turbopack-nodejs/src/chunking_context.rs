@@ -7,7 +7,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
         MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
@@ -454,12 +454,13 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     async fn asset_path(
         &self,
-        content_hash: RcStr,
+        content_hash: Vc<RcStr>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
+        let content_hash = content_hash.await?;
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{content_hash}.{ext}",
@@ -541,7 +542,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -553,11 +554,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             chunking_type = "entry",
         );
         async move {
-            let evaluatable_assets_ref = evaluatable_assets.await?;
-            let entries = evaluatable_assets_ref
-                .iter()
-                .map(|&asset| ResolvedVc::upcast::<Box<dyn Module>>(asset));
-
+            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
                 mut referenced_output_assets,
@@ -583,16 +580,24 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             referenced_output_assets.extend(extra_referenced_assets.await?.iter().copied());
 
-            let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap())
+            let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
             else {
                 bail!("module must be placeable in an ecmascript chunk");
             };
+
+            let evaluatable_assets = chunk_group
+                .entries()
+                .map(|entry| {
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry)
+                        .context("entry_chunk_group entries must be evaluatable")
+                })
+                .collect::<Result<Vec<_>>>()?;
 
             let asset = ResolvedVc::upcast(
                 EcmascriptBuildNodeEntryChunk::new(
                     path,
                     Vc::cell(other_chunks),
-                    evaluatable_assets,
+                    Vc::cell(evaluatable_assets),
                     *module,
                     Vc::cell(referenced_output_assets),
                     Vc::cell(references),
