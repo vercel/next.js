@@ -24,7 +24,7 @@ With this environment variable, Next.js will write a `.next/trace-turbopack` fil
 
 [presets]: https://github.com/vercel/next.js/blob/c506c0de1d6f17ad400ad5aa85edaae23b6b44d2/packages/next-swc/crates/napi/src/next_api/project.rs#L218
 [directives]: https://tracing.rs/tracing_subscriber/filter/struct.envfilter#directives
-[Developing]: ../contributing/core/developing.md
+[Developing]: ../core/developing.md
 
 ## Viewer
 
