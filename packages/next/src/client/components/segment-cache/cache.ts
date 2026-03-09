@@ -2015,7 +2015,7 @@ export async function fetchInlinedSegmentsOnCacheMiss(
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
     [NEXT_ROUTER_PREFETCH_HEADER]: '1',
-    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/_inlined',
+    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/' + PAGE_SEGMENT_KEY,
   }
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
@@ -2939,6 +2939,62 @@ export function writeStaticStageResponseIntoCache(
 }
 
 /**
+ * Decodes an embedded runtime prefetch Flight stream, normalizes the flight
+ * data, and derives a `NavigationSeed` from the base tree.
+ *
+ * Returns `null` if the response triggers an MPA navigation.
+ */
+export async function processRuntimePrefetchStream(
+  now: number,
+  runtimePrefetchStream: ReadableStream<Uint8Array>,
+  baseTree: FlightRouterState,
+  renderedSearch: string
+): Promise<{
+  flightDatas: NormalizedFlightData[]
+  navigationSeed: NavigationSeed
+  buildId: string | undefined
+  isResponsePartial: boolean
+  headVaryParams: VaryParams | null
+  staleAt: number
+} | null> {
+  const { stream, isPartial } = await stripIsPartialByte(runtimePrefetchStream)
+
+  const serverData =
+    await createFromNextReadableStream<NavigationFlightResponse>(
+      stream,
+      undefined,
+      { allowPartialStream: true }
+    )
+
+  const headVaryParamsThenable = serverData.h
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
+
+  const staleAt = await getStaleAt(now, serverData.s)
+
+  const flightDatas = normalizeFlightData(serverData.f)
+  if (typeof flightDatas === 'string') {
+    return null
+  }
+  const navigationSeed = convertServerPatchToFullTree(
+    baseTree,
+    flightDatas,
+    renderedSearch
+  )
+
+  return {
+    flightDatas,
+    navigationSeed,
+    buildId: serverData.b,
+    isResponsePartial: isPartial,
+    headVaryParams,
+    staleAt,
+  }
+}
+
+/**
  * Strips the leading isPartial byte from an RSC response stream.
  *
  * The server prepends a single byte: '~' (0x7e) for partial, '#' (0x23) for
@@ -2946,26 +3002,30 @@ export function writeStaticStageResponseIntoCache(
  * response (Flight rows start with a hex digit or ':').
  *
  * If the first byte is not a recognized marker, the stream is returned intact
- * and the response is conservatively treated as partial.
+ * and `isPartial` is determined by the cachedNavigations experimental flag.
  */
 export async function stripIsPartialByte(
   stream: ReadableStream<Uint8Array>
 ): Promise<{ stream: ReadableStream<Uint8Array>; isPartial: boolean }> {
+  // When there is no recognized marker byte, the fallback depends on whether
+  // Cached Navigations is enabled. When enabled, dynamic navigation responses
+  // don't have a marker but may contain dynamic holes, so they are treated as
+  // partial. When disabled, unmarked responses are treated as non-partial.
+  const defaultIsPartial = !!process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+
   const reader = stream.getReader()
   const { done, value } = await reader.read()
+
   if (done || !value || value.byteLength === 0) {
     return {
       stream: new ReadableStream({ start: (c) => c.close() }),
-      isPartial: true,
+      isPartial: defaultIsPartial,
     }
   }
 
   const firstByte = value[0]
-  // '#' (0x23) = complete, '~' (0x7e) = partial.
-  // Only '#' explicitly means non-partial. Everything else (including
-  // unrecognized bytes) is conservatively treated as partial.
   const hasMarker = firstByte === 0x23 || firstByte === 0x7e
-  const isPartial = firstByte !== 0x23
+  const isPartial = hasMarker ? firstByte === 0x7e : defaultIsPartial
 
   const remainder = hasMarker
     ? value.byteLength > 1

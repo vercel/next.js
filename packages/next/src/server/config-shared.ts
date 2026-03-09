@@ -11,6 +11,7 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
+import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
@@ -351,6 +352,7 @@ export interface ExperimentalConfig {
    * rewrites will get the rewrite headers.
    */
   clientParamParsingOrigins?: string[]
+  cachedNavigations?: boolean
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
@@ -691,7 +693,7 @@ export interface ExperimentalConfig {
    * @deprecated This configuration option has been merged into `cacheComponents`.
    * The Partial Prerendering feature is still available via `cacheComponents`.
    */
-  ppr?: boolean | 'incremental'
+  ppr?: ExperimentalPPRConfig
 
   /**
    * Enables experimental taint APIs in React.
@@ -1038,6 +1040,11 @@ export type ExportPathMap = {
      * @internal
      */
     _isDynamicError?: boolean
+
+    /**
+     * @internal
+     */
+    _isRoutePPREnabled?: boolean
 
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
@@ -1640,6 +1647,7 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
+    cachedNavigations: false,
     dynamicOnHover: false,
     varyParams: false,
     prefetchInlining: false,
@@ -1819,6 +1827,7 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
+    | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'immutableAssetToken'
   > & {
@@ -1888,6 +1897,7 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
+        cachedNavigations: ex.cachedNavigations,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
         immutableAssetToken: ex.immutableAssetToken,
 

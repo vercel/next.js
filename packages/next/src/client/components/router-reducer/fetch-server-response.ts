@@ -10,6 +10,7 @@ import {
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import type {
   FlightRouterState,
+  InitialRSCPayload,
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 
@@ -64,8 +65,12 @@ export interface FetchServerResponseOptions {
   readonly isHmrRefresh?: boolean
 }
 
-export type StaticStageData = {
-  readonly response: NavigationFlightResponse
+export type StaticStageData<
+  T extends
+    | NavigationFlightResponse
+    | InitialRSCPayload = NavigationFlightResponse,
+> = {
+  readonly response: T
   readonly isResponsePartial: boolean
 }
 
@@ -78,6 +83,7 @@ type SpaFetchServerResponseResult = {
   postponed: boolean
   staleTime: number
   staticStageData: StaticStageData | null
+  runtimePrefetchStream: ReadableStream<Uint8Array> | null
   responseHeaders: Headers
   debugInfo: Array<any> | null
 }
@@ -173,11 +179,15 @@ export async function fetchServerResponse(
 
     // Typically, during a navigation, we decode the response using Flight's
     // `createFromFetch` API, which accepts a `fetch` promise.
+    // TODO: Remove this check once the old PPR flag is removed
+    const isLegacyPPR =
+      process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
+    const shouldImmediatelyDecode = !isLegacyPPR
     const res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
       'auto',
-      true
+      shouldImmediatelyDecode
     )
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
@@ -281,6 +291,7 @@ export async function fetchServerResponse(
       postponed,
       staleTime,
       staticStageData,
+      runtimePrefetchStream: flightResponse.p ?? null,
       responseHeaders: res.headers,
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
@@ -317,7 +328,7 @@ export type RSCResponse<T> = {
 
 type FetchResponseCacheData = {
   isResponsePartial: boolean
-  responseBodyClone: ReadableStream<Uint8Array>
+  responseBodyClone?: ReadableStream<Uint8Array>
 }
 
 /**
@@ -344,9 +355,20 @@ export async function processFetch(response: Response): Promise<{
     }
 
     const { stream, isPartial } = await stripIsPartialByte(response.body)
-    const [stream1, stream2] = stream.tee()
 
-    const strippedResponse = new Response(stream1, {
+    let responseStream: ReadableStream<Uint8Array>
+    let cacheData: FetchResponseCacheData
+
+    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
+      const [stream1, stream2] = stream.tee()
+      responseStream = stream1
+      cacheData = { isResponsePartial: isPartial, responseBodyClone: stream2 }
+    } else {
+      responseStream = stream
+      cacheData = { isResponsePartial: isPartial }
+    }
+
+    const strippedResponse = new Response(responseStream, {
       headers: response.headers,
       status: response.status,
       statusText: response.statusText,
@@ -360,10 +382,7 @@ export async function processFetch(response: Response): Promise<{
       value: response.redirected,
     })
 
-    return {
-      response: strippedResponse,
-      cacheData: { isResponsePartial: isPartial, responseBodyClone: stream2 },
-    }
+    return { response: strippedResponse, cacheData }
   }
 
   return { response, cacheData: null }
@@ -378,43 +397,62 @@ export async function processFetch(response: Response): Promise<{
  *   byte boundary and decode.
  * - Otherwise: no cache-worthy data.
  */
-async function resolveStaticStageData(
+export async function resolveStaticStageData<
+  T extends NavigationFlightResponse | InitialRSCPayload,
+>(
   cacheData: FetchResponseCacheData,
-  flightResponse: NavigationFlightResponse,
-  headers: RequestHeaders
-): Promise<StaticStageData | null> {
+  flightResponse: T,
+  headers: RequestHeaders | undefined
+): Promise<StaticStageData<T> | null> {
   const { isResponsePartial, responseBodyClone } = cacheData
 
-  if (!isResponsePartial) {
-    // Fully static — cache the entire decoded response as-is.
-    responseBodyClone.cancel()
+  if (responseBodyClone) {
+    if (!isResponsePartial) {
+      // Fully static — cache the entire decoded response as-is.
+      responseBodyClone.cancel()
 
-    return { response: flightResponse, isResponsePartial: false }
-  }
+      return { response: flightResponse, isResponsePartial: false }
+    }
 
-  if (flightResponse.l !== undefined) {
-    // Partially static — truncate the body clone at the byte boundary.
-    const staticStageByteLength = await flightResponse.l
-
-    const truncatedStream = truncateStream(
-      responseBodyClone,
-      staticStageByteLength
-    )
-
-    const response =
-      await createFromNextReadableStream<NavigationFlightResponse>(
-        truncatedStream,
-        headers,
-        { allowPartialStream: true }
+    if (flightResponse.l !== undefined) {
+      // Partially static — truncate the body clone at the byte boundary and
+      // decode it.
+      const response = await decodeStaticStage<T>(
+        responseBodyClone,
+        flightResponse.l,
+        headers
       )
 
-    return { response, isResponsePartial: true }
+      return { response, isResponsePartial: true }
+    }
+
+    // No caching — cancel the unused clone.
+    responseBodyClone.cancel()
   }
 
-  // No caching — cancel the unused clone.
-  responseBodyClone.cancel()
-
   return null
+}
+
+/**
+ * Truncates a Flight stream clone at the given byte boundary and decodes the
+ * static stage prefix. Used by both the navigation path and the initial HTML
+ * hydration path.
+ */
+export async function decodeStaticStage<T>(
+  responseBodyClone: ReadableStream<Uint8Array>,
+  staticStageByteLengthPromise: Promise<number>,
+  headers: RequestHeaders | undefined
+): Promise<T> {
+  const staticStageByteLength = await staticStageByteLengthPromise
+
+  const truncatedStream = truncateStream(
+    responseBodyClone,
+    staticStageByteLength
+  )
+
+  return createFromNextReadableStream<T>(truncatedStream, headers, {
+    allowPartialStream: true,
+  })
 }
 
 export async function createFetch<T>(
@@ -578,7 +616,7 @@ export async function createFetch<T>(
 
 export function createFromNextReadableStream<T>(
   flightStream: ReadableStream<Uint8Array>,
-  requestHeaders: RequestHeaders,
+  requestHeaders: RequestHeaders | undefined,
   options?: { allowPartialStream?: boolean }
 ): Promise<T> {
   return createFromReadableStream(flightStream, {

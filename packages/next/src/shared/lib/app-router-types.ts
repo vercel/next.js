@@ -264,6 +264,10 @@ export type InitialRSCPayload = {
   h: VaryParamsThenable | null
   /** staleTime in seconds - Only present when Cache Components is enabled. */
   s?: AsyncIterable<number>
+  /** staticStageByteLength - Resolves when the static stage ends. */
+  l?: Promise<number>
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -284,6 +288,8 @@ export type NavigationFlightResponse = {
   l?: Promise<number>
   /** headVaryParams */
   h: VaryParamsThenable | null
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

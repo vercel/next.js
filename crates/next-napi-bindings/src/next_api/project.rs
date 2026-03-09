@@ -211,6 +211,9 @@ pub struct NapiProjectOptions {
 
     /// The version of Next.js that is running.
     pub next_version: RcStr,
+
+    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    pub server_hmr: Option<bool>,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -318,6 +321,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             deferred_entries,
             is_persistent_caching_enabled,
             next_version,
+            server_hmr,
         } = val;
         ProjectOptions {
             root_path,
@@ -341,6 +345,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             deferred_entries,
             is_persistent_caching_enabled,
             next_version,
+            server_hmr: server_hmr.unwrap_or(false),
         }
     }
 }
@@ -2129,6 +2134,7 @@ pub fn project_compilation_events_subscribe(
             obj.set_named_property("typeName", event.type_name())?;
             obj.set_named_property("severity", event.severity().to_string())?;
             obj.set_named_property("message", event.message())?;
+            obj.set_named_property("eventJson", event.to_json())?;
 
             let external = env.create_external(event, None);
             obj.set_named_property("eventData", external)?;

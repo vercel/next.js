@@ -27,6 +27,9 @@ pub enum TsConfigHandling {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
+    /// 1. override options.node_externals and
+    /// 2. append environment.resolve_conditions
+    /// 3. override options.extensions
     pub emulate_environment: Option<ResolvedVc<Environment>>,
     pub enable_types: bool,
     pub enable_typescript: bool,

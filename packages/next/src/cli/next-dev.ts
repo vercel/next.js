@@ -35,12 +35,7 @@ import {
 import os from 'os'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
-import {
-  flushAllTraces,
-  trace,
-  initializeTraceState,
-  exportTraceState,
-} from '../trace'
+import { trace, initializeTraceState, exportTraceState } from '../trace'
 import { traceId } from '../trace/shared'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
 
@@ -105,7 +100,6 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   }
 
   sessionSpan.stop()
-  await flushAllTraces({ end: true })
 
   try {
     const { eventCliSessionStopped } =

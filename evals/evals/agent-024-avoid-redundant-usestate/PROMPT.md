@@ -1,0 +1,1 @@
+Complete the UserStats component to display statistics about the users. Show the active users count, inactive users count, and percentage of active users. Follow the existing patterns in this codebase for handling derived values.
