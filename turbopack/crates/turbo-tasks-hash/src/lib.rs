@@ -1,8 +1,8 @@
 //! Hashing and encoding functions for turbopack.
 //!
 //! An example use of this module is hashing a file's content for cache
-//! invalidation, and encoding the hash to an hexadecimal string for use in a
-//! file name.
+//! invalidation, and encoding the hash to a base40 or hexadecimal string for
+//! use in a file name.
 
 mod base40;
 mod deterministic_hash;
@@ -72,7 +72,7 @@ pub fn deterministic_hash<T: DeterministicHash>(input: T, algorithm: HashAlgorit
 }
 
 pub use crate::{
-    base40::{encode_base40, encode_base40_128},
+    base40::{BASE40_LEN_64, BASE40_LEN_128, encode_base40, encode_base40_128},
     deterministic_hash::{DeterministicHash, DeterministicHasher},
     hex::{encode_hex, encode_hex_128},
     sha::ShaHasher,

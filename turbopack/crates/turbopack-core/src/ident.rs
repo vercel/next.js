@@ -336,6 +336,7 @@ impl AssetIdent {
 
         if has_hash {
             let hash = encode_base40(hasher.finish());
+            // 7 base40 chars ≈ 37 bits of collision resistance
             let truncated_hash = &hash[..7];
             write!(name, "_{truncated_hash}")?;
         }
@@ -358,6 +359,7 @@ impl AssetIdent {
         }
         if i > 0 {
             let hash = encode_base40(hash_xxh3_hash64(&name.as_bytes()[..i]));
+            // 4 base40 chars ≈ 21 bits — just a short disambiguator prefix
             let truncated_hash = &hash[..4];
             name = format!("{}_{}", truncated_hash, &name[i..]);
         }
