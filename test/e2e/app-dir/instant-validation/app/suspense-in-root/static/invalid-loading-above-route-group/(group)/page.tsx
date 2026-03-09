@@ -11,8 +11,12 @@ export default async function Page() {
     <main>
       <p>
         This page doesn't wrap runtime/dynamic components in suspense, but it
-        has a loading.tsx above it. a self-navigation with a different search
-        param value would block, but we accept that.
+        has a loading.tsx above it. However, the page is inside a route group
+        and the loading.tsx is on the parent URL segment. Validation considers
+        the route group as a potential shared boundary where the loading.tsx
+        Suspense would already be revealed. In a more advanced system we would
+        analyze siblings of the route group to determine if such a navigation is
+        actually possible, but for now we conservatively report an error.
       </p>
       <div>
         <Runtime />
