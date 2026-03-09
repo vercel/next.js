@@ -63,7 +63,7 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
-    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
+    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     source_map::SourceMapAsset,
@@ -388,9 +388,9 @@ impl AppProject {
                 // CSS Module to the actual CSS
                 TransitionRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Inner,
-                        )),
+                        ))),
                         module_styles_rule_condition(),
                     ]),
                     self.css_client_reference_transition().to_resolved().await?,
@@ -399,9 +399,9 @@ impl AppProject {
                 // the list of CSS module classes.
                 TransitionRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Analyze,
-                        )),
+                        ))),
                         module_styles_rule_condition(),
                     ]),
                     ResolvedVc::upcast(self.client_transition().to_resolved().await?),
@@ -664,9 +664,9 @@ impl AppProject {
                     // Change context, this is used to determine the list of CSS module classes.
                     TransitionRule::new(
                         RuleCondition::all(vec![
-                            RuleCondition::ReferenceType(ReferenceType::Css(
+                            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                                 CssReferenceSubType::Analyze,
-                            )),
+                            ))),
                             module_styles_rule_condition(),
                         ]),
                         ResolvedVc::upcast(self.client_transition().to_resolved().await?),
@@ -736,9 +736,9 @@ impl AppProject {
                     // Change context, this is used to determine the list of CSS module classes.
                     TransitionRule::new(
                         RuleCondition::all(vec![
-                            RuleCondition::ReferenceType(ReferenceType::Css(
+                            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                                 CssReferenceSubType::Analyze,
-                            )),
+                            ))),
                             module_styles_rule_condition(),
                         ]),
                         ResolvedVc::upcast(self.client_transition().to_resolved().await?),
