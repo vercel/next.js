@@ -31,11 +31,12 @@ use crate::{
 )]
 pub struct ImportMetaBinding {
     path: FileSystemPath,
+    hmr_enabled: bool,
 }
 
 impl ImportMetaBinding {
-    pub fn new(path: FileSystemPath) -> Self {
-        ImportMetaBinding { path }
+    pub fn new(path: FileSystemPath, hmr_enabled: bool) -> Self {
+        ImportMetaBinding { path, hmr_enabled }
     }
 
     pub async fn code_generation(
@@ -63,7 +64,7 @@ impl ImportMetaBinding {
             },
         );
 
-        let hmr_enabled = *chunking_context.is_hot_module_replacement_enabled().await?;
+        let hmr_enabled = self.hmr_enabled;
 
         // [NOTE] url property is lazy-evaluated, as it should be computed once
         // turbopack_runtime injects a function to calculate an absolute path.
