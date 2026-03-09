@@ -261,97 +261,14 @@ async function createComponentTreeInternal(
         })
       : []
 
-  let dynamic = layoutOrPageMod?.dynamic
-
-  if (nextConfigOutput === 'export') {
-    if (!dynamic || dynamic === 'auto') {
-      dynamic = 'error'
-    } else if (dynamic === 'force-dynamic') {
-      // force-dynamic is always incompatible with 'export'. We must interrupt the build
-      throw new StaticGenBailoutError(
-        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is no runtime server to dynamically render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
-      )
-    }
-  }
-
-  if (typeof dynamic === 'string') {
-    // the nested most config wins so we only force-static
-    // if it's configured above any parent that configured
-    // otherwise
-    if (dynamic === 'error') {
-      workStore.dynamicShouldError = true
-    } else if (dynamic === 'force-dynamic') {
-      workStore.forceDynamic = true
-
-      // TODO: (PPR) remove this bailout once PPR is the default
-      if (workStore.isStaticGeneration && !experimental.isRoutePPREnabled) {
-        // If the postpone API isn't available, we can't postpone the render and
-        // therefore we can't use the dynamic API.
-        const err = new DynamicServerError(
-          `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
-        )
-        workStore.dynamicUsageDescription = err.message
-        workStore.dynamicUsageStack = err.stack
-        throw err
-      }
-    } else {
-      workStore.dynamicShouldError = false
-      workStore.forceStatic = dynamic === 'force-static'
-    }
-  }
-
-  if (typeof layoutOrPageMod?.fetchCache === 'string') {
-    workStore.fetchCache = layoutOrPageMod?.fetchCache
-  }
-
-  if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
-    validateRevalidate(layoutOrPageMod?.revalidate, workStore.route)
-  }
-
-  if (typeof layoutOrPageMod?.revalidate === 'number') {
-    const defaultRevalidate = layoutOrPageMod.revalidate as number
-
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
-    if (workUnitStore) {
-      switch (workUnitStore.type) {
-        case 'prerender':
-        case 'prerender-runtime':
-        case 'prerender-legacy':
-        case 'prerender-ppr':
-          if (workUnitStore.revalidate > defaultRevalidate) {
-            workUnitStore.revalidate = defaultRevalidate
-          }
-          break
-        case 'request':
-          // A request store doesn't have a revalidate property.
-          break
-        // createComponentTree is not called for these stores:
-        case 'cache':
-        case 'private-cache':
-        case 'prerender-client':
-        case 'validation-client':
-        case 'unstable-cache':
-          break
-        default:
-          workUnitStore satisfies never
-      }
-    }
-
-    if (
-      !workStore.forceStatic &&
-      workStore.isStaticGeneration &&
-      defaultRevalidate === 0 &&
-      // If the postpone API isn't available, we can't postpone the render and
-      // therefore we can't use the dynamic API.
-      !experimental.isRoutePPREnabled
-    ) {
-      const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
-      workStore.dynamicUsageDescription = dynamicUsageDescription
-
-      throw new DynamicServerError(dynamicUsageDescription)
-    }
-  }
+  applyDynamicConfig(
+    layoutOrPageMod,
+    workStore,
+    nextConfigOutput,
+    experimental.isRoutePPREnabled,
+    segment,
+    DynamicServerError
+  )
 
   const isStaticGeneration = workStore.isStaticGeneration
 
@@ -951,6 +868,101 @@ async function createComponentTreeInternal(
 
       varyParamsAccumulator
     )
+  }
+}
+
+function applyDynamicConfig(
+  layoutOrPageMod: Record<string, any> | undefined,
+  workStore: AppRenderContext['workStore'],
+  nextConfigOutput: string | undefined,
+  isRoutePPREnabled: boolean | undefined,
+  segment: string,
+  DynamicServerError: new (message: string) => Error
+): void {
+  let dynamic = layoutOrPageMod?.dynamic
+
+  if (nextConfigOutput === 'export') {
+    if (!dynamic || dynamic === 'auto') {
+      dynamic = 'error'
+    } else if (dynamic === 'force-dynamic') {
+      throw new StaticGenBailoutError(
+        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is no runtime server to dynamically render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
+      )
+    }
+  }
+
+  if (typeof dynamic === 'string') {
+    // the nested most config wins so we only force-static
+    // if it's configured above any parent that configured
+    // otherwise
+    if (dynamic === 'error') {
+      workStore.dynamicShouldError = true
+    } else if (dynamic === 'force-dynamic') {
+      workStore.forceDynamic = true
+
+      // TODO: (PPR) remove this bailout once PPR is the default
+      if (workStore.isStaticGeneration && !isRoutePPREnabled) {
+        const err = new DynamicServerError(
+          `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
+        )
+        workStore.dynamicUsageDescription = err.message
+        workStore.dynamicUsageStack = err.stack
+        throw err
+      }
+    } else {
+      workStore.dynamicShouldError = false
+      workStore.forceStatic = dynamic === 'force-static'
+    }
+  }
+
+  if (typeof layoutOrPageMod?.fetchCache === 'string') {
+    workStore.fetchCache =
+      layoutOrPageMod.fetchCache as AppRenderContext['workStore']['fetchCache']
+  }
+
+  if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+    validateRevalidate(layoutOrPageMod?.revalidate, workStore.route)
+  }
+
+  if (typeof layoutOrPageMod?.revalidate === 'number') {
+    const defaultRevalidate = layoutOrPageMod.revalidate as number
+
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-runtime':
+        case 'prerender-legacy':
+        case 'prerender-ppr':
+          if (workUnitStore.revalidate > defaultRevalidate) {
+            workUnitStore.revalidate = defaultRevalidate
+          }
+          break
+        case 'request':
+          break
+        case 'cache':
+        case 'private-cache':
+        case 'prerender-client':
+        case 'validation-client':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
+      }
+    }
+
+    if (
+      !workStore.forceStatic &&
+      workStore.isStaticGeneration &&
+      defaultRevalidate === 0 &&
+      !isRoutePPREnabled
+    ) {
+      const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
+      workStore.dynamicUsageDescription = dynamicUsageDescription
+
+      throw new DynamicServerError(dynamicUsageDescription)
+    }
   }
 }
 
