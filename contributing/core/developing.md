@@ -19,10 +19,10 @@ _You'll need a working node.js environment with pnpm._
   npm install -g pnpm@latest
   ```
 
-  Even when installed without corepack, pnpm [will respect the `packageManager`
-  field of our `package.json` by
-  default](https://pnpm.io/settings#managepackagemanagerversions). This ensures
-  that pnpm behaves the same locally as it does in CI.
+  `pnpm` [respects the `packageManager` field in `package.json` by
+  default](https://pnpm.io/settings#managepackagemanagerversions), even when
+  installed without Corepack. This ensures that pnpm behaves the same locally as
+  it does in CI.
 
 - _(Optional)_ Install [fnm](https://github.com/Schniz/fnm) or
   [nvm](https://github.com/nvm-sh/nvm). This will ensure you use the same
@@ -34,8 +34,7 @@ _You'll need a working node.js environment with pnpm._
 
 _You can skip these steps if you don't intend to modify any Rust code._
 
-- Install Rust and Cargo via [rustup](https://rustup.rs). You can skip this step
-  if you don't intend to modify any Rust code.
+- Install Rust and Cargo via [rustup](https://rustup.rs).
 
 - _(Linux)_ Install a C compiler:
 
@@ -65,7 +64,7 @@ _You can skip these steps if you don't intend to modify any Rust code._
 
    [blobless clone]: https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/#user-content-blobless-clones
 
-1. Create a new branch:
+1. The default branch is `canary`. Create a new branch off of `canary` with:
 
    ```
    git switch --create MY_BRANCH_NAME
