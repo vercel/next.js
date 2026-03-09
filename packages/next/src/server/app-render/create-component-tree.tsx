@@ -124,10 +124,7 @@ async function createComponentTreeInternal(
       Fragment,
       SegmentViewNode,
       HTTPAccessFallbackBoundary,
-      ClientPageRoot,
       ClientSegmentRoot,
-      createServerSearchParamsForServerPage,
-      createPrerenderSearchParamsForClientPage,
       createServerParamsForServerSegment,
       createPrerenderParamsForClientSegment,
       serverHooks: { DynamicServerError },
@@ -135,7 +132,6 @@ async function createComponentTreeInternal(
     },
     pagePath,
     getDynamicParamFromSegment,
-    query,
   } = ctx
 
   const { page, conventionPath, segment, modules, parallelRoutes } =
@@ -546,110 +542,23 @@ async function createComponentTreeInternal(
   }
 
   if (isPage) {
-    const PageComponent = Component
-
-    // Assign searchParams to props if this is a page
-    let pageElement: React.ReactNode
-    if (isClientComponent) {
-      if (cacheComponents) {
-        // Params are omitted when Cache Components is enabled
-        pageElement = createElement(ClientPageRoot, {
-          Component: PageComponent,
-          serverProvidedParams: null,
-        })
-      } else if (isStaticGeneration) {
-        const promiseOfParams =
-          createPrerenderParamsForClientSegment(currentParams)
-        const promiseOfSearchParams = createPrerenderSearchParamsForClientPage()
-        pageElement = createElement(ClientPageRoot, {
-          Component: PageComponent,
-          serverProvidedParams: {
-            searchParams: query,
-            params: currentParams,
-            promises: [promiseOfSearchParams, promiseOfParams],
-          },
-        })
-      } else {
-        pageElement = createElement(ClientPageRoot, {
-          Component: PageComponent,
-          serverProvidedParams: {
-            searchParams: query,
-            params: currentParams,
-            promises: null,
-          },
-        })
-      }
-    } else {
-      // If we are passing params to a server component Page we need to track
-      // their usage in case the current render mode tracks dynamic API usage.
-      const params = createServerParamsForServerSegment(
-        currentParams,
-        optionalCatchAllParamName,
-        varyParamsAccumulator,
-        isRuntimePrefetchable
-      )
-
-      // If we are passing searchParams to a server component Page we need to
-      // track their usage in case the current render mode tracks dynamic API
-      // usage.
-      let searchParams = createServerSearchParamsForServerPage(
-        query,
-        varyParamsAccumulator,
-        isRuntimePrefetchable
-      )
-
-      if (isUseCacheFunction(PageComponent)) {
-        const UseCachePageComponent: ComponentType<UseCachePageProps> =
-          PageComponent
-
-        pageElement = createElement(UseCachePageComponent, {
-          params: params,
-          searchParams: searchParams,
-          $$isPage: true,
-        })
-      } else {
-        pageElement = createElement(PageComponent, {
-          params: params,
-          searchParams: searchParams,
-        })
-      }
-    }
-
-    const isDefaultSegment = segment === DEFAULT_SEGMENT_KEY
-    const pageFilePath =
-      getConventionPathByType(tree, dir, 'page') ??
-      getConventionPathByType(tree, dir, 'defaultPage')
-    const segmentType = isDefaultSegment ? 'default' : 'page'
-    const wrappedPageElement =
-      isSegmentViewEnabled && pageFilePath
-        ? createElement(
-            SegmentViewNode,
-            {
-              key: cacheNodeKey + '-' + segmentType,
-              type: segmentType,
-              pagePath: pageFilePath,
-            },
-            pageElement
-          )
-        : pageElement
-
-    return createSeedData(
+    return renderPageComponent(
       ctx,
-      createElement(
-        Fragment,
-        {
-          key: cacheNodeKey,
-        },
-        wrappedPageElement,
-        layerAssets,
-        MetadataOutlet ? createElement(MetadataOutlet, null) : null
-      ),
+      Component,
+      isClientComponent,
+      currentParams,
+      optionalCatchAllParamName,
+      varyParamsAccumulator,
+      isRuntimePrefetchable,
+      segment,
+      tree,
+      dir,
+      isSegmentViewEnabled,
+      layerAssets,
+      MetadataOutlet,
       parallelRouteCacheNodeSeedData,
       loadingData,
-      isPossiblyPartialResponse,
-      isRuntimePrefetchable,
-
-      varyParamsAccumulator
+      isPossiblyPartialResponse
     )
   } else {
     const SegmentComponent = Component
@@ -869,6 +778,138 @@ async function createComponentTreeInternal(
       varyParamsAccumulator
     )
   }
+}
+
+function renderPageComponent(
+  ctx: AppRenderContext,
+  PageComponent: ComponentType<any>,
+  isClientComponent: boolean,
+  currentParams: Params,
+  optionalCatchAllParamName: string | null,
+  varyParamsAccumulator: VaryParamsAccumulator | null,
+  isRuntimePrefetchable: boolean,
+  segment: string,
+  tree: LoaderTree,
+  dir: string,
+  isSegmentViewEnabled: boolean,
+  layerAssets: React.ReactNode,
+  MetadataOutlet: ComponentType | null,
+  parallelRouteCacheNodeSeedData: Record<string, CacheNodeSeedData | null>,
+  loadingData: LoadingModuleData,
+  isPossiblyPartialResponse: boolean
+): CacheNodeSeedData {
+  const {
+    renderOpts: { cacheComponents },
+    workStore: { isStaticGeneration },
+    componentMod: {
+      createElement,
+      Fragment,
+      SegmentViewNode,
+      ClientPageRoot,
+      createServerSearchParamsForServerPage,
+      createPrerenderSearchParamsForClientPage,
+      createServerParamsForServerSegment,
+      createPrerenderParamsForClientSegment,
+    },
+    query,
+  } = ctx
+
+  let pageElement: React.ReactNode
+  if (isClientComponent) {
+    if (cacheComponents) {
+      pageElement = createElement(ClientPageRoot, {
+        Component: PageComponent,
+        serverProvidedParams: null,
+      })
+    } else if (isStaticGeneration) {
+      const promiseOfParams =
+        createPrerenderParamsForClientSegment(currentParams)
+      const promiseOfSearchParams = createPrerenderSearchParamsForClientPage()
+      pageElement = createElement(ClientPageRoot, {
+        Component: PageComponent,
+        serverProvidedParams: {
+          searchParams: query,
+          params: currentParams,
+          promises: [promiseOfSearchParams, promiseOfParams],
+        },
+      })
+    } else {
+      pageElement = createElement(ClientPageRoot, {
+        Component: PageComponent,
+        serverProvidedParams: {
+          searchParams: query,
+          params: currentParams,
+          promises: null,
+        },
+      })
+    }
+  } else {
+    const params = createServerParamsForServerSegment(
+      currentParams,
+      optionalCatchAllParamName,
+      varyParamsAccumulator,
+      isRuntimePrefetchable
+    )
+
+    let searchParams = createServerSearchParamsForServerPage(
+      query,
+      varyParamsAccumulator,
+      isRuntimePrefetchable
+    )
+
+    if (isUseCacheFunction(PageComponent)) {
+      const UseCachePageComponent: ComponentType<UseCachePageProps> =
+        PageComponent
+
+      pageElement = createElement(UseCachePageComponent, {
+        params: params,
+        searchParams: searchParams,
+        $$isPage: true,
+      })
+    } else {
+      pageElement = createElement(PageComponent, {
+        params: params,
+        searchParams: searchParams,
+      })
+    }
+  }
+
+  const isDefaultSegment = segment === DEFAULT_SEGMENT_KEY
+  const pageFilePath =
+    getConventionPathByType(tree, dir, 'page') ??
+    getConventionPathByType(tree, dir, 'defaultPage')
+  const segmentType = isDefaultSegment ? 'default' : 'page'
+  const wrappedPageElement =
+    isSegmentViewEnabled && pageFilePath
+      ? createElement(
+          SegmentViewNode,
+          {
+            key: cacheNodeKey + '-' + segmentType,
+            type: segmentType,
+            pagePath: pageFilePath,
+          },
+          pageElement
+        )
+      : pageElement
+
+  return createSeedData(
+    ctx,
+    createElement(
+      Fragment,
+      {
+        key: cacheNodeKey,
+      },
+      wrappedPageElement,
+      layerAssets,
+      MetadataOutlet ? createElement(MetadataOutlet, null) : null
+    ),
+    parallelRouteCacheNodeSeedData,
+    loadingData,
+    isPossiblyPartialResponse,
+    isRuntimePrefetchable,
+
+    varyParamsAccumulator
+  )
 }
 
 function applyDynamicConfig(
