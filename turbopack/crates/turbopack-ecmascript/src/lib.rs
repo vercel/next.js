@@ -1525,16 +1525,17 @@ async fn merge_modules(
         }
     };
 
-    debug_assert!(
-        inserted.len() == contents.len(),
-        "Not all merged modules were inserted: {:?}",
-        contents
-            .iter()
-            .enumerate()
-            .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
-            .try_join()
-            .await?,
-    );
+    if cfg!(debug_assertions) && inserted.len() != contents.len() {
+        bail!(
+            "Not all merged modules were inserted: {:?}",
+            contents
+                .iter()
+                .enumerate()
+                .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
+                .try_join()
+                .await?,
+        );
+    }
 
     let comments = contents
         .iter_mut()
