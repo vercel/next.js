@@ -613,12 +613,13 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
-        walk_asset(asset, &output_path, &mut seen, &mut queue)
-            .await
-            .context(format!(
+        if let Err(error) = walk_asset(asset, &output_path, &mut seen, &mut queue).await {
+            // ast-grep-ignore: no-context-format
+            return err.context(format!(
                 "Failed to walk asset {}",
-                asset.path().to_string().await.context("to_string failed")?
-            ))?;
+                asset.path().to_string().await?
+            ));
+        }
     }
 
     matches_expected(expected_paths, seen)
