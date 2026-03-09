@@ -10,6 +10,13 @@ import { isRecoverableError } from './react-client-callbacks/on-recoverable-erro
 // eslint-disable-next-line @next/internal/typechecked-require
 const instrumentationHooks = require('../lib/require-instrumentation-client')
 
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEVTOOLS
+) {
+  require('../next-react-devtools/initialize') as typeof import('../next-react-devtools/initialize')
+}
+
 appBootstrap((assetPrefix) => {
   const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
 

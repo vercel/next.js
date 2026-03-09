@@ -2347,6 +2347,7 @@ export async function next_compile(task, opts) {
       'nextbuildstatic_esm',
       'nextbuild_esm',
       'next_devtools_entrypoint',
+      'next_react_devtools_entrypoint',
       'next_devtools_server',
       'next_devtools_server_esm',
       'next_devtools_shared',
@@ -2499,6 +2500,13 @@ export async function next_devtools_entrypoint(task, opts) {
     .source('src/next-devtools/dev-overlay.shim.ts')
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/next-devtools')
+}
+
+export async function next_react_devtools_entrypoint(task, opts) {
+  await task
+    .source('src/next-react-devtools/initialize.ts?(x)')
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-react-devtools')
 }
 
 export async function next_devtools_server(task, opts) {
@@ -2740,6 +2748,11 @@ export default async function (task) {
       'next_devtools_userspace',
       'next_devtools_userspace_esm',
     ],
+    opts
+  )
+  await task.watch(
+    'src/next-react-devtools',
+    ['next_react_devtools_entrypoint'],
     opts
   )
   await task.watch('src/experimental/testing', 'experimental_testing', opts)
@@ -3000,6 +3013,16 @@ export async function next_bundle_devtools(task, opts) {
   })
 }
 
+export async function next_bundle_react_devtools(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-react-devtools.webpack-config')({
+      dev: opts.dev,
+    }),
+    name: 'next-bundle-react-devtools-dev',
+  })
+}
+
 export async function next_bundle(task, opts) {
   await task.parallel(
     [
@@ -3022,6 +3045,7 @@ export async function next_bundle(task, opts) {
       'next_bundle_server',
       // devtools
       'next_bundle_devtools',
+      'next_bundle_react_devtools',
     ],
     opts
   )

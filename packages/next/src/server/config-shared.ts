@@ -400,6 +400,10 @@ export interface ExperimentalConfig {
    * the cached/prefetched state.
    */
   instantNavigationDevToolsToggle?: boolean
+  /**
+   * Enable embedding React DevTools inside Next DevTools.
+   */
+  reactDevToolsInNextDevTools?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -1706,6 +1710,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
     gestureTransition: false,
+    reactDevToolsInNextDevTools: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,

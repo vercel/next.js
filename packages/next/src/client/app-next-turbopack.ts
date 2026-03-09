@@ -8,6 +8,13 @@ window.next.turbopack = true
 // eslint-disable-next-line @next/internal/typechecked-require
 const instrumentationHooks = require('../lib/require-instrumentation-client')
 
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEVTOOLS
+) {
+  require('../next-react-devtools/initialize') as typeof import('../next-react-devtools/initialize')
+}
+
 appBootstrap((assetPrefix) => {
   // Instant Navigation Mode: The server returned a partial static shell.
   // Skip hydration — the response doesn't include the full Flight data

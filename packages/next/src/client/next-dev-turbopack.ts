@@ -8,6 +8,13 @@ import { pageBootstrap } from './page-bootstrap'
 import { connect } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
 import type { TurbopackMessageSentToBrowser } from '../server/dev/hot-reloader-types'
 
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEVTOOLS
+) {
+  require('../next-react-devtools/initialize') as typeof import('../next-react-devtools/initialize')
+}
+
 window.next = {
   version,
   turbopack: true,

@@ -96,6 +96,7 @@ import {
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
+import { nextReactDevToolsMiddleware } from '../../next-devtools/server/next-react-devtools-middleware'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
@@ -1018,6 +1019,7 @@ export async function createHotReloaderTurbopack(
     getSourceMapMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
+    nextReactDevToolsMiddleware(),
     getDisableDevIndicatorMiddleware(),
     getRestartDevServerMiddleware({
       telemetry: opts.telemetry,

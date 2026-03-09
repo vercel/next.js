@@ -171,6 +171,8 @@ export function getDefineEnv({
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_INSTANT_NAV_TOGGLE':
       !!config.experimental.instantNavigationDevToolsToggle,
+    'process.env.__NEXT_REACT_DEVTOOLS':
+      !!config.experimental.reactDevToolsInNextDevTools,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
     'process.env.NEXT_IMMUTABLE_ASSET_TOKEN':
