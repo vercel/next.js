@@ -243,10 +243,8 @@ impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
         //     entries.iter().map(|m| m.ident_string()).try_join().await?
         // );
 
-        // TODO don't read whole graph
-        let module_graph = module_graph.await?;
-        let collect = module_graph.collected_modules.as_ref().unwrap();
-        let items = collect
+        let collected_modules = module_graph.collected_modules().await?;
+        let items = collected_modules
             .collected_references
             .iter()
             .find_map(|((page, collect), references)| {

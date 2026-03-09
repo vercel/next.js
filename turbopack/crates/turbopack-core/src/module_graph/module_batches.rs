@@ -371,6 +371,7 @@ pub async fn compute_module_batches(
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
         let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
+        let collected_modules = module_graph.collected_modules().await?;
         let module_graph = module_graph.await?;
 
         let mut pre_batches = PreBatches::new();
@@ -430,15 +431,13 @@ pub async fn compute_module_batches(
         }
 
         // All collected modules are boundary modules too
-        if let Some(collected) = &module_graph.collected_modules {
-            pre_batches.boundary_modules.extend(
-                collected
-                    .collected_references
-                    .values()
-                    .flatten()
-                    .map(|(_, m, _)| *m),
-            );
-        }
+        pre_batches.boundary_modules.extend(
+            collected_modules
+                .collected_references
+                .values()
+                .flatten()
+                .map(|(_, m, _)| *m),
+        );
 
         // println!(
         //     "boundary_modules {:#?}",
@@ -481,17 +480,8 @@ pub async fn compute_module_batches(
                 chunk_group_indices_with_merged_children.insert(parent);
             }
         }
-
-        let x = module_graph
-            .collected_modules
-            .as_ref()
-            .iter()
-            .flat_map(|collected| collected.collected_references.values())
-            .flatten()
-            .collect::<Vec<_>>();
-
         // ...and all collected modules
-        for (_, entry, _) in x {
+        for (_, entry, _) in collected_modules.collected_references.values().flatten() {
             pre_batches.ensure_pre_batch_for_module(*entry, &module_chunk_groups, &mut queue)?;
         }
 
@@ -938,7 +928,7 @@ pub async fn compute_module_batches(
                     }
                     PreBatchItem::NonParallelEdge(ty, module) => {
                         if matches!(ty, ChunkingType::Emitted { .. }) {
-                            // they are handled via module_graph.collected_modules now
+                            // they are handled via collected_modules now
                             continue;
                         }
                         if let Some(batch) = pre_batches.entries.get(&module).copied() {
@@ -974,39 +964,37 @@ pub async fn compute_module_batches(
         }
 
         // Add collected reference edges (conditional on page entry)
-        if let Some(collected_modules) = &module_graph.collected_modules {
-            for ((page_entry, collecting_module), refs) in &collected_modules.collected_references {
-                let source_node = *module_to_node
-                    .get(collecting_module)
-                    .context("could not find single module entry index")?;
-                for (ref_data, target_module, _graph_node_idx) in refs {
-                    if let Some(batch) = pre_batches.entries.get(target_module).copied() {
-                        graph.add_edge(
-                            source_node,
-                            batch_indices[batch],
-                            ModuleBatchesGraphEdge {
-                                ty: ref_data.chunking_type.clone(),
-                                module: Some(*target_module),
-                                active_for_page_entry: Some(*page_entry),
-                            },
-                        );
-                        continue;
-                    }
-                    let idx = pre_batches
-                        .single_module_entries
-                        .get_index_of(target_module)
-                        .context("could not find single module entry index")?;
-                    let idx = single_module_indices[idx];
+        for ((page_entry, collecting_module), refs) in &collected_modules.collected_references {
+            let source_node = *module_to_node
+                .get(collecting_module)
+                .context("could not find single module entry index")?;
+            for (ref_data, target_module, _graph_node_idx) in refs {
+                if let Some(batch) = pre_batches.entries.get(target_module).copied() {
                     graph.add_edge(
                         source_node,
-                        idx,
+                        batch_indices[batch],
                         ModuleBatchesGraphEdge {
                             ty: ref_data.chunking_type.clone(),
                             module: Some(*target_module),
                             active_for_page_entry: Some(*page_entry),
                         },
                     );
+                    continue;
                 }
+                let idx = pre_batches
+                    .single_module_entries
+                    .get_index_of(target_module)
+                    .context("could not find single module entry index")?;
+                let idx = single_module_indices[idx];
+                graph.add_edge(
+                    source_node,
+                    idx,
+                    ModuleBatchesGraphEdge {
+                        ty: ref_data.chunking_type.clone(),
+                        module: Some(*target_module),
+                        active_for_page_entry: Some(*page_entry),
+                    },
+                );
             }
         }
 

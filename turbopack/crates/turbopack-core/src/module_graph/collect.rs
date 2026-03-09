@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::ChunkingType,
@@ -28,10 +28,8 @@ pub struct CollectedModules {
 }
 
 #[tracing::instrument(level = "info", name = "compute emit-collect", skip_all)]
-#[turbo_tasks::function(operation)]
-
-pub async fn collect_graph(graph: OperationVc<ModuleGraph>) -> Result<Vc<CollectedModules>> {
-    let graph = graph.connect().await?;
+pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules>> {
+    let graph = graph.await?;
     let graphs = &graph.graphs;
 
     let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
