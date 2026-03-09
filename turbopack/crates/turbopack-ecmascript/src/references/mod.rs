@@ -1585,6 +1585,9 @@ async fn analyze_ecmascript_module_internal(
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
                             source.ident().path().owned().await?,
+                            analysis_state
+                                .compile_time_info_ref
+                                .hot_module_replacement_enabled,
                         ));
                     }
 
