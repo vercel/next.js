@@ -45,34 +45,38 @@ export async function proxyRequest(
   // object will detect the disconnect, and we can abort the proxy's
   // connection.
   proxy.on('proxyReq', (proxyReq) => {
-    res.on('close', () => proxyReq.destroy())
+    // Abort the upstream only if the client closes early.
+    const abortUpstream = (err?: Error) => proxyReq.destroy(err)
+    res.once('close', abortUpstream)
+    // If we finished sending the response normally, don't abort upstream.
+    if (!(res instanceof Duplex)) {
+      ;(res as ServerResponse).once('finish', () => {
+        res.removeListener('close', abortUpstream)
+      })
+    }
   })
 
   proxy.on('proxyRes', (proxyRes) => {
-    if (res.destroyed) {
-      proxyRes.destroy()
-    } else {
-      res.on('close', () => proxyRes.destroy())
-    }
-  })
+    // If the downstream is already gone, stop reading the upstream.
+    if (res.destroyed)
+      return proxyRes.destroy()
 
-  proxy.on('proxyRes', (proxyRes, innerReq, innerRes) => {
-    const cleanup = (err: any) => {
-      // cleanup event listeners to allow clean garbage collection
-      proxyRes.removeListener('error', cleanup)
-      proxyRes.removeListener('close', cleanup)
-      innerRes.removeListener('error', cleanup)
-      innerRes.removeListener('close', cleanup)
-
-      // destroy all source streams to propagate the caught event backward
-      innerReq.destroy(err)
-      proxyRes.destroy(err)
+    // If the client closes early, stop the upstream response.
+    const abortDownstream = (err?: Error) => proxyRes.destroy(err)
+    res.once('close', abortDownstream)
+    if (!(res instanceof Duplex)) {
+      ;(res as ServerResponse).once('finish', () => {
+        res.removeListener('close', abortDownstream)
+      })
     }
 
-    proxyRes.once('error', cleanup)
-    proxyRes.once('close', cleanup)
-    innerRes.once('error', cleanup)
-    innerRes.once('close', cleanup)
+    // If the upstream errors/aborts, stop writing to the client.
+    proxyRes.once('error', (err) => {
+      if (!res.destroyed) (res as any).destroy(err)
+    })
+    proxyRes.once('aborted', () => {
+      if (!res.destroyed) (res as any).destroy()
+    })
   })
 
   const detached = new DetachedPromise<boolean>()
