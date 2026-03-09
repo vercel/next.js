@@ -63,4 +63,4 @@ And there different value modes:
 - **Persistently allocated Memory:** How much memory was allocated but not deallocated during the span. It survives the span.
 
 [turbo-trace-viewer]: https://turbo-trace-viewer.vercel.app/
-[youtube-tutorial]: www.youtube.com/watch?v=PGO2szAye7A
+[youtube-tutorial]: https://www.youtube.com/watch?v=PGO2szAye7A
