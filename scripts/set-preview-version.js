@@ -31,6 +31,12 @@ async function main() {
   // 15.0.0 -> 15.0.0
   const [semverStableVersion] = lernaConfig.version.split('-')
   const version = `${semverStableVersion}-preview-${shortSha}-${dateString}`
+  //
+  // Lerna version requires a non-detached HEAD
+  await execa('git', ['checkout', '-B', `preview/${shortSha}`, githubSha], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+  })
 
   await execa(
     'pnpm',
