@@ -13,7 +13,7 @@ import {
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { createContext, useContext, useEffect } from 'react'
+import { createContext, useContext } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
   ACTION_INSTANT_NAVS_TOGGLE,
@@ -176,7 +176,7 @@ const useToggleDevtoolsVisibility = () => {
 
 export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
-  const { setPanel, triggerRef } = usePanelRouterContext()
+  const { triggerRef } = usePanelRouterContext()
   const toggleDevtools = useToggleDevtoolsVisibility()
   const isAppRouter = state.routerType === 'app'
 
@@ -184,14 +184,6 @@ export const PanelRouter = () => {
     state.hideShortcut ? { [state.hideShortcut]: toggleDevtools } : {},
     triggerRef
   )
-
-  // Auto-open instant nav panel if the cookie is present on page load
-  useEffect(() => {
-    if (state.instantNavs) {
-      setPanel('instant-navs')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   return (
     <>

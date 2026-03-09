@@ -18,10 +18,12 @@ export const RenderErrorContext = createContext<{
 export const useRenderErrorContext = () => useContext(RenderErrorContext)
 
 export function DevOverlay() {
-  const [panel, setPanel] = useState<null | PanelStateKind>(null)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const { state, dispatch, getSquashedHydrationErrorDetails } =
     useDevOverlayContext()
+  const [panel, setPanel] = useState<null | PanelStateKind>(() =>
+    state.instantNavs ? 'instant-navs' : null
+  )
 
   const triggerRef = useRef<HTMLButtonElement>(null)
   return (
