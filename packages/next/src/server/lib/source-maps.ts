@@ -1,5 +1,6 @@
 import type { SourceMap } from 'module'
 import { LRUCache } from './lru-cache'
+export { devirtualizeReactServerURL } from '../../shared/lib/devirtualize-react-server-url'
 
 function noSourceMap(): SourceMap | undefined {
   return undefined
@@ -199,18 +200,6 @@ export function findSourceMapURLDEV(
   }
 
   return sourceMapURL === invalidSourceMap ? null : sourceMapURL
-}
-
-export function devirtualizeReactServerURL(sourceURL: string): string {
-  if (sourceURL.startsWith('about://React/')) {
-    // about://React/Server/file://<filename>?42 => file://<filename>
-    const envIdx = sourceURL.indexOf('/', 'about://React/'.length)
-    const suffixIdx = sourceURL.lastIndexOf('?')
-    if (envIdx > -1 && suffixIdx > -1) {
-      return decodeURI(sourceURL.slice(envIdx + 1, suffixIdx))
-    }
-  }
-  return sourceURL
 }
 
 function isAnonymousFrameLikelyJSNative(methodName: string): boolean {

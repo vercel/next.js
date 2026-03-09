@@ -5,6 +5,8 @@
 // TODO: Use tsconfig#paths instead
 declare module 'next/dist/compiled/next-devtools'
 declare module 'next/dist/compiled/next-react-devtools/initialize'
+// TODO: There is a module, type mismatch.
+declare module 'react-devtools-inline/hookNames'
 declare module 'next/dist/compiled/webpack/webpack' {
   export function init(): void
   export let BasicEvaluatedExpression: any

@@ -23,6 +23,8 @@ module.exports = ({ dev, ...rest }) => {
     output: {
       path: path.join(__dirname, 'dist/compiled/next-react-devtools'),
       filename: 'frontend.js',
+      // The iframe entry is loaded from srcdoc, so async chunks need an explicit base URL.
+      publicPath: '/__nextjs_react_devtools/',
       iife: true,
     },
     devtool: 'source-map',

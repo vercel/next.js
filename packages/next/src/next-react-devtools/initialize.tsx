@@ -6,7 +6,7 @@ import {
 } from 'react-devtools-inline/backend'
 
 const FRAME_ATTR = 'data-nextjs-react-devtools-frame'
-const FRONTEND_SCRIPT_PATH = '/__nextjs_react_devtools_frontend.js'
+const FRONTEND_SCRIPT_PATH = '/__nextjs_react_devtools/frontend.js'
 
 declare global {
   interface Window {
