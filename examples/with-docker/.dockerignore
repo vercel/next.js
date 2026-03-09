@@ -80,13 +80,6 @@ Jenkinsfile
 .parcel-cache/
 .eslintcache
 .stylelintcache
-.turbo/
-.tmp/
-# Cache directories and temporary data
-.cache/
-.parcel-cache/
-.eslintcache
-.stylelintcache
 .swc/
 .turbo/
 .tmp/
