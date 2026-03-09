@@ -219,6 +219,7 @@ export const experimentalSchema = {
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   cachedNavigations: z.boolean().optional(),
+  partialFallbacks: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   varyParams: z.boolean().optional(),
