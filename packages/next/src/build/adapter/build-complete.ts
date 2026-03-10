@@ -1573,6 +1573,7 @@ export async function handleBuildComplete({
           fallbackStatus,
           fallbackSourceRoute,
           fallbackRootParams,
+          hasStaticPrerenderedRoutes,
           allowHeader,
           dataRoute,
           renderingMode,
@@ -1594,6 +1595,7 @@ export async function handleBuildComplete({
         const partialFallback =
           partialFallbacksEnabled &&
           isAppPage &&
+          hasStaticPrerenderedRoutes === true &&
           renderingMode === RenderingMode.PARTIALLY_STATIC &&
           typeof fallback === 'string' &&
           Boolean(meta.postponed)

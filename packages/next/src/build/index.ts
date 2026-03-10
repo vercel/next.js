@@ -292,6 +292,12 @@ export interface DynamicPrerenderManifestRoute {
   fallback: Fallback
 
   /**
+   * Whether this dynamic route's source page has at least one concrete static
+   * prerendered pathname beyond the fallback shell itself.
+   */
+  hasStaticPrerenderedRoutes?: boolean
+
+  /**
    * When defined, it describes the revalidation configuration for the fallback
    * route.
    */
@@ -3266,6 +3272,9 @@ export default async function build(
             }
 
             if (!hasRevalidateZero && isDynamicRoute(page)) {
+              const hasStaticPrerenderedRoutes =
+                staticPrerenderedRoutes.length > 0
+
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
@@ -3404,6 +3413,7 @@ export default async function build(
 
                 prerenderManifest.dynamicRoutes[route.pathname] = {
                   experimentalPPR: isRoutePPREnabled,
+                  hasStaticPrerenderedRoutes,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC

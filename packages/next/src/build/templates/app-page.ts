@@ -979,6 +979,7 @@ export async function handler(
             if (
               !isMinimalMode &&
               isRoutePPREnabled &&
+              prerenderInfo?.hasStaticPrerenderedRoutes === true &&
               nextConfig.experimental.partialFallbacks === true &&
               ssgCacheKey &&
               incrementalCache &&

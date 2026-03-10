@@ -28,4 +28,14 @@ describe('partial-fallback-shell-upgrade', () => {
       expect($('#fallback').length).toBe(0)
     })
   })
+
+  it('should not upgrade a route shell when no params were prerendered', async () => {
+    const pathname = '/no-gsp/two'
+
+    for (let i = 0; i < 3; i++) {
+      const $ = await next.render$(pathname)
+      expect($('#fallback').text()).toBe('loading...')
+      expect($('#slug').closest('[hidden]').length).toBe(1)
+    }
+  })
 })
