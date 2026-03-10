@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   expectNoBuildValidationErrors,
   extractBuildValidationError,
+  parseValidationMessages,
 } from 'e2e-utils/instant-validation'
 
 describe('instant-validation-build', () => {
@@ -655,6 +656,23 @@ describe('instant-validation-build', () => {
       const result = await prerender('/samples-precedence/[slug]/page-inherits')
       expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('AssertionError')
+    })
+  })
+
+  describe('generateStaticParams', () => {
+    it('valid - page with generateStaticParams and samples only runs validation once', async () => {
+      const result = await prerender('/gsp/[slug]')
+
+      // If validation ran once, we expect one "validation_start"/"validation_end" pair
+      const validationMessages = parseValidationMessages(result.cliOutput)
+      expect(validationMessages).toEqual([
+        expect.objectContaining({ type: 'validation_start' }),
+        expect.objectContaining({ type: 'validation_end' }),
+      ])
+
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
   })
 

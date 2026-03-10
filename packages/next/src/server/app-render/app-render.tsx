@@ -2388,6 +2388,7 @@ async function renderToHTMLOrFlightImpl(
     if (
       workStore.cacheComponentsEnabled &&
       workStore.isBuildTimePrerendering &&
+      renderOpts.runInstantValidation &&
       (await anySegmentNeedsInstantValidation(loaderTree))
     ) {
       // Throws StaticGenBailoutError if validation failed.
