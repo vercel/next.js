@@ -52,9 +52,11 @@ describe('delete-dot-next-dir', () => {
 
   it('should show error after .next is deleted (app router)', async () => {
     // 1. Verify app route loads correctly before deletion
-    const res = await next.fetch('/app')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('app page')
+    await retry(async () => {
+      const res = await next.fetch('/app')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('app page')
+    }, 30000)
 
     // 2. Record CLI output position before deletion
     const outputIndex = next.cliOutput.length
@@ -66,11 +68,13 @@ describe('delete-dot-next-dir', () => {
     const resAfterDelete = await next.fetch('/app/other')
     expect(resAfterDelete.status).toBe(500)
 
-    // 5. Wait for errors to appear in CLI output
+    // 5. Wait for errors to appear in CLI output, then wait 5s for
+    // persistent cache read/write errors to settle.
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toContain('Error')
     }, 10000)
+    await new Promise((resolve) => setTimeout(resolve, 5000))
 
     // 6. Snapshot unique error messages
     const cliOutput = next.cliOutput.slice(outputIndex)
@@ -90,9 +94,11 @@ describe('delete-dot-next-dir', () => {
 
   it('should show error after .next is deleted (pages router)', async () => {
     // 1. Verify pages route loads correctly before deletion
-    const res = await next.fetch('/pages')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('pages page')
+    await retry(async () => {
+      const res = await next.fetch('/pages')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('pages page')
+    }, 30000)
 
     // 2. Record CLI output position before deletion
     const outputIndex = next.cliOutput.length
@@ -104,11 +110,13 @@ describe('delete-dot-next-dir', () => {
     const resAfterDelete = await next.fetch('/pages/other')
     expect(resAfterDelete.status).toBe(500)
 
-    // 5. Wait for errors to appear in CLI output
+    // 5. Wait for errors to appear in CLI output, then wait 5s for
+    // persistent cache read/write errors to settle.
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toContain('Error')
     }, 10000)
+    await new Promise((resolve) => setTimeout(resolve, 5000))
 
     // 6. Snapshot unique error messages
     const cliOutput = next.cliOutput.slice(outputIndex)
