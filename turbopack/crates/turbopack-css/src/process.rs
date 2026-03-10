@@ -73,13 +73,15 @@ async fn get_lightningcss_browser_targets(
             Ok(if handle_nesting {
                 Vc::cell(Targets {
                     browsers: browserslist_browsers,
-                    include: Features::Nesting | Features::MediaRangeSyntax,
+                    include: Features::Nesting
+                        | Features::MediaRangeSyntax
+                        | Features::MediaIntervalSyntax,
                     ..Default::default()
                 })
             } else {
                 Vc::cell(Targets {
                     browsers: browserslist_browsers,
-                    include: Features::MediaRangeSyntax,
+                    include: Features::MediaRangeSyntax | Features::MediaIntervalSyntax,
                     ..Default::default()
                 })
             })
