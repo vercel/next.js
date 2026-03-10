@@ -7,6 +7,7 @@ import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import '../node-environment'
 import '../require-hook'
 
+import { existsSync } from 'fs'
 import url from 'url'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
@@ -60,6 +61,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { RESTART_EXIT_CODE } from './utils'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -224,6 +226,15 @@ export async function initialize(opts: {
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // If the distDir was deleted, restart the dev server instead of
+    // serving broken pages with cryptic ENOENT errors.
+    if (opts.dev && !existsSync(path.join(opts.dir, config.distDir))) {
+      Log.warn(
+        `The ${(config as NextConfigComplete).distDirRoot || config.distDir} directory was removed while the dev server was running. Restarting...`
+      )
+      process.exit(RESTART_EXIT_CODE)
+    }
+
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
 
     // internal headers should not be honored by the request handler
