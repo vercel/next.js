@@ -3,7 +3,7 @@ import type {
   PlainTraceItem,
   StyledString,
 } from '../../../build/swc/types'
-import { formatIssue } from './format-issue'
+import { formatIssue } from './utils'
 
 function styledText(value: string): StyledString {
   return { type: 'text', value }
