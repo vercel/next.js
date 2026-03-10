@@ -41,7 +41,9 @@ Transparent wrapper types that use [`#[turbo_tasks::value(transparent)]`][value-
 
 Every time a task runs, its cells are re-constructed.
 
-When `.cell()` or `Vc::cell` is called, the value is compared to the previous execution's using `PartialEq`. If it differs, the cell is updated, and all dependent tasks are invalidated. This behavior [can be overridden to always invalidate using the `cell = "new"` argument][value-macro].
+When `.cell()` or `Vc::cell` is called, the cell counter for the `ValueTypeId` is incremented, and the value is compared to the previous execution's using `PartialEq`. If the value with that index differs, the cell is updated, and all dependent tasks are invalidated.
+
+The compare-then-update behavior [can be overridden to always update and invalidate using the `cell = "new"` argument][value-macro].
 
 Because cells are keyed by a combination of their type and construction order, **task functions should have a deterministic execution order**. A function with inconsistent ordering may result in wasted work by invalidating additional cells, though it will still give correct results.
 
