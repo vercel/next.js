@@ -197,6 +197,7 @@ export function unstable_cache<T extends Callback>(
             case 'prerender-client':
             case 'validation-client':
             case 'request':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -417,6 +418,7 @@ function getFetchUrlPrefix(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
       return workStore.route
     default:
       return workUnitStore satisfies never

@@ -2118,6 +2118,7 @@ async function renderToHTMLOrFlightImpl(
         case 'prerender-legacy':
         case 'request':
         case 'unstable-cache':
+        case 'generate-static-params':
           return false
         default:
           workUnitStore satisfies never
