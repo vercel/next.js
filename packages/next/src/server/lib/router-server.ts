@@ -690,7 +690,7 @@ export async function initialize(opts: {
         if (err instanceof DecodeError) {
           invokePath = '/400'
           invokeStatus = '400'
-        } else {
+        } else if (!(err instanceof NoFallbackError)) {
           console.error(err)
         }
         res.statusCode = Number(invokeStatus)
