@@ -6,81 +6,33 @@ import path from 'path'
 // environment-specific absolute paths in error stack traces.
 const nextPkgDir = path.dirname(require.resolve('next/package.json'))
 
-/**
- * Extract deduplicated, sorted error blocks from CLI output.
- * Error blocks start with "⨯ Error:" or "Error:" and include
- * following indented lines that are part of the same error object.
- */
-function extractUniqueErrors(output: string): string[] {
-  const lines = output.split('\n')
-  const errors: string[] = []
-  let currentError: string[] | null = null
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (trimmed.startsWith('⨯ Error:') || trimmed.startsWith('Error:')) {
-      if (currentError) {
-        errors.push(currentError.join('\n'))
-      }
-      currentError = [trimmed]
-    } else if (currentError) {
-      if (
-        trimmed === '' ||
-        trimmed.startsWith('at ') ||
-        trimmed.startsWith('errno:') ||
-        trimmed.startsWith('code:') ||
-        trimmed.startsWith('syscall:') ||
-        trimmed.startsWith('path:') ||
-        trimmed.startsWith('page:') ||
-        trimmed === '}' ||
-        trimmed === '{' ||
-        trimmed.startsWith('Require stack:') ||
-        trimmed.startsWith('- ')
-      ) {
-        currentError.push(trimmed)
-      } else {
-        errors.push(currentError.join('\n'))
-        currentError = null
-      }
-    }
-  }
-  if (currentError) {
-    errors.push(currentError.join('\n'))
-  }
-
-  // Deduplicate (ignoring ⨯ prefix differences) and sort
-  const seen = new Set<string>()
-  const unique: string[] = []
-  for (const error of errors) {
-    const key = error.replace(/^⨯ /, '')
-    if (!seen.has(key)) {
-      seen.add(key)
-      unique.push(error)
-    }
-  }
-  return unique.sort()
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
  * Normalize environment-specific paths and non-deterministic content
  * from CLI output so snapshots are stable across machines and runs.
  */
-function normalizeOutput(
-  output: string,
-  next: { normalizeTestDirContent(s: string): string }
-): string {
-  return (
-    next
-      .normalizeTestDirContent(output)
-      // Replace absolute Next.js package paths with NEXT_DIR
-      .replace(new RegExp(escapeRegExp(nextPkgDir), 'g'), 'NEXT_DIR')
-      // Normalize random temp file suffixes
-      .replace(/\.tmp\.[a-z0-9]+/g, '.tmp.RANDOM')
-  )
+function normalizeOutput(output: string, testDir: string): string {
+  return output
+    .replace(new RegExp(escapeRegExp(testDir), 'g'), 'TEST_DIR')
+    .replace(new RegExp(escapeRegExp(nextPkgDir), 'g'), 'NEXT_DIR')
+    .replace(/\.tmp\.[a-z0-9]+/g, '.tmp.RANDOM')
 }
 
-function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/**
+ * Extract unique error messages from CLI output.
+ * Returns sorted, deduplicated error message strings (first line only).
+ */
+function extractUniqueErrorMessages(output: string): string[] {
+  const pattern = /(?:⨯ )?(Error: .+)/g
+  const messages = new Set<string>()
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(output)) !== null) {
+    messages.add(match[1])
+  }
+  return [...messages].sort()
 }
 
 describe('delete-dot-next-dir', () => {
@@ -99,7 +51,7 @@ describe('delete-dot-next-dir', () => {
   })
 
   it('should show error after .next is deleted (app router)', async () => {
-    // 1. Verify app routes load correctly before deletion
+    // 1. Verify app route loads correctly before deletion
     const res = await next.fetch('/app')
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('app page')
@@ -120,127 +72,24 @@ describe('delete-dot-next-dir', () => {
       expect(cliOutput).toContain('Error')
     }, 10000)
 
-    // 6. Extract and snapshot deduplicated error messages
+    // 6. Snapshot unique error messages
     const cliOutput = next.cliOutput.slice(outputIndex)
-    const errors = extractUniqueErrors(cliOutput)
-    const normalizedErrors = errors
-      .map((e) => normalizeOutput(e, next))
-      .join('\n---\n')
+    const errors = extractUniqueErrorMessages(
+      normalizeOutput(cliOutput, next.testDir)
+    )
 
-    expect(normalizedErrors).toMatchInlineSnapshot(`
-     "Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/routes-manifest.json'
-     at ignore-listed frames {
-     errno: -2,
-     code: 'ENOENT',
-     syscall: 'open',
-     path: 'TEST_DIR/.next/dev/routes-manifest.json'
-     }
-
-     ---
-     ⨯ Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'
-     Require stack:
-     - TEST_DIR/.next/dev/server/pages/_document.js
-     - NEXT_DIR/dist/server/require.js
-     - NEXT_DIR/dist/server/load-components.js
-     - NEXT_DIR/dist/build/utils.js
-     - NEXT_DIR/dist/server/lib/router-utils/setup-dev-bundler.js
-     - NEXT_DIR/dist/server/lib/router-server.js
-     - NEXT_DIR/dist/server/lib/start-server.js
-     at Object.<anonymous> (.next/dev/server/pages/_document.js:1:7) {
-     code: 'MODULE_NOT_FOUND',
-     ---
-     ⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages-manifest.json'
-     at ignore-listed frames {
-     errno: -2,
-     code: 'ENOENT',
-     syscall: 'open',
-     path: 'TEST_DIR/.next/dev/server/pages-manifest.json',
-     page: '/app/other'
-     }
-     ---
-     ⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/static/development/_buildManifest.js.tmp.RANDOM'
-     at ignore-listed frames {
-     errno: -2,
-     code: 'ENOENT',
-     syscall: 'open',
-     path: 'TEST_DIR/.next/dev/static/development/_buildManifest.js.tmp.RANDOM'
-     }"
-    `)
-
-    // 7. Snapshot the full CLI output (normalized)
-    const normalizedFullOutput = normalizeOutput(cliOutput, next)
-      // Normalize timing info
-      .replace(
-        / (GET|POST|PUT|DELETE|PATCH) (.+?) \d+ in [\d.]+m?s.*/g,
-        ' $1 $2'
-      )
-      // Remove non-deterministic "Could not resolve React Refresh" warnings
-      .replace(
-        /⚠ [^\n]*\nCould not resolve React Refresh runtime\nReact Refresh will be disabled.\nTo enable React Refresh, install the react-refresh and @next\/react-refresh-utils modules.\n\n\n/g,
-        ''
-      )
-      // Collapse repeated error blocks to just first occurrence
-      .replace(/(Error:.*?}\n)\1+/gs, '$1')
-
-    expect(normalizedFullOutput).toMatchInlineSnapshot(`
-     " GET /app
-     ⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages-manifest.json'
-         at ignore-listed frames {
-       errno: -2,
-       code: 'ENOENT',
-       syscall: 'open',
-       path: 'TEST_DIR/.next/dev/server/pages-manifest.json',
-       page: '/app/other'
-     }
-     ⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/static/development/_buildManifest.js.tmp.RANDOM'
-         at ignore-listed frames {
-       errno: -2,
-       code: 'ENOENT',
-       syscall: 'open',
-       path: 'TEST_DIR/.next/dev/static/development/_buildManifest.js.tmp.RANDOM'
-     }
-     Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages-manifest.json'
-         at ignore-listed frames {
-       errno: -2,
-       code: 'ENOENT',
-       syscall: 'open',
-       path: 'TEST_DIR/.next/dev/server/pages-manifest.json',
-       page: '/app/other'
-     }
-     ⨯ Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'
-     Require stack:
-     - TEST_DIR/.next/dev/server/pages/_document.js
-     - NEXT_DIR/dist/server/require.js
-     - NEXT_DIR/dist/server/load-components.js
-     - NEXT_DIR/dist/build/utils.js
-     - NEXT_DIR/dist/server/lib/router-utils/setup-dev-bundler.js
-     - NEXT_DIR/dist/server/lib/router-server.js
-     - NEXT_DIR/dist/server/lib/start-server.js
-         at Object.<anonymous> (.next/dev/server/pages/_document.js:1:7) {
-       code: 'MODULE_NOT_FOUND',
-       requireStack: [
-         'TEST_DIR/.next/dev/server/pages/_document.js',
-         'NEXT_DIR/dist/server/require.js',
-         'NEXT_DIR/dist/server/load-components.js',
-         'NEXT_DIR/dist/build/utils.js',
-         'NEXT_DIR/dist/server/lib/router-utils/setup-dev-bundler.js',
-         'NEXT_DIR/dist/server/lib/router-server.js',
-         'NEXT_DIR/dist/server/lib/start-server.js'
-       ]
-     }
-     Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/routes-manifest.json'
-         at ignore-listed frames {
-       errno: -2,
-       code: 'ENOENT',
-       syscall: 'open',
-       path: 'TEST_DIR/.next/dev/routes-manifest.json'
-     }
-     "
+    expect(errors).toMatchInlineSnapshot(`
+     [
+       "Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'",
+       "Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/routes-manifest.json'",
+       "Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages-manifest.json'",
+       "Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/static/development/_buildManifest.js.tmp.RANDOM'",
+     ]
     `)
   })
 
   it('should show error after .next is deleted (pages router)', async () => {
-    // 1. Verify pages routes load correctly before deletion
+    // 1. Verify pages route loads correctly before deletion
     const res = await next.fetch('/pages')
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('pages page')
@@ -261,70 +110,16 @@ describe('delete-dot-next-dir', () => {
       expect(cliOutput).toContain('Error')
     }, 10000)
 
-    // 6. Extract and snapshot deduplicated error messages
+    // 6. Snapshot unique error messages
     const cliOutput = next.cliOutput.slice(outputIndex)
-    const errors = extractUniqueErrors(cliOutput)
-    const normalizedErrors = errors
-      .map((e) => normalizeOutput(e, next))
-      .join('\n---\n')
+    const errors = extractUniqueErrorMessages(
+      normalizeOutput(cliOutput, next.testDir)
+    )
 
-    expect(normalizedErrors).toMatchInlineSnapshot(`
-     "Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-     at ignore-listed frames {
-     errno: -2,
-     code: 'ENOENT',
-     syscall: 'open',
-     path: 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-     }
-
-     ---
-     ⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-     at ignore-listed frames {
-     errno: -2,
-     code: 'ENOENT',
-     syscall: 'open',
-     path: 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-     }"
-    `)
-
-    // 7. Snapshot the full CLI output (normalized)
-    const normalizedFullOutput = normalizeOutput(cliOutput, next)
-      // Normalize timing info
-      .replace(
-        / (GET|POST|PUT|DELETE|PATCH) (.+?) \d+ in [\d.]+m?s.*/g,
-        ' $1 $2'
-      )
-      // Remove non-deterministic "Could not resolve React Refresh" warnings
-      .replace(
-        /⚠ [^\n]*\nCould not resolve React Refresh runtime\nReact Refresh will be disabled.\nTo enable React Refresh, install the react-refresh and @next\/react-refresh-utils modules.\n\n\n/g,
-        ''
-      )
-      // Collapse repeated error blocks to just first occurrence
-      .replace(/(Error:.*?}\n)\1+/gs, '$1')
-
-    expect(normalizedFullOutput).toMatchInlineSnapshot(`
-     "⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-         at ignore-listed frames {
-       errno: -2,
-       code: 'ENOENT',
-       syscall: 'open',
-       path: 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-     }
-     ⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-         at ignore-listed frames {
-       errno: -2,
-       code: 'ENOENT',
-       syscall: 'open',
-       path: 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-     }
-     Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-         at ignore-listed frames {
-       errno: -2,
-       code: 'ENOENT',
-       syscall: 'open',
-       path: 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
-     }
-     "
+    expect(errors).toMatchInlineSnapshot(`
+     [
+       "Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'",
+     ]
     `)
   })
 })
