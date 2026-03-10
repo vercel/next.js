@@ -262,6 +262,12 @@ export class WorkerPool {
     this._stdout = new PassThrough()
     this._stderr = new PassThrough()
 
+    // Each worker pipes into these streams, adding several listeners per
+    // pipe (unpipe, error, close, finish). With many workers the default
+    // limit of 10 is exceeded, triggering a spurious warning.
+    this._stdout.setMaxListeners(this._options.maxWorkers + 5)
+    this._stderr.setMaxListeners(this._options.maxWorkers + 5)
+
     // Start periodic timeout checks when timeout is configured
     if (this._options.timeout) {
       this._timeoutInterval = setInterval(
