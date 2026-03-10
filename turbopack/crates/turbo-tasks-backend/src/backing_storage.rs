@@ -2,6 +2,7 @@ use std::{any::type_name, sync::Arc};
 
 use anyhow::Result;
 use either::Either;
+use smallvec::SmallVec;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 

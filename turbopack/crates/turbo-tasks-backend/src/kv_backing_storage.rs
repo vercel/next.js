@@ -7,9 +7,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
-use turbo_bincode::{
-    TurboBincodeBuffer, new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode,
-};
+use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_tasks::{
     TaskId,
     backend::CachedTaskType,
