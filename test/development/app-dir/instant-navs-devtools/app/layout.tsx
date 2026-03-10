@@ -6,7 +6,7 @@ export default function Root({ children }: { children: ReactNode }) {
         style={{
           fontFamily:
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-          maxWidth: 640,
+          maxWidth: 900,
           margin: '0 auto',
           padding: '2rem 1rem',
           lineHeight: 1.6,
