@@ -165,6 +165,9 @@ fn is_internal(file_path: &str) -> bool {
 ///
 /// This avoids transferring the full source file content across the NAPI
 /// boundary just to call back into Rust for code frame rendering.
+///
+/// Because this accesses the terminal size, this function call should not be cached (e.g. in
+/// turbo-tasks).
 fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
     let Some(source) = issue.source.as_ref() else {
         return Ok(None);
