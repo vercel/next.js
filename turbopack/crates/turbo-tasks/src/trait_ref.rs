@@ -9,12 +9,11 @@ use crate::{
     vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
 };
 
-/// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
-/// object instead.
+/// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait object instead.
 ///
-/// The only way to interact with a `TraitRef<T>` is by passing
-/// it around or turning it back into a value trait vc by calling
-/// [`ReadRef::cell`][crate::ReadRef::cell].
+/// Non-turbo-task methods with a `&self` receiver can be called on this reference.
+///
+/// A `TraitRef<T>` can be turned back into a value trait vc by calling [`TraitRef::cell`].
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
 pub struct TraitRef<T>
