@@ -12,10 +12,8 @@ rule:
 fix: $OBJ.with_context(|| format!($$$ARGS))
 ---
 id: no-context-turbofmt
-message: Use `.with_context(|| turbofmt!(...))` instead of `.context(turbofmt!(...))`.
-note: >
-  `.context(turbofmt!(...))` eagerly allocates the formatted string even when there is no error.
-  Use `.with_context(|| turbofmt!(...))` for lazy evaluation.
+message: >
+  `.context(turbofmt!(...).await?)` eagerly creates the formatted string even when there is no error.
 severity: error
 language: Rust
 rule:
