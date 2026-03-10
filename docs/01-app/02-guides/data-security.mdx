@@ -116,12 +116,12 @@ export async function getProfileDTO(slug: string) {
 ```
 
 ```tsx filename="app/page.tsx"
-import { getProfile } from '../../data/user'
+import { getProfileDTO } from '../../data/user-dto.tsx'
 
 export async function Page({ params: { slug } }) {
   // This page can now safely pass around this profile knowing
   // that it shouldn't contain anything sensitive.
-  const profile = await getProfile(slug);
+  const profile = await getProfileDTO(slug);
   ...
 }
 ```
