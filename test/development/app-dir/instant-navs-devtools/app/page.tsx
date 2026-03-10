@@ -30,7 +30,7 @@ export default function Page() {
       </ol>
       <nav style={{ marginTop: '1.5rem' }}>
         <Link
-          href="/target-page"
+          href="/target-page/my-post?search=foo"
           id="link-to-target"
           style={{
             display: 'inline-block',

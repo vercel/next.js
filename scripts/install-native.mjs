@@ -60,7 +60,12 @@ import fsp from 'fs/promises'
     fs.writeFileSync(path.join(tmpdir, 'package.json'), JSON.stringify(pkgJson))
     fs.writeFileSync(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
 
-    const args = ['add', `next@${nextVersion}`]
+    const args = [
+      'add',
+      `next@${nextVersion}`,
+      '--lockfile=false',
+      '--ignore-workspace',
+    ]
     if (preferOffline) {
       args.push('--prefer-offline')
     }
