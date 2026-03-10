@@ -61,7 +61,8 @@ import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 
 export default async function Page({ params }) {
-  const post = await getPost(params.id)
+  const { id } = await params
+  const post = await getPost(id)
 
   return (
     <div>
@@ -262,7 +263,8 @@ import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 
 export default async function Page({ params }) {
-  const post = await getPost(params.id)
+  const { id } = await params
+  const post = await getPost(id)
 
   return <LikeButton likes={post.likes} />
 }
@@ -310,7 +312,7 @@ export default function Modal({ children }) {
 }
 ```
 
-Then, in a parent Server Component (e.g.`<Page>`), you can pass a `<Cart>` as the child of the `<Modal>`:
+Then, in a parent Server Component (e.g. `<Page>`), you can pass a `<Cart>` as the child of the `<Modal>`:
 
 ```tsx filename="app/page.tsx"  highlight={7} switcher
 import Modal from './ui/modal'
