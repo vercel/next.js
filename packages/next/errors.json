@@ -1185,5 +1185,6 @@
   "1184": "Worker exited during shutdown",
   "1185": "Worker pool ended while requests were in-flight",
   "1186": "Worker is ended, no more calls can be done to it",
-  "1187": "Export encountered an error on %s, exiting the build."
+  "1187": "Export encountered an error on %s, exiting the build.",
+  "1188": "Worker timed out"
 }
