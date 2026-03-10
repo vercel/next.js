@@ -5,6 +5,7 @@
 //! use in a file name.
 
 mod base40;
+mod base64;
 mod deterministic_hash;
 mod hex;
 mod sha;
@@ -73,6 +74,7 @@ pub fn deterministic_hash<T: DeterministicHash>(input: T, algorithm: HashAlgorit
 
 pub use crate::{
     base40::{BASE40_LEN_64, BASE40_LEN_128, encode_base40, encode_base40_128},
+    base64::encode_base64,
     deterministic_hash::{DeterministicHash, DeterministicHasher},
     hex::{encode_hex, encode_hex_128},
     sha::ShaHasher,
