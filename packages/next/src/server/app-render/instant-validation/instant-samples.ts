@@ -13,6 +13,7 @@ import { parseRelativeUrl } from '../../../shared/lib/router/utils/parse-relativ
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { InstantValidationError } from './instant-validation-error'
 import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
+import { wellKnownProperties } from '../../../shared/lib/utils/reflect-utils'
 
 export type InstantValidationSampleTracking = {
   // TODO(instant-validation-build): track which samples config we used and attribute errors
@@ -91,16 +92,18 @@ function createMissingSampleError(
  * Cookies with `value: null` are declared (allowed to access) but return no value.
  */
 export function createCookiesFromSample(
-  sampleCookies: NonNullable<InstantSample['cookies']>,
+  sampleCookies: InstantSample['cookies'],
   route: string
 ): ReadonlyRequestCookies {
   const declaredNames = new Set<string>()
 
   const cookies = new RequestCookies(new Headers())
-  for (const cookie of sampleCookies) {
-    declaredNames.add(cookie.name)
-    if (cookie.value !== null) {
-      cookies.set(cookie.name, cookie.value)
+  if (sampleCookies) {
+    for (const cookie of sampleCookies) {
+      declaredNames.add(cookie.name)
+      if (cookie.value !== null) {
+        cookies.set(cookie.name, cookie.value)
+      }
     }
   }
 
@@ -173,9 +176,29 @@ export function createCookiesFromSample(
  * Headers with `value: null` are declared (allowed to access) but return null.
  */
 export function createHeadersFromSample(
-  sampleHeaders: NonNullable<InstantSample['headers']>,
+  rawSampleHeaders: InstantSample['headers'],
+  sampleCookies: InstantSample['cookies'],
   route: string
 ): ReadonlyHeaders {
+  // If we have cookie samples, add a `cookie` header to match.
+  // Accessing it will be implicitly allowed by the proxy --
+  // if the user defined some cookies, accessing the "cookie" header is also fine.
+  const sampleHeaders = rawSampleHeaders ? [...rawSampleHeaders] : []
+  if (sampleHeaders.find(([name]) => name.toLowerCase() === 'cookie')) {
+    throw new InstantValidationError(
+      'Invalid sample: Defining cookies via a "cookie" header is not supported. Use `cookies: [{ name: ..., value: ... }]` instead.'
+    )
+  }
+  if (sampleCookies) {
+    const cookieHeaderValue = sampleCookies.toString()
+    sampleHeaders.push([
+      'cookie',
+      // if the `cookies` samples were empty, or they were all `null`, then we have no cookies,
+      // and the header isn't present, but should remains readable, so we set it to null.
+      cookieHeaderValue !== '' ? cookieHeaderValue : null,
+    ])
+  }
+
   const declaredNames = new Set<string>()
   const headersInit: Record<string, string> = {}
 
@@ -186,16 +209,15 @@ export function createHeadersFromSample(
     }
   }
 
-  const headers = HeadersAdapter.from(headersInit as any)
-  const sealed = HeadersAdapter.seal(headers)
+  const sealed = HeadersAdapter.seal(HeadersAdapter.from(headersInit))
 
-  // Wrap with exhaustive proxy
   return new Proxy(sealed, {
     get(target, prop, receiver) {
       if (prop === 'get' || prop === 'has') {
-        const originalMethod = Reflect.get(target, prop, receiver) as Function
-        return function (name: string) {
-          if (!declaredNames.has(name.toLowerCase())) {
+        const originalMethod = Reflect.get(target, prop, receiver)
+        const patchedMethod: typeof originalMethod = function (rawName) {
+          const name = rawName.toLowerCase()
+          if (!declaredNames.has(name)) {
             trackMissingSampleErrorAndThrow(
               createMissingSampleError(
                 route,
@@ -206,8 +228,11 @@ export function createHeadersFromSample(
               )
             )
           }
-          return originalMethod.call(target, name)
+          // typescript can't reconcile a union of functions with a union of return types,
+          // so we have to cast the original return type away
+          return (originalMethod as (...args: any[]) => any).call(target, name)
         }
+        return patchedMethod
       }
       return Reflect.get(target, prop, receiver)
     },
@@ -250,36 +275,28 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
 ): TParams {
   return new Proxy(underlyingParams, {
     get(target, prop, receiver) {
-      if (isUserParamAccess(prop)) {
-        if (!declaredParamNames.has(prop)) {
-          trackMissingSampleErrorAndThrow(
-            createMissingSampleError(route, 'param', prop, 'params', '')
-          )
-        }
+      if (isUserPropertyAccess(prop) && !declaredParamNames.has(prop)) {
+        trackMissingSampleErrorAndThrow(
+          createMissingSampleError(route, 'param', prop, 'params', '')
+        )
       }
       return Reflect.get(target, prop, receiver)
     },
     has(target, prop) {
-      if (isUserParamAccess(prop)) {
-        if (!declaredParamNames.has(prop)) {
-          trackMissingSampleErrorAndThrow(
-            createMissingSampleError(route, 'param', prop, 'params', '')
-          )
-        }
+      if (isUserPropertyAccess(prop) && !declaredParamNames.has(prop)) {
+        trackMissingSampleErrorAndThrow(
+          createMissingSampleError(route, 'param', prop, 'params', '')
+        )
       }
       return Reflect.has(target, prop)
     },
   })
 }
 
-// Properties accessed by the framework internals (e.g. RSC serialization)
-// that should not trigger the exhaustive check.
-const INTERNAL_OBJECT_PROPS = new Set(['then', 'toJSON', 'valueOf', 'toString'])
-
 // TODO(instant-validation-build): we have other code like this, we should try to keep it in sync
-function isUserParamAccess(prop: string | symbol): prop is string {
+function isUserPropertyAccess(prop: string | symbol): prop is string {
   if (typeof prop !== 'string') return false
-  if (INTERNAL_OBJECT_PROPS.has(prop)) return false
+  if (wellKnownProperties.has(prop)) return false
   return true
 }
 
@@ -295,30 +312,26 @@ export function createExhaustiveSearchParamsProxy(
 ): SearchParams {
   return new Proxy(searchParams, {
     get(target, prop, receiver) {
-      if (isUserParamAccess(prop)) {
-        if (!declaredSearchParamNames.has(prop)) {
-          trackMissingSampleErrorAndThrow(
-            new InstantValidationError(
-              `Route "${route}" accessed searchParam "${prop}" which is not defined in the \`samples\` ` +
-                `of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, ` +
-                `or \`{ "${prop}": null }\` if it should be absent.`
-            )
+      if (isUserPropertyAccess(prop) && !declaredSearchParamNames.has(prop)) {
+        trackMissingSampleErrorAndThrow(
+          new InstantValidationError(
+            `Route "${route}" accessed searchParam "${prop}" which is not defined in the \`samples\` ` +
+              `of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, ` +
+              `or \`{ "${prop}": null }\` if it should be absent.`
           )
-        }
+        )
       }
       return Reflect.get(target, prop, receiver)
     },
     has(target, prop) {
-      if (isUserParamAccess(prop)) {
-        if (!declaredSearchParamNames.has(prop)) {
-          trackMissingSampleErrorAndThrow(
-            new InstantValidationError(
-              `Route "${route}" accessed searchParam "${prop}" which is not defined in the \`samples\` ` +
-                `of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, ` +
-                `or \`{ "${prop}": null }\` if it should be absent.`
-            )
+      if (isUserPropertyAccess(prop) && !declaredSearchParamNames.has(prop)) {
+        trackMissingSampleErrorAndThrow(
+          new InstantValidationError(
+            `Route "${route}" accessed searchParam "${prop}" which is not defined in the \`samples\` ` +
+              `of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, ` +
+              `or \`{ "${prop}": null }\` if it should be absent.`
           )
-        }
+        )
       }
       return Reflect.has(target, prop)
     },
@@ -337,9 +350,9 @@ export function createExhaustiveURLSearchParamsProxy<T extends URLSearchParams>(
 ): T {
   return new Proxy(searchParams, {
     get(target, prop, receiver) {
-      const value = Reflect.get(target, prop, receiver)
       // Intercept method calls that access specific param names
       if (prop === 'get' || prop === 'getAll' || prop === 'has') {
+        const originalMathod = Reflect.get(target, prop, receiver)
         return (name: string) => {
           if (typeof name === 'string' && !declaredSearchParamNames.has(name)) {
             trackMissingSampleErrorAndThrow(
@@ -352,10 +365,15 @@ export function createExhaustiveURLSearchParamsProxy<T extends URLSearchParams>(
               )
             )
           }
-          return (value as Function).call(target, name)
+          return (originalMathod as (...args: any[]) => any).call(target, name)
         }
       }
-      return typeof value === 'function' ? value.bind(target) : value
+      const value = Reflect.get(target, prop, receiver)
+      // Prevent `TypeError: Value of "this" must be of type URLSearchParams` for methods
+      if (typeof value === 'function' && !Object.hasOwn(target, prop)) {
+        return value.bind(target)
+      }
+      return value
     },
   })
 }
@@ -385,17 +403,19 @@ export function createRelativeURLFromSamples(
 }
 
 function createURLSearchParamsFromSample(
-  sampleSearchParams: NonNullable<InstantSample['searchParams']>
+  sampleSearchParams: InstantSample['searchParams']
 ) {
   const result = new URLSearchParams()
-  for (const [key, value] of Object.entries(sampleSearchParams)) {
-    if (value === null || value === undefined) continue
-    if (Array.isArray(value)) {
-      for (const v of value) {
-        result.append(key, v)
+  if (sampleSearchParams) {
+    for (const [key, value] of Object.entries(sampleSearchParams)) {
+      if (value === null || value === undefined) continue
+      if (Array.isArray(value)) {
+        for (const v of value) {
+          result.append(key, v)
+        }
+      } else {
+        result.set(key, value)
       }
-    } else {
-      result.set(key, value)
     }
   }
   return result

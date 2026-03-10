@@ -260,10 +260,7 @@ import {
 } from './instant-validation/boundary-tracking'
 import type { InstantSample } from '../../build/segment-config/app/app-segment-config'
 import { ResponseCookies } from '../web/spec-extension/cookies'
-import {
-  InstantValidationError,
-  isInstantValidationError,
-} from './instant-validation/instant-validation-error'
+import { isInstantValidationError } from './instant-validation/instant-validation-error'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -5367,26 +5364,18 @@ async function validateInstantConfigInBuildWithSample(
 
     const createRequestStore = (): RequestStore => {
       // Create exhaustive request data from sample
-      const sampleCookies = createCookiesFromSample(sample.cookies ?? [], route)
+      const sampleCookies = createCookiesFromSample(sample.cookies, route)
 
       // We don't have to bother initializing these, pages can't access them anyway,
       // we just need them because RequestStore requires them.
       const unusedMutableCookies = new ResponseCookies(new Headers())
 
-      // Create headers. If we have cookie samples, add a `cookie` header to match.
-      // Accessing it will be implicitly allowed by the proxy --
-      // if the user defined some cookies, accessing the "cookie" header is also fine.
-      // TODO(instant-validation-build)
-      const sampleHeadersList = sample.headers ? [...sample.headers] : []
-      if (sampleHeadersList.find(([name]) => name.toLowerCase() === 'cookie')) {
-        throw new InstantValidationError(
-          'Invalid sample: Defining cookies via a "cookie" header is not supported. Use `cookies: [{ name: ..., value: ...}]` instead.'
-        )
-      }
-      if (sample.cookies) {
-        sampleHeadersList.push(['cookie', sampleCookies.toString()])
-      }
-      const sampleHeaders = createHeadersFromSample(sampleHeadersList, route)
+      // Create headers.
+      const sampleHeaders = createHeadersFromSample(
+        sample.headers,
+        sample.cookies,
+        route
+      )
 
       const draftMode = createDraftModeForValidation()
 

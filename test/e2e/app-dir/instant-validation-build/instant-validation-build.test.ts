@@ -192,7 +192,7 @@ describe('instant-validation-build', () => {
       const result = await prerender('/headers/invalid-undeclared-header-get')
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/headers/invalid-undeclared-header-get" accessed header "undeclaredHeader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredHeader", null]\` if it should be absent.
+       "Error: Route "/headers/invalid-undeclared-header-get" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at g (app/headers/invalid-undeclared-header-get/page.tsx:27:41)
          25 |   const headersStore = await headers()
          26 |   // TODO(instant-validation-build): should this throw in addition to aborting?
@@ -217,7 +217,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/headers/invalid-undeclared-header-get-caught" accessed header "undeclaredHeader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredHeader", null]\` if it should be absent.
+       "Error: Route "/headers/invalid-undeclared-header-get-caught" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at f (app/headers/invalid-undeclared-header-get-caught/page.tsx:28:42)
          26 |
          27 |   try {
@@ -238,7 +238,7 @@ describe('instant-validation-build', () => {
       const result = await prerender('/headers/invalid-undeclared-header-has')
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/headers/invalid-undeclared-header-has" accessed header "undeclaredHeader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredHeader", null]\` if it should be absent.
+       "Error: Route "/headers/invalid-undeclared-header-has" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at g (app/headers/invalid-undeclared-header-has/page.tsx:27:43)
          25 |   const headerStore = await headers()
          26 |   // TODO(instant-validation-build): should this throw in addition to aborting?
