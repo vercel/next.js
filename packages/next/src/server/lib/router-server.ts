@@ -7,7 +7,7 @@ import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import '../node-environment'
 import '../require-hook'
 
-import { existsSync } from 'fs'
+import { existsSync, watch } from 'fs'
 import url from 'url'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
@@ -220,21 +220,38 @@ export async function initialize(opts: {
       service: devBundlerService,
       config: developmentConfig,
     }
+
+    // Watch the distDir so we can restart the dev server when it's deleted,
+    // instead of serving broken pages with cryptic ENOENT errors.
+    const distDir = path.join(opts.dir, config.distDir)
+    try {
+      const distDirWatcher = watch(distDir, () => {
+        if (!existsSync(distDir)) {
+          distDirWatcher.close()
+          Log.warn(
+            `The ${(config as NextConfigComplete).distDirRoot || config.distDir} directory was removed while the dev server was running. Restarting...`
+          )
+          process.exit(RESTART_EXIT_CODE)
+        }
+      })
+      distDirWatcher.on('error', () => {
+        // The watcher itself errored (e.g. the directory no longer exists).
+        // Trigger a restart in that case too.
+        distDirWatcher.close()
+        Log.warn(
+          `The ${(config as NextConfigComplete).distDirRoot || config.distDir} directory was removed while the dev server was running. Restarting...`
+        )
+        process.exit(RESTART_EXIT_CODE)
+      })
+    } catch {
+      // If we can't set up the watcher (e.g. distDir doesn't exist yet), ignore.
+    }
   }
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
-    // If the distDir was deleted, restart the dev server instead of
-    // serving broken pages with cryptic ENOENT errors.
-    if (opts.dev && !existsSync(path.join(opts.dir, config.distDir))) {
-      Log.warn(
-        `The ${(config as NextConfigComplete).distDirRoot || config.distDir} directory was removed while the dev server was running. Restarting...`
-      )
-      process.exit(RESTART_EXIT_CODE)
-    }
-
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
 
     // internal headers should not be honored by the request handler
