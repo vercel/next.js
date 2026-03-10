@@ -29,6 +29,10 @@ pub const BLOCK_TYPE_INDEX: u8 = 0;
 pub const BLOCK_TYPE_KEY_WITH_HASH: u8 = 1;
 /// The block header for a key block without hash.
 pub const BLOCK_TYPE_KEY_NO_HASH: u8 = 2;
+/// The block header for a fixed-size key block with 8-byte hash per entry.
+pub const BLOCK_TYPE_FIXED_KEY_WITH_HASH: u8 = 3;
+/// The block header for a fixed-size key block without hash.
+pub const BLOCK_TYPE_FIXED_KEY_NO_HASH: u8 = 4;
 
 /// The tag for a small-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
@@ -40,6 +44,15 @@ pub const KEY_BLOCK_ENTRY_TYPE_DELETED: u8 = 2;
 pub const KEY_BLOCK_ENTRY_TYPE_MEDIUM: u8 = 3;
 /// The minimum tag for inline values. The actual size is (tag - INLINE_MIN).
 pub const KEY_BLOCK_ENTRY_TYPE_INLINE_MIN: u8 = 8;
+
+/// Encoded size of a small value reference: 2B block index + 2B size + 4B offset.
+pub(crate) const SMALL_VALUE_REF_SIZE: usize = 8;
+/// Encoded size of a medium value reference: 2B block index.
+pub(crate) const MEDIUM_VALUE_REF_SIZE: usize = 2;
+/// Encoded size of a blob value reference: 4B blob id.
+pub(crate) const BLOB_VALUE_REF_SIZE: usize = 4;
+/// Encoded size of a deleted (tombstone) value reference.
+pub(crate) const DELETED_VALUE_REF_SIZE: usize = 0;
 
 // Static assertion: MAX_INLINE_VALUE_SIZE must fit in the key type encoding.
 // Key types 8-255 encode inline values of size 0-247, so max is 255 - 8 = 247.
@@ -239,6 +252,16 @@ impl StaticSortedFile {
                         value_block_cache,
                     );
                 }
+                BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
+                    let has_hash = block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH;
+                    return self.lookup_fixed_key_block::<K, FIND_ALL>(
+                        key_block_arc,
+                        key_hash,
+                        key,
+                        has_hash,
+                        value_block_cache,
+                    );
+                }
                 _ => {
                     bail!("Invalid block type");
                 }
@@ -309,6 +332,63 @@ impl StaticSortedFile {
         let offsets = &block[..entry_count * 4];
         let entries = &block[entry_count * 4..];
 
+        self.lookup_block_inner::<K, FIND_ALL>(
+            &block,
+            entry_count,
+            key_hash,
+            key,
+            value_block_cache,
+            |i| get_key_entry(offsets, entries, entry_count, i, hash_len),
+        )
+    }
+
+    /// Looks up a key in a fixed-size key block.
+    ///
+    /// Fixed-size key blocks store entries at predictable offsets (no offset table),
+    /// enabling direct indexing during binary search.
+    fn lookup_fixed_key_block<K: QueryKey, const FIND_ALL: bool>(
+        &self,
+        mut block: ArcBytes,
+        key_hash: u64,
+        key: &K,
+        has_hash: bool,
+        value_block_cache: &BlockCache,
+    ) -> Result<SstLookupResult> {
+        let hash_len: u8 = if has_hash { 8 } else { 0 };
+        let entry_count = block.read_u24::<BE>()? as usize;
+        let key_size = block.read_u8()? as usize;
+        let value_type = block.read_u8()?;
+        let val_size = entry_val_size(value_type)?;
+        let stride = hash_len as usize + key_size + val_size;
+        let entries = &block[..];
+
+        self.lookup_block_inner::<K, FIND_ALL>(
+            &block,
+            entry_count,
+            key_hash,
+            key,
+            value_block_cache,
+            |i| {
+                Ok(get_fixed_key_entry(
+                    entries, i, hash_len, key_size, value_type, stride,
+                ))
+            },
+        )
+    }
+
+    /// Shared binary search + collection logic for both key block variants.
+    ///
+    /// The `get_entry` closure abstracts over the difference between variable-size
+    /// key blocks (offset table lookup) and fixed-size key blocks (stride-based indexing).
+    fn lookup_block_inner<'a, K: QueryKey, const FIND_ALL: bool>(
+        &self,
+        block: &ArcBytes,
+        entry_count: usize,
+        key_hash: u64,
+        key: &K,
+        value_block_cache: &BlockCache,
+        get_entry: impl Fn(usize) -> Result<GetKeyEntryResult<'a>>,
+    ) -> Result<SstLookupResult> {
         let mut l = 0;
         let mut r = entry_count;
         // binary search for a matching key
@@ -319,7 +399,7 @@ impl StaticSortedFile {
                 key: mid_key,
                 ty,
                 val,
-            } = get_key_entry(offsets, entries, entry_count, m, hash_len)?;
+            } = get_entry(m)?;
 
             let comparison = compare_hash_key(mid_hash, mid_key, key_hash, key);
 
@@ -329,7 +409,7 @@ impl StaticSortedFile {
                     if !FIND_ALL {
                         // SingleValue mode: each key has exactly one entry
                         // this is enforced when writing
-                        let result = self.handle_key_match(ty, val, &block, value_block_cache)?;
+                        let result = self.handle_key_match(ty, val, block, value_block_cache)?;
                         return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
                     }
                     // FIND_ALL (MultiValue) mode: collect all values for this key.
@@ -345,20 +425,21 @@ impl StaticSortedFile {
                             key: entry_key,
                             ty,
                             val,
-                        } = get_key_entry(offsets, entries, entry_count, i, hash_len)?;
+                        } = get_entry(i)?;
                         if compare_hash_key(hash, entry_key, key_hash, key) != Ordering::Equal {
                             break;
                         }
-                        results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                        results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
                     }
-                    // Technically we could `.reverse()` the items collected by the backwards scan,
-                    // but the only ordering constraint we need to maintain for single sst
-                    // multivalue reads is that a deleted token, if it exists comes last.  Because
-                    // all the backwards scan items are strictly before the found item we know they
-                    // don't contain the _last_ item. So we don't care about their order
+                    // Technically we could `.reverse()` the items collected by the backwards
+                    // scan, but the only ordering constraint we need to maintain for single
+                    // sst multivalue reads is that a deleted token, if it exists comes last.
+                    // Because all the backwards scan items are strictly before the found item
+                    // we know they don't contain the _last_ item. So we don't care about
+                    // their order.
 
                     // Add the entry at `m`
-                    results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                    results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
                     // Forward scan: collect remaining entries with the same key
                     for i in (m + 1)..entry_count {
                         let GetKeyEntryResult {
@@ -366,11 +447,11 @@ impl StaticSortedFile {
                             key: entry_key,
                             ty,
                             val,
-                        } = get_key_entry(offsets, entries, entry_count, i, hash_len)?;
+                        } = get_entry(i)?;
                         if compare_hash_key(hash, entry_key, key_hash, key) != Ordering::Equal {
                             break;
                         }
-                        results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                        results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
                     }
                     return Ok(SstLookupResult::Found(results));
                 }
@@ -623,12 +704,23 @@ pub struct StaticSortedFileIter {
     value_block_cache: Option<(u16, ArcBytes)>,
 }
 
+enum CurrentKeyBlockKind {
+    /// Variable-size entries with an offset table for random access.
+    Variable { offsets: ArcBytes, hash_len: u8 },
+    /// Fixed-size entries with uniform key size and value type (no offset table).
+    Fixed {
+        hash_len: u8,
+        key_size: usize,
+        value_type: u8,
+        stride: usize,
+    },
+}
+
 struct CurrentKeyBlock {
-    offsets: ArcBytes,
+    kind: CurrentKeyBlockKind,
     entries: ArcBytes,
     entry_count: usize,
     index: usize,
-    hash_len: u8,
 }
 
 struct CurrentIndexBlock {
@@ -670,11 +762,33 @@ impl StaticSortedFileIter {
                 let offsets = block_arc.clone().slice(offsets_range);
                 let entries = block_arc.slice(entries_range);
                 self.current_key_block = Some(CurrentKeyBlock {
-                    offsets,
+                    kind: CurrentKeyBlockKind::Variable { offsets, hash_len },
                     entries,
                     entry_count,
                     index: 0,
-                    hash_len,
+                });
+            }
+            BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
+                let has_hash = block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH;
+                let hash_len = if has_hash { 8 } else { 0 };
+                let entry_count = block.read_u24::<BE>()? as usize;
+                let key_size = block.read_u8()? as usize;
+                let value_type = block.read_u8()?;
+                let val_size = entry_val_size(value_type)?;
+                let stride = hash_len as usize + key_size + val_size;
+                // Header is 6 bytes for fixed-size blocks
+                let entries_range = 6..block_arc.len();
+                let entries = block_arc.slice(entries_range);
+                self.current_key_block = Some(CurrentKeyBlock {
+                    kind: CurrentKeyBlockKind::Fixed {
+                        hash_len,
+                        key_size,
+                        value_type,
+                        stride,
+                    },
+                    entries,
+                    entry_count,
+                    index: 0,
                 });
             }
             _ => {
@@ -688,15 +802,30 @@ impl StaticSortedFileIter {
     fn next_internal(&mut self) -> Result<Option<LookupEntry>> {
         loop {
             if let Some(CurrentKeyBlock {
-                offsets,
+                kind,
                 entries,
                 entry_count,
                 index,
-                hash_len,
             }) = self.current_key_block.take()
             {
-                let GetKeyEntryResult { hash, key, ty, val } =
-                    get_key_entry(&offsets, &entries, entry_count, index, hash_len)?;
+                let GetKeyEntryResult { hash, key, ty, val } = match &kind {
+                    CurrentKeyBlockKind::Variable { offsets, hash_len } => {
+                        get_key_entry(offsets, &entries, entry_count, index, *hash_len)?
+                    }
+                    CurrentKeyBlockKind::Fixed {
+                        hash_len,
+                        key_size,
+                        value_type,
+                        stride,
+                    } => get_fixed_key_entry(
+                        &entries,
+                        index,
+                        *hash_len,
+                        *key_size,
+                        *value_type,
+                        *stride,
+                    ),
+                };
                 // Convert hash slice to u64, computing from key if no hash stored
                 let full_hash = if hash.is_empty() {
                     crate::key::hash_key(&key)
@@ -729,11 +858,10 @@ impl StaticSortedFileIter {
                 };
                 if index + 1 < entry_count {
                     self.current_key_block = Some(CurrentKeyBlock {
-                        offsets,
+                        kind,
                         entries,
                         entry_count,
                         index: index + 1,
-                        hash_len,
                     });
                 }
                 return Ok(Some(entry));
@@ -796,14 +924,14 @@ fn compare_hash_key<K: QueryKey>(
 /// Returns the byte size of the value portion for a given key block entry type.
 fn entry_val_size(ty: u8) -> Result<usize> {
     match ty {
-        KEY_BLOCK_ENTRY_TYPE_SMALL => Ok(8), // 2 bytes block index, 2 bytes size, 4 bytes position
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM => Ok(2), // 2 bytes block index
-        KEY_BLOCK_ENTRY_TYPE_BLOB => Ok(4),  // 4 byte blob id
-        KEY_BLOCK_ENTRY_TYPE_DELETED => Ok(0), // no value
+        KEY_BLOCK_ENTRY_TYPE_SMALL => Ok(SMALL_VALUE_REF_SIZE),
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM => Ok(MEDIUM_VALUE_REF_SIZE),
+        KEY_BLOCK_ENTRY_TYPE_BLOB => Ok(BLOB_VALUE_REF_SIZE),
+        KEY_BLOCK_ENTRY_TYPE_DELETED => Ok(DELETED_VALUE_REF_SIZE),
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             Ok((ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize)
         }
-        _ => bail!("Invalid key block entry type"),
+        _ => bail!("Invalid key block entry type: {ty}"),
     }
 }
 
@@ -833,4 +961,26 @@ fn get_key_entry<'l>(
         ty,
         val: &entries[end - val_size..end],
     })
+}
+
+/// Reads a key entry from a fixed-size key block by direct indexing.
+///
+/// All entries have the same key size and value type, so positions are computed
+/// arithmetically with no offset table indirection.
+fn get_fixed_key_entry<'l>(
+    entries: &'l [u8],
+    index: usize,
+    hash_len: u8,
+    key_size: usize,
+    value_type: u8,
+    stride: usize,
+) -> GetKeyEntryResult<'l> {
+    let hash_len_usize = hash_len as usize;
+    let start = index * stride;
+    GetKeyEntryResult {
+        hash: &entries[start..start + hash_len_usize],
+        key: &entries[start + hash_len_usize..start + hash_len_usize + key_size],
+        ty: value_type,
+        val: &entries[start + hash_len_usize + key_size..(index + 1) * stride],
+    }
 }
