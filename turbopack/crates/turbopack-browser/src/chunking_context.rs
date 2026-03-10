@@ -203,7 +203,7 @@ impl BrowserChunkingContextBuilder {
     }
 
     pub fn asset_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
-        self.chunking_context.asset_content_hashing = Some(content_hashing);
+        self.chunking_context.asset_content_hashing = content_hashing;
         self
     }
 
@@ -292,8 +292,8 @@ pub struct BrowserChunkingContext {
     minify_type: MinifyType,
     /// Whether content hashing is enabled for chunk filenames.
     chunk_content_hashing: Option<ContentHashing>,
-    /// Whether content hashing is enabled for asset filenames.
-    asset_content_hashing: Option<ContentHashing>,
+    /// Content hashing for asset filenames.
+    asset_content_hashing: ContentHashing,
     /// Whether to generate source maps
     source_maps_type: SourceMapsType,
     /// Method to use when figuring out the current chunk src
@@ -356,7 +356,7 @@ impl BrowserChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 chunk_content_hashing: None,
-                asset_content_hashing: None,
+                asset_content_hashing: ContentHashing::Direct { length: 13 },
                 source_maps_type: SourceMapsType::Full,
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
@@ -632,12 +632,9 @@ impl ChunkingContext for BrowserChunkingContext {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
         let content_hash = content_hash.await?;
-        let hash_length = match self.asset_content_hashing {
-            // 13 base40 chars ≈ 69 bits of collision resistance
-            Some(ContentHashing::Direct { length }) => length as usize,
-            None => content_hash.len(),
-        };
-        let short_hash = &content_hash[..hash_length];
+        let ContentHashing::Direct { length } = self.asset_content_hashing;
+        // 13 base40 chars ≈ 69 bits of collision resistance
+        let short_hash = &content_hash[..length as usize];
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{short_hash}.{ext}",
