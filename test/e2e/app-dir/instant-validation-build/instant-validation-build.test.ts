@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
-import { extractBuildValidationError } from 'e2e-utils/instant-validation'
+import {
+  expectNoBuildValidationErrors,
+  extractBuildValidationError,
+} from 'e2e-utils/instant-validation'
 
 describe('instant-validation-build', () => {
   const { next, skipped, isNextStart } = nextTestSetup({
@@ -36,24 +39,13 @@ describe('instant-validation-build', () => {
     await next.build({ args: ['--experimental-build-mode', 'compile'] })
   })
 
-  function expectNoValidationErrors(
-    result: Awaited<ReturnType<typeof prerender>>
-  ) {
-    // Check the logs before checking the error code.
-    // If it fails, the logs are more likely to show a useful reason than an error code.
-    expect(result.cliOutput).not.toContain(
-      'Build-time instant validation failed'
-    )
-    expect(result.exitCode).toBe(0)
-  }
-
   describe('basic dynamic hole detection', () => {
     // We have extensive tests for this in the instant-validation test suite.
     // This is just a basic test that we can validate a runtime prefetch, which static shell validation can't do.
     describe('valid - suspense around runtime', () => {
       it('should succeed build when cookies are inside Suspense', async () => {
         const result = await prerender('/valid-suspense-around-runtime')
-        expectNoValidationErrors(result)
+        expectNoBuildValidationErrors(result)
       })
     })
 
@@ -82,7 +74,7 @@ describe('instant-validation-build', () => {
         '/server-errors/error-passed-to-client-and-ignored'
       )
       expect(extractBuildValidationError(result.cliOutput)).toBe('')
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
     })
 
     it('error - server error that blocks page validation with no suspense boundary', async () => {
@@ -214,7 +206,7 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/search-params/valid-search-params-in-samples'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       // The page asserts on the values
       expect(result.cliOutput).not.toContain('AssertionError')
     })
@@ -244,7 +236,7 @@ describe('instant-validation-build', () => {
 
     it('useSearchParams() receives search params from samples', async () => {
       const result = await prerender('/search-params/valid-use-search-params')
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
 
@@ -321,7 +313,7 @@ describe('instant-validation-build', () => {
   describe('headers', () => {
     it('headers are correctly read from samples', async () => {
       const result = await prerender('/headers/valid-headers-in-samples')
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       // The page asserts on the values
       expect(result.cliOutput).not.toContain('AssertionError')
     })
@@ -399,7 +391,7 @@ describe('instant-validation-build', () => {
   describe('cookies', () => {
     it('cookies are correctly read from samples', async () => {
       const result = await prerender('/cookies/valid-cookies-in-samples')
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       // The page asserts on the values
       expect(result.cliOutput).not.toContain('AssertionError')
     })
@@ -479,7 +471,7 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/params/valid-params-in-samples/[one]/[two]'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       // The page asserts on the values
       expect(result.cliOutput).not.toContain('AssertionError')
     })
@@ -537,7 +529,7 @@ describe('instant-validation-build', () => {
     it('useParams() receives params from samples', async () => {
       const result = await prerender('/params/valid-use-params/[one]/[two]')
       expect(result.cliOutput).not.toContain('ClientAssertionError')
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
     })
 
     it('error - accessing a param not present in samples via useParams()', async () => {
@@ -590,7 +582,7 @@ describe('instant-validation-build', () => {
   describe('pathname', () => {
     it('valid - usePathname() on a route without params', async () => {
       const result = await prerender('/pathname/valid-use-pathname-no-params')
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
 
@@ -598,7 +590,7 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/pathname/valid-use-pathname-with-params/[one]/[two]'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
 
@@ -606,7 +598,7 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/pathname/valid-use-pathname-route-group/(route-group)'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
 
@@ -614,7 +606,7 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/pathname/valid-use-pathname-catch-all/[...catchAll]'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
 
@@ -622,7 +614,7 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/pathname/valid-use-pathname-optional-catch-all/[[...optionalCatchAll]]'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
 
@@ -655,13 +647,13 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/samples-precedence/[slug]/page-overrides'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('AssertionError')
     })
 
     it('page inherits samples from layout when it has none', async () => {
       const result = await prerender('/samples-precedence/[slug]/page-inherits')
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
       expect(result.cliOutput).not.toContain('AssertionError')
     })
   })
@@ -671,28 +663,28 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/valid-await-cache-without-suspense/static'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
     })
 
     it('valid - runtime prefetch - awaiting a cache in the runtime stage does not require a suspense boundary', async () => {
       const result = await prerender(
         '/valid-await-cache-without-suspense/runtime'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
     })
 
     it('valid - runtime prefetch - awaiting a mix of caches in the static and runtime stages does not require a suspense boundary', async () => {
       const result = await prerender(
         '/valid-await-cache-without-suspense/mixed'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
     })
 
     it('valid - runtime prefetch - awaiting a private cache in the runtime stage does not require a suspense boundary', async () => {
       const result = await prerender(
         '/valid-await-cache-without-suspense/private'
       )
-      expectNoValidationErrors(result)
+      expectNoBuildValidationErrors(result)
     })
   })
 })

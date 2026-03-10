@@ -58,6 +58,11 @@ export function extractBuildValidationError(cliOutput: string): string {
         `CLI output:\n${cliOutput}`
     )
   }
+  if (start.data.requestId !== end.data.requestId) {
+    throw new Error(
+      `Expected [validation_start, validation_end] markers to come from the same request`
+    )
+  }
 
   return cliOutput.slice(start.endIndex, end.index).trim()
 }
@@ -120,4 +125,28 @@ export async function waitForValidation(
 ): Promise<void> {
   const requestId = await waitForValidationStart(url, getOutput)
   await waitForValidationEnd(requestId, getOutput)
+}
+
+type PrerenderResult = {
+  cliOutput: string
+  exitCode: number | NodeJS.Signals
+}
+
+export function expectNoBuildValidationErrors(result: PrerenderResult) {
+  // Check the logs before checking the error code.
+  // If it fails, the logs are more likely to show a useful reason than an error code.
+  expect(result.cliOutput).not.toContain('Build-time instant validation failed')
+  // As a sanity check, parse the log and make sure that instant validation actually ran.
+  expect(extractBuildValidationError(result.cliOutput)).not.toContain(
+    'Build-time instant validation failed'
+  )
+  expect(result.exitCode).toBe(0)
+}
+
+export function expectBuildValidationSkipped(result: PrerenderResult) {
+  // Check the logs before checking the error code.
+  // If it fails, the logs are more likely to show a useful reason than an error code.
+  expect(result.cliOutput).not.toContain('Build-time instant validation failed')
+  expect(parseValidationMessages(result.cliOutput)).toHaveLength(0)
+  expect(result.exitCode).toBe(0)
 }

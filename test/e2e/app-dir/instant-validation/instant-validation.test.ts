@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  expectNoBuildValidationErrors,
+  expectBuildValidationSkipped,
   extractBuildValidationError,
   waitForValidation,
 } from 'e2e-utils/instant-validation'
@@ -67,7 +69,7 @@ describe('instant validation', () => {
     waitInMs: 500,
   }
 
-  async function expectNoValidationErrors(
+  async function expectNoDevValidationErrors(
     browser: Playwright,
     url: string
   ): Promise<void> {
@@ -130,15 +132,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/suspense-around-dynamic'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/static/suspense-around-dynamic'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -147,15 +146,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/runtime/suspense-around-dynamic'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/runtime/suspense-around-dynamic'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -522,15 +518,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/runtime/valid-no-suspense-around-params/123'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/runtime/valid-no-suspense-around-params/[param]'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -601,15 +594,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/runtime/valid-no-suspense-around-search-params?foo=bar'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/runtime/valid-no-suspense-around-search-params'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -627,13 +617,10 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/default/static/valid-blocked-children'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender('/default/static/valid-blocked-children')
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -944,15 +931,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/runtime/valid-sync-io-in-static-parent'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/runtime/valid-sync-io-in-static-parent'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -1018,15 +1002,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/runtime/valid-sync-io-in-generate-metadata-static-page'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/runtime/valid-sync-io-in-generate-metadata-static-page'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -1104,15 +1085,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/runtime/valid-sync-io-in-layout-generate-metadata-static-page'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/runtime/valid-sync-io-in-layout-generate-metadata-static-page'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -1121,15 +1099,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-only-loading-around-dynamic'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/static/valid-only-loading-around-dynamic'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -1138,15 +1113,12 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/static/valid-only-loading-around-dynamic-higher'
         )
-        await expectNoValidationErrors(browser, await browser.url())
+        await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         const result = await prerender(
           '/suspense-in-root/static/valid-only-loading-around-dynamic-higher/(group)'
         )
-        expect(result.cliOutput).not.toContain(
-          'Build-time instant validation failed'
-        )
-        expect(result.exitCode).toBe(0)
+        expectNoBuildValidationErrors(result)
       }
     })
 
@@ -1218,15 +1190,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/static/blocking-layout'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/static/blocking-layout'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -1297,15 +1266,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/default/static/valid-blocking-inside-static'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/default/static/valid-blocking-inside-static'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -1314,15 +1280,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/runtime/valid-blocking-inside-runtime'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/runtime/valid-blocking-inside-runtime'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -1757,15 +1720,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/static/valid-client-data-does-not-block-validation'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/static/valid-client-data-does-not-block-validation'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -1774,15 +1734,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/static/valid-client-api-in-parent/sync-io'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/static/valid-client-api-in-parent/sync-io'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -1791,15 +1748,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/123'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -1808,15 +1762,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/static/valid-client-api-in-parent/search-params'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/static/valid-client-api-in-parent/search-params'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
     })
@@ -1996,15 +1947,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/head/valid-dynamic-metadata-in-runtime'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/head/valid-dynamic-metadata-in-runtime'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -2015,15 +1963,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/head/valid-runtime-metadata-in-static'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/head/valid-runtime-metadata-in-static'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -2156,34 +2101,32 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/head/valid-runtime-viewport-in-runtime'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/head/valid-runtime-viewport-in-runtime'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectNoBuildValidationErrors(result)
         }
       })
 
-      it('valid - blocking page - dynamic viewport is allowed to block', async () => {
+      it('valid - blocking layout - dynamic viewport is allowed to block', async () => {
         if (isNextDev) {
           // if generateViewport uses dynamic data, it'll always block regardless of prefetching.
           // however, this is valid if the page opts into blocking via `instant = false`.
           const browser = await navigateTo(
             '/suspense-in-root/head/valid-dynamic-viewport-in-blocking'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/head/valid-dynamic-viewport-in-blocking'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          // The only way to allow this is to have `instant = false` on the page,
+          // and no assertions in layouts above -- they can't pass because a dynamic
+          // generateViewport will always block the navigation.
+          // This test is just here to ensure this behavior doesn't break.
+          expectBuildValidationSkipped(result)
         }
       })
 
@@ -2629,15 +2572,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/disable-validation/in-layout'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/disable-validation/in-layout'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectBuildValidationSkipped(result)
         }
       })
 
@@ -2646,15 +2586,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/disable-validation/in-page'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/disable-validation/in-page'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectBuildValidationSkipped(result)
         }
       })
 
@@ -2663,15 +2600,12 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/suspense-in-root/disable-validation/in-page-with-outer'
           )
-          await expectNoValidationErrors(browser, await browser.url())
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           const result = await prerender(
             '/suspense-in-root/disable-validation/in-page-with-outer'
           )
-          expect(result.cliOutput).not.toContain(
-            'Build-time instant validation failed'
-          )
-          expect(result.exitCode).toBe(0)
+          expectBuildValidationSkipped(result)
         }
       })
     })
