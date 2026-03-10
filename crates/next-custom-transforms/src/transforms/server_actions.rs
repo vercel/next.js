@@ -19,7 +19,7 @@ use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
         BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
-        comments::{Comment, CommentKind, Comments, SingleThreadedComments},
+        comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         source_map::{PURE_SP, SourceMapGenConfig},
         util::take::Take,
@@ -36,7 +36,7 @@ use turbo_rcstr::{RcStr, rcstr};
 
 use crate::FxIndexMap;
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 pub enum ServerActionsMode {
     Webpack,
     Turbopack,
@@ -621,6 +621,18 @@ impl<C: Comments> ServerActions<C> {
                     arrow.span,
                 )),
             })));
+        self.hoisted_extra_items.extend(
+            emit_server_action(
+                self.unresolved_ctxt,
+                self.mode,
+                &self.file_name,
+                &action_id,
+                &action_name,
+                self.config.is_react_server_layer,
+            )
+            .into_iter()
+            .map(ModuleItem::Stmt),
+        );
 
         if ids_from_closure.is_empty() {
             Box::new(action_ident.clone().into())
@@ -764,6 +776,18 @@ impl<C: Comments> ServerActions<C> {
                     function.span,
                 )),
             })));
+        self.hoisted_extra_items.extend(
+            emit_server_action(
+                self.unresolved_ctxt,
+                self.mode,
+                &self.file_name,
+                &action_id,
+                &action_name,
+                self.config.is_react_server_layer,
+            )
+            .into_iter()
+            .map(ModuleItem::Stmt),
+        );
 
         if ids_from_closure.is_empty() {
             Box::new(action_ident.clone().into())
@@ -857,6 +881,10 @@ impl<C: Comments> ServerActions<C> {
             arrow.span,
             &mut self.hoisted_extra_items,
             self.unresolved_ctxt,
+            self.mode,
+            &self.file_name,
+            &export_name,
+            self.config.is_react_server_layer,
         );
 
         if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
@@ -911,6 +939,7 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let cache_name: Atom = self.gen_cache_ident();
+        let export_name: Atom = cache_name.clone();
 
         let reference_id = self.generate_server_reference_id(
             &ModuleExportName::Ident(cache_name.clone().into()),
@@ -951,6 +980,10 @@ impl<C: Comments> ServerActions<C> {
             function_span,
             &mut self.hoisted_extra_items,
             self.unresolved_ctxt,
+            self.mode,
+            &self.file_name,
+            &export_name,
+            self.config.is_react_server_layer,
         );
 
         if let Some(Ident { ref sym, .. }) = fn_name {
@@ -2237,7 +2270,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }))
             });
 
-        let mut client_layer_exports = FxIndexMap::default();
+        let mut client_layer_exports: FxIndexMap<Atom, (Vec<ModuleItem>, ModuleExportName, Atom)> =
+            FxIndexMap::default();
 
         // If it's a "use server" or a "use cache" file, all exports need to be annotated.
         if should_track_exports {
@@ -2251,6 +2285,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 ..
             } in &server_reference_exports
             {
+                let emit_calls = emit_server_action(
+                    self.unresolved_ctxt,
+                    self.mode,
+                    &self.file_name,
+                    ref_id,
+                    &export_name.atom(),
+                    self.config.is_react_server_layer,
+                );
                 if !self.config.is_react_server_layer {
                     if matches!(export_name, ModuleExportName::Ident(i) if i.sym == *"default") {
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
@@ -2285,7 +2327,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         client_layer_exports.insert(
                             atom!("default"),
                             (
-                                vec![export_expr],
+                                [export_expr]
+                                    .into_iter()
+                                    .chain(emit_calls.into_iter().map(ModuleItem::Stmt))
+                                    .collect(),
                                 ModuleExportName::Ident(atom!("default").into()),
                                 ref_id.clone(),
                             ),
@@ -2369,7 +2414,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         client_layer_exports.insert(
                             var_name,
                             (
-                                vec![var_decl, export_named],
+                                [var_decl, export_named]
+                                    .into_iter()
+                                    .chain(emit_calls.into_iter().map(ModuleItem::Stmt))
+                                    .collect(),
                                 export_name.clone(),
                                 ref_id.clone(),
                             ),
@@ -2443,6 +2491,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 )),
                             }),
                         ];
+                        stmts.extend(emit_calls);
 
                         // Only assign a name if the original ident is not a generated one.
                         if !ident.sym.starts_with("$$RSC_SERVER_") {
@@ -2516,6 +2565,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ident.span,
                         )),
                     }));
+                    self.annotations.extend(emit_calls);
                 }
             }
 
@@ -2693,28 +2743,30 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 .collect::<BTreeMap<_, _>>();
 
             if self.config.is_react_server_layer {
-                // Prepend a special comment to the top of the file.
-                self.comments.add_leading(
-                    self.start_pos,
-                    Comment {
-                        span: DUMMY_SP,
-                        kind: CommentKind::Block,
-                        text: generate_server_references_comment(
-                            &export_infos_ordered_by_reference_id,
-                            match self.mode {
-                                ServerActionsMode::Webpack => None,
-                                ServerActionsMode::Turbopack => Some((
-                                    &self.file_name,
-                                    self.file_query.as_ref().map_or("", |v| v),
-                                )),
-                            },
-                        )
-                        .into(),
-                    },
-                );
+                if self.mode == ServerActionsMode::Webpack {
+                    // Prepend a special comment to the top of the file.
+                    self.comments.add_leading(
+                        self.start_pos,
+                        Comment {
+                            span: DUMMY_SP,
+                            kind: CommentKind::Block,
+                            text: generate_server_references_comment(
+                                &export_infos_ordered_by_reference_id,
+                                match self.mode {
+                                    ServerActionsMode::Webpack => None,
+                                    ServerActionsMode::Turbopack => Some((
+                                        &self.file_name,
+                                        self.file_query.as_ref().map_or("", |v| v),
+                                    )),
+                                },
+                            )
+                            .into(),
+                        },
+                    );
+                }
             } else {
-                match self.mode {
-                    ServerActionsMode::Webpack => {
+                if self.mode == ServerActionsMode::Webpack || client_layer_exports.len() == 1 {
+                    if self.mode == ServerActionsMode::Webpack {
                         self.comments.add_leading(
                             self.start_pos,
                             Comment {
@@ -2727,78 +2779,54 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 .into(),
                             },
                         );
-                        new.push(client_layer_import.unwrap());
-                        new.rotate_right(1);
-                        new.extend(
-                            client_layer_exports
-                                .into_iter()
-                                .flat_map(|(_, (items, _, _))| items),
-                        );
                     }
-                    ServerActionsMode::Turbopack => {
-                        new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                            expr: Box::new(Expr::Lit(Lit::Str(
-                                atom!("use turbopack no side effects").into(),
-                            ))),
-                            span: DUMMY_SP,
-                        })));
-                        new.rotate_right(1);
-                        for (_, (items, export_name, ref_id)) in client_layer_exports {
-                            let mut module_items = vec![
-                                ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                                    expr: Box::new(Expr::Lit(Lit::Str(
-                                        atom!("use turbopack no side effects").into(),
-                                    ))),
+                    new.push(client_layer_import.unwrap());
+                    new.rotate_right(1);
+                    new.extend(
+                        client_layer_exports
+                            .into_iter()
+                            .flat_map(|(_, (items, _, _))| items),
+                    );
+                } else {
+                    new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                        expr: Box::new(Expr::Lit(Lit::Str(
+                            atom!("use turbopack no side effects").into(),
+                        ))),
+                        span: DUMMY_SP,
+                    })));
+                    new.rotate_right(1);
+                    for (_, (items, export_name, _)) in client_layer_exports {
+                        let mut module_items = vec![
+                            ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                                expr: Box::new(Expr::Lit(Lit::Str(
+                                    atom!("use turbopack no side effects").into(),
+                                ))),
+                                span: DUMMY_SP,
+                            })),
+                            client_layer_import.clone().unwrap(),
+                        ];
+                        module_items.extend(items);
+
+                        // For Turbopack, always strip spans from the main output file's
+                        // re-exports since the actual source maps are in the data URLs.
+                        let stripped_export_name = strip_export_name_span(&export_name);
+
+                        let data_url = program_to_data_url(&self.file_name, &self.cm, module_items);
+
+                        new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                            NamedExport {
+                                specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
                                     span: DUMMY_SP,
-                                })),
-                                client_layer_import.clone().unwrap(),
-                            ];
-                            module_items.extend(items);
-
-                            // For Turbopack, always strip spans from the main output file's
-                            // re-exports since the actual source maps are in the data URLs.
-                            let stripped_export_name = strip_export_name_span(&export_name);
-
-                            let name_atom = export_name.atom().into_owned();
-                            let export_info = ServerReferenceExportInfo { name: name_atom };
-
-                            new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
-                                NamedExport {
-                                    specifiers: vec![ExportSpecifier::Named(
-                                        ExportNamedSpecifier {
-                                            span: DUMMY_SP,
-                                            orig: stripped_export_name,
-                                            exported: None,
-                                            is_type_only: false,
-                                        },
-                                    )],
-                                    src: Some(Box::new(
-                                        program_to_data_url(
-                                            &self.file_name,
-                                            &self.cm,
-                                            module_items,
-                                            Comment {
-                                                span: DUMMY_SP,
-                                                kind: CommentKind::Block,
-                                                text: generate_server_references_comment(
-                                                    &std::iter::once((&ref_id, export_info))
-                                                        .collect(),
-                                                    Some((
-                                                        &self.file_name,
-                                                        self.file_query.as_ref().map_or("", |v| v),
-                                                    )),
-                                                )
-                                                .into(),
-                                            },
-                                        )
-                                        .into(),
-                                    )),
-                                    span: DUMMY_SP,
-                                    type_only: false,
-                                    with: None,
-                                },
-                            )));
-                        }
+                                    orig: stripped_export_name,
+                                    exported: None,
+                                    is_type_only: false,
+                                })],
+                                src: Some(Box::new(data_url.into())),
+                                span: DUMMY_SP,
+                                type_only: false,
+                                with: None,
+                            },
+                        )));
                     }
                 }
             }
@@ -3072,6 +3100,10 @@ fn create_and_hoist_cache_function(
     original_span: Span,
     hoisted_extra_items: &mut Vec<ModuleItem>,
     unresolved_ctxt: SyntaxContext,
+    mode: ServerActionsMode,
+    file_name: &str,
+    export: &str,
+    is_react_server_layer: bool,
 ) -> Ident {
     let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
     let inner_fn_name: Atom = format!("{}_INNER", cache_name).into();
@@ -3143,10 +3175,22 @@ fn create_and_hoist_cache_function(
         span: DUMMY_SP,
         expr: Box::new(annotate_ident_as_server_reference(
             cache_ident.clone(),
-            reference_id,
+            reference_id.clone(),
             original_span,
         )),
     })));
+    hoisted_extra_items.extend(
+        emit_server_action(
+            unresolved_ctxt,
+            mode,
+            file_name,
+            &reference_id,
+            export,
+            is_react_server_layer,
+        )
+        .into_iter()
+        .map(ModuleItem::Stmt),
+    );
 
     cache_ident
 }
@@ -3181,7 +3225,7 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
             },
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(action_id.clone().into()),
+                expr: Box::new(action_id.into()),
             },
             ExprOrSpread {
                 spread: None,
@@ -3190,6 +3234,58 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
         ],
         ..Default::default()
     })
+}
+
+/// These should be inserted for each server action:
+/// - when passing actions (both inline and imported) as props to client component: register in the
+///   server file containing the action
+/// - when importing actions from client: register in the client-side file which does
+///   createServerReference. This then also causes Turbopack to discover the RSC module and bundle
+///   it in the build (important when the actions are only imported from client modules).
+///     - This does unfortunately emit many actions twice unnecessarily...
+fn emit_server_action(
+    unresolved_ctxt: SyntaxContext,
+    mode: ServerActionsMode,
+    file_name: &str,
+    action_id: &str,
+    export: &str,
+    is_react_server_layer: bool,
+) -> Vec<Stmt> {
+    if mode == ServerActionsMode::Turbopack {
+        let emit = quote_ident!(unresolved_ctxt, "__turbopack_emit__");
+        let req: Expr = format!(
+            "./{}",
+            PathBuf::from(file_name).file_name().unwrap().display()
+        )
+        .into();
+        let data: Expr = format!("{action_id}|{export}").into();
+        if is_react_server_layer {
+            // Don't transition, we are already in the RSC layer
+            vec![quote!(
+                "$emit($req, {namespace:'next/server-actions', data: $data});" as Stmt,
+                emit = emit,
+                req: Expr = req,
+                data: Expr = data
+            )]
+        } else {
+            vec![
+                quote!(
+                    "$emit($req, {namespace:'next/server-actions', data: $data, with: { 'turbopack-transition': 'next-rsc' }});" as Stmt,
+                    emit = emit.clone(),
+                    req: Expr = req.clone(),
+                    data: Expr = data.clone()
+                ),
+                quote!(
+                    "$emit($req, {namespace:'next/server-actions', data: $data, with: { 'turbopack-transition': 'next-edge-rsc' }});" as Stmt,
+                    emit = emit,
+                    req: Expr = req,
+                    data: Expr = data,
+                ),
+            ]
+        }
+    } else {
+        vec![]
+    }
 }
 
 fn bind_args_to_ident(ident: Ident, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
@@ -3974,18 +4070,9 @@ fn strip_export_name_span(export_name: &ModuleExportName) -> ModuleExportName {
     }
 }
 
-fn program_to_data_url(
-    file_name: &str,
-    cm: &Arc<SourceMap>,
-    body: Vec<ModuleItem>,
-    prepend_comment: Comment,
-) -> String {
-    let module_span = Span::dummy_with_cmt();
-    let comments = SingleThreadedComments::default();
-    comments.add_leading(module_span.lo, prepend_comment);
-
+fn program_to_data_url(file_name: &str, cm: &Arc<SourceMap>, body: Vec<ModuleItem>) -> String {
     let program = &Program::Module(Module {
-        span: module_span,
+        span: DUMMY_SP,
         body,
         shebang: None,
     });
@@ -4001,7 +4088,7 @@ fn program_to_data_url(
             &mut output,
             Some(&mut mappings),
         )),
-        comments: Some(&comments),
+        comments: None,
     };
 
     emitter.emit_program(program).unwrap();
