@@ -42,6 +42,7 @@ import type { TLSSocket } from 'tls'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
+  NEXT_RSC_UNION_QUERY,
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
 
@@ -842,9 +843,14 @@ export function getResolveRoutes(
               )
             : false
 
-          // Set the rewrite headers only if this is a RSC request.
+          // Set the rewrite headers only if this is a RSC request. A request
+          // is considered an RSC request if the `rsc` header is set to '1',
+          // or if the `_rsc` search param is present in the URL. The latter
+          // handles the case where a CDN or proxy has stripped the `rsc`
+          // header but preserved the URL with the cache-busting `_rsc` param.
           if (
-            req.headers[RSC_HEADER] === '1' &&
+            (req.headers[RSC_HEADER] === '1' ||
+              parsedUrl.query[NEXT_RSC_UNION_QUERY] !== undefined) &&
             (!parsedDestination.origin || isAllowedOrigin)
           ) {
             // We set the rewritten path and query headers on the response now

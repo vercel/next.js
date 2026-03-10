@@ -652,7 +652,20 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
 
       return false
-    } else if (req.headers[RSC_HEADER] === '1') {
+    } else if (
+      req.headers[RSC_HEADER] === '1' ||
+      parsedUrl.query[NEXT_RSC_UNION_QUERY] !== undefined
+    ) {
+      // A request is an RSC request if the `rsc` header is set to '1', or if
+      // the `_rsc` search param is present in the URL. The latter handles the
+      // case where a CDN or proxy has stripped the `rsc` header but preserved
+      // the URL with the cache-busting `_rsc` search param.
+      if (req.headers[RSC_HEADER] !== '1') {
+        // The `_rsc` search param is present but the `rsc` header is missing.
+        // Set the `rsc` header for downstream code that checks it directly.
+        req.headers[RSC_HEADER] = '1'
+      }
+
       addRequestMeta(req, 'isRSCRequest', true)
 
       if (req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1') {
