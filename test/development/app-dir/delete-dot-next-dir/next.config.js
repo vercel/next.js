@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    turbopackFilesystemCacheInDev: true,
+    turbopackFileSystemCacheForDev: true,
   },
 }
 

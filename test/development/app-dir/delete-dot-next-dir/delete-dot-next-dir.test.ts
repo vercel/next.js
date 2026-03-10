@@ -39,6 +39,10 @@ describe('delete-dot-next-dir', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    env: {
+      // Enable filesystem cache even when the git repo is dirty
+      TURBO_ENGINE_IGNORE_DIRTY: '1',
+    },
   })
 
   beforeEach(async () => {
