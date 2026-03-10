@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use anyhow::{Ok, Result};
 use async_trait::async_trait;
 use either::Either;
@@ -10,19 +8,16 @@ use next_core::{
         find_server_entries,
     },
     next_dynamic::NextDynamicEntryModule,
-    next_manifests::ActionLayer,
     next_server_utility::server_utility_module::NextServerUtilityModule,
 };
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    context::AssetContext,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
@@ -32,9 +27,6 @@ use turbopack_css::{CssModule, EcmascriptCssModule};
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
     dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
-    server_actions::{
-        ActionMeta, AllActions, AllModuleActions, map_server_actions, to_rsc_context,
-    },
 };
 
 #[turbo_tasks::value]
@@ -229,183 +221,6 @@ impl NextDynamicGraph {
                 false,
             )?;
             Ok(Vc::cell(result))
-        }
-        .instrument(span)
-        .await
-    }
-}
-
-#[turbo_tasks::value]
-pub struct ServerActionsGraph {
-    graph: ResolvedVc<ModuleGraphLayer>,
-    is_single_page: bool,
-
-    /// (Layer, RSC or Browser module) -> list of actions
-    data: ResolvedVc<AllModuleActions>,
-}
-
-#[turbo_tasks::value]
-pub struct ServerActionsGraphs(Vec<ResolvedVc<ServerActionsGraph>>);
-
-#[turbo_tasks::value_impl]
-impl ServerActionsGraphs {
-    #[turbo_tasks::function(operation, root)]
-    async fn new_operation(
-        graphs: ResolvedVc<ModuleGraph>,
-        is_single_page: bool,
-    ) -> Result<Vc<Self>> {
-        let graphs_ref = &graphs.iter_graphs().await?;
-        let server_actions = async {
-            graphs_ref
-                .iter()
-                .map(|&graph| {
-                    ServerActionsGraph::new_with_entries(graph, is_single_page).to_resolved()
-                })
-                .try_join()
-                .await
-        }
-        .instrument(tracing::info_span!("generating server actions graphs"))
-        .await?;
-        Ok(Self(server_actions).cell())
-    }
-
-    #[turbo_tasks::function(root)]
-    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
-        // TODO get rid of this function once everything inside of
-        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
-        let result_op = Self::new_operation(graphs, is_single_page);
-        let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve().strongly_consistent().await?;
-            result_op.drop_collectibles::<Box<dyn Issue>>();
-            *result_vc
-        } else {
-            result_op.connect()
-        };
-        Ok(result_vc)
-    }
-
-    /// Returns the server actions for the given page.
-    #[turbo_tasks::function]
-    pub async fn get_server_actions_for_endpoint(
-        &self,
-        entry: Vc<Box<dyn Module>>,
-        rsc_asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Result<Vc<AllActions>> {
-        let span = tracing::info_span!("collect all server actions for endpoint");
-        async move {
-            if let [graph] = &self.0[..] {
-                // Just a single graph, no need to merge results
-                Ok(graph.get_server_actions_for_endpoint(entry, rsc_asset_context))
-            } else {
-                let result = self
-                    .0
-                    .iter()
-                    .map(|graph| async move {
-                        graph
-                            .get_server_actions_for_endpoint(entry, rsc_asset_context)
-                            .owned()
-                            .await
-                    })
-                    .try_flat_join()
-                    .await?;
-
-                Ok(Vc::cell(result))
-            }
-        }
-        .instrument(span)
-        .await
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ServerActionsGraph {
-    #[turbo_tasks::function]
-    pub async fn new_with_entries(
-        graph: OperationVc<ModuleGraphLayer>,
-        is_single_page: bool,
-    ) -> Result<Vc<Self>> {
-        let mapped = map_server_actions(graph);
-
-        Ok(ServerActionsGraph {
-            is_single_page,
-            graph: graph.connect().to_resolved().await?,
-            data: mapped.to_resolved().await?,
-        }
-        .cell())
-    }
-
-    #[turbo_tasks::function]
-    pub async fn get_server_actions_for_endpoint(
-        &self,
-        entry: ResolvedVc<Box<dyn Module>>,
-        rsc_asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Result<Vc<AllActions>> {
-        let span = tracing::info_span!("collect server actions for endpoint");
-        async move {
-            let data = &*self.data.await?;
-            let data = if self.is_single_page {
-                // The graph contains the page (= `entry`) only, no need to filter.
-                Cow::Borrowed(data)
-            } else {
-                // The graph contains the whole app, traverse and collect all reachable imports.
-                let graph = self.graph.await?;
-
-                if !graph.graphs.first().unwrap().has_entry_module(entry) {
-                    // the graph doesn't contain the entry, e.g. for the additional module graph
-                    return Ok(Vc::cell(Default::default()));
-                }
-
-                let mut result = FxIndexMap::default();
-                graph.traverse_nodes_dfs(
-                    vec![entry],
-                    &mut result,
-                    |node, result| {
-                        if let Some(node_data) = data.get(&node) {
-                            result.insert(node, *node_data);
-                        }
-                        Ok(GraphTraversalAction::Continue)
-                    },
-                    |_, _| Ok(()),
-                )?;
-                Cow::Owned(result)
-            };
-
-            let actions = data
-                .iter()
-                .map(|(module, (layer, actions))| async move {
-                    let actions = actions.await?;
-                    actions
-                        .actions
-                        .iter()
-                        .map(async |(hash, entry)| {
-                            Ok((
-                                hash.to_string(),
-                                (
-                                    *layer,
-                                    ActionMeta {
-                                        name: entry.name.clone(),
-                                        source_path: actions.entry_path.clone(),
-                                    },
-                                    if *layer == ActionLayer::Rsc {
-                                        *module
-                                    } else {
-                                        to_rsc_context(
-                                            **module,
-                                            &actions.entry_path,
-                                            &actions.entry_query,
-                                            rsc_asset_context,
-                                        )
-                                        .await?
-                                    },
-                                ),
-                            ))
-                        })
-                        .try_join()
-                        .await
-                })
-                .try_flat_join()
-                .await?;
-            Ok(Vc::cell(actions))
         }
         .instrument(span)
         .await
@@ -627,17 +442,10 @@ impl ClientReferencesGraph {
                 graph.traverse_nodes_dfs(
                     std::iter::once(ResolvedVc::upcast(sc)),
                     &mut (),
-                    |node, _| {
-                        let module = node;
-                        let module_type = data.get(&module);
-
-                        Ok(match module_type {
-                            Some(
-                                ClientManifestEntryType::EcmascriptClientReference { .. }
-                                | ClientManifestEntryType::CssClientReference { .. },
-                            ) => GraphTraversalAction::Skip,
-                            _ => GraphTraversalAction::Continue,
-                        })
+                    |_, _| {
+                        // Don't skip once we found a Client Reference, because there might be
+                        // nested client references imported by server actions.
+                        Ok(GraphTraversalAction::Continue)
                     },
                     |node, _| {
                         let module = node;

@@ -66,7 +66,7 @@ use turbopack_core::{
     },
     module::{Module, Modules},
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        GraphCollectingMode, GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
@@ -1458,22 +1458,6 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_all_additional_entries(
-        self: Vc<Self>,
-        graphs: Vc<ModuleGraph>,
-    ) -> Result<Vc<GraphEntries>> {
-        let result = GraphEntries::concatenate(
-            self.get_all_endpoints(false)
-                .await?
-                .iter()
-                .map(|endpoint| endpoint.additional_entries(graphs).owned())
-                .try_join()
-                .await?,
-        );
-        Ok(result.cell())
-    }
-
-    #[turbo_tasks::function]
     pub async fn module_graph(
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn Module>>,
@@ -1484,12 +1468,13 @@ impl Project {
                     ChunkGroupEntry::Entry(vec![entry]),
                     /* include_traced */ *self.should_write_nft_manifests().await?,
                     /* include_binding_usage */ self.next_mode().await?.is_production(),
+                    GraphCollectingMode::CompleteGraph,
                 )],
                 None,
             )
             .connect()
         } else {
-            *self.whole_app_module_graphs().await?.full
+            self.whole_app_module_graph()
         })
     }
 
@@ -1511,23 +1496,24 @@ impl Project {
                         .resolved_cell(),
                     /* include_traced */ *self.should_write_nft_manifests().await?,
                     /* include_binding_usage */ self.next_mode().await?.is_production(),
+                    GraphCollectingMode::CompleteGraph,
                 )],
                 None,
             )
             .connect()
         } else {
-            *self.whole_app_module_graphs().await?.full
+            self.whole_app_module_graph()
         })
     }
 
     /// Computes the whole app module graph without dropping issues.
     ///
-    /// Use this instead of [Self::whole_app_module_graphs] when you need to collect issues from
+    /// Use this instead of [Self::whole_app_module_graph] when you need to collect issues from
     /// the computation (e.g. for the `get_compilation_issues` MCP tool).
     #[turbo_tasks::function]
-    pub async fn whole_app_module_graphs_without_dropping_issues(
+    pub async fn whole_app_module_graph_without_dropping_issues(
         self: ResolvedVc<Self>,
-    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+    ) -> Result<Vc<ModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
         let module_graphs_vc = module_graphs_op.connect();
         scale_down_node_pool(self).await?;
@@ -1537,9 +1523,7 @@ impl Project {
     /// Computes the whole app module graph, dropping issues in development mode so that
     /// individual routes don't each report every issue from the shared graph.
     #[turbo_tasks::function(root)]
-    pub async fn whole_app_module_graphs(
-        self: ResolvedVc<Self>,
-    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+    pub async fn whole_app_module_graph(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
         let module_graphs_vc = if self.next_mode().await?.is_production() {
             module_graphs_op.connect()
@@ -1732,7 +1716,7 @@ impl Project {
     ///   because Turbopack caches resolves, the earlier approach under-counted to at most one per
     ///   feature.
     ///
-    /// Returns `bail!` if the project is not in build mode — `whole_app_module_graphs` drops
+    /// Returns `bail!` if the project is not in build mode — `whole_app_module_graphs drops
     /// issues in development and the graph may not reflect the full project, so reporting
     /// telemetry from dev would produce misleading counts.
     ///
@@ -1832,7 +1816,7 @@ impl Project {
         //  1. Iterate all nodes, classify each in parallel, keep only feature-module matches.
         //  2. Walk edges, for each edge whose target is a classified feature module, add the parent
         //     to that feature's unique-importer set.
-        let module_graph = self.whole_app_module_graphs().await?.full.await?;
+        let module_graph = self.whole_app_module_graph().await?;
 
         let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static str> = module_graph
             .iter_nodes()
@@ -2554,8 +2538,7 @@ impl Project {
             }
             .cell()),
             ModuleIdStrategyConfig::Deterministic => {
-                let module_graphs = self.whole_app_module_graphs().await?;
-                Ok(get_global_module_id_strategy(*module_graphs.full))
+                Ok(get_global_module_id_strategy(self.whole_app_module_graph()))
             }
         }
     }
@@ -2563,9 +2546,9 @@ impl Project {
     /// Compute the used exports and unused imports for each module.
     #[turbo_tasks::function]
     async fn binding_usage_info(self: Vc<Self>) -> Result<Vc<BindingUsageInfo>> {
-        let module_graphs = self.whole_app_module_graphs().await?;
+        let module_graphs = self.whole_app_module_graph().await?;
         Ok(module_graphs
-            .binding_usage_info
+            .input_binding_usage
             .context("No binding usage info")?
             .connect())
     }
@@ -2659,107 +2642,52 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
 // This is a performance optimization. This function is a root aggregation function that
 // aggregates over the whole subgraph.
 #[turbo_tasks::function(operation, root)]
-async fn whole_app_module_graph_operation(
-    project: ResolvedVc<Project>,
-) -> Result<Vc<BaseAndFullModuleGraph>> {
+async fn whole_app_module_graph_operation(project: ResolvedVc<Project>) -> Result<Vc<ModuleGraph>> {
     let span = tracing::info_span!("whole app module graph", modules = Empty, edges = Empty);
     let span_clone = span.clone();
     async move {
         let next_mode = project.next_mode();
         let should_trace = *project.should_write_nft_manifests().await?;
         let should_read_binding_usage = next_mode.await?.is_production();
-        let base_single_module_graph = SingleModuleGraph::new_with_entries(
+        let module_graph = SingleModuleGraph::new_with_entries(
             project.get_all_entries().to_resolved().await?,
             should_trace,
             should_read_binding_usage,
+            GraphCollectingMode::CompleteGraph,
         );
-        let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
-        let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
+        let base = ModuleGraph::from_graphs(vec![module_graph], None);
+
+        if !span.is_disabled() {
+            let module_count = module_graph
+                .connect()
+                .module_count()
+                .untracked()
+                .owned()
+                .await?;
+            span.record("modules", module_count);
+            let edge_count = *module_graph.connect().edge_count().untracked().await?;
+            span.record("edges", edge_count);
+        }
 
         let turbopack_remove_unused_imports = *project
             .next_config()
             .turbopack_remove_unused_imports(next_mode)
             .await?;
-
-        let base = if turbopack_remove_unused_imports {
-            // TODO suboptimal that we do compute_binding_usage_info twice (once for the base
-            // graph and later for the full graph)
-            let binding_usage_info = compute_binding_usage_info(base, true);
-            ModuleGraph::from_graphs(vec![base_single_module_graph], Some(binding_usage_info))
-        } else {
-            base
-        };
-
-        let additional_entries = project
-            .get_all_additional_entries(base.connect())
-            .to_resolved()
+        let turbopack_remove_unused_exports = *project
+            .next_config()
+            .turbopack_remove_unused_exports(next_mode)
             .await?;
 
-        let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
-            additional_entries,
-            base_visited_modules,
-            should_trace,
-            should_read_binding_usage,
-        );
-
-        if !span.is_disabled() {
-            let base_module_count = base_single_module_graph
-                .connect()
-                .module_count()
-                .untracked()
-                .await?;
-            let additional_module_count = additional_module_graph
-                .connect()
-                .module_count()
-                .untracked()
-                .await?;
-            span.record("modules", *base_module_count + *additional_module_count);
-            let base_edge_count = base_single_module_graph
-                .connect()
-                .edge_count()
-                .untracked()
-                .await?;
-            let additional_edge_count = additional_module_graph
-                .connect()
-                .edge_count()
-                .untracked()
-                .await?;
-            span.record("edges", *base_edge_count + *additional_edge_count);
-        }
-
-        let graphs = vec![base_single_module_graph, additional_module_graph];
-
-        let (full, binding_usage_info) = if turbopack_remove_unused_imports {
-            let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone(), None);
-            let binding_usage_info = compute_binding_usage_info(full_with_unused_references, true);
-            (
-                ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
-                Some(binding_usage_info),
-            )
-        } else {
-            (ModuleGraph::from_graphs(graphs, None), None)
-        };
-
-        Ok(BaseAndFullModuleGraph {
-            base: base.connect().to_resolved().await?,
-            full: full.connect().to_resolved().await?,
-            binding_usage_info,
-        }
-        .cell())
+        Ok(ModuleGraph::from_graphs(
+            vec![module_graph],
+            (turbopack_remove_unused_imports || turbopack_remove_unused_exports)
+                .then(|| compute_binding_usage_info(base, turbopack_remove_unused_imports)),
+        )
+        .connect())
     }
     .instrument(span_clone)
     .await
-}
-
-#[turbo_tasks::value(shared)]
-pub struct BaseAndFullModuleGraph {
-    /// The base module graph generated from the entry points.
-    pub base: ResolvedVc<ModuleGraph>,
-    /// `full_with_unused_references` but with unused references removed.
-    pub full: ResolvedVc<ModuleGraph>,
-    /// Information about binding usage in the module graph.
-    pub binding_usage_info: Option<OperationVc<BindingUsageInfo>>,
 }
 
 #[turbo_tasks::function]
