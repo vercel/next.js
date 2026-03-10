@@ -31,11 +31,53 @@ use crate::{
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
 ///
+/// ## Serialization
+///
+/// For persistent caching of a task, arguments must be serializable. All `TaskInput`s must
+/// implement the bincode [`Encode`] and [`Decode`] traits.
+///
 /// Transient task inputs are required to implement [`Encode`] and [`Decode`], but are allowed to
 /// panic at runtime. This requirement could be lifted in the future.
 ///
 /// Bincode encoding must be deterministic and compatible with [`Eq`] comparisons. If two
 /// `TaskInput`s compare equal they must also encode to the same bytes.
+///
+/// ## Hash and Eq
+///
+/// Arguments are used as part of keys in a HashMap, so they must implement of `PartialEq`, `Eq`,
+/// and `Hash` traits.
+///
+/// ## [`Vc<T>`][Vc]
+///
+/// A [`Vc`] is a pointer to a cell. It implements `TaskInput` and serves as a "pass by reference"
+/// argument:
+///
+/// - **Memoization**: [`Vc`] is keyed by pointer for memoization purposes. Identical values in
+///   different cells are treated as distinct.
+/// - **Singleton Pattern**: To ensure memoization efficiency, the singleton pattern can be employed
+///   to guarantee that identical values yield the same `Vc`. For more info see [Singleton Pattern
+///   Guide][singleton].
+///
+/// [singleton]: https://turbopack-rust-docs.vercel.sh/turbo-engine/singleton.html
+///
+/// ## Deriving `TaskInput`
+///
+/// Structs or enums can be made into task inputs by deriving `TaskInput`:
+///
+/// ```rust
+/// #[derive(TaskInput)]
+/// struct MyStruct {
+///     // Fields go here...
+/// }
+/// ```
+///
+/// Derived `TaskInput` types are **passed by value**, which involves cloning the value multiple
+/// times. It's recommended to ensure that these types are inexpensive to clone.
+///
+/// Reference-counted types like [`Arc`] are cheap to clone, but each reference contained in a
+/// `TaskInput` will be serialized independently in the persistent cache, and may consume extra disk
+/// space. If an [`Arc`] points to a large type, consider wrapping that type in [`Vc`], so that only
+/// one copy of the value will be serialized.
 pub trait TaskInput:
     Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs + Encode + Decode<()>
 {
