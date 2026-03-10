@@ -50,7 +50,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    reference_type::{EntryReferenceSubType, ReferenceType, UrlReferenceSubType},
+    reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
@@ -347,8 +347,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await?;
 
     let conditions = RuleCondition::All(vec![
-        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-            UrlReferenceSubType::Undefined,
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+            None,
         ))),
         RuleCondition::any(vec![
             RuleCondition::ResourcePathEndsWith(".js".into()),

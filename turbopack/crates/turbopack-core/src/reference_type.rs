@@ -351,53 +351,6 @@ impl Display for ReferenceType {
 }
 
 impl ReferenceType {
-    pub fn includes(&self, other: &Self) -> bool {
-        if self == other {
-            return true;
-        }
-        match self {
-            ReferenceType::CommonJs(sub_type) => {
-                matches!(other, ReferenceType::CommonJs(_))
-                    && matches!(sub_type, CommonJsReferenceSubType::Undefined)
-            }
-            ReferenceType::EcmaScriptModules(sub_type) => {
-                matches!(other, ReferenceType::EcmaScriptModules(_))
-                    && matches!(sub_type, EcmaScriptModulesReferenceSubType::Undefined)
-            }
-            ReferenceType::Css(CssReferenceSubType::AtImport(_)) => {
-                // For condition matching, treat any AtImport pair as identical.
-                matches!(other, ReferenceType::Css(CssReferenceSubType::AtImport(_)))
-            }
-            ReferenceType::Css(sub_type) => {
-                matches!(other, ReferenceType::Css(_))
-                    && matches!(sub_type, CssReferenceSubType::Undefined)
-            }
-            ReferenceType::Url(sub_type) => {
-                matches!(other, ReferenceType::Url(_))
-                    && matches!(sub_type, UrlReferenceSubType::Undefined)
-            }
-            ReferenceType::TypeScript(sub_type) => {
-                matches!(other, ReferenceType::TypeScript(_))
-                    && matches!(sub_type, TypeScriptReferenceSubType::Undefined)
-            }
-            ReferenceType::Worker(sub_type) => {
-                matches!(other, ReferenceType::Worker(_))
-                    && matches!(sub_type, WorkerReferenceSubType::Undefined)
-            }
-            ReferenceType::Entry(sub_type) => {
-                matches!(other, ReferenceType::Entry(_))
-                    && matches!(sub_type, EntryReferenceSubType::Undefined)
-            }
-            ReferenceType::Runtime => matches!(other, ReferenceType::Runtime),
-            ReferenceType::Internal(_) => matches!(other, ReferenceType::Internal(_)),
-            ReferenceType::Loader => matches!(other, ReferenceType::Loader),
-            ReferenceType::Custom(_) => {
-                todo!()
-            }
-            ReferenceType::Undefined => true,
-        }
-    }
-
     /// Returns true if this reference type is internal. This will be used in
     /// combination with [`ModuleRuleCondition::Internal`] to determine if a
     /// rule should be applied to an internal asset/reference.
@@ -406,5 +359,86 @@ impl ReferenceType {
             self,
             ReferenceType::Internal(_) | ReferenceType::Runtime | ReferenceType::Loader
         )
+    }
+}
+
+/// A type to match [`ReferenceType`] against. This is used in conditions to determine if a rule
+/// should be applied to a reference of a given type. It allows
+/// - to match against a ReferenceType, e.g. with `ReferenceTypeCondition::Url(None)` matching any
+///   `ReferenceType::Url(_)`, or
+/// - to match against a specific subtype, e.g. with
+///   `ReferenceTypeCondition::Url(Some(UrlReferenceSubType::EcmaScriptNewUrl))` matching
+///   `ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)`
+#[derive(
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
+)]
+pub enum ReferenceTypeCondition {
+    CommonJs(Option<CommonJsReferenceSubType>),
+    EcmaScriptModules(Option<EcmaScriptModulesReferenceSubType>),
+    Css(Option<CssReferenceSubType>),
+    Url(Option<UrlReferenceSubType>),
+    TypeScript(Option<TypeScriptReferenceSubType>),
+    Worker(Option<WorkerReferenceSubType>),
+    Entry(Option<EntryReferenceSubType>),
+    Runtime,
+    Internal,
+    Loader,
+    Custom(u8),
+}
+
+impl ReferenceTypeCondition {
+    pub fn includes(&self, other: &ReferenceType) -> bool {
+        if matches!(
+            self,
+            ReferenceTypeCondition::Css(Some(CssReferenceSubType::AtImport(_)))
+        ) && matches!(other, ReferenceType::Css(CssReferenceSubType::AtImport(_)))
+        {
+            // For condition matching, treat any AtImport pair as identical.
+            return true;
+        }
+
+        if matches!(self, ReferenceTypeCondition::Custom(_)) {
+            todo!()
+        }
+
+        macro_rules! match_condition_includes {
+            (
+                $self:expr, $other:expr,
+                optional: [$($opt:ident),* $(,)?],
+                unit: [$($unit:ident),* $(,)?],
+                value: [$($val:ident),* $(,)?]
+                $(,)?
+            ) => {
+                match $self {
+                    $(
+                        ReferenceTypeCondition::$opt(sub_type) => {
+                            if let ReferenceType::$opt(other_sub_type) = $other {
+                                return sub_type.as_ref().is_none_or(|s| s == other_sub_type);
+                            }
+                        }
+                    )*
+                    $(
+                        ReferenceTypeCondition::$unit => {
+                            return matches!($other, ReferenceType::$unit { .. });
+                        }
+                    )*
+                    $(
+                        ReferenceTypeCondition::$val(v) => {
+                            if let ReferenceType::$val(ov) = $other {
+                                return v == ov;
+                            }
+                        }
+                    )*
+                }
+            };
+        }
+        match_condition_includes!(
+            self, other,
+            optional: [CommonJs, EcmaScriptModules, Css, Url, TypeScript, Worker, Entry],
+            unit: [Runtime, Loader, Internal],
+            value: [Custom],
+        );
+
+        false
     }
 }
