@@ -1803,7 +1803,7 @@ describe('instant validation', () => {
         }
       })
 
-      it('valid - parent uses useSearchPatams() in a client component', async () => {
+      it('valid - parent uses useSearchParams() in a client component', async () => {
         if (isNextDev) {
           const browser = await navigateTo(
             '/suspense-in-root/static/valid-client-api-in-parent/search-params'
