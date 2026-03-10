@@ -87,6 +87,9 @@ turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 
 [features]
+default = ["process_pool"]
+process_pool = ["turbopack-node/process_pool"]
+worker_pool = ["turbopack-node/worker_pool"]
 next-font-local = []
 plugin = [
   "swc_core/plugin_transform_host_native",

@@ -159,6 +159,31 @@ export default async function Page() {
         </li>
       </ul>
 
+      <h2>Route Groups</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-config-only" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-config-and-segment-config" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-segment-config-only" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-config-with-deeper-segment/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-deeper-segment-config/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-shared-boundary" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-shared-boundary/foo" />
+        </li>
+      </ul>
+
       <h2>Disable Validation</h2>
       <ul>
         <li>

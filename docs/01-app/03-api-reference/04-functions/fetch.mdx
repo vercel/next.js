@@ -83,7 +83,7 @@ Set the cache tags of a resource. Data can then be revalidated on-demand using [
 
 ## Memoization
 
-`fetch` requests using `GET` with the same URL and options are automatically [memoized](/docs/app/glossary#memoization) during a server render pass. If you call the same `fetch` in multiple Server Components, layouts, or pages, Next.js executes it only once and shares the result.
+`fetch` requests using `GET` with the same URL and options are automatically [memoized](/docs/app/glossary#memoization) during a server render pass. If you call the same `fetch` in multiple Server Components, layouts, pages, `generateStaticParams` and `generateViewport`, Next.js executes it only once and shares the result.
 
 To opt out, pass an [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController) signal to `fetch`:
 

@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use either::Either;
+use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
@@ -36,61 +37,6 @@ use crate::{
     next_server::context::ServerContextType,
     util::NextRuntime,
 };
-
-/// List of node.js internals that are not supported by edge runtime.
-/// If these imports are used & user does not provide alias for the polyfill,
-/// runtime error will be thrown.
-/// This is not identical to the list of entire node.js internals, refer
-/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
-/// for the allowed imports.
-static EDGE_UNSUPPORTED_NODE_INTERNALS: LazyLock<[RcStr; 44]> = LazyLock::new(|| {
-    [
-        rcstr!("child_process"),
-        rcstr!("cluster"),
-        rcstr!("console"),
-        rcstr!("constants"),
-        rcstr!("crypto"),
-        rcstr!("dgram"),
-        rcstr!("diagnostics_channel"),
-        rcstr!("dns"),
-        rcstr!("dns/promises"),
-        rcstr!("domain"),
-        rcstr!("fs"),
-        rcstr!("fs/promises"),
-        rcstr!("http"),
-        rcstr!("http2"),
-        rcstr!("https"),
-        rcstr!("inspector"),
-        rcstr!("module"),
-        rcstr!("net"),
-        rcstr!("os"),
-        rcstr!("path"),
-        rcstr!("path/posix"),
-        rcstr!("path/win32"),
-        rcstr!("perf_hooks"),
-        rcstr!("process"),
-        rcstr!("punycode"),
-        rcstr!("querystring"),
-        rcstr!("readline"),
-        rcstr!("repl"),
-        rcstr!("stream"),
-        rcstr!("stream/promises"),
-        rcstr!("stream/web"),
-        rcstr!("string_decoder"),
-        rcstr!("sys"),
-        rcstr!("timers"),
-        rcstr!("timers/promises"),
-        rcstr!("tls"),
-        rcstr!("trace_events"),
-        rcstr!("tty"),
-        rcstr!("v8"),
-        rcstr!("vm"),
-        rcstr!("wasi"),
-        rcstr!("worker_threads"),
-        rcstr!("zlib"),
-        rcstr!("pnpapi"),
-    ]
-});
 
 // Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
@@ -603,9 +549,13 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
     ))
     .resolved_cell();
 
-    EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
-        import_map.insert_alias(AliasPattern::exact(module.clone()), unsupported_replacer);
-    });
+    for module in NODE_EXTERNALS {
+        if EDGE_NODE_EXTERNALS.binary_search(&module).is_ok() {
+            continue;
+        }
+        import_map.insert_alias(AliasPattern::exact(module), unsupported_replacer);
+    }
+
     Ok(())
 }
 

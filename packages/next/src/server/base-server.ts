@@ -467,9 +467,6 @@ export default abstract class Server<
         )
       }
       this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = this.deploymentId
-        ? `?dpl=${this.deploymentId}`
-        : ''
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
@@ -477,8 +474,11 @@ export default abstract class Server<
 
       this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
-      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = id ? `?dpl=${id}` : ''
     }
+    ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
+      this.nextConfig.experimental.immutableAssetToken || this.deploymentId
+        ? `?dpl=${this.nextConfig.experimental.immutableAssetToken || this.deploymentId}`
+        : ''
 
     this.hostname = hostname
     if (this.hostname) {
@@ -573,7 +573,11 @@ export default abstract class Server<
         optimisticRouting:
           this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        prefetchInlining:
+          this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        cachedNavigations:
+          this.nextConfig.experimental.cachedNavigations ?? false,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
@@ -874,6 +878,13 @@ export default abstract class Server<
     const tracer = getTracer()
 
     return tracer.withPropagatedContext(req.headers, () => {
+      // Capture the parent span before creating the handleRequest span.
+      // When deployed with an adapter, the platform's runtime may create its
+      // own OTEL HTTP server span before Next.js runs. We propagate http.route
+      // to this parent span so APM tools (e.g. Datadog) can derive the
+      // resource name correctly.
+      const parentSpan = tracer.getActiveScopeSpan()
+
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
@@ -932,6 +943,14 @@ export default abstract class Server<
                 'next.span_name': name,
               })
               span.updateName(name)
+
+              // Propagate http.route to the parent span if one exists and
+              // is different from the handleRequest span. This ensures APM
+              // tools that read attributes from the outermost span (e.g.
+              // a platform-created HTTP span) can derive the resource name.
+              if (parentSpan && parentSpan !== span) {
+                parentSpan.setAttribute('http.route', route)
+              }
             } else {
               span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }

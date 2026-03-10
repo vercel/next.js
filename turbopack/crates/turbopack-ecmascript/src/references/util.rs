@@ -1,7 +1,7 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     self,
@@ -92,13 +92,13 @@ impl Issue for TooManyMatchesWarning {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Text(
-            format!(
-                "The file pattern {pattern} matches {num_matches} files in {context_dir}",
-                pattern = self.pattern.to_string().await?,
-                context_dir = self.context_dir.value_to_string().await?,
-                num_matches = self.num_matches
+            turbofmt!(
+                "The file pattern {} matches {} files in {}",
+                self.pattern,
+                self.num_matches,
+                self.context_dir
             )
-            .into(),
+            .await?,
         )
         .cell())
     }

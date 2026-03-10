@@ -200,6 +200,22 @@ export function fetchViaHTTP(
   return fetch(getFullUrl(appPort, url), opts)
 }
 
+export function expectVaryHeaderToContain(
+  varyHeader: string | null,
+  expectedFields: string[]
+) {
+  const varyFields = new Set(
+    (varyHeader ?? '')
+      .split(',')
+      .map((field) => field.trim().toLowerCase())
+      .filter(Boolean)
+  )
+
+  for (const expectedField of expectedFields) {
+    expect(varyFields.has(expectedField.toLowerCase())).toBe(true)
+  }
+}
+
 /**
  * Creates request options with a unique x-invocation-id header for testing
  * cache deduplication in minimal mode. Use this when you need to ensure each
@@ -522,6 +538,7 @@ export function nextBuild(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
   }
 
   return runNextCommand(['build', dir, ...args], opts)
@@ -549,6 +566,7 @@ export function nextStart(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
   }
 
   return runNextCommandDev(

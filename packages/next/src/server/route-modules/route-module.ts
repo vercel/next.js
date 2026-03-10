@@ -65,7 +65,7 @@ import {
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
-import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -569,6 +569,7 @@ export abstract class RouteModule<
     | {
         buildId: string
         deploymentId: string
+        clientAssetToken: string
         locale?: string
         locales?: readonly string[]
         defaultLocale?: string
@@ -1026,6 +1027,8 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
+      clientAssetToken:
+        nextConfig.experimental.immutableAssetToken || deploymentId,
     }
   }
 

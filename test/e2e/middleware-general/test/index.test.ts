@@ -691,7 +691,9 @@ describe('Middleware Runtime', () => {
 
     it('should throw when using URL with a relative URL', async () => {
       const res = await fetchViaHTTP(next.url, `/url/relative-url`)
-      expect(readMiddlewareError(res)).toContain('Invalid URL')
+      expect(readMiddlewareError(res)).toMatch(
+        /Invalid URL|cannot be parsed as a URL/
+      )
     })
 
     it('should throw when using NextRequest with a relative URL', async () => {

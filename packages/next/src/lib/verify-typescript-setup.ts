@@ -220,6 +220,10 @@ export async function verifyAndRunTypeScript({
     if (shouldRunTypeCheck) {
       const { runTypeCheck } =
         require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
+      // Install native bindings so that code frame rendering works in the worker
+      const { installBindings } =
+        require('../build/swc/install-bindings') as typeof import('../build/swc/install-bindings')
+      await installBindings()
 
       const tsPath = deps.resolved.get('typescript')!
       const typescript = (await Promise.resolve(

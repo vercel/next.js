@@ -1,28 +1,37 @@
-use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_core::{
     common::{Span, Spanned},
     ecma::{
         ast::*,
-        visit::{Fold, fold_pass},
+        visit::{VisitMut, visit_mut_pass},
     },
     quote,
 };
 
-/// Only apply to page/layout segment files.
-static PAGE_OR_LAYOUT_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"[\\/](page|layout|default)\.(ts|js)x?$").unwrap());
+fn build_page_extensions_regex(page_extensions: &[String]) -> String {
+    if page_extensions.is_empty() {
+        "(ts|js)x?".to_string()
+    } else {
+        let escaped: Vec<String> = page_extensions
+            .iter()
+            .map(|ext| regex::escape(ext))
+            .collect();
+        format!("({})", escaped.join("|"))
+    }
+}
 
-pub fn debug_instant_stack(filepath: String) -> impl Pass {
-    fold_pass(DebugInstantStack {
+pub fn debug_instant_stack(filepath: String, page_extensions: Vec<String>) -> impl Pass {
+    visit_mut_pass(DebugInstantStack {
         filepath,
         instant_export_span: None,
+        page_extensions,
     })
 }
 
 struct DebugInstantStack {
     filepath: String,
     instant_export_span: Option<Span>,
+    page_extensions: Vec<String>,
 }
 
 /// Given an export specifier, returns `Some((exported_name, local_name))` if
@@ -71,13 +80,16 @@ fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
     None
 }
 
-impl Fold for DebugInstantStack {
-    fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-        if !PAGE_OR_LAYOUT_RE.is_match(&self.filepath) {
-            return items;
+impl VisitMut for DebugInstantStack {
+    fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
+        let ext_pattern = build_page_extensions_regex(&self.page_extensions);
+        let page_or_layout_re =
+            Regex::new(&format!(r"[\\/](page|layout|default)\.{ext_pattern}$")).unwrap();
+        if !page_or_layout_re.is_match(&self.filepath) {
+            return;
         }
 
-        for item in &items {
+        for item in items.iter() {
             match item {
                 // `export const unstable_instant = ...`
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
@@ -104,7 +116,7 @@ impl Fold for DebugInstantStack {
                             } else {
                                 // Local named export: try to find the variable's initializer
                                 let local_name = &orig.sym;
-                                if let Some(init_span) = find_var_init_span(&items, local_name) {
+                                if let Some(init_span) = find_var_init_span(items, local_name) {
                                     self.instant_export_span = Some(init_span);
                                 } else {
                                     // Fallback to the export specifier span
@@ -119,8 +131,6 @@ impl Fold for DebugInstantStack {
         }
 
         if let Some(source_span) = self.instant_export_span {
-            let mut new_items = items;
-
             // TODO: Change React to deserialize errors with a zero-length message
             // instead of using a fallback message ("no message was provided").
             // We're working around this by using a message that is empty
@@ -152,10 +162,7 @@ impl Fold for DebugInstantStack {
                 cons: Expr = cons,
             );
 
-            new_items.push(export);
-            new_items
-        } else {
-            items
+            items.push(export);
         }
     }
 }

@@ -65,6 +65,7 @@ futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = { workspace = true }
+next-code-frame = { workspace = true  }
 next-custom-transforms = { workspace = true }
 next-taskless = { workspace = true }
 rand = { workspace = true }
@@ -110,7 +111,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-unix-path = { workspace = true }
-next-api = { workspace = true }
+next-api = { workspace = true, features = ["worker_pool"] }
 next-build = { workspace = true }
 next-core = { workspace = true }
 

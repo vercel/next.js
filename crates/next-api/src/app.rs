@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
@@ -41,7 +41,6 @@ use turbo_tasks::{
     Completion, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexset,
     trace::TraceRawVcs,
 };
-use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
@@ -64,7 +63,7 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
-    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
+    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     source_map::SourceMapAsset,
@@ -389,9 +388,9 @@ impl AppProject {
                 // CSS Module to the actual CSS
                 TransitionRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Inner,
-                        )),
+                        ))),
                         module_styles_rule_condition(),
                     ]),
                     self.css_client_reference_transition().to_resolved().await?,
@@ -400,9 +399,9 @@ impl AppProject {
                 // the list of CSS module classes.
                 TransitionRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Analyze,
-                        )),
+                        ))),
                         module_styles_rule_condition(),
                     ]),
                     ResolvedVc::upcast(self.client_transition().to_resolved().await?),
@@ -665,9 +664,9 @@ impl AppProject {
                     // Change context, this is used to determine the list of CSS module classes.
                     TransitionRule::new(
                         RuleCondition::all(vec![
-                            RuleCondition::ReferenceType(ReferenceType::Css(
+                            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                                 CssReferenceSubType::Analyze,
-                            )),
+                            ))),
                             module_styles_rule_condition(),
                         ]),
                         ResolvedVc::upcast(self.client_transition().to_resolved().await?),
@@ -737,9 +736,9 @@ impl AppProject {
                     // Change context, this is used to determine the list of CSS module classes.
                     TransitionRule::new(
                         RuleCondition::all(vec![
-                            RuleCondition::ReferenceType(ReferenceType::Css(
+                            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                                 CssReferenceSubType::Analyze,
-                            )),
+                            ))),
                             module_styles_rule_condition(),
                         ]),
                         ResolvedVc::upcast(self.client_transition().to_resolved().await?),
@@ -782,14 +781,6 @@ impl AppProject {
     fn edge_shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
         Vc::upcast(FullContextTransition::new(
             self.edge_shared_module_context(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn client_env(self: Vc<Self>) -> Vc<Box<dyn ProcessEnv>> {
-        Vc::upcast(CustomProcessEnv::new(
-            self.project().env(),
-            self.project().next_config().env(),
         ))
     }
 
@@ -1097,9 +1088,6 @@ pub fn app_entry_point_to_route(
     }
     .cell()
 }
-
-#[turbo_tasks::value(transparent)]
-struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
@@ -1811,11 +1799,7 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    ChunkGroup::Entry(
-                        [ResolvedVc::upcast(server_action_manifest_loader)]
-                            .into_iter()
-                            .collect(),
-                    ),
+                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                     module_graph,
                     AvailabilityInfo::root(),
                 );
@@ -1832,18 +1816,23 @@ impl AppEndpoint {
                     .concatenate(chunk_group2_assets)
             }
             NextRuntime::NodeJs => {
-                let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
-                    bail!("rsc_entry must be evaluatable");
-                };
-
-                let evaluatable_assets = Vc::cell(vec![rsc_entry]);
-
                 async {
                     let mut current_chunk_group = ChunkGroupResult::empty_resolved();
+
+                    let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
+
+                    let chunk_group_info = module_graph.chunk_group_info();
 
                     let client_references = client_references.await?;
                     let span = tracing::trace_span!("server utils");
                     async {
+                        let parent_chunk_group = *chunk_group_info
+                            .get_index_of(entry_chunk_group.clone())
+                            .await?;
+
+                        // This is basically a manual shared chunk. But it's particularly helpful
+                        // for development, so that we share more layout segment chunks across
+                        // pages.
                         let server_utils = client_references
                             .server_utils
                             .iter()
@@ -1856,8 +1845,11 @@ impl AppEndpoint {
                                     this.app_project.project().project_path().owned().await?,
                                 )
                                 .with_modifier(rcstr!("server-utils")),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(server_utils),
+                                ChunkGroup::SharedMerged {
+                                    merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                                    entries: server_utils,
+                                    parent: parent_chunk_group,
+                                },
                                 module_graph,
                                 AvailabilityInfo::root(),
                             )
@@ -1888,10 +1880,9 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(vec![ResolvedVc::upcast(
+                                ChunkGroup::Shared(ResolvedVc::upcast(
                                     server_component.await?.module,
-                                )]),
+                                )),
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -1910,9 +1901,7 @@ impl AppEndpoint {
                     {
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(
-                                server_action_manifest_loader,
-                            )]),
+                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                             module_graph,
                             current_chunk_group.await?.availability_info,
                         );
@@ -1937,7 +1926,7 @@ impl AppEndpoint {
                                             "app{original_name}.js",
                                             original_name = app_entry.original_name
                                         ))?,
-                                        evaluatable_assets,
+                                        entry_chunk_group,
                                         module_graph,
                                         *current_chunks,
                                         current_referenced_assets,

@@ -529,4 +529,136 @@ describe('instant-navigation-testing-api', () => {
       'Dynamic content loaded'
     )
   })
+
+  it('throws descriptive error on fresh page without baseURL', async () => {
+    const page = await openPage('/')
+    const freshPage = await page.context().newPage()
+    try {
+      let caughtError: Error | undefined
+      try {
+        await instant(freshPage, async () => {})
+      } catch (e) {
+        caughtError = e as Error
+      }
+      // Snapshot the error message
+      expect(caughtError!.message).toMatchInlineSnapshot(`
+        "Could not infer the base URL of the application.
+
+        instant() needs to know the base URL so it can configure the
+        browser before the first page load. If the page is already
+        loaded, the base URL is detected automatically.
+        Otherwise, you can fix this in one of two ways:
+
+        1. Pass a baseURL option:
+
+          await instant(page, async () => {
+            await page.goto('http://localhost:3000')
+            // ...
+          }, { baseURL: 'http://localhost:3000' })
+
+          Tip: If you use baseURL in your Playwright config, you can
+          get it from the test fixture:
+
+            test('my test', async ({ page, baseURL }) => {
+              await instant(page, async () => {
+                // ...
+              }, { baseURL })
+            })
+
+        2. Navigate to a page before calling instant():
+
+          await page.goto('http://localhost:3000')
+          await instant(page, async () => {
+            // ...
+          })"
+      `)
+
+      // Verify the stack trace points at the caller, not at the
+      // internals of the instant() helper.
+      const firstFrame = caughtError!
+        .stack!.split('\n')
+        .find((line) => line.trimStart().startsWith('at '))
+      expect(firstFrame).not.toContain('resolveURL')
+      expect(firstFrame).not.toContain('at instant ')
+    } finally {
+      await freshPage.close()
+    }
+  })
+
+  it('sets cookie before first navigation when using baseURL', async () => {
+    const page = await openPage('/')
+    const freshPage = await page.context().newPage()
+    try {
+      await instant(
+        freshPage,
+        async () => {
+          // Navigate to a page for the first time within the instant scope.
+          // The cookie was set via addCookies before this navigation, so
+          // the server sees it on the initial request and blocks dynamic data.
+          await freshPage.goto(next.url + '/target-page')
+
+          // The loading shell appears immediately
+          const loadingShell = freshPage.locator(
+            '[data-testid="loading-shell"]'
+          )
+          await loadingShell.waitFor({ state: 'visible' })
+          expect(await loadingShell.textContent()).toContain(
+            'Loading target page...'
+          )
+
+          // Dynamic content has not streamed in yet
+          const dynamicContent = freshPage.locator(
+            '[data-testid="dynamic-content"]'
+          )
+          expect(await dynamicContent.count()).toBe(0)
+        },
+        { baseURL: next.url }
+      )
+
+      // After exiting the instant scope, dynamic content streams in
+      const dynamicContent = freshPage.locator(
+        '[data-testid="dynamic-content"]'
+      )
+      await dynamicContent.waitFor({ state: 'visible' })
+      expect(await dynamicContent.textContent()).toContain(
+        'Dynamic content loaded'
+      )
+    } finally {
+      await freshPage.close()
+    }
+  })
+
+  it('clears cookie after instant scope exits', async () => {
+    const page = await openPage('/')
+
+    await instant(page, async () => {
+      await page.reload()
+      const homeTitle = page.locator('[data-testid="home-title"]')
+      await homeTitle.waitFor({ state: 'visible' })
+    })
+
+    // The instant cookie should be cleaned up
+    const cookies = await page.context().cookies()
+    const instantCookie = cookies.find(
+      (c) => c.name === 'next-instant-navigation-testing'
+    )
+    expect(instantCookie).toBeUndefined()
+  })
+
+  it('clears cookie even when callback throws', async () => {
+    const page = await openPage('/')
+
+    await expect(
+      instant(page, async () => {
+        throw new Error('test error')
+      })
+    ).rejects.toThrow('test error')
+
+    // The instant cookie should still be cleaned up
+    const cookies = await page.context().cookies()
+    const instantCookie = cookies.find(
+      (c) => c.name === 'next-instant-navigation-testing'
+    )
+    expect(instantCookie).toBeUndefined()
+  })
 })

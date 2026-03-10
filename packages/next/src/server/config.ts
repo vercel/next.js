@@ -430,6 +430,12 @@ function assignDefaultsAndValidate(
     )
   }
 
+  if (result.experimental.cachedNavigations && !result.cacheComponents) {
+    throw new Error(
+      `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
   if (result.experimental.ppr) {
     throw new HardDeprecatedConfigError(
       `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`
@@ -980,6 +986,18 @@ function assignDefaultsAndValidate(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
+  // Only read process.env.__NEXT_IMMUTABLE_ASSET_TOKEN to make our testing setup easier. This is
+  // actually done by the adapter's modifyConfig
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.IS_TURBOPACK_TEST &&
+    result.deploymentId &&
+    process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+  ) {
+    result.experimental.immutableAssetToken =
+      process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+  }
+
   const tracingRoot = result?.outputFileTracingRoot
   const turbopackRoot = result?.turbopack?.root
 
@@ -1430,6 +1448,7 @@ async function applyModifyConfig(
 
       config = await adapterMod.modifyConfig(config, {
         phase,
+        nextVersion: process.env.__NEXT_VERSION as string,
       })
     }
   }
@@ -1730,8 +1749,8 @@ export default async function loadConfig(
     }
 
     if (
-      // TODO enable once everything is merged
-      (true || bundler !== Bundler.Turbopack) &&
+      phase === PHASE_PRODUCTION_BUILD &&
+      bundler !== Bundler.Turbopack &&
       userConfig.experimental?.immutableAssetToken
     ) {
       // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
@@ -1924,6 +1943,25 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.cacheComponents))
   ) {
     config.cacheComponents = true
+  }
+
+  // TODO: Remove this once cachedNavigations is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.cachedNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.cachedNavigations))
+  ) {
+    config.experimental.cachedNavigations = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'cachedNavigations',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS`'
+      )
+    }
   }
 
   // TODO: Remove this once appNewScrollHandler is the default.
