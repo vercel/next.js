@@ -2,6 +2,8 @@ import type {
   NextConfigComplete,
   NextConfigRuntime,
 } from '../server/config-shared'
+import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
+import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
@@ -893,6 +895,7 @@ export async function isPageStatic({
   cacheHandler,
   cacheHandlers,
   cacheLifeProfiles,
+  pprConfig,
   buildId,
   clientAssetToken,
   sriEnabled,
@@ -919,6 +922,7 @@ export async function isPageStatic({
     [profile: string]: import('../server/use-cache/cache-life').CacheLife
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
+  pprConfig: ExperimentalPPRConfig | undefined
   buildId: string
   clientAssetToken: string
   sriEnabled: boolean
@@ -1045,10 +1049,12 @@ export async function isPageStatic({
 
         rootParamKeys = collectRootParamKeys(routeModule)
 
-        // A page supports partial prerendering if it is an app page and
-        // cacheComponents is enabled.
+        // A page supports partial prerendering if it is an app page and either
+        // the whole app has PPR enabled or this page has PPR enabled when we're
+        // in incremental mode.
         isRoutePPREnabled =
-          routeModule.definition.kind === RouteKind.APP_PAGE && cacheComponents
+          routeModule.definition.kind === RouteKind.APP_PAGE &&
+          checkIsRoutePPREnabled(pprConfig)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -1712,6 +1718,16 @@ export class NestedMiddlewareError extends Error {
   }
 }
 
+export { getSupportedBrowsers } from './get-supported-browsers'
+
+export function shouldUseReactServerCondition(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
+  )
+}
+
 export function isWebpackClientOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
@@ -1736,6 +1752,12 @@ export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
+}
+
+export function isWebpackAppPagesLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 
 export function collectMeta({

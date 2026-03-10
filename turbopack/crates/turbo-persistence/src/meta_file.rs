@@ -19,6 +19,7 @@ use turbo_bincode::turbo_bincode_decode;
 use crate::{
     QueryKey,
     lookup_entry::LookupValue,
+    mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -288,6 +289,7 @@ impl MetaFile {
             .with_context(|| format!("Failed to mmap meta file {}", path.display()))?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Random)?;
+        advise_mmap_for_persistence(&mmap)?;
         let file = Self {
             db_path,
             sequence_number,

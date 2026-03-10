@@ -258,7 +258,6 @@ describe('adapter-config', () => {
     const indexPrerender = prerenderOutputs.find(
       (item) => item.pathname === '/docs'
     )
-
     expect(indexPrerender?.fallback?.initialHeaders).toEqual({
       'content-type': 'text/html; charset=utf-8',
       vary: 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch',

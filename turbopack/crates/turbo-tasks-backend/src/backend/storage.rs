@@ -105,23 +105,22 @@ impl Storage {
 
     /// Processes every modified item (resp. a snapshot of it) with the given functions and returns
     /// the results. Ends snapshot mode afterwards.
-    /// preprocess is potentially called within a lock, so it should be fast.
-    /// process is called outside of locks, so it could do more expensive operations.
-    /// Both process and process_snapshot receive a mutable scratch buffer that can be reused
-    /// across iterations to avoid repeated allocations.
+    /// process is called while holding a read lock on the task storage, so it can access
+    /// the TaskStorage directly without cloning.
+    /// process_snapshot is called for tasks that were accessed during snapshot mode and
+    /// receives an owned Box<TaskStorage> snapshot.
+    /// Both callbacks receive a mutable scratch buffer that can be reused across iterations
+    /// to avoid repeated allocations.
     pub fn take_snapshot<
         'l,
-        T,
         R,
-        PP: for<'a> Fn(TaskId, &'a TaskStorage) -> T + Sync,
-        P: Fn(TaskId, T, &mut TurboBincodeBuffer) -> R + Sync,
+        P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> R + Sync,
         PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> R + Sync,
     >(
         &'l self,
-        preprocess: &'l PP,
         process: &'l P,
         process_snapshot: &'l PS,
-    ) -> Vec<SnapshotShard<'l, PP, P, PS>> {
+    ) -> Vec<SnapshotShard<'l, P, PS>> {
         if !self.snapshot_mode() {
             self.start_snapshot();
         }
@@ -165,7 +164,6 @@ impl Storage {
                 storage: self,
                 guard: Some(guard.clone()),
                 process,
-                preprocess,
                 process_snapshot,
                 scratch_buffer: TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_SIZE),
             }
@@ -379,22 +377,20 @@ impl Drop for SnapshotGuard<'_> {
     }
 }
 
-pub struct SnapshotShard<'l, PP, P, PS> {
+pub struct SnapshotShard<'l, P, PS> {
     direct_snapshots: Vec<(TaskId, Box<TaskStorage>)>,
     modified: SmallVec<[TaskId; 4]>,
     storage: &'l Storage,
     guard: Option<Arc<SnapshotGuard<'l>>>,
     process: &'l P,
-    preprocess: &'l PP,
     process_snapshot: &'l PS,
     /// Scratch buffer for encoding task data, reused across iterations to avoid allocations
     scratch_buffer: TurboBincodeBuffer,
 }
 
-impl<'l, T, R, PP, P, PS> Iterator for SnapshotShard<'l, PP, P, PS>
+impl<'l, R, P, PS> Iterator for SnapshotShard<'l, P, PS>
 where
-    PP: for<'a> Fn(TaskId, &'a TaskStorage) -> T + Sync,
-    P: Fn(TaskId, T, &mut TurboBincodeBuffer) -> R + Sync,
+    P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> R + Sync,
     PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> R + Sync,
 {
     type Item = R;
@@ -410,13 +406,7 @@ where
         while let Some(task_id) = self.modified.pop() {
             let inner = self.storage.map.get(&task_id).unwrap();
             if !inner.flags.any_snapshot() {
-                let preprocessed = (self.preprocess)(task_id, &inner);
-                drop(inner);
-                return Some((self.process)(
-                    task_id,
-                    preprocessed,
-                    &mut self.scratch_buffer,
-                ));
+                return Some((self.process)(task_id, &inner, &mut self.scratch_buffer));
             } else {
                 drop(inner);
                 let maybe_snapshot = {
