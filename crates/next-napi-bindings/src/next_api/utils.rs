@@ -9,6 +9,8 @@ use napi::{
 };
 use napi_derive::napi;
 use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_tasks::{
@@ -131,34 +133,26 @@ pub async fn get_diagnostics<T: Send>(
 /// Mirrors the JS `isInternal()` check from
 /// `packages/next/src/shared/lib/is-internal.ts`.
 fn is_internal(file_path: &str) -> bool {
-    // Normalize backslashes so Windows paths are matched too.
-    // (Turbopack typically uses forward slashes, but be defensive.)
-    let normalized;
-    let path = if file_path.contains('\\') {
-        normalized = file_path.replace('\\', "/");
-        &normalized
-    } else {
-        file_path
-    };
+    // Uses [/\\] so both Unix and Windows separators are matched without
+    // needing to normalize the path
+    static RE: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(
+            r"(?x)
+            # React vendored in Next.js dist/compiled (reactVendoredRe)
+            [/\\]next[/\\]dist[/\\]compiled[/\\](?:react|react-dom|react-server-dom-webpack|react-server-dom-turbopack|scheduler)[/\\]
+            # React in node_modules (reactNodeModulesRe)
+            | node_modules[/\\](?:react|react-dom|scheduler)[/\\]
+            # Next.js internals (nextInternalsRe)
+            | node_modules[/\\]next[/\\]
+            | [/\\]\.next[/\\]static[/\\]chunks[/\\]webpack\.js$
+            | edge-runtime-webpack\.js$
+            | webpack-runtime\.js$
+            ",
+        )
+        .expect("is_internal regex must compile")
+    });
 
-    // React vendored in Next.js dist/compiled
-    // Matches: reactVendoredRe from is-internal.ts
-    path.contains("/next/dist/compiled/react/")
-        || path.contains("/next/dist/compiled/react-dom/")
-        || path.contains("/next/dist/compiled/react-server-dom-webpack/")
-        || path.contains("/next/dist/compiled/react-server-dom-turbopack/")
-        || path.contains("/next/dist/compiled/scheduler/")
-        // React in node_modules
-        // Matches: reactNodeModulesRe from is-internal.ts
-        || path.contains("node_modules/react/")
-        || path.contains("node_modules/react-dom/")
-        || path.contains("node_modules/scheduler/")
-        // Next.js internals
-        // Matches: nextInternalsRe from is-internal.ts
-        || path.contains("node_modules/next/")
-        || path.contains("/.next/static/chunks/webpack.js")
-        || path.ends_with("edge-runtime-webpack.js")
-        || path.ends_with("webpack-runtime.js")
+    RE.is_match(file_path)
 }
 
 /// Renders a code frame for the issue's source location, if available.
