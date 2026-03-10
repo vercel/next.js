@@ -62,6 +62,7 @@ impl DotenvProcessEnv {
             }
 
             if let Err(e) = res {
+                // ast-grep-ignore: no-context-turbofmt
                 return Err(e)
                     .context(turbofmt!("unable to read {} for env vars", self.path).await?);
             }
