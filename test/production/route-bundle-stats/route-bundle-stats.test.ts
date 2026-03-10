@@ -36,9 +36,9 @@ describe('route-bundle-stats', () => {
 
       // Entries are sorted descending by firstLoadUncompressedJsBytes.
       for (let i = 1; i < stats.length; i++) {
-        expect(stats[i - 1].firstLoadUncompressedJsBytes).toBeGreaterThanOrEqual(
-          stats[i].firstLoadUncompressedJsBytes
-        )
+        expect(
+          stats[i - 1].firstLoadUncompressedJsBytes
+        ).toBeGreaterThanOrEqual(stats[i].firstLoadUncompressedJsBytes)
       }
     }
   )

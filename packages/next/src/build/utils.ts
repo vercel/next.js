@@ -41,7 +41,6 @@ import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
 import vm from 'vm'
-import prettyBytes from '../lib/pretty-bytes'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
@@ -662,7 +661,11 @@ async function collectPagesRouterStats(
     if (allFiles.length === 0) continue
     const sharedJs = [...sharedFiles].filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
-    const firstLoadUncompressedJsBytes = await sumFileSizes(distDir, chunks, cache)
+    const firstLoadUncompressedJsBytes = await sumFileSizes(
+      distDir,
+      chunks,
+      cache
+    )
     rows.push({
       route: page,
       firstLoadUncompressedJsBytes,
@@ -717,7 +720,11 @@ async function collectAppRouterStats(
 
     const sharedJs = [...sharedFiles].filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
-    const firstLoadUncompressedJsBytes = await sumFileSizes(distDir, chunks, cache)
+    const firstLoadUncompressedJsBytes = await sumFileSizes(
+      distDir,
+      chunks,
+      cache
+    )
     rows.push({
       route: appRoute,
       firstLoadUncompressedJsBytes,
@@ -761,7 +768,9 @@ export async function writeRouteBundleStats(
 
   if (rows.length === 0) return
 
-  rows.sort((a, b) => b.firstLoadUncompressedJsBytes - a.firstLoadUncompressedJsBytes)
+  rows.sort(
+    (a, b) => b.firstLoadUncompressedJsBytes - a.firstLoadUncompressedJsBytes
+  )
 
   const diagnosticsDir = path.join(distDir, 'diagnostics')
   await fs.mkdir(diagnosticsDir, { recursive: true })
