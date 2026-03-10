@@ -667,6 +667,7 @@ export async function isPageStatic({
   cacheHandlers,
   cacheLifeProfiles,
   pprConfig,
+  partialFallbacksEnabled,
   buildId,
   clientAssetToken,
   sriEnabled,
@@ -694,6 +695,7 @@ export async function isPageStatic({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
+  partialFallbacksEnabled: boolean
   buildId: string
   clientAssetToken: string
   sriEnabled: boolean
@@ -857,6 +859,7 @@ export async function isPageStatic({
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              partialFallbacksEnabled,
               buildId,
               rootParamKeys,
             }))

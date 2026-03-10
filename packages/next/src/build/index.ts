@@ -292,8 +292,8 @@ export interface DynamicPrerenderManifestRoute {
   fallback: Fallback
 
   /**
-   * Whether this dynamic route's source page has at least one concrete static
-   * prerendered pathname beyond the fallback shell itself.
+   * Whether this dynamic fallback shell has at least one concrete static
+   * prerendered pathname in the subtree addressed by its known params.
    */
   hasStaticPrerenderedRoutes?: boolean
 
@@ -2069,6 +2069,8 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
+              partialFallbacksEnabled:
+                config.experimental.partialFallbacks === true,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               clientAssetToken:
@@ -2296,6 +2298,8 @@ export default async function build(
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
+                            partialFallbacksEnabled:
+                              config.experimental.partialFallbacks === true,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             clientAssetToken:
@@ -3272,9 +3276,6 @@ export default async function build(
             }
 
             if (!hasRevalidateZero && isDynamicRoute(page)) {
-              const hasStaticPrerenderedRoutes =
-                staticPrerenderedRoutes.length > 0
-
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
@@ -3413,7 +3414,7 @@ export default async function build(
 
                 prerenderManifest.dynamicRoutes[route.pathname] = {
                   experimentalPPR: isRoutePPREnabled,
-                  hasStaticPrerenderedRoutes,
+                  hasStaticPrerenderedRoutes: route.hasStaticPrerenderedRoutes,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC

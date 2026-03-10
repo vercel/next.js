@@ -403,6 +403,17 @@ interface TrieNode {
    * These are the routes whose concrete parameters lead to this node in the Trie.
    */
   routes: PrerenderedRoute[]
+
+  /**
+   * The maximum concrete pathname depth of any fully concrete prerendered route
+   * in this node's subtree.
+   */
+  maxStaticPrerenderedRouteDepth: number
+
+  /**
+   * The number of concrete pathname params represented by this node.
+   */
+  depth: number
 }
 
 /**
@@ -421,7 +432,8 @@ export function assignErrorIfEmpty(
   prerenderedRoutes: readonly PrerenderedRoute[],
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
-  }>
+  }>,
+  computeHasStaticPrerenderedRoutes: boolean
 ): void {
   // If there are no routes to process, exit early.
   if (prerenderedRoutes.length === 0) {
@@ -430,13 +442,22 @@ export function assignErrorIfEmpty(
 
   // Initialize the root of the Trie. This node represents the starting point
   // before any parameters have been considered.
-  const root: TrieNode = { children: new Map(), routes: [] }
+  const root: TrieNode = {
+    children: new Map(),
+    routes: [],
+    maxStaticPrerenderedRouteDepth: -1,
+    depth: 0,
+  }
 
   // Phase 1: Build the Trie.
   // Iterate over each prerendered route and insert it into the Trie.
   // Each route's concrete parameter values form a path in the Trie.
   for (const route of prerenderedRoutes) {
+    const isFullyConcreteRoute =
+      computeHasStaticPrerenderedRoutes &&
+      (!route.fallbackRouteParams || route.fallbackRouteParams.length === 0)
     let currentNode = root // Start building the path from the root for each route.
+    const pathNodes = isFullyConcreteRoute ? [root] : null
 
     // Iterate through the sorted parameter keys. The order of keys is crucial
     // for ensuring that routes with the same concrete parameters follow the
@@ -470,23 +491,42 @@ export function assignErrorIfEmpty(
         if (!childNode) {
           // If the child node doesn't exist, create a new one and add it to
           // the current node's children.
-          childNode = { children: new Map(), routes: [] }
+          childNode = {
+            children: new Map(),
+            routes: [],
+            maxStaticPrerenderedRouteDepth: -1,
+            depth: currentNode.depth + 1,
+          }
           currentNode.children.set(valueKey, childNode)
         }
         // Move deeper into the Trie to the `childNode` for the next parameter.
         currentNode = childNode
+        pathNodes?.push(currentNode)
       }
     }
     // After processing all concrete parameters for the route, add the full
     // `PrerenderedRoute` object to the `routes` array of the `currentNode`.
     // This node represents the unique concrete parameter combination for this route.
     currentNode.routes.push(route)
+
+    if (pathNodes) {
+      const concreteRouteDepth = currentNode.depth
+      for (const node of pathNodes) {
+        node.maxStaticPrerenderedRouteDepth = Math.max(
+          node.maxStaticPrerenderedRouteDepth,
+          concreteRouteDepth
+        )
+      }
+    }
   }
 
   // Phase 2: Traverse the Trie to assign the `throwOnEmptyStaticShell` property.
   // This is done using an iterative Depth-First Search (DFS) approach with an
   // explicit stack to avoid JavaScript's recursion depth limits (stack overflow)
   // for very deep routing structures.
+  const pathnameParamNames = computeHasStaticPrerenderedRoutes
+    ? new Set(pathnameSegments.map((segment) => segment.paramName))
+    : null
   const stack: TrieNode[] = [root] // Initialize the stack with the root node.
 
   while (stack.length > 0) {
@@ -536,6 +576,29 @@ export function assignErrorIfEmpty(
           route.throwOnEmptyStaticShell = false // Should not throw on empty static shell.
         } else {
           route.throwOnEmptyStaticShell = true // Should throw on empty static shell.
+        }
+
+        if (
+          computeHasStaticPrerenderedRoutes &&
+          route.fallbackRouteParams &&
+          route.fallbackRouteParams.length > 0
+        ) {
+          let missingPathParamCount = 0
+
+          for (const param of route.fallbackRouteParams) {
+            if (pathnameParamNames!.has(param.paramName)) {
+              missingPathParamCount++
+            }
+          }
+
+          // Shells with unresolved root params can still match entirely
+          // different root branches via the source route. Those shells should
+          // not inherit upgradeability from concrete descendants in another
+          // root branch.
+          route.hasStaticPrerenderedRoutes =
+            route.fallbackRootParams.length === 0 &&
+            node.maxStaticPrerenderedRouteDepth >=
+              node.depth + missingPathParamCount
         }
       }
     }
@@ -696,6 +759,7 @@ export async function buildAppStaticPaths({
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled = false,
+  partialFallbacksEnabled = false,
   buildId,
   rootParamKeys,
 }: {
@@ -718,6 +782,7 @@ export async function buildAppStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
+  partialFallbacksEnabled?: boolean
   buildId: string
   rootParamKeys: readonly string[]
 }): Promise<StaticPathsResult> {
@@ -1000,7 +1065,11 @@ export async function buildAppStaticPaths({
 
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
   if (prerenderedRoutes && cacheComponents) {
-    assignErrorIfEmpty(prerenderedRoutes, pathnameRouteParamSegments)
+    assignErrorIfEmpty(
+      prerenderedRoutes,
+      pathnameRouteParamSegments,
+      partialFallbacksEnabled
+    )
   }
 
   return { fallbackMode, prerenderedRoutes }
