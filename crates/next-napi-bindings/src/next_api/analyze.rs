@@ -66,7 +66,7 @@ async fn get_analyze_data_operation(
         .owned()
         .await?
         .join("diagnostics/analyze/data")?;
-    let whole_app_module_graphs = project.whole_app_module_graphs();
+    let whole_app_module_graph = project.whole_app_module_graph();
     let analyze_output_root = &analyze_output_root;
     let endpoint_groups = project.get_all_endpoint_groups(app_dir_only).await?;
 
@@ -131,7 +131,7 @@ async fn get_analyze_data_operation(
     let modules_data = ResolvedVc::upcast(
         ModulesDataOutputAsset::new(
             analyze_output_root.join("modules.data")?,
-            *whole_app_module_graphs.await?.full,
+            whole_app_module_graph,
         )
         .to_resolved()
         .await?,

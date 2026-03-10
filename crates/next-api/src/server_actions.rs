@@ -1,11 +1,11 @@
-use std::{borrow::Cow, collections::BTreeMap, io::Write, sync::LazyLock};
+use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_core::{
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
-        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
+        ActionLayer, ActionManifestEntry, ActionManifestWorkerEntry, ServerReferenceManifest,
     },
     util::NextRuntime,
 };
@@ -23,31 +23,33 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, turbofmt,
 };
-use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{self, File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset, ModuleId,
+        AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, ChunkingType,
+        EvaluatableAsset, ModuleId,
     },
-    context::AssetContext,
-    file_source::FileSource,
+    compile_time_info::CompileTimeDefineValue,
+    emit_collect::{CollectingModule, EmittedModuleReference},
     ident::AssetIdent,
-    module::Module,
-    module_graph::{
-        GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
-    },
+    module::{Module, ModuleSideEffects, Modules},
+    module_graph::{GraphTraversalAction, ModuleGraph, async_module_info::AsyncModulesInfo},
     output::{OutputAsset, OutputAssetsReference},
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    reference::ModuleReferences,
     resolve::ModulePart,
-    virtual_source::VirtualSource,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     EcmascriptParsable,
-    chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
+        EcmascriptChunkPlaceable, EcmascriptExports, ecmascript_chunk_item,
+    },
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
 };
@@ -69,100 +71,101 @@ pub(crate) struct ServerActionsManifest {
 /// loader.
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
-    actions: Vc<AllActions>,
+    server_action_loader_modules: Vc<Modules>,
     project: Vc<Project>,
     node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
-    rsc_asset_context: Vc<Box<dyn AssetContext>>,
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<ServerActionsManifest>> {
-    let project_path = project.project_path().owned().await?;
-    let loader =
-        build_server_actions_loader(project_path, page_name.clone(), actions, rsc_asset_context);
-    let evaluable =
-        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(loader.to_resolved().await?)
-            .context("loader module must be evaluatable")?;
+) -> Result<Vc<Box<dyn OutputAsset>>> {
+    let actions = collect_actions(server_action_loader_modules, module_graph);
 
-    let chunk_item = loader.as_chunk_item(module_graph, chunking_context);
-    let manifest = ResolvedVc::upcast(
-        ServerActionManifestAsset::new(
-            node_root,
-            page_name,
-            runtime,
-            actions,
-            chunk_item,
-            module_graph,
-            chunking_context,
-            project,
-        )
-        .to_resolved()
-        .await?,
-    );
-    Ok(ServerActionsManifest {
-        loader: evaluable,
-        manifest,
-    }
-    .cell())
+    let manifest = Vc::upcast(ServerActionManifestAsset::new(
+        node_root,
+        page_name,
+        runtime,
+        actions,
+        module_graph,
+        chunking_context,
+        project,
+    ));
+    Ok(manifest)
 }
 
-/// Builds the "action loader" entry point, which reexports every found action
-/// behind a lazy dynamic import.
-///
-/// The actions are reexported under a hashed name (comprised of the exporting
-/// file's name and the action name). This hash matches the id sent to the
-/// client and present inside the paired manifest.
 #[turbo_tasks::function]
-pub(crate) async fn build_server_actions_loader(
-    project_path: FileSystemPath,
-    page_name: RcStr,
-    actions: Vc<AllActions>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-    let actions = actions.await?;
-
-    // Every module which exports an action (that is accessible starting from
-    // our app page entry point) will be present. We generate a single loader
-    // file which re-exports the respective module's action function using the
-    // hashed ID as export name.
-    let mut contents = RopeBuilder::from("");
-    let mut import_map = FxIndexMap::default();
-    for (hash_id, (_layer, meta, module)) in actions.iter() {
-        let index = import_map.len();
-        let module_name = import_map
-            .entry(*module)
-            .or_insert_with(|| format!("ACTIONS_MODULE{index}").into());
-        let name = &meta.name;
-        writeln!(
-            contents,
-            "export {{{name} as '{hash_id}'}} from '{module_name}'"
-        )?;
-    }
-
-    let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.js"))?;
-    let file = File::from(contents.build());
-    let source = VirtualSource::new_with_ident(
-        AssetIdent::from_path(path)
-            .with_modifier(rcstr!("server actions loader"))
-            .into_vc(),
-        AssetContent::file(FileContent::Content(file).cell()),
-    );
-    let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
-    let module = asset_context
-        .process(
-            Vc::upcast(source),
-            ReferenceType::Internal(ResolvedVc::cell(import_map)),
-        )
-        .module();
-
-    let Some(placeable) =
-        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
-    else {
-        bail!("internal module must be evaluatable");
+async fn collect_actions(
+    server_action_loader_modules: Vc<Modules>,
+    module_graph: Vc<ModuleGraph>,
+) -> Result<Vc<AllActions>> {
+    // This mirrors what the ServerActionCollectModule ends up chunking into the chunk.
+    let collected_modules = module_graph.collected_modules();
+    let server_action_loader_modules = server_action_loader_modules.await?;
+    let [loader_module1, loader_module2] = &**server_action_loader_modules else {
+        bail!(
+            "Expected exactly two server action loader modules, but got {}",
+            server_action_loader_modules.len()
+        );
     };
 
-    Ok(*placeable)
+    let actions1 = collected_modules.get(loader_module1).await?;
+    let actions2 = collected_modules.get(loader_module2).await?;
+
+    let actions = actions1
+        .iter()
+        .chain(actions2.iter())
+        .flat_map(|v| v.iter())
+        // No need to filter on entry_group_modules. Each page (ChunkGroup::Entry) has its own
+        // loader module anyway.
+        .flat_map(|(_, refs)| refs.iter());
+
+    Ok(Vc::cell(
+        actions
+            .map(async |(data, module)| {
+                let namespace = match &data.chunking_type {
+                    ChunkingType::Collected { merge_tag, .. } => merge_tag,
+                    _ => bail!("unexpected chunking type for collected reference"),
+                };
+                let data =
+                    ResolvedVc::try_sidecast::<Box<dyn EmittedModuleReference>>(data.reference)
+                        .context(
+                            "Expected collected server action reference to be a \
+                             EmittedModuleReference",
+                        )?
+                        .data()
+                        .await?;
+                let data = match &*data {
+                    CompileTimeDefineValue::String(s) => s.as_str(),
+                    _ => bail!("Expected emitted module reference data to be string"),
+                };
+                let mut data = data
+                    .split("|");
+                let hash = data.next().context("expected more data")?;
+                let name = data.next().context("expected more data")?;
+
+                Ok((
+                    hash.to_string(),
+                    (
+                        match namespace.as_str() {
+                            "next/server-actions/rsc-edge" | "next/server-actions/rsc-nodejs" => {
+                                ActionLayer::Rsc
+                            }
+                            "next/server-actions/browser-edge"
+                            | "next/server-actions/browser-nodejs" => ActionLayer::ActionBrowser,
+                            _ => bail!("unexpected namespace {namespace} for collected reference"),
+                        },
+                        ActionMeta {
+                            name: name.to_string(),
+                            // TODO set properly
+                            source_path: "".to_string(),
+                        },
+                        *module,
+                    ),
+                ))
+            })
+            .try_join()
+            .await?,
+    ))
 }
 
 /// Builds a manifest containing every action's hashed id, with an internal
@@ -173,7 +176,6 @@ struct ServerActionManifestAsset {
     page_name: RcStr,
     runtime: NextRuntime,
     actions: ResolvedVc<AllActions>,
-    chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     project: ResolvedVc<Project>,
@@ -187,7 +189,6 @@ impl ServerActionManifestAsset {
         page_name: RcStr,
         runtime: NextRuntime,
         actions: ResolvedVc<AllActions>,
-        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         project: ResolvedVc<Project>,
@@ -197,7 +198,6 @@ impl ServerActionManifestAsset {
             page_name,
             runtime,
             actions,
-            chunk_item,
             module_graph,
             chunking_context,
             project,
@@ -237,19 +237,17 @@ impl Asset for ServerActionManifestAsset {
             .await?;
         let hash_salt = next_config.output_hash_salt();
 
-        let loader_id = self.chunk_item.id().await?;
-        let loader_id = match &loader_id {
-            ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
-            ModuleId::String(id) => ActionManifestModuleId::String(id),
-        };
         let mapping = match self.runtime {
             NextRuntime::Edge => &mut manifest.edge,
             NextRuntime::NodeJs => &mut manifest.node,
         };
+        let chunk_item_id_strategy = self.chunking_context.chunk_item_id_strategy().await?;
 
         struct ActionMetadata<'a> {
             exported_name: &'a str,
             filename: Cow<'a, str>,
+            module_id: ModuleId,
+            is_async: bool,
             code_hash: Option<ReadRef<RcStr>>,
         }
 
@@ -270,6 +268,8 @@ impl Asset for ServerActionManifestAsset {
                     ActionMetadata {
                         exported_name: &meta.name,
                         filename,
+                        module_id: chunk_item_id_strategy.get_id_from_module(**module).await?,
+                        is_async: async_module_info.is_async(*module).await?,
                         code_hash: if durable_use_cache_entries
                             && extract_type_from_server_reference_id(hash_id)
                                 == ServerReferenceType::UseCache
@@ -298,63 +298,37 @@ impl Asset for ServerActionManifestAsset {
             ActionMetadata {
                 exported_name,
                 filename,
+                module_id,
+                is_async,
                 code_hash,
             },
         ) in &action_metadata
         {
-            let entry = mapping.entry(hash_id).or_default();
+            let entry = mapping
+                .entry(hash_id)
+                .or_insert_with(|| ActionManifestEntry {
+                    workers: Default::default(),
+                    // Hoist the filename and exported_name to the entry level
+                    exported_name,
+                    filename,
+                    line: None,
+                    col: None,
+                });
             entry.workers.insert(
                 &key,
                 ActionManifestWorkerEntry {
-                    module_id: loader_id.clone(),
-                    is_async: async_module_info
-                        .is_async(self.chunk_item.module().to_resolved().await?)
-                        .await?,
+                    exported_name,
+                    module_id: module_id.into(),
+                    is_async: *is_async,
                     code_hash: code_hash.as_ref().map(|h| h.as_str()),
                 },
             );
-
-            // Hoist the filename and exported_name to the entry level
-            entry.exported_name = exported_name;
-            entry.filename = filename.as_ref();
         }
 
         Ok(AssetContent::file(
             FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
-}
-
-/// The ActionBrowser layer's module is in the Client context, and we need to
-/// bring it into the RSC context.
-pub async fn to_rsc_context(
-    client_module: Vc<Box<dyn Module>>,
-    entry_path: &str,
-    entry_query: &str,
-    asset_context: Vc<Box<dyn AssetContext>>,
-) -> Result<ResolvedVc<Box<dyn Module>>> {
-    // TODO a cleaner solution would something similar to the EcmascriptClientReferenceModule, as
-    // opposed to the following hack to construct the RSC module corresponding to this client
-    // module.
-    let source = FileSource::new_with_query(
-        client_module
-            .ident()
-            .await?
-            .path
-            .root()
-            .await?
-            .join(entry_path)?,
-        entry_query.into(),
-    );
-    let module = asset_context
-        .process(
-            Vc::upcast(source),
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
-        )
-        .module()
-        .to_resolved()
-        .await?;
-    Ok(module)
 }
 
 #[turbo_tasks::function]
@@ -774,33 +748,115 @@ pub struct AllModuleActions(
 );
 
 #[turbo_tasks::function]
-pub async fn map_server_actions(
-    graph: OperationVc<ModuleGraphLayer>,
-) -> Result<Vc<AllModuleActions>> {
-    let graph = graph.connect();
-    let actions = graph
-        .await?
-        .iter_reachable_modules()?
-        .map(async |module| {
-            // TODO: compare module contexts instead?
-            let layer = match module.ident().await?.layer.as_ref() {
-                Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
-                    ActionLayer::Rsc
-                }
-                Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
-                // TODO really ignore SSR?
-                _ => return Ok(None),
-            };
-            // TODO the old implementation did parse_actions(to_rsc_context(module))
-            // is that really necessary?
-            Ok(parse_actions(*module)
-                .await?
-                .map(|action_map| (module, (layer, action_map))))
-        })
-        .try_flat_join()
-        .await?;
-    Ok(Vc::cell(actions.into_iter().collect()))
+fn server_actions_collect_virtual_fs() -> Vc<VirtualFileSystem> {
+    VirtualFileSystem::new_with_name(rcstr!("next-server-actions-collect"))
 }
+
+/// This module performs what `__turbopack_collect__({namespace: 'next/server-actions/*'})` would
+/// do chunking-wise. Except that we collect the list manually into a separate JSON, so
+/// __turbopack_collect__ would unnecessarily codegen a big list of server actions.
+#[turbo_tasks::value]
+pub struct ServerActionCollectModule {
+    namespace: RcStr,
+    page: RcStr,
+}
+
+#[turbo_tasks::value_impl]
+impl ServerActionCollectModule {
+    #[turbo_tasks::function]
+    pub fn new(namespace: RcStr, page: RcStr) -> Vc<Self> {
+        ServerActionCollectModule { namespace, page }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Module for ServerActionCollectModule {
+    #[turbo_tasks::function]
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(
+            AssetIdent::from_path(server_actions_collect_virtual_fs().root().owned().await?)
+                .with_modifier(self.namespace.clone())
+                .with_modifier(self.page.clone())
+                .into_vc(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<ModuleReferences> {
+        ModuleReferences::empty()
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl CollectingModule for ServerActionCollectModule {
+    #[turbo_tasks::function]
+    fn namespace(&self) -> Vc<RcStr> {
+        Vc::cell(self.namespace.clone())
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        _entry_chunk_group: Vc<Modules>,
+    ) -> Vc<Box<dyn ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for ServerActionCollectModule {
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for ServerActionCollectModule {
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
+        EcmascriptExports::None.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        // There is no runtime behavior needed here.
+        // - __turbopack_collect__ causes all modules to chunked together with this one
+        // - server-reference-manifest.json will contains all the module ids from above. It will do
+        //   the loading itself
+        // In the future, when server-reference-manifest might be loaded/handled by the templates
+        // themselves, then it could happen here instead.
+        Ok(EcmascriptChunkItemContent {
+            ..Default::default()
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EvaluatableAsset for ServerActionCollectModule {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ServerReferenceType {

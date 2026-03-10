@@ -3,6 +3,8 @@
 pub mod client_reference_manifest;
 mod encode_uri_component;
 
+use std::borrow::Cow;
+
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -437,7 +439,7 @@ pub struct ServerReferenceManifest<'a> {
     pub edge: FxIndexMap<&'a str, ActionManifestEntry<'a>>,
 }
 
-#[derive(Serialize, Default, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestEntry<'a> {
     /// A mapping from the page that uses the server action to the runtime
@@ -447,7 +449,7 @@ pub struct ActionManifestEntry<'a> {
     #[serde(rename = "exportedName")]
     pub exported_name: &'a str,
 
-    pub filename: &'a str,
+    pub filename: &'a Cow<'a, str>,
 
     /// Source location line number (1-indexed), if available
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -460,6 +462,8 @@ pub struct ActionManifestEntry<'a> {
 
 #[derive(Serialize, Debug)]
 pub struct ActionManifestWorkerEntry<'a> {
+    #[serde(rename = "exportedName")]
+    pub exported_name: &'a str,
     #[serde(rename = "moduleId")]
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
@@ -471,8 +475,17 @@ pub struct ActionManifestWorkerEntry<'a> {
 #[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ActionManifestModuleId<'a> {
-    String(&'a str),
+    String(&'a RcStr),
     Number(u64),
+}
+
+impl<'a> From<&'a turbopack_core::chunk::ModuleId> for ActionManifestModuleId<'a> {
+    fn from(module_id: &'a turbopack_core::chunk::ModuleId) -> Self {
+        match module_id {
+            turbopack_core::chunk::ModuleId::String(s) => ActionManifestModuleId::String(s),
+            turbopack_core::chunk::ModuleId::Number(n) => ActionManifestModuleId::Number(*n),
+        }
+    }
 }
 
 #[turbo_tasks::task_input]

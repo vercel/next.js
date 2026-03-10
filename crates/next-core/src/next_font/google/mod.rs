@@ -21,7 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::Layer,
     issue::{IssueExt, IssueSeverity},
-    module_graph::{ModuleGraph, SingleModuleGraph},
+    module_graph::{GraphCollectingMode, ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -739,6 +739,7 @@ async fn get_mock_stylesheet(
             entries.graph_entries().to_resolved().await?,
             false,
             false,
+            GraphCollectingMode::CompleteGraph,
         )],
         None,
     );

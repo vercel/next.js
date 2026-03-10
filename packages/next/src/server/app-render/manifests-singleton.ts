@@ -11,9 +11,12 @@ import { workAsyncStorage } from './work-async-storage.external'
 
 export interface ServerModuleMap {
   readonly [name: string]: {
+    /** This is the module id */
     readonly id: string | number
+    /** This is the name under which the action is exported. Could be the action id or the binding name from the source code */
     readonly name: string
-    readonly chunks: Readonly<Array<string>> // currently not used
+    /** currently unused */
+    readonly chunks: Readonly<Array<string>>
     readonly async?: boolean
   }
 }
@@ -235,7 +238,7 @@ function createProxiedClientReferenceManifest(
  */
 function createServerModuleMap(): ServerModuleMap {
   return new Proxy(Object.create(null) as ServerModuleMap, {
-    get: (target, id: string | symbol, receiver) => {
+    get: (target, id: string | symbol, receiver): ServerModuleMap[string] => {
       // React's debug serialization can probe the module map like a plain object.
       // These probes are not server reference lookups.
       if (typeof id !== 'string') {
@@ -261,7 +264,9 @@ function createServerModuleMap(): ServerModuleMap {
 
       const workStore = workAsyncStorage.getStore()
 
-      let workerEntry: { moduleId: string | number; async: boolean } | undefined
+      let workerEntry:
+        | { moduleId: string | number; async: boolean; exportedName?: string }
+        | undefined
 
       if (workStore) {
         workerEntry = workers[normalizeWorkerPageName(workStore.page)]
@@ -280,9 +285,14 @@ function createServerModuleMap(): ServerModuleMap {
         throw getActionNotFoundError(id)
       }
 
-      const { moduleId, async } = workerEntry
+      const { moduleId, async, exportedName } = workerEntry
 
-      return { id: moduleId, name: id, chunks: [], async }
+      return {
+        id: moduleId,
+        name: exportedName ?? id,
+        chunks: [],
+        async,
+      }
     },
   })
 }

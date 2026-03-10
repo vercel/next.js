@@ -57,12 +57,6 @@ pub trait Endpoint {
     /// The entry modules for the modules graph.
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
-    /// Additional entry modules for the module graph.
-    /// This may read the module graph and return additional modules.
-    #[turbo_tasks::function]
-    fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
-        GraphEntries::empty()
-    }
     #[turbo_tasks::function]
     fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
     /// The project this endpoint belongs to.

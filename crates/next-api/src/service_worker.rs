@@ -10,7 +10,7 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        GraphCollectingMode, ModuleGraph, SingleModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
@@ -115,6 +115,7 @@ async fn service_worker_chunk(
             },
             /* include_traced */ *project.should_write_nft_manifests().await?,
             /* include_binding_usage */ is_production,
+            /* collecting_mode */ GraphCollectingMode::CompleteGraph,
         )],
         /* binding_usage */ None,
     )

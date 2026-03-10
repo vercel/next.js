@@ -792,6 +792,7 @@ export async function handleAction({
       async (): Promise<HandleActionResult> => {
         // We only use these for fetch actions -- MPA actions handle them inside `decodeAction`.
         let actionModId: string | number | undefined
+        let actionExportName: string | undefined
         let boundActionArguments: unknown[] = []
 
         const defaultBodySizeLimit = '1 MB'
@@ -866,7 +867,10 @@ export async function handleAction({
               // A fetch action with a multipart body.
 
               try {
-                actionModId = getActionModIdOrError(actionId, serverModuleMap)
+                ;({ actionModId, actionExportName } = getActionOrError(
+                  actionId,
+                  serverModuleMap
+                ))
               } catch (err) {
                 return handleUnrecognizedFetchAction(err)
               }
@@ -930,7 +934,10 @@ export async function handleAction({
             }
 
             try {
-              actionModId = getActionModIdOrError(actionId, serverModuleMap)
+              ;({ actionModId, actionExportName } = getActionOrError(
+                actionId,
+                serverModuleMap
+              ))
             } catch (err) {
               return handleUnrecognizedFetchAction(err)
             }
@@ -1027,7 +1034,10 @@ export async function handleAction({
               // A fetch action with a multipart body.
 
               try {
-                actionModId = getActionModIdOrError(actionId, serverModuleMap)
+                ;({ actionModId, actionExportName } = getActionOrError(
+                  actionId,
+                  serverModuleMap
+                ))
               } catch (err) {
                 return handleUnrecognizedFetchAction(err)
               }
@@ -1139,7 +1149,10 @@ export async function handleAction({
             }
 
             try {
-              actionModId = getActionModIdOrError(actionId, serverModuleMap)
+              ;({ actionModId, actionExportName } = getActionOrError(
+                actionId,
+                serverModuleMap
+              ))
             } catch (err) {
               return handleUnrecognizedFetchAction(err)
             }
@@ -1187,11 +1200,7 @@ export async function handleAction({
         const actionMod = (await ComponentMod.__next_app__.require(
           actionModId
         )) as Record<string, (...args: unknown[]) => Promise<unknown>>
-        const actionHandler =
-          actionMod[
-            // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-            actionId!
-          ]
+        const actionHandler = actionMod[actionExportName]
 
         // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
@@ -1455,10 +1464,13 @@ async function executeActionAndPrepareForRender<
  * the action came from a different deployment. It could also simply be an invalid POST request that is not a server action.
  * In either case, we'll throw an error to be handled by the caller.
  */
-function getActionModIdOrError(
+function getActionOrError(
   actionId: string | null,
   serverModuleMap: ServerModuleMap
-): string | number {
+): {
+  actionModId: string | number
+  actionExportName: string
+} {
   // if we're missing the action ID header, we can't do any further processing
   if (!actionId) {
     throw new InvariantError("Missing 'next-action' header.")
@@ -1479,7 +1491,10 @@ function getActionModIdOrError(
       : getInvalidServerReferenceIdError(actionId)
   }
 
-  return entry.id
+  return {
+    actionModId: entry.id,
+    actionExportName: entry.name,
+  }
 }
 
 const $ACTION_ = '$ACTION_'
