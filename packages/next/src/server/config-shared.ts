@@ -407,6 +407,15 @@ export interface ExperimentalConfig {
    * the cached/prefetched state.
    */
   instantNavigationDevToolsToggle?: boolean
+  /**
+   * Enables the DevTools in production builds to expose features like
+   * Instant Navigation Mode toggle. Enabling this implies `instantNavigationDevToolsToggle`
+   * and `exposeTestingApiInProductionBuild` is enabled.
+   *
+   * WARNING: This flag is intended for profiling and testing purposes only.
+   * Do not enable in user-facing production deployments.
+   */
+  exposeDevToolsInProductionBuild?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string

@@ -15,7 +15,10 @@ appBootstrap((assetPrefix) => {
   // toggle the mode off.
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     if (self.__next_instant_test) {
-      if (process.env.__NEXT_DEV_SERVER) {
+      if (
+        process.env.__NEXT_DEV_SERVER ||
+        process.env.__NEXT_DEVTOOLS_IN_PROD
+      ) {
         const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
         const { getOwnerStack } =
           require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
@@ -35,7 +38,7 @@ appBootstrap((assetPrefix) => {
   try {
     hydrate(instrumentationHooks, assetPrefix)
   } finally {
-    if (process.env.__NEXT_DEV_SERVER) {
+    if (process.env.__NEXT_DEV_SERVER || process.env.__NEXT_DEVTOOLS_IN_PROD) {
       const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
       const { getOwnerStack } =
         require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')

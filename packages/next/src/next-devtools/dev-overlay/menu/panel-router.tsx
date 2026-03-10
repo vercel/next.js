@@ -61,6 +61,7 @@ const MenuPanel = () => {
               })
             }
           },
+          allowedInProd: false,
         },
         state.staticIndicator === 'disabled'
           ? undefined
@@ -69,6 +70,7 @@ const MenuPanel = () => {
                 title: 'Loading...',
                 label: 'Route',
                 value: <LoadingIcon />,
+                allowedInProd: false,
               }
             : {
                 title: `Current route is ${state.staticIndicator}.`,
@@ -79,12 +81,14 @@ const MenuPanel = () => {
                 attributes: {
                   'data-nextjs-route-type': state.staticIndicator,
                 },
+                allowedInProd: false,
               },
         !!process.env.TURBOPACK
           ? {
               title: 'Turbopack is enabled.',
               label: 'Bundler',
               value: 'Turbopack',
+              allowedInProd: false,
             }
           : {
               title:
@@ -100,11 +104,13 @@ const MenuPanel = () => {
                   {process.env.__NEXT_BUNDLER || 'Turbopack'}
                 </a>
               ),
+              allowedInProd: false,
             },
         !!process.env.__NEXT_CACHE_COMPONENTS && {
           title: 'Cache Components is enabled.',
           label: 'Cache Components',
           value: 'Enabled',
+          allowedInProd: false,
         },
         isAppRouter &&
           !!process.env.__NEXT_INSTANT_NAV_TOGGLE && {
@@ -123,6 +129,7 @@ const MenuPanel = () => {
             attributes: {
               'data-instant-nav': true,
             },
+            allowedInProd: true,
           },
         isAppRouter && {
           label: 'Route Info',
@@ -131,6 +138,7 @@ const MenuPanel = () => {
           attributes: {
             'data-segment-explorer': true,
           },
+          allowedInProd: false,
         },
         {
           label: 'Preferences',
@@ -140,6 +148,7 @@ const MenuPanel = () => {
           attributes: {
             'data-preferences': true,
           },
+          allowedInProd: false,
         },
       ]}
     />

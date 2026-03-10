@@ -321,10 +321,11 @@ export const INITIAL_OVERLAY_STATE: Omit<
     whether the indicator is in disabled state or not.
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  // When instant nav is active, show the indicator immediately so the user
-  // can toggle it off. Normally this is set to true by the HMR connection,
-  // but the HMR WebSocket is only created during hydration.
-  showIndicator: hasInstantNavsCookie,
+  // When instant nav is active or the DevTools in production builds is enabled,
+  // show the indicator immediately so the user can toggle it off. Normally this
+  // is set to true by the HMR connection, but the HMR WebSocket is only created
+  // during hydration.
+  showIndicator: hasInstantNavsCookie || !!process.env.__NEXT_DEVTOOLS_IN_PROD,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
