@@ -34,7 +34,19 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
 
     let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
 
-    // Notably, this is not g.entries()! We are only interested in ChunkGroupEntry::Entry here
+    let mut module_entry_membership: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+        FxHashMap::with_capacity_and_hasher(module_count, Default::default());
+    // We are only interested in ChunkGroupEntry::Entry here
+    for (i, entry) in graphs.iter().flat_map(|g| g.entries.iter()).enumerate() {
+        if let ChunkGroupEntry::Entry(entries) = entry {
+            for entry in entries.iter() {
+                module_entry_membership
+                    .entry(*entry)
+                    .or_default()
+                    .insert(i as u32);
+            }
+        }
+    }
     let entries = graphs
         .iter()
         .flat_map(|g| g.entries.iter())
@@ -45,13 +57,6 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         .flatten()
         .copied()
         .collect::<Vec<_>>();
-
-    let mut module_entry_membership: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
-        entries
-            .iter()
-            .enumerate()
-            .map(|(i, e)| (*e, RoaringBitmapWrapper([i as u32].into())))
-            .collect();
 
     // First, compute the depth for each module in the graph
     let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
