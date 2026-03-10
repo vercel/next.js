@@ -97,6 +97,7 @@
   "rules": {
     "include": ["test/e2e/**/*.test.{t,j}s{,x}"],
     "exclude": [
+      "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts",
       "test/e2e/cancel-request/stream-cancel.test.ts",
       "test/e2e/new-link-behavior/material-ui.test.ts",
       "test/e2e/react-dnd-compile/react-dnd-compile.test.ts",
