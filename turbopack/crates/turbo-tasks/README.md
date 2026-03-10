@@ -11,13 +11,11 @@ Turbo Tasks defines 4 primitives:
 - **[Collectibles][crate::TurboTasks::emit_collectible]:** Values emitted in functions that bubble up the call graph and can be collected in parent functions. Collectibles are deduplicated by [cell id equality].
 
 It defines some derived elements from that:
-- **[Tasks][book-tasks]:** An instance of a function together with its arguments.
+- **Tasks:** An instance of a function together with its arguments.
 - **[`Vc`s ("Value Cells")][`Vc`]:** References to locations associated with tasks where values are stored. The contents of a cell can change after the reexecution of a function due to invalidation. A [`Vc`] can be read to get [a read-only reference][crate::ReadRef] to the stored data, representing a snapshot of that cell at that point in time.
 
 [blog-post]: https://nextjs.org/blog/turbopack-incremental-computation
 [cell id equality]: crate::ResolvedVc#equality--hashing
-[book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
-[book-tasks]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html
 [`Vc`]: crate::Vc
 
 ## Functions and Tasks
