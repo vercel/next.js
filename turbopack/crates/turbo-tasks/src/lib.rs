@@ -162,9 +162,9 @@ macro_rules! fxindexset {
 /// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
 /// inside of a "value cell" as [`Vc<...>`][Vc].
 ///
-/// A [`Vc`] represents a (potentially lazy) memoized computation. Each [`Vc`]'s value is placed
-/// into a cell associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get
-/// [a read-only reference to the value contained in the cell][ReadRef].
+/// A [`Vc`] represents the result of a computation. Each [`Vc`]'s value is placed into a cell
+/// associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get [a read-only
+/// reference to the value contained in the cell][ReadRef].
 ///
 /// This macro accepts multiple comma-separated arguments. For example:
 ///
@@ -200,17 +200,22 @@ macro_rules! fxindexset {
 ///
 /// ## `serialization = "..."`
 ///
-/// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
-/// required for filesystem cache of tasks.
+/// Affects serialization via [`bincode::Encode`] and [`bincode::Decode`]. Serialization is required
+/// for the filesystem cache of tasks.
 ///
-/// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
-/// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
-///   (you must manually implement [`serde::Serialize`] and [`serde::Deserialize`]).
+/// - **`"auto"` *(default)*:** Derives the bincode traits and enables serialization.
+/// - **`"custom"`:** Prevents deriving the bincode traits, but still enables serialization
+///   (you must manually implement [`bincode::Encode`] and [`bincode::Decode`]).
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
 ///
 /// ## `shared`
 ///
-/// Makes the `cell()` method public so everyone can use it.
+/// This flag makes the macro-generated `.cell()` method public so everyone can use it.
+///
+/// Non-transparent types are given a `.cell()` method. That method returns a `Vc` of the type.
+///
+/// This option does not apply to wrapper types that use `transparent`. Those use the public
+/// [`Vc::cell`] function for construction.
 ///
 /// ## `transparent`
 ///

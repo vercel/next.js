@@ -12,10 +12,7 @@ Turbo Tasks defines 4 primitives:
 
 It defines some derived elements from that:
 - **[Tasks][book-tasks]:** An instance of a function together with its arguments.
-- **[Cells][book-cells]:** The locations associated with tasks where values are stored. The contents of a cell can change after the reexecution of a function due to invalidation.
-- **[`Vc`s ("Value Cells")][`Vc`]:** A reference to a cell or a return value of a function.
-
-A [`Vc`] can be read to get [a read-only reference][crate::ReadRef] to the stored data, representing a snapshot of that cell at that point in time.
+- **[`Vc`s ("Value Cells")][`Vc`]:** References to locations associated with tasks where values are stored. The contents of a cell can change after the reexecution of a function due to invalidation. A [`Vc`] can be read to get [a read-only reference][crate::ReadRef] to the stored data, representing a snapshot of that cell at that point in time.
 
 [blog-post]: https://nextjs.org/blog/turbopack-incremental-computation
 [cell id equality]: crate::ResolvedVc#equality--hashing
