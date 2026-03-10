@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import path from 'path'
+
+// Path to the `packages/next` directory, used to normalize
+// environment-specific absolute paths in error stack traces.
+const nextPkgDir = path.dirname(require.resolve('next/package.json'))
 
 /**
  * Extract deduplicated, sorted error blocks from CLI output.
@@ -56,6 +61,28 @@ function extractUniqueErrors(output: string): string[] {
   return unique.sort()
 }
 
+/**
+ * Normalize environment-specific paths and non-deterministic content
+ * from CLI output so snapshots are stable across machines and runs.
+ */
+function normalizeOutput(
+  output: string,
+  next: { normalizeTestDirContent(s: string): string }
+): string {
+  return (
+    next
+      .normalizeTestDirContent(output)
+      // Replace absolute Next.js package paths with NEXT_DIR
+      .replace(new RegExp(escapeRegExp(nextPkgDir), 'g'), 'NEXT_DIR')
+      // Normalize random temp file suffixes
+      .replace(/\.tmp\.[a-z0-9]+/g, '.tmp.RANDOM')
+  )
+}
+
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 describe('delete-dot-next-dir', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -97,11 +124,7 @@ describe('delete-dot-next-dir', () => {
     const cliOutput = next.cliOutput.slice(outputIndex)
     const errors = extractUniqueErrors(cliOutput)
     const normalizedErrors = errors
-      .map((e) =>
-        next
-          .normalizeTestDirContent(e)
-          .replace(/\.tmp\.[a-z0-9]+'/g, ".tmp.RANDOM'")
-      )
+      .map((e) => normalizeOutput(e, next))
       .join('\n---\n')
 
     expect(normalizedErrors).toMatchInlineSnapshot(`
@@ -117,12 +140,12 @@ describe('delete-dot-next-dir', () => {
      ⨯ Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'
      Require stack:
      - TEST_DIR/.next/dev/server/pages/_document.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/require.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/load-components.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/build/utils.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/lib/router-utils/setup-dev-bundler.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/lib/router-server.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/lib/start-server.js
+     - NEXT_DIR/dist/server/require.js
+     - NEXT_DIR/dist/server/load-components.js
+     - NEXT_DIR/dist/build/utils.js
+     - NEXT_DIR/dist/server/lib/router-utils/setup-dev-bundler.js
+     - NEXT_DIR/dist/server/lib/router-server.js
+     - NEXT_DIR/dist/server/lib/start-server.js
      at Object.<anonymous> (.next/dev/server/pages/_document.js:1:7) {
      code: 'MODULE_NOT_FOUND',
      ---
@@ -145,9 +168,7 @@ describe('delete-dot-next-dir', () => {
     `)
 
     // 7. Snapshot the full CLI output (normalized)
-    const normalizedFullOutput = next
-      .normalizeTestDirContent(cliOutput)
-      .replace(/\.tmp\.[a-z0-9]+/g, '.tmp.RANDOM')
+    const normalizedFullOutput = normalizeOutput(cliOutput, next)
       // Normalize timing info
       .replace(
         / (GET|POST|PUT|DELETE|PATCH) (.+?) \d+ in [\d.]+m?s.*/g,
@@ -189,22 +210,22 @@ describe('delete-dot-next-dir', () => {
      ⨯ Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'
      Require stack:
      - TEST_DIR/.next/dev/server/pages/_document.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/require.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/load-components.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/build/utils.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/lib/router-utils/setup-dev-bundler.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/lib/router-server.js
-     - /Users/sokra/Repos/next.js3/packages/next/dist/server/lib/start-server.js
+     - NEXT_DIR/dist/server/require.js
+     - NEXT_DIR/dist/server/load-components.js
+     - NEXT_DIR/dist/build/utils.js
+     - NEXT_DIR/dist/server/lib/router-utils/setup-dev-bundler.js
+     - NEXT_DIR/dist/server/lib/router-server.js
+     - NEXT_DIR/dist/server/lib/start-server.js
          at Object.<anonymous> (.next/dev/server/pages/_document.js:1:7) {
        code: 'MODULE_NOT_FOUND',
        requireStack: [
          'TEST_DIR/.next/dev/server/pages/_document.js',
-         '/Users/sokra/Repos/next.js3/packages/next/dist/server/require.js',
-         '/Users/sokra/Repos/next.js3/packages/next/dist/server/load-components.js',
-         '/Users/sokra/Repos/next.js3/packages/next/dist/build/utils.js',
-         '/Users/sokra/Repos/next.js3/packages/next/dist/server/lib/router-utils/setup-dev-bundler.js',
-         '/Users/sokra/Repos/next.js3/packages/next/dist/server/lib/router-server.js',
-         '/Users/sokra/Repos/next.js3/packages/next/dist/server/lib/start-server.js'
+         'NEXT_DIR/dist/server/require.js',
+         'NEXT_DIR/dist/server/load-components.js',
+         'NEXT_DIR/dist/build/utils.js',
+         'NEXT_DIR/dist/server/lib/router-utils/setup-dev-bundler.js',
+         'NEXT_DIR/dist/server/lib/router-server.js',
+         'NEXT_DIR/dist/server/lib/start-server.js'
        ]
      }
      Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/routes-manifest.json'
@@ -244,11 +265,7 @@ describe('delete-dot-next-dir', () => {
     const cliOutput = next.cliOutput.slice(outputIndex)
     const errors = extractUniqueErrors(cliOutput)
     const normalizedErrors = errors
-      .map((e) =>
-        next
-          .normalizeTestDirContent(e)
-          .replace(/\.tmp\.[a-z0-9]+'/g, ".tmp.RANDOM'")
-      )
+      .map((e) => normalizeOutput(e, next))
       .join('\n---\n')
 
     expect(normalizedErrors).toMatchInlineSnapshot(`
@@ -271,9 +288,7 @@ describe('delete-dot-next-dir', () => {
     `)
 
     // 7. Snapshot the full CLI output (normalized)
-    const normalizedFullOutput = next
-      .normalizeTestDirContent(cliOutput)
-      .replace(/\.tmp\.[a-z0-9]+/g, '.tmp.RANDOM')
+    const normalizedFullOutput = normalizeOutput(cliOutput, next)
       // Normalize timing info
       .replace(
         / (GET|POST|PUT|DELETE|PATCH) (.+?) \d+ in [\d.]+m?s.*/g,
@@ -288,8 +303,7 @@ describe('delete-dot-next-dir', () => {
       .replace(/(Error:.*?}\n)\1+/gs, '$1')
 
     expect(normalizedFullOutput).toMatchInlineSnapshot(`
-     " GET /pages
-     ⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
+     "⨯ Error: ENOENT: no such file or directory, open 'TEST_DIR/.next/dev/server/pages/_app/build-manifest.json'
          at ignore-listed frames {
        errno: -2,
        code: 'ENOENT',
