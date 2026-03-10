@@ -8,16 +8,23 @@ import process from 'node:process'
 const dir = dirname(fileURLToPath(import.meta.url))
 
 function getEnv(id, mode) {
+  const base = {
+    ...process.env,
+    DIST_DIR: id,
+    // Required so the build includes the __NEXT_HYDRATED callback used by
+    // webdriver() to detect hydration. Without this, the hydration check
+    // always times out and tests may interact with the page before the
+    // React app router is initialized.
+    __NEXT_TEST_MODE: 'e2e',
+  }
   if (mode === 'BUILD_ID') {
     return {
-      ...process.env,
-      DIST_DIR: id,
+      ...base,
       NEXT_PUBLIC_BUILD_ID: id,
     }
   } else if (mode === 'DEPLOYMENT_ID') {
     return {
-      ...process.env,
-      DIST_DIR: id,
+      ...base,
       NEXT_DEPLOYMENT_ID: id,
     }
   } else {
@@ -25,9 +32,12 @@ function getEnv(id, mode) {
   }
 }
 
-async function spawnNext(id, mode, port) {
+async function spawnNext(id, mode, port, extraEnv = {}) {
   const child = spawn('pnpm', ['next', 'start', '-p', port, dir], {
-    env: getEnv(id, mode),
+    env: {
+      ...getEnv(id, mode),
+      ...extraEnv,
+    },
     stdio: ['inherit', 'pipe', 'inherit'],
   })
 
@@ -68,16 +78,32 @@ export async function start(
   nextPort2 = mainPort + 2,
   mode = 'BUILD_ID'
 ) {
+  const extraEnv = {
+    TEST_PROXY_ORIGIN: `http://localhost:${mainPort}`,
+  }
+
   // Start two different Next.js servers, one with BUILD_ID=1 and one
   // with BUILD_ID=2
   const [next1, next2] = await Promise.all([
-    spawnNext('1', mode, nextPort1),
-    spawnNext('2', mode, nextPort2),
+    spawnNext('1', mode, nextPort1, extraEnv),
+    spawnNext('2', mode, nextPort2, extraEnv),
   ])
 
   // Create a proxy server. If search params include `deployment=2`, proxy to
   // to the second next server. Otherwise, proxy to the first.
   const proxy = httpProxy.createProxyServer()
+
+  // Simulate deployment skew for deployment ID-based action responses. When a
+  // POST (server action) is handled by deployment 1, inject a foreign
+  // x-nextjs-deployment-id header so the client detects a mismatch and
+  // triggers an MPA navigation. BUILD_ID mode intentionally skips this so the
+  // test exercises the response.b fallback instead.
+  proxy.on('proxyRes', (proxyRes, req) => {
+    if (mode === 'DEPLOYMENT_ID' && req.method === 'POST') {
+      proxyRes.headers['x-nextjs-deployment-id'] = 'foreign-deployment'
+    }
+  })
+
   const server = createServer((req, res) => {
     let port = nextPort1
     if (req.url) {

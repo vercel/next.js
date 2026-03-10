@@ -511,6 +511,7 @@ async function exportAppImpl(
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
@@ -856,7 +857,7 @@ async function exportAppImpl(
   }
 
   // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.cacheComponents) {
+  if (!options.buildExport && nextConfig.experimental.ppr) {
     // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }

@@ -557,6 +557,139 @@ describe('cached navigations', () => {
     )
   })
 
+  it('caches runtime-prefetchable content from the initial HTML for subsequent navigations', async () => {
+    let page: Playwright.Page
+    // Start directly at /runtime-prefetchable — full HTML load, not a
+    // client-side navigation. The RSC payload is inlined in the HTML and
+    // includes an embedded runtime prefetch stream (`p` field) that the client
+    // writes into the segment cache during hydration.
+    const browser = await next.browser('/runtime-prefetchable', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+        await page.clock.install()
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Wait for all content to stream in (the dynamic content uses connection()
+    // + setTimeout, so it arrives late).
+    await retry(async () => {
+      expect(await browser.elementById('connection-boundary').text()).toContain(
+        'Dynamic content'
+      )
+    })
+
+    // Verify runtime-prefetchable content is also visible
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(
+      await browser.elementById('search-params-boundary').text()
+    ).toContain('Search params:')
+    expect(await browser.elementById('cookies-boundary').text()).toContain(
+      'Cookie:'
+    )
+    expect(await browser.elementById('headers-boundary').text()).toContain(
+      'Header:'
+    )
+
+    // Navigate to the home page
+    await act(async () => {
+      await browser.elementByCss('a[href="/"]').click()
+    })
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Navigate back to the runtime-prefetchable page. The static content and
+    // runtime-prefetchable content (cookies, headers, searchParams) should be
+    // cached from the initial HTML load. Only truly dynamic content
+    // (connection()) needs a server request.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser.elementByCss('a[href="/runtime-prefetchable"]').click()
+        },
+        {
+          includes: 'Dynamic content',
+          block: true,
+        }
+      )
+
+      // While the dynamic request is blocked, verify that runtime-prefetchable
+      // content is rendered instantly from the cache.
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+      expect(
+        await browser.elementById('search-params-boundary').text()
+      ).toContain('Search params:')
+      expect(await browser.elementById('cookies-boundary').text()).toContain(
+        'Cookie:'
+      )
+      expect(await browser.elementById('headers-boundary').text()).toContain(
+        'Header:'
+      )
+
+      // The truly dynamic content (connection()) is not runtime-prefetchable
+      // and should still be in its loading state.
+      expect(await browser.elementById('connection-boundary').text()).toContain(
+        'Loading connection...'
+      )
+    })
+
+    // After the outer act completes, the blocked dynamic response is released
+    // and the truly dynamic content should be visible.
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+
+    // Navigate back to home again
+    await browser.back()
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Fast-forward past the runtime cache's stale time (30s).
+    await page.clock.fastForward(60_000)
+
+    // Third navigation — runtime cache is stale. Verify the navigation
+    // blocks on a full server request (nothing is cached).
+    await act(async () => {
+      await act(
+        async () => {
+          await browser.elementByCss('a[href="/runtime-prefetchable"]').click()
+        },
+        {
+          includes: 'Dynamic content',
+          block: true,
+        }
+      )
+
+      // With a stale cache, nothing from the target page should be visible
+      // while the request is blocked.
+      const mainText = await (await browser.elementByCss('main')).innerText()
+      expect(mainText).not.toContain('Cached content')
+      expect(mainText).not.toContain('Search params:')
+      expect(mainText).not.toContain('Cookie:')
+      expect(mainText).not.toContain('Header:')
+      expect(mainText).not.toContain('Dynamic content')
+    })
+
+    // After unblocking, all content should be visible
+    expect(await browser.elementById('cached-content').text()).toContain(
+      'Cached content'
+    )
+    expect(
+      await browser.elementById('search-params-boundary').text()
+    ).toContain('Search params:')
+    expect(await browser.elementById('cookies-boundary').text()).toContain(
+      'Cookie:'
+    )
+    expect(await browser.elementById('headers-boundary').text()).toContain(
+      'Header:'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+  })
+
   it('caches a fully static page from the initial HTML for subsequent navigations', async () => {
     let page: Playwright.Page
     // Start directly at /fully-static — full HTML load, not a client-side

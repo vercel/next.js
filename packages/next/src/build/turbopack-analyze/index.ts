@@ -7,6 +7,7 @@ import { createDefineEnv, loadBindings } from '../swc'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../get-supported-browsers'
+import { trace } from '../../trace'
 import { normalizePath } from '../../lib/normalize-path'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 
@@ -100,7 +101,11 @@ export async function turbopackAnalyze(
   )
 
   try {
-    backgroundLogCompilationEvents(project)
+    const analyzeEventsSpan = trace('turbopack-analyze-events')
+    // Stop immediately: this span is only used as a parent for
+    // manualTraceChild calls which carry their own timestamps.
+    analyzeEventsSpan.stop()
+    backgroundLogCompilationEvents(project, { parentSpan: analyzeEventsSpan })
 
     await project.writeAnalyzeData(analyzeContext.appDirOnly)
 

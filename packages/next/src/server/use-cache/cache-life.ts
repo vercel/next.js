@@ -88,6 +88,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':

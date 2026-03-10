@@ -7,7 +7,7 @@ import {
 } from 'next-test-utils'
 
 describe('module layer', () => {
-  const { next, isNextStart, isNextDev } = nextTestSetup({
+  const { next, isNextStart, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -55,9 +55,21 @@ describe('module layer', () => {
         expect(json.ReactDomServer).toContain('version')
         expect(json.ReactDomServer).toContain('renderToString')
         expect(json.ReactDomServer).toContain('renderToStaticMarkup')
-        expect(json.ReactDomServer).toContain(
-          isEdge ? 'renderToReadableStream' : 'renderToPipeableStream'
-        )
+        if (isEdge) {
+          expect(json.ReactDomServer).toContain('renderToReadableStream')
+        } else if (isNextDeploy) {
+          // Deploy mode can expose either server stream API depending on runtime
+          // and bundling path, so accept both for non-edge pages/api coverage.
+          expect(
+            json.ReactDomServer.some(
+              (name) =>
+                name === 'renderToPipeableStream' ||
+                name === 'renderToReadableStream'
+            )
+          ).toBe(true)
+        } else {
+          expect(json.ReactDomServer).toContain('renderToPipeableStream')
+        }
       }
 
       await verifyReactExports('/api/default', false)

@@ -104,7 +104,7 @@ export async function exportAppPage(
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
-    if (postponed && !renderOpts.cacheComponents) {
+    if (postponed && !renderOpts.experimental.isRoutePPREnabled) {
       throw new Error('Invariant: page postponed without PPR being enabled')
     }
 
@@ -144,7 +144,8 @@ export async function exportAppPage(
       const hasFallbackParams =
         fallbackRouteParams != null && fallbackRouteParams.size > 0
       const shouldWriteRsc =
-        !renderOpts.cacheComponents || (!postponed && !hasFallbackParams)
+        !renderOpts.experimental.isRoutePPREnabled ||
+        (!postponed && !hasFallbackParams)
       hasStaticRsc = shouldWriteRsc
 
       // With PPR enabled, we normally skip writing .rsc because it may contain
@@ -196,7 +197,7 @@ export async function exportAppPage(
     // When PPR is enabled, we don't always send 200 for routes that have been
     // pregenerated, so we should grab the status code from the mocked
     // response.
-    let status: number | undefined = renderOpts.cacheComponents
+    let status: number | undefined = renderOpts.experimental.isRoutePPREnabled
       ? res.statusCode
       : undefined
 

@@ -194,7 +194,7 @@ export async function generateViewport() {
 
 If viewport genuinely requires runtime data, wrap the document `<body>` in a Suspense boundary to signal that the entire route should be dynamic:
 
-```tsx filename="app/layout.tsx" highlight={1,11-15}
+```tsx filename="app/layout.tsx" highlight={1,13,17}
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 

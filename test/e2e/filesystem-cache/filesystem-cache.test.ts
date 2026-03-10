@@ -2,7 +2,24 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 import fs from 'fs/promises'
+import { readFileSync, existsSync } from 'fs'
 import path from 'path'
+import type { TraceEvent } from 'next/dist/trace'
+
+function parseTraceFile(tracePath: string): TraceEvent[] {
+  const traceContent = readFileSync(tracePath, 'utf8')
+  const traceLines = traceContent
+    .trim()
+    .split('\n')
+    .filter((line) => line.trim())
+
+  const allEvents: TraceEvent[] = []
+  for (const line of traceLines) {
+    const events = JSON.parse(line) as TraceEvent[]
+    allEvents.push(...events)
+  }
+  return allEvents
+}
 
 async function getDirectorySize(dirPath: string): Promise<number> {
   try {
@@ -402,6 +419,44 @@ for (const cacheEnabled of [false, true]) {
           }
         },
         200000
+      )
+    }
+
+    if (cacheEnabled) {
+      ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
+        'should emit turbopack-persistence trace spans',
+        async () => {
+          // Trigger a page load so persistence has data to write
+          const browser = await next.browser('/')
+          expect(await browser.elementByCss('main').text()).toMatch(
+            /Timestamp = \d+$/
+          )
+          await browser.close()
+
+          // Wait for persistence to write to disk
+          await stop()
+
+          const traceDir = isNextDev ? '.next/dev' : '.next'
+          const tracePath = path.join(next.testDir, traceDir, 'trace')
+          expect(existsSync(tracePath)).toBe(true)
+
+          const events = parseTraceFile(tracePath)
+          const persistenceEvents = events.filter(
+            (e) => e.name === 'turbopack-persistence'
+          )
+
+          expect(persistenceEvents.length).toBeGreaterThan(0)
+
+          // Verify the persistence event has the expected attributes
+          const event = persistenceEvents[0]
+          expect(event.duration).toBeGreaterThanOrEqual(0)
+          expect(event.tags).toBeDefined()
+          const tags = event.tags as Record<string, unknown>
+          expect(tags.reason).toBeDefined()
+          expect(typeof tags.snapshot_duration_ms).toBe('number')
+          expect(typeof tags.persist_duration_ms).toBe('number')
+          expect(typeof tags.task_count).toBe('number')
+        }
       )
     }
   })
