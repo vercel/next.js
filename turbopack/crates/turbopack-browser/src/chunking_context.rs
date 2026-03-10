@@ -653,8 +653,8 @@ impl ChunkingContext for BrowserChunkingContext {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
         let content_hash = content_hash.await?;
-        // 7 base40 chars ≈ 37 bits of collision resistance
-        let short_hash = &content_hash[..7];
+        // 13 base40 chars ≈ 69 bits of collision resistance
+        let short_hash = &content_hash[..13];
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{short_hash}.{ext}",
