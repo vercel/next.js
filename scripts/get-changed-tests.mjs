@@ -136,7 +136,7 @@ export default async function getChangedTests() {
 
   if (isCanary) {
     console.log(`Skipping flake detection for canary`)
-    return { devTests: [], prodTests: [], deployTests: [] }
+    return { devTests: [], prodTests: [], deployTests: [], commitSha }
   }
 
   const diffRevision = await getDiffRevision()
