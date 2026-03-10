@@ -58,8 +58,8 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let inline_attrs = filter_inline_attributes(&attrs[..]);
 
     let native_fn = NativeFn {
-        // depth = 2, this strips off a closure and a static item from the name
-        function_global_name: global_name_for_scope(2, ident),
+        // depth = 1, this strips off the static item name
+        function_global_name: global_name_for_scope(1, ident),
         function_path_string: ident.to_string(),
         function_path: quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),
@@ -82,9 +82,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         #inline_signature #inline_block
 
-        static #native_function_ident:
-            turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+        static #native_function_ident: #native_function_ty = #native_function_def;
 
         // Register the function for deserialization
         turbo_tasks::macro_helpers::inventory_submit! {

@@ -501,11 +501,11 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Parsing ecmascript source code failed",
+           "description": "Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js (1:28)
-         Parsing ecmascript source code failed
+         Expected '{', got '}'
          > 1 | export default function () }
              |                            ^",
            "stack": [],
@@ -586,11 +586,11 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Parsing ecmascript source code failed",
+           "description": "Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js (1:28)
-         Parsing ecmascript source code failed
+         Expected '{', got '}'
          > 1 | export default function () }
              |                            ^",
            "stack": [],

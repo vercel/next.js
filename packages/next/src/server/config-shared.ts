@@ -352,9 +352,16 @@ export interface ExperimentalConfig {
    * rewrites will get the rewrite headers.
    */
   clientParamParsingOrigins?: string[]
+  cachedNavigations?: boolean
+  /**
+   * Enables partial fallback shells for cache-components routes while the
+   * feature stabilizes.
+   */
+  partialFallbacks?: boolean
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
+  prefetchInlining?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -1645,8 +1652,11 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
+    cachedNavigations: false,
+    partialFallbacks: false,
     dynamicOnHover: false,
     varyParams: false,
+    prefetchInlining: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1792,6 +1802,7 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'optimisticRouting'
     | 'inlineCss'
+    | 'prefetchInlining'
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
@@ -1822,6 +1833,8 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
+    | 'cachedNavigations'
+    | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
     | 'immutableAssetToken'
   > & {
@@ -1856,10 +1869,14 @@ export function getNextConfigRuntime(
         dynamicOnHover: ex.dynamicOnHover,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
+        prefetchInlining: ex.prefetchInlining,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        adapterPath: ex.adapterPath,
+        // The full adapterPath might be non-deterministic across builds and doesn't actually matter
+        // at runtime, as it's only used to determine whether the adapter was used or not, not to
+        // execute it again. So replace it with a placeholder if it's set.
+        adapterPath: ex.adapterPath ? '<ommited but set>' : undefined,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
@@ -1887,6 +1904,8 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
+        cachedNavigations: ex.cachedNavigations,
+        partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
         immutableAssetToken: ex.immutableAssetToken,
 

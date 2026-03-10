@@ -455,6 +455,7 @@ fn react_server_components_typescript(input: PathBuf) {
                     cache_components_enabled: false,
                     use_cache_enabled: false,
                     taint_enabled: true,
+                    page_extensions: vec![],
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -489,6 +490,7 @@ fn react_server_components_fixture(input: PathBuf) {
                         cache_components_enabled: false,
                         use_cache_enabled: false,
                         taint_enabled: true,
+                        page_extensions: vec![],
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -876,7 +878,7 @@ fn test_debug_instant_stack(input: PathBuf) {
 
     test_fixture(
         syntax(),
-        &|_| debug_instant_stack("app/page.js".to_string()),
+        &|_| debug_instant_stack("app/page.js".to_string(), vec![]),
         &input,
         &output,
         FixtureTestConfig {

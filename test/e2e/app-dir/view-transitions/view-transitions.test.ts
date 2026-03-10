@@ -21,4 +21,17 @@ describe('view-transitions', () => {
 
     await assertNoConsoleErrors(browser)
   })
+
+  it('transitionTypes smoketest', async () => {
+    const browser = await next.browser('/transition-types')
+
+    await assertNoConsoleErrors(browser)
+
+    // Click the link to navigate to page two
+    // The first link causes a sliding transition
+    // The second link causes a default transition (cross-fade)
+    await browser.elementByCss('a[href="/transition-types/page-two"]').click()
+
+    await assertNoConsoleErrors(browser)
+  })
 })

@@ -134,23 +134,6 @@ impl ContentSourceContent {
     }
 
     #[turbo_tasks::function]
-    pub fn static_with_headers(
-        content: ResolvedVc<Box<dyn VersionedContent>>,
-        status_code: u16,
-        headers: ResolvedVc<HeaderList>,
-    ) -> Vc<ContentSourceContent> {
-        ContentSourceContent::Static(
-            StaticContent {
-                content,
-                status_code,
-                headers,
-            }
-            .resolved_cell(),
-        )
-        .cell()
-    }
-
-    #[turbo_tasks::function]
     pub fn not_found() -> Vc<ContentSourceContent> {
         ContentSourceContent::NotFound.cell()
     }

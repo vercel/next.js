@@ -26,8 +26,7 @@ use turbo_tasks::ResolvedVc;
 use turbopack_core::{resolve::ExportUsage, source::Source};
 
 use super::{
-    ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind,
-    is_unresolved_id,
+    ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind, is_unresolved_id,
 };
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
@@ -519,8 +518,8 @@ impl EvalContext {
             // model their values mostly useful for truthy/falsy checks.
             match i.sym.as_str() {
                 "undefined" => JsValue::Constant(ConstantValue::Undefined),
-                "NaN" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::NAN))),
-                "Infinity" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::INFINITY))),
+                "NaN" => JsValue::Constant(ConstantValue::Num(f64::NAN.into())),
+                "Infinity" => JsValue::Constant(ConstantValue::Num(f64::INFINITY.into())),
                 _ => JsValue::FreeVar(i.sym.clone()),
             }
         } else {
@@ -868,7 +867,7 @@ impl EvalContext {
         }
     }
 
-    pub fn eval_single_expr_lit(expr_lit: RcStr) -> Result<JsValue> {
+    pub fn eval_single_expr_lit(expr_lit: &RcStr) -> Result<JsValue> {
         let cm = Lrc::new(SourceMap::default());
 
         let js_value = try_with_handler(cm, Default::default(), |_| {
@@ -3181,9 +3180,7 @@ impl Analyzer<'_> {
                 for (idx, elem) in arr.elems.iter().enumerate() {
                     let pat_value = Some(JsValue::member(
                         Box::new(value.clone()),
-                        Box::new(JsValue::Constant(ConstantValue::Num(ConstantNumber(
-                            idx as f64,
-                        )))),
+                        Box::new(JsValue::Constant(ConstantValue::Num((idx as f64).into()))),
                     ));
                     self.with_pat_value(pat_value, |this| {
                         let mut ast_path = ast_path

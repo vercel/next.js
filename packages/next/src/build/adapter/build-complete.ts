@@ -234,6 +234,11 @@ export interface AdapterOutput {
        * renderingMode signals PPR or not for a prerender
        */
       renderingMode?: RenderingMode
+      /**
+       * partialFallback signals this prerender serves a partial fallback shell
+       * and should be upgraded to a full route in the background.
+       */
+      partialFallback?: boolean
 
       /**
        * bypassToken is the generated token that signals a prerender cache
@@ -335,6 +340,10 @@ export interface NextAdapter {
     config: NextConfigComplete,
     ctx: {
       phase: PHASE_TYPE
+      /**
+       * nextVersion is the current version of Next.js being used
+       */
+      nextVersion: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
@@ -1201,6 +1210,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 bypassFor: undefined,
+                partialFallback: undefined,
               },
 
               fallback: {
@@ -1579,6 +1589,14 @@ export async function handleBuildComplete({
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
         )
+        const partialFallbacksEnabled =
+          config.experimental.partialFallbacks === true
+        const partialFallback =
+          partialFallbacksEnabled &&
+          isAppPage &&
+          renderingMode === RenderingMode.PARTIALLY_STATIC &&
+          typeof fallback === 'string' &&
+          Boolean(meta.postponed)
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -1586,14 +1604,23 @@ export async function handleBuildComplete({
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
             htmlAllowQuery = fallbackRootParams as string[]
-          } // We additionally vary based on if there's a postponed prerender
+          }
+
+          // We additionally vary based on if there's a postponed prerender
           // because if there isn't, then that means that we generated an
           // empty shell, and producing an empty RSC shell would be a waste.
           // If there is a postponed prerender, then the RSC shell would be
           // non-empty, and it would be valuable to also generate an empty
           // RSC shell.
           else if (meta.postponed) {
-            htmlAllowQuery = []
+            // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
+            // For opt-in partial fallbacks in cache components, keep route
+            // allowQuery so fallback shells can be upgraded per-param instead
+            // of sharing one cache key.
+            htmlAllowQuery =
+              partialFallback && routesManifest.rsc.clientParamParsing
+                ? allowQuery
+                : []
           }
         }
 
@@ -1638,6 +1665,7 @@ export async function handleBuildComplete({
             allowQuery: htmlAllowQuery,
             allowHeader,
             renderingMode,
+            partialFallback: partialFallback || undefined,
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },
@@ -1716,6 +1744,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 allowQuery: dataAllowQuery,
+                partialFallback: undefined,
               },
             })
           } else if (dataRoute) {
@@ -1724,6 +1753,10 @@ export async function handleBuildComplete({
               id: dataRoute,
               pathname: dataRoute,
               fallback: undefined,
+              config: {
+                ...initialOutput.config,
+                partialFallback: undefined,
+              },
             })
           }
           prerenderGroupId += 1
@@ -1783,6 +1816,10 @@ export async function handleBuildComplete({
                 pathname: dataPathname,
                 // data route doesn't have skeleton fallback
                 fallback: undefined,
+                config: {
+                  ...initialOutput.config,
+                  partialFallback: undefined,
+                },
                 groupId: prerenderGroupId,
               })
             }

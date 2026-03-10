@@ -1,6 +1,7 @@
 import { cacheLife } from 'next/cache'
 import { cookies, headers } from 'next/headers'
 import { connection } from 'next/server'
+import { setTimeout } from 'timers/promises'
 import { Suspense } from 'react'
 
 export default async function Page({
@@ -38,7 +39,7 @@ export default async function Page({
 async function CachedContent() {
   'use cache'
   cacheLife({ stale: 120 })
-  return <p id="cached-content">Cached content</p>
+  return <p id="cached-content">Cached content ({new Date().toISOString()})</p>
 }
 
 async function SearchParamsContent({
@@ -47,33 +48,45 @@ async function SearchParamsContent({
   searchParams: Promise<{ q?: string }>
 }) {
   const { q } = await searchParams
-  return <p>Search params: {q ?? 'none'}</p>
+  await setTimeout(300)
+  return (
+    <p>
+      Search params: {q ?? 'none'} ({new Date().toISOString()})
+    </p>
+  )
 }
 
 async function CookiesContent() {
   const cookieStore = await cookies()
   const value = cookieStore.get('testCookie')?.value ?? 'none'
-  const timestamp = await getShortLivedCachedTimestamp()
+  const date = await getShortLivedCachedDate()
+  await setTimeout(300)
   return (
     <p>
-      Cookie: {value}, Cached at: {timestamp}
+      Cookie: {value}, Cached at: {date}
     </p>
   )
 }
 
-async function getShortLivedCachedTimestamp() {
+async function getShortLivedCachedDate() {
   'use cache'
   cacheLife({ stale: 30 })
-  return Date.now()
+  return new Date().toISOString()
 }
 
 async function HeadersContent() {
   const headerStore = await headers()
   const value = headerStore.get('x-test-header') ?? 'none'
-  return <p>Header: {value}</p>
+  await setTimeout(300)
+  return (
+    <p>
+      Header: {value} ({new Date().toISOString()})
+    </p>
+  )
 }
 
 async function ConnectionContent() {
   await connection()
-  return <p>Dynamic content</p>
+  await setTimeout(600)
+  return <p>Dynamic content ({new Date().toISOString()})</p>
 }
