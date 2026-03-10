@@ -726,7 +726,7 @@ const hasViewportRegex = new RegExp(
 )
 const hasOutletRegex = new RegExp(`\\n\\s+at ${OUTLET_BOUNDARY_NAME}[\\n\\s]`)
 
-const hasPrefetchValidationBoundaryRegex = new RegExp(
+const hasInstantValidationBoundaryRegex = new RegExp(
   `\\n\\s+at ${INSTANT_VALIDATION_BOUNDARY_NAME}[\\n\\s]`
 )
 
@@ -857,7 +857,7 @@ export function trackDynamicHoleInNavigation(
   }
 
   const boundaryLocation =
-    hasPrefetchValidationBoundaryRegex.exec(componentStack)
+    hasInstantValidationBoundaryRegex.exec(componentStack)
   if (!boundaryLocation) {
     // We don't see the validation boundary in the component stack,
     // so this hole must be coming from a shared parent.
@@ -945,16 +945,42 @@ export function trackDynamicHoleInNavigation(
 }
 
 export function trackThrownErrorInNavigation(
+  workStore: WorkStore,
   dynamicValidation: InstantValidationState,
-  error: unknown,
+  thrownError: unknown,
   componentStack: string
 ) {
-  // If we see a validation boundary on the component stack,
-  // this error couldn't have blocked a validation boundary from rendering.
-  if (hasPrefetchValidationBoundaryRegex.test(componentStack)) {
-    return
+  const boundaryLocation =
+    hasInstantValidationBoundaryRegex.exec(componentStack)
+  if (!boundaryLocation) {
+    // There's no validation boundary on the component stack.
+    // This error may have blocked a boundary from rendering.
+    dynamicValidation.thrownErrorsOutsideBoundary.push(thrownError)
+  } else {
+    // There's validation boundary on the component stack,
+    // so we know this error didn't block a validation boundary from rendering.
+    // However, this error might be hiding be hiding dynamic content that would
+    // cause validation to fail.
+    const suspenseLocation = hasSuspenseRegex.exec(componentStack)
+    if (suspenseLocation) {
+      if (suspenseLocation.index < boundaryLocation.index) {
+        // There's a Suspense below the validation boundary but above this error's location.
+        // This subtree can't fail instant validation because any potential
+        // dynamic holes would be guarded by the Suspense anyway,
+        // so we can allow this.
+        return
+      } else {
+        // invalid - fallthrough
+      }
+    }
+    const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.`
+    const error = addErrorContext(
+      new Error(message, { cause: thrownError }),
+      componentStack,
+      null // TODO(instant-validation-build): conflicting use of cause
+    )
+    dynamicValidation.validationPreventingErrors.push(error)
   }
-  dynamicValidation.thrownErrorsOutsideBoundary.push(error)
 }
 
 export function trackDynamicHoleInRuntimeShell(

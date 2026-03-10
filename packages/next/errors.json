@@ -1109,5 +1109,7 @@
   "1108": "Expected sample param value for segment '%s' to be a string, got %s",
   "1109": "Route \"%s\" called %s but param%s %s %s not defined in the \\`samples\\` of \\`unstable_instant\\`. %s requires all route params to be provided.",
   "1110": "Expected to have a workUnitStore that provides validationSampleTracking",
-  "1111": "Invalid sample: Defining cookies via a \"cookie\" header is not supported. Use `cookies: [{ name: ..., value: ... }]` instead."
+  "1111": "Invalid sample: Defining cookies via a \"cookie\" header is not supported. Use `cookies: [{ name: ..., value: ... }]` instead.",
+  "1112": "Route \"%s\": Could not validate \\`unstable_instant\\` because an error prevented the target segment from rendering.",
+  "1113": "Route \"%s\": Could not validate \\`unstable_instant\\` because an error prevented the page from rendering."
 }

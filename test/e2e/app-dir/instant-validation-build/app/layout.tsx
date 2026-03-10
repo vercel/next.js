@@ -1,18 +1,18 @@
 import { connection } from 'next/server'
 import { ReactNode, Suspense } from 'react'
 
+export const unstable_instant = false
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<div>Loading root...</div>}>
-      <html>
-        <body>
-          <Suspense fallback="...">
-            <Now />
-          </Suspense>
-          {children}
-        </body>
-      </html>
-    </Suspense>
+    <html>
+      <body>
+        <Suspense fallback="...">
+          <Now />
+        </Suspense>
+        {children}
+      </body>
+    </html>
   )
 }
 

@@ -4746,6 +4746,7 @@ async function validateInstantConfigs(
                   const componentStack = errorInfo.componentStack
                   if (typeof componentStack === 'string') {
                     trackThrownErrorInNavigation(
+                      workStore,
                       instantValidationState,
                       err,
                       componentStack
@@ -4788,6 +4789,13 @@ async function validateInstantConfigs(
         boundaryState
       )
     } catch (thrownValue) {
+      // NOTE: If an error bubbled up here, it must've not had a Suspense boundary above it.
+      instantValidationState.validationPreventingErrors.push(
+        new Error(
+          `Route "${workStore.route}": Could not validate \`unstable_instant\` because an error prevented the page from rendering.`,
+          { cause: thrownValue }
+        )
+      )
       errors = getNavigationDisallowedDynamicReasons(
         workStore,
         PreludeState.Errored,
@@ -4795,21 +4803,11 @@ async function validateInstantConfigs(
         validationSampleTracking,
         boundaryState
       )
-
-      if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
-        // TODO(instant-validation) we should switch to pushing an Error with a cause of the
-        // thrownValue. Since we want to report the issue to code that largely expects
-        // Error objects we should aim to provide this whereever possible
-        errors.unshift(
-          'During dynamic validation the root of the page errored.',
-          thrownValue
-        )
-      }
     }
 
-    if (errors === null || errors.length === 0) {
-      // This prerender did not produce any errors
-      return null
+    // This prerender did not produce any errors
+    if (errors.length === 0) {
+      return []
     }
 
     if (previousBoundaryState === null && payloadResult.hasAmbiguousErrors) {
@@ -5427,6 +5425,10 @@ async function validateInstantConfigInBuildWithSample(
       },
       prefilledDataCache
     )
+
+    if (process.env.NEXT_PRIVATE_DEBUG_VALIDATION) {
+      console.log('RSC errors during instant validation render:', rscErrors)
+    }
 
     const accumulatedChunks = await accumulatedChunksPromise
     const debugChunks = null // TODO(instant-validation-build): support debugChannel

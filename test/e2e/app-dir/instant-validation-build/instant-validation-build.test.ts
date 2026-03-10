@@ -47,24 +47,162 @@ describe('instant-validation-build', () => {
     expect(result.exitCode).toBe(0)
   }
 
-  describe('valid - suspense around runtime', () => {
-    it('should succeed build when cookies are inside Suspense', async () => {
-      const result = await prerender('/valid-suspense-around-runtime')
-      expectNoValidationErrors(result)
+  describe('basic dynamic hole detection', () => {
+    // We have extensive tests for this in the instant-validation test suite.
+    // This is just a basic test that we can validate a runtime prefetch, which static shell validation can't do.
+    describe('valid - suspense around runtime', () => {
+      it('should succeed build when cookies are inside Suspense', async () => {
+        const result = await prerender('/valid-suspense-around-runtime')
+        expectNoValidationErrors(result)
+      })
+    })
+
+    describe('invalid - missing suspense around runtime', () => {
+      it('should fail build when cookies are outside Suspense', async () => {
+        const result = await prerender(
+          '/invalid-missing-suspense-around-runtime'
+        )
+        expect(extractBuildValidationError(result.cliOutput))
+          .toMatchInlineSnapshot(`
+         "Error: Route "/invalid-missing-suspense-around-runtime": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+             at main (<anonymous>)
+             at body (<anonymous>)
+             at html (<anonymous>)
+         Build-time instant validation failed for route "/invalid-missing-suspense-around-runtime".
+         Stopping prerender due to instant validation errors."
+        `)
+        expect(result.exitCode).toBe(1)
+      })
     })
   })
 
-  describe('invalid - missing suspense around runtime', () => {
-    it('should fail build when cookies are outside Suspense', async () => {
-      const result = await prerender('/invalid-missing-suspense-around-runtime')
+  describe('server errors', () => {
+    it('valid - ignores server errors that do not surface in SSR', async () => {
+      const result = await prerender(
+        '/server-errors/error-passed-to-client-and-ignored'
+      )
+      expect(extractBuildValidationError(result.cliOutput)).toBe('')
+      expectNoValidationErrors(result)
+    })
+
+    it('error - server error that blocks page validation with no suspense boundary', async () => {
+      const result = await prerender('/server-errors/page-throws')
+      // TODO(instant-validation-build): Server component errors that surface in the client render have bad error messages.
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/invalid-missing-suspense-around-runtime": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+       "Error: Route "/server-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
+           at main (<anonymous>)
+           at body (<anonymous>)
+           at html (<anonymous>) {
+         [cause]: [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+           digest: ''
+         }
+       }
+       Error: Route "/server-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the page from rendering.
+           at ignore-listed frames {
+         [cause]: [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+           digest: ''
+         }
+       }
+       Build-time instant validation failed for route "/server-errors/page-throws".
+       Stopping prerender due to instant validation errors."
+      `)
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('error - server error that blocks page validation with a suspense boundary in a parent segment', async () => {
+      const result = await prerender('/server-errors/page-throws-with-suspense')
+      // TODO(instant-validation-build): Server component errors that surface in the client render have bad error messages.
+      expect(extractBuildValidationError(result.cliOutput))
+        .toMatchInlineSnapshot(`
+       "Error: Route "/server-errors/page-throws-with-suspense": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
+           at main (<anonymous>)
+           at Suspense (<anonymous>)
+           at body (<anonymous>)
+           at html (<anonymous>) {
+         [cause]: [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+           digest: ''
+         }
+       }
+       Build-time instant validation failed for route "/server-errors/page-throws-with-suspense".
+       Stopping prerender due to instant validation errors."
+      `)
+      expect(result.exitCode).toBe(1)
+    })
+  })
+
+  describe('client errors', () => {
+    it('error - server error that blocks page validation with no suspense boundary', async () => {
+      const result = await prerender('/client-errors/page-throws')
+      expect(extractBuildValidationError(result.cliOutput))
+        .toMatchInlineSnapshot(`
+       "Error: Route "/client-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
+           at <unknown> (app/client-errors/page-throws/client.tsx:6:3)
            at main (<anonymous>)
            at body (<anonymous>)
            at html (<anonymous>)
+         4 |
+         5 | export function ThrowsInClient(): Promise<never> {
+       > 6 |   useSearchParams()
+           |   ^
+         7 |   throw new Error('Kaboom')
+         8 | }
+         9 | {
+         [cause]: Error: Kaboom
+             at <unknown> (app/client-errors/page-throws/client.tsx:7:9)
+           5 | export function ThrowsInClient(): Promise<never> {
+           6 |   useSearchParams()
+         > 7 |   throw new Error('Kaboom')
+             |         ^
+           8 | }
+           9 |
+       }
+       Error: Route "/client-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the page from rendering.
+           at ignore-listed frames {
+         [cause]: Error: Kaboom
+             at <unknown> (app/client-errors/page-throws/client.tsx:7:9)
+           5 | export function ThrowsInClient(): Promise<never> {
+           6 |   useSearchParams()
+         > 7 |   throw new Error('Kaboom')
+             |         ^
+           8 | }
+           9 |
+       }
+       Build-time instant validation failed for route "/client-errors/page-throws".
+       Stopping prerender due to instant validation errors."
+      `)
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('error - client error that blocks page validation with a suspense boundary in a parent segment', async () => {
+      const result = await prerender('/client-errors/page-throws-with-suspense')
+      // TODO(instant-validation-build): The page segment errored, but a suspense from a parent segment hid the error.
+      // This should be a "Unable to validate" error, because we don't even know what we didn't render.
+      expect(extractBuildValidationError(result.cliOutput))
+        .toMatchInlineSnapshot(`
+       "Error: Route "/client-errors/page-throws-with-suspense": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
+           at <unknown> (app/client-errors/page-throws-with-suspense/client.tsx:6:3)
+           at main (<anonymous>)
            at Suspense (<anonymous>)
-       Build-time instant validation failed for route "/invalid-missing-suspense-around-runtime".
+           at body (<anonymous>)
+           at html (<anonymous>)
+         4 |
+         5 | export function ThrowsInClient(): Promise<never> {
+       > 6 |   useSearchParams()
+           |   ^
+         7 |   throw new Error('Kaboom')
+         8 | }
+         9 | {
+         [cause]: Error: Kaboom
+             at <unknown> (app/client-errors/page-throws-with-suspense/client.tsx:7:9)
+           5 | export function ThrowsInClient(): Promise<never> {
+           6 |   useSearchParams()
+         > 7 |   throw new Error('Kaboom')
+             |         ^
+           8 | }
+           9 |
+       }
+       Build-time instant validation failed for route "/client-errors/page-throws-with-suspense".
        Stopping prerender due to instant validation errors."
       `)
       expect(result.exitCode).toBe(1)
