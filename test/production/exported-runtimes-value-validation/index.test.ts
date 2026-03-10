@@ -55,6 +55,15 @@ describe('Exported runtimes value validation', () => {
         )
       )
     }
+
+    // Verify the final error message includes the file path
+    expect(result.stderr).toEqual(
+      expect.stringContaining('Invalid segment configuration export detected')
+    )
+    expect(result.stderr).toEqual(expect.stringContaining('middleware'))
+    expect(result.stderr).toEqual(
+      expect.stringContaining('statically analyzable')
+    )
   })
 
   test('fails the build on unrecognized runtimes value', async () => {
