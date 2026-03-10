@@ -11,8 +11,8 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
+    trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -51,6 +51,7 @@ use turbopack_resolve::{
 
 use crate::{
     AssetsForSourceMapping,
+    backend::NodeBackend,
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
@@ -209,6 +210,7 @@ impl WebpackLoadersProcessedAsset {
                 project_path,
                 chunking_context,
                 env,
+                node_backend,
             } = &*transform.execution_context.await?;
             let source_content = self.source.content();
             let AssetContent::File(file) = *source_content.await? else {
@@ -240,9 +242,14 @@ impl WebpackLoadersProcessedAsset {
 
             let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
 
-            let entries = get_evaluate_entries(webpack_loaders_executor, *evaluate_context, None)
-                .to_resolved()
-                .await?;
+            let entries = get_evaluate_entries(
+                webpack_loaders_executor,
+                *evaluate_context,
+                **node_backend,
+                None,
+            )
+            .to_resolved()
+            .await?;
 
             let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
                 entries.graph_entries().to_resolved().await?,
@@ -255,15 +262,16 @@ impl WebpackLoadersProcessedAsset {
 
             let resource_fs_path = self.source.ident().path().await?;
             let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
-                bail!(format!(
-                    "Resource path \"{}\" need to be on project filesystem \"{}\"",
-                    resource_fs_path, project_path
-                ));
+                turbobail!(
+                    "Resource path \"{resource_fs_path}\" needs to be on project filesystem \
+                     \"{project_path}\"",
+                );
             };
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
                 cwd: project_path.clone(),
                 env: *env,
+                node_backend: *node_backend,
                 context_source_for_issue: self.source,
                 chunking_context: *chunking_context,
                 module_graph,
@@ -434,6 +442,7 @@ pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -453,6 +462,7 @@ impl EvaluateContext for WebpackLoaderContext {
             self.entries,
             self.cwd.clone(),
             self.env,
+            self.node_backend,
             self.chunking_context,
             self.module_graph,
             self.additional_invalidation,
@@ -600,18 +610,13 @@ impl EvaluateContext for WebpackLoaderContext {
                     {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
-                        bail!(
-                            "Resolving {} in {} ends up on a different filesystem",
-                            request.to_string().await?,
-                            lookup_path.value_to_string().await?
+                        turbobail!(
+                            "Resolving {request} in {lookup_path} ends up on a different \
+                             filesystem"
                         );
                     }
                 } else {
-                    bail!(
-                        "Unable to resolve {} in {}",
-                        request.to_string().await?,
-                        lookup_path.value_to_string().await?
-                    );
+                    turbobail!("Unable to resolve {request} in {lookup_path}");
                 }
             }
             RequestMessage::TrackFileRead { file } => {

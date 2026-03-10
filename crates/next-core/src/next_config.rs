@@ -917,8 +917,15 @@ pub enum ModuleIds {
     Deterministic,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionModuleIds(pub Option<ModuleIds>);
+#[turbo_tasks::value(operation)]
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TurbopackPluginRuntimeStrategy {
+    #[cfg(feature = "worker_pool")]
+    WorkerThreads,
+    #[cfg(feature = "process_pool")]
+    ChildProcesses,
+}
 
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
@@ -1150,6 +1157,7 @@ pub struct ExperimentalConfig {
 
     turbopack_minify: Option<bool>,
     turbopack_module_ids: Option<ModuleIds>,
+    turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -1397,9 +1405,6 @@ pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionFileSystemPath(Option<FileSystemPath>);
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionServerActions(Option<ServerActions>);
 
 #[turbo_tasks::value(transparent)]
 pub struct IgnoreIssues(Vec<IgnoreIssue>);
@@ -1923,11 +1928,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_app_new_scroll_handler(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.app_new_scroll_handler.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
     pub fn enable_cache_components(&self) -> Vc<bool> {
         Vc::cell(self.cache_components.unwrap_or(false))
     }
@@ -2044,6 +2044,19 @@ impl NextConfig {
                 .turbopack_infer_module_side_effects
                 .unwrap_or(true),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
+        #[cfg(feature = "process_pool")]
+        let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
+        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
+        let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
+
+        self.experimental
+            .turbopack_plugin_runtime_strategy
+            .unwrap_or(default)
+            .cell()
     }
 
     #[turbo_tasks::function]

@@ -21,6 +21,14 @@ pub enum RefMut<'a, K, V> {
     },
 }
 
+// SAFETY: `RefMut` contains a raw `Bucket` pointer into a `DashMap` shard's `RawTable`.
+// Sending/sharing is safe because:
+// - `Simple` variant: The `Bucket` is accessed under an exclusive `RwLockWriteGuard` on a single
+//   shard. The guard provides exclusive access to all data in that shard.
+// - `Shared` variant: The `Bucket` is accessed under an `Arc<RwLockWriteGuard>`. The
+//   `get_multiple_mut` function asserts that bucket pointers do not alias, so each `RefMut` has
+//   exclusive access to its bucket even when sharing a guard.
+// - `K: Sync + V: Sync` bounds ensure the key and value types are safe to share across threads.
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Send for RefMut<'_, K, V> {}
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 

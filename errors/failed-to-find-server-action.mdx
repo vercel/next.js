@@ -4,7 +4,7 @@ title: Failed to find Server Action
 
 ## Why This Message Occurred
 
-For security purposes, Next.js creates encrypted, non-deterministic keys (IDs) to allow for the client to reference and call the [Server Action](/docs/app/getting-started/updating-data). These keys are periodically recalculated between builds for enhanced security.
+For security purposes, Next.js creates encrypted, non-deterministic keys (IDs) to allow for the client to reference and call the [Server Action](/docs/app/getting-started/mutating-data). These keys are periodically recalculated between builds for enhanced security.
 
 When self-hosting your Next.js application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 

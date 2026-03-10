@@ -160,7 +160,9 @@ export interface RenderOptsPartial {
     dynamicOnHover: boolean
     optimisticRouting: boolean
     inlineCss: boolean
+    prefetchInlining: boolean
     authInterrupts: boolean
+    cachedNavigations: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume

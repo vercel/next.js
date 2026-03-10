@@ -85,8 +85,8 @@ import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
+import { formatIssue } from '../../shared/lib/turbopack/format-issue'
 import {
-  formatIssue,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
   processIssues,
@@ -100,7 +100,8 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
+import { getSupportedBrowsers } from '../../build/get-supported-browsers'
+import { printBuildErrors } from '../../build/print-build-errors'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,
@@ -412,6 +413,7 @@ export async function createHotReloaderTurbopack(
         opts.nextConfig
       ),
       nextVersion: process.env.__NEXT_VERSION as string,
+      serverHmr: experimentalServerFastRefresh,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
@@ -423,11 +425,19 @@ export async function createHotReloaderTurbopack(
       'StartupCacheInvalidationEvent',
       'TimingEvent',
       'SlowFilesystemEvent',
+      'TraceEvent',
     ],
+    parentSpan: hotReloaderSpan,
   })
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)
   )
+
+  // Set up code frame renderer using native bindings
+  const { installCodeFrameSupport } =
+    require('../lib/install-code-frame') as typeof import('../lib/install-code-frame')
+  installCodeFrameSupport()
+
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     await project.onExit()
@@ -592,15 +602,25 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType } = splitEntryKey(key)
-    // Server HMR only applies to App Router.
-    // Pages Router uses Node's require(), root entries (middleware/instrumentation)
-    // use the edge runtime.
+    const { type: entryType, page: entryPage } = splitEntryKey(key)
+    const isAppPage =
+      entryType === 'app' &&
+      currentEntrypoints.app.get(entryPage)?.type === 'app-page'
+
+    // Server HMR only applies to app router pages since these use the Turbopack runtime.
+    // Currently, this is only app router pages.
+    //
+    // This excludes:
+    //   - Pages Router pages
+    //   - Edge routes
+    //   - Middleware
+    //   - App Router route handlers (route.ts)
     const usesServerHmr =
       experimentalServerFastRefresh &&
-      entryType === 'app' &&
+      isAppPage &&
       writtenEndpoint.type !== 'edge'
 
+    const filesToDelete: string[] = []
     for (const file of serverPaths) {
       clearModuleContext(file)
 
@@ -613,9 +633,10 @@ export async function createHotReloaderTurbopack(
         !usesServerHmr ||
         !serverHmrSubscriptions?.has(relativePath)
       ) {
-        deleteCache(file)
+        filesToDelete.push(file)
       }
     }
+    deleteCache(filesToDelete)
 
     // Reset the fetch patch so patchFetch() can re-wrap on the next request.
     if (serverPaths.length > 0) {
@@ -1823,9 +1844,10 @@ export async function createHotReloaderTurbopack(
     serverHmrSubscriptions = setupServerHmr(project, {
       clear: async () => {
         // Clear Node's require cache of all Turbopack-built modules
-        for (const chunkPath of serverHmrSubscriptions?.keys() ?? []) {
-          deleteCache(join(distDir, chunkPath))
-        }
+        const chunkPaths = [...(serverHmrSubscriptions?.keys() ?? [])].map(
+          (chunkPath) => join(distDir, chunkPath)
+        )
+        deleteCache(chunkPaths)
 
         // Clear Turbopack's runtime caches
         if (typeof __next__clear_chunk_cache__ === 'function') {

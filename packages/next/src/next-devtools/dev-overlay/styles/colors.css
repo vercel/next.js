@@ -1,17 +1,19 @@
 :host {
-  /* 
+  /*
    * CAUTION: THIS IS A WORKAROUND!
-   * For now, we use @babel/code-frame to parse the code frame which does not support option to change the color.
-   * x-ref: https://github.com/babel/babel/blob/efa52324ff835b794c48080f14877b6caf32cd15/packages/babel-code-frame/src/defs.ts#L40-L54
-   * So, we do a workaround mapping to change the color matching the theme.
+   * The code frame renderer (next-code-frame) uses hardcoded ANSI colors that don't match
+   * our theme colors. We do a workaround mapping to change the ANSI color matching the theme.
    *
-   * For example, in @babel/code-frame, the "keyword" is mapped to ANSI "cyan".
-   * We want the "keyword" to use the "syntax-keyword" color in the theme.
-   * So, we map the "cyan" to the "syntax-keyword" in the theme.
+   * next-code-frame color scheme:
+   *   cyan (36m):    keywords (const, function, return, etc.)
+   *   yellow (33m):  capitalized identifiers (Component names, types)
+   *   magenta (35m): numbers, regex literals
+   *   green (32m):   strings
+   *   gray (90m):    comments, gutter
    */
   /* cyan: keyword */
   --color-ansi-cyan: var(--color-syntax-keyword);
-  /* yellow: capitalized, jsxIdentifier, punctuation */
+  /* yellow: capitalized identifiers */
   --color-ansi-yellow: var(--color-syntax-function);
   /* magenta: number, regex */
   --color-ansi-magenta: var(--color-syntax-keyword);

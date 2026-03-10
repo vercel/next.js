@@ -225,3 +225,22 @@ pub fn expand_next_js_template(
     )
     .map_err(convert_err)
 }
+
+#[wasm_bindgen(js_name = "codeFrameColumns")]
+pub fn code_frame_columns(
+    source: Box<[u8]>,
+    location: JsValue,
+    options: JsValue,
+) -> Result<Option<String>, JsError> {
+    console_error_panic_hook::set_once();
+
+    let location: next_code_frame::CodeFrameLocation = serde_wasm_bindgen::from_value(location)?;
+    let options: next_code_frame::CodeFrameOptions = serde_wasm_bindgen::from_value(options)?;
+    next_code_frame::render_code_frame(
+        str::from_utf8(&source)
+            .map_err(|e| JsError::new(&format!("Failed to render code frame: {e}")))?,
+        &location,
+        &options,
+    )
+    .map_err(|e| JsError::new(&format!("Failed to render code frame: {e}")))
+}

@@ -251,6 +251,17 @@ export default class RenderResult<
   }
 
   /**
+   * Pipes the response through a transform stream. This converts the response
+   * to a single readable stream (chaining if needed) and pipes it through the
+   * provided transform.
+   *
+   * @param transform The transform stream to pipe through
+   */
+  public pipeThrough(transform: TransformStream<Uint8Array, Uint8Array>): void {
+    this.response = this.readable.pipeThrough(transform)
+  }
+
+  /**
    * Unshifts a new stream to the response. This will convert the response to an
    * array of streams if it is not already one and will add the new stream to
    * the start of the array. When this response is piped, all of the streams

@@ -34,10 +34,8 @@ pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error
     fn execute(self, ctx: &mut impl ExecuteContext<'_>);
 }
 
-#[derive(Copy, Clone)]
-enum TransactionState<'a, 'tx, B: BackingStorage> {
+enum TransactionState<'tx, B: BackingStorage> {
     None,
-    Borrowed(Option<&'a B::ReadTransaction<'tx>>),
     Owned(Option<B::ReadTransaction<'tx>>),
 }
 
@@ -94,6 +92,12 @@ pub trait ExecuteContext<'e>: Sized {
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
+    /// Look up a TaskId from the backing storage for a given task type.
+    ///
+    /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
+    /// then verifies each candidate by comparing the stored `persistent_task_type`.
+    /// Returns `Some(task_id)` if a matching task is found, `None` otherwise.
+    fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId>;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -108,7 +112,7 @@ where
     backend: &'e TurboTasksBackendInner<B>,
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     _operation_guard: Option<OperationGuard<'e, B>>,
-    transaction: TransactionState<'e, 'tx, B>,
+    transaction: TransactionState<'tx, B>,
     #[cfg(debug_assertions)]
     active_task_locks: std::sync::Arc<std::sync::atomic::AtomicU8>,
 }
@@ -131,21 +135,6 @@ where
         }
     }
 
-    pub(super) unsafe fn new_with_tx(
-        backend: &'e TurboTasksBackendInner<B>,
-        transaction: Option<&'e B::ReadTransaction<'tx>>,
-        turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> Self {
-        Self {
-            backend,
-            turbo_tasks,
-            _operation_guard: Some(backend.start_operation()),
-            transaction: TransactionState::Borrowed(transaction),
-            #[cfg(debug_assertions)]
-            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
-        }
-    }
-
     fn ensure_transaction(&mut self) -> bool {
         if matches!(self.transaction, TransactionState::None) {
             let check_backing_storage = self.backend.should_restore()
@@ -155,7 +144,11 @@ where
             }
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
-                // Safety: self is actually valid for 'a, so it's safe to transmute 'l to 'a
+                // Safety: `self.backend.backing_storage` lives for at least `'e`. The
+                // transaction returned by `start_read_transaction()` borrows it for `'e`.
+                // Since `'tx: 'e`, transmuting to `'tx` is sound because the transaction
+                // is stored in `self.transaction` (as `Owned`) and dropped with `self`,
+                // while `self.backend` remains alive for `'e`.
                 unsafe { transmute::<B::ReadTransaction<'_>, B::ReadTransaction<'tx>>(tx) }
             });
             self.transaction = TransactionState::Owned(tx);
@@ -229,7 +222,6 @@ where
     fn get_tx(&self) -> Option<&<B as BackingStorageSealed>::ReadTransaction<'tx>> {
         match &self.transaction {
             TransactionState::None => unreachable!(),
-            TransactionState::Borrowed(tx) => *tx,
             TransactionState::Owned(tx) => tx.as_ref(),
         }
     }
@@ -641,6 +633,35 @@ where
 
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi> {
         self.turbo_tasks.pin()
+    }
+
+    fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId> {
+        // Ensure we have a transaction (this will be reused by subsequent task() calls)
+        if !self.ensure_transaction() {
+            return None;
+        }
+        let tx = self.get_tx();
+
+        // Get candidates from backing storage (hash-based lookup may return multiple)
+        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
+        let candidates = unsafe {
+            self.backend
+                .backing_storage
+                .lookup_task_candidates(tx, task_type)
+                .expect("Failed to lookup task ids")
+        };
+
+        // Verify each candidate by comparing the stored persistent_task_type.
+        // Only rarely is there more than one candidate, so no need for parallelization.
+        for candidate_id in candidates {
+            let task = self.task(candidate_id, TaskDataCategory::Data);
+            if let Some(stored_type) = task.get_persistent_task_type()
+                && stored_type.as_ref() == task_type
+            {
+                return Some(candidate_id);
+            }
+        }
+        None
     }
 }
 

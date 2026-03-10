@@ -47,7 +47,7 @@ Loading UI components do not accept any parameters.
 
 ### Instant Loading States
 
-An instant loading state is fallback UI that is shown immediately upon navigation. You can pre-render loading indicators such as skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc. This helps users understand the app is responding and provides a better user experience.
+An instant loading state is fallback UI that is shown immediately upon navigation. You can prerender loading indicators such as skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc. This helps users understand the app is responding and provides a better user experience.
 
 Create a loading state by adding a `loading.js` file inside a folder.
 
@@ -82,6 +82,15 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
   width="1600"
   height="768"
 />
+
+In the [component hierarchy](/docs/app/getting-started/project-structure#component-hierarchy), `loading.js` wraps `not-found.js`, `page.js`, and nested `layout.js` files in a `<Suspense>` boundary. It does **not** wrap the `layout.js`, `template.js`, or `error.js` in the same segment.
+
+> **Good to know**: If the layout accesses uncached or runtime data (e.g. `cookies()`, `headers()`, or uncached fetches), `loading.js` will not show a fallback for it.
+>
+> - **Without [Cache Components](/docs/app/getting-started/caching):** Navigation blocks until the layout finishes rendering.
+> - **With [Cache Components](/docs/app/getting-started/caching):** Uncached or runtime data access in the layout must be explicitly wrapped in `<Suspense>`, otherwise Next.js guides you with a build-time error. The static shell streams first, and the uncached content fills in.
+>
+> To ensure instant navigation, move uncached data fetching from `layout.js` into `page.js`, or wrap the runtime data access in your layout in its own `<Suspense>` boundary. See [layout.js Caveats](/docs/app/api-reference/file-conventions/layout#interaction-with-loadingjs) for details and examples.
 
 ### SEO
 
