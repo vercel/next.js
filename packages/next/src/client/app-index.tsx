@@ -180,7 +180,10 @@ if (process.env.NODE_ENV !== 'production') {
 // know if `l` is present until React decodes the payload, so always tee and
 // cancel the clone if not needed.
 let initialFlightStreamForCache: ReadableStream<Uint8Array> | null = null
-if (process.env.__NEXT_CACHE_COMPONENTS) {
+if (
+  process.env.__NEXT_CACHE_COMPONENTS &&
+  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+) {
   const [forReact, forCache] = readable.tee()
   readable = forReact
   initialFlightStreamForCache = forCache

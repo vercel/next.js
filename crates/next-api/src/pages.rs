@@ -1018,13 +1018,11 @@ impl PageEndpoint {
                 .await?;
             }
 
-            let ssr_module_evaluatable = ResolvedVc::try_sidecast(ssr_module)
-                .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
                 let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    ChunkGroup::Entry(vec![ResolvedVc::upcast(ssr_module_evaluatable)]),
+                    ChunkGroup::Entry(vec![ssr_module]),
                     ssr_module_graph,
                     current_chunk_group.await?.availability_info,
                 );
@@ -1052,7 +1050,7 @@ impl PageEndpoint {
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
-                        EvaluatableAssets::empty().with_entry(*ssr_module_evaluatable),
+                        ChunkGroup::Entry(vec![ssr_module]),
                         ssr_module_graph,
                         current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),

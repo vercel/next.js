@@ -43,11 +43,11 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (1:27)
-       Parsing ecmascript source code failed
+       Expected '>', got '<eof>'
        > 1 | export default () => <div/
            |                           ^",
          "stack": [],
@@ -136,11 +136,11 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/server/page.js (2:28)
-       Parsing ecmascript source code failed
+       Expected '}', got '<eof>'
        > 2 |   return <p>Hello world</p>
            |                            ^",
          "stack": [],
@@ -220,11 +220,11 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/client/page.js (2:28)
-       Parsing ecmascript source code failed
+       Expected '}', got '<eof>'
        > 2 |   return <p>Hello world</p>
            |                            ^",
          "stack": [],
@@ -655,11 +655,11 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (10:42)
-       Parsing ecmascript source code failed
+       Expected '}', got '<eof>'
        > 10 | export default function FunctionNamed() {
             |                                          ^",
          "stack": [],
@@ -715,11 +715,11 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (10:42)
-       Parsing ecmascript source code failed
+       Expected '}', got '<eof>'
        > 10 | export default function FunctionNamed() {
             |                                          ^",
          "stack": [],
@@ -907,11 +907,11 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Parsing ecmascript source code failed
+       Expected '{', got 'return'
        > 5 |     return <h1>Default Export</h1>;
            |     ^^^^^^",
          "stack": [],
@@ -990,11 +990,11 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Parsing ecmascript source code failed
+       Expected '{', got 'throw'
        > 5 |     throw new Error('nooo');
            |     ^^^^^",
          "stack": [],
@@ -1116,11 +1116,11 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js (1:4)
-       Parsing ecmascript source code failed
+       Expected '}', got '<eof>'
        > 1 | {{{
            |    ^",
          "stack": [],

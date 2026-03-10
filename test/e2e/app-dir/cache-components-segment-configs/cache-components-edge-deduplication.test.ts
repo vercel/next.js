@@ -2,11 +2,22 @@ import { nextTestSetup } from 'e2e-utils'
 
 import { waitForRedbox } from 'next-test-utils'
 
-// Filter out browser log lines from CLI output to avoid counting forwarded browser errors
-function filterBrowserLogs(output: string): string {
+// Filter CLI output to only keep Turbopack error header lines (starting with ⨯ or
+// standalone file:line:col) to accurately count error occurrences without counting
+// console.error, stack traces, or forwarded browser logs.
+function filterToErrorHeaders(output: string): string {
   return output
     .split('\n')
-    .filter((line) => !line.includes('[browser]'))
+    .filter(
+      (line) =>
+        !line.includes('[browser]') &&
+        !line.includes('console.error') &&
+        !line.includes('at <unknown>') &&
+        !line.includes('at Object.') &&
+        !line.includes('at DevServer.') &&
+        !line.includes('at DevBundlerService.') &&
+        !line.includes('at async ')
+    )
     .join('\n')
 }
 
@@ -37,12 +48,12 @@ function filterBrowserLogs(output: string): string {
         waitForRedbox(browser)
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Ecmascript file had an error",
+           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
            "environmentLabel": null,
            "label": "Build Error",
-           "source": "./app/edge-with-layout/edge/page.tsx (1:14)
-         Ecmascript file had an error
-         > 1 | export const runtime = 'edge'
+           "source": "./app/edge-with-layout/layout.tsx (1:14)
+         Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         > 1 | export const dynamic = 'force-dynamic'
              |              ^^^^^^^",
            "stack": [],
          }
@@ -50,7 +61,7 @@ function filterBrowserLogs(output: string): string {
 
         // Count occurrences of the layout error at the specific location
         // Filter out browser logs to avoid counting forwarded browser errors
-        const filteredOutput = filterBrowserLogs(next.cliOutput)
+        const filteredOutput = filterToErrorHeaders(next.cliOutput)
         const layoutErrorMatches = filteredOutput.match(
           /\.\/app\/edge-with-layout\/layout\.tsx:1:14/g
         )
