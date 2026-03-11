@@ -79,7 +79,7 @@ There are a couple of explicit "subtypes" of `Vc`. These can both be cheaply con
 
 - **[`ResolvedVc`]:** *(aka [`RawVc::TaskCell`])* A reference to a cell constructed within a task, as part of a [`Vc::cell`] or `value_type.cell()` constructor. As the cell has been constructed at least once, the concrete type of the cell is known (allowing [downcasting][ResolvedVc::try_downcast]). This is stored as a combination of a task id, a type id, and a cell id.
 
-- **[`OperationVc`]:** *(aka [`RawVc::TaskOutput`])* The synchronous return value of a [`turbo_tasks::function`]. Internally, this is stored using a task id. Exact type information of trait types (i.e. `Vc<Box<dyn Trait>>`) is not known because the function may not have finished execution yet. [`OperationVc`]s must first be [`connect`][crate::OperationVc::connect]ed before being read.
+- **[`OperationVc`]:** *(aka [`RawVc::TaskOutput`])* The synchronous return value of a [`turbo_tasks::function`]. Internally, this is stored using a task id. [`OperationVc`]s must first be [`connect`][crate::OperationVc::connect]ed before being read.
 
 [`ResolvedVc`] is almost always preferred over the more awkward [`OperationVc`] API, but [`OperationVc`] can be useful when dealing with [collectibles], when you need to [read the result of a function with strong consistency][crate::OperationVc::read_strongly_consistent], or with [`State`].
 
