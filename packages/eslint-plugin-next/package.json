@@ -13,7 +13,7 @@
     "dist"
   ],
   "dependencies": {
-    "fast-glob": "3.3.1"
+    "tinyglobby": "0.2.15"
   },
   "devDependencies": {
     "@types/eslint": "9.6.1",

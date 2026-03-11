@@ -1,7 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { resolve, dirname, basename, join } from 'node:path'
 import { copyFile, mkdir } from 'node:fs/promises'
-import { async as glob } from 'fast-glob'
+import { glob } from 'tinyglobby'
 
 interface CopyOption {
   cwd?: string
@@ -26,7 +26,7 @@ export const copy = async (
     cwd,
     dot: true,
     absolute: false,
-    stats: false,
+    expandDirectories: false,
   })
 
   const destRelativeToCwd = cwd ? resolve(cwd, dest) : dest

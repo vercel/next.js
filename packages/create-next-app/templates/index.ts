@@ -3,7 +3,7 @@ import { runTypegen } from "../helpers/typegen";
 import { copy } from "../helpers/copy";
 import { getPnpmMajorVersion } from "../helpers/get-pkg-manager";
 
-import { async as glob } from "fast-glob";
+import { glob } from "tinyglobby";
 import os from "os";
 import fs from "fs/promises";
 import path from "path";
@@ -140,7 +140,7 @@ export const installTemplate = async ({
     const files = await glob("**/*", {
       cwd: root,
       dot: true,
-      stats: false,
+      expandDirectories: false,
       // We don't want to modify compiler options in [ts/js]config.json
       // and none of the files in the .git folder
       // TODO: Refactor this to be an allowlist, rather than a denylist,

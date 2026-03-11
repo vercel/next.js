@@ -989,9 +989,6 @@ importers:
       cross-spawn:
         specifier: 7.0.3
         version: 7.0.3
-      fast-glob:
-        specifier: 3.3.1
-        version: 3.3.1
       picocolors:
         specifier: 1.0.0
         version: 1.0.0
@@ -1004,6 +1001,9 @@ importers:
       tar:
         specifier: 7.5.7
         version: 7.5.7
+      tinyglobby:
+        specifier: 0.2.15
+        version: 0.2.15
       update-check:
         specifier: 1.5.4
         version: 1.5.4
@@ -1062,9 +1062,9 @@ importers:
 
   packages/eslint-plugin-next:
     dependencies:
-      fast-glob:
-        specifier: 3.3.1
-        version: 3.3.1
+      tinyglobby:
+        specifier: 0.2.15
+        version: 0.2.15
     devDependencies:
       '@types/eslint':
         specifier: 9.6.1
