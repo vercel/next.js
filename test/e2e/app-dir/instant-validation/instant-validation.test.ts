@@ -2563,6 +2563,7 @@ describe('instant validation', () => {
             const result = await prerender(
               '/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)'
             )
+            // TODO(instant-validation): convert this to a snapshot when fixed
             expect(result.cliOutput).toContain(
               'Build-time instant validation failed for route "/suspense-in-root/static/route-group-shared-boundary"'
             )
@@ -2625,9 +2626,15 @@ describe('instant validation', () => {
           const result = await prerender(
             '/suspense-in-root/disable-validation/disable-dev'
           )
-          expect(extractBuildValidationError(result.cliOutput)).toContain(
-            'Build-time instant validation failed for route "/suspense-in-root/disable-validation/disable-dev"'
-          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at Suspense (<anonymous>)
+           Build-time instant validation failed for route "/suspense-in-root/disable-validation/disable-dev".
+           Stopping prerender due to instant validation errors."
+          `)
           expect(result.exitCode).toBe(1)
         }
       })
