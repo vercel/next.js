@@ -250,6 +250,99 @@ export default async function Page() {
 }
 ```
 
+## Creating a meaningful loading experience
+
+To produce a maximally prerenderable UI, move access to data that cannot be prerendered as deep in the component tree as is reasonable. This applies to all [runtime APIs](#working-with-runtime-apis) and async operations like data fetches.
+
+Consider a layout that destructures `params` at the top level:
+
+```tsx filename="app/shop/[slug]/layout.tsx"
+export default async function Layout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
+  return (
+    <div>
+      <Sidebar />
+      <h1>{slug}</h1>
+      {children}
+    </div>
+  )
+}
+```
+
+If this param is dynamic (not provided by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)), it is runtime data and the layout cannot be prerendered.
+
+However, it is often possible to read the parameter value further down the tree. Instead of awaiting at the layout level, narrow the promise to the specific param you need and pass it down without awaiting:
+
+```tsx filename="app/shop/[slug]/layout.tsx" highlight={3,10,15-16}
+import { Suspense } from 'react'
+
+export default function Layout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: Promise<{ slug: string }>
+}) {
+  const slug = params.then((p) => p.slug)
+
+  return (
+    <div>
+      <Sidebar />
+      <Suspense fallback={<h1>Loading...</h1>}>
+        <SlugHeading slug={slug} />
+      </Suspense>
+      {children}
+    </div>
+  )
+}
+
+async function SlugHeading({ slug }: { slug: Promise<string> }) {
+  return <h1>{await slug}</h1>
+}
+```
+
+Now `<Sidebar />`, `{children}`, and the Suspense fallback are all part of the static shell. Only `SlugHeading` streams in at request time. You can also pass the entire `params` promise and await it in the child component.
+
+The same principle applies to `cookies()`, `headers()`, `searchParams`, and data fetches. See [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for a related pattern.
+
+### Client Components that read the current time
+
+Client Components are also prerendered on the server. If a Client Component reads `Date.now()`, `new Date()`, or `Date()` during prerender, Next.js cannot include it in the static shell because the value would be stale by the time a user sees it.
+
+Wrap these components in `<Suspense>` so the fallback is prerendered and the time-dependent content renders at request time:
+
+```tsx filename="app/article.tsx"
+'use client'
+
+import { Suspense } from 'react'
+
+function RelativeTime({ timestamp }: { timestamp: number }) {
+  const now = Date.now()
+  const seconds = Math.round((now - timestamp) / 1000)
+  return <span>{seconds}s ago</span>
+}
+
+export default function Article({ publishedAt }: { publishedAt: number }) {
+  return (
+    <article>
+      <h1>Article title</h1>
+      <Suspense fallback={<span>...</span>}>
+        <RelativeTime timestamp={publishedAt} />
+      </Suspense>
+    </article>
+  )
+}
+```
+
+Alternatively, move the time access into a `useEffect` so it only runs in the browser, or cache the value with `use cache` on the server if a stale time is acceptable (for example, a copyright year). See the [current time in Client Components](/docs/messages/next-prerender-current-time-client) error reference for all available patterns.
+
 ## How rendering works
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:
