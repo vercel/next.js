@@ -209,6 +209,7 @@ fn default_fn() {
 }
 
 impl NativeFunction {
+    #[allow(clippy::declare_interior_mutable_const)] // Interior mutability from RegistryType::id is only written during init
     pub const DEFAULT: NativeFunction = NativeFunction {
         arg_meta: ArgMeta::new::<()>(),
         implementation: &into_task_fn(default_fn) as &dyn TaskFn,

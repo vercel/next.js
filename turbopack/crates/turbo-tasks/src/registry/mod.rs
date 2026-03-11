@@ -142,11 +142,13 @@ fn init_registry<T: RegistryItem>(mut items: Vec<&'static T>) -> Box<[&'static T
 }
 
 /// Get an item by its ID from a registry slice
+#[inline]
 fn get_item<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> &'static T {
     registry[*id as usize - 1]
 }
 
 /// Get the ID for a registered item
+#[inline]
 fn get_id<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, item: &'static T) -> T::Id {
     // Force initialization
     let _ = &**registry;
@@ -184,10 +186,12 @@ static FUNCTIONS: Lazy<Box<[&'static NativeFunction]>> = Lazy::new(|| {
     )
 });
 
+#[inline]
 pub fn get_native_function(id: FunctionId) -> &'static NativeFunction {
     get_item(&FUNCTIONS, id)
 }
 
+#[inline]
 pub fn get_function_id(func: &'static NativeFunction) -> FunctionId {
     get_id(&FUNCTIONS, func)
 }
@@ -205,10 +209,12 @@ pub(crate) static VALUES: Lazy<Box<[&'static ValueType]>> = Lazy::new(|| {
     )
 });
 
+#[inline]
 pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
     get_id(&VALUES, value)
 }
 
+#[inline]
 pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
     get_item(&VALUES, id)
 }
@@ -226,10 +232,19 @@ static TRAITS: Lazy<Box<[&'static TraitType]>> = Lazy::new(|| {
     )
 });
 
+#[inline]
 pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
     get_id(&TRAITS, trait_type)
 }
 
+/// Returns the total number of registered trait types.
+/// Must only be called after TRAITS is initialized.
+#[inline]
+pub(crate) fn trait_type_count() -> usize {
+    TRAITS.len()
+}
+
+#[inline]
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
     get_item(&TRAITS, id)
 }
