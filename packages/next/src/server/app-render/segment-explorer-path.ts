@@ -80,10 +80,15 @@ export const isNextjsBuiltinFilePath = (filePath: string) => {
 }
 
 export const BOUNDARY_SUFFIX = '@boundary'
+
+// Pre-compiled at module scope — avoids per-call RegExp construction
+const builtinPrefixRegex = new RegExp(`^${BUILTIN_PREFIX}`)
+const boundarySuffixRegex = new RegExp(`${BOUNDARY_SUFFIX}$`)
+
 export function normalizeBoundaryFilename(filename: string) {
   return filename
-    .replace(new RegExp(`^${BUILTIN_PREFIX}`), '')
-    .replace(new RegExp(`${BOUNDARY_SUFFIX}$`), '')
+    .replace(builtinPrefixRegex, '')
+    .replace(boundarySuffixRegex, '')
 }
 
 export const BOUNDARY_PREFIX = 'boundary:'

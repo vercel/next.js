@@ -37,6 +37,9 @@ import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { DetachedPromise } from '../../../lib/detached-promise'
 import { areTagsExpired, areTagsStale } from './tags-manifest.external'
 
+// Shared TextEncoder for cache key generation — TextEncoder is stateless
+const cacheKeyEncoder = new TextEncoder()
+
 export interface CacheHandlerContext {
   fs?: CacheFs
   dev?: boolean
@@ -300,7 +303,8 @@ export class IncrementalCache implements IncrementalCacheType {
 
     const bodyChunks: string[] = []
 
-    const encoder = new TextEncoder()
+    const encoder = cacheKeyEncoder
+    // TextDecoder is stateful when streaming — must be per-call
     const decoder = new TextDecoder()
 
     if (init.body) {

@@ -6,7 +6,7 @@ let __next_loaded_action_key: CryptoKey
 export function arrayBufferToString(
   buffer: ArrayBuffer | Uint8Array<ArrayBufferLike>
 ) {
-  const bytes = new Uint8Array(buffer)
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
   const len = bytes.byteLength
 
   // @anonrig: V8 has a limit of 65535 arguments in a function.

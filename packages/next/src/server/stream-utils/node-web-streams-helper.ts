@@ -1115,13 +1115,11 @@ export function createRuntimePrefetchTransformStream(
   isPartial: boolean,
   staleTime: number
 ): TransformStream<Uint8Array, Uint8Array> {
-  const enc = new TextEncoder()
-
   // Search for: [<sentinel>]
   // Replace with: [<isPartial>,<staleTime>]
-  const search = enc.encode(`[${sentinel}]`)
+  const search = encoder.encode(`[${sentinel}]`)
   const first = search[0]
-  const replace = enc.encode(`[${isPartial},${staleTime}]`)
+  const replace = encoder.encode(`[${isPartial},${staleTime}]`)
   const searchLen = search.length
 
   let currentChunk: Uint8Array | null = null
