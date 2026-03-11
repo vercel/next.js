@@ -294,7 +294,7 @@ pub use turbo_tasks_macros::value;
 /// All methods annotated with [`#[turbo_tasks::function]`][function] are cached, and
 /// the external signature rewriting rules defined on that macro are applied.
 ///
-/// Default implementation are supported and behave similarly to defining Turbo-Engine functions.
+/// Default implementation are supported.
 ///
 /// ## Arguments
 ///

@@ -32,7 +32,7 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 /// A trait implemented on all values trait object references that can be used with a value cell
 /// ([`Vc<Box<dyn Trait>>`][crate::Vc]).
 ///
-/// You should not crate subtraits of this trait manually, but instead use the
+/// You should not create subtraits of this trait manually, but instead use the
 /// [`#[turbo_tasks::value_trait]`][crate::value_trait] macro. Implementations of `VcValueTrait`s
 /// should use the [`#[turbo_tasks::value_impl]`][crate::value_impl] macro.
 ///
@@ -54,7 +54,7 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 /// ```
 ///
 /// Upcast safety is enforced at compile-time with the [`Upcast`] and [`UpcastStrict`] traits.
-/// Upcasts alway succeeds.
+/// Upcasts always succeed.
 ///
 ///
 /// ## Downcasting
@@ -69,7 +69,7 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 /// }
 /// ```
 ///
-/// A subtrait can be cast to a supertrait with [`ResolvedVc::try_downcast`]:
+/// A supertrait can be cast to a subtrait with [`ResolvedVc::try_downcast`]:
 ///
 /// ```ignore
 /// let trait_vc: Vc<Box<dyn SubTrait>> = ...;
