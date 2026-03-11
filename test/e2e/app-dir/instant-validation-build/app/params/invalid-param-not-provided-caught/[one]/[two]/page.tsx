@@ -1,10 +1,8 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
-import { Suspense } from 'react'
-
 export const unstable_instant: Instant = {
-  prefetch: 'static',
+  prefetch: 'runtime',
   samples: [
     {
       params: {
@@ -27,9 +25,7 @@ export default async function Page({
         fail validation with an exhaustiveness error. It catches the error
         thrown by the param access, but validation should still fail.
       </p>
-      <Suspense fallback={<div>Loading...</div>}>
-        <TestParams params={params} />
-      </Suspense>
+      <TestParams params={params} />
     </main>
   )
 }

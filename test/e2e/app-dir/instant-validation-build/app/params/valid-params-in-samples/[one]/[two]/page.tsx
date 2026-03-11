@@ -1,10 +1,8 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
-import { Suspense } from 'react'
-
 export const unstable_instant: Instant = {
-  prefetch: 'static',
+  prefetch: 'runtime',
   samples: [
     {
       params: {
@@ -26,9 +24,7 @@ export default async function Page({
         When validated in build, the page should receive the params specified in
         the sample.
       </p>
-      <Suspense fallback={<div>Loading...</div>}>
-        <TestParams params={params} />
-      </Suspense>
+      <TestParams params={params} />
     </main>
   )
 }
@@ -43,6 +39,8 @@ async function TestParams({
 
   assert.equal(one, '123', `Unexpected value for param 'one'`)
   assert.equal(two, '456', `Unexpected value for param 'two'`)
+  assert.equal('three' in p, false)
+  assert.equal(p.three, undefined)
 
   assert.deepStrictEqual(
     { ...p },

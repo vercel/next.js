@@ -1,13 +1,13 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { assert } from '../../../../client-assertion-error'
 
 export function PathnameReader() {
   const pathname = usePathname()
-  if (pathname !== '/pathname/valid-use-pathname-optional-catch-all/xxx/yyy') {
-    throw new Error(
-      `ClientAssertionError: Expected pathname to be '/pathname/valid-use-pathname-optional-catch-all/xxx/yyy', got '${pathname}'`
-    )
-  }
+  assert(
+    pathname === '/pathname/valid-use-pathname-optional-catch-all/xxx/yyy',
+    `Expected pathname to be '/pathname/valid-use-pathname-optional-catch-all/xxx/yyy', got '${pathname}'`
+  )
   return <div id="result">pathname: {pathname}</div>
 }

@@ -275,21 +275,22 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
 ): TParams {
   return new Proxy(underlyingParams, {
     get(target, prop, receiver) {
-      if (isUserPropertyAccess(prop) && !declaredParamNames.has(prop)) {
+      if (
+        isUserPropertyAccess(prop) &&
+        // Only error when accessing a param that is part of the route but wasn't provided.
+        // accessing properties that aren't expected to be a valid param value is fine.
+        prop in underlyingParams &&
+        !declaredParamNames.has(prop)
+      ) {
         trackMissingSampleErrorAndThrow(
           createMissingSampleError(route, 'param', prop, 'params', '')
         )
       }
       return Reflect.get(target, prop, receiver)
     },
-    has(target, prop) {
-      if (isUserPropertyAccess(prop) && !declaredParamNames.has(prop)) {
-        trackMissingSampleErrorAndThrow(
-          createMissingSampleError(route, 'param', prop, 'params', '')
-        )
-      }
-      return Reflect.has(target, prop)
-    },
+    // We don't need to override `has` or `ownKeys`.
+    // the shape of the params object is determined by the routing structure
+    // and independent of the samples. We only need to instrument accessing the values.
   })
 }
 

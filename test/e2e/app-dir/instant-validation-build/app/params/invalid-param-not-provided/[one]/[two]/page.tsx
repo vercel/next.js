@@ -1,10 +1,8 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
-import { Suspense } from 'react'
-
 export const unstable_instant: Instant = {
-  prefetch: 'static',
+  prefetch: 'runtime',
   samples: [
     {
       params: {
@@ -26,9 +24,7 @@ export default async function Page({
         This page reads a param that is not declared in the sample, so it should
         fail validation with an exhaustiveness error.
       </p>
-      <Suspense fallback={<div>Loading...</div>}>
-        <TestParams params={params} />
-      </Suspense>
+      <TestParams params={params} />
     </main>
   )
 }
@@ -41,6 +37,11 @@ async function TestParams({
   const p = await params
 
   assert.equal(p.one, '123', `Unexpected value for param 'one'`)
+
+  // We're allowed to access names that don't correspond to a param.
+  assert.equal('three' in p, false)
+  assert.equal(p.three, undefined)
+
   // TODO(instant-validation-build): this should throw and abort
   assert.equal(p.two, undefined, `Unexpected value for param 'two'`)
 

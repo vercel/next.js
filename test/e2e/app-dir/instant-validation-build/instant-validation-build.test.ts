@@ -309,6 +309,23 @@ describe('instant-validation-build', () => {
       `)
       expect(result.exitCode).toBe(1)
     })
+
+    it('valid - awaited search params passed to a cache', async () => {
+      const result = await prerender(
+        '/search-params/valid-search-params-passed-to-cache'
+      )
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+    })
+
+    it('valid - awaited search params passed to a client component', async () => {
+      const result = await prerender(
+        '/search-params/valid-search-params-passed-to-client'
+      )
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
+    })
   })
 
   describe('headers', () => {
@@ -386,6 +403,19 @@ describe('instant-validation-build', () => {
       expect(result.exitCode).toBe(1)
       // The page asserts on the values
       expect(result.cliOutput).not.toContain('AssertionError')
+    })
+
+    it('valid - header value passed to a cache', async () => {
+      const result = await prerender('/headers/valid-headers-passed-to-cache')
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+    })
+
+    it('valid - header value passed to a client component', async () => {
+      const result = await prerender('/headers/valid-headers-passed-to-client')
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
   })
 
@@ -465,6 +495,12 @@ describe('instant-validation-build', () => {
       // The page asserts on the values
       expect(result.cliOutput).not.toContain('AssertionError')
     })
+
+    it('valid - cookies passed to a cache', async () => {
+      const result = await prerender('/cookies/valid-cookies-passed-to-cache')
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+    })
   })
 
   describe('params', () => {
@@ -484,14 +520,14 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` array.
-           at f (app/params/invalid-param-not-provided/[one]/[two]/page.tsx:45:18)
-         43 |   assert.equal(p.one, '123', \`Unexpected value for param 'one'\`)
-         44 |   // TODO(instant-validation-build): this should throw and abort
-       > 45 |   assert.equal(p.two, undefined, \`Unexpected value for param 'two'\`)
+           at e (app/params/invalid-param-not-provided/[one]/[two]/page.tsx:46:18)
+         44 |
+         45 |   // TODO(instant-validation-build): this should throw and abort
+       > 46 |   assert.equal(p.two, undefined, \`Unexpected value for param 'two'\`)
             |                  ^
-         46 |
-         47 |   // TODO: test \`in\` and iteration
-         48 |   // assert.deepStrictEqual( {
+         47 |
+         48 |   // TODO: test \`in\` and iteration
+         49 |   // assert.deepStrictEqual( {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided/[one]/[two]".
@@ -509,14 +545,14 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/params/invalid-param-not-provided-caught/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` array.
-           at f (app/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:47:24)
-         45 |
-         46 |   try {
-       > 47 |     const twoValue = p.two // this should throw
+           at e (app/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:43:24)
+         41 |
+         42 |   try {
+       > 43 |     const twoValue = p.two // this should throw
             |                        ^
-         48 |     // prevent DCE of unused expression
-         49 |     if (Math.random() > 1) {
-         50 |       console.log(twoValue) {
+         44 |     // prevent DCE of unused expression
+         45 |     if (Math.random() > 1) {
+         46 |       console.log(twoValue) {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided-caught/[one]/[two]".
@@ -577,6 +613,23 @@ describe('instant-validation-build', () => {
        Stopping prerender due to instant validation errors."
       `)
       expect(result.exitCode).toBe(1)
+    })
+
+    it('valid - awaited params passed to a cache', async () => {
+      const result = await prerender(
+        '/params/valid-params-passed-to-cache/[slug]'
+      )
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+    })
+
+    it('valid - awaited params passed to a client component', async () => {
+      const result = await prerender(
+        '/params/valid-params-passed-to-client/[slug]'
+      )
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
     })
   })
 
