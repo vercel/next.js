@@ -1573,7 +1573,13 @@ function prepareInitialCanonicalUrl(url: RequestStore['url']) {
   return (url.pathname + url.search).split('/')
 }
 
+// Memoize per query object — called 4 times per request with the same object
+const renderedSearchCache = new WeakMap<NextParsedUrlQuery, string>()
+
 function getRenderedSearch(query: NextParsedUrlQuery): string {
+  const cached = renderedSearchCache.get(query)
+  if (cached !== undefined) return cached
+
   // Inlined implementation of querystring.encode, which is not available in
   // the Edge runtime.
   const pairs = []
@@ -1598,12 +1604,17 @@ function getRenderedSearch(query: NextParsedUrlQuery): string {
   // TODO: We're a bit inconsistent about this. The x-nextjs-rewritten-query
   // header omits the leading question mark. Should refactor to always do
   // that instead.
+  let result: string
   if (pairs.length === 0) {
     // If the search string is empty, return an empty string.
-    return ''
+    result = ''
+  } else {
+    // Prepend '?' to the search params string.
+    result = '?' + pairs.join('&')
   }
-  // Prepend '?' to the search params string.
-  return '?' + pairs.join('&')
+
+  renderedSearchCache.set(query, result)
+  return result
 }
 
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
