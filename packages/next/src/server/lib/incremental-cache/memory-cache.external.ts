@@ -7,26 +7,32 @@ let memoryCache: LRUCache<CacheHandlerValue> | undefined
 export function getMemoryCache(maxMemoryCacheSize: number) {
   if (!memoryCache) {
     memoryCache = new LRUCache(maxMemoryCacheSize, function length({ value }) {
+      let size: number
       if (!value) {
-        return 25
+        size = 25
       } else if (value.kind === CachedRouteKind.REDIRECT) {
-        return JSON.stringify(value.props).length
+        size = JSON.stringify(value.props).length
       } else if (value.kind === CachedRouteKind.IMAGE) {
         throw new Error('invariant image should not be incremental-cache')
       } else if (value.kind === CachedRouteKind.FETCH) {
-        return JSON.stringify(value.data || '').length
+        size = JSON.stringify(value.data || '').length
       } else if (value.kind === CachedRouteKind.APP_ROUTE) {
-        return value.body.length
+        size = value.body.length
+      } else {
+        // APP_PAGE and PAGES entries can legitimately have an empty HTML shell
+        // (for example, a generic partial-fallback shell backed entirely by
+        // postponed data). Keep those entries cacheable by enforcing the
+        // minimum non-zero size expected by LRUCache.
+        size =
+          value.html.length +
+          (JSON.stringify(
+            value.kind === CachedRouteKind.APP_PAGE
+              ? value.rscData
+              : value.pageData
+          )?.length || 0)
       }
-      // rough estimate of size of cache value
-      return (
-        value.html.length +
-        (JSON.stringify(
-          value.kind === CachedRouteKind.APP_PAGE
-            ? value.rscData
-            : value.pageData
-        )?.length || 0)
-      )
+
+      return Math.max(size, 1)
     })
   }
 
