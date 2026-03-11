@@ -9,8 +9,8 @@ export default function Root({ children }: { children: ReactNode }) {
 }
 
 export function generateStaticParams() {
-  // the param values are not accessed in tests,
-  // we just need a value here to avoid errors in PPR/cacheComponents
-  // where we need to provide at least one set of values for root params
-  return [{ lang: 'foo', locale: 'bar' }]
+  return [
+    { lang: 'en', locale: 'us' },
+    { lang: 'fr', locale: 'de' },
+  ]
 }
