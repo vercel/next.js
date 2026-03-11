@@ -1645,7 +1645,8 @@ async function getRSCPayload(
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     getDynamicParamFromSegment,
-    query
+    query,
+    ctx.renderOpts.cacheComponents
   )
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
@@ -1826,7 +1827,8 @@ async function getErrorRSCPayload(
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     getDynamicParamFromSegment,
-    query
+    query,
+    ctx.renderOpts.cacheComponents
   )
 
   let err: Error | undefined = undefined
