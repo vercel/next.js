@@ -210,6 +210,10 @@ Proxy will be invoked for **every route in your project**. Given this, it's cruc
 7. Dynamic Routes (`/blog/[slug]`)
 8. `fallback` (`rewrites`) from `next.config.js`
 
+> **Good to know:** [Server Functions](/docs/app/api-reference/directives/use-server) are not separate routes in this chain. They are handled as POST requests to the route where they are used, so a Proxy matcher that excludes a path will also skip Server Function calls on that path.
+>
+> A matcher change or a refactor that moves a Server Function to a different route can silently remove Proxy coverage. Always verify authentication and authorization inside each Server Function rather than relying on Proxy alone. See the [Data Security guide](/docs/app/guides/data-security#authentication-and-authorization) for recommended patterns.
+
 ## Runtime
 
 Proxy defaults to using the Node.js runtime. The [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config#runtime) config option is not available in Proxy files. Setting the `runtime` config option in Proxy will throw an error.

@@ -20,7 +20,8 @@ use turbopack_core::{
     chunk::SourceMapsType,
     ident::Layer,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceTypeCondition,
+        UrlReferenceSubType,
     },
     resolve::options::{ImportMap, ImportMapping},
 };
@@ -252,6 +253,7 @@ impl ModuleOptions {
                     enable_raw_css,
                     source_maps: css_source_maps,
                     ref module_css_condition,
+                    lightningcss_features,
                     ..
                 },
             ref static_url_tag,
@@ -286,8 +288,12 @@ impl ModuleOptions {
         // So only if this is not a CSS module, or one of the special reference type constraints.
         let module_css_external_transform_conditions = RuleCondition::Any(vec![
             RuleCondition::not(module_css_condition.clone()),
-            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Inner)),
-            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Analyze)),
+            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
+                CssReferenceSubType::Inner,
+            ))),
+            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
+                CssReferenceSubType::Analyze,
+            ))),
         ]);
 
         let mut ecma_preprocess = vec![];
@@ -374,9 +380,9 @@ impl ModuleOptions {
         // and should override any file-pattern-based config rules.
         if enable_import_as_bytes {
             rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
-                )),
+                ))),
                 if is_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
@@ -389,9 +395,9 @@ impl ModuleOptions {
 
         if enable_import_as_text {
             rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
-                )),
+                ))),
                 if is_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
@@ -486,6 +492,7 @@ impl ModuleOptions {
                                     postprocess,
                                     ecmascript_options_vc,
                                     environment,
+                                    lightningcss_features,
                                 )
                                 .await?,
                         )
@@ -545,29 +552,33 @@ impl ModuleOptions {
         // Rules that apply for certains references
         rules.extend([
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
+                    UrlReferenceSubType::CssUrl,
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
+                    UrlReferenceSubType::Undefined,
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
                     UrlReferenceSubType::EcmaScriptNewUrl,
-                )),
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("json".into()),
-                )),
+                ))),
                 if is_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
@@ -808,6 +819,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 ModuleRule::new(
@@ -818,6 +830,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
             ]);
@@ -874,39 +887,42 @@ impl ModuleOptions {
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
                         // Create a normal CSS asset if `@import`ed from CSS already.
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::AtImport(None),
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Inner,
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Analyze,
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 ModuleRule::new(
@@ -921,6 +937,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
             ]);

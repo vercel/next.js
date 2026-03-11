@@ -1087,5 +1087,6 @@
   "1086": "Route \"%s\": %s This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
   "1087": "Failed to parse \"%s\":\\n%s%s",
   "1088": "Expected RSC navigation response to have a body",
-  "1089": "\\`experimental.cachedNavigations\\` requires \\`cacheComponents\\` to be enabled. Please update your %s accordingly."
+  "1089": "\\`experimental.cachedNavigations\\` requires \\`cacheComponents\\` to be enabled. Please update your %s accordingly.",
+  "1090": "`css.lightning.featureNamesToMask` is not supported by the wasm bindings."
 }

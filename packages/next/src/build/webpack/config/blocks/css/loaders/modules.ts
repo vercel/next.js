@@ -42,6 +42,7 @@ export function getCssModuleLoader(
         },
         targets: ctx.supportedBrowsers,
         postcss,
+        lightningCssFeatures: ctx.experimental.lightningCssFeatures,
       },
     })
   } else {

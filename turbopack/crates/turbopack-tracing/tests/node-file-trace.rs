@@ -459,7 +459,7 @@ fn node_file_trace<B: Backend + 'static>(
                     Err(err)
                 }
             })
-            .context(format!("Failed to remove directory: {directory}"))
+            .with_context(|| format!("Failed to remove directory: {directory}"))
             .unwrap();
 
         for _ in 0..run_count {

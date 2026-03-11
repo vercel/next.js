@@ -223,24 +223,90 @@ describe('resolveRoutes - invokeMiddleware', () => {
     expect(result.externalRewrite?.toString()).toBe('https://external.com/api')
   })
 
-  it('should apply requestHeaders from middleware', async () => {
-    const newHeaders = new Headers({
+  it('should use requestHeaders from middleware for downstream routing without returning them', async () => {
+    const middlewareRequestHeaders = new Headers({
       'x-custom-header': 'middleware-value',
     })
 
     const params = createBaseParams({
       url: new URL('https://example.com/test'),
       invokeMiddleware: async () => ({
-        requestHeaders: newHeaders,
+        requestHeaders: middlewareRequestHeaders,
+      }),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/test$',
+            destination: '/internal',
+            has: [
+              {
+                type: 'header',
+                key: 'x-custom-header',
+                value: 'middleware-value',
+              },
+            ],
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/internal'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/internal')
+    expect(result.resolvedHeaders?.get('x-custom-header')).toBeNull()
+  })
+
+  it('should return middleware responseHeaders without leaking request headers', async () => {
+    const middlewareRequestHeaders = new Headers({
+      'x-internal-header': 'middleware-only',
+    })
+    const middlewareResponseHeaders = new Headers({
+      'x-response-header': 'response-value',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/test'),
+      headers: new Headers({
+        authorization: 'Bearer secret',
+      }),
+      invokeMiddleware: async () => ({
+        requestHeaders: middlewareRequestHeaders,
+        responseHeaders: middlewareResponseHeaders,
       }),
       pathnames: ['/test'],
     })
 
     const result = await resolveRoutes(params)
 
-    expect(result.resolvedHeaders?.get('x-custom-header')).toBe(
-      'middleware-value'
+    expect(result.matchedPathname).toBe('/test')
+    expect(result.resolvedHeaders?.get('x-response-header')).toBe(
+      'response-value'
     )
+    expect(result.resolvedHeaders?.get('x-internal-header')).toBeNull()
+    expect(result.resolvedHeaders?.get('authorization')).toBeNull()
+  })
+
+  it('should not return initial request headers in resolvedHeaders', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/test'),
+      headers: new Headers({
+        authorization: 'Bearer secret',
+        'x-request-id': 'req-123',
+      }),
+      pathnames: ['/test'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/test')
+    expect(result.resolvedHeaders?.get('authorization')).toBeNull()
+    expect(result.resolvedHeaders?.get('x-request-id')).toBeNull()
   })
 })
 
