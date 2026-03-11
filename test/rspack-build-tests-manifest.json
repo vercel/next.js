@@ -4073,7 +4073,7 @@
   },
   "test/e2e/app-dir/metadata-warnings/metadata-warnings-with-metadatabase.test.ts": {
     "passed": [
-      "app dir - metadata missing metadataBase should not show warning in vercel deployment output in default build output mode",
+      "app dir - metadata missing metadataBase should not show warning in output in default build output mode",
       "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing and a relative URL is used",
       "app dir - metadata missing metadataBase should warn for deprecated fields in other property",
@@ -5404,6 +5404,7 @@
       "optimistic-routing required catch-all: predicts between paths with different segment counts",
       "optimistic-routing rewrite detection (search params): does not use cached pattern when search params cause different rewrite",
       "optimistic-routing rewrite detection: detects dynamic rewrite when URL does not match route structure",
+      "optimistic-routing static route with catch-all sibling: does not match sub-route against catch-all",
       "optimistic-routing static sibling detection: does not incorrectly match static route to dynamic pattern"
     ],
     "failed": [],
@@ -5777,6 +5778,15 @@
     "passed": [
       "app-dir - params hooks compat should only access path params with useParams",
       "app-dir - params hooks compat should only access search params with useSearchParams"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
+    "passed": [
+      "partial-fallback-shell-upgrade should upgrade the fallback shell to a route shell"
     ],
     "failed": [],
     "pending": [],
@@ -7167,6 +7177,10 @@
   },
   "test/e2e/app-dir/segment-cache/cached-navigations/cached-navigations.test.ts": {
     "passed": [
+      "cached navigations caches a fully static page from the initial HTML for subsequent navigations",
+      "cached navigations caches a partially static page from the initial HTML for subsequent navigations",
+      "cached navigations caches runtime-prefetchable content from a navigation for instant second visit",
+      "cached navigations caches runtime-prefetchable content from the initial HTML for subsequent navigations",
       "cached navigations caches static segments when navigating to a known route without a prefetch",
       "cached navigations defers fallback params to the runtime stage",
       "cached navigations includes static params in the cached static stage",
@@ -7203,8 +7217,10 @@
       "segment cache (deployment skew) header with deployment id header is set on RSC responses",
       "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
       "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a static page on a different deployment",
+      "segment cache (deployment skew) with BUILD_ID triggers MPA navigation when a server action redirects to a different deployment",
       "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
-      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a static page on a different deployment"
+      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a static page on a different deployment",
+      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID triggers MPA navigation when a server action redirects to a different deployment"
     ],
     "failed": [],
     "pending": [],
@@ -7301,7 +7317,8 @@
   "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
     "passed": [
       "prefetch inlining bundles all segment data into a single request per route",
-      "prefetch inlining deduplicates inlined prefetch requests for the same route"
+      "prefetch inlining deduplicates inlined prefetch requests for the same route",
+      "prefetch inlining works with dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -7393,6 +7410,7 @@
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
     "passed": [
       "segment cache (refresh) Server Action refresh() refreshes dynamic data only, not cached",
+      "segment cache (refresh) re-navigation to a fully static page does not overwrite dynamic slots with default content",
       "segment cache (refresh) router.refresh() refreshes both cached and dynamic data"
     ],
     "failed": [],
@@ -8177,6 +8195,13 @@
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
+    "passed": ["webpack-loader-errors should skip in non-dev mode"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8969,7 +8994,8 @@
       "filesystem-caching with cache enabled should allow to change files while stopped (loader change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (next config change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)",
-      "filesystem-caching with cache enabled should cache or not cache loaders"
+      "filesystem-caching with cache enabled should cache or not cache loaders",
+      "filesystem-caching with cache enabled should emit turbopack-persistence trace spans"
     ],
     "flakey": [],
     "runtimeError": false
