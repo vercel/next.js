@@ -815,6 +815,10 @@ export function createPatchedFetcher(
               reqOptions.body = ogBody
               input = new Request(reqInput.url, reqOptions)
             } else {
+              // When _ogBody is absent, the body stream hasn't been consumed.
+              // Pass the original Request object instead of reqInput.url to
+              // preserve the internal body source, which Node 24.14+ (undici)
+              // requires to be non-null for requests with a body.
               if (isStale) {
                 reqOptions.signal = null
               }
