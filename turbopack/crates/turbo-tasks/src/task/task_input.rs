@@ -44,8 +44,8 @@ use crate::{
 ///
 /// ## Hash and Eq
 ///
-/// Arguments are used as part of keys in a HashMap, so they must implement of `PartialEq`, `Eq`,
-/// and `Hash` traits.
+/// Arguments are used as part of keys in a `HashMap`, so they must implement of [`PartialEq`],
+/// [`Eq`], and [`Hash`] traits.
 ///
 /// ## [`Vc<T>`][Vc]
 ///
@@ -71,8 +71,10 @@ use crate::{
 /// }
 /// ```
 ///
-/// Derived `TaskInput` types are **passed by value**, which involves cloning the value multiple
-/// times. It's recommended to ensure that these types are inexpensive to clone.
+/// Derived `TaskInput` types **passed by value**. When called, arguments are moved into a `Box`,
+/// and then cloned before being passed into the function. If the task is invalidated, the
+/// `TaskInput` is cloned again to allow the function to be re-executed. It's recommended to ensure
+/// that these types are cheap to clone.
 ///
 /// Reference-counted types like [`Arc`] are cheap to clone, but each reference contained in a
 /// `TaskInput` will be serialized independently in the persistent cache, and may consume extra disk
@@ -81,12 +83,37 @@ use crate::{
 pub trait TaskInput:
     Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs + Encode + Decode<()>
 {
+    /// This method should resolve any [`Vc`]s nested inside of this object, cloning the object in
+    /// the process. If the input is unresolved ([`TaskInput::is_resolved`]) a "local" resolution
+    /// task is created that runs this method.
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
     }
+
+    /// This should return `true` if there are any unresolved [`Vc`]s in the type.
+    ///
+    /// Note that [`Vc`]s can sometimes be internally resolved, so you should call
+    /// [`Vc::is_resolved`] (or rely on the derive macro for this trait) instead of returning `true`
+    /// for any [`Vc`]. [`ResolvedVc::is_resolved`] always returns `true`.
+    ///
+    /// If this returns `true`, a "local" resolution task calling [`TaskInput::resolve_input`] will
+    /// be spawned before the function accepting the arguments is run.
+    ///
+    /// If this returns `false`, the `TaskInput` will be [cloned][Clone] instead of resolved, and
+    /// the function's task will be spawned directly without a resolution step.
     fn is_resolved(&self) -> bool {
         true
     }
+
+    /// This should return true if this object contains a [`Vc`] (or any subtype of [`Vc`]) pointing
+    /// to a cell owned by a transient task.
+    ///
+    /// Any function called with a transient `TaskInput` will be transient. Any [`Vc`] constructed
+    /// in a transient task or in a top-level [`run_once`][crate::run_once] closure will be
+    /// transient.
+    ///
+    /// Internally, a [`Vc`] can be determined to be transient by comparing the owning task's id
+    /// with the [`TRANSIENT_TASK_BIT`][crate::TRANSIENT_TASK_BIT] mask.
     fn is_transient(&self) -> bool;
 }
 
