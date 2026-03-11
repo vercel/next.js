@@ -1,31 +1,4 @@
-//! A task scheduling and caching system that is focused on incremental
-//! execution.
-//!
-//! It defines 4 primitives:
-//! - **[Functions][macro@crate::function]:** Units of execution, invalidation, and reexecution.
-//! - **[Values][macro@crate::value]:** Data created, stored, and returned by functions.
-//! - **[Traits][macro@crate::value_trait]:** Traits that define a set of functions on values.
-//! - **[Collectibles][crate::TurboTasks::emit_collectible]:** Values emitted in functions that
-//!   bubble up the call graph and can be collected in parent functions.
-//!
-//! It also defines some derived elements from that:
-//! - **[Tasks][book-tasks]:** An instance of a function together with its arguments.
-//! - **[Cells][book-cells]:** The locations associated with tasks where values are stored. The
-//!   contents of a cell can change after the reexecution of a function.
-//! - **[`Vc`s ("Value Cells")][Vc]:** A reference to a cell or a return value of a function.
-//!
-//! A [`Vc`] can be read to get [a read-only reference][ReadRef] to the stored data, representing a
-//! snapshot of that cell at that point in time.
-//!
-//! On execution of functions, `turbo-tasks` will track which [`Vc`]s are read. Once any of these
-//! change, `turbo-tasks` will invalidate the task created from the function's execution and it will
-//! eventually be scheduled and reexecuted.
-//!
-//! Collectibles go through a similar process.
-//!
-//! [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
-//! [book-tasks]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html
-
+#![doc = include_str!("../README.md")]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(try_trait_v2)]
