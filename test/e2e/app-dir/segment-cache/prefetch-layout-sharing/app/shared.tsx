@@ -1,4 +1,4 @@
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 import { setTimeout } from 'timers/promises'
 
 export async function uncachedIO() {
@@ -7,7 +7,7 @@ export async function uncachedIO() {
 
 export async function cachedDelay(key: any) {
   'use cache'
-  unstable_cacheLife('minutes')
+  cacheLife('minutes')
   await setTimeout(1)
 }
 

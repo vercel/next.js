@@ -2,9 +2,9 @@
  * Shared utilities for our 2 transform implementations.
  */
 
-import type { Ipc } from '../ipc/evaluate'
+import type { Channel as Ipc } from '../types'
 import { relative, isAbsolute, join, sep } from 'path'
-import { type StructuredError } from '../ipc'
+import { type StructuredError } from '../error'
 import { type StackFrame } from '../compiled/stacktrace-parser'
 
 export type IpcInfoMessage =
@@ -30,12 +30,17 @@ export type IpcInfoMessage =
       }>
     }
 
-export type IpcRequestMessage = {
-  type: 'resolve'
-  options: any
-  lookupPath: string
-  request: string
-}
+export type IpcRequestMessage =
+  | {
+      type: 'resolve'
+      options: any
+      lookupPath: string
+      request: string
+    }
+  | {
+      type: 'trackFileRead'
+      file: string
+    }
 
 export type TransformIpc = Ipc<IpcInfoMessage, IpcRequestMessage>
 
@@ -50,7 +55,10 @@ export const toPath = (file: string) => {
   return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
 }
 export const fromPath = (path: string) => {
-  return join(contextDir, sep !== '/' ? path.replaceAll('/', sep) : path)
+  return join(
+    /* turbopackIgnore: true */ contextDir,
+    sep !== '/' ? path.replaceAll('/', sep) : path
+  )
 }
 
 // Patch process.env to track which env vars are read

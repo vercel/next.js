@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -11,10 +11,9 @@ use crate::{
 #[turbo_tasks::value]
 pub struct ChunkData {
     pub path: String,
-    pub included: Vec<ReadRef<ModuleId>>,
-    pub excluded: Vec<ReadRef<ModuleId>>,
+    pub included: Vec<ModuleId>,
+    pub excluded: Vec<ModuleId>,
     pub module_chunks: Vec<String>,
-    pub references: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -54,9 +53,6 @@ impl ChunkData {
         for module_chunk in &self.module_chunks {
             hasher.write_value(module_chunk.as_str());
         }
-        for reference in self.references.await?.iter() {
-            hasher.write_value(reference.path().to_string().await?);
-        }
 
         Ok(Vc::cell(hasher.finish()))
     }
@@ -75,7 +71,8 @@ impl ChunkData {
         };
         let path = path.to_string();
 
-        let Some(output_chunk) = Vc::try_resolve_sidecast::<Box<dyn OutputChunk>>(chunk).await?
+        let Some(output_chunk) =
+            ResolvedVc::try_sidecast::<Box<dyn OutputChunk>>(chunk.to_resolved().await?)
         else {
             return Ok(Vc::cell(Some(
                 ChunkData {
@@ -83,7 +80,6 @@ impl ChunkData {
                     included: Vec::new(),
                     excluded: Vec::new(),
                     module_chunks: Vec::new(),
-                    references: OutputAssets::empty().to_resolved().await?,
                 }
                 .resolved_cell(),
             )));
@@ -99,16 +95,16 @@ impl ChunkData {
         } = &*runtime_info;
 
         let included = if let Some(included_ids) = included_ids {
-            included_ids.await?.iter().copied().try_join().await?
+            included_ids.owned().await?
         } else {
             Vec::new()
         };
         let excluded = if let Some(excluded_ids) = excluded_ids {
-            excluded_ids.await?.iter().copied().try_join().await?
+            excluded_ids.owned().await?
         } else {
             Vec::new()
         };
-        let (module_chunks, module_chunks_references) = if let Some(module_chunks) = module_chunks {
+        let module_chunks = if let Some(module_chunks) = module_chunks {
             module_chunks
                 .await?
                 .iter()
@@ -120,16 +116,13 @@ impl ChunkData {
                         let chunk_path = chunk.path().await?;
                         Ok(output_root
                             .get_path_to(&chunk_path)
-                            .map(|path| (path.to_owned(), chunk)))
+                            .map(|path| path.to_owned()))
                     }
                 })
-                .try_join()
+                .try_flat_join()
                 .await?
-                .into_iter()
-                .flatten()
-                .unzip()
         } else {
-            (Vec::new(), Vec::new())
+            Vec::new()
         };
 
         Ok(Vc::cell(Some(
@@ -138,7 +131,6 @@ impl ChunkData {
                 included,
                 excluded,
                 module_chunks,
-                references: ResolvedVc::cell(module_chunks_references),
             }
             .resolved_cell(),
         )))
@@ -160,11 +152,5 @@ impl ChunkData {
                 .flat_map(|chunk| *chunk)
                 .collect(),
         ))
-    }
-
-    /// Returns [`OutputAsset`]s that this chunk data references.
-    #[turbo_tasks::function]
-    pub fn references(&self) -> Vc<OutputAssets> {
-        *self.references
     }
 }

@@ -123,68 +123,62 @@
 40 -> 45 free var = FreeVar(require)
 
 40 -> 46 member call = require*0*["resolve"](
-    `${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}/${(???*4* | "esbuild.exe" | "bin/esbuild" | ???*5*)}`
+    `${(???*1* | undefined | ???*2* | "esbuild-linux-64")}/${(???*3* | "esbuild.exe" | "bin/esbuild" | ???*4*)}`
 )
 - *0* require: The require method from CommonJS
 - *1* pkg
   ⚠️  pattern without value
-- *2* FreeVar(undefined)
-  ⚠️  unknown global
+- *2* unknown mutation
   ⚠️  This value might have side effects
-- *3* unknown mutation
-  ⚠️  This value might have side effects
-- *4* subpath
+- *3* subpath
   ⚠️  pattern without value
-- *5* unknown mutation
+- *4* unknown mutation
   ⚠️  This value might have side effects
 
 40 -> 47 free var = FreeVar(downloadedBinPath)
 
-40 -> 48 call = ???*0*((???*1* | ???*2* | ???*3* | "esbuild-linux-64"), (???*4* | "esbuild.exe" | "bin/esbuild" | ???*5*))
+40 -> 48 call = ???*0*(
+    (???*1* | undefined | ???*2* | "esbuild-linux-64"),
+    (???*3* | "esbuild.exe" | "bin/esbuild" | ???*4*)
+)
 - *0* FreeVar(downloadedBinPath)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* pkg
   ⚠️  pattern without value
-- *2* FreeVar(undefined)
-  ⚠️  unknown global
+- *2* unknown mutation
   ⚠️  This value might have side effects
-- *3* unknown mutation
-  ⚠️  This value might have side effects
-- *4* subpath
+- *3* subpath
   ⚠️  pattern without value
-- *5* unknown mutation
+- *4* unknown mutation
   ⚠️  This value might have side effects
 
 40 -> 50 free var = FreeVar(fs)
 
-40 -> 51 member call = ???*0*["existsSync"]((???*1* | ???*2* | ???*9*))
+40 -> 51 member call = ???*0*["existsSync"]((???*1* | ???*2* | ???*8*))
 - *0* FreeVar(fs)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* binPath
   ⚠️  pattern without value
 - *2* require.resolve*3*(
-        `${(???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)}`
+        `${(???*4* | undefined | ???*5* | "esbuild-linux-64")}/${(???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
     )
   ⚠️  require.resolve non constant
   ⚠️  This value might have side effects
 - *3* require.resolve: The require.resolve method from CommonJS
 - *4* pkg
   ⚠️  pattern without value
-- *5* FreeVar(undefined)
-  ⚠️  unknown global
+- *5* unknown mutation
   ⚠️  This value might have side effects
-- *6* unknown mutation
-  ⚠️  This value might have side effects
-- *7* subpath
+- *6* subpath
   ⚠️  pattern without value
-- *8* unknown mutation
+- *7* unknown mutation
   ⚠️  This value might have side effects
-- *9* ???*10*(pkg, subpath)
+- *8* ???*9*(pkg, subpath)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *10* FreeVar(downloadedBinPath)
+- *9* FreeVar(downloadedBinPath)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -198,20 +192,17 @@
 
 52 -> 54 free var = FreeVar(require)
 
-52 -> 55 member call = require*0*["resolve"]((???*1* | ???*2* | ???*3* | "esbuild-linux-64"))
+52 -> 55 member call = require*0*["resolve"]((???*1* | undefined | ???*2* | "esbuild-linux-64"))
 - *0* require: The require method from CommonJS
 - *1* pkg
   ⚠️  pattern without value
-- *2* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *3* unknown mutation
+- *2* unknown mutation
   ⚠️  This value might have side effects
 
 52 -> 56 free var = FreeVar(Error)
 
 52 -> 57 call = new ???*0*(
-    `The package "${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}" could not be found, and is needed by esbuild.
+    `The package "${(???*1* | undefined | ???*2* | "esbuild-linux-64")}" could not be found, and is needed by esbuild.
 
 If you are installing esbuild with npm, make sure that you don't specify the
 "--no-optional" flag. The "optionalDependencies" package.json feature is used
@@ -222,10 +213,7 @@ by esbuild to install the correct binary executable for your current platform.`
   ⚠️  This value might have side effects
 - *1* pkg
   ⚠️  pattern without value
-- *2* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *3* unknown mutation
+- *2* unknown mutation
   ⚠️  This value might have side effects
 
 40 -> 58 free var = FreeVar(require)
@@ -252,53 +240,47 @@ by esbuild to install the correct binary executable for your current platform.`
 
 60 -> 69 member call = path*0*["join"](
     "\"esbuild\"/resolved/lib",
-    `pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
+    `pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`
 )
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 - *1* pkg
   ⚠️  pattern without value
-- *2* FreeVar(undefined)
-  ⚠️  unknown global
+- *2* unknown mutation
   ⚠️  This value might have side effects
-- *3* unknown mutation
-  ⚠️  This value might have side effects
-- *4* ???*5*((???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*))
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *5* path*6*["basename"]
+- *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
   ⚠️  This value might have side effects
-- *6* path: The Node.js path module: https://nodejs.org/api/path.html
-- *7* subpath
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
   ⚠️  pattern without value
-- *8* unknown mutation
+- *7* unknown mutation
   ⚠️  This value might have side effects
 
 60 -> 71 free var = FreeVar(fs)
 
 60 -> 72 member call = ???*0*["existsSync"](
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`
 )
 - *0* FreeVar(fs)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* pkg
   ⚠️  pattern without value
-- *2* FreeVar(undefined)
-  ⚠️  unknown global
+- *2* unknown mutation
   ⚠️  This value might have side effects
-- *3* unknown mutation
-  ⚠️  This value might have side effects
-- *4* ???*5*((???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*))
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *5* path*6*["basename"]
+- *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
   ⚠️  This value might have side effects
-- *6* path: The Node.js path module: https://nodejs.org/api/path.html
-- *7* subpath
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
   ⚠️  pattern without value
-- *8* unknown mutation
+- *7* unknown mutation
   ⚠️  This value might have side effects
 
 60 -> 73 conditional = !(???*0*)
@@ -312,8 +294,8 @@ by esbuild to install the correct binary executable for your current platform.`
 73 -> 75 free var = FreeVar(fs)
 
 73 -> 76 member call = ???*0*["copyFileSync"](
-    (???*1* | ???*2* | ???*9*),
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*11* | ???*12* | ???*13* | "esbuild-linux-64")}-${???*14*}`
+    (???*1* | ???*2* | ???*8*),
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*10* | undefined | ???*11* | "esbuild-linux-64")}-${???*12*}`
 )
 - *0* FreeVar(fs)
   ⚠️  unknown global
@@ -321,53 +303,47 @@ by esbuild to install the correct binary executable for your current platform.`
 - *1* binPath
   ⚠️  pattern without value
 - *2* require.resolve*3*(
-        `${(???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)}`
+        `${(???*4* | undefined | ???*5* | "esbuild-linux-64")}/${(???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
     )
   ⚠️  require.resolve non constant
   ⚠️  This value might have side effects
 - *3* require.resolve: The require.resolve method from CommonJS
 - *4* pkg
   ⚠️  pattern without value
-- *5* FreeVar(undefined)
-  ⚠️  unknown global
+- *5* unknown mutation
   ⚠️  This value might have side effects
-- *6* unknown mutation
-  ⚠️  This value might have side effects
-- *7* subpath
+- *6* subpath
   ⚠️  pattern without value
-- *8* unknown mutation
+- *7* unknown mutation
   ⚠️  This value might have side effects
-- *9* ???*10*(pkg, subpath)
+- *8* ???*9*(pkg, subpath)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *10* FreeVar(downloadedBinPath)
+- *9* FreeVar(downloadedBinPath)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *11* pkg
+- *10* pkg
   ⚠️  pattern without value
-- *12* FreeVar(undefined)
-  ⚠️  unknown global
+- *11* unknown mutation
   ⚠️  This value might have side effects
-- *13* unknown mutation
-  ⚠️  This value might have side effects
-- *14* ???*15*(
-        (???*17* | "esbuild.exe" | "bin/esbuild" | ???*18*)
+- *12* ???*13*(
+        (???*15* | "esbuild.exe" | "bin/esbuild" | ???*16*)
     )
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *15* path*16*["basename"]
+- *13* path*14*["basename"]
   ⚠️  unsupported property on Node.js path module
   ⚠️  This value might have side effects
-- *16* path: The Node.js path module: https://nodejs.org/api/path.html
-- *17* subpath
+- *14* path: The Node.js path module: https://nodejs.org/api/path.html
+- *15* subpath
   ⚠️  pattern without value
-- *18* unknown mutation
+- *16* unknown mutation
   ⚠️  This value might have side effects
 
 73 -> 78 free var = FreeVar(fs)
 
 73 -> 79 member call = ???*0*["chmodSync"](
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`,
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`,
     493
 )
 - *0* FreeVar(fs)
@@ -375,21 +351,18 @@ by esbuild to install the correct binary executable for your current platform.`
   ⚠️  This value might have side effects
 - *1* pkg
   ⚠️  pattern without value
-- *2* FreeVar(undefined)
-  ⚠️  unknown global
+- *2* unknown mutation
   ⚠️  This value might have side effects
-- *3* unknown mutation
-  ⚠️  This value might have side effects
-- *4* ???*5*((???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*))
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *5* path*6*["basename"]
+- *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
   ⚠️  This value might have side effects
-- *6* path: The Node.js path module: https://nodejs.org/api/path.html
-- *7* subpath
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
   ⚠️  pattern without value
-- *8* unknown mutation
+- *7* unknown mutation
   ⚠️  This value might have side effects
 
 60 -> 80 unreachable = ???*0*

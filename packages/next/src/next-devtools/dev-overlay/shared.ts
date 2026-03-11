@@ -6,6 +6,7 @@ import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
+import type { CacheIndicatorState } from './cache-indicator'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -49,7 +50,8 @@ export interface OverlayState {
   readonly notFound: boolean
   readonly buildingIndicator: boolean
   readonly renderingIndicator: boolean
-  readonly staticIndicator: boolean
+  readonly cacheIndicator: CacheIndicatorState
+  readonly staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
   readonly showIndicator: boolean
   readonly disableDevIndicator: boolean
   readonly debugInfo: DebugInfo
@@ -68,10 +70,20 @@ export interface OverlayState {
   readonly page: string
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
+  readonly instantNavs: boolean
+  readonly instantNavsPanel:
+    | { readonly status: 'waiting' }
+    | { readonly status: 'initial-load'; readonly toUrl: string }
+    | {
+        readonly status: 'client-nav'
+        readonly fromUrl: string
+        readonly toUrl: string
+      }
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
+export const ACTION_CACHE_INDICATOR = 'cache-indicator'
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
 export const ACTION_BUILD_OK = 'build-ok'
 export const ACTION_BUILD_ERROR = 'build-error'
@@ -98,6 +110,9 @@ export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
+export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
+export const ACTION_INSTANT_NAVS_SET_STATUS = 'instant-navs-set-status'
+export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -110,9 +125,14 @@ export const STORE_KEY_SHARED_PANEL_LOCATION =
 export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
   'segment-explorer-update-route-state'
 
+interface CacheIndicatorAction {
+  type: typeof ACTION_CACHE_INDICATOR
+  cacheIndicator: CacheIndicatorState
+}
+
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
-  staticIndicator: boolean
+  staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
 }
 
 interface BuildOkAction {
@@ -208,6 +228,28 @@ interface DevToolsConfigAction {
   devToolsConfig: DevToolsConfig
 }
 
+interface CacheOnlyToggleAction {
+  type: typeof ACTION_INSTANT_NAVS_TOGGLE
+}
+
+type InstantNavSetStatusAction =
+  | { type: typeof ACTION_INSTANT_NAVS_SET_STATUS; status: 'waiting' }
+  | {
+      type: typeof ACTION_INSTANT_NAVS_SET_STATUS
+      status: 'initial-load'
+      toUrl: string
+    }
+  | {
+      type: typeof ACTION_INSTANT_NAVS_SET_STATUS
+      status: 'client-nav'
+      fromUrl: string
+      toUrl: string
+    }
+
+interface InstantNavResetAction {
+  type: typeof ACTION_INSTANT_NAVS_RESET
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -216,6 +258,7 @@ export type DispatcherEvent =
   | UnhandledErrorAction
   | UnhandledRejectionAction
   | VersionInfoAction
+  | CacheIndicatorAction
   | StaticIndicatorAction
   | DebugInfoAction
   | DevIndicatorAction
@@ -232,6 +275,9 @@ export type DispatcherEvent =
   | DevToolUpdateRouteStateAction
   | DevIndicatorSetAction
   | DevToolsConfigAction
+  | CacheOnlyToggleAction
+  | InstantNavSetStatusAction
+  | InstantNavResetAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -251,6 +297,14 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
+const devToolsInitialPositionFromNextConfig = (process.env
+  .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
+
+const hasInstantNavsCookie =
+  !!process.env.__NEXT_INSTANT_NAV_TOGGLE &&
+  typeof document !== 'undefined' &&
+  document.cookie.includes('next-instant-navigation-testing=')
+
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
   'isErrorOverlayOpen' | 'routerType'
@@ -260,31 +314,46 @@ export const INITIAL_OVERLAY_STATE: Omit<
   errors: [],
   notFound: false,
   renderingIndicator: false,
-  staticIndicator: false,
-  /* 
+  cacheIndicator: 'disabled',
+  staticIndicator: 'disabled',
+  /*
     This is set to `true` when we can reliably know
-    whether the indicator is in disabled state or not.  
+    whether the indicator is in disabled state or not.
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  showIndicator: false,
+  // When instant nav is active, show the indicator immediately so the user
+  // can toggle it off. Normally this is set to true by the HMR connection,
+  // but the HMR WebSocket is only created during hydration.
+  showIndicator: hasInstantNavsCookie,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
-  devToolsPosition: 'bottom-left',
+  devToolsPosition: devToolsInitialPositionFromNextConfig,
   devToolsPanelPosition: {
-    [STORE_KEY_SHARED_PANEL_LOCATION]: 'bottom-left',
+    [STORE_KEY_SHARED_PANEL_LOCATION]: devToolsInitialPositionFromNextConfig,
   },
   devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
   theme: 'system',
   hideShortcut: null,
+  instantNavs: hasInstantNavsCookie,
+  instantNavsPanel: hasInstantNavsCookie
+    ? {
+        status: 'initial-load',
+        toUrl:
+          typeof window !== 'undefined'
+            ? window.location.pathname + window.location.search
+            : '',
+      }
+    : { status: 'waiting' },
 }
 
 function getInitialState(
-  routerType: 'pages' | 'app'
+  routerType: 'pages' | 'app',
+  enableCacheIndicator: boolean
 ): OverlayState & { routerType: 'pages' | 'app' } {
   return {
     ...INITIAL_OVERLAY_STATE,
@@ -293,13 +362,15 @@ function getInitialState(
     // TODO: Should be the same default as App Router once we surface console.error in Pages Router.
     isErrorOverlayOpen: routerType === 'pages',
     routerType,
+    cacheIndicator: enableCacheIndicator ? 'ready' : 'disabled',
   }
 }
 
 export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
   getOwnerStack: (error: Error) => string | null | undefined,
-  isRecoverableError: (error: Error) => boolean
+  isRecoverableError: (error: Error) => boolean,
+  enableCacheIndicator: boolean
 ) {
   function pushErrorFilterDuplicates(
     events: readonly SupportedErrorEvent[],
@@ -321,6 +392,9 @@ export function useErrorOverlayReducer(
     const pendingEvents = events.filter((event) => {
       // Filter out duplicate errors
       return (
+        // SpiderMonkey and JavaScriptCore don't include the error message in the stack.
+        // We don't want to dedupe errors with different messages for which we don't have a good stack
+        '' + event.error !== '' + pendingEvent.error ||
         (event.error.stack !== pendingEvent.error.stack &&
           // TODO: Let ReactDevTools control deduping instead?
           getStackIgnoringStrictMode(event.error.stack) !==
@@ -342,6 +416,9 @@ export function useErrorOverlayReducer(
       switch (action.type) {
         case ACTION_DEBUG_INFO: {
           return { ...state, debugInfo: action.debugInfo }
+        }
+        case ACTION_CACHE_INDICATOR: {
+          return { ...state, cacheIndicator: action.cacheIndicator }
         }
         case ACTION_STATIC_INDICATOR: {
           return { ...state, staticIndicator: action.staticIndicator }
@@ -485,11 +562,36 @@ export function useErrorOverlayReducer(
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
         }
+        case ACTION_INSTANT_NAVS_TOGGLE: {
+          return { ...state, instantNavs: !state.instantNavs }
+        }
+        case ACTION_INSTANT_NAVS_SET_STATUS: {
+          return {
+            ...state,
+            instantNavsPanel:
+              action.status === 'waiting'
+                ? { status: 'waiting' }
+                : action.status === 'initial-load'
+                  ? { status: 'initial-load', toUrl: action.toUrl }
+                  : {
+                      status: 'client-nav',
+                      fromUrl: action.fromUrl,
+                      toUrl: action.toUrl,
+                    },
+          }
+        }
+        case ACTION_INSTANT_NAVS_RESET: {
+          return {
+            ...state,
+            instantNavs: false,
+            instantNavsPanel: { status: 'waiting' },
+          }
+        }
         default: {
           return state
         }
       }
     },
-    getInitialState(routerType)
+    getInitialState(routerType, enableCacheIndicator)
   )
 }

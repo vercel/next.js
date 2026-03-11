@@ -1,16 +1,3 @@
-import type {
-  AppType,
-  DocumentType,
-  NextComponentType,
-} from '../shared/lib/utils'
-import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
-import type {
-  PageConfig,
-  GetStaticPaths,
-  GetServerSideProps,
-  GetStaticProps,
-} from '../types'
-import type { RouteModule } from './route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 
 import { BUILD_MANIFEST } from '../shared/lib/constants'
@@ -18,7 +5,10 @@ import { join } from 'path'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
-import { loadManifestWithRetries } from './load-components'
+import {
+  loadManifestWithRetries,
+  type LoadComponentsReturnType,
+} from './load-components'
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -26,28 +16,11 @@ export type ManifestItem = {
 
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
-export type LoadComponentsReturnType = {
-  Component: NextComponentType
-  pageConfig: PageConfig
-  buildManifest: BuildManifest
-  subresourceIntegrityManifest?: Record<string, string>
-  reactLoadableManifest: ReactLoadableManifest
-  clientReferenceManifest?: ClientReferenceManifest
-  serverActionsManifest?: any
-  Document: DocumentType
-  App: AppType
-  getStaticProps?: GetStaticProps
-  getStaticPaths?: GetStaticPaths
-  getServerSideProps?: GetServerSideProps
-  ComponentMod: any
-  routeModule: RouteModule
-  isAppPath?: boolean
-  page: string
-}
+export type ErrorModule = typeof import('./route-modules/pages/builtin/_error')
 
 async function loadDefaultErrorComponentsImpl(
   distDir: string
-): Promise<LoadComponentsReturnType> {
+): Promise<LoadComponentsReturnType<ErrorModule>> {
   // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   const Document = interopDefault(require('next/dist/pages/_document'))
   // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?

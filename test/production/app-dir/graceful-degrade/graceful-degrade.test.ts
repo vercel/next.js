@@ -31,9 +31,7 @@ describe('graceful-degrade', () => {
 
     // Do not contain the global error boundary text
     const bodyText = await originBody.text()
-    expect(bodyText).not.toMatch(
-      /Application error: a client-side exception has occurred while loading/
-    )
+    expect(bodyText).not.toMatch(/This page couldn\u2019t load/)
   })
 
   it('should preserve the ssr html when browser errors for bot', async () => {
@@ -50,9 +48,7 @@ describe('graceful-degrade', () => {
     expect(errors).toMatch(/Error: boom/)
 
     const bodyText = await browser.elementByCss('body').text()
-    expect(bodyText).not.toMatch(
-      /Application error: a client-side exception has occurred while loading/
-    )
+    expect(bodyText).not.toMatch(/This page couldn\u2019t load/)
     expect(bodyText).toMatch(/fine/)
   })
 })

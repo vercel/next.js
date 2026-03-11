@@ -40,7 +40,7 @@ pub async fn get_app_route_entry(
     let config = if let Some(original_segment_config) = original_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
         segment_config.apply_parent_config(&*original_segment_config.await?);
-        segment_config.into()
+        segment_config.cell()
     } else {
         segment_from_source
     };
@@ -60,8 +60,8 @@ pub async fn get_app_route_entry(
     let inner = rcstr!("INNER_APP_ROUTE");
 
     let output_type: &str = next_config
+        .output()
         .await?
-        .output
         .as_ref()
         .map(|o| match o {
             OutputType::Standalone => "\"standalone\"",
@@ -73,7 +73,7 @@ pub async fn get_app_route_entry(
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root.clone(),
-        &[
+        [
             ("VAR_DEFINITION_PAGE", &*page.to_string()),
             ("VAR_DEFINITION_PATHNAME", &pathname),
             ("VAR_DEFINITION_FILENAME", path.file_stem().unwrap()),
@@ -82,8 +82,8 @@ pub async fn get_app_route_entry(
             ("VAR_RESOLVED_PAGE_PATH", &path.value_to_string().await?),
             ("VAR_USERLAND", &inner),
         ],
-        &[("nextConfigOutput", output_type)],
-        &[],
+        [("nextConfigOutput", output_type)],
+        [],
     )
     .await?;
 
@@ -102,7 +102,7 @@ pub async fn get_app_route_entry(
 
     let mut rsc_entry = module_asset_context
         .process(
-            Vc::upcast(virtual_source),
+            virtual_source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
@@ -113,7 +113,6 @@ pub async fn get_app_route_entry(
             project_root,
             rsc_entry,
             page,
-            next_config,
         );
     }
 
@@ -132,18 +131,15 @@ async fn wrap_edge_route(
     project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
-    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     let inner = rcstr!("INNER_ROUTE_ENTRY");
-
-    let next_config = &*next_config.await?;
 
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root.clone(),
-        &[("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
-        &[("nextConfig", &*serde_json::to_string(next_config)?)],
-        &[],
+        [("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
+        [],
+        [],
     )
     .await?;
 
@@ -153,7 +149,7 @@ async fn wrap_edge_route(
 
     let wrapped = asset_context
         .process(
-            Vc::upcast(source),
+            source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();

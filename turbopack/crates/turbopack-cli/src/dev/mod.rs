@@ -22,6 +22,7 @@ use turbo_tasks_backend::{
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
+use turbo_unix_path::join_path;
 use turbopack::evaluate_context::node_build_environment;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -39,7 +40,7 @@ use turbopack_dev_server::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use self::web_entry_source::create_web_entry_source;
@@ -265,15 +266,22 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir, /* watch= */ true);
+    const OUTPUT_DIR: &str = ".turbopack/build";
+    let fs: Vc<Box<dyn FileSystem>> = project_fs(
+        root_dir,
+        /* watch= */ true,
+        join_path(project_relative.as_str(), OUTPUT_DIR)
+            .unwrap()
+            .into(),
+    );
     let root_path = fs.root().owned().await?;
     let project_path = root_path.join(&project_relative)?;
 
     let env = load_env(root_path.clone());
-    let build_output_root = output_fs.root().await?.join(".turbopack/build")?;
+    let build_output_root = output_fs.root().await?.join(OUTPUT_DIR)?;
 
     let build_output_root_to_root_path = project_path
-        .join(".turbopack/build")?
+        .join(OUTPUT_DIR)?
         .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
     let build_output_root_to_root_path = build_output_root_to_root_path;
@@ -290,8 +298,13 @@ async fn source(
     )
     .build();
 
-    let execution_context =
-        ExecutionContext::new(root_path.clone(), Vc::upcast(build_chunking_context), env);
+    let node_backend = child_process_backend();
+    let execution_context = ExecutionContext::new(
+        root_path.clone(),
+        Vc::upcast(build_chunking_context),
+        env,
+        node_backend,
+    );
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let server_root = server_fs.root().owned().await?;

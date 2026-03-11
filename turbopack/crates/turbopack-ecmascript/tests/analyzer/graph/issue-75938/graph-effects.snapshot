@@ -64,7 +64,6 @@
             ),
         ],
         span: 268..275,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -74,6 +73,9 @@
                     module: "react",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -368,7 +370,6 @@
             ),
         ],
         span: 328..332,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -473,7 +474,6 @@
             ),
         ],
         span: 366..379,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -581,6 +581,9 @@
                     module: "https://esm.sh/preact/jsx-runtime",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -840,7 +843,6 @@
                                 ),
                             ],
                             span: 489..494,
-                            in_try: false,
                         },
                         ImportedBinding {
                             esm_reference_index: 5,
@@ -949,7 +951,6 @@
                                 ),
                             ],
                             span: 495..501,
-                            in_try: false,
                         },
                         Call {
                             func: Member(
@@ -959,6 +960,9 @@
                                         module: "./external",
                                         annotations: ImportAnnotations {
                                             map: {},
+                                            turbopack_loader: None,
+                                            turbopack_rename_as: None,
+                                            turbopack_module_type: None,
                                         },
                                     },
                                 ),
@@ -1082,6 +1086,9 @@
                                                     module: "./external",
                                                     annotations: ImportAnnotations {
                                                         map: {},
+                                                        turbopack_loader: None,
+                                                        turbopack_rename_as: None,
+                                                        turbopack_module_type: None,
                                                     },
                                                 },
                                             ),

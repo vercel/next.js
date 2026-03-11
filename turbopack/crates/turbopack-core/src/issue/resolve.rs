@@ -2,12 +2,11 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{PrettyPrintError, ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueSource, IssueStage, OptionStyledString, StyledString};
 use crate::{
-    error::PrettyPrintError,
     issue::{IssueSeverity, OptionIssueSource},
     resolve::{
         options::{ImportMap, ImportMapResult, ResolveOptions},
@@ -102,7 +101,7 @@ impl Issue for ResolvingIssue {
         writeln!(
             detail,
             "Path where resolving has started: {context}",
-            context = self.file_path.value_to_string().await?
+            context = self.file_path.to_string_ref().await?
         )?;
         writeln!(
             detail,

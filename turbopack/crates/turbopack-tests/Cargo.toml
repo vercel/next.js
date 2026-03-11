@@ -14,9 +14,11 @@ workspace = true
 
 [dependencies]
 turbopack = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 
 [dev-dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 dunce = { workspace = true }
 once_cell = { workspace = true }
 rustc-hash = { workspace = true }
@@ -33,13 +35,15 @@ turbo-tasks-fs = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-unix-path = { workspace = true }
 turbopack-browser = { workspace = true, features = ["test"] }
-turbopack-core = { workspace = true, features = ["issue_path"] }
+turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
+turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",
 ] }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-env = { workspace = true }
-turbopack-node = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 turbopack-nodejs = { workspace = true, features = ["test"] }
 turbopack-resolve = { workspace = true }
 turbopack-test-utils = { workspace = true }

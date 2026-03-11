@@ -9,7 +9,9 @@
         prop: Constant(
             Num(
                 ConstantNumber(
-                    1.0,
+                    TotalOrderF64(
+                        1.0,
+                    ),
                 ),
             ),
         ),
@@ -41,7 +43,6 @@
             ),
         ],
         span: 35..43,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -94,7 +95,6 @@
             ),
         ],
         span: 70..82,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -115,7 +115,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -124,7 +126,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -133,7 +137,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -145,21 +151,27 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    7.0,
+                                    TotalOrderF64(
+                                        7.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    8.0,
+                                    TotalOrderF64(
+                                        8.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    9.0,
+                                    TotalOrderF64(
+                                        9.0,
+                                    ),
                                 ),
                             ),
                         ),
@@ -231,21 +243,27 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -258,7 +276,9 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        0.0,
+                        TotalOrderF64(
+                            0.0,
+                        ),
                     ),
                 ),
             ),
@@ -307,7 +327,6 @@
             ),
         ],
         span: 139..160,
-        in_try: false,
     },
     Member {
         obj: Array {
@@ -319,21 +338,27 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    1.0,
+                                    TotalOrderF64(
+                                        1.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    2.0,
+                                    TotalOrderF64(
+                                        2.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    3.0,
+                                    TotalOrderF64(
+                                        3.0,
+                                    ),
                                 ),
                             ),
                         ),
@@ -346,7 +371,9 @@
         prop: Constant(
             Num(
                 ConstantNumber(
-                    0.0,
+                    TotalOrderF64(
+                        0.0,
+                    ),
                 ),
             ),
         ),
@@ -393,7 +420,6 @@
             ),
         ],
         span: 139..153,
-        in_try: false,
     },
     FreeVar {
         var: "unknown",
@@ -447,7 +473,6 @@
             ),
         ],
         span: 171..178,
-        in_try: false,
     },
     MemberCall {
         obj: Member(
@@ -461,21 +486,27 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -488,7 +519,9 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        0.0,
+                        TotalOrderF64(
+                            0.0,
+                        ),
                     ),
                 ),
             ),
@@ -508,21 +541,27 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    4.0,
+                                    TotalOrderF64(
+                                        4.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    5.0,
+                                    TotalOrderF64(
+                                        5.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    6.0,
+                                    TotalOrderF64(
+                                        6.0,
+                                    ),
                                 ),
                             ),
                         ),
@@ -577,21 +616,27 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -604,7 +649,9 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        0.0,
+                        TotalOrderF64(
+                            0.0,
+                        ),
                     ),
                 ),
             ),
@@ -653,7 +700,6 @@
             ),
         ],
         span: 200..221,
-        in_try: false,
     },
     Member {
         obj: Array {
@@ -665,21 +711,27 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    1.0,
+                                    TotalOrderF64(
+                                        1.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    2.0,
+                                    TotalOrderF64(
+                                        2.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    3.0,
+                                    TotalOrderF64(
+                                        3.0,
+                                    ),
                                 ),
                             ),
                         ),
@@ -692,7 +744,9 @@
         prop: Constant(
             Num(
                 ConstantNumber(
-                    0.0,
+                    TotalOrderF64(
+                        0.0,
+                    ),
                 ),
             ),
         ),
@@ -739,7 +793,6 @@
             ),
         ],
         span: 200..214,
-        in_try: false,
     },
     FreeVar {
         var: "unknown",
@@ -782,7 +835,6 @@
             ),
         ],
         span: 231..238,
-        in_try: false,
     },
     MemberCall {
         obj: Member(
@@ -796,21 +848,27 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -823,7 +881,9 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        0.0,
+                        TotalOrderF64(
+                            0.0,
+                        ),
                     ),
                 ),
             ),
@@ -840,7 +900,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -849,7 +911,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -858,7 +922,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -910,7 +976,9 @@
         prop: Constant(
             Num(
                 ConstantNumber(
-                    1.0,
+                    TotalOrderF64(
+                        1.0,
+                    ),
                 ),
             ),
         ),
@@ -942,7 +1010,6 @@
             ),
         ],
         span: 304..313,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -995,7 +1062,6 @@
             ),
         ],
         span: 348..360,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -1019,21 +1085,27 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    7.0,
+                                    TotalOrderF64(
+                                        7.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    8.0,
+                                    TotalOrderF64(
+                                        8.0,
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    9.0,
+                                    TotalOrderF64(
+                                        9.0,
+                                    ),
                                 ),
                             ),
                         ),

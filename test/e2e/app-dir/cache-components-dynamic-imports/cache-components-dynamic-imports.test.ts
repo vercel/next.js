@@ -1,10 +1,6 @@
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertNoRedbox,
-  getRouteTypeFromDevToolsIndicator,
-  retry,
-} from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('async imports in cacheComponents', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
@@ -65,10 +61,8 @@ describe('async imports in cacheComponents', () => {
     expect(await browser.elementByCss('body').text()).toBe('hello')
     if (isNextDev) {
       await retry(async () => {
-        // the page should be static
-        expect(await getRouteTypeFromDevToolsIndicator(browser)).toBe('Static')
         // we shouldn't get any errors from `spawnDynamicValidationInDev`
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
     }
   }
@@ -161,13 +155,6 @@ describe('async imports in cacheComponents', () => {
       // indirectly tests the behavior of middleware by rendering a page which the middleware matches
       await testPage('/not-instrumented/middleware')
     })
-
-    it('edge route handler', async () => {
-      const result = await next
-        .fetch('/not-instrumented/edge-route-handler')
-        .then((res) => res.text())
-      expect(result).toBe('hello')
-    })
   })
 })
 
@@ -182,7 +169,7 @@ describe('async imports in cacheComponents - external packages', () => {
   // This is currently expected to fail because we can only track `import()` in bundled code,
   // and packages marked as external aren't bundled.
   it('does not instrument import() in external packages', async () => {
-    const expectedError = `Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.`
+    const expectedError = 'https://nextjs.org/docs/messages/blocking-route'
     if (isNextStart) {
       // in prod, we fail during the build
       await expect(() => next.start()).rejects.toThrow()

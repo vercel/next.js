@@ -3,13 +3,25 @@ use std::{any::type_name, sync::Arc};
 use anyhow::Result;
 use either::Either;
 use smallvec::SmallVec;
-use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType};
+use turbo_bincode::TurboBincodeBuffer;
+use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
-    backend::{AnyOperation, TaskDataCategory},
-    data::CachedDataItem,
+    backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
     utils::chunked_vec::ChunkedVec,
 };
+
+pub struct SnapshotItem {
+    pub task_id: TaskId,
+    pub data: Option<TurboBincodeBuffer>,
+    pub meta: Option<TurboBincodeBuffer>,
+}
+
+impl SnapshotItem {
+    pub fn is_empty(&self) -> bool {
+        self.meta.is_none() && self.data.is_none()
+    }
+}
 
 /// Represents types accepted by [`TurboTasksBackend::new`]. Typically this is the value returned by
 /// [`default_backing_storage`] or [`noop_backing_storage`].
@@ -43,43 +55,31 @@ pub trait BackingStorage: BackingStorageSealed {
 pub trait BackingStorageSealed: 'static + Send + Sync {
     type ReadTransaction<'l>;
     fn next_free_task_id(&self) -> Result<TaskId>;
-    fn next_session_id(&self) -> Result<SessionId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
-    #[allow(clippy::ptr_arg)]
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>>;
+
     fn save_snapshot<I>(
         &self,
-        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<
-                Item = (
-                    TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
-                ),
-            > + Send
-            + Sync;
+        I: Iterator<Item = SnapshotItem> + Send + Sync;
     fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>>;
+    /// Returns all task IDs that match the given task type (hash collision candidates).
+    ///
+    /// Since TaskCache uses hash-based keys, multiple task types may (rarely) hash to the same key.
+    /// The caller must verify each returned TaskId by comparing the stored task type which will
+    /// require a second database read
+    ///
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn forward_lookup_task_cache(
+    unsafe fn lookup_task_candidates(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         key: &CachedTaskType,
-    ) -> Result<Option<TaskId>>;
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>>;
+    ) -> Result<SmallVec<[TaskId; 1]>>;
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
@@ -87,8 +87,21 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Result<Vec<CachedDataItem>>;
+        category: SpecificTaskDataCategory,
+        storage: &mut TaskStorage,
+    ) -> Result<()>;
+
+    /// Batch lookup and decode data for multiple tasks directly into TypedStorage instances.
+    /// Returns a vector of TypedStorage, one for each task_id in the input slice.
+    /// # Safety
+    ///
+    /// `tx` must be a transaction from this BackingStorage instance.
+    unsafe fn batch_lookup_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        category: SpecificTaskDataCategory,
+    ) -> Result<Vec<TaskStorage>>;
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
@@ -116,37 +129,20 @@ where
         either::for_both!(self, this => this.next_free_task_id())
     }
 
-    fn next_session_id(&self) -> Result<SessionId> {
-        either::for_both!(self, this => this.next_session_id())
-    }
-
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         either::for_both!(self, this => this.uncompleted_operations())
     }
 
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
-        either::for_both!(self, this => this.serialize(task, data))
-    }
-
     fn save_snapshot<I>(
         &self,
-        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<
-                Item = (
-                    TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
-                ),
-            > + Send
-            + Sync,
+        I: Iterator<Item = SnapshotItem> + Send + Sync,
     {
         either::for_both!(self, this => this.save_snapshot(
-            session_id,
             operations,
             task_cache_updates,
             snapshots,
@@ -160,36 +156,21 @@ where
         })
     }
 
-    unsafe fn forward_lookup_task_cache(
+    unsafe fn lookup_task_candidates(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         key: &CachedTaskType,
-    ) -> Result<Option<TaskId>> {
+    ) -> Result<SmallVec<[TaskId; 1]>> {
         match self {
             Either::Left(this) => {
                 let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.forward_lookup_task_cache(tx, key) }
+                // Safety: `tx` is unwrapped from `Either::Left`, so it originated from `this`.
+                unsafe { this.lookup_task_candidates(tx, key) }
             }
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.forward_lookup_task_cache(tx, key) }
-            }
-        }
-    }
-
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>> {
-        match self {
-            Either::Left(this) => {
-                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.reverse_lookup_task_cache(tx, task_id) }
-            }
-            Either::Right(this) => {
-                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.reverse_lookup_task_cache(tx, task_id) }
+                // Safety: `tx` is unwrapped from `Either::Right`, so it originated from `this`.
+                unsafe { this.lookup_task_candidates(tx, key) }
             }
         }
     }
@@ -198,16 +179,39 @@ where
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Result<Vec<CachedDataItem>> {
+        category: SpecificTaskDataCategory,
+        storage: &mut TaskStorage,
+    ) -> Result<()> {
         match self {
             Either::Left(this) => {
                 let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.lookup_data(tx, task_id, category) }
+                // Safety: `tx` is unwrapped from `Either::Left`, so it originated from `this`.
+                unsafe { this.lookup_data(tx, task_id, category, storage) }
             }
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.lookup_data(tx, task_id, category) }
+                // Safety: `tx` is unwrapped from `Either::Right`, so it originated from `this`.
+                unsafe { this.lookup_data(tx, task_id, category, storage) }
+            }
+        }
+    }
+
+    unsafe fn batch_lookup_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        category: SpecificTaskDataCategory,
+    ) -> Result<Vec<TaskStorage>> {
+        match self {
+            Either::Left(this) => {
+                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
+                // Safety: `tx` is unwrapped from `Either::Left`, so it originated from `this`.
+                unsafe { this.batch_lookup_data(tx, task_ids, category) }
+            }
+            Either::Right(this) => {
+                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
+                // Safety: `tx` is unwrapped from `Either::Right`, so it originated from `this`.
+                unsafe { this.batch_lookup_data(tx, task_ids, category) }
             }
         }
     }

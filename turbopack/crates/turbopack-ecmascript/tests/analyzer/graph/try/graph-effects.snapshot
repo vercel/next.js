@@ -47,7 +47,6 @@
             ),
         ],
         span: 25..32,
-        in_try: true,
     },
     Call {
         func: FreeVar(
@@ -155,7 +154,6 @@
             ),
         ],
         span: 78..85,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -258,7 +256,6 @@
             ),
         ],
         span: 108..114,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(

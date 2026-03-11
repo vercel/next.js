@@ -3,7 +3,7 @@ import type {
   EdgeMiddlewareMeta,
 } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
-import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
+import type { ProxyMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -22,8 +22,9 @@ import {
   SERVER_REFERENCE_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
+  SERVER_FILES_MANIFEST,
 } from '../../../shared/lib/constants'
-import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../analysis/get-page-static-info'
 import type { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
@@ -33,7 +34,7 @@ import {
   WEBPACK_LAYERS,
 } from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
-import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../../lib/is-interception-route-rewrite'
 import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
 import { getModuleReferencesInOrder } from '../utils'
 
@@ -44,7 +45,7 @@ export interface EdgeFunctionDefinition {
   files: string[]
   name: string
   page: string
-  matchers: MiddlewareMatcher[]
+  matchers: ProxyMatcher[]
   env: Record<string, string>
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
@@ -133,6 +134,10 @@ function getEntryFiles(
       `server/${NEXT_FONT_MANIFEST}.js`,
       `server/${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`
     )
+
+    if (!opts.dev) {
+      files.push(`${SERVER_FILES_MANIFEST}.js`)
+    }
   }
 
   if (hasInstrumentationHook) {
@@ -294,7 +299,7 @@ function isBunModule(moduleName: string) {
 
 function isDynamicCodeEvaluationAllowed(
   fileName: string,
-  middlewareConfig?: MiddlewareConfig,
+  middlewareConfig?: ProxyConfig,
   rootDir?: string
 ) {
   // Some packages are known to use `eval` but are safe to use in the Edge

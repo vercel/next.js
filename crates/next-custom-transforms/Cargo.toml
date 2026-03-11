@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2024"
 name = "next-custom-transforms"
 version = "0.0.0"
 publish = false
@@ -66,11 +66,14 @@ swc_relay = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
 urlencoding = { workspace = true }
+next-taskless = { workspace = true }
 
 react_remove_properties = { workspace = true }
 remove_console = { workspace = true }
 preset_env_base = { workspace = true }
 
 [dev-dependencies]
-swc_core = { workspace = true, features = ["testing_transform", "plugin_backend_wasmer"] }
 testing = { workspace = true }
+# effectively enable the "plugin" feature for tests, plus swc_core/plugin_backend_wasmer
+swc_core = { workspace = true, features = ["testing_transform", "plugin_transform_host_native", "plugin_backend_wasmer"] }
+turbopack-ecmascript-plugins = { workspace = true, features = ["swc_ecma_transform_plugin"] }

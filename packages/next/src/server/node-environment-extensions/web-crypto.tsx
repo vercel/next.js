@@ -7,7 +7,7 @@
  * The extensions here never error nor alter the underlying return values and thus should be transparent to callers.
  */
 
-import { io } from './utils'
+import { io } from './io-utils'
 
 let webCrypto: typeof crypto
 if (process.env.NEXT_RUNTIME === 'edge') {
@@ -31,7 +31,7 @@ try {
   }
 } catch {
   console.error(
-    `Failed to install ${getRandomValuesExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+    `Failed to install ${getRandomValuesExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
   )
 }
 
@@ -44,6 +44,6 @@ try {
   } as typeof _randomUUID
 } catch {
   console.error(
-    `Failed to install ${getRandomValuesExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+    `Failed to install ${getRandomValuesExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
   )
 }

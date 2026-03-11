@@ -2,11 +2,13 @@ use std::{collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use either::Either;
+use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
 use turbopack_core::{
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
@@ -25,7 +27,7 @@ use crate::{
     embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
     next_client::context::ClientContextType,
-    next_config::NextConfig,
+    next_config::{NextConfig, OptionFileSystemPath},
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
     next_font::google::{
         GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
@@ -35,61 +37,6 @@ use crate::{
     next_server::context::ServerContextType,
     util::NextRuntime,
 };
-
-/// List of node.js internals that are not supported by edge runtime.
-/// If these imports are used & user does not provide alias for the polyfill,
-/// runtime error will be thrown.
-/// This is not identical to the list of entire node.js internals, refer
-/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
-/// for the allowed imports.
-static EDGE_UNSUPPORTED_NODE_INTERNALS: LazyLock<[RcStr; 44]> = LazyLock::new(|| {
-    [
-        rcstr!("child_process"),
-        rcstr!("cluster"),
-        rcstr!("console"),
-        rcstr!("constants"),
-        rcstr!("crypto"),
-        rcstr!("dgram"),
-        rcstr!("diagnostics_channel"),
-        rcstr!("dns"),
-        rcstr!("dns/promises"),
-        rcstr!("domain"),
-        rcstr!("fs"),
-        rcstr!("fs/promises"),
-        rcstr!("http"),
-        rcstr!("http2"),
-        rcstr!("https"),
-        rcstr!("inspector"),
-        rcstr!("module"),
-        rcstr!("net"),
-        rcstr!("os"),
-        rcstr!("path"),
-        rcstr!("path/posix"),
-        rcstr!("path/win32"),
-        rcstr!("perf_hooks"),
-        rcstr!("process"),
-        rcstr!("punycode"),
-        rcstr!("querystring"),
-        rcstr!("readline"),
-        rcstr!("repl"),
-        rcstr!("stream"),
-        rcstr!("stream/promises"),
-        rcstr!("stream/web"),
-        rcstr!("string_decoder"),
-        rcstr!("sys"),
-        rcstr!("timers"),
-        rcstr!("timers/promises"),
-        rcstr!("tls"),
-        rcstr!("trace_events"),
-        rcstr!("tty"),
-        rcstr!("v8"),
-        rcstr!("vm"),
-        rcstr!("wasi"),
-        rcstr!("worker_threads"),
-        rcstr!("zlib"),
-        rcstr!("pnpapi"),
-    ]
-});
 
 // Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
@@ -126,11 +73,11 @@ pub async fn get_next_client_import_map(
     match &ty {
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
-            let react_flavor = if *next_config.enable_ppr().await?
-                || *next_config.enable_taint().await?
-                || *next_config.enable_view_transition().await?
-                || *next_config.enable_router_bfcache().await?
-            {
+            // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
+            let taint = *next_config.enable_taint().await?;
+            let transition_indicator = *next_config.enable_transition_indicator().await?;
+            let gesture_transition = *next_config.enable_gesture_transition().await?;
+            let react_channel = if taint || transition_indicator || gesture_transition {
                 "-experimental"
             } else {
                 ""
@@ -140,21 +87,21 @@ pub async fn get_next_client_import_map(
                 rcstr!("react"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react{react_flavor}").into(),
+                    format!("next/dist/compiled/react{react_channel}").into(),
                 ),
             );
             import_map.insert_wildcard_alias(
                 rcstr!("react/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react{react_flavor}/*").into(),
+                    format!("next/dist/compiled/react{react_channel}/*").into(),
                 ),
             );
             import_map.insert_exact_alias(
                 rcstr!("react-dom"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react-dom{react_flavor}").into(),
+                    format!("next/dist/compiled/react-dom{react_channel}").into(),
                 ),
             );
             import_map.insert_exact_alias(
@@ -183,7 +130,7 @@ pub async fn get_next_client_import_map(
                 rcstr!("react-dom/client"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react-dom{react_flavor}/{react_client_package}")
+                    format!("next/dist/compiled/react-dom{react_channel}/{react_client_package}")
                         .into(),
                 ),
             );
@@ -191,7 +138,7 @@ pub async fn get_next_client_import_map(
                 rcstr!("react-dom/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react-dom{react_flavor}/*").into(),
+                    format!("next/dist/compiled/react-dom{react_channel}/*").into(),
                 ),
             );
             import_map.insert_wildcard_alias(
@@ -202,7 +149,8 @@ pub async fn get_next_client_import_map(
                 rcstr!("react-server-dom-turbopack/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*").into(),
+                    format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/*")
+                        .into(),
                 ),
             );
             insert_exact_alias_or_js(
@@ -278,6 +226,8 @@ pub async fn get_next_client_import_map(
     insert_turbopack_dev_alias(&mut import_map).await?;
     insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
+    insert_server_only_error_alias(&mut import_map);
+
     Ok(import_map.cell())
 }
 
@@ -345,9 +295,7 @@ pub async fn get_next_server_import_map(
 
     import_map.insert_exact_alias(rcstr!("next/dist/server/require-hook"), external);
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             import_map.insert_exact_alias(rcstr!("react"), external);
             import_map.insert_wildcard_alias(rcstr!("react/"), external);
             import_map.insert_exact_alias(rcstr!("react-dom"), external);
@@ -494,7 +442,6 @@ pub async fn get_next_edge_import_map(
 
     match &ty {
         ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {}
@@ -547,10 +494,19 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. }
         | ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
             insert_unsupported_node_internal_aliases(&mut import_map).await?;
         }
+    }
+
+    if matches!(
+        ty,
+        ServerContextType::AppRSC { .. }
+            | ServerContextType::AppRoute { .. }
+            | ServerContextType::Middleware { .. }
+            | ServerContextType::Instrumentation { .. }
+    ) {
+        insert_client_only_error_alias(&mut import_map);
     }
 
     Ok(import_map.cell())
@@ -593,9 +549,13 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
     ))
     .resolved_cell();
 
-    EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
-        import_map.insert_alias(AliasPattern::exact(module.clone()), unsupported_replacer);
-    });
+    for module in NODE_EXTERNALS {
+        if EDGE_NODE_EXTERNALS.binary_search(&module).is_ok() {
+            continue;
+        }
+        import_map.insert_alias(AliasPattern::exact(module), unsupported_replacer);
+    }
+
     Ok(())
 }
 
@@ -705,12 +665,9 @@ async fn insert_next_server_special_aliases(
 
     match &ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
-        ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
-        ServerContextType::AppSSR { app_dir }
-        | ServerContextType::AppRSC { app_dir, .. }
-        | ServerContextType::AppRoute { app_dir, .. } => {
-            let next_package = get_next_package(app_dir.clone()).owned().await?;
+        ServerContextType::AppSSR { app_dir } => {
+            let next_package = get_next_package(app_dir.clone()).await?;
             import_map.insert_exact_alias(
                 rcstr!("styled-jsx"),
                 request_to_import_mapping(next_package.clone(), rcstr!("styled-jsx")),
@@ -729,7 +686,10 @@ async fn insert_next_server_special_aliases(
             )
             .await?;
         }
-        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
+        ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {
             rsc_aliases(
                 import_map,
                 project_path.clone(),
@@ -759,8 +719,7 @@ async fn insert_next_server_special_aliases(
                 },
             );
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
+        ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
@@ -770,11 +729,11 @@ async fn insert_next_server_special_aliases(
                 project_path.clone(),
                 fxindexmap! {
                     rcstr!("server-only") => rcstr!("next/dist/compiled/server-only/empty"),
-                    rcstr!("client-only") => rcstr!("next/dist/compiled/client-only/error"),
                     rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/empty"),
                     rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/error"),
                 },
             );
+            insert_client_only_error_alias(import_map);
         }
         ServerContextType::AppSSR { .. } => {
             insert_exact_alias_map(
@@ -837,11 +796,10 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let router_bfcache = *next_config.enable_router_bfcache().await?;
-    let view_transition = *next_config.enable_view_transition().await?;
-    let react_channel = if ppr || taint || view_transition || router_bfcache {
+    let transition_indicator = *next_config.enable_transition_indicator().await?;
+    let gesture_transition = *next_config.enable_gesture_transition().await?;
+    let react_channel = if taint || transition_indicator || gesture_transition {
         "-experimental"
     } else {
         ""
@@ -996,6 +954,7 @@ async fn apply_vendored_react_aliases_server(
         // This is used in the server runtime to import React Server Components.
         alias.extend(fxindexmap! {
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
+            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
         });
     }
 
@@ -1025,6 +984,7 @@ async fn rsc_aliases(
         // This is used in the server runtime to import React Server Components.
         alias.extend(fxindexmap! {
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
+            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
         });
     }
 
@@ -1114,7 +1074,7 @@ async fn insert_next_shared_aliases(
         next_font_google_replacer_mapping,
     );
 
-    let fetch_client = next_config.fetch_client(execution_context.env());
+    let fetch_client = next_config.fetch_client();
     import_map.insert_alias(
         AliasPattern::exact(rcstr!(
             "@vercel/turbopack-next/internal/font/google/cssmodule.module.css"
@@ -1142,7 +1102,7 @@ async fn insert_next_shared_aliases(
         .resolved_cell(),
     );
 
-    let next_package = get_next_package(project_path.clone()).owned().await?;
+    let next_package = get_next_package(project_path.clone()).await?;
     import_map.insert_singleton_alias(rcstr!("@swc/helpers"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("styled-jsx"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("next"), project_path.clone());
@@ -1241,19 +1201,94 @@ async fn insert_next_shared_aliases(
     Ok(())
 }
 
+pub async fn get_next_package(context_directory: FileSystemPath) -> Result<FileSystemPath> {
+    try_get_next_package(context_directory)
+        .owned()
+        .await?
+        .context("Next.js package not found")
+}
+
+#[turbo_tasks::value(shared)]
+struct MissingNextFolderIssue {
+    path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MissingNextFolderIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.path.clone().cell()
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Fatal
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Resolve.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        let system_path = match to_sys_path(self.path.clone()).await? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
+            _ => "{unknown}".to_string(),
+        };
+
+        Ok(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(
+                    "Error: Next.js inferred your workspace root, but it may not be correct.".into(),
+                ),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text("We couldn't find the Next.js package (".into()),
+                StyledString::Strong("next/package.json".into()),
+                StyledString::Text(") from the project directory: ".into()),
+                StyledString::Strong(system_path.into()),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text(" To fix this, set ".into()),
+                StyledString::Code("turbopack.root".into()),
+                StyledString::Text(
+                    " in your Next.js config, or ensure the Next.js package is resolvable from this directory.".into(),
+                ),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text("Note: For security and performance reasons, files outside of the project directory will not be compiled.".into()),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text("See ".into()),
+                StyledString::Strong("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory".into()),
+                StyledString::Text(" for more information.".into())
+            ]),
+        ])
+            .cell())
+    }
+}
+
 #[turbo_tasks::function]
-pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<FileSystemPath>> {
+pub async fn try_get_next_package(
+    context_directory: FileSystemPath,
+) -> Result<Vc<OptionFileSystemPath>> {
+    let root = context_directory.root().owned().await?;
     let result = resolve(
         context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(context_directory.root().owned().await?),
+        node_cjs_resolve_options(root),
     );
-    let source = result
-        .first_source()
-        .await?
-        .context("Next.js package not found")?;
-    Ok(source.ident().path().await?.parent().cell())
+    if let Some(source) = &*result.first_source().await? {
+        Ok(Vc::cell(Some(source.ident().path().await?.parent())))
+    } else {
+        MissingNextFolderIssue {
+            path: context_directory,
+        }
+        .resolved_cell()
+        .emit();
+        Ok(Vc::cell(None))
+    }
 }
 
 pub async fn insert_alias_option<const N: usize>(
@@ -1384,6 +1419,113 @@ async fn insert_instrumentation_client_alias(
     );
 
     Ok(())
+}
+
+fn insert_client_only_error_alias(import_map: &mut ImportMap) {
+    import_map.insert_exact_alias(
+        rcstr!("client-only"),
+        ImportMapping::Error(ResolvedVc::upcast(
+            InvalidImportIssue {
+                title: StyledString::Line(vec![
+                    StyledString::Code(rcstr!("'client-only'")),
+                    StyledString::Text(rcstr!(
+                        " cannot be imported from a Server Component module"
+                    )),
+                ])
+                .resolved_cell(),
+                description: ResolvedVc::cell(Some(
+                    StyledString::Line(vec![StyledString::Text(
+                        "It should only be used from a Client Component.".into(),
+                    )])
+                    .resolved_cell(),
+                )),
+            }
+            .resolved_cell(),
+        ))
+        .resolved_cell(),
+    );
+
+    // styled-jsx imports client-only. So this is effectively the same as above but produces a nicer
+    // import trace.
+    let mapping = ImportMapping::Error(ResolvedVc::upcast(
+        InvalidImportIssue {
+            title: StyledString::Line(vec![
+                StyledString::Code(rcstr!("'styled-jsx'")),
+                StyledString::Text(rcstr!(" cannot be imported from a Server Component module")),
+            ])
+            .resolved_cell(),
+            description: ResolvedVc::cell(Some(
+                StyledString::Line(vec![StyledString::Text(
+                    "It only works in a Client Component but none of its parents are marked with \
+                     'use client', so they're Server Components by default."
+                        .into(),
+                )])
+                .resolved_cell(),
+            )),
+        }
+        .resolved_cell(),
+    ))
+    .resolved_cell();
+    import_map.insert_exact_alias(rcstr!("styled-jsx"), mapping);
+    import_map.insert_wildcard_alias(rcstr!("styled-jsx/"), mapping);
+}
+
+fn insert_server_only_error_alias(import_map: &mut ImportMap) {
+    import_map.insert_exact_alias(
+        rcstr!("server-only"),
+        ImportMapping::Error(ResolvedVc::upcast(
+            InvalidImportIssue {
+                title: StyledString::Line(vec![
+                    StyledString::Code(rcstr!("'server-only'")),
+                    StyledString::Text(rcstr!(
+                        " cannot be imported from a Client Component module"
+                    )),
+                ])
+                .resolved_cell(),
+                description: ResolvedVc::cell(Some(
+                    StyledString::Line(vec![StyledString::Text(
+                        "It should only be used from a Server Component.".into(),
+                    )])
+                    .resolved_cell(),
+                )),
+            }
+            .resolved_cell(),
+        ))
+        .resolved_cell(),
+    );
+}
+
+#[turbo_tasks::value(shared)]
+struct InvalidImportIssue {
+    title: ResolvedVc<StyledString>,
+    description: ResolvedVc<OptionStyledString>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for InvalidImportIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        panic!("InvalidImportIssue::file_path should not be called");
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::Resolve.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        *self.title
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        *self.description
+    }
 }
 
 // To alias e.g. both `import "next/link"` and `import "next/link.js"`

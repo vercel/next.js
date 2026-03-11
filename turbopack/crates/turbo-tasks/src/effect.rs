@@ -16,12 +16,9 @@ use tokio::task_local;
 use tracing::Instrument;
 
 use crate::{
-    self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
-    debug::ValueDebugFormat,
-    emit,
+    self as turbo_tasks, CollectiblesSource, ReadRef, ResolvedVc, TryJoinIterExt, emit,
     event::{Event, EventListener},
     spawn,
-    trace::TraceRawVcs,
     util::SharedError,
 };
 
@@ -214,7 +211,8 @@ pub async fn get_effects(source: impl CollectiblesSource) -> Result<Effects> {
 
 /// Captured effects from an operation. This struct can be used to return Effects from a turbo-tasks
 /// function and apply them later.
-#[derive(TraceRawVcs, Default, ValueDebugFormat, NonLocalValue)]
+#[derive(Default)]
+#[turbo_tasks::value(shared, eq = "manual", serialization = "none")]
 pub struct Effects {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     effects: Vec<ReadRef<EffectInstance>>,
@@ -298,7 +296,7 @@ impl ApplyEffectsContext {
                 .get_mut(&TypeId::of::<T>())
                 .map(|value| {
                     // Safety: the map is keyed by TypeId
-                    unsafe { value.downcast_mut_unchecked() }
+                    unsafe { value.downcast_unchecked_mut() }
                 })
                 .map(f)
         })
@@ -315,7 +313,7 @@ impl ApplyEffectsContext {
             });
             f(
                 // Safety: the map is keyed by TypeId
-                unsafe { value.downcast_mut_unchecked() },
+                unsafe { value.downcast_unchecked_mut() },
             )
         })
     }

@@ -9,42 +9,31 @@
 
 pub mod evaluate_context;
 pub mod global_module_ids;
-mod graph;
 pub mod module_options;
 pub mod transition;
 
-use anyhow::{Result, bail};
-use css::{CssModuleAsset, ModuleCssAsset};
-use ecmascript::{
-    EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
-    chunk::EcmascriptChunkPlaceable,
-    references::{FollowExportsResult, follow_reexports},
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
+use anyhow::{Context as _, Result, bail};
+use module_options::{
+    ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType,
 };
-use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
-use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{
-    FileSystemPath,
-    glob::{Glob, GlobOptions},
-};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks_fs::FileSystemPath;
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
     chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    ident::Layer,
-    issue::{IssueExt, IssueSource, StyledString, module::ModuleIssue},
-    module::Module,
+    ident::{AssetIdent, Layer},
+    issue::{IssueExt, IssueSource, module::ModuleIssue},
+    module::{Module, ModuleSideEffects},
     node_addon_module::NodeAddonModule,
-    output::OutputAsset,
+    output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
-        InnerAssets, ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -52,38 +41,73 @@ use turbopack_core::{
         parse::Request, resolve,
     },
     source::Source,
+    source_transform::SourceTransforms,
 };
-pub use turbopack_css as css;
-pub use turbopack_ecmascript as ecmascript;
+use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
-    references::external_module::{
-        CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
+    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
+    EcmascriptOptions, TreeShakingMode,
+    chunk::EcmascriptChunkPlaceable,
+    references::{
+        FollowExportsResult,
+        external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
+        follow_reexports,
     },
-    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
-    tree_shake::asset::EcmascriptModulePartAsset,
+    rename::module::EcmascriptModuleRenameModule,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    },
+    tree_shake::part::module::EcmascriptModulePartAsset,
 };
-use turbopack_json::JsonModuleAsset;
-pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
-use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescript::type_resolve};
+use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
+use turbopack_resolve::{
+    resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
+    typescript::type_resolve,
+};
 use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
-use self::transition::{Transition, TransitionOptions};
-use crate::module_options::{CssOptionsContext, CustomModuleType, EcmascriptOptionsContext};
+use crate::{
+    evaluate_context::node_evaluate_asset_context,
+    module_options::{
+        CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+        package_import_map_from_context, package_import_map_from_import_mapping,
+    },
+    transition::{Transition, TransitionOptions},
+};
 
-#[turbo_tasks::function]
 async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
-    part: Option<ModulePart>,
+    reference_type: ReferenceType,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
-    css_import_context: Option<Vc<ImportContext>>,
-    runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
+    let tree_shaking_mode = module_asset_context
+        .module_options_context()
+        .await?
+        .tree_shaking_mode;
+    let part = match &reference_type {
+        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
+            Some(part)
+        }
+        _ => None,
+    };
+    let css_import_context = match reference_type {
+        ReferenceType::Css(CssReferenceSubType::AtImport(import)) => import,
+        _ => None,
+    };
+    let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
+
     let module_type = &*module_type.await?;
-    Ok(ProcessResult::Module(match module_type {
+    let module = match module_type {
         ModuleType::Ecmascript {
+            preprocess,
+            main,
+            postprocess,
+            options,
+        }
+        | ModuleType::EcmascriptExtensionless {
             preprocess,
             main,
             postprocess,
@@ -114,6 +138,10 @@ async fn apply_module_type(
             }
             .to_resolved()
             .await?;
+            let side_effect_free_packages = module_asset_context
+                .module_options_context()
+                .await?
+                .side_effect_free_packages;
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 ResolvedVc::upcast(context_for_module),
@@ -127,10 +155,14 @@ async fn apply_module_type(
                     .compile_time_info()
                     .to_resolved()
                     .await?,
+                side_effect_free_packages,
             );
             match module_type {
                 ModuleType::Ecmascript { .. } => {
                     builder = builder.with_type(EcmascriptModuleAssetType::Ecmascript)
+                }
+                ModuleType::EcmascriptExtensionless { .. } => {
+                    builder = builder.with_type(EcmascriptModuleAssetType::EcmascriptExtensionless)
                 }
                 ModuleType::Typescript {
                     tsx, analyze_types, ..
@@ -151,80 +183,57 @@ async fn apply_module_type(
             }
 
             let module = builder.build().to_resolved().await?;
-            if runtime_code {
+            if matches!(reference_type, ReferenceType::Runtime) {
                 ResolvedVc::upcast(module)
             } else {
-                if matches!(&part, Some(ModulePart::Evaluation)) {
-                    // Skip the evaluation part if the module is marked as side effect free.
-                    let side_effect_free_packages = module_asset_context
-                        .side_effect_free_packages()
-                        .resolve()
-                        .await?;
-
-                    if *module
-                        .is_marked_as_side_effect_free(side_effect_free_packages)
-                        .await?
-                    {
+                // Check side effect free on the intermediate module before following reexports
+                // This can skip the module earlier and could skip more modules than only doing it
+                // at the end. Also we avoid parsing/analyzing the module in this
+                // case, because we would need to parse/analyze it for reexports.
+                if tree_shaking_mode.is_some() && is_evaluation {
+                    // If we are tree shaking, skip the evaluation part if the module is marked as
+                    // side effect free.
+                    if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
                         return Ok(ProcessResult::Ignore.cell());
                     }
                 }
 
-                let options_value = options.await?;
-                match options_value.tree_shaking_mode {
+                match tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
                             *module,
-                            part.unwrap_or(ModulePart::facade()),
+                            part.cloned().unwrap_or(ModulePart::facade()),
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
-                        if let Some(part) = part {
-                            match part {
-                                ModulePart::Evaluation => {
-                                    if *module.get_exports().split_locals_and_reexports().await? {
+                        if *module.get_exports().split_locals_and_reexports().await? {
+                            if let Some(part) = part {
+                                match part {
+                                    ModulePart::Evaluation => {
                                         Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                                    } else {
-                                        Vc::upcast(*module)
                                     }
-                                }
-                                ModulePart::Export(_) => {
-                                    let side_effect_free_packages = module_asset_context
-                                        .side_effect_free_packages()
-                                        .resolve()
-                                        .await?;
-
-                                    if *module.get_exports().split_locals_and_reexports().await? {
+                                    ModulePart::Export(_) => {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
-                                                EcmascriptModuleFacadeModule::new(
-                                                    Vc::upcast(*module),
-                                                    ModulePart::facade(),
-                                                )
+                                                EcmascriptModuleFacadeModule::new(Vc::upcast(
+                                                    *module,
+                                                ))
                                                 .resolve()
                                                 .await?,
                                             ),
-                                            part,
-                                            side_effect_free_packages,
+                                            part.clone(),
                                         )
-                                    } else {
-                                        apply_reexport_tree_shaking(
-                                            Vc::upcast(*module),
-                                            part,
-                                            side_effect_free_packages,
-                                        )
+                                        .await?
                                     }
+                                    _ => bail!(
+                                        "Invalid module part \"{}\" for reexports only tree \
+                                         shaking mode",
+                                        part
+                                    ),
                                 }
-                                _ => bail!(
-                                    "Invalid module part \"{}\" for reexports only tree shaking \
-                                     mode",
-                                    part
-                                ),
+                            } else {
+                                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
                             }
-                        } else if *module.get_exports().split_locals_and_reexports().await? {
-                            Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                Vc::upcast(*module),
-                                ModulePart::facade(),
-                            ))
                         } else {
                             Vc::upcast(*module)
                         }
@@ -235,7 +244,6 @@ async fn apply_module_type(
                 .await?
             }
         }
-        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
         ModuleType::NodeAddon => {
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
@@ -246,23 +254,32 @@ async fn apply_module_type(
                 .await?,
         ),
 
-        ModuleType::Css { ty, environment } => ResolvedVc::upcast(
+        ModuleType::Css {
+            ty,
+            environment,
+            lightningcss_features,
+        } => ResolvedVc::upcast(
             CssModuleAsset::new(
                 *source,
                 Vc::upcast(module_asset_context),
                 *ty,
-                css_import_context,
+                css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
+                *lightningcss_features,
             )
             .to_resolved()
             .await?,
         ),
-        ModuleType::StaticUrlJs => {
-            ResolvedVc::upcast(StaticUrlJsModule::new(*source).to_resolved().await?)
-        }
-        ModuleType::StaticUrlCss => {
-            ResolvedVc::upcast(StaticUrlCssModule::new(*source).to_resolved().await?)
-        }
+        ModuleType::StaticUrlJs { tag } => ResolvedVc::upcast(
+            StaticUrlJsModule::new(*source, tag.clone())
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::StaticUrlCss { tag } => ResolvedVc::upcast(
+            StaticUrlCssModule::new(*source, tag.clone())
+                .to_resolved()
+                .await?,
+        ),
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
                 WebAssemblySource::new(*source, *source_ty),
@@ -273,37 +290,44 @@ async fn apply_module_type(
         ),
         ModuleType::Custom(custom) => {
             custom
-                .create_module(*source, module_asset_context, part)
+                .create_module(*source, module_asset_context, reference_type)
                 .to_resolved()
                 .await?
         }
-    })
-    .cell())
+    };
+
+    if tree_shaking_mode.is_some() && is_evaluation {
+        // If we are tree shaking, skip the evaluation part if the module is marked as
+        // side effect free.
+        if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
+            return Ok(ProcessResult::Ignore.cell());
+        }
+    }
+
+    Ok(ProcessResult::Module(module).cell())
 }
 
-#[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
-    side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
     if let ModulePart::Export(export) = &part {
         let FollowExportsResult {
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone(), side_effect_free_packages, true).await?;
+        } = &*follow_reexports(module, export.clone(), true).await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(**final_module)
             } else {
-                Vc::upcast(EcmascriptModuleFacadeModule::new(
+                Vc::upcast(EcmascriptModuleRenameModule::new(
                     **final_module,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
-            Vc::upcast(EcmascriptModuleFacadeModule::new(
+            Vc::upcast(EcmascriptModuleRenameModule::new(
                 **final_module,
                 ModulePart::renamed_namespace(export.clone()),
             ))
@@ -368,8 +392,9 @@ impl ModuleAssetContext {
         })
     }
 
+    /// Doesn't replace external resolve results with a CachedExternalModule.
     #[turbo_tasks::function]
-    fn new_without_replace_externals(
+    pub fn new_without_replace_externals(
         transitions: ResolvedVc<TransitionOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,
@@ -470,10 +495,10 @@ async fn process_default(
         reference_type = display(&reference_type)
     );
     if !span.is_disabled() {
-        // Need to use record, otherwise future is not Send for some reason.
-        let module_asset_context_ref = module_asset_context.await?;
-        span.record("layer", module_asset_context_ref.layer.name().as_str());
+        // You can't await multiple times in the span macro call parameters.
+        span.record("layer", module_asset_context.await?.layer.name().as_str());
     }
+
     process_default_internal(
         module_asset_context,
         source,
@@ -484,49 +509,316 @@ async fn process_default(
     .await
 }
 
+/// Apply collected transforms to a module type.
+/// For Ecmascript/Typescript variants: merge collected transforms into the module type.
+/// For Custom: call extend_ecmascript_transforms() if any transforms exist.
+/// For non-ecmascript types: warn if transforms exist, return unchanged.
+async fn apply_module_rule_transforms(
+    module_type: &mut ModuleType,
+    collected_preprocess: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+    collected_main: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+    collected_postprocess: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+    ident: ResolvedVc<AssetIdent>,
+    current_source: ResolvedVc<Box<dyn Source>>,
+) -> Result<()> {
+    let has_transforms = !collected_preprocess.is_empty()
+        || !collected_main.is_empty()
+        || !collected_postprocess.is_empty();
+
+    // If no transforms were collected, return early
+    if !has_transforms {
+        return Ok(());
+    }
+
+    match module_type {
+        ModuleType::Ecmascript {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        }
+        | ModuleType::Typescript {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        }
+        | ModuleType::TypescriptDeclaration {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        }
+        | ModuleType::EcmascriptExtensionless {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        } => {
+            // Apply collected preprocess/main in order, then module type's transforms
+            let mut final_preprocess = EcmascriptInputTransforms::empty();
+            for vc in collected_preprocess.drain(..) {
+                final_preprocess = final_preprocess.extend(*vc);
+            }
+            final_preprocess = final_preprocess.extend(**preprocess);
+            *preprocess = final_preprocess.to_resolved().await?;
+
+            let mut final_main = EcmascriptInputTransforms::empty();
+            for vc in collected_main.drain(..) {
+                final_main = final_main.extend(*vc);
+            }
+            final_main = final_main.extend(**main);
+            *main = final_main.to_resolved().await?;
+
+            // Apply module type's postprocess first, then collected postprocess
+            let mut final_postprocess = **postprocess;
+            for vc in collected_postprocess.drain(..) {
+                final_postprocess = final_postprocess.extend(*vc);
+            }
+            *postprocess = final_postprocess.to_resolved().await?;
+        }
+        ModuleType::Custom(custom_module_type) => {
+            if has_transforms {
+                // Combine collected transforms into single Vcs
+                let mut combined_preprocess = EcmascriptInputTransforms::empty();
+                for vc in collected_preprocess.drain(..) {
+                    combined_preprocess = combined_preprocess.extend(*vc);
+                }
+                let mut combined_main = EcmascriptInputTransforms::empty();
+                for vc in collected_main.drain(..) {
+                    combined_main = combined_main.extend(*vc);
+                }
+                let mut combined_postprocess = EcmascriptInputTransforms::empty();
+                for vc in collected_postprocess.drain(..) {
+                    combined_postprocess = combined_postprocess.extend(*vc);
+                }
+
+                match custom_module_type
+                    .extend_ecmascript_transforms(
+                        combined_preprocess,
+                        combined_main,
+                        combined_postprocess,
+                    )
+                    .to_resolved()
+                    .await
+                {
+                    Ok(new_custom_module_type) => {
+                        *custom_module_type = new_custom_module_type;
+                    }
+                    Err(_) => {
+                        ModuleIssue::new(
+                            *ident,
+                            rcstr!("Invalid module type"),
+                            rcstr!(
+                                "The custom module type didn't accept the additional Ecmascript \
+                                 transforms"
+                            ),
+                            Some(IssueSource::from_source_only(current_source)),
+                        )
+                        .to_resolved()
+                        .await?
+                        .emit();
+                    }
+                }
+            }
+        }
+        other => {
+            if has_transforms {
+                ModuleIssue::new(
+                    *ident,
+                    rcstr!("Invalid module type"),
+                    format!(
+                        "The module type must be Ecmascript or Typescript to add Ecmascript \
+                         transforms (got {})",
+                        other
+                    )
+                    .into(),
+                    Some(IssueSource::from_source_only(current_source)),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+                collected_preprocess.clear();
+                collected_main.clear();
+                collected_postprocess.clear();
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
     reference_type: ReferenceType,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
-    let ident = source.ident().resolve().await?;
+    let ident = source.ident().to_resolved().await?;
     let path_ref = ident.path().await?;
     let options = ModuleOptions::new(
-        ident.path().await?.parent(),
+        path_ref.parent(),
         module_asset_context.module_options_context(),
         module_asset_context.resolve_options_context(),
     );
 
-    let part: Option<ModulePart> = match &reference_type {
-        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
-            Some(part.clone())
-        }
-        _ => None,
-    };
     let inner_assets = match &reference_type {
         ReferenceType::Internal(inner_assets) => Some(*inner_assets),
         _ => None,
     };
-
-    let mut has_type_attribute = false;
-
     let mut current_source = source;
-    let mut current_module_type = match &reference_type {
-        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(ty)) => {
-            has_type_attribute = true;
+    let mut current_module_type = None;
 
-            match ty {
-                ImportWithType::Json => Some(ModuleType::Json),
+    // Handle turbopackLoader import attributes: apply inline loader as source transform
+    if let ReferenceType::EcmaScriptModules(
+        EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
+            ref loader,
+            ref rename_as,
+            ref module_type,
+        },
+    ) = reference_type
+    {
+        let module_options_context = module_asset_context.module_options_context().await?;
+        let webpack_loaders_options = module_options_context
+            .enable_webpack_loaders
+            .as_ref()
+            .context(
+                "turbopackUse import assertions require webpack loaders to be enabled \
+                 (enable_webpack_loaders)",
+            )?
+            .await?;
+        let execution_context = module_options_context
+            .execution_context
+            .context("execution_context is required for turbopackUse import assertions")?;
+        let execution_context_value = execution_context.await?;
+
+        let resolve_options_context = module_asset_context
+            .resolve_options_context()
+            .to_resolved()
+            .await?;
+        let source_maps = matches!(
+            module_options_context.ecmascript.source_maps,
+            SourceMapsType::Full
+        );
+
+        // Determine the import map for loader-runner
+        let loader_runner_package = webpack_loaders_options.loader_runner_package;
+
+        let import_map = if let Some(loader_runner_package) = loader_runner_package {
+            package_import_map_from_import_mapping(rcstr!("loader-runner"), *loader_runner_package)
+        } else {
+            package_import_map_from_context(
+                rcstr!("loader-runner"),
+                execution_context_value.project_path.clone(),
+            )
+        };
+
+        let evaluate_context = node_evaluate_asset_context(
+            *execution_context,
+            Some(import_map),
+            None,
+            Layer::new(rcstr!("turbopack_use_loaders")),
+            false,
+        )
+        .to_resolved()
+        .await?;
+
+        let loader_relative_path = execution_context_value
+            .project_path
+            .get_relative_path_to(&loader.loader)
+            .context("Loader path must be on project filesystem")?;
+        let webpack_loader_item = WebpackLoaderItem {
+            loader: loader_relative_path,
+            options: loader.options.clone(),
+        };
+        let loaders_vc = WebpackLoaderItems(vec![webpack_loader_item]).cell();
+        let webpack_loaders = WebpackLoaders::new(
+            *evaluate_context,
+            *execution_context,
+            loaders_vc,
+            rename_as.clone(),
+            *resolve_options_context,
+            source_maps,
+        )
+        .to_resolved()
+        .await?;
+
+        let transforms = Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
+        current_source = transforms.transform(*current_source).to_resolved().await?;
+
+        // If turbopackModuleType is specified, skip rule matching and directly
+        // apply the requested module type with empty transforms (loader output
+        // is already processed).
+        if let Some(type_str) = module_type {
+            let empty_transforms = EcmascriptInputTransforms::empty().to_resolved().await?;
+            let default_options = EcmascriptOptions::default().resolved_cell();
+            let effect = ConfiguredModuleType::parse(type_str)?
+                .into_effect(
+                    empty_transforms,
+                    empty_transforms,
+                    empty_transforms,
+                    default_options,
+                    None,
+                    Default::default(),
+                )
+                .await?;
+            match effect {
+                ModuleRuleEffect::ModuleType(module_type) => {
+                    return apply_module_type(
+                        current_source,
+                        module_asset_context,
+                        module_type.cell(),
+                        reference_type,
+                        inner_assets,
+                    )
+                    .await;
+                }
+                ModuleRuleEffect::SourceTransforms(transforms) => {
+                    current_source = transforms.transform(*current_source).to_resolved().await?;
+                    // Fall through to re-process with new ident
+                }
+                _ => bail!("Unexpected module rule effect for turbopackModuleType"),
             }
         }
-        _ => None,
-    };
 
-    for (i, rule) in options.await?.rules.iter().enumerate() {
-        if has_type_attribute && current_module_type.is_some() {
-            continue;
+        // If the ident changed (e.g., due to rename_as), re-process from the
+        // beginning so the new extension is matched by the correct rules.
+        // Use a plain Import reference type to avoid re-applying turbopackUse
+        // loaders in the recursive call (which would cause an infinite loop).
+        if current_source.ident().to_resolved().await? != ident {
+            let plain_reference_type =
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import);
+            if let Some(transition) = module_asset_context
+                .await?
+                .transitions
+                .await?
+                .get_by_rules(current_source, &plain_reference_type)
+                .await?
+            {
+                return Ok(transition.process(
+                    *current_source,
+                    module_asset_context,
+                    plain_reference_type,
+                ));
+            } else {
+                return Box::pin(process_default(
+                    module_asset_context,
+                    current_source,
+                    plain_reference_type,
+                    processed_rules,
+                ))
+                .await;
+            }
         }
+    }
+
+    // Collect transforms from ExtendEcmascriptTransforms effects.
+    // They will be applied when ModuleType is set.
+    let mut collected_preprocess: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
+    let mut collected_main: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
+    let mut collected_postprocess: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
+
+    let options_value = options.await?;
+    'outer: for (i, rule) in options_value.rules.iter().enumerate() {
         if processed_rules.contains(&i) {
             continue;
         }
@@ -539,7 +831,7 @@ async fn process_default_internal(
                     ModuleRuleEffect::SourceTransforms(transforms) => {
                         current_source =
                             transforms.transform(*current_source).to_resolved().await?;
-                        if current_source.ident().resolve().await? != ident {
+                        if current_source.ident().to_resolved().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
                             if let Some(transition) = module_asset_context
                                 .await?
@@ -567,85 +859,31 @@ async fn process_default_internal(
                         }
                     }
                     ModuleRuleEffect::ModuleType(module) => {
-                        current_module_type = Some(module.clone());
+                        // Apply any collected transforms to this module type and exit rule
+                        // processing. Once a ModuleType is determined, we
+                        // stop processing further rules.
+                        let mut module = module.clone();
+                        apply_module_rule_transforms(
+                            &mut module,
+                            &mut collected_preprocess,
+                            &mut collected_main,
+                            &mut collected_postprocess,
+                            ident,
+                            current_source,
+                        )
+                        .await?;
+                        current_module_type = Some(module);
+                        break 'outer;
                     }
                     ModuleRuleEffect::ExtendEcmascriptTransforms {
                         preprocess: extend_preprocess,
                         main: extend_main,
                         postprocess: extend_postprocess,
                     } => {
-                        current_module_type = match current_module_type {
-                            Some(ModuleType::Ecmascript {
-                                preprocess,
-                                main,
-                                postprocess,
-                                options,
-                            }) => Some(ModuleType::Ecmascript {
-                                preprocess: extend_preprocess
-                                    .extend(*preprocess)
-                                    .to_resolved()
-                                    .await?,
-                                main: extend_main.extend(*main).to_resolved().await?,
-                                postprocess: postprocess
-                                    .extend(**extend_postprocess)
-                                    .to_resolved()
-                                    .await?,
-                                options,
-                            }),
-                            Some(ModuleType::Typescript {
-                                preprocess,
-                                main,
-                                postprocess,
-                                tsx,
-                                analyze_types,
-                                options,
-                            }) => Some(ModuleType::Typescript {
-                                preprocess: extend_preprocess
-                                    .extend(*preprocess)
-                                    .to_resolved()
-                                    .await?,
-                                main: extend_main.extend(*main).to_resolved().await?,
-                                postprocess: postprocess
-                                    .extend(**extend_postprocess)
-                                    .to_resolved()
-                                    .await?,
-                                tsx,
-                                analyze_types,
-                                options,
-                            }),
-                            Some(module_type) => {
-                                ModuleIssue {
-                                    ident: ident.to_resolved().await?,
-                                    title: StyledString::Text(rcstr!("Invalid module type"))
-                                        .resolved_cell(),
-                                    description: StyledString::Text(rcstr!(
-                                        "The module type must be Ecmascript or Typescript to add \
-                                         Ecmascript transforms"
-                                    ))
-                                    .resolved_cell(),
-                                    source: Some(IssueSource::from_source_only(current_source)),
-                                }
-                                .resolved_cell()
-                                .emit();
-                                Some(module_type)
-                            }
-                            None => {
-                                ModuleIssue {
-                                    ident: ident.to_resolved().await?,
-                                    title: StyledString::Text(rcstr!("Missing module type"))
-                                        .resolved_cell(),
-                                    description: StyledString::Text(rcstr!(
-                                        "The module type effect must be applied before adding \
-                                         Ecmascript transforms"
-                                    ))
-                                    .resolved_cell(),
-                                    source: Some(IssueSource::from_source_only(current_source)),
-                                }
-                                .resolved_cell()
-                                .emit();
-                                None
-                            }
-                        };
+                        // Collect transforms. They will be applied when ModuleType is set.
+                        collected_preprocess.push(*extend_preprocess);
+                        collected_main.push(*extend_main);
+                        collected_postprocess.push(*extend_postprocess);
                     }
                 }
             }
@@ -656,46 +894,50 @@ async fn process_default_internal(
         return Ok(ProcessResult::Unknown(current_source).cell());
     };
 
-    Ok(apply_module_type(
-        *current_source,
+    let module = apply_module_type(
+        current_source,
         module_asset_context,
         module_type.cell(),
-        part,
-        inner_assets.map(|v| *v),
-        if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) = reference_type {
-            import.map(|v| *v)
-        } else {
-            None
-        },
-        matches!(reference_type, ReferenceType::Runtime),
-    ))
+        reference_type,
+        inner_assets,
+    )
+    .await?;
+
+    Ok(module)
 }
 
 #[turbo_tasks::function]
 pub async fn externals_tracing_module_context(
-    ty: ExternalType,
     compile_time_info: Vc<CompileTimeInfo>,
+    resolve_typescript: bool,
 ) -> Result<Vc<ModuleAssetContext>> {
+    let mut extensions = vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")];
+    if resolve_typescript {
+        extensions.insert(0, rcstr!(".ts"));
+    }
+
     let resolve_options = ResolveOptionsContext {
-        enable_node_native_modules: true,
+        custom_extensions: Some(extensions),
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
-        custom_conditions: match ty {
-            ExternalType::CommonJs => vec![rcstr!("require"), rcstr!("node")],
-            ExternalType::EcmaScriptModule => vec![rcstr!("import"), rcstr!("node")],
-            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![rcstr!("node")],
-        },
+        collect_affecting_sources: true,
+        custom_conditions: vec![rcstr!("node")],
         ..Default::default()
     };
 
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         compile_time_info,
-        // Keep these options more or less in sync with
-        // turbopack/crates/turbopack/tests/node-file-trace.rs to ensure that the NFT unit tests
-        // are actually representative of what Turbopack does.
+        // This config should be kept in sync with
+        // turbopack/crates/turbopack-tracing/tests/node-file-trace.rs and
+        // turbopack/crates/turbopack-tracing/tests/unit.rs and
+        // turbopack/crates/turbopack/src/lib.rs and
+        // turbopack/crates/turbopack-nft/src/nft.rs
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 // enable_types should not be enabled here. It gets set automatically when a TS file
                 // is encountered.
                 source_maps: SourceMapsType::None,
@@ -709,7 +951,10 @@ pub async fn externals_tracing_module_context(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            is_tracing: true,
+            analyze_mode: AnalyzeMode::Tracing,
+            // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
+            // execute at runtime.
+            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),
@@ -733,7 +978,6 @@ impl AssetContext for ModuleAssetContext {
     async fn resolve_options(
         self: Vc<Self>,
         origin_path: FileSystemPath,
-        _reference_type: ReferenceType,
     ) -> Result<Vc<ResolveOptions>> {
         let this = self.await?;
         let module_asset_context = if let Some(transition) = this.transition {
@@ -812,35 +1056,70 @@ impl AssetContext for ModuleAssetContext {
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
                         }
-                        ResolveResultItem::External { name, ty, traced } => {
+                        ResolveResultItem::External {
+                            name,
+                            ty,
+                            traced,
+                            target,
+                        } => {
                             let replacement = if replace_externals {
-                                let tracing_mode = if traced == ExternalTraced::Traced
+                                // Determine the package folder, `target` is the full path to the
+                                // resolved file.
+                                let target = if let Some(mut target) = target {
+                                    loop {
+                                        let parent = target.parent();
+                                        if parent.is_root() {
+                                            break;
+                                        }
+                                        if parent.file_name() == "node_modules" {
+                                            break;
+                                        }
+                                        if parent.file_name().starts_with("@")
+                                            && parent.parent().file_name() == "node_modules"
+                                        {
+                                            break;
+                                        }
+                                        target = parent;
+                                    }
+                                    Some(target)
+                                } else {
+                                    None
+                                };
+
+                                let analyze_mode = if traced == ExternalTraced::Traced
                                     && let Some(options) = &self
                                         .module_options_context()
                                         .await?
                                         .enable_externals_tracing
                                 {
                                     // result.affecting_sources can be ignored for tracing, as this
-                                    // request will later be resolved relative to tracing_root
-                                    // anyway.
+                                    // request will later be resolved relative to tracing_root (or
+                                    // the .next/node_modules/lodash-1238123 symlink) anyway.
 
                                     let options = options.await?;
+                                    let origin = PlainResolveOrigin::new(
+                                        Vc::upcast(externals_tracing_module_context(
+                                            *options.compile_time_info,
+                                            false,
+                                        )),
+                                        // If target is specified, a symlink will be created to
+                                        // make the folder
+                                        // itself available, but we still need to trace
+                                        // resolving the individual file(s) inside the package.
+                                        target
+                                            .as_ref()
+                                            .unwrap_or(&options.tracing_root)
+                                            .join("_")?,
+                                    );
                                     CachedExternalTracingMode::Traced {
-                                        externals_context: ResolvedVc::upcast(
-                                            externals_tracing_module_context(
-                                                ty,
-                                                *options.compile_time_info,
-                                            )
-                                            .to_resolved()
-                                            .await?,
-                                        ),
-                                        root_origin: options.tracing_root.join("_")?,
+                                        origin: ResolvedVc::upcast(origin.to_resolved().await?),
                                     }
                                 } else {
                                     CachedExternalTracingMode::Untraced
                                 };
 
-                                replace_external(&name, ty, import_externals, tracing_mode).await?
+                                replace_external(&name, ty, target, import_externals, analyze_mode)
+                                    .await?
                             } else {
                                 None
                             };
@@ -900,69 +1179,6 @@ impl AssetContext for ModuleAssetContext {
             },
         )
     }
-
-    #[turbo_tasks::function]
-    async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
-        let pkgs = &self.module_options_context.await?.side_effect_free_packages;
-
-        let mut globs = String::new();
-        globs.push_str("**/node_modules/{");
-        globs.push_str(&pkgs.join(","));
-        globs.push_str("}/**");
-
-        Ok(Glob::new(globs.into(), GlobOptions::default()))
-    }
-}
-
-#[turbo_tasks::function]
-pub async fn emit_with_completion(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    emit_assets_aggregated(asset, output_dir)
-        .as_side_effect()
-        .await
-}
-
-#[turbo_tasks::function(operation)]
-pub fn emit_with_completion_operation(
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Vc<()> {
-    emit_with_completion(*asset, output_dir)
-}
-
-#[turbo_tasks::function]
-async fn emit_assets_aggregated(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    let aggregated = aggregate(asset);
-    emit_aggregated_assets(aggregated, output_dir)
-        .as_side_effect()
-        .await
-}
-
-#[turbo_tasks::function]
-async fn emit_aggregated_assets(
-    aggregated: Vc<AggregatedGraph>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => {
-            emit_asset_into_dir(**asset, output_dir)
-                .as_side_effect()
-                .await?;
-        }
-        AggregatedGraphNodeContent::Children(children) => {
-            for aggregated in children {
-                emit_aggregated_assets(**aggregated, output_dir.clone())
-                    .as_side_effect()
-                    .await?;
-            }
-        }
-    }
-    Ok(())
 }
 
 #[turbo_tasks::function]
@@ -977,23 +1193,38 @@ pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset_into_dir(
-    asset: Vc<Box<dyn OutputAsset>>,
+pub async fn emit_assets_into_dir(
+    assets: Vc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,
 ) -> Result<()> {
-    let dir = output_dir.clone();
-    if asset.path().await?.is_inside_ref(&dir) {
-        emit_asset(asset).as_side_effect().await?;
+    let assets = assets.await?;
+    let paths = assets.iter().map(|&asset| asset.path()).try_join().await?;
+    for (&asset, path) in assets.iter().zip(paths.iter()) {
+        if path.is_inside_ref(&output_dir) {
+            emit_asset(*asset).as_side_effect().await?;
+        }
     }
     Ok(())
+}
+
+#[turbo_tasks::function(operation)]
+pub async fn emit_assets_into_dir_operation(
+    assets: ResolvedVc<ExpandedOutputAssets>,
+    output_dir: FileSystemPath,
+) -> Result<Vc<()>> {
+    emit_assets_into_dir(*assets, output_dir)
+        .as_side_effect()
+        .await?;
+    Ok(Vc::cell(()))
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.
 pub async fn replace_external(
     name: &RcStr,
     ty: ExternalType,
+    target: Option<FileSystemPath>,
     import_externals: bool,
-    tracing_mode: CachedExternalTracingMode,
+    analyze_mode: CachedExternalTracingMode,
 ) -> Result<Option<ModuleResolveResultItem>> {
     let external_type = match ty {
         ExternalType::CommonJs => CachedExternalType::CommonJs,
@@ -1012,7 +1243,7 @@ pub async fn replace_external(
         }
     };
 
-    let module = CachedExternalModule::new(name.clone(), external_type, tracing_mode)
+    let module = CachedExternalModule::new(name.clone(), target, external_type, analyze_mode)
         .to_resolved()
         .await?;
 

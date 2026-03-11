@@ -6,17 +6,17 @@ e = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-generateBinPath = (...) => binPath
+generateBinPath (const after eval) = (...) => binPath
 
-knownWindowsPackages = {
+knownWindowsPackages (const after eval) = {
     "win32 arm64 LE": "esbuild-windows-arm64",
     "win32 ia32 LE": "esbuild-windows-32",
     "win32 x64 LE": "esbuild-windows-64"
 }
 
-path = FreeVar(require)("path")
+path (const after eval) = FreeVar(require)("path")
 
-path2 = FreeVar(require)("path")
+path2 (const after eval) = FreeVar(require)("path")
 
 pkg#3 = (???*0* | knownWindowsPackages[FreeVar(platformKey)])
 - *0* pkg
@@ -24,7 +24,7 @@ pkg#3 = (???*0* | knownWindowsPackages[FreeVar(platformKey)])
 
 pkg#4 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
-pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
+pkgAndSubpathForCurrentPlatform (const after eval) = (...) => {"pkg": pkg, "subpath": subpath}
 
 subpath#3 = (???*0* | "esbuild.exe")
 - *0* subpath
@@ -32,4 +32,4 @@ subpath#3 = (???*0* | "esbuild.exe")
 
 subpath#4 = pkgAndSubpathForCurrentPlatform()["subpath"]
 
-x = generateBinPath()
+x (const after eval) = generateBinPath()

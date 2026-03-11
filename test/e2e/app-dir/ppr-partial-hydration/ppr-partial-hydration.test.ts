@@ -8,9 +8,15 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('PPR - partial hydration', () => {
-  const { next, isNextDev } = nextTestSetup({ files: __dirname })
-  if (isNextDev) {
-    it.skip('only testable in production', () => {})
+  const { next, isNextDev, skipped } = nextTestSetup({
+    files: __dirname,
+    // the file-patching strategy we use for synchronizing the test doesn't work
+    // on deployments
+    skipDeployment: true,
+  })
+
+  if (isNextDev || skipped) {
+    it.skip('only testable in production (non-deployment)', () => {})
     return
   }
 
@@ -60,28 +66,35 @@ describe('PPR - partial hydration', () => {
             await browser.elementByCssInstant('#dynamic-fallback').text()
           ).toContain('Loading...')
         },
-        1000,
-        50
+        // This can take a while? It's unclear why... The delay appears pretty
+        // random.
+        /* duration */ 15_000 // ms
       )
 
-      // Then, the slow content should stream in and hydrate
-      await retry(async () => {
-        // The shell is already hydrated, this shouldn't change
-        expect(
-          await browser
-            .elementByCssInstant('#shell-hydrated')
-            .getAttribute('data-is-hydrated')
-        ).toBe('true')
+      // Then, the slow content should stream in and hydrate (once
+      // `slowComponentReady` is written)
+      await next.patchFile('slowComponentReady', 'marker file', async () => {
+        await retry(
+          async () => {
+            // The shell is already hydrated, this shouldn't change
+            expect(
+              await browser
+                .elementByCssInstant('#shell-hydrated')
+                .getAttribute('data-is-hydrated')
+            ).toBe('true')
 
-        // The dynamic content should be visible and hydrated
-        expect(await browser.elementByCssInstant('#dynamic').text()).toMatch(
-          /Random value: \d+/
+            // The dynamic content should be visible and hydrated
+            expect(
+              await browser.elementByCssInstant('#dynamic').text()
+            ).toMatch(/Random value: \d+/)
+            expect(
+              await browser
+                .elementByCssInstant('#dynamic-hydrated')
+                .getAttribute('data-is-hydrated')
+            ).toBe('true')
+          },
+          /* duration */ 10_000 // ms
         )
-        expect(
-          await browser
-            .elementByCssInstant('#dynamic-hydrated')
-            .getAttribute('data-is-hydrated')
-        ).toBe('true')
       })
 
       // If the HTML and RSC streams were interleaved correctly, we shouldn't be in quirks mode
@@ -96,36 +109,47 @@ describe('PPR - partial hydration', () => {
       // In particular, RSC script tags should never appear before the initial HTML
       // (which could happen if we e.g. have no static shell and don't wait for it to be rendered before sending them)
       const response = await next.fetch(path)
-      expect(response.status).toBe(200)
-      const text = await response
-        .text()
+      let body = ''
+      response.body.on('data', (chunk) => {
+        body += chunk.toString('utf-8')
+      })
+      await retry(() => {
+        expect(response.status).toBe(200)
         // Ignore the sentinel. For pages with no static shell, it ends up at the front
         // and messes up the assertion.
-        .then((s) => s.replace('<!-- PPR_BOUNDARY_SENTINEL -->', ''))
-
-      expect(text).toStartWith('<!DOCTYPE html>')
-      expect(text).toEndWith('</body></html>')
+        const trimmed = body.replace('<!-- PPR_BOUNDARY_SENTINEL -->', '')
+        expect(trimmed).toStartWith('<!DOCTYPE html>')
+      })
+      await next.patchFile('slowComponentReady', 'marker file', async () => {
+        await retry(() => {
+          expect(body).toEndWith('</body></html>')
+        })
+      })
     })
 
     it('should display the shell without JS', async () => {
-      const browser = await next.browser(path, {
-        disableJavaScript: true,
-        waitUntil: 'load', // Unlike the previous test, we want the page to load fully
-      })
-      expect(await browser.elementByCss('#shell').text()).toContain(
-        'This is a page'
-      )
-      expect(
-        await browser
-          .elementByCss('#shell-hydrated')
-          .getAttribute('data-is-hydrated')
-      ).toBe('false')
+      // patch the marker file right away so that `load` finishes quickly
+      await next.patchFile('slowComponentReady', 'marker file', async () => {
+        const browser = await next.browser(path, {
+          disableJavaScript: true,
+          waitUntil: 'load', // Unlike the previous test, we want the page to load fully
+        })
 
-      // The dynamic content can't be inserted into the document because we disabled JS,
-      // so we should only see the fallback
-      expect(await browser.elementByCss('#dynamic-fallback').text()).toContain(
-        'Loading...'
-      )
+        expect(await browser.elementByCss('#shell').text()).toContain(
+          'This is a page'
+        )
+        expect(
+          await browser
+            .elementByCss('#shell-hydrated')
+            .getAttribute('data-is-hydrated')
+        ).toBe('false')
+
+        // The dynamic content can't be inserted into the document because we disabled JS,
+        // so we should only see the fallback
+        expect(
+          await browser.elementByCss('#dynamic-fallback').text()
+        ).toContain('Loading...')
+      })
     })
   })
 })

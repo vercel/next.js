@@ -1,8 +1,5 @@
 [
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -52,7 +49,7 @@
         ],
         span: 19..58,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     FreeVar {
         var: "require",
@@ -96,7 +93,6 @@
             ),
         ],
         span: 71..78,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -147,10 +143,7 @@
         in_try: false,
         new: false,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -200,7 +193,7 @@
         ],
         span: 133..174,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     FreeVar {
         var: "require",
@@ -244,7 +237,6 @@
             ),
         ],
         span: 187..194,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -337,7 +329,6 @@
             ),
         ],
         span: 245..252,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -430,7 +421,6 @@
             ),
         ],
         span: 300..307,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -523,7 +513,6 @@
             ),
         ],
         span: 356..363,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -616,7 +605,6 @@
             ),
         ],
         span: 413..420,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -712,7 +700,6 @@
             ),
         ],
         span: 488..495,
-        in_try: false,
     },
     Call {
         func: FreeVar(

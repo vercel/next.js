@@ -200,7 +200,9 @@ describe('Middleware Runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const matchers = await res.json()
-        expect(matchers).toEqual([{ regexp: '.*', originalSource: '/:path*' }])
+        expect(matchers).toEqual([
+          { regexp: '^/.*$', originalSource: '/:path*' },
+        ])
       })
     }
 
@@ -689,7 +691,9 @@ describe('Middleware Runtime', () => {
 
     it('should throw when using URL with a relative URL', async () => {
       const res = await fetchViaHTTP(next.url, `/url/relative-url`)
-      expect(readMiddlewareError(res)).toContain('Invalid URL')
+      expect(readMiddlewareError(res)).toMatch(
+        /Invalid URL|cannot be parsed as a URL/
+      )
     })
 
     it('should throw when using NextRequest with a relative URL', async () => {

@@ -1,20 +1,5 @@
+import { startTransition, useActionState, useEffect } from 'react'
 import { CopyButton } from '../../copy-button'
-
-// Inline this helper to avoid widely used across the codebase,
-// as for this feature the Chrome detector doesn't need to be super accurate.
-function isChrome() {
-  if (typeof window === 'undefined') return false
-  const isChromium = 'chrome' in window && window.chrome
-  const vendorName = window.navigator.vendor
-
-  return (
-    isChromium !== null &&
-    isChromium !== undefined &&
-    vendorName === 'Google Inc.'
-  )
-}
-
-const isChromeBrowser = isChrome()
 
 function NodeJsIcon(props: any) {
   return (
@@ -248,41 +233,85 @@ function NodeJsDisabledIcon(props: any) {
   )
 }
 
-const label =
-  'Learn more about enabling Node.js inspector for server code with Chrome DevTools'
-
 export function NodejsInspectorButton({
-  devtoolsFrontendUrl,
+  defaultDevtoolsFrontendUrl,
 }: {
-  devtoolsFrontendUrl: string | undefined
+  defaultDevtoolsFrontendUrl: string | undefined
 }) {
-  const content = devtoolsFrontendUrl || ''
-  const disabled = !content || !isChromeBrowser
-  if (disabled) {
+  const [devtoolsFrontendUrlState, attachDebuggerAction, isAttachingDebugger] =
+    useActionState<
+      | { status: 'fulfilled'; value: string | undefined }
+      | { status: 'rejected'; reason: unknown }
+    >(
+      async () => {
+        try {
+          const response = await fetch('/__nextjs_attach-nodejs-inspector', {
+            method: 'POST',
+          })
+          if (!response.ok) {
+            throw new Error(
+              `${response.status} ${response.statusText}: ${await response.text()}`
+            )
+          }
+          const devtoolsFrontendUrl = await response.json()
+          return {
+            status: 'fulfilled',
+            value: devtoolsFrontendUrl,
+          }
+        } catch (cause) {
+          return {
+            status: 'rejected',
+            reason: new Error(
+              'Failed to attach Node.js inspector: ' +
+                // TODO: Use `cause` property once Redbox supports displaying `cause`
+                String(cause)
+            ),
+          }
+        }
+      },
+      { status: 'fulfilled', value: defaultDevtoolsFrontendUrl }
+    )
+
+  const devtoolsFrontendUrl =
+    devtoolsFrontendUrlState.status === 'fulfilled'
+      ? devtoolsFrontendUrlState.value
+      : undefined
+
+  useEffect(() => {
+    if (devtoolsFrontendUrlState.status === 'rejected') {
+      console.error(devtoolsFrontendUrlState.reason)
+    }
+  }, [devtoolsFrontendUrlState])
+
+  const attachDebugger = startTransition.bind(null, attachDebuggerAction)
+
+  if (devtoolsFrontendUrl === undefined) {
     return (
-      <a
-        title={label}
-        aria-label={label}
+      <button
         className="nodejs-inspector-button"
-        href={`https://nextjs.org/docs/app/building-your-application/configuring/debugging#server-side-code`}
-        target="_blank"
-        rel="noopener noreferrer"
+        data-pending={isAttachingDebugger}
+        onClick={isAttachingDebugger ? undefined : attachDebugger}
+        title={
+          devtoolsFrontendUrlState.status === 'rejected'
+            ? 'Retry attaching Node.js inspector'
+            : 'Attach Node.js inspector'
+        }
       >
         <NodeJsDisabledIcon
           className="error-overlay-toolbar-button-icon"
           width={14}
           height={14}
         />
-      </a>
+      </button>
     )
   }
   return (
     <CopyButton
       data-nextjs-data-runtime-error-copy-devtools-url
       className="nodejs-inspector-button"
-      actionLabel={'Copy Chrome DevTools URL'}
+      actionLabel={'Copy DevTools URL for Chrome'}
       successLabel="Copied"
-      content={content}
+      content={devtoolsFrontendUrl}
       icon={
         <NodeJsIcon
           className="error-overlay-toolbar-button-icon"

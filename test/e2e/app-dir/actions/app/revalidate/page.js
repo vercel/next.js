@@ -1,4 +1,4 @@
-import { unstable_expirePath, unstable_expireTag } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
@@ -59,7 +59,7 @@ export default async function Page() {
           id="revalidate-thankyounext"
           formAction={async () => {
             'use server'
-            unstable_expireTag('thankyounext')
+            updateTag('thankyounext')
           }}
         >
           revalidate thankyounext
@@ -70,7 +70,7 @@ export default async function Page() {
           id="revalidate-justputit"
           formAction={async () => {
             'use server'
-            unstable_expireTag('justputit')
+            updateTag('justputit')
           }}
         >
           revalidate justputit
@@ -81,7 +81,7 @@ export default async function Page() {
           id="revalidate-path"
           formAction={async () => {
             'use server'
-            unstable_expirePath('/revalidate')
+            revalidatePath('/revalidate')
           }}
         >
           revalidate path
@@ -92,7 +92,7 @@ export default async function Page() {
           id="revalidate-path-redirect"
           formAction={async () => {
             'use server'
-            unstable_expireTag('justputit')
+            updateTag('justputit')
             redirect('/revalidate')
           }}
         >
@@ -115,7 +115,7 @@ export default async function Page() {
           id="redirect-revalidate"
           formAction={async () => {
             'use server'
-            unstable_expireTag('justputit')
+            updateTag('justputit')
             redirect('/revalidate?foo=bar')
           }}
         >
@@ -125,7 +125,7 @@ export default async function Page() {
       <RedirectClientComponent
         action={async () => {
           'use server'
-          unstable_expireTag('justputit')
+          updateTag('justputit')
         }}
       />
     </>

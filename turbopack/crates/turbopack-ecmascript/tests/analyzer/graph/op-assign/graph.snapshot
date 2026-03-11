@@ -7,14 +7,14 @@
             Alternatives {
                 total_nodes: 3,
                 values: [
-                    Constant(
-                        Undefined,
-                    ),
                     Unknown {
                         original_value: None,
                         reason: "spread in function calls is not supported",
                         has_side_effects: true,
                     },
+                    Constant(
+                        Undefined,
+                    ),
                 ],
                 logical_property: None,
             },
@@ -50,7 +50,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            0.0,
+                            TotalOrderF64(
+                                0.0,
+                            ),
                         ),
                     ),
                 ),
@@ -103,13 +105,15 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            0.0,
+                            TotalOrderF64(
+                                0.0,
+                            ),
                         ),
                     ),
                 ),
             ),
-            FreeVar(
-                "undefined",
+            Constant(
+                Undefined,
             ),
             Object {
                 total_nodes: 3,

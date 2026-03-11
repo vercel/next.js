@@ -1,11 +1,22 @@
-use std::{cmp::max, path::PathBuf, sync::Arc, thread::available_parallelism, time::Instant};
+use std::{
+    cmp::max,
+    path::PathBuf,
+    sync::Arc,
+    thread::available_parallelism,
+    time::{Duration, Instant, SystemTime},
+};
 
 use anyhow::{Ok, Result};
 use parking_lot::Mutex;
+use smallvec::SmallVec;
 use turbo_persistence::{
-    ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+    ArcBytes, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
-use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
+use turbo_tasks::{
+    JoinHandle,
+    message_queue::{TimingEvent, TraceEvent},
+    spawn, turbo_tasks,
+};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -14,6 +25,9 @@ use crate::database::{
 };
 
 mod parallel_scheduler;
+
+/// Number of key families, see KeySpace enum for their numbers.
+const FAMILIES: usize = 4;
 
 const MB: u64 = 1024 * 1024;
 const COMPACT_CONFIG: CompactConfig = CompactConfig {
@@ -27,20 +41,30 @@ const COMPACT_CONFIG: CompactConfig = CompactConfig {
 };
 
 pub struct TurboKeyValueDatabase {
-    db: Arc<TurboPersistence<TurboTasksParallelScheduler>>,
+    db: Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
     compact_join_handle: Mutex<Option<JoinHandle<Result<()>>>>,
     is_ci: bool,
     is_short_session: bool,
+    is_fresh: bool,
 }
 
 impl TurboKeyValueDatabase {
     pub fn new(versioned_path: PathBuf, is_ci: bool, is_short_session: bool) -> Result<Self> {
-        let db = Arc::new(TurboPersistence::open(versioned_path)?);
+        const CONFIG: DbConfig<FAMILIES> = DbConfig {
+            family_configs: [
+                KeySpace::Infra.family_config(),
+                KeySpace::TaskMeta.family_config(),
+                KeySpace::TaskData.family_config(),
+                KeySpace::TaskCache.family_config(),
+            ],
+        };
+        let db = Arc::new(TurboPersistence::open_with_config(versioned_path, CONFIG)?);
         Ok(Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),
             is_ci,
             is_short_session,
+            is_fresh: db.is_empty(),
         })
     }
 }
@@ -60,7 +84,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     }
 
     type ValueBuffer<'l>
-        = ArcSlice<u8>
+        = ArcBytes
     where
         Self: 'l;
 
@@ -71,6 +95,24 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>> {
         self.db.get(key_space as usize, &key)
+    }
+
+    fn batch_get<'l, 'db: 'l>(
+        &'l self,
+        _transaction: &'l Self::ReadTransaction<'db>,
+        key_space: KeySpace,
+        keys: &[&[u8]],
+    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+        self.db.batch_get(key_space as usize, keys)
+    }
+
+    fn get_multiple<'l, 'db: 'l>(
+        &'l self,
+        _transaction: &'l Self::ReadTransaction<'db>,
+        key_space: KeySpace,
+        key: &[u8],
+    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
+        self.db.get_multiple(key_space as usize, &key)
     }
 
     type ConcurrentWriteBatch<'l>
@@ -102,16 +144,23 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
             join_handle.join()?;
         }
         // Compact the database on shutdown
-        if self.is_ci {
-            // Fully compact in CI to reduce cache size
-            do_compact(&self.db, "Finished database compaction", usize::MAX)?;
-        } else {
-            // Compact with a reasonable limit in non-CI environments
-            do_compact(
-                &self.db,
-                "Finished database compaction",
-                available_parallelism().map_or(4, |c| max(4, c.get())),
-            )?;
+        // (Avoid compacting a fresh database since we don't have any usage info yet)
+        if !self.is_fresh {
+            if self.is_ci {
+                // Fully compact in CI to reduce cache size
+                do_compact(
+                    &self.db,
+                    "Finished filesystem cache database compaction",
+                    usize::MAX,
+                )?;
+            } else {
+                // Compact with a reasonable limit in non-CI environments
+                do_compact(
+                    &self.db,
+                    "Finished filesystem cache database compaction",
+                    available_parallelism().map_or(4, |c| max(4, c.get())),
+                )?;
+            }
         }
         // Shutdown the database
         self.db.shutdown()
@@ -119,33 +168,51 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
 }
 
 fn do_compact(
-    db: &TurboPersistence<TurboTasksParallelScheduler>,
+    db: &TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     message: &'static str,
     max_merge_segment_count: usize,
 ) -> Result<()> {
     let start = Instant::now();
-    // Compact the database with the given max merge segment count
+    // SystemTime for wall-clock timestamps in trace events (Instant has no
+    // defined epoch so it can't be used for cross-process trace correlation).
+    let wall_start = SystemTime::now();
     let ran = db.compact(&CompactConfig {
         max_merge_segment_count,
         ..COMPACT_CONFIG
     })?;
     if ran {
         let elapsed = start.elapsed();
-        turbo_tasks()
-            .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
+        // avoid spamming the event queue with information about fast operations
+        if elapsed > Duration::from_secs(10) {
+            turbo_tasks()
+                .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
+        }
+        let wall_start_ms = wall_start
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64()
+            * 1000.0;
+        let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
+        turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new(
+            "turbopack-compaction",
+            wall_start_ms,
+            wall_end_ms,
+            vec![],
+        )));
     }
     Ok(())
 }
 
 pub struct TurboWriteBatch<'a> {
-    batch: turbo_persistence::WriteBatch<WriteBuffer<'static>, TurboTasksParallelScheduler, 5>,
-    db: &'a Arc<TurboPersistence<TurboTasksParallelScheduler>>,
+    batch:
+        turbo_persistence::WriteBatch<WriteBuffer<'static>, TurboTasksParallelScheduler, FAMILIES>,
+    db: &'a Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
     compact_join_handle: Option<&'a Mutex<Option<JoinHandle<Result<()>>>>>,
 }
 
 impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     type ValueBuffer<'l>
-        = ArcSlice<u8>
+        = ArcBytes
     where
         Self: 'l,
         'a: 'l;
@@ -167,7 +234,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
             let handle = spawn(async move {
                 do_compact(
                     &db,
-                    "Finished database compaction",
+                    "Finished filesystem cache database compaction",
                     available_parallelism().map_or(4, |c| max(4, c.get() / 2)),
                 )
             });

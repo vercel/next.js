@@ -21,17 +21,21 @@ import {
   ACTION_DEVTOOLS_CONFIG,
   type OverlayState,
   type DispatcherEvent,
+  ACTION_CACHE_INDICATOR,
+  ACTION_INSTANT_NAVS_TOGGLE,
 } from './dev-overlay/shared'
 
 import {
   createContext,
   startTransition,
   useContext,
+  useEffect,
   useInsertionEffect,
   useLayoutEffect,
   type ActionDispatch,
 } from 'react'
 import { createRoot } from 'react-dom/client'
+import type { CacheIndicatorState } from './dev-overlay/cache-indicator'
 import { FontStyles } from './dev-overlay/font/font-styles'
 import type { HydrationErrorState } from './shared/hydration-error'
 import type { DebugInfo } from './shared/types'
@@ -41,9 +45,11 @@ import type { VersionInfo } from '../server/dev/parse-version-info'
 import {
   insertSegmentNode,
   removeSegmentNode,
+  getSegmentTrieRoot,
 } from './dev-overlay/segment-explorer-trie'
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
 import type { DevToolsConfig } from './dev-overlay/shared'
+import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -52,7 +58,8 @@ export interface Dispatcher {
   onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
-  onStaticIndicator(status: boolean): void
+  onCacheIndicator(status: CacheIndicatorState): void
+  onStaticIndicator(status: 'pending' | 'static' | 'dynamic' | 'disabled'): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onDevToolsConfig(config: DevToolsConfig): void
   onUnhandledError(reason: Error): void
@@ -67,11 +74,48 @@ export interface Dispatcher {
   segmentExplorerNodeAdd(nodeState: SegmentNodeState): void
   segmentExplorerNodeRemove(nodeState: SegmentNodeState): void
   segmentExplorerUpdateRouteState(page: string): void
+  instantNavsToggle(): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
 let maybeDispatch: Dispatch | null = null
 const queue: Array<(dispatch: Dispatch) => void> = []
+
+// Global state store for accessing current overlay state from outside React context
+type OverlayStateWithRouter = OverlayState & { routerType: 'pages' | 'app' }
+
+let currentOverlayState: OverlayStateWithRouter | null = null
+
+export function getSerializedOverlayState(): OverlayStateWithRouter | null {
+  // Serialize error objects properly since Error properties are non-enumerable
+  // This is used when sending state via HMR/JSON.stringify
+  if (!currentOverlayState) return null
+
+  return {
+    ...currentOverlayState,
+    errors: currentOverlayState.errors.map((errorEvent: any) => ({
+      ...errorEvent,
+      error: errorEvent.error
+        ? {
+            name: errorEvent.error.name,
+            message: errorEvent.error.message,
+            stack: errorEvent.error.stack,
+          }
+        : null,
+    })),
+  }
+}
+
+export function getSegmentTrieData(): SegmentTrieData | null {
+  if (!currentOverlayState) {
+    return null
+  }
+  const trieRoot = getSegmentTrieRoot()
+  return {
+    segmentTrie: trieRoot,
+    routerType: currentOverlayState.routerType,
+  }
+}
 
 // Events might be dispatched before we get a `dispatch` from React (e.g. console.error during module eval).
 // We need to queue them until we have a `dispatch` function available.
@@ -108,9 +152,19 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_VERSION_INFO, versionInfo })
     }
   ),
-  onStaticIndicator: createQueuable((dispatch: Dispatch, status: boolean) => {
-    dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
-  }),
+  onCacheIndicator: createQueuable(
+    (dispatch: Dispatch, status: CacheIndicatorState) => {
+      dispatch({ type: ACTION_CACHE_INDICATOR, cacheIndicator: status })
+    }
+  ),
+  onStaticIndicator: createQueuable(
+    (
+      dispatch: Dispatch,
+      status: 'pending' | 'static' | 'dynamic' | 'disabled'
+    ) => {
+      dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
+    }
+  ),
   onDebugInfo: createQueuable((dispatch: Dispatch, debugInfo: DebugInfo) => {
     dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
   }),
@@ -172,6 +226,9 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page })
     }
   ),
+  instantNavsToggle: createQueuable((dispatch: Dispatch) => {
+    dispatch({ type: ACTION_INSTANT_NAVS_TOGGLE })
+  }),
 }
 
 function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
@@ -186,12 +243,14 @@ function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
 }
 
 function DevOverlayRoot({
+  enableCacheIndicator,
   getOwnerStack,
   getSquashedHydrationErrorDetails,
   isRecoverableError,
   routerType,
   shadowRoot,
 }: {
+  enableCacheIndicator: boolean
   getOwnerStack: (error: Error) => string | null | undefined
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   isRecoverableError: (error: Error) => boolean
@@ -201,8 +260,13 @@ function DevOverlayRoot({
   const [state, dispatch] = useErrorOverlayReducer(
     routerType,
     getOwnerStack,
-    isRecoverableError
+    isRecoverableError,
+    enableCacheIndicator
   )
+
+  useEffect(() => {
+    currentOverlayState = { ...state, routerType }
+  }, [state, routerType])
 
   useLayoutEffect(() => {
     const portalNode = shadowRoot.host
@@ -271,7 +335,8 @@ function getSquashedHydrationErrorDetailsApp() {
 
 export function renderAppDevOverlay(
   getOwnerStack: (error: Error) => string | null | undefined,
-  isRecoverableError: (error: Error) => boolean
+  isRecoverableError: (error: Error) => boolean,
+  enableCacheIndicator: boolean
 ): void {
   if (isPagesMounted) {
     // Switching between App and Pages Router is always a hard navigation
@@ -301,6 +366,9 @@ export function renderAppDevOverlay(
 
     const root = createRoot(container, {
       identifierPrefix: 'ndt-',
+      // We don't have design for a default Transition indicator for the NDT frontend.
+      // So we disable React's built-in one to not conflict with the one for the actual Next.js app.
+      onDefaultTransitionIndicator: () => () => {},
     })
 
     const shadowRoot = container.attachShadow({ mode: 'open' })
@@ -310,6 +378,7 @@ export function renderAppDevOverlay(
       // At least it won't unmount any user code if it errors.
       root.render(
         <DevOverlayRoot
+          enableCacheIndicator={enableCacheIndicator}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetailsApp}
           isRecoverableError={isRecoverableError}
@@ -375,6 +444,8 @@ export function renderPagesDevOverlay(
       // At least it won't unmount any user code if it errors.
       root.render(
         <DevOverlayRoot
+          // Pages Router does not support Cache Components
+          enableCacheIndicator={false}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
           isRecoverableError={isRecoverableError}

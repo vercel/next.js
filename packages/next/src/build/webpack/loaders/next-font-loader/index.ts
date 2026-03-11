@@ -35,6 +35,12 @@ export default async function nextFontLoader(this: any) {
         `${bold('Cannot')} be used within ${cyan('pages/_document.js')}.`
       )
       err.name = 'NextFontError'
+      if (process.env.NEXT_RSPACK) {
+        // Rspack uses miette for error formatting, which automatically includes stack
+        // traces in the error message. To avoid showing redundant stack information
+        // in the final error output, we clear the stack property.
+        err.stack = undefined
+      }
       callback(err)
       return
     }
@@ -43,6 +49,7 @@ export default async function nextFontLoader(this: any) {
       isDev,
       isServer,
       assetPrefix,
+      deploymentId,
       fontLoaderPath,
       postcss: getPostcss,
     } = this.getOptions()
@@ -80,7 +87,7 @@ export default async function nextFontLoader(this: any) {
         }.${ext}`,
         opts
       )
-      const outputPath = `${assetPrefix}/_next/${interpolatedName}`
+      const outputPath = `${assetPrefix}/_next/${interpolatedName}${deploymentId ? `?dpl=${deploymentId}` : ''}`
       // Only the client emits the font file
       if (!isServer) {
         this.emitFile(interpolatedName, content, null)

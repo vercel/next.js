@@ -35,7 +35,6 @@
             ),
         ],
         span: 132..138,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -91,7 +90,6 @@
             ),
         ],
         span: 164..170,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -141,7 +139,6 @@
             ),
         ],
         span: 208..214,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -185,7 +182,6 @@
             ),
         ],
         span: 256..262,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -223,7 +219,6 @@
             ),
         ],
         span: 284..290,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -261,7 +256,6 @@
             ),
         ],
         span: 323..329,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -299,7 +293,6 @@
             ),
         ],
         span: 346..352,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -337,6 +330,5 @@
             ),
         ],
         span: 387..393,
-        in_try: false,
     },
 ]

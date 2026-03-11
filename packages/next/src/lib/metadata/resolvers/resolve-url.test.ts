@@ -62,6 +62,12 @@ describe('resolveAbsoluteUrlWithPathname', () => {
         'https://example.com/foo'
       )
     })
+
+    it('should resolve absolute internal url with query', () => {
+      expect(resolver('https://example.com/?foo=bar')).toBe(
+        'https://example.com/?foo=bar'
+      )
+    })
   })
 
   describe('trailingSlash is true', () => {
@@ -102,12 +108,19 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       expect(resolver(new URL('https://example.com/foo?bar'))).toBe(
         'https://example.com/foo?bar'
       )
+      expect(resolver('https://example.com/?foo=bar')).toBe(
+        'https://example.com/?foo=bar'
+      )
     })
 
     it('should not add trailing slash to relative url with query', () => {
       expect(resolver('/foo?bar')).toBe('https://example.com/foo?bar')
       expect(resolver(new URL('/foo?bar', metadataBase))).toBe(
         'https://example.com/foo?bar'
+      )
+      expect(resolver('/?foo=bar')).toBe('https://example.com/?foo=bar')
+      expect(resolver(new URL('/?foo=bar', metadataBase))).toBe(
+        'https://example.com/?foo=bar'
       )
     })
 

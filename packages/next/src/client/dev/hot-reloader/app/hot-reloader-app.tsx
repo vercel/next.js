@@ -8,17 +8,26 @@ import {
   REACT_REFRESH_FULL_RELOAD,
   REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
 } from '../shared'
-import { dispatcher } from 'next/dist/compiled/next-devtools'
+import {
+  dispatcher,
+  getSerializedOverlayState,
+  getSegmentTrieData,
+} from 'next/dist/compiled/next-devtools'
 import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/errors/replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
 import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import { useWebSocketPing } from './web-socket'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+} from '../../../../server/dev/hot-reloader-types'
 import type {
   HmrMessageSentToBrowser,
   TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
+import type { McpErrorStateResponse } from '../../../../shared/lib/mcp-error-types'
+import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-metadata-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
@@ -28,11 +37,19 @@ import {
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
+// TODO: Explicitly import from client.browser (doesn't work with Webpack).
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
+import { findSourceMapURL } from '../../../app-find-source-map-url'
 
 export interface StaticIndicatorState {
   pathname: string | null
-  appIsrManifest: Record<string, true>
+  appIsrManifest: Record<string, boolean> | null
 }
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -251,18 +268,18 @@ export function processMessage(
       if (process.env.__NEXT_DEV_INDICATOR) {
         staticIndicatorState.appIsrManifest = message.data
 
-        // handle initial status on receiving manifest
-        // navigation is handled in useEffect for pathname changes
-        // as we'll receive the updated manifest before usePathname
-        // triggers for new value
-        if (
-          staticIndicatorState.pathname &&
-          staticIndicatorState.pathname in message.data
-        ) {
-          dispatcher.onStaticIndicator(true)
-        } else {
-          dispatcher.onStaticIndicator(false)
-        }
+        // Handle the initial static indicator status on receiving the ISR
+        // manifest. Navigation is handled in an effect inside HotReload for
+        // pathname changes as we'll receive the updated manifest before
+        // usePathname triggers for a new value.
+
+        const isStatic = staticIndicatorState.pathname
+          ? message.data[staticIndicatorState.pathname]
+          : undefined
+
+        dispatcher.onStaticIndicator(
+          isStatic === undefined ? 'pending' : isStatic ? 'static' : 'dynamic'
+        )
       }
       break
     }
@@ -451,6 +468,83 @@ export function processMessage(
       dispatcher.onDevToolsConfig(message.data)
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
+      const { requestId, chunk } = message
+      const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
+
+      if (chunk) {
+        writer.ready.then(() => writer.write(chunk)).catch(console.error)
+      } else {
+        // A null chunk signals that no more chunks will be sent, which allows
+        // us to close the writer.
+        // TODO: Revisit this cleanup logic when we integrate the return channel
+        // that keeps the connection open to be able to lazily retrieve debug
+        // objects.
+        writer.ready.then(() => writer.close()).catch(console.error)
+      }
+
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE: {
+      const errorState = getSerializedOverlayState()
+      const response: McpErrorStateResponse = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE,
+        requestId: message.requestId,
+        errorState,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA: {
+      const segmentTrieData = getSegmentTrieData()
+      const response: McpPageMetadataResponse = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE,
+        requestId: message.requestId,
+        segmentTrieData,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR: {
+      dispatcher.onCacheIndicator(message.state)
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
+      createFromReadableStream<{
+        errors: Error[]
+        errorCodes: Map<Error, string>
+      }>(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(message.serializedErrors)
+            controller.close()
+          },
+        }),
+        { findSourceMapURL }
+      ).then(
+        ({ errors, errorCodes }) => {
+          for (const error of errors) {
+            const code = errorCodes.get(error)
+            if (code !== undefined) {
+              Object.defineProperty(error, '__NEXT_ERROR_CODE', {
+                value: code,
+                enumerable: false,
+                configurable: true,
+              })
+            }
+            console.error(error)
+          }
+        },
+        (err) => {
+          console.error(
+            new Error('Failed to deserialize errors.', { cause: err })
+          )
+        }
+      )
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
@@ -493,10 +587,14 @@ export default function HotReload({
 
       staticIndicatorState.pathname = pathname
 
-      if (pathname && pathname in staticIndicatorState.appIsrManifest) {
-        dispatcher.onStaticIndicator(true)
-      } else {
-        dispatcher.onStaticIndicator(false)
+      if (staticIndicatorState.appIsrManifest) {
+        const isStatic = pathname
+          ? staticIndicatorState.appIsrManifest[pathname]
+          : undefined
+
+        dispatcher.onStaticIndicator(
+          isStatic === undefined ? 'pending' : isStatic ? 'static' : 'dynamic'
+        )
       }
     }, [pathname, staticIndicatorState])
   }

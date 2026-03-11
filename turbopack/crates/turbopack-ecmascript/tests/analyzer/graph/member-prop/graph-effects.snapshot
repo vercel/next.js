@@ -30,7 +30,6 @@
             ),
         ],
         span: 1..4,
-        in_try: false,
     },
     FreeVar {
         var: "A",
@@ -60,6 +59,5 @@
             ),
         ],
         span: 1..2,
-        in_try: false,
     },
 ]

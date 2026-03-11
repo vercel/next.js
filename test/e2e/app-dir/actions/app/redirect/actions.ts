@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { unstable_expirePath } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 
 type State = {
   errors: Record<string, string>
@@ -16,7 +16,7 @@ export async function action(previousState: State, formData: FormData) {
   }
 
   if (revalidate === 'on') {
-    unstable_expirePath('/redirect')
+    revalidatePath('/redirect')
   }
 
   redirect('/redirect/other')

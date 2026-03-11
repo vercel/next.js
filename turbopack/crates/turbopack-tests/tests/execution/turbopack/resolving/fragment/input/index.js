@@ -18,3 +18,11 @@ it('should resolve to a file with a fragment and an extension', () => {
 it('should resolve to a file without a fragment but with an extension', () => {
   expect(nofrag2).toBe('nofrag')
 })
+
+it('dynamic with fragments', async () => {
+  const helper = async (p) => {
+    return (await import('./' + p + '#frag')).default
+  }
+  expect(await helper('nofrag.js')).toBe('nofrag')
+  expect(await helper('nofrag')).toBe('nofrag')
+})

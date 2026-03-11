@@ -1,4 +1,4 @@
-const props = { amp: true }
+const props = { runtime: 'nodejs' }
 
 // export const config = { ...props }
 

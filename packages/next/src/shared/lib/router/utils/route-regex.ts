@@ -18,6 +18,11 @@ export interface RouteRegex {
   re: RegExp
 }
 
+export type RegexReference = {
+  names: Record<string, string>
+  intercepted: Record<string, string>
+}
+
 type GetNamedRouteRegexOptions = {
   /**
    * Whether to prefix the route keys with the NEXT_INTERCEPTION_MARKER_PREFIX
@@ -52,6 +57,13 @@ type GetNamedRouteRegexOptions = {
    * the routes-manifest during the build.
    */
   backreferenceDuplicateKeys?: boolean
+
+  /**
+   * If provided, this will be used as the reference for the dynamic parameter
+   * keys instead of generating them in context. This is currently only used for
+   * interception routes.
+   */
+  reference?: RegexReference
 }
 
 type GetRouteRegexOptions = {
@@ -242,9 +254,15 @@ function getSafeKeyFromSegment({
     pattern = `(?<${cleanedKey}>[^/]+?)`
   }
 
-  return optional
-    ? `(?:/${interceptionPrefix}${pattern})?`
-    : `/${interceptionPrefix}${pattern}`
+  return {
+    key,
+    pattern: optional
+      ? `(?:/${interceptionPrefix}${pattern})?`
+      : `/${interceptionPrefix}${pattern}`,
+    cleanedKey: cleanedKey,
+    optional,
+    repeat,
+  }
 }
 
 function getNamedParametrizedRoute(
@@ -252,12 +270,18 @@ function getNamedParametrizedRoute(
   prefixRouteKeys: boolean,
   includeSuffix: boolean,
   includePrefix: boolean,
-  backreferenceDuplicateKeys: boolean
+  backreferenceDuplicateKeys: boolean,
+  reference: RegexReference = { names: {}, intercepted: {} }
 ) {
   const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
 
   const segments: string[] = []
+  const inverseParts: string[] = []
+
+  // Ensure we don't mutate the original reference object.
+  reference = structuredClone(reference)
+
   for (const segment of removeTrailingSlash(route).slice(1).split('/')) {
     const hasInterceptionMarker = INTERCEPTION_ROUTE_MARKERS.some((m) =>
       segment.startsWith(m)
@@ -265,53 +289,81 @@ function getNamedParametrizedRoute(
 
     const paramMatches = segment.match(PARAMETER_PATTERN) // Check for parameters
 
-    if (hasInterceptionMarker && paramMatches && paramMatches[2]) {
+    const interceptionMarker = hasInterceptionMarker
+      ? paramMatches?.[1]
+      : undefined
+
+    let keyPrefix: string | undefined
+    if (interceptionMarker && paramMatches?.[2]) {
+      keyPrefix = prefixRouteKeys ? NEXT_INTERCEPTION_MARKER_PREFIX : undefined
+      reference.intercepted[paramMatches[2]] = interceptionMarker
+    } else if (paramMatches?.[2] && reference.intercepted[paramMatches[2]]) {
+      keyPrefix = prefixRouteKeys ? NEXT_INTERCEPTION_MARKER_PREFIX : undefined
+    } else {
+      keyPrefix = prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined
+    }
+
+    if (interceptionMarker && paramMatches && paramMatches[2]) {
       // If there's an interception marker, add it to the segments.
-      segments.push(
+      const { key, pattern, cleanedKey, repeat, optional } =
         getSafeKeyFromSegment({
           getSafeRouteKey,
-          interceptionMarker: paramMatches[1],
+          interceptionMarker,
           segment: paramMatches[2],
           routeKeys,
-          keyPrefix: prefixRouteKeys
-            ? NEXT_INTERCEPTION_MARKER_PREFIX
-            : undefined,
+          keyPrefix,
           backreferenceDuplicateKeys,
         })
+
+      segments.push(pattern)
+      inverseParts.push(
+        `/${paramMatches[1]}:${reference.names[key] ?? cleanedKey}${repeat ? (optional ? '*' : '+') : ''}`
       )
+      reference.names[key] ??= cleanedKey
     } else if (paramMatches && paramMatches[2]) {
       // If there's a prefix, add it to the segments if it's enabled.
       if (includePrefix && paramMatches[1]) {
         segments.push(`/${escapeStringRegexp(paramMatches[1])}`)
+        inverseParts.push(`/${paramMatches[1]}`)
       }
 
-      let s = getSafeKeyFromSegment({
-        getSafeRouteKey,
-        segment: paramMatches[2],
-        routeKeys,
-        keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,
-        backreferenceDuplicateKeys,
-      })
+      const { key, pattern, cleanedKey, repeat, optional } =
+        getSafeKeyFromSegment({
+          getSafeRouteKey,
+          segment: paramMatches[2],
+          routeKeys,
+          keyPrefix,
+          backreferenceDuplicateKeys,
+        })
 
       // Remove the leading slash if includePrefix already added it.
+      let s = pattern
       if (includePrefix && paramMatches[1]) {
         s = s.substring(1)
       }
 
       segments.push(s)
+      inverseParts.push(
+        `/:${reference.names[key] ?? cleanedKey}${repeat ? (optional ? '*' : '+') : ''}`
+      )
+      reference.names[key] ??= cleanedKey
     } else {
       segments.push(`/${escapeStringRegexp(segment)}`)
+      inverseParts.push(`/${segment}`)
     }
 
     // If there's a suffix, add it to the segments if it's enabled.
     if (includeSuffix && paramMatches && paramMatches[3]) {
       segments.push(escapeStringRegexp(paramMatches[3]))
+      inverseParts.push(paramMatches[3])
     }
   }
 
   return {
     namedParameterizedRoute: segments.join(''),
     routeKeys,
+    pathToRegexpPattern: inverseParts.join(''),
+    reference,
   }
 }
 
@@ -332,7 +384,8 @@ export function getNamedRouteRegex(
     options.prefixRouteKeys,
     options.includeSuffix ?? false,
     options.includePrefix ?? false,
-    options.backreferenceDuplicateKeys ?? false
+    options.backreferenceDuplicateKeys ?? false,
+    options.reference
   )
 
   let namedRegex = result.namedParameterizedRoute
@@ -344,6 +397,8 @@ export function getNamedRouteRegex(
     ...getRouteRegex(normalizedRoute, options),
     namedRegex: `^${namedRegex}$`,
     routeKeys: result.routeKeys,
+    pathToRegexpPattern: result.pathToRegexpPattern,
+    reference: result.reference,
   }
 }
 
@@ -375,7 +430,8 @@ export function getNamedMiddlewareRegex(
     false,
     false,
     false,
-    false
+    false,
+    undefined
   )
   let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
   return {

@@ -36,12 +36,21 @@ pub async fn get_next_react_server_components_transform_rule(
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     let cache_components_enabled = *next_config.enable_cache_components().await?;
     let use_cache_enabled = *next_config.enable_use_cache().await?;
+    let taint_enabled = *next_config.enable_taint().await?;
+    let page_extensions = next_config
+        .page_extensions()
+        .await?
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
     Ok(get_ecma_transform_rule(
         Box::new(NextJsReactServerComponents::new(
             is_react_server_layer,
             cache_components_enabled,
             use_cache_enabled,
+            taint_enabled,
             app_dir,
+            page_extensions,
         )),
         enable_mdx_rs,
         EcmascriptTransformStage::Preprocess,
@@ -53,7 +62,9 @@ struct NextJsReactServerComponents {
     is_react_server_layer: bool,
     cache_components_enabled: bool,
     use_cache_enabled: bool,
+    taint_enabled: bool,
     app_dir: Option<FileSystemPath>,
+    page_extensions: Vec<String>,
 }
 
 impl NextJsReactServerComponents {
@@ -61,13 +72,17 @@ impl NextJsReactServerComponents {
         is_react_server_layer: bool,
         cache_components_enabled: bool,
         use_cache_enabled: bool,
+        taint_enabled: bool,
         app_dir: Option<FileSystemPath>,
+        page_extensions: Vec<String>,
     ) -> Self {
         Self {
             is_react_server_layer,
             cache_components_enabled,
             use_cache_enabled,
+            taint_enabled,
             app_dir,
+            page_extensions,
         }
     }
 }
@@ -88,6 +103,8 @@ impl CustomTransformer for NextJsReactServerComponents {
                 is_react_server_layer: self.is_react_server_layer,
                 cache_components_enabled: self.cache_components_enabled,
                 use_cache_enabled: self.use_cache_enabled,
+                taint_enabled: self.taint_enabled,
+                page_extensions: self.page_extensions.clone(),
             }),
             self.app_dir.as_ref().map(|path| path.path.clone().into()),
         );

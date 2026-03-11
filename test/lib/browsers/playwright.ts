@@ -250,6 +250,10 @@ export class Playwright<TCurrent = undefined> {
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (page: Page) => void | Promise<void>
+      /**
+       * @see {@link https://playwright.dev/docs/api/class-page#page-set-extra-http-headers Playwright.Page.setExtraHTTPHeaders}
+       */
+      extraHTTPHeaders?: Record<string, string>
       waitUntil?: PlaywrightNavigationWaitUntil
     }
   ) {
@@ -265,6 +269,10 @@ export class Playwright<TCurrent = undefined> {
 
     page.setDefaultTimeout(defaultTimeout)
     page.setDefaultNavigationTimeout(defaultTimeout)
+    const extraHTTPHeaders = opts?.extraHTTPHeaders
+    if (extraHTTPHeaders !== undefined) {
+      page.setExtraHTTPHeaders(extraHTTPHeaders)
+    }
 
     pageLogs = []
     websocketFrames = []
@@ -607,7 +615,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   locateDevToolsIndicator(): Locator {
-    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
+    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]:visible')
   }
 
   locator(selector: string, options?: Parameters<(typeof page)['locator']>[1]) {

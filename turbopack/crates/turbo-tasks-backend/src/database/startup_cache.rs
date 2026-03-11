@@ -7,7 +7,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use anyhow::{Ok, Result};
+use anyhow::{Ok, Result, bail};
 use byteorder::WriteBytesExt;
 use rustc_hash::FxHashMap;
 use turbo_tasks::FxDashMap;
@@ -42,6 +42,14 @@ impl<T: KeyValueDatabase> Borrow<[u8]> for ValueBuffer<'_, T> {
 
 type Cache = ByKeySpace<FxDashMap<Vec<u8>, Option<Vec<u8>>>>;
 
+/// A caching layer that stores recently-read key-value pairs for fast startup.
+///
+/// # Safety invariant (self-referential struct, field ordering)
+///
+/// `restored_map` contains `&'static [u8]` slices that actually point into the `_restored`
+/// `Vec<u8>` buffer. The `'static` lifetime is a transmuted lie. This is sound because
+/// `restored_map` is declared before `_restored`, so Rust drops the map (releasing the dangling
+/// references) before dropping the backing buffer. **Do not reorder these fields.**
 pub struct StartupCacheLayer<T: KeyValueDatabase> {
     database: T,
     path: PathBuf,
@@ -49,7 +57,8 @@ pub struct StartupCacheLayer<T: KeyValueDatabase> {
     cache_size: AtomicUsize,
     cache: Cache,
     restored_map: ByKeySpace<FxHashMap<&'static [u8], &'static [u8]>>,
-    // Need to be kept around to keep the restored_map reference alive
+    // Safety: Must be declared AFTER `restored_map` — `restored_map` contains references into this
+    // buffer. See struct-level safety invariant above.
     _restored: Vec<u8>,
 }
 
@@ -57,22 +66,21 @@ impl<T: KeyValueDatabase> StartupCacheLayer<T> {
     pub fn new(database: T, path: PathBuf, fresh_db: bool) -> Result<Self> {
         let mut restored = Vec::new();
         let mut restored_map = ByKeySpace::new(|_| FxHashMap::default());
-        if !fresh_db {
-            if let Result::Ok(mut cache_file) = File::open(&path) {
-                cache_file.read_to_end(&mut restored)?;
-                drop(cache_file);
-                let mut pos = 0;
-                while pos < restored.len() {
-                    let (key_space, key, value) = read_key_value_pair(&restored, &mut pos)?;
-                    let map = restored_map.get_mut(key_space);
-                    unsafe {
-                        // Safety: This is a self reference, it's valid as long the `restored`
-                        // buffer is alive
-                        map.insert(
-                            transmute::<&'_ [u8], &'static [u8]>(key),
-                            transmute::<&'_ [u8], &'static [u8]>(value),
-                        );
-                    }
+        if !fresh_db && let Result::Ok(mut cache_file) = File::open(&path) {
+            cache_file.read_to_end(&mut restored)?;
+            drop(cache_file);
+            let mut pos = 0;
+            while pos < restored.len() {
+                let (key_space, key, value) = read_key_value_pair(&restored, &mut pos)?;
+                let map = restored_map.get_mut(key_space);
+                unsafe {
+                    // Safety: Self-referential pattern — these slices point into `restored`
+                    // (which becomes `_restored`). See struct-level safety invariant on
+                    // `StartupCacheLayer` for why the field ordering makes this sound.
+                    map.insert(
+                        transmute::<&'_ [u8], &'static [u8]>(key),
+                        transmute::<&'_ [u8], &'static [u8]>(value),
+                    );
                 }
             }
         }
@@ -87,8 +95,7 @@ impl<T: KeyValueDatabase> StartupCacheLayer<T> {
                         KeySpace::Infra => 8,
                         KeySpace::TaskMeta => 1024 * 1024,
                         KeySpace::TaskData => 1024 * 1024,
-                        KeySpace::ForwardTaskCache => 1024 * 1024,
-                        KeySpace::ReverseTaskCache => 1024 * 1024,
+                        KeySpace::TaskCache => 1024 * 1024,
                     },
                     Default::default(),
                 )
@@ -322,8 +329,7 @@ fn write_key_value_pair(
         KeySpace::Infra => 0,
         KeySpace::TaskMeta => 1,
         KeySpace::TaskData => 2,
-        KeySpace::ForwardTaskCache => 3,
-        KeySpace::ReverseTaskCache => 4,
+        KeySpace::TaskCache => 3,
     })?;
     let key_len = key.len();
     size_buffer.copy_from_slice(&(key_len as u32).to_be_bytes());
@@ -344,9 +350,8 @@ fn read_key_value_pair<'l>(
         0 => KeySpace::Infra,
         1 => KeySpace::TaskMeta,
         2 => KeySpace::TaskData,
-        3 => KeySpace::ForwardTaskCache,
-        4 => KeySpace::ReverseTaskCache,
-        _ => return Err(anyhow::anyhow!("Invalid key space")),
+        3 => KeySpace::TaskCache,
+        _ => bail!("Invalid key space"),
     };
     *pos += 1;
     let key_len = u32::from_be_bytes(buffer[*pos..*pos + 4].try_into()?);

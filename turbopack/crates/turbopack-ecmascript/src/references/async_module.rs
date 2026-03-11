@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{ArrayLit, ArrayPat, Expr, Ident},
@@ -11,23 +11,21 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingContext, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
 
-use super::esm::base::ReferencedAsset;
 use crate::{
     ScopeHoistingContext,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    references::esm::base::ReferencedAsset,
     utils::AstSyntaxContext,
 };
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
-#[derive(
-    PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
-)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
 }
@@ -68,29 +66,28 @@ impl OptionAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options(
-        self: Vc<Self>,
+    pub fn module_options(
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<OptionAsyncModuleOptions>> {
-        if let Some(async_module) = &*self.await? {
-            return Ok(async_module.module_options(async_module_info));
+    ) -> Vc<OptionAsyncModuleOptions> {
+        if let Some(async_module) = &self.0 {
+            return async_module.module_options(async_module_info);
         }
 
-        Ok(OptionAsyncModuleOptions::none())
+        OptionAsyncModuleOptions::none()
     }
 }
 
 /// The identifiers (and their corresponding syntax context) of all async modules referenced by the
 /// current module.
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(FxIndexSet<(String, AstSyntaxContext)>);
+struct AsyncModuleIdents(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<(String, AstSyntaxContext)>,
+);
 
 async fn get_inherit_async_referenced_asset(
-    r: Vc<Box<dyn ModuleReference>>,
+    r: ResolvedVc<Box<dyn ModuleReference>>,
 ) -> Result<Option<ReadRef<ReferencedAsset>>> {
-    let Some(r) = Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(r).await? else {
-        return Ok(None);
-    };
     let Some(ty) = &*r.chunking_type().await? else {
         return Ok(None);
     };
@@ -123,7 +120,7 @@ impl AsyncModule {
             .await?
             .iter()
             .map(|r| async {
-                let Some(referenced_asset) = get_inherit_async_referenced_asset(**r).await? else {
+                let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
                     return Ok(None);
                 };
                 Ok(match &*referenced_asset {
@@ -174,8 +171,7 @@ impl AsyncModule {
                     .await?
                     .iter()
                     .map(|r| async {
-                        let Some(referenced_asset) =
-                            get_inherit_async_referenced_asset(**r).await?
+                        let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
                         else {
                             return Ok(false);
                         };

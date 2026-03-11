@@ -13,10 +13,11 @@ use tokio::select;
 use tokio_stream::StreamMap;
 use tracing::{Level, instrument};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, ReadRef, TransientInstance, TurboTasksApi, Vc, trace::TraceRawVcs,
+    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, TransientInstance, TurboTasksApi, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::json::parse_json_with_source_context;
-use turbopack_core::{error::PrettyPrintError, issue::IssueReporter, version::Update};
+use turbopack_core::{issue::IssueReporter, version::Update};
 use turbopack_ecmascript_hmr_protocol::{
     ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier,
 };
@@ -52,11 +53,10 @@ where
 
     /// Run the update server loop.
     pub fn run(self, tt: &dyn TurboTasksApi, ws: HyperWebsocket) {
-        tt.run_once_process(Box::pin(async move {
+        tt.start_once_process(Box::pin(async move {
             if let Err(err) = self.run_internal(ws).await {
                 println!("[UpdateServer]: error {err:#}");
             }
-            Ok(())
         }));
     }
 

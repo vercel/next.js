@@ -6,7 +6,6 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::TreeShakingMode,
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -24,6 +23,7 @@ use turbopack_core::{
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
 };
+use turbopack_ecmascript::TreeShakingMode;
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
@@ -45,7 +45,7 @@ impl fmt::Display for NodeEnv {
 }
 
 fn foreign_code_context_condition() -> ContextCondition {
-    ContextCondition::InDirectory("node_modules".to_string())
+    ContextCondition::InNodeModules
 }
 
 #[turbo_tasks::function]
@@ -188,7 +188,7 @@ pub fn get_client_asset_context(
 fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
-        process.env.TURBOPACK = true,
+        process.env.TURBOPACK = "1",
         process.env.NODE_ENV = node_env.to_string()
     )
 }
@@ -197,26 +197,27 @@ fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
+    hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
     let node_env = node_env.await?;
-
-    let environment = BrowserEnvironment {
-        dom: true,
-        web_worker: false,
-        service_worker: false,
-        browserslist_query,
-    }
-    .resolved_cell();
-
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::Browser(environment), *environment)
-            .to_resolved()
-            .await?,
+        Environment::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query,
+            }
+            .resolved_cell(),
+        ))
+        .to_resolved()
+        .await?,
     )
     .defines(client_defines(&node_env).resolved_cell())
     .free_var_references(
         free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
     )
+    .hot_module_replacement_enabled(hot_module_replacement_enabled)
     .cell()
     .await
 }

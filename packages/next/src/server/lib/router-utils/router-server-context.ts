@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { NextConfigComplete } from '../../config-shared'
+import type { NextConfigRuntime } from '../../config-shared'
 import type { UrlWithParsedQuery } from 'node:url'
+import type { ServerCacheStatus } from '../../../next-devtools/dev-overlay/cache-indicator'
 
 export type RevalidateFn = (config: {
   urlPath: string
@@ -28,10 +29,8 @@ export type RouterServerContext = Record<
       parsedUrl?: UrlWithParsedQuery,
       setHeaders?: boolean
     ) => Promise<void>
-    // current loaded public runtime config
-    publicRuntimeConfig?: NextConfigComplete['publicRuntimeConfig']
     // exposing nextConfig for dev mode specifically
-    nextConfig?: NextConfigComplete
+    nextConfig?: NextConfigRuntime
     // whether running in custom server mode
     isCustomServer?: boolean
     // whether test proxy is enabled
@@ -39,7 +38,19 @@ export type RouterServerContext = Record<
     // allow dev server to log with original stack
     logErrorWithOriginalStack?: (err: unknown, type: string) => void
     // allow setting ISR status in dev
-    setIsrStatus?: (key: string, value: boolean) => void
+    setIsrStatus?: (key: string, value: boolean | undefined) => void
+    setReactDebugChannel?: (
+      debugChannel: { readable: ReadableStream<Uint8Array> },
+      htmlRequestId: string,
+      requestId: string
+    ) => void
+    setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
+    sendErrorsToBrowser?: (
+      errorsRscStream: ReadableStream<Uint8Array>,
+      htmlRequestId: string
+    ) => void
+    // indicates request handlers are already wrapped by next-server tracing
+    isWrappedByNextServer?: boolean
   }
 >
 

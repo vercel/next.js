@@ -7,6 +7,5 @@ export function getServerSideProps() {
 }
 
 export const config = {
-  amp: false,
   runtime: 'nodejs',
 }

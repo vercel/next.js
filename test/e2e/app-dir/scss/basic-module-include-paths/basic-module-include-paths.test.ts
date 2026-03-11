@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb } from 'next-test-utils'
 
 const sassOptions = {
-  includePaths: ['./styles'],
+  loadPaths: ['./styles'],
 }
 
 describe.each([

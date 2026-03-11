@@ -3,7 +3,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   getRedboxErrorLink,
   getToastErrorCount,
   retry,
@@ -39,18 +39,18 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/text-mism..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
                                    <main className="child">
@@ -89,7 +89,7 @@ describe('Error overlay for hydration errors in App router', () => {
       }
     `,
       async () => {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
         expect(await browser.elementByCss('.child').text()).toBe('Value')
       }
     )
@@ -101,18 +101,18 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-ele..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
      +                             <main className="only">
@@ -139,72 +139,72 @@ describe('Error overlay for hydration errors in App router', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "code": "E394",
          "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
-                         <RedirectBoundary>
-                           <RedirectErrorBoundary router={{...}}>
-                             <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                               <SegmentViewNode type="layout" pagePath="(extra-att...">
-                                 <SegmentTrieNode>
-                                 <script>
-                                 <script>
-                                 <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                                   <Root params={Promise}>
-                                     <html
-       -                               className="server-html"
-                                     >
-                             ...
-                 ...",
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <script>
+                               <script>
+                               <Next.js Internal Component>
+                                 <RootLayout params={Promise}>
+                                   <html
+       -                             className="server-html"
+                                   >
+                           ...
+               ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
-         "source": "app/(extra-attributes)/layout.tsx (9:5) @ Root
+         "source": "app/(extra-attributes)/layout.tsx (9:5) @ RootLayout
        >  9 |     <html {...(isServer ? { className: 'server-html' } : undefined)}>
             |     ^",
          "stack": [
            "html <anonymous>",
-           "Root app/(extra-attributes)/layout.tsx (9:5)",
+           "RootLayout app/(extra-attributes)/layout.tsx (9:5)",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
+         "code": "E394",
          "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
-                         <RedirectBoundary>
-                           <RedirectErrorBoundary router={{...}}>
-                             <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                               <SegmentViewNode type="layout" pagePath="(extra-att...">
-                                 <SegmentTrieNode>
-                                 <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                                   <Root params={Promise}>
-                                     <html
-       -                               className="server-html"
-                                     >
-                             ...
-                 ...",
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
+                                 <RootLayout params={Promise}>
+                                   <html
+       -                             className="server-html"
+                                   >
+                           ...
+               ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
-         "source": "app/(extra-attributes)/layout.tsx (9:5) @ Root
+         "source": "app/(extra-attributes)/layout.tsx (9:5) @ RootLayout
        >  9 |     <html {...(isServer ? { className: 'server-html' } : undefined)}>
             |     ^",
          "stack": [
            "html <anonymous>",
-           "Root app/(extra-attributes)/layout.tsx (9:5)",
+           "RootLayout app/(extra-attributes)/layout.tsx (9:5)",
          ],
        }
       `)
@@ -217,18 +217,18 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
                                    <header>
@@ -258,18 +258,18 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-ele..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
      -                             <main className="only">
@@ -296,18 +296,18 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
      -                             only
@@ -338,18 +338,19 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
+         "code": "E394",
          "componentStack": "...
-         <ScrollAndFocusHandler segmentPath={[...]}>
-           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                   <RedirectBoundary>
-                     <RedirectErrorBoundary router={{...}}>
-                       <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                         <SegmentViewNode type="page" pagePath="(default)/...">
-                           <SegmentTrieNode>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                           <Next.js Internal Component>
                              <Page params={Promise} searchParams={Promise}>
                                <table>
                                  <tbody>
@@ -372,18 +373,18 @@ describe('Error overlay for hydration errors in App router', () => {
        },
        {
          "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Page params={Promise} searchParams={Promise}>
      +                           <table>
      -                           test
@@ -410,19 +411,20 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-whi..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Page params={Promise} searchParams={Promise}>
      >                           <table>
      >                             {" "}
@@ -451,16 +453,16 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-           <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-             <LoadingBoundary loading={null}>
-               <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                 <RedirectBoundary>
-                   <RedirectErrorBoundary router={{...}}>
-                     <InnerLayoutRouter url="/extra-nod..." tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                       <SegmentViewNode type="page" pagePath="(default)/...">
-                         <SegmentTrieNode>
-                         <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                         <Next.js Internal Component>
                            <Mismatch params={Promise} searchParams={Promise}>
                              <div className="parent">
                                <Suspense fallback={<p>}>
@@ -505,19 +507,20 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
+         "code": "E394",
          "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/p-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Page params={Promise} searchParams={Promise}>
      >                           <p>
      >                             <p>
@@ -562,18 +565,19 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
+         "code": "E394",
          "componentStack": "...
-         <ScrollAndFocusHandler segmentPath={[...]}>
-           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                   <RedirectBoundary>
-                     <RedirectErrorBoundary router={{...}}>
-                       <InnerLayoutRouter url="/div-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                         <SegmentViewNode type="page" pagePath="(default)/...">
-                           <SegmentTrieNode>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                           <Next.js Internal Component>
                              <Page params={Promise} searchParams={Promise}>
                                <div>
                                  <div>
@@ -620,19 +624,20 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
+         "code": "E394",
          "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/tr-under-div" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Page params={Promise} searchParams={Promise}>
      >                           <div>
      >                             <tr>
@@ -677,19 +682,20 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
+         "code": "E394",
          "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/bad-nesting" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+         <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                             <Next.js Internal Component>
                                <Page params={Promise} searchParams={Promise}>
      >                           <p>
                                    <span>
@@ -713,6 +719,7 @@ describe('Error overlay for hydration errors in App router', () => {
          ],
        },
        {
+         "code": "E394",
          "description": "<p> cannot contain a nested <p>.
      See this log for the ancestor stack trace.",
          "environmentLabel": null,
@@ -755,76 +762,65 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
+           "source": "app/(script-under-html)/layout.tsx (8:7) @ RootLayout
        >  8 |       <Script
             |       ^",
            "stack": [
-             "Root app/(script-under-html)/layout.tsx (8:7)",
+             "RootLayout app/(script-under-html)/layout.tsx (8:7)",
            ],
          },
          {
+           "code": "E394",
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
-                         <RedirectBoundary>
-                           <RedirectErrorBoundary router={{...}}>
-                             <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                               <SegmentViewNode type="layout" pagePath="(script-un...">
-                                 <SegmentTrieNode>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                                 <Next.js Internal Component>
                                  <script>
                                  <script>
-                                 <Root>
-                                   <NotFound>
-                                     <HTTPAccessErrorFallback>
-                                       <NotFound>
-                                         <HTTPAccessErrorFallback>
-                                           <NotFound>
-                                             <HTTPAccessErrorFallback>
-                                               <NotFound>
-                                                 <HTTPAccessErrorFallback>
-                                                   <NotFound>
-                                                     <HTTPAccessErrorFallback>
-       >                                               <html>
-                                                         <body>
-                                                         <Script src="https://ex..." strategy="beforeInte...">
-       >                                                   <script
-       >                                                     nonce={undefined}
-       >                                                     dangerouslySetInnerHTML={{__html:"(self.__ne..."}}
-       >                                                   >
+                                 <RootLayout>
+       >                           <html>
+                                     <body>
+                                     <Script src="https://ex..." strategy="beforeInte...">
+       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                              ...
-                 ...
-           ...",
+                 ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
+           "source": "app/(script-under-html)/layout.tsx (8:7) @ RootLayout
        >  8 |       <Script
             |       ^",
            "stack": [
              "script <anonymous>",
-             "Root app/(script-under-html)/layout.tsx (8:7)",
+             "RootLayout app/(script-under-html)/layout.tsx (8:7)",
            ],
          },
          {
+           "code": "E394",
            "description": "<html> cannot contain a nested <script>.
        See this log for the ancestor stack trace.",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
+           "source": "app/(script-under-html)/layout.tsx (6:5) @ RootLayout
        > 6 |     <html>
            |     ^",
            "stack": [
              "html <anonymous>",
-             "Root app/(script-under-html)/layout.tsx (6:5)",
+             "RootLayout app/(script-under-html)/layout.tsx (6:5)",
            ],
          },
        ]
@@ -833,74 +829,63 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
+           "source": "app/(script-under-html)/layout.tsx (8:7) @ RootLayout
        >  8 |       <Script
             |       ^",
            "stack": [
-             "Root app/(script-under-html)/layout.tsx (8:7)",
+             "RootLayout app/(script-under-html)/layout.tsx (8:7)",
            ],
          },
          {
+           "code": "E394",
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
-                         <RedirectBoundary>
-                           <RedirectErrorBoundary router={{...}}>
-                             <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                               <SegmentViewNode type="layout" pagePath="(script-un...">
-                                 <SegmentTrieNode>
-                                 <Root>
-                                   <NotFound>
-                                     <HTTPAccessErrorFallback>
-                                       <NotFound>
-                                         <HTTPAccessErrorFallback>
-                                           <NotFound>
-                                             <HTTPAccessErrorFallback>
-                                               <NotFound>
-                                                 <HTTPAccessErrorFallback>
-                                                   <NotFound>
-                                                     <HTTPAccessErrorFallback>
-       >                                               <html>
-                                                         <body>
-                                                         <Script src="https://ex..." strategy="beforeInte...">
-       >                                                   <script
-       >                                                     nonce={undefined}
-       >                                                     dangerouslySetInnerHTML={{__html:"(self.__ne..."}}
-       >                                                   >
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                                 <Next.js Internal Component>
+                                 <RootLayout>
+       >                           <html>
+                                     <body>
+                                     <Script src="https://ex..." strategy="beforeInte...">
+       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                              ...
-                 ...
-           ...",
+                 ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
+           "source": "app/(script-under-html)/layout.tsx (8:7) @ RootLayout
        >  8 |       <Script
             |       ^",
            "stack": [
              "script <anonymous>",
-             "Root app/(script-under-html)/layout.tsx (8:7)",
+             "RootLayout app/(script-under-html)/layout.tsx (8:7)",
            ],
          },
          {
+           "code": "E394",
            "description": "<html> cannot contain a nested <script>.
        See this log for the ancestor stack trace.",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
+           "source": "app/(script-under-html)/layout.tsx (6:5) @ RootLayout
        > 6 |     <html>
            |     ^",
            "stack": [
              "html <anonymous>",
-             "Root app/(script-under-html)/layout.tsx (6:5)",
+             "RootLayout app/(script-under-html)/layout.tsx (6:5)",
            ],
          },
        ]

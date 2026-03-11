@@ -5,21 +5,21 @@ use std::{
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
 };
 
-use anyhow::{Context, Result, anyhow};
-use serde::{Deserialize, Serialize};
+use anyhow::{Context, Result};
 use smallvec::SmallVec;
+use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_tasks::{
-    SessionId, TaskId,
+    TaskId,
     backend::CachedTaskType,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
 };
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
     GitVersionInfo,
-    backend::{AnyOperation, TaskDataCategory},
-    backing_storage::{BackingStorage, BackingStorageSealed},
-    data::CachedDataItem,
+    backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
+    backing_storage::{BackingStorage, BackingStorageSealed, SnapshotItem},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
@@ -33,45 +33,8 @@ use crate::{
     utils::chunked_vec::ChunkedVec,
 };
 
-const POT_CONFIG: pot::Config = pot::Config::new().compatibility(pot::Compatibility::V4);
-
-fn pot_serialize_small_vec<T: Serialize>(value: &T) -> pot::Result<SmallVec<[u8; 16]>> {
-    struct SmallVecWrite<'l>(&'l mut SmallVec<[u8; 16]>);
-    impl std::io::Write for SmallVecWrite<'_> {
-        #[inline]
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            self.0.extend_from_slice(buf);
-            Ok(buf.len())
-        }
-
-        #[inline]
-        fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-            self.0.extend_from_slice(buf);
-            Ok(())
-        }
-
-        #[inline]
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-
-    let mut output = SmallVec::new();
-    POT_CONFIG.serialize_into(value, SmallVecWrite(&mut output))?;
-    Ok(output)
-}
-
-fn pot_ser_symbol_map() -> pot::ser::SymbolMap {
-    pot::ser::SymbolMap::new().with_compatibility(pot::Compatibility::V4)
-}
-
-fn pot_de_symbol_list<'l>() -> pot::de::SymbolList<'l> {
-    pot::de::SymbolList::new()
-}
-
 const META_KEY_OPERATIONS: u32 = 0;
 const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
-const META_KEY_SESSION_ID: u32 = 2;
 
 struct IntKey([u8; 4]);
 
@@ -238,7 +201,7 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
         Ok(())
     }
 
-    /// Used to read the previous session id and the next free task ID from the database.
+    /// Used to read the next free task ID from the database.
     fn get_infra_u32(&self, key: u32) -> Result<Option<u32>> {
         let tx = self.database.begin_read_transaction()?;
         self.database
@@ -269,16 +232,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             .map_or(Ok(TaskId::MIN), TaskId::try_from)?)
     }
 
-    fn next_session_id(&self) -> Result<SessionId> {
-        Ok(SessionId::try_from(
-            self.inner
-                .get_infra_u32(META_KEY_SESSION_ID)
-                .context("Unable to read session id from database")?
-                .unwrap_or(0)
-                + 1,
-        )?)
-    }
-
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         fn get(database: &impl KeyValueDatabase) -> Result<Vec<AnyOperation>> {
             let tx = database.begin_read_transaction()?;
@@ -290,36 +243,23 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             else {
                 return Ok(Vec::new());
             };
-            let operations = deserialize_with_good_error(operations.borrow())?;
+            let operations = turbo_bincode_decode(operations.borrow())?;
             Ok(operations)
         }
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
-        serialize(task, data)
-    }
-
     fn save_snapshot<I>(
         &self,
-        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<
-                Item = (
-                    TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
-                ),
-            > + Send
-            + Sync,
+        I: Iterator<Item = SnapshotItem> + Send + Sync,
     {
-        let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
+        let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
         let mut batch = self.inner.database.write_batch()?;
-
         // Start organizing the updates in parallel
         match &mut batch {
             &mut WriteBatch::Concurrent(ref batch, _) => {
@@ -331,8 +271,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         &[KeySpace::TaskMeta, KeySpace::TaskData],
                         |&key_space| {
                             let _span = span.clone().entered();
-                            // Safety: We already finished all processing of the task data and task
-                            // meta
+                            // Safety: `process_task_data` has returned, so no concurrent `put` or
+                            // `delete` on `TaskMeta`/`TaskData` key spaces are in-flight. The
+                            // `parallel::try_for_each` below flushes disjoint key spaces, so
+                            // concurrent flushes on different key spaces are safe.
                             unsafe { batch.flush(key_space) }
                         },
                     )?;
@@ -349,40 +291,27 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
                     )
                     .entered();
-                    let result = parallel::map_collect_owned::<_, _, Result<Vec<_>>>(
+                    let max_task_id = parallel::map_collect_owned::<_, _, Result<Vec<_>>>(
                         task_cache_updates,
                         |updates| {
                             let _span = _span.clone().entered();
                             let mut max_task_id = 0;
-
-                            let mut task_type_bytes = Vec::new();
                             for (task_type, task_id) in updates {
+                                let hash = compute_task_type_hash(&task_type);
                                 let task_id: u32 = *task_id;
-                                serialize_task_type(&task_type, &mut task_type_bytes, task_id)?;
 
                                 batch
                                     .put(
-                                        KeySpace::ForwardTaskCache,
-                                        WriteBuffer::Borrowed(&task_type_bytes),
+                                        KeySpace::TaskCache,
+                                        WriteBuffer::Borrowed(&hash.to_le_bytes()),
                                         WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                                     )
                                     .with_context(|| {
-                                        anyhow!(
+                                        format!(
                                             "Unable to write task cache {task_type:?} => {task_id}"
                                         )
                                     })?;
-                                batch
-                                    .put(
-                                        KeySpace::ReverseTaskCache,
-                                        WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
-                                        WriteBuffer::Borrowed(&task_type_bytes),
-                                    )
-                                    .with_context(|| {
-                                        anyhow!(
-                                            "Unable to write task cache {task_id} => {task_type:?}"
-                                        )
-                                    })?;
-                                max_task_id = max_task_id.max(task_id + 1);
+                                max_task_id = max_task_id.max(task_id);
                             }
 
                             Ok(max_task_id)
@@ -391,13 +320,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                     .into_iter()
                     .max()
                     .unwrap_or(0);
-                    next_task_id = next_task_id.max(result);
+                    next_task_id = next_task_id.max(max_task_id + 1);
                 }
 
                 save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
                     &mut WriteBatchRef::concurrent(batch),
                     next_task_id,
-                    session_id,
                     operations,
                 )?;
             }
@@ -413,14 +341,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                             batch
                                 .put(KeySpace::TaskMeta, WriteBuffer::Borrowed(key), meta)
                                 .with_context(|| {
-                                    anyhow!("Unable to write meta items for {task_id}")
+                                    format!("Unable to write meta items for {task_id}")
                                 })?;
                         }
                         if let Some(data) = data {
                             batch
                                 .put(KeySpace::TaskData, WriteBuffer::Borrowed(key), data)
                                 .with_context(|| {
-                                    anyhow!("Unable to write data items for {task_id}")
+                                    format!("Unable to write data items for {task_id}")
                                 })?;
                         }
                     }
@@ -439,28 +367,18 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
                     )
                     .entered();
-                    let mut task_type_bytes = Vec::new();
                     for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
+                        let hash = compute_task_type_hash(&task_type);
                         let task_id = *task_id;
-                        serialize_task_type(&task_type, &mut task_type_bytes, task_id)?;
 
                         batch
                             .put(
-                                KeySpace::ForwardTaskCache,
-                                WriteBuffer::Borrowed(&task_type_bytes),
+                                KeySpace::TaskCache,
+                                WriteBuffer::Borrowed(&hash.to_le_bytes()),
                                 WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                             )
                             .with_context(|| {
-                                anyhow!("Unable to write task cache {task_type:?} => {task_id}")
-                            })?;
-                        batch
-                            .put(
-                                KeySpace::ReverseTaskCache,
-                                WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
-                                WriteBuffer::Borrowed(&task_type_bytes),
-                            )
-                            .with_context(|| {
-                                anyhow!("Unable to write task cache {task_id} => {task_type:?}")
+                                format!("Unable to write task cache {task_type:?} => {task_id}")
                             })?;
                         next_task_id = next_task_id.max(task_id + 1);
                     }
@@ -469,7 +387,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
                     &mut WriteBatchRef::serial(batch),
                     next_task_id,
-                    session_id,
                     operations,
                 )?;
             }
@@ -477,9 +394,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         {
             let _span = tracing::trace_span!("commit").entered();
-            batch
-                .commit()
-                .with_context(|| anyhow!("Unable to commit operations"))?;
+            batch.commit().context("Unable to commit operations")?;
         }
         Ok(())
     }
@@ -488,92 +403,108 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         self.inner.database.begin_read_transaction().ok()
     }
 
-    unsafe fn forward_lookup_task_cache(
+    unsafe fn lookup_task_candidates(
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_type: &CachedTaskType,
-    ) -> Result<Option<TaskId>> {
+    ) -> Result<SmallVec<[TaskId; 1]>> {
         let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
             task_type: &CachedTaskType,
-        ) -> Result<Option<TaskId>> {
-            let task_type = POT_CONFIG.serialize(task_type)?;
-            let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type)? else {
-                return Ok(None);
-            };
-            let bytes = bytes.borrow().try_into()?;
-            let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
-            Ok(Some(id))
+        ) -> Result<SmallVec<[TaskId; 1]>> {
+            let hash = compute_task_type_hash(task_type);
+            let buffers = database.get_multiple(tx, KeySpace::TaskCache, &hash.to_le_bytes())?;
+
+            let mut task_ids = SmallVec::with_capacity(buffers.len());
+            for bytes in buffers {
+                let bytes = bytes.borrow().try_into()?;
+                let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
+                task_ids.push(id);
+            }
+            Ok(task_ids)
         }
         if inner.database.is_empty() {
             // Checking if the database is empty is a performance optimization
-            // to avoid serializing the task type.
-            return Ok(None);
+            // to avoid computing the hash.
+            return Ok(SmallVec::new());
         }
         inner
             .with_tx(tx, |tx| lookup(&self.inner.database, tx, task_type))
             .with_context(|| format!("Looking up task id for {task_type:?} from database failed"))
     }
 
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&T::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>> {
-        let inner = &*self.inner;
-        fn lookup<D: KeyValueDatabase>(
-            database: &D,
-            tx: &D::ReadTransaction<'_>,
-            task_id: TaskId,
-        ) -> Result<Option<Arc<CachedTaskType>>> {
-            let Some(bytes) = database.get(
-                tx,
-                KeySpace::ReverseTaskCache,
-                IntKey::new(*task_id).as_ref(),
-            )?
-            else {
-                return Ok(None);
-            };
-            Ok(Some(deserialize_with_good_error(bytes.borrow())?))
-        }
-        inner
-            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id))
-            .with_context(|| format!("Looking up task type for {task_id} from database failed"))
-    }
-
     unsafe fn lookup_data(
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Result<Vec<CachedDataItem>> {
+        category: SpecificTaskDataCategory,
+        storage: &mut TaskStorage,
+    ) -> Result<()> {
         let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
             task_id: TaskId,
-            category: TaskDataCategory,
-        ) -> Result<Vec<CachedDataItem>> {
-            let Some(bytes) = database.get(
-                tx,
-                match category {
-                    TaskDataCategory::Meta => KeySpace::TaskMeta,
-                    TaskDataCategory::Data => KeySpace::TaskData,
-                    TaskDataCategory::All => unreachable!(),
-                },
-                IntKey::new(*task_id).as_ref(),
-            )?
+            category: SpecificTaskDataCategory,
+            storage: &mut TaskStorage,
+        ) -> Result<()> {
+            let Some(bytes) =
+                database.get(tx, category.key_space(), IntKey::new(*task_id).as_ref())?
             else {
-                return Ok(Vec::new());
+                return Ok(());
             };
-            let result: Vec<CachedDataItem> = deserialize_with_good_error(bytes.borrow())?;
-            Ok(result)
+            let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+            storage
+                .decode(category, &mut decoder)
+                .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
         }
         inner
-            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, category))
-            .with_context(|| format!("Looking up data for {task_id} from database failed"))
+            .with_tx(tx, |tx| {
+                lookup(&inner.database, tx, task_id, category, storage)
+            })
+            .with_context(|| format!("Looking up task storage for {task_id} from database failed"))
+    }
+
+    unsafe fn batch_lookup_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        category: SpecificTaskDataCategory,
+    ) -> Result<Vec<TaskStorage>> {
+        let inner = &*self.inner;
+        fn lookup<D: KeyValueDatabase>(
+            database: &D,
+            tx: &D::ReadTransaction<'_>,
+            task_ids: &[TaskId],
+            category: SpecificTaskDataCategory,
+        ) -> Result<Vec<TaskStorage>> {
+            let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
+            let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
+            let bytes = database.batch_get(tx, category.key_space(), &keys)?;
+            bytes
+                .into_iter()
+                .map(|opt_bytes| {
+                    let mut storage = TaskStorage::new();
+                    if let Some(bytes) = opt_bytes {
+                        let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+                        storage
+                            .decode(category, &mut decoder)
+                            .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
+                    }
+                    Ok(storage)
+                })
+                .collect::<Result<Vec<_>>>()
+        }
+        inner
+            .with_tx(tx, |tx| lookup(&inner.database, tx, task_ids, category))
+            .with_context(|| {
+                format!(
+                    "Looking up typed data for {} tasks from database failed",
+                    task_ids.len()
+                )
+            })
     }
 
     fn shutdown(&self) -> Result<()> {
@@ -602,7 +533,6 @@ where
 fn save_infra<'a, S, C>(
     batch: &mut WriteBatchRef<'_, 'a, S, C>,
     next_task_id: u32,
-    session_id: SessionId,
     operations: Vec<Arc<AnyOperation>>,
 ) -> Result<(), anyhow::Error>
 where
@@ -616,55 +546,43 @@ where
                 WriteBuffer::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
                 WriteBuffer::Borrowed(&next_task_id.to_le_bytes()),
             )
-            .with_context(|| anyhow!("Unable to write next free task id"))?;
-    }
-    {
-        let _span = tracing::trace_span!("update session id", session_id = ?session_id).entered();
-        batch
-            .put(
-                KeySpace::Infra,
-                WriteBuffer::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
-                WriteBuffer::Borrowed(&session_id.to_le_bytes()),
-            )
-            .with_context(|| anyhow!("Unable to write next session id"))?;
+            .context("Unable to write next free task id")?;
     }
     {
         let _span =
             tracing::trace_span!("update operations", operations = operations.len()).entered();
-        let operations = pot_serialize_small_vec(&operations)
-            .with_context(|| anyhow!("Unable to serialize operations"))?;
+        let operations =
+            turbo_bincode_encode(&operations).context("Unable to serialize operations")?;
         batch
             .put(
                 KeySpace::Infra,
                 WriteBuffer::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
                 WriteBuffer::SmallVec(operations),
             )
-            .with_context(|| anyhow!("Unable to write operations"))?;
+            .context("Unable to write operations")?;
     }
     batch.flush(KeySpace::Infra)?;
     Ok(())
 }
 
-fn serialize_task_type(
-    task_type: &Arc<CachedTaskType>,
-    mut task_type_bytes: &mut Vec<u8>,
-    task_id: u32,
-) -> Result<()> {
-    task_type_bytes.clear();
-    POT_CONFIG
-        .serialize_into(&**task_type, &mut task_type_bytes)
-        .with_context(|| anyhow!("Unable to serialize task {task_id} cache key {task_type:?}"))?;
-    #[cfg(feature = "verify_serialization")]
-    {
-        let deserialize: Result<CachedTaskType, _> = serde_path_to_error::deserialize(
-            &mut pot_de_symbol_list().deserializer_for_slice(&*task_type_bytes)?,
+/// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
+///
+/// This encodes the task type directly to a hasher, avoiding intermediate buffer allocation.
+/// The encoding is deterministic (function IDs from registry, bincode argument encoding).
+fn compute_task_type_hash(task_type: &CachedTaskType) -> u64 {
+    let mut hasher = Xxh3Hash64Hasher::new();
+    task_type.hash_encode(&mut hasher);
+    let hash = hasher.finish();
+    if cfg!(feature = "verify_serialization") {
+        task_type.hash_encode(&mut hasher);
+        let hash2 = hasher.finish();
+        assert_eq!(
+            hash, hash2,
+            "Hashing TaskType twice was non-deterministic: \n{:?}\ngot hashes {} != {}",
+            task_type, hash, hash2
         );
-        if let Err(err) = deserialize {
-            println!("Task type would not be deserializable {task_id}: {err:?}\n{task_type:#?}");
-            panic!("Task type would not be deserializable {task_id}: {err:?}");
-        }
     }
-    Ok(())
+    hash
 }
 
 type SerializedTasks = Vec<
@@ -680,18 +598,16 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, I>(
     batch: Option<&B>,
 ) -> Result<SerializedTasks>
 where
-    I: Iterator<
-            Item = (
-                TaskId,
-                Option<SmallVec<[u8; 16]>>,
-                Option<SmallVec<[u8; 16]>>,
-            ),
-        > + Send
-        + Sync,
+    I: Iterator<Item = SnapshotItem> + Send + Sync,
 {
     parallel::map_collect_owned::<_, _, Result<Vec<_>>>(tasks, |tasks| {
         let mut result = Vec::new();
-        for (task_id, meta, data) in tasks {
+        for SnapshotItem {
+            task_id,
+            meta,
+            data,
+        } in tasks
+        {
             if let Some(batch) = batch {
                 let key = IntKey::new(*task_id);
                 let key = key.as_ref();
@@ -722,61 +638,90 @@ where
         Ok(result)
     })
 }
+#[cfg(test)]
+mod tests {
+    use std::borrow::Borrow;
 
-fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
-    Ok(match pot_serialize_small_vec(data) {
-        #[cfg(not(feature = "verify_serialization"))]
-        Ok(value) => value,
-        _ => {
-            let mut error = Ok(());
-            let mut data = data.clone();
-            data.retain(|item| {
-                let mut buf = Vec::<u8>::new();
-                let mut symbol_map = pot_ser_symbol_map();
-                let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
-                if let Err(err) = serde_path_to_error::serialize(&item, &mut serializer) {
-                    if item.is_optional() {
-                        #[cfg(feature = "verify_serialization")]
-                        println!("Skipping non-serializable optional item for {task}: {item:?}");
-                    } else {
-                        error = Err(err).context({
-                            anyhow!("Unable to serialize data item for {task}: {item:?}")
-                        });
-                    }
-                    false
-                } else {
-                    #[cfg(feature = "verify_serialization")]
-                    {
-                        let deserialize: Result<CachedDataItem, _> =
-                            serde_path_to_error::deserialize(
-                                &mut pot_de_symbol_list().deserializer_for_slice(&buf).unwrap(),
-                            );
-                        if let Err(err) = deserialize {
-                            println!(
-                                "Data item would not be deserializable {task}: {err:?}\n{item:?}"
-                            );
-                            return false;
-                        }
-                    }
-                    true
-                }
-            });
-            error?;
+    use turbo_tasks::TaskId;
 
-            pot_serialize_small_vec(&data)
-                .with_context(|| anyhow!("Unable to serialize data items for {task}: {data:#?}"))?
+    use super::*;
+    use crate::database::{
+        key_value_database::KeyValueDatabase,
+        turbo::TurboKeyValueDatabase,
+        write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
+    };
+
+    /// Helper to write to the database using the concurrent batch API.
+    fn write_task_cache_entry(
+        db: &TurboKeyValueDatabase,
+        hash: u64,
+        task_id: TaskId,
+    ) -> Result<()> {
+        let batch = db.write_batch()?;
+        match batch {
+            WriteBatch::Concurrent(concurrent, _) => {
+                concurrent.put(
+                    KeySpace::TaskCache,
+                    WriteBuffer::Borrowed(&hash.to_le_bytes()),
+                    WriteBuffer::Borrowed(&(*task_id).to_le_bytes()),
+                )?;
+                concurrent.commit()?;
+            }
+            WriteBatch::Serial(_) => {
+                panic!("Expected concurrent batch");
+            }
         }
-    })
-}
+        Ok(())
+    }
 
-fn deserialize_with_good_error<'de, T: Deserialize<'de>>(data: &'de [u8]) -> Result<T> {
-    match POT_CONFIG.deserialize(data) {
-        Ok(value) => Ok(value),
-        Err(error) => serde_path_to_error::deserialize::<'_, _, T>(
-            &mut pot_de_symbol_list().deserializer_for_slice(data)?,
-        )
-        .map_err(anyhow::Error::from)
-        .and(Err(error.into()))
-        .context("Deserialization failed"),
+    /// Tests that `get_multiple` correctly returns multiple TaskIds when the same hash key
+    /// is used (simulating a hash collision scenario).
+    ///
+    /// This is a lower-level test that verifies the database layer correctly handles
+    /// the case where multiple task IDs are stored under the same hash key.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_hash_collision_returns_multiple_candidates() -> Result<()> {
+        let tempdir = tempfile::tempdir()?;
+        let path = tempdir.path();
+
+        // Use is_short_session=true to disable background compaction (which requires turbo-tasks
+        // context)
+        let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true)?;
+
+        // Simulate a hash collision by writing multiple TaskIds with the same hash key
+        let collision_hash: u64 = 0xDEADBEEF;
+        let task_id_1 = TaskId::try_from(100u32).unwrap();
+        let task_id_2 = TaskId::try_from(200u32).unwrap();
+        let task_id_3 = TaskId::try_from(300u32).unwrap();
+
+        // Write three task IDs under the same hash key (simulating collision)
+        // Each write creates a new SST file, so all three will be returned by get_multiple
+        write_task_cache_entry(&db, collision_hash, task_id_1)?;
+        write_task_cache_entry(&db, collision_hash, task_id_2)?;
+        write_task_cache_entry(&db, collision_hash, task_id_3)?;
+
+        // Now query using get_multiple - should return all three TaskIds
+        let results = db.get_multiple(&(), KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
+
+        assert_eq!(
+            results.len(),
+            3,
+            "Should return all 3 task IDs for the colliding hash"
+        );
+
+        // Convert results to TaskIds and verify all three are present
+        let mut found_ids: Vec<TaskId> = results
+            .iter()
+            .map(|bytes| {
+                let bytes: [u8; 4] = Borrow::<[u8]>::borrow(bytes).try_into().unwrap();
+                TaskId::try_from(u32::from_le_bytes(bytes)).unwrap()
+            })
+            .collect();
+        found_ids.sort_by_key(|id| **id);
+
+        assert_eq!(found_ids, vec![task_id_1, task_id_2, task_id_3]);
+
+        db.shutdown()?;
+        Ok(())
     }
 }

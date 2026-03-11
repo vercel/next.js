@@ -120,6 +120,11 @@ export function pageBootstrap(assetPrefix: string) {
         case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED:
         case HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST:
         case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
+        case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
+        case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE:
+        case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA:
+        case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
+        case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:
           // Most of these action types are handled in
           // src/client/dev/hot-reloader/pages/hot-reloader-pages.ts and
           // src/client/dev/hot-reloader/app/hot-reloader-app.tsx

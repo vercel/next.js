@@ -8,13 +8,13 @@ const INVALIDATION_MARKER = '__nextjs_invalidated_cache'
  *
  * Because attempting to delete currently open cache files could cause issues,
  * actual deletion of files is deferred until the next start-up (in
- * `checkPersistentCacheInvalidationAndCleanup`).
+ * `checkFileSystemCacheInvalidationAndCleanup`).
  *
  * In the case that no database is currently open (e.g. via a separate CLI
- * subcommand), you should call `cleanupPersistentCache` *after* this to eagerly
+ * subcommand), you should call `cleanupFileSystemCache` *after* this to eagerly
  * remove the cache files.
  */
-export async function invalidatePersistentCache(cacheDirectory: string) {
+export async function invalidateFileSystemCache(cacheDirectory: string) {
   let file
   try {
     // We're just opening it so that `open()` creates the file.
@@ -35,7 +35,7 @@ export async function invalidatePersistentCache(cacheDirectory: string) {
  * Called during startup. See if the cache is in a partially-completed
  * invalidation state. Finds and delete any invalidated cache files.
  */
-export async function checkPersistentCacheInvalidationAndCleanup(
+export async function checkFileSystemCacheInvalidationAndCleanup(
   cacheDirectory: string
 ) {
   const invalidated = await fs
@@ -45,22 +45,22 @@ export async function checkPersistentCacheInvalidationAndCleanup(
       () => false
     )
   if (invalidated) {
-    await cleanupPersistentCache(cacheDirectory)
+    await cleanupFileSystemCache(cacheDirectory)
   }
 }
 
 /**
- * Helper for `checkPersistentCacheInvalidationAndCleanup`. You can call this to
- * explicitly clean up a database after running `invalidatePersistentCache` when
+ * Helper for `checkFileSystemCacheInvalidationAndCleanup`. You can call this to
+ * explicitly clean up a database after running `invalidateFileSystemCache` when
  * webpack is not running.
  *
  * You should not run this if the cache has not yet been invalidated, as this
  * operation is not atomic and could result in a partially-deleted and corrupted
  * database.
  */
-async function cleanupPersistentCache(cacheDirectory: string) {
+async function cleanupFileSystemCache(cacheDirectory: string) {
   try {
-    await cleanupPersistentCacheInner(cacheDirectory)
+    await cleanupFileSystemCacheInner(cacheDirectory)
   } catch (e) {
     // generate a user-friendly error message
     throw new Error(
@@ -71,7 +71,7 @@ async function cleanupPersistentCache(cacheDirectory: string) {
   }
 }
 
-async function cleanupPersistentCacheInner(cacheDirectory: string) {
+async function cleanupFileSystemCacheInner(cacheDirectory: string) {
   const files = await fs.readdir(cacheDirectory)
 
   // delete everything except the invalidation marker

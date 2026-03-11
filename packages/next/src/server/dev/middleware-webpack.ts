@@ -28,7 +28,7 @@ import type {
   NullableMappedPosition,
   RawSourceMap,
 } from 'next/dist/compiled/source-map08'
-import { formatFrameSourceFile } from '../../next-devtools/shared/webpack-module-path'
+import { formatStackFrameFile } from '../../next-devtools/shared/webpack-module-path'
 import type { MappedPosition } from 'source-map'
 import { inspect } from 'util'
 
@@ -140,7 +140,7 @@ export function getIgnoredSources(
     // bundlerFilePath case: webpack://./app/page.tsx
     const webpackSourceURL = moduleFilenames[index]
     // Format the path to the normal file path
-    const formattedFilePath = formatFrameSourceFile(webpackSourceURL)
+    const formattedFilePath = formatStackFrameFile(webpackSourceURL)
     if (shouldIgnoreSource(formattedFilePath)) {
       ignoreList.add(index)
     }
@@ -254,9 +254,17 @@ export async function createOriginalStackFrame({
     ignored,
   }
 
+  /** undefined = not yet computed */
+  let originalCodeFrame: string | null | undefined
+
   return {
     originalStackFrame: traced,
-    originalCodeFrame: getOriginalCodeFrame(traced, sourceContent),
+    get originalCodeFrame() {
+      if (originalCodeFrame === undefined) {
+        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent)
+      }
+      return originalCodeFrame
+    },
   }
 }
 
@@ -530,7 +538,15 @@ async function getOriginalStackFrame({
     }
   }
 
-  return originalStackFrameResponse
+  const originalStackFrame = originalStackFrameResponse.originalStackFrame
+  return {
+    originalStackFrame,
+    originalCodeFrame:
+      (originalStackFrame?.ignored ?? true)
+        ? null
+        : // TODO: Don't get all codeframes of non-ignored frames eagerly.
+          originalStackFrameResponse.originalCodeFrame,
+  }
 }
 
 export function getOverlayMiddleware(options: {

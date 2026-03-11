@@ -14,7 +14,7 @@ import type { Token } from 'next/dist/compiled/path-to-regexp'
  * This unique marker is inserted between adjacent parameters and stripped out
  * during parameter extraction to avoid conflicts with real URL content.
  */
-const PARAM_SEPARATOR = '_NEXTSEP_'
+export const PARAM_SEPARATOR = '_NEXTSEP_'
 
 /**
  * Detects if a route pattern needs normalization for path-to-regexp compatibility.
@@ -95,6 +95,24 @@ export function normalizeTokensForRegexp(tokens: Token[]): Token[] {
     }
     return token
   })
+}
+
+/**
+ * Strips normalization separators from compiled pathname.
+ * This removes separators that were inserted by normalizeAdjacentParameters
+ * to satisfy path-to-regexp validation.
+ *
+ * Only removes separators in the specific contexts where they were inserted:
+ * - After interception route markers: (.)_NEXTSEP_ -> (.)
+ *
+ * This targeted approach ensures we don't accidentally remove the separator
+ * from legitimate user content.
+ */
+export function stripNormalizedSeparators(pathname: string): string {
+  // Remove separator after interception route markers
+  // Pattern: (.)_NEXTSEP_ -> (.), (..)_NEXTSEP_ -> (..), etc.
+  // The separator appears after the closing paren of interception markers
+  return pathname.replace(new RegExp(`\\)${PARAM_SEPARATOR}`, 'g'), ')')
 }
 
 /**

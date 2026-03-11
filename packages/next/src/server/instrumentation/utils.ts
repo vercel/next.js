@@ -1,11 +1,11 @@
 export function getRevalidateReason(params: {
   isOnDemandRevalidate?: boolean
-  isRevalidate?: boolean
+  isStaticGeneration?: boolean
 }): 'on-demand' | 'stale' | undefined {
   if (params.isOnDemandRevalidate) {
     return 'on-demand'
   }
-  if (params.isRevalidate) {
+  if (params.isStaticGeneration) {
     return 'stale'
   }
   return undefined

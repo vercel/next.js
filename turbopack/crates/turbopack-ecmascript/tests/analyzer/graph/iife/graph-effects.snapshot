@@ -29,7 +29,6 @@
             ),
         ],
         span: 9..16,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -236,6 +235,5 @@
             ),
         ],
         span: 137..167,
-        in_try: false,
     },
 ]

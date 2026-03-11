@@ -2,22 +2,14 @@
 
 import React, { useContext, type JSX } from 'react'
 import Effect from './side-effect'
-import { AmpStateContext } from './amp-context.shared-runtime'
 import { HeadManagerContext } from './head-manager-context.shared-runtime'
-import { isInAmpMode } from './amp-mode'
 import { warnOnce } from './utils/warn-once'
 
-type WithInAmpMode = {
-  inAmpMode?: boolean
-}
-
-export function defaultHead(inAmpMode = false): JSX.Element[] {
-  const head = [<meta charSet="utf-8" key="charset" />]
-  if (!inAmpMode) {
-    head.push(
-      <meta name="viewport" content="width=device-width" key="viewport" />
-    )
-  }
+export function defaultHead(): JSX.Element[] {
+  const head = [
+    <meta charSet="utf-8" key="charset" />,
+    <meta name="viewport" content="width=device-width" key="viewport" />,
+  ]
   return head
 }
 
@@ -124,15 +116,13 @@ function unique() {
  *
  * @param headChildrenElements List of children of <Head>
  */
-function reduceComponents<T extends {} & WithInAmpMode>(
-  headChildrenElements: Array<React.ReactElement<any>>,
-  props: T
+function reduceComponents(
+  headChildrenElements: Array<React.ReactElement<any>>
 ) {
-  const { inAmpMode } = props
   return headChildrenElements
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(inAmpMode).reverse())
+    .concat(defaultHead().reverse())
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -161,13 +151,11 @@ function reduceComponents<T extends {} & WithInAmpMode>(
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
 function Head({ children }: { children: React.ReactNode }) {
-  const ampState = useContext(AmpStateContext)
   const headManager = useContext(HeadManagerContext)
   return (
     <Effect
       reduceComponentsToState={reduceComponents}
       headManager={headManager}
-      inAmpMode={isInAmpMode(ampState)}
     >
       {children}
     </Effect>

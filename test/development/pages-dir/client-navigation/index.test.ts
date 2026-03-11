@@ -10,7 +10,7 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Client Navigation', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
@@ -30,6 +30,7 @@ describe('Client Navigation', () => {
       await browser.elementByCss('#empty-props').click()
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E1025",
          "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -353,14 +354,31 @@ describe('Client Navigation', () => {
              "description": "An Expected error occurred",
              "environmentLabel": null,
              "label": "Runtime Error",
-             "source": "pages/error-in-the-browser-global-scope.js (2:9) @ {module evaluation}
+             "source": "pages/error-in-the-browser-global-scope.js (2:9) @ module evaluation
            > 2 |   throw new Error('An Expected error occurred')
                |         ^",
              "stack": [
-               "{module evaluation} pages/error-in-the-browser-global-scope.js (2:9)",
+               "module evaluation pages/error-in-the-browser-global-scope.js (2:9)",
              ],
            }
           `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "An Expected error occurred",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-in-the-browser-global-scope.js (2:9) @ eval
+         > 2 |   throw new Error('An Expected error occurred')
+             |         ^",
+           "stack": [
+             "eval pages/error-in-the-browser-global-scope.js (2:9)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
            {

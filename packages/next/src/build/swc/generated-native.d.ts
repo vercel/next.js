@@ -18,6 +18,7 @@ export function lightningCssTransform(args: object): Promise<unknown>
 export function lightningCssTransformStyleAttribute(
   args: object
 ): Promise<unknown>
+export function lightningcssFeatureNamesToMaskNapi(names: Array<string>): number
 
 // GENERATED-TYPES-BELOW
 // DO NOT MANUALLY EDIT THESE TYPES
@@ -34,18 +35,108 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
-export interface TransformOutput {
-  code: string
-  map?: string
-  output?: string
-  diagnostics: Array<string>
+export declare function registerWorkerScheduler(
+  creator: (arg: NapiWorkerCreation) => any,
+  terminator: (arg: NapiWorkerTermination) => any
+): void
+export declare function workerCreated(workerId: number): void
+export interface NapiWorkerCreation {
+  options: NapiWorkerOptions
 }
+export interface NapiWorkerOptions {
+  filename: RcStr
+  cwd: RcStr
+}
+export interface NapiWorkerTermination {
+  options: NapiWorkerOptions
+  workerId: number
+}
+export interface NapiTaskMessage {
+  taskId: number
+  data: Buffer
+}
+export declare function recvTaskMessageInWorker(
+  workerId: number
+): Promise<NapiTaskMessage>
+export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
+export interface NapiLocation {
+  line: number
+  column?: number
+}
+export interface NapiCodeFrameLocation {
+  start: NapiLocation
+  end?: NapiLocation
+}
+export interface NapiCodeFrameOptions {
+  /** Number of lines to show above the error (default: 2) */
+  linesAbove?: number
+  /** Number of lines to show below the error (default: 3) */
+  linesBelow?: number
+  /** Maximum width of the output in columns (default: 100) */
+  maxWidth?: number
+  /** Whether to use ANSI colors (default: false) */
+  color?: boolean
+  /**
+   * Whether to highlight code syntax (default: follows color)
+   *
+   * This might be useful if syntax highlighting is very expensive or known to be useless for
+   * this file.  The current syntax rules are optimized for javascript but should work well with
+   * other C-like languages.
+   */
+  highlightCode?: boolean
+  /** Optional message to display with the code frame */
+  message?: string
+  /** Language hint for keyword highlighting: "javascript" (default) or "css" */
+  language?: string
+}
+/**
+ * Renders a code frame showing the location of an error in source code
+ *
+ * This is a Rust implementation that replaces Babel's code-frame for better:
+ * - Performance on large files
+ * - Handling of long lines
+ * - Memory efficiency
+ *
+ * # Arguments
+ * * `source` - The source code to render
+ * * `location` - The location to highlight (line and column numbers are 1-indexed)
+ * * `options` - Optional configuration
+ *
+ * # Returns
+ * The formatted code frame string, or `undefined` if the location is out of
+ * range (e.g., empty source or line number past end of file).
+ */
+export declare function codeFrameColumns(
+  source: string,
+  location: NapiCodeFrameLocation,
+  options?: NapiCodeFrameOptions | undefined | null
+): string | null
+export declare function lockfileTryAcquireSync(
+  path: string,
+  content?: string | undefined | null
+): { __napiType: 'Lockfile' } | null
+export declare function lockfileTryAcquire(
+  path: string,
+  content?: string | undefined | null
+): Promise<{ __napiType: 'Lockfile' } | null>
+export declare function lockfileUnlockSync(lockfile: {
+  __napiType: 'Lockfile'
+}): void
+export declare function lockfileUnlock(lockfile: {
+  __napiType: 'Lockfile'
+}): Promise<void>
 export declare function mdxCompile(
   value: string,
   option: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<unknown>
 export declare function mdxCompileSync(value: string, option: Buffer): string
+export interface TransformOutput {
+  code: string
+  map?: string
+  output?: string
+  diagnostics: Array<string>
+}
 export declare function minify(
   input: Buffer,
   opts: Buffer,
@@ -53,7 +144,7 @@ export declare function minify(
 ): Promise<TransformOutput>
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
-export interface NapiServerPath {
+export interface NapiAssetPath {
   path: string
   contentHash: string
 }
@@ -61,7 +152,7 @@ export interface NapiWrittenEndpoint {
   type: string
   entryPath?: string
   clientPaths: Array<string>
-  serverPaths: Array<NapiServerPath>
+  serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
 }
 export declare function endpointWriteToDisk(endpoint: {
@@ -111,8 +202,8 @@ export interface NapiProjectOptions {
    */
   projectPath: RcStr
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
-   * path. Corresponds to next.config.js's `distDir`.
+   * A path where tracing output will be written to and/or cache is read/written.
+   * Usually equal to the `distDir` in next.config.js.
    * E.g. `.next`
    */
   distDir: RcStr
@@ -143,8 +234,22 @@ export interface NapiProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+  /** Whether to write the route hashes manifest. */
+  writeRoutesHashesManifest: boolean
   /** The version of Node.js that is available/currently running. */
   currentNodeJsVersion: RcStr
+  /**
+   * Debug build paths for selective builds.
+   * When set, only routes matching these paths will be included in the build.
+   */
+  debugBuildPaths?: NapiDebugBuildPaths
+  /** App-router page routes that should be built after non-deferred routes. */
+  deferredEntries?: Array<RcStr>
+  isPersistentCachingEnabled: boolean
+  /** The version of Next.js that is running. */
+  nextVersion: RcStr
+  /** Whether server-side HMR is enabled (requires --experimental-server-fast-refresh). */
+  serverHmr?: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -160,12 +265,6 @@ export interface NapiPartialProjectOptions {
    * E.g. `apps/my-app`
    */
   projectPath?: RcStr
-  /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always a
-   * Unix path. Corresponds to next.config.js's `distDir`.
-   * E.g. `.next`
-   */
-  distDir?: RcStr | undefined | null
   /** Filesystem watcher options. */
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
@@ -187,12 +286,16 @@ export interface NapiPartialProjectOptions {
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: RcStr
+  /** Whether to write the route hashes manifest. */
+  writeRoutesHashesManifest?: boolean
   /**
    * When the code is minified, this opts out of the default mangling of
    * local names for variables, functions etc., which can be useful for
    * debugging/profiling purposes.
    */
   noMangling?: boolean
+  /** Whether server-side HMR is enabled (requires --experimental-server-fast-refresh). */
+  serverHmr?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiOptionEnvVar>
@@ -200,8 +303,6 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** Use the new backend with persistent caching enabled. */
-  persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
@@ -221,10 +322,10 @@ export declare function projectUpdate(
   options: NapiPartialProjectOptions
 ): Promise<void>
 /**
- * Invalidates the persistent cache so that it will be deleted next time that a turbopack project
- * is created with persistent caching enabled.
+ * Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
+ * is created with filesystem cache enabled.
  */
-export declare function projectInvalidatePersistentCache(project: {
+export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
 }): Promise<void>
 /**
@@ -267,6 +368,7 @@ export interface NapiRoute {
 }
 export interface NapiMiddleware {
   endpoint: ExternalObject<ExternalEndpoint>
+  isProxy: boolean
 }
 export interface NapiInstrumentation {
   nodeJs: ExternalObject<ExternalEndpoint>
@@ -280,24 +382,33 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
+export interface NapiDebugBuildPaths {
+  app: Array<RcStr>
+  pages: Array<RcStr>
+}
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectEntrypoints(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
-  identifier: RcStr,
+  chunkName: RcStr,
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export interface HmrIdentifiers {
-  identifiers: Array<RcStr>
+export interface HmrChunkNames {
+  chunkNames: Array<RcStr>
 }
-export declare function projectHmrIdentifiersSubscribe(
+export declare function projectHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface NapiUpdateMessage {
@@ -334,7 +445,7 @@ export declare function projectCompilationEventsSubscribe(
 ): void
 export interface StackFrame {
   isServer: boolean
-  isInternal?: boolean
+  isIgnored?: boolean
   originalFile?: RcStr
   file: RcStr
   /** 1-indexed, unlike source map tokens */
@@ -360,6 +471,10 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+export declare function projectWriteAnalyzeData(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *
@@ -379,8 +494,10 @@ export interface NapiNextTurbopackCallbacksJsObject {
     conversionError: Error | null,
     opts: TurbopackInternalErrorOpts
   ) => never
+  /** Called before deferred entries are processed in a production build. */
+  onBeforeDeferredEntries?: () => Promise<void>
 }
-/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+/** Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`. */
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
@@ -398,6 +515,11 @@ export interface NapiIssue {
   source?: NapiIssueSource
   documentationLink: string
   importTraces: any
+  /**
+   * Pre-rendered code frame for the issue's source location, if available.
+   * Rendered in Rust to avoid transferring full source file content to JS.
+   */
+  codeFrame?: string
 }
 export interface NapiIssueSource {
   source: NapiSource
@@ -409,7 +531,6 @@ export interface NapiIssueSourceRange {
 }
 export interface NapiSource {
   ident: string
-  content?: string
 }
 export interface NapiSourcePos {
   line: number
@@ -461,7 +582,10 @@ export declare function transformSync(
   isModule: boolean,
   options: Buffer
 ): object
-export declare function startTurbopackTraceServer(path: string): void
+export declare function startTurbopackTraceServer(
+  path: string,
+  port?: number | undefined | null
+): void
 export interface NextBuildContext {
   /** The root directory of the workspace. */
   root?: string

@@ -8,9 +8,15 @@ import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../next-devtools/shared/types'
 import type { DevIndicatorServerState } from './dev-indicator-server-state'
+import type {
+  CacheIndicatorState,
+  ServerCacheStatus,
+} from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
+import type { ReactDebugChannelForBrowser } from './debug-channel'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
+  // JSON messages:
   ADDED_PAGE = 'addedPage',
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
@@ -26,8 +32,22 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
   ISR_MANIFEST = 'isrManifest',
+  CACHE_INDICATOR = 'cacheIndicator',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+  REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
+  REQUEST_PAGE_METADATA = 'requestPageMetadata',
+
+  // Binary messages:
+  REACT_DEBUG_CHUNK = 0,
+  ERRORS_TO_SHOW_IN_BROWSER = 1,
+}
+
+export const enum HMR_MESSAGE_SENT_TO_SERVER {
+  // JSON messages:
+  MCP_ERROR_STATE_RESPONSE = 'mcp-error-state-response',
+  MCP_PAGE_METADATA_RESPONSE = 'mcp-page-metadata-response',
+  PING = 'ping',
 }
 
 export interface ServerErrorMessage {
@@ -121,12 +141,41 @@ export interface TurbopackConnectedMessage {
 
 export interface AppIsrManifestMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST
-  data: Record<string, true>
+  data: Record<string, boolean>
 }
 
 export interface DevToolsConfigMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG
   data: DevToolsConfig
+}
+
+export interface ReactDebugChunkMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK
+  requestId: string
+  /**
+   * A null chunk signals to the browser that no more chunks will be sent.
+   */
+  chunk: Uint8Array | null
+}
+
+export interface ErrorsToShowInBrowserMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER
+  serializedErrors: Uint8Array
+}
+
+export interface RequestCurrentErrorStateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE
+  requestId: string
+}
+
+export interface RequestPageMetadataMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA
+  requestId: string
+}
+
+export interface CacheIndicatorMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR
+  state: CacheIndicatorState
 }
 
 export type HmrMessageSentToBrowser =
@@ -146,6 +195,16 @@ export type HmrMessageSentToBrowser =
   | ServerErrorMessage
   | AppIsrManifestMessage
   | DevToolsConfigMessage
+  | ErrorsToShowInBrowserMessage
+  | ReactDebugChunkMessage
+  | RequestCurrentErrorStateMessage
+  | RequestPageMetadataMessage
+  | CacheIndicatorMessage
+
+export type BinaryHmrMessageSentToBrowser = Extract<
+  HmrMessageSentToBrowser,
+  { type: number }
+>
 
 export type TurbopackMessageSentToBrowser =
   | {
@@ -171,13 +230,31 @@ export interface NextJsHotReloaderInterface {
   setHmrServerError(error: Error | null): void
   clearHmrServerError(): void
   start(): Promise<void>
-  send(message: HmrMessageSentToBrowser): void
+  send(action: HmrMessageSentToBrowser): void
+  /**
+   * Send the given action only to legacy clients, i.e. Pages Router clients,
+   * and App Router clients that don't have Cache Components enabled.
+   */
+  sendToLegacyClients(action: HmrMessageSentToBrowser): void
+  setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
+  setReactDebugChannel(
+    debugChannel: ReactDebugChannelForBrowser,
+    htmlRequestId: string,
+    requestId: string
+  ): void
+  sendErrorsToBrowser(
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
+  ): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(
     req: IncomingMessage,
     _socket: Duplex,
     head: Buffer,
-    onUpgrade: (client: { send(data: string): void }) => void
+    onUpgrade: (
+      client: { send(data: string): void },
+      context: { isLegacyClient: boolean }
+    ) => void
   ): void
   invalidate({
     reloadAfterInvalidation,

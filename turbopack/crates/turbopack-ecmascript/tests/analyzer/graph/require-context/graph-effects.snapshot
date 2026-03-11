@@ -47,7 +47,6 @@
             ),
         ],
         span: 70..85,
-        in_try: false,
     },
     FreeVar {
         var: "require",
@@ -94,7 +93,6 @@
             ),
         ],
         span: 70..77,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -263,7 +261,6 @@
             ),
         ],
         span: 164..179,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -392,7 +389,6 @@
             ),
         ],
         span: 34..46,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -469,7 +465,6 @@
             ),
         ],
         span: 34..40,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(

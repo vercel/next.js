@@ -1,7 +1,6 @@
-import { UnsafeUnwrappedCookies } from 'next/headers'
+import type { cookies } from 'next/headers'
 
-// We don't export this type (why) but we can exfiltrate it through our exported typecase type
-type ReadonlyRequestCookies = UnsafeUnwrappedCookies
+type ReadonlyRequestCookies = Awaited<ReturnType<typeof cookies>>
 
 export function AllComponents({
   cookies,

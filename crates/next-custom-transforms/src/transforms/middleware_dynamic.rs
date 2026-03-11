@@ -12,12 +12,13 @@ enum WrappedExpr {
     WasmInstantiate,
 }
 
-/// Replaces call / expr to dynamic evaluation in the give code to
-/// wrapped expression (__next_eval__, __next_webassembly_compile__,..) to raise
-/// corresponding error.
+/// Replaces call / expr to dynamic evaluation in the give code to wrapped expression
+/// (__next_eval__, __next_webassembly_compile__,..) to raise a (nicer) error message.
 ///
-/// This transform is specific to edge runtime which are not allowed to
-/// call certain dynamic evaluation (eval, webassembly.instantiate, etc)
+/// This should only be only used in development mode.
+///
+/// This transform is specific to edge runtime which are not allowed to call certain dynamic
+/// evaluation (eval, webassembly.instantiate, etc)
 ///
 /// check middleware-plugin for corresponding webpack side transform.
 pub fn next_middleware_dynamic() -> MiddlewareDynamic {
@@ -36,10 +37,10 @@ impl VisitMut for MiddlewareDynamic {
             let callee = &call_expr.callee;
             if let Callee::Expr(callee) = callee {
                 // `eval('some')`, or `Function('some')`
-                if let Expr::Ident(ident) = &**callee {
-                    if ident.sym == "eval" || ident.sym == "Function" {
-                        should_wrap = Some(WrappedExpr::Eval);
-                    }
+                if let Expr::Ident(ident) = &**callee
+                    && (ident.sym == "eval" || ident.sym == "Function")
+                {
+                    should_wrap = Some(WrappedExpr::Eval);
                 }
 
                 if let Expr::Member(MemberExpr {
@@ -69,16 +70,15 @@ impl VisitMut for MiddlewareDynamic {
                         prop: MemberProp::Ident(member_prop_ident),
                         ..
                     }) = &**obj
+                        && let Expr::Ident(ident) = &**obj
                     {
-                        if let Expr::Ident(ident) = &**obj {
-                            // `global.WebAssembly.compile('some')` &
-                            // `global.WebAssembly.instantiate('some')`
-                            if ident.sym == "global" && member_prop_ident.sym == "WebAssembly" {
-                                if prop_ident.sym == "compile" {
-                                    should_wrap = Some(WrappedExpr::WasmCompile);
-                                } else if prop_ident.sym == "instantiate" {
-                                    should_wrap = Some(WrappedExpr::WasmInstantiate);
-                                }
+                        // `global.WebAssembly.compile('some')` &
+                        // `global.WebAssembly.instantiate('some')`
+                        if ident.sym == "global" && member_prop_ident.sym == "WebAssembly" {
+                            if prop_ident.sym == "compile" {
+                                should_wrap = Some(WrappedExpr::WasmCompile);
+                            } else if prop_ident.sym == "instantiate" {
+                                should_wrap = Some(WrappedExpr::WasmInstantiate);
                             }
                         }
                     }
@@ -99,12 +99,11 @@ impl VisitMut for MiddlewareDynamic {
             }
         }
 
-        if let Expr::New(NewExpr { callee, .. }) = &expr {
-            if let Expr::Ident(ident) = &**callee {
-                if ident.sym == "Function" {
-                    *expr = quote!("__next_eval__(function() { return $orig_call });" as Expr, orig_call: Expr = expr.clone());
-                }
-            }
+        if let Expr::New(NewExpr { callee, .. }) = &expr
+            && let Expr::Ident(ident) = &**callee
+            && ident.sym == "Function"
+        {
+            *expr = quote!("__next_eval__(function() { return $orig_call });" as Expr, orig_call: Expr = expr.clone());
         }
     }
 }

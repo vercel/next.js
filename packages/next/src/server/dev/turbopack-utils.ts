@@ -35,6 +35,7 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
+import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
 
 const onceErrorSet = new Set()
 /**
@@ -85,11 +86,7 @@ export function processTopLevelIssues(
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-
-export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
-}
+export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
@@ -243,7 +240,7 @@ export async function handleRouteType({
           await manifestLoader.loadWebpackStats(page, 'pages')
         }
 
-        await manifestLoader.writeManifests({
+        manifestLoader.writeManifests({
           devRewrites,
           productionRewrites,
           entrypoints,
@@ -334,7 +331,7 @@ export async function handleRouteType({
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -382,22 +379,21 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+        manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.loadAppBuildManifest(page)
-      await manifestLoader.loadBuildManifest(page, 'app')
-      await manifestLoader.loadAppPathsManifest(page)
-      await manifestLoader.loadActionManifest(page)
-      await manifestLoader.loadFontManifest(page, 'app')
+      manifestLoader.loadBuildManifest(page, 'app')
+      manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadActionManifest(page)
+      manifestLoader.loadFontManifest(page, 'app')
 
       if (shouldCreateWebpackStats) {
-        await manifestLoader.loadWebpackStats(page, 'app')
+        manifestLoader.loadWebpackStats(page, 'app')
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -415,15 +411,15 @@ export async function handleRouteType({
 
       const type = writtenEndpoint.type
 
-      await manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+        manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -542,7 +538,6 @@ export function hasEntrypointForKey(
         )
     default: {
       // validation that we covered all cases, this should never run.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = type
       return false
     }
@@ -566,7 +561,7 @@ type HandleEntrypointsHooks = {
 type HandleEntrypointsDevOpts = {
   assetMapper: AssetMapper
   changeSubscriptions: ChangeSubscriptions
-  clients: Set<ws>
+  clients: Array<ws>
   clientStates: ClientStateMap
   serverFields: ServerFields
 
@@ -690,7 +685,7 @@ export async function handleEntrypoints({
       'instrumentation',
       'instrumentation'
     )
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites,
       productionRewrites: undefined,
       entrypoints: currentEntrypoints,
@@ -713,10 +708,13 @@ export async function handleEntrypoints({
     const key = getEntryKey('root', 'server', 'middleware')
 
     const endpoint = middleware.endpoint
+    const triggerName = middleware.isProxy
+      ? PROXY_FILENAME
+      : MIDDLEWARE_FILENAME
 
     async function processMiddleware() {
       const finishBuilding = dev.hooks.startBuilding(
-        'middleware',
+        triggerName,
         undefined,
         true
       )
@@ -745,7 +743,7 @@ export async function handleEntrypoints({
         endpoint,
         async () => {
           const finishBuilding = dev.hooks.startBuilding(
-            'middleware',
+            triggerName,
             undefined,
             true
           )
@@ -758,7 +756,7 @@ export async function handleEntrypoints({
             'middleware',
             dev.serverFields.middleware
           )
-          await manifestLoader.writeManifests({
+          manifestLoader.writeManifests({
             devRewrites,
             productionRewrites: undefined,
             entrypoints: currentEntrypoints,
@@ -956,7 +954,7 @@ export async function handlePagesErrorRoute({
   await manifestLoader.loadPagesManifest('_error')
   await manifestLoader.loadFontManifest('_error')
 
-  await manifestLoader.writeManifests({
+  manifestLoader.writeManifests({
     devRewrites,
     productionRewrites,
     entrypoints,
@@ -993,9 +991,10 @@ export function normalizedPageToTurbopackStructureRoute(
       if (entrypointKey.endsWith('/[__metadata_id__]')) {
         entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
       }
-      if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
-        // For dynamic sitemap route, remove the extension
-        entrypointKey = entrypointKey.slice(0, -'.xml'.length)
+      // After stripping [__metadata_id__], add .xml for dynamic sitemap routes
+      // to match the Turbopack entry key from normalize_metadata_route
+      if (entrypointKey.endsWith('/sitemap') && ext !== '.xml') {
+        entrypointKey = entrypointKey + '.xml'
       }
     }
     entrypointKey = entrypointKey + '/route'

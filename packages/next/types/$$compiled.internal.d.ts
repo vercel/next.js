@@ -8,6 +8,7 @@ declare module 'next/dist/compiled/postcss-modules-extract-imports'
 declare module 'next/dist/compiled/postcss-modules-scope'
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
+declare module 'next/dist/compiled/babel/plugin-syntax-typescript'
 declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
@@ -65,6 +66,15 @@ declare module 'react-server-dom-webpack/client' {
     options?: Options
   ): Promise<T>
 
+  export function createFromNodeStream<T>(
+    stream: import('node:stream').Readable,
+    serverConsumerManifest: Options['serverConsumerManifest'],
+    options?: Omit<Options, 'serverConsumerManifest' | 'debugChannel'> & {
+      // For the Node.js client we only support a single-direction debug channel.
+      debugChannel?: import('node:stream').Readable
+    }
+  ): Promise<T>
+
   export function createServerReference(
     id: string,
     callServer: CallServerCallback,
@@ -104,6 +114,10 @@ declare module 'react-server-dom-webpack/client.browser' {
     findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
+    debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+    startTime?: number
+    endTime?: number
+    unstable_allowPartialStream?: boolean
   }
 
   export function createFromFetch<T>(
@@ -154,8 +168,9 @@ declare module 'react-server-dom-webpack/server.edge' {
           ) => boolean)
         | undefined
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
       signal?: AbortSignal
+      debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+      startTime?: number
     }
   ): ReadableStream<Uint8Array>
 
@@ -213,9 +228,9 @@ declare module 'react-server-dom-webpack/server.node' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export type ImportManifestEntry = {
-    id: string
+    id: string | number
     // chunks is a double indexed array of chunkId / chunkFilename pairs
-    chunks: Array<string>
+    chunks: ReadonlyArray<string>
     name: string
     async?: boolean
   }
@@ -261,12 +276,12 @@ declare module 'react-server-dom-webpack/server.node' {
 declare module 'react-server-dom-webpack/static' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
-  export function unstable_prerender(
+  export function prerender(
     children: any,
     webpackMap: {
       readonly [id: string]: {
         readonly id: string | number
-        readonly chunks: readonly string[]
+        readonly chunks: ReadonlyArray<string>
         readonly name: string
         readonly async?: boolean
       }
@@ -288,7 +303,6 @@ declare module 'react-server-dom-webpack/static' {
       signal?: AbortSignal
       temporaryReferences?: TemporaryReferenceSet
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
     }
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
@@ -305,6 +319,9 @@ declare module 'react-server-dom-webpack/client.edge' {
     findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     environmentName?: string
+    debugChannel?: { readable?: ReadableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export type EncodeFormActionCallback = <A>(
@@ -500,11 +517,6 @@ declare module 'next/dist/compiled/acorn' {
   import m from 'acorn'
   export = m
 }
-declare module 'next/dist/compiled/amphtml-validator' {
-  import m from 'amphtml-validator'
-  export = m
-}
-declare module 'next/dist/compiled/@ampproject/toolbox-optimizer'
 
 declare module 'next/dist/compiled/superstruct' {
   import * as m from 'superstruct'
@@ -514,10 +526,6 @@ declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
   export = m
-}
-
-declare module 'next/dist/compiled/babel/code-frame' {
-  export * from '@babel/code-frame'
 }
 
 declare module 'next/dist/compiled/@next/font/dist/google' {
@@ -698,8 +706,7 @@ declare module 'next/dist/compiled/@vercel/nft' {
 }
 
 declare module 'next/dist/compiled/tar' {
-  import m from 'tar'
-  export = m
+  export * from 'tar'
 }
 
 declare module 'next/dist/compiled/terser' {
@@ -740,6 +747,18 @@ declare module 'next/dist/compiled/web-vitals-attribution' {}
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m
+}
+declare module 'next/dist/compiled/@vercel/routing-utils' {
+  import m from '@vercel/routing-utils/dist/superstatic'
+  export = m
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
+  export * from '@modelcontextprotocol/sdk/server/mcp'
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp' {
+  export * from '@modelcontextprotocol/sdk/server/streamableHttp'
 }
 
 declare module 'next/dist/compiled/comment-json' {
@@ -847,6 +866,11 @@ declare module 'next/dist/compiled/watchpack' {
 
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
+}
+
+declare module 'next/dist/compiled/ipaddr.js' {
+  import * as m from 'ipaddr.js'
+  export = m
 }
 
 declare module 'next/dist/compiled/@opentelemetry/api' {

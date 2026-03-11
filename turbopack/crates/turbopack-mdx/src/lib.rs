@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use mdxjs::{MdxParseOptions, Options, compile};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
@@ -11,8 +12,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
+        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+        StyledString,
     },
     source::Source,
     source_pos::SourcePos,
@@ -20,7 +21,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Hash, Debug, Clone)]
+#[derive(Hash, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
     Commonmark,
@@ -31,7 +32,7 @@ pub enum MdxParseConstructs {
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
 #[turbo_tasks::value(shared, operation)]
-#[derive(Hash, Debug, Clone)]
+#[derive(Hash, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
     pub development: Option<bool>,
@@ -117,20 +118,9 @@ impl Source for MdxTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
-    async fn content(self: ResolvedVc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
-        Ok(*transform_process_operation(self)
-            .issue_file_path(this.source.ident().path().owned().await?, "MDX processing")
-            .await?
-            .connect()
-            .await?
-            .content)
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        Ok(*self.process().await?.content)
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn transform_process_operation(asset: ResolvedVc<MdxTransformedAsset>) -> Vc<MdxTransformResult> {
-    asset.process()
 }
 
 #[turbo_tasks::value_impl]
@@ -184,9 +174,11 @@ impl MdxTransformedAsset {
 
         match result {
             Ok(mdx_jsx_component) => Ok(MdxTransformResult {
-                content: AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into())
-                    .to_resolved()
-                    .await?,
+                content: AssetContent::file(
+                    FileContent::Content(File::from(Rope::from(mdx_jsx_component))).cell(),
+                )
+                .to_resolved()
+                .await?,
             }
             .cell()),
             Err(err) => {

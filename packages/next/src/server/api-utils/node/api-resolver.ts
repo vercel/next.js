@@ -355,8 +355,14 @@ export async function apiResolver(
 
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
-    // Parsing query string
-    apiReq.query = query
+    // Ensure req.query is a writable, enumerable property by using Object.defineProperty.
+    // This addresses Express 5.x, which defines query as a getter only (read-only).
+    Object.defineProperty(apiReq, 'query', {
+      value: { ...query },
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    })
     // Parsing preview data
     setLazyProp({ req: apiReq }, 'previewData', () =>
       tryGetPreviewData(req, res, apiContext, !!apiContext.multiZoneDraftMode)

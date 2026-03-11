@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use serde::Serialize;
-use tracing::{Level, instrument};
+use tracing::instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap,
@@ -11,10 +11,10 @@ use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItemExt, ModuleId},
     module::Module,
     module_graph::ModuleGraph,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
 };
 
-#[instrument(level = Level::INFO, skip_all)]
+#[instrument(level = "info", name = "generate webpack stats", skip_all)]
 pub async fn generate_webpack_stats<I>(
     module_graph: Vc<ModuleGraph>,
     entry_name: RcStr,
@@ -38,7 +38,7 @@ where
         let mut queue = entry_assets.clone();
         while let Some(asset) = queue.pop() {
             if visited.insert(asset) {
-                let references = asset.references().await?;
+                let references = asset.references().all_assets().await?;
                 asset_children.insert(asset, references.clone());
                 queue.extend(references);
             }
@@ -58,16 +58,16 @@ where
     let asset_reasons = {
         let module_graph = module_graph.await?;
         let mut edges = vec![];
-        module_graph
-            .traverse_all_edges_unordered(|(parent_node, r), current| {
+        module_graph.traverse_edges_unordered(|parent, current| {
+            if let Some((parent_node, r)) = parent {
                 edges.push((
-                    parent_node.module,
-                    RcStr::from(format!("{}: {}", r.chunking_type, r.export)),
-                    current.module,
+                    parent_node,
+                    RcStr::from(format!("{}: {}", r.chunking_type, r.binding_usage.export)),
+                    current,
                 ));
-                Ok(())
-            })
-            .await?;
+            }
+            Ok(())
+        })?;
 
         let edges = edges
             .into_iter()
@@ -155,7 +155,7 @@ where
                 .await?;
             Ok(WebpackStatsModule {
                 name: chunk_item.asset_ident().path().await?.path.clone(),
-                id: chunk_item.id().owned().await?,
+                id: chunk_item.id().await?,
                 identifier: chunk_item.asset_ident().to_string().owned().await?,
                 chunks: chunks.into_iter().collect(),
                 size,

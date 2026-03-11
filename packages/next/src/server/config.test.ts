@@ -1,3 +1,5 @@
+import { PHASE_PRODUCTION_BUILD } from '../api/constants'
+
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
 
@@ -12,7 +14,7 @@ describe('loadConfig', () => {
   })
   describe('nextConfig.images defaults', () => {
     it('should assign a `images.remotePatterns` when using assetPrefix', async () => {
-      const result = await loadConfig('', __dirname, {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           assetPrefix: 'https://cdn.example.com',
           images: {
@@ -33,7 +35,7 @@ describe('loadConfig', () => {
     })
 
     it('should not assign a duplicate `images.remotePatterns` value when using assetPrefix', async () => {
-      let result = await loadConfig('', __dirname, {
+      let result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           assetPrefix: 'https://cdn.example.com',
           images: {
@@ -51,7 +53,7 @@ describe('loadConfig', () => {
 
       expect(result.images.remotePatterns.length).toBe(1)
 
-      result = await loadConfig('', __dirname, {
+      result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           assetPrefix: 'https://cdn.example.com/foobar',
           images: {
@@ -80,32 +82,9 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
-    it('should not print a stack trace when throwing an error', async () => {
-      const loadConfigPromise = loadConfig('', __dirname, {
-        customConfig: {
-          experimental: {
-            ppr: true,
-          },
-        },
-      })
-
-      await expect(loadConfigPromise).rejects.toThrow(
-        /The experimental feature "experimental.ppr" can only be enabled when using the latest canary version of Next.js./
-      )
-
-      try {
-        await loadConfigPromise
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(Error)
-
-        // Check that there's no stack trace
-        expect(error.stack).toBeUndefined()
-      }
-    })
-
     it('errors when using PPR if not in canary', async () => {
       await expect(
-        loadConfig('', __dirname, {
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
           customConfig: {
             experimental: {
               ppr: true,
@@ -113,39 +92,10 @@ describe('loadConfig', () => {
           },
         })
       ).rejects.toThrow(
-        /The experimental feature "experimental.ppr" can only be enabled when using the latest canary version of Next.js./
-      )
-    })
-
-    it('errors when using cacheComponents if not in canary', async () => {
-      await expect(
-        loadConfig('', __dirname, {
-          customConfig: {
-            experimental: {
-              cacheComponents: true,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        /The experimental feature "experimental.cacheComponents" can only be enabled when using the latest canary version of Next.js./
-      )
-    })
-
-    it('errors when using persistentCaching if not in canary', async () => {
-      await expect(
-        loadConfig('', __dirname, {
-          customConfig: {
-            experimental: {
-              turbopackPersistentCaching: true,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        /The experimental feature "experimental.turbopackPersistentCaching" can only be enabled when using the latest canary version of Next.js./
+        /`experimental\.ppr` has been merged into `cacheComponents`/
       )
     })
   })
-
   describe('with a canary version', () => {
     beforeAll(() => {
       process.env.__NEXT_VERSION = '15.4.0-canary.35'
@@ -155,135 +105,91 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
-    it('errors when cacheComponents is enabled but PPR is disabled', async () => {
+    it('errors when ppr is set to incremental', async () => {
       await expect(
-        loadConfig('', __dirname, {
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
           customConfig: {
             experimental: {
-              cacheComponents: true,
-              ppr: false,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        '`experimental.ppr` can not be `false` when `experimental.cacheComponents` is `true`. PPR is implicitly enabled when Cache Components is enabled.'
-      )
-    })
-
-    it('errors when rdcForNavigations is enabled but ppr is disabled', async () => {
-      await expect(
-        loadConfig('', __dirname, {
-          customConfig: {
-            experimental: {
-              rdcForNavigations: true,
-              ppr: false,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        '`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.'
-      )
-    })
-
-    it('defaults rdcForNavigations to true when ppr is enabled', async () => {
-      const result = await loadConfig('', __dirname, {
-        customConfig: {
-          experimental: {
-            ppr: true,
-          },
-        },
-      })
-
-      expect(result.experimental.rdcForNavigations).toBe(true)
-    })
-
-    it('allows explicitly disabling rdcForNavigations when ppr is enabled', async () => {
-      const result = await loadConfig('', __dirname, {
-        customConfig: {
-          experimental: {
-            ppr: true,
-            rdcForNavigations: false,
-          },
-        },
-      })
-
-      expect(result.experimental.rdcForNavigations).toBe(false)
-    })
-
-    it('errors when cacheComponents is enabled but PPR set to "incremental"', async () => {
-      await expect(
-        loadConfig('', __dirname, {
-          customConfig: {
-            experimental: {
-              cacheComponents: true,
               ppr: 'incremental',
             },
           },
         })
       ).rejects.toThrow(
-        '`experimental.ppr` can not be `"incremental"` when `experimental.cacheComponents` is `true`. PPR is implicitly enabled when Cache Components is enabled.'
+        /`experimental\.ppr` has been merged into `cacheComponents`/
       )
     })
+  })
 
-    it('migrates experimental.dynamicIO to experimental.cacheComponents', async () => {
-      process.env.__NEXT_VERSION = 'canary'
-
-      const result = await loadConfig('', __dirname, {
+  describe('middleware to proxy config key rename backward/forward compatibility', () => {
+    it('should copy `skipMiddlewareUrlNormalize value` to `skipProxyUrlNormalize`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
-          experimental: {
-            dynamicIO: true,
-          },
+          skipMiddlewareUrlNormalize: true,
         },
-        silent: true,
       })
 
-      expect(result.experimental.cacheComponents).toBe(true)
-      expect(result.experimental.dynamicIO).toBeUndefined()
-
-      delete process.env.__NEXT_VERSION
+      expect(result.skipProxyUrlNormalize).toBe(true)
     })
 
-    it('preserves cacheComponents when both dynamicIO and cacheComponents are set', async () => {
-      process.env.__NEXT_VERSION = 'canary'
-
-      const result = await loadConfig('', __dirname, {
+    it('should copy `experimental.middlewarePrefetch` to `experimental.proxyPrefetch`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           experimental: {
-            dynamicIO: true,
-            cacheComponents: false,
+            middlewarePrefetch: 'strict',
           },
         },
-        silent: true,
       })
 
-      expect(result.experimental.cacheComponents).toBe(false)
-      expect(result.experimental.dynamicIO).toBeUndefined()
-
-      delete process.env.__NEXT_VERSION
+      expect(result.experimental.proxyPrefetch).toBe('strict')
     })
 
-    it('warns when using deprecated experimental.dynamicIO', async () => {
-      process.env.__NEXT_VERSION = 'canary'
-
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
-
-      await loadConfig('', __dirname, {
+    it('should copy `experimental.externalMiddlewareRewritesResolve` to `experimental.externalProxyRewritesResolve`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           experimental: {
-            dynamicIO: true,
+            externalMiddlewareRewritesResolve: true,
           },
         },
-        silent: false,
       })
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          '`experimental.dynamicIO` has been renamed to `experimental.cacheComponents`'
-        )
-      )
+      expect(result.experimental.externalProxyRewritesResolve).toBe(true)
+    })
 
-      consoleSpy.mockRestore()
-      delete process.env.__NEXT_VERSION
+    it('should copy `skipProxyUrlNormalize` to `skipMiddlewareUrlNormalize`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          skipProxyUrlNormalize: true,
+        },
+      })
+
+      expect(result.skipMiddlewareUrlNormalize).toBe(true)
+      expect(result.skipProxyUrlNormalize).toBe(true)
+    })
+
+    it('should copy `experimental.proxyPrefetch` to `experimental.middlewarePrefetch`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            proxyPrefetch: 'strict',
+          },
+        },
+      })
+
+      expect(result.experimental.middlewarePrefetch).toBe('strict')
+      expect(result.experimental.proxyPrefetch).toBe('strict')
+    })
+
+    it('should copy `experimental.externalProxyRewritesResolve` to `experimental.externalMiddlewareRewritesResolve`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            externalProxyRewritesResolve: true,
+          },
+        },
+      })
+
+      expect(result.experimental.externalMiddlewareRewritesResolve).toBe(true)
+      expect(result.experimental.externalProxyRewritesResolve).toBe(true)
     })
   })
 })

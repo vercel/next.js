@@ -23,6 +23,9 @@ function hasFallbackRouteParams(): boolean {
       case 'prerender-ppr':
         const fallbackParams = workUnitStore.fallbackRouteParams
         return fallbackParams ? fallbackParams.size > 0 : false
+      case 'validation-client':
+        // TODO(instant-validation): in build, this depends on samples
+        return false
       case 'prerender-legacy':
       case 'request':
       case 'prerender-runtime':

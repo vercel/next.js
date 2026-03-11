@@ -7,6 +7,7 @@ import { ECacheKey } from './interface'
 import type { Compilation, Compiler } from 'webpack'
 import { getTargets } from './utils'
 import { Buffer } from 'buffer'
+import { getBindingsSync } from '../../../../../build/swc'
 
 const PLUGIN_NAME = 'lightning-css-minify'
 const CSS_FILE_REG = /\.css(?:\?.*)?$/i
@@ -66,9 +67,7 @@ export class LightningCssMinifyPlugin {
     } = compilation.compiler
 
     if (!this.transform) {
-      const { loadBindings } =
-        require('../../../../../build/swc') as typeof import('../../../../../build/swc')
-      this.transform = (await loadBindings()).css.lightning.transform
+      this.transform = getBindingsSync().css.lightning.transform
     }
 
     const sourcemap =

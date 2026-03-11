@@ -20,6 +20,8 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+  REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -262,19 +264,27 @@ function mapChildren(children, func, context) {
 }
 function lazyInitializer(payload) {
   if (-1 === payload._status) {
-    var ctor = payload._result;
-    ctor = ctor();
-    ctor.then(
+    var ctor = payload._result,
+      thenable = ctor();
+    thenable.then(
       function (moduleObject) {
         if (0 === payload._status || -1 === payload._status)
-          (payload._status = 1), (payload._result = moduleObject);
+          (payload._status = 1),
+            (payload._result = moduleObject),
+            void 0 === thenable.status &&
+              ((thenable.status = "fulfilled"),
+              (thenable.value = moduleObject));
       },
       function (error) {
         if (0 === payload._status || -1 === payload._status)
-          (payload._status = 2), (payload._result = error);
+          (payload._status = 2),
+            (payload._result = error),
+            void 0 === thenable.status &&
+              ((thenable.status = "rejected"), (thenable.reason = error));
       }
     );
-    -1 === payload._status && ((payload._status = 0), (payload._result = ctor));
+    -1 === payload._status &&
+      ((payload._status = 0), (payload._result = thenable));
   }
   if (1 === payload._status) return payload._result.default;
   throw payload._result;
@@ -308,7 +318,40 @@ var reportGlobalError =
         }
         console.error(error);
       };
-exports.Children = {
+function startTransition(scope) {
+  var prevTransition = ReactSharedInternals.T,
+    currentTransition = {};
+  currentTransition.types =
+    null !== prevTransition ? prevTransition.types : null;
+  ReactSharedInternals.T = currentTransition;
+  try {
+    var returnValue = scope(),
+      onStartTransitionFinish = ReactSharedInternals.S;
+    null !== onStartTransitionFinish &&
+      onStartTransitionFinish(currentTransition, returnValue);
+    "object" === typeof returnValue &&
+      null !== returnValue &&
+      "function" === typeof returnValue.then &&
+      returnValue.then(noop, reportGlobalError);
+  } catch (error) {
+    reportGlobalError(error);
+  } finally {
+    null !== prevTransition &&
+      null !== currentTransition.types &&
+      (prevTransition.types = currentTransition.types),
+      (ReactSharedInternals.T = prevTransition);
+  }
+}
+function addTransitionType(type) {
+  var transition = ReactSharedInternals.T;
+  if (null !== transition) {
+    var transitionTypes = transition.types;
+    null === transitionTypes
+      ? (transition.types = [type])
+      : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
+  } else startTransition(addTransitionType.bind(null, type));
+}
+var Children = {
   map: mapChildren,
   forEach: function (children, forEachFunc, forEachContext) {
     mapChildren(
@@ -341,12 +384,15 @@ exports.Children = {
     return children;
   }
 };
+exports.Activity = REACT_ACTIVITY_TYPE;
+exports.Children = Children;
 exports.Component = Component;
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
+exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.__COMPILER_RUNTIME = {
@@ -355,6 +401,7 @@ exports.__COMPILER_RUNTIME = {
     return ReactSharedInternals.H.useMemoCache(size);
   }
 };
+exports.addTransitionType = addTransitionType;
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
@@ -448,28 +495,7 @@ exports.memo = function (type, compare) {
     compare: void 0 === compare ? null : compare
   };
 };
-exports.startTransition = function (scope) {
-  var prevTransition = ReactSharedInternals.T,
-    currentTransition = {};
-  ReactSharedInternals.T = currentTransition;
-  try {
-    var returnValue = scope(),
-      onStartTransitionFinish = ReactSharedInternals.S;
-    null !== onStartTransitionFinish &&
-      onStartTransitionFinish(currentTransition, returnValue);
-    "object" === typeof returnValue &&
-      null !== returnValue &&
-      "function" === typeof returnValue.then &&
-      returnValue.then(noop, reportGlobalError);
-  } catch (error) {
-    reportGlobalError(error);
-  } finally {
-    null !== prevTransition &&
-      null !== currentTransition.types &&
-      (prevTransition.types = currentTransition.types),
-      (ReactSharedInternals.T = prevTransition);
-  }
-};
+exports.startTransition = startTransition;
 exports.unstable_useCacheRefresh = function () {
   return ReactSharedInternals.H.useCacheRefresh();
 };
@@ -491,6 +517,9 @@ exports.useDeferredValue = function (value, initialValue) {
 };
 exports.useEffect = function (create, deps) {
   return ReactSharedInternals.H.useEffect(create, deps);
+};
+exports.useEffectEvent = function (callback) {
+  return ReactSharedInternals.H.useEffectEvent(callback);
 };
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
@@ -533,4 +562,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.2.0-canary-b9a04536-20250904";
+exports.version = "19.3.0-canary-46103596-20260305";

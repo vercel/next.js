@@ -7,11 +7,9 @@ const nextInvalidImportErrorLoader: webpack.LoaderDefinitionFunction<InvalidImpo
     const { message } = this.getOptions()
     const error = new Error(message)
     if (process.env.NEXT_RSPACK) {
-      /**
-       * Rspack uses miette for error formatting, which automatically includes stack
-       * traces in the error message. To avoid showing redundant stack information
-       * in the final error output, we clear the stack property.
-       */
+      // Rspack uses miette for error formatting, which automatically includes stack
+      // traces in the error message. To avoid showing redundant stack information
+      // in the final error output, we clear the stack property.
       error.stack = undefined
     }
     throw error

@@ -65,10 +65,6 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     pathname: string,
     options: MatchOptions
   ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
-    // Compile the development routes.
-    // TODO: we may want to only run this during testing, users won't be fast enough to require this many dir scans
-    await super.reload()
-
     // Iterate over the development matches to see if one of them match the
     // request path.
     for await (const developmentMatch of super.matchAll(pathname, options)) {

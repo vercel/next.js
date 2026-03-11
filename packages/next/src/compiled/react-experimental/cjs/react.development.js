@@ -284,11 +284,22 @@
       );
     }
     function getElementKey(element, index) {
-      return "object" === typeof element &&
+      if (
+        "object" === typeof element &&
         null !== element &&
         null != element.key
-        ? (checkKeyStringCoercion(element.key), escape("" + element.key))
-        : index.toString(36);
+      ) {
+        if (element.key === REACT_OPTIMISTIC_KEY)
+          return (
+            console.error(
+              "React.Children helpers don't support optimisticKey."
+            ),
+            index.toString(36)
+          );
+        checkKeyStringCoercion(element.key);
+        return escape("" + element.key);
+      }
+      return index.toString(36);
     }
     function resolveThenable(thenable) {
       switch (thenable.status) {
@@ -461,8 +472,15 @@
     }
     function lazyInitializer(payload) {
       if (-1 === payload._status) {
-        var ioInfo = payload._ioInfo;
-        null != ioInfo && (ioInfo.start = ioInfo.end = performance.now());
+        var resolveDebugValue = null,
+          rejectDebugValue = null,
+          ioInfo = payload._ioInfo;
+        null != ioInfo &&
+          ((ioInfo.start = ioInfo.end = performance.now()),
+          (ioInfo.value = new Promise(function (resolve, reject) {
+            resolveDebugValue = resolve;
+            rejectDebugValue = reject;
+          })));
         ioInfo = payload._result;
         var thenable = ioInfo();
         thenable.then(
@@ -471,7 +489,14 @@
               payload._status = 1;
               payload._result = moduleObject;
               var _ioInfo = payload._ioInfo;
-              null != _ioInfo && (_ioInfo.end = performance.now());
+              if (null != _ioInfo) {
+                _ioInfo.end = performance.now();
+                var debugValue =
+                  null == moduleObject ? void 0 : moduleObject.default;
+                resolveDebugValue(debugValue);
+                _ioInfo.value.status = "fulfilled";
+                _ioInfo.value.value = debugValue;
+              }
               void 0 === thenable.status &&
                 ((thenable.status = "fulfilled"),
                 (thenable.value = moduleObject));
@@ -482,7 +507,12 @@
               payload._status = 2;
               payload._result = error;
               var _ioInfo2 = payload._ioInfo;
-              null != _ioInfo2 && (_ioInfo2.end = performance.now());
+              null != _ioInfo2 &&
+                ((_ioInfo2.end = performance.now()),
+                _ioInfo2.value.then(noop, noop),
+                rejectDebugValue(error),
+                (_ioInfo2.value.status = "rejected"),
+                (_ioInfo2.value.reason = error));
               void 0 === thenable.status &&
                 ((thenable.status = "rejected"), (thenable.reason = error));
             }
@@ -490,7 +520,6 @@
         );
         ioInfo = payload._ioInfo;
         if (null != ioInfo) {
-          ioInfo.value = thenable;
           var displayName = thenable.displayName;
           "string" === typeof displayName && (ioInfo.name = displayName);
         }
@@ -683,9 +712,9 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       didWarnStateUpdateForUnmountedComponent = {},
       ReactNoopUpdateQueue = {
         isMounted: function () {
@@ -720,16 +749,15 @@
       this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
     };
     var deprecatedAPIs = {
-        isMounted: [
-          "isMounted",
-          "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
-        ],
-        replaceState: [
-          "replaceState",
-          "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
-        ]
-      },
-      fnName;
+      isMounted: [
+        "isMounted",
+        "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
+      ],
+      replaceState: [
+        "replaceState",
+        "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
+      ]
+    };
     for (fnName in deprecatedAPIs)
       deprecatedAPIs.hasOwnProperty(fnName) &&
         defineDeprecationWarning(fnName, deprecatedAPIs[fnName]);
@@ -823,7 +851,7 @@
         return resolveDispatcher().useMemoCache(size);
       }
     });
-    exports.Children = {
+    var fnName = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
         mapChildren(
@@ -856,12 +884,15 @@
         return children;
       }
     };
+    exports.Activity = REACT_ACTIVITY_TYPE;
+    exports.Children = fnName;
     exports.Component = Component;
     exports.Fragment = REACT_FRAGMENT_TYPE;
     exports.Profiler = REACT_PROFILER_TYPE;
     exports.PureComponent = PureComponent;
     exports.StrictMode = REACT_STRICT_MODE_TYPE;
     exports.Suspense = REACT_SUSPENSE_TYPE;
+    exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
     exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
     exports.__COMPILER_RUNTIME = deprecatedAPIs;
@@ -976,6 +1007,7 @@
         }
       };
     };
+    exports.addTransitionType = addTransitionType;
     exports.cache = function (fn) {
       return function () {
         return fn.apply(null, arguments);
@@ -1016,7 +1048,9 @@
         }
         JSCompiler_inline_result && (owner = getOwner());
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (key = "" + config.key));
+          (config.key === REACT_OPTIMISTIC_KEY
+            ? (key = REACT_OPTIMISTIC_KEY)
+            : (checkKeyStringCoercion(config.key), (key = "" + config.key)));
         for (propName in config)
           !hasOwnProperty.call(config, propName) ||
             "key" === propName ||
@@ -1066,6 +1100,7 @@
     exports.createElement = function (type, config, children) {
       for (var i = 2; i < arguments.length; i++)
         validateChildKeys(arguments[i]);
+      var propName;
       i = {};
       var key = null;
       if (null != config)
@@ -1077,7 +1112,9 @@
             "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
           )),
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (key = "" + config.key)),
+          (config.key === REACT_OPTIMISTIC_KEY
+            ? (key = REACT_OPTIMISTIC_KEY)
+            : (checkKeyStringCoercion(config.key), (key = "" + config.key))),
         config))
           hasOwnProperty.call(config, propName) &&
             "key" !== propName &&
@@ -1106,13 +1143,18 @@
             ? type.displayName || type.name || "Unknown"
             : type
         );
-      var propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
+      (propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++)
+        ? ((childArray = Error.stackTraceLimit),
+          (Error.stackTraceLimit = 10),
+          (childrenLength = Error("react-stack-top-frame")),
+          (Error.stackTraceLimit = childArray))
+        : (childrenLength = unknownOwnerDebugStack);
       return ReactElement(
         type,
         key,
         i,
         getOwner(),
-        propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
+        childrenLength,
         propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
@@ -1120,9 +1162,6 @@
       var refObject = { current: null };
       Object.seal(refObject);
       return refObject;
-    };
-    exports.experimental_useEffectEvent = function (callback) {
-      return resolveDispatcher().useEffectEvent(callback);
     };
     exports.experimental_useOptimistic = function (passthrough, reducer) {
       console.error(
@@ -1220,21 +1259,14 @@
       });
       return compare;
     };
+    exports.optimisticKey = REACT_OPTIMISTIC_KEY;
     exports.startTransition = startTransition;
-    exports.unstable_Activity = REACT_ACTIVITY_TYPE;
     exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-    exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
-    exports.unstable_addTransitionType = addTransitionType;
     exports.unstable_getCacheForType = function (resourceType) {
       var dispatcher = ReactSharedInternals.A;
       return dispatcher
         ? dispatcher.getCacheForType(resourceType)
         : resourceType();
-    };
-    exports.unstable_postpone = function (reason) {
-      reason = Error(reason);
-      reason.$$typeof = REACT_POSTPONE_TYPE;
-      throw reason;
     };
     exports.unstable_startGestureTransition = function (
       provider,
@@ -1309,6 +1341,9 @@
         );
       return resolveDispatcher().useEffect(create, deps);
     };
+    exports.useEffectEvent = function (callback) {
+      return resolveDispatcher().useEffectEvent(callback);
+    };
     exports.useId = function () {
       return resolveDispatcher().useId();
     };
@@ -1356,7 +1391,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-experimental-b9a04536-20250904";
+    exports.version = "19.3.0-experimental-46103596-20260305";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

@@ -1,6 +1,5 @@
 #![feature(min_specialization)]
 #![feature(type_alias_impl_trait)]
-#![feature(assert_matches)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
@@ -16,13 +15,14 @@ pub mod compile_time_info;
 pub mod condition;
 pub mod context;
 pub mod data_uri_source;
+pub mod debug_id;
 pub mod diagnostics;
 pub mod environment;
-pub mod error;
 pub mod file_source;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
+pub mod loader;
 pub mod module;
 pub mod module_graph;
 pub mod node_addon_module;

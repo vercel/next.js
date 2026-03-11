@@ -6,7 +6,8 @@ function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
 }
 
-describe('ppr-metadata-streaming', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('ppr-metadata-streaming', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })

@@ -2,7 +2,7 @@ import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import { isMetadataRoute } from '../../../../lib/metadata/is-metadata-route'
 
@@ -11,7 +11,6 @@ export type EdgeAppRouteLoaderQuery = {
   page: string
   appDirLoader: string
   preferredRegion: string | string[] | undefined
-  nextConfig: string
   middlewareConfig: string
   cacheHandlers: string
 }
@@ -24,12 +23,11 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       preferredRegion,
       appDirLoader: appDirLoaderBase64 = '',
       middlewareConfig: middlewareConfigBase64 = '',
-      nextConfig: nextConfigBase64,
       cacheHandlers: cacheHandlersStringified,
     } = this.getOptions()
 
     const appDirLoader = Buffer.from(appDirLoaderBase64, 'base64').toString()
-    const middlewareConfig: MiddlewareConfig = JSON.parse(
+    const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 
@@ -64,20 +62,13 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       stringifiedPagePath.length - 1
     )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}`
 
-    const stringifiedConfig = Buffer.from(
-      nextConfigBase64 || '',
-      'base64'
-    ).toString()
-
     return await loadEntrypoint(
       'edge-app-route',
       {
         VAR_USERLAND: modulePath,
         VAR_PAGE: page,
       },
-      {
-        nextConfig: stringifiedConfig,
-      }
+      {}
     )
   }
 

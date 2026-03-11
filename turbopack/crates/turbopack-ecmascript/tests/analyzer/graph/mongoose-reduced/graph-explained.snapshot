@@ -1,5 +1,5 @@
-Collection = FreeVar(require)(`${driver}/collection`)
+Collection (const after eval) = FreeVar(require)(`${driver}/collection`)
 
-Connection = FreeVar(require)(`${driver}/connection`)
+Connection (const after eval) = FreeVar(require)(`${driver}/connection`)
 
-driver = (FreeVar(global)["MONGOOSE_DRIVER_PATH"] || "./drivers/node-mongodb-native")
+driver (const after eval) = (FreeVar(global)["MONGOOSE_DRIVER_PATH"] || "./drivers/node-mongodb-native")

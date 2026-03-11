@@ -10,7 +10,7 @@ export type PanelStateKind =
   | 'route-type'
   | 'segment-explorer'
   | 'panel-selector'
-  | 'turbo-info'
+  | 'instant-navs'
 
 export const PanelRouterContext = createContext<{
   panel: PanelStateKind | null

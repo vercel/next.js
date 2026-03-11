@@ -44,7 +44,6 @@
             ),
         ],
         span: 16..43,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -88,7 +87,6 @@
             ),
         ],
         span: 16..22,
-        in_try: false,
     },
     FreeVar {
         var: "require",
@@ -129,7 +127,6 @@
             ),
         ],
         span: 123..130,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -227,7 +224,6 @@
             ),
         ],
         span: 199..206,
-        in_try: false,
     },
     Call {
         func: FreeVar(

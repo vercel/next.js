@@ -23,22 +23,22 @@ describe('config', () => {
   })
   it('Should get the configuration', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig)
-    expect(config.customConfig).toBe(true)
+    expect((config as any).customConfig).toBe(true)
   })
 
   it('Should pass the phase correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    expect(config.phase).toBe(PHASE_DEVELOPMENT_SERVER)
+    expect((config as any).phase).toBe(PHASE_DEVELOPMENT_SERVER)
   })
 
   it('Should pass the defaultConfig correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    expect(config.defaultConfig).toBeDefined()
+    expect((config as any).defaultConfig).toBeDefined()
   })
 
   it('Should assign object defaults deeply to user config', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    expect(config.distDir).toEqual('.next')
+    expect(config.distDir.replace(/\\/g, '/')).toEqual('.next/dev')
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
@@ -48,7 +48,7 @@ describe('config', () => {
         customConfigKey: 'customConfigValue',
       },
     })
-    expect(config.customConfigKey).toBe('customConfigValue')
+    expect((config as any).customConfigKey).toBe('customConfigValue')
   })
 
   it('Should assign object defaults deeply to customConfig', async () => {
@@ -58,7 +58,7 @@ describe('config', () => {
         onDemandEntries: { custom: true },
       },
     })
-    expect(config.customConfig).toBe(true)
+    expect((config as any).customConfig).toBe(true)
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
@@ -68,8 +68,8 @@ describe('config', () => {
         bogusSetting: { custom: true },
       },
     })
-    expect(config.bogusSetting).toBeDefined()
-    expect(config.bogusSetting.custom).toBe(true)
+    expect((config as any).bogusSetting).toBeDefined()
+    expect((config as any).bogusSetting.custom).toBe(true)
   })
 
   it('Should override defaults for arrays from user arrays', async () => {
@@ -102,12 +102,66 @@ describe('config', () => {
     )
   })
 
+  it('Should throw an error when sassOptions.functions is used with Turbopack', async () => {
+    const originalTurbopack = process.env.TURBOPACK
+    process.env.TURBOPACK = '1'
+
+    try {
+      await expect(async () => {
+        // Use a unique directory to avoid cache conflicts
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-turbopack-test', {
+          customConfig: {
+            sassOptions: {
+              functions: {
+                'get($keys)': function (keys) {
+                  return 'test'
+                },
+              },
+            },
+          },
+        })
+      }).rejects.toThrow(
+        /The "sassOptions\.functions" option is not supported when using Turbopack/
+      )
+    } finally {
+      if (originalTurbopack === undefined) {
+        delete process.env.TURBOPACK
+      } else {
+        process.env.TURBOPACK = originalTurbopack
+      }
+    }
+  })
+
+  it('Should allow sassOptions.functions when not using Turbopack', async () => {
+    const originalTurbopack = process.env.TURBOPACK
+    delete process.env.TURBOPACK
+
+    try {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          sassOptions: {
+            functions: {
+              'get($keys)': function (keys) {
+                return 'test'
+              },
+            },
+          },
+        },
+      })
+      expect((config as any).sassOptions.functions).toBeDefined()
+    } finally {
+      if (originalTurbopack !== undefined) {
+        process.env.TURBOPACK = originalTurbopack
+      }
+    }
+  })
+
   it('Should not throw an error when two versions of next.config.js are present', async () => {
     const config = await loadConfig(
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'js-ts-config')
     )
-    expect(config.__test__ext).toBe('js')
+    expect((config as any).__test__ext).toBe('js')
   })
 
   it('Should not throw an error when next.config.ts is present', async () => {
@@ -115,7 +169,7 @@ describe('config', () => {
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'typescript-config')
     )
-    expect(config.__test__ext).toBe('ts')
+    expect((config as any).__test__ext).toBe('ts')
   })
 
   describe('outputFileTracingRoot and turbopack.root consistency', () => {

@@ -7,7 +7,7 @@ type ErrorOverlayToolbarProps = {
   error: Error
   debugInfo: DebugInfo | undefined
   feedbackButton?: React.ReactNode
-  generateErrorInfo: () => string
+  generateErrorInfo: () => Promise<string>
 }
 
 export function ErrorOverlayToolbar({
@@ -23,7 +23,8 @@ export function ErrorOverlayToolbar({
       <CopyErrorButton error={error} generateErrorInfo={generateErrorInfo} />
       <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton
-        devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
+        key={debugInfo?.devtoolsFrontendUrl}
+        defaultDevtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
     </span>
   )
@@ -71,6 +72,10 @@ export const styles = `
       background-color: var(--color-gray-100);
       cursor: not-allowed;
     }
+  }
+
+  .nodejs-inspector-button[data-pending='true'] {
+    cursor: wait;
   }
 
   .error-overlay-toolbar-button-icon {

@@ -1,5 +1,7 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import type { NextInstance } from 'e2e-utils'
+import { statSync } from 'fs'
+import { join } from 'path'
 
 // TODO: Implement experimental.fallbackNodePolyfills
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -7,10 +9,28 @@ import { NextInstance } from 'e2e-utils'
   () => {
     let next: NextInstance
 
-    function getFirstLoadSize(output: string) {
-      const firstLoadRe =
-        /○ \/.*? (?<size>\d.*?) [^\d]{2} (?<firstLoad>\d.*?) [^\d]{2}/
-      return Number(output.match(firstLoadRe).groups.firstLoad)
+    async function getIndexPageSize() {
+      // Read build manifest to get chunk files for the index page
+      // this only works reliably for pages router and simple examples.
+      const buildManifest = await next.readJSON('.next/build-manifest.json')
+
+      // Get chunks for the '/' page
+      const indexPageChunks = buildManifest.pages['/'] || []
+
+      // Calculate total size of all chunks for the index page
+      let totalSize = 0
+      for (const chunkPath of indexPageChunks) {
+        const fullChunkPath = join(next.testDir, '.next', chunkPath)
+        try {
+          const stats = statSync(fullChunkPath)
+          totalSize += stats.size
+        } catch (error) {
+          console.warn(`Could not read chunk: ${chunkPath}`, error.message)
+        }
+      }
+
+      // Convert to kB for easier comparison
+      return totalSize / 1024
     }
 
     beforeAll(async () => {
@@ -37,7 +57,11 @@ import { NextInstance } from 'e2e-utils'
     afterAll(() => next.destroy())
 
     it('Fallback polyfills added by default', async () => {
-      expect(getFirstLoadSize(next.cliOutput)).not.toBeLessThan(200)
+      const indexPageSizeKB = await getIndexPageSize()
+      console.log(
+        `Index page size (with polyfills): ${indexPageSizeKB.toFixed(2)} kB`
+      )
+      expect(indexPageSizeKB).not.toBeLessThan(400)
     })
 
     it('Reduced bundle size when polyfills are disabled', async () => {
@@ -52,7 +76,11 @@ import { NextInstance } from 'e2e-utils'
       await next.start()
       await next.stop()
 
-      expect(getFirstLoadSize(next.cliOutput)).toBeLessThan(200)
+      const indexPageSizeKB = await getIndexPageSize()
+      console.log(
+        `Index page size (without polyfills): ${indexPageSizeKB.toFixed(2)} kB`
+      )
+      expect(indexPageSizeKB).toBeLessThan(400)
     })
 
     it('Pass build without error if non-polyfilled module is unreachable', async () => {

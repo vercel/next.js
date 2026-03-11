@@ -1,3 +1,4 @@
+/* eslint-disable @next/internal/no-ambiguous-jsx -- Pages router doesn't use react-server */
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
@@ -61,8 +62,6 @@ import {
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
-import { isInAmpMode } from '../shared/lib/amp-mode'
-import { AmpStateContext } from '../shared/lib/amp-context.shared-runtime'
 import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import Loadable from '../shared/lib/loadable.shared-runtime'
@@ -126,7 +125,7 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   ).postProcessHTML
 } else {
   warn = console.warn.bind(console)
-  postProcessHTML = async (_pathname: string, html: string) => html
+  postProcessHTML = async (html: string) => html
 }
 
 function noRouter() {
@@ -242,17 +241,10 @@ function renderPageTree(
 }
 
 export type RenderOptsPartial = {
-  canonicalBase: string
-  runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   err?: Error | null
-  nextExport?: boolean
-  dev?: boolean
-  ampPath?: string
+  isBuildTimePrerendering?: boolean
   ErrorDebug?: PagesDevOverlayBridgeType
-  ampValidator?: (html: string, pathname: string) => Promise<void>
-  ampSkipValidation?: boolean
-  ampOptimizerConfig?: { [key: string]: any }
   isNextDataRequest?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps | undefined
@@ -265,7 +257,7 @@ export type RenderOptsPartial = {
   assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  setIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
@@ -311,9 +303,14 @@ export type PagesSharedContext = {
   buildId: string
 
   /**
-   * The deployment ID if the user is deploying to a platform that provides one.
+   * See NextConfig.deploymentId
    */
   deploymentId: string | undefined
+
+  /**
+   * Either NextConfig.experimental.immutableAssetToken or NextConfig.deploymentId
+   */
+  clientAssetToken: string | undefined
 
   /**
    * True if the user is using a custom server.
@@ -461,12 +458,10 @@ export async function renderToHTMLImpl(
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
-  const metadata: PagesRenderResultMetadata = {}
+  let baseAssetQueryString =
+    (process.env.__NEXT_DEV_SERVER && renderOpts.assetQueryString) || ''
 
-  metadata.assetQueryString =
-    (renderOpts.dev && renderOpts.assetQueryString) || ''
-
-  if (renderOpts.dev && !metadata.assetQueryString) {
+  if (process.env.__NEXT_DEV_SERVER && !baseAssetQueryString) {
     const userAgent = (req.headers['user-agent'] || '').toLowerCase()
     if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
       // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -474,15 +469,23 @@ export async function renderToHTMLImpl(
       // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
       // Note: The workaround breaks breakpoints on reload since the script url always changes,
       // so we only apply it to Safari.
-      metadata.assetQueryString = `?ts=${Date.now()}`
+      baseAssetQueryString = `?ts=${Date.now()}`
     }
   }
 
-  // if deploymentId is provided we append it to all asset requests
-  if (sharedContext.deploymentId) {
-    metadata.assetQueryString += `${metadata.assetQueryString ? '&' : '?'}dpl=${
-      sharedContext.deploymentId
-    }`
+  const mutableAssetQueryString =
+    baseAssetQueryString +
+    (sharedContext.deploymentId
+      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.deploymentId}`
+      : '')
+  const assetQueryString =
+    baseAssetQueryString +
+    (sharedContext.clientAssetToken
+      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
+      : '')
+  const metadata: PagesRenderResultMetadata = {
+    assetQueryString,
+    mutableAssetQueryString,
   }
 
   // don't modify original query object
@@ -490,8 +493,6 @@ export async function renderToHTMLImpl(
 
   const {
     err,
-    dev = false,
-    ampPath = '',
     pageConfig = {},
     buildManifest,
     reactLoadableManifest,
@@ -510,8 +511,6 @@ export async function renderToHTMLImpl(
   } = renderOpts
   const { App } = extra
 
-  const assetQueryString = metadata.assetQueryString
-
   let Document = extra.Document
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
@@ -525,7 +524,7 @@ export async function renderToHTMLImpl(
   stripInternalQueries(query)
 
   const isSSG = !!getStaticProps
-  const isBuildTimeSSG = isSSG && renderOpts.nextExport
+  const isBuildTimeSSG = isSSG && renderOpts.isBuildTimePrerendering
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -540,7 +539,7 @@ export async function renderToHTMLImpl(
       (Component as any).origGetInitialProps
 
   if (
-    renderOpts.nextExport &&
+    renderOpts.isBuildTimePrerendering &&
     hasPageGetInitialProps &&
     !defaultErrorGetInitialProps
   ) {
@@ -562,7 +561,7 @@ export async function renderToHTMLImpl(
   // would normally be automatically statically optimized
   // ensure we set cache header so it's not rendered on-demand
   // every request
-  if (isAutoExport && !dev && isExperimentalCompile) {
+  if (isAutoExport && !process.env.__NEXT_DEV_SERVER && isExperimentalCompile) {
     res.setHeader(
       'Cache-Control',
       getCacheControlHeader({ revalidate: false, expire: expireTime })
@@ -610,7 +609,7 @@ export async function renderToHTMLImpl(
 
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
-  if (dev) {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
@@ -633,13 +632,7 @@ export async function renderToHTMLImpl(
 
     if (isAutoExport || isFallback) {
       // remove query values except ones that will be set during export
-      query = {
-        ...(query.amp
-          ? {
-              amp: query.amp,
-            }
-          : {}),
-      }
+      query = {}
       asPath = `${pathname}${
         // ensure trailing slash is present for non-dynamic auto-export pages
         req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
@@ -729,15 +722,8 @@ export async function renderToHTMLImpl(
 
   let scriptLoader: any = {}
   const jsxStyleRegistry = createStyleRegistry()
-  const ampState = {
-    ampFirst: pageConfig.amp === true,
-    hasQuery: Boolean(query.amp),
-    hybrid: pageConfig.amp === 'hybrid',
-  }
 
-  // Disable AMP under the web environment
-  const inAmpMode = process.env.NEXT_RUNTIME !== 'edge' && isInAmpMode(ampState)
-  let head: JSX.Element[] = defaultHead(inAmpMode)
+  let head: JSX.Element[] = defaultHead()
   const reactLoadableModules: string[] = []
 
   let initialScripts: any = {}
@@ -764,33 +750,29 @@ export async function renderToHTMLImpl(
         >
           <PathParamsContext.Provider value={adaptForPathParams(router)}>
             <RouterContext.Provider value={router}>
-              <AmpStateContext.Provider value={ampState}>
-                <HeadManagerContext.Provider
-                  value={{
-                    updateHead: (state) => {
-                      head = state
-                    },
-                    updateScripts: (scripts) => {
-                      scriptLoader = scripts
-                    },
-                    scripts: initialScripts,
-                    mountedInstances: new Set(),
-                    nonce,
-                  }}
+              <HeadManagerContext.Provider
+                value={{
+                  updateHead: (state) => {
+                    head = state
+                  },
+                  updateScripts: (scripts) => {
+                    scriptLoader = scripts
+                  },
+                  scripts: initialScripts,
+                  mountedInstances: new Set(),
+                  nonce,
+                }}
+              >
+                <LoadableContext.Provider
+                  value={(moduleName) => reactLoadableModules.push(moduleName)}
                 >
-                  <LoadableContext.Provider
-                    value={(moduleName) =>
-                      reactLoadableModules.push(moduleName)
-                    }
-                  >
-                    <StyleRegistry registry={jsxStyleRegistry}>
-                      <ImageConfigContext.Provider value={images}>
-                        {children}
-                      </ImageConfigContext.Provider>
-                    </StyleRegistry>
-                  </LoadableContext.Provider>
-                </HeadManagerContext.Provider>
-              </AmpStateContext.Provider>
+                  <StyleRegistry registry={jsxStyleRegistry}>
+                    <ImageConfigContext.Provider value={images}>
+                      {children}
+                    </ImageConfigContext.Provider>
+                  </StyleRegistry>
+                </LoadableContext.Provider>
+              </HeadManagerContext.Provider>
             </RouterContext.Provider>
           </PathParamsContext.Provider>
         </PathnameContextProviderAdapter>
@@ -859,7 +841,9 @@ export async function renderToHTMLImpl(
   let props: any
 
   const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+    !isSSG &&
+    (renderOpts.isBuildTimePrerendering ||
+      (process.env.__NEXT_DEV_SERVER && (isAutoExport || isFallback)))
 
   const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()
@@ -987,7 +971,7 @@ export async function renderToHTMLImpl(
     }
 
     if (
-      (dev || isBuildTimeSSG) &&
+      (process.env.__NEXT_DEV_SERVER || isBuildTimeSSG) &&
       !metadata.isNotFound &&
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
@@ -1206,7 +1190,7 @@ export async function renderToHTMLImpl(
     }
 
     if (
-      (dev || isBuildTimeSSG) &&
+      (process.env.__NEXT_DEV_SERVER || isBuildTimeSSG) &&
       !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -1277,7 +1261,7 @@ export async function renderToHTMLImpl(
   }
 
   const Body = ({ children }: { children: JSX.Element }) => {
-    return inAmpMode ? children : <div id="__next">{children}</div>
+    return <div id="__next">{children}</div>
   }
 
   const renderDocument = async () => {
@@ -1324,7 +1308,10 @@ export async function renderToHTMLImpl(
           return { html, head }
         }
 
-        if (dev && (props.router || props.Component)) {
+        if (
+          process.env.__NEXT_DEV_SERVER &&
+          (props.router || props.Component)
+        ) {
           throw new Error(
             `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
           )
@@ -1481,7 +1468,6 @@ export async function renderToHTMLImpl(
     }
   }
 
-  const hybridAmp = ampState.hybrid
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
 
   const {
@@ -1491,7 +1477,6 @@ export async function renderToHTMLImpl(
     domainLocales,
     locale,
     locales,
-    runtimeConfig,
   } = renderOpts
   const htmlProps: HtmlProps = {
     __NEXT_DATA__: {
@@ -1500,7 +1485,6 @@ export async function renderToHTMLImpl(
       query, // querystring parsed / passed by the user
       buildId: sharedContext.buildId,
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
       nextExport: nextExport === true ? true : undefined, // If this is a page exported by `next export`
       autoExport: isAutoExport === true ? true : undefined, // If this is an auto exported page
       isFallback,
@@ -1509,7 +1493,9 @@ export async function renderToHTMLImpl(
         dynamicImportsIds.size === 0
           ? undefined
           : Array.from(dynamicImportsIds),
-      err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+      err: renderOpts.err
+        ? serializeError(!!process.env.__NEXT_DEV_SERVER, renderOpts.err)
+        : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
       customServer: sharedContext.customServer,
@@ -1520,20 +1506,17 @@ export async function renderToHTMLImpl(
       defaultLocale,
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
-      notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
+      notFoundSrcPage:
+        notFoundSrcPage && process.env.__NEXT_DEV_SERVER
+          ? notFoundSrcPage
+          : undefined,
     },
     nonce,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,
-    canonicalBase:
-      !renderOpts.ampPath && getRequestMeta(req, 'didStripLocale')
-        ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
-        : renderOpts.canonicalBase,
-    ampPath,
-    inAmpMode,
-    isDevelopment: !!dev,
-    hybridAmp,
+    isDevelopment: !!process.env.__NEXT_DEV_SERVER,
+    deploymentId: sharedContext.deploymentId,
     dynamicImports: Array.from(dynamicImports),
     dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),
     assetPrefix,
@@ -1543,7 +1526,8 @@ export async function renderToHTMLImpl(
         ? pageConfig.unstable_runtimeJS
         : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
-    assetQueryString,
+    assetQueryString: assetQueryString || '',
+    mutableAssetQueryString: mutableAssetQueryString || '',
     scriptLoader,
     locale,
     disableOptimizedLoading,
@@ -1562,11 +1546,9 @@ export async function renderToHTMLImpl(
   }
 
   const document = (
-    <AmpStateContext.Provider value={ampState}>
-      <HtmlContext.Provider value={htmlProps}>
-        {documentResult.documentElement(htmlProps)}
-      </HtmlContext.Provider>
-    </AmpStateContext.Provider>
+    <HtmlContext.Provider value={htmlProps}>
+      {documentResult.documentElement(htmlProps)}
+    </HtmlContext.Provider>
   )
 
   const documentHTML = await getTracer().trace(
@@ -1607,16 +1589,10 @@ export async function renderToHTMLImpl(
     prefix += DOCTYPE
   }
   prefix += renderTargetPrefix
-  if (inAmpMode) {
-    prefix += '<!-- __NEXT_DATA__ -->'
-  }
 
   const content = prefix + documentResult.contentHTML + renderTargetSuffix
 
-  const optimizedHtml = await postProcessHTML(pathname, content, renderOpts, {
-    inAmpMode,
-    hybridAmp,
-  })
+  const optimizedHtml = await postProcessHTML(content, renderOpts)
 
   return new RenderResult(optimizedHtml, {
     metadata,

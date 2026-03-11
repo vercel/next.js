@@ -12,7 +12,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     proxied_asset::ProxiedAsset,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -45,7 +45,7 @@ pub async fn create_page_loader_entry_module(
 
     let virtual_source = Vc::upcast(VirtualSource::new(
         page_loader_path,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     ));
 
     let module = client_context
@@ -154,6 +154,16 @@ impl PageLoaderAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for PageLoaderAsset {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        Ok(OutputAssetsWithReferenced::from_assets(
+            *self.await?.page_chunks,
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
@@ -170,24 +180,6 @@ impl OutputAsset for PageLoaderAsset {
                 .chunking_context
                 .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
         }
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let chunks = self.await?.page_chunks.await?;
-
-        let mut references = Vec::with_capacity(chunks.len());
-        for &chunk in chunks.iter() {
-            references.push(chunk);
-        }
-
-        // We don't need to strip the client relative prefix, because we won't be using
-        // these reference paths with `__turbopack_load__`.
-        for chunk_data in &*self.chunks_data(FileSystemPathOption::none()).await? {
-            references.extend(chunk_data.references().await?.iter().copied());
-        }
-
-        Ok(Vc::cell(references))
     }
 }
 
@@ -210,6 +202,8 @@ impl Asset for PageLoaderAsset {
             StringifyJs(&chunks_data)
         );
 
-        Ok(AssetContent::file(File::from(content).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(content)).cell(),
+        ))
     }
 }

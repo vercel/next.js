@@ -1,14 +1,14 @@
 use std::{env::current_dir, path::PathBuf};
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use dunce::canonicalize;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
 #[derive(
-    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub enum EntryRequest {
     Relative(RcStr),
@@ -60,8 +60,16 @@ pub fn normalize_entries(entries: &Option<Vec<String>>) -> Vec<RcStr> {
 }
 
 #[turbo_tasks::function]
-pub async fn project_fs(project_dir: RcStr, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(rcstr!("project"), project_dir);
+pub async fn project_fs(
+    project_dir: RcStr,
+    watch: bool,
+    denied_root_path: RcStr,
+) -> Result<Vc<Box<dyn FileSystem>>> {
+    let disk_fs = DiskFileSystem::new_with_denied_paths(
+        rcstr!("project"),
+        project_dir,
+        vec![denied_root_path],
+    );
     if watch {
         disk_fs.await?.start_watching(None).await?;
     }

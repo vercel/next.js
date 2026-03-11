@@ -10,18 +10,18 @@ import {
   NEXT_REWRITTEN_QUERY_HEADER,
   NEXT_RSC_UNION_QUERY,
 } from './components/app-router-headers'
-import type { NormalizedSearch } from './components/segment-cache'
+import type {
+  NormalizedPathname,
+  NormalizedSearch,
+} from './components/segment-cache/cache-key'
 import type { RSCResponse } from './components/router-reducer/fetch-server-response'
+import type { ParsedUrlQuery } from 'querystring'
 
 export type RouteParamValue = string | Array<string> | null
 
-export type RouteParam = {
-  name: string
-  value: RouteParamValue
-  type: DynamicParamTypesShort
-}
-
-export function getRenderedSearch(response: RSCResponse): NormalizedSearch {
+export function getRenderedSearch(
+  response: RSCResponse<unknown> | Response
+): NormalizedSearch {
   // If the server performed a rewrite, the search params used to render the
   // page will be different from the params in the request URL. In this case,
   // the response will include a header that gives the rewritten search query.
@@ -37,14 +37,16 @@ export function getRenderedSearch(response: RSCResponse): NormalizedSearch {
     .search as NormalizedSearch
 }
 
-export function getRenderedPathname(response: RSCResponse): string {
+export function getRenderedPathname(
+  response: RSCResponse<unknown> | Response
+): NormalizedPathname {
   // If the server performed a rewrite, the pathname used to render the
   // page will be different from the pathname in the request URL. In this case,
   // the response will include a header that gives the rewritten pathname.
   const rewrittenPath = response.headers.get(NEXT_REWRITTEN_PATH_HEADER)
-  return (
-    rewrittenPath ?? urlToUrlWithoutFlightMarker(new URL(response.url)).pathname
-  )
+  return (rewrittenPath ??
+    urlToUrlWithoutFlightMarker(new URL(response.url))
+      .pathname) as NormalizedPathname
 }
 
 export function parseDynamicParamFromURLPart(
@@ -55,12 +57,27 @@ export function parseDynamicParamFromURLPart(
   // This needs to match the behavior in get-dynamic-param.ts.
   switch (paramType) {
     // Catchalls
-    case 'c':
-    case 'ci': {
+    case 'c': {
       // Catchalls receive all the remaining URL parts. If there are no
       // remaining pathname parts, return an empty array.
       return partIndex < pathnameParts.length
         ? pathnameParts.slice(partIndex).map((s) => encodeURIComponent(s))
+        : []
+    }
+    // Catchall intercepted
+    case 'ci(..)(..)':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)': {
+      const prefix = paramType.length - 2
+      return partIndex < pathnameParts.length
+        ? pathnameParts.slice(partIndex).map((s, i) => {
+            if (i === 0) {
+              return encodeURIComponent(s.slice(prefix))
+            }
+
+            return encodeURIComponent(s)
+          })
         : []
     }
     // Optional catchalls
@@ -72,8 +89,7 @@ export function parseDynamicParamFromURLPart(
         : null
     }
     // Dynamic
-    case 'd':
-    case 'di': {
+    case 'd': {
       if (partIndex >= pathnameParts.length) {
         // The route tree expected there to be more parts in the URL than there
         // actually are. This could happen if the x-nextjs-rewritten-path header
@@ -85,6 +101,25 @@ export function parseDynamicParamFromURLPart(
         return ''
       }
       return encodeURIComponent(pathnameParts[partIndex])
+    }
+    // Dynamic intercepted
+    case 'di(..)(..)':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)': {
+      const prefix = paramType.length - 2
+      if (partIndex >= pathnameParts.length) {
+        // The route tree expected there to be more parts in the URL than there
+        // actually are. This could happen if the x-nextjs-rewritten-path header
+        // is incorrectly set, or potentially due to bug in Next.js. TODO:
+        // Should this be a hard error? During a prefetch, we can just abort.
+        // During a client navigation, we could trigger a hard refresh. But if
+        // it happens during initial render, we don't really have any
+        // recovery options.
+        return ''
+      }
+
+      return encodeURIComponent(pathnameParts[partIndex].slice(prefix))
     }
     default:
       paramType satisfies never
@@ -177,4 +212,23 @@ export function getParamValueFromCacheKey(
     return paramCacheKey.split('/')
   }
   return paramCacheKey
+}
+
+export function urlSearchParamsToParsedUrlQuery(
+  searchParams: URLSearchParams
+): ParsedUrlQuery {
+  // Converts a URLSearchParams object to the same type used by the server when
+  // creating search params props, i.e. the type returned by Node's
+  // "querystring" module.
+  const result: ParsedUrlQuery = {}
+  for (const [key, value] of searchParams.entries()) {
+    if (result[key] === undefined) {
+      result[key] = value
+    } else if (Array.isArray(result[key])) {
+      result[key].push(value)
+    } else {
+      result[key] = [result[key], value]
+    }
+  }
+  return result
 }

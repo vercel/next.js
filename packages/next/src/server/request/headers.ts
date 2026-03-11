@@ -10,45 +10,24 @@ import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
+  type RequestStore,
+  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
-  trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
+  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
-
-/**
- * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
- * synchronously to facilitate migration. The `UnsafeUnwrappedHeaders` type is added to your code by a codemod that attempts to automatically
- * updates callsites to reflect the new Promise return type. There are some cases where `headers()` cannot be automatically converted, namely
- * when it is used inside a synchronous function and we can't be sure the function can be made async automatically. In these cases we add an
- * explicit type case to `UnsafeUnwrappedHeaders` to enable typescript to allow for the synchronous usage only where it is actually necessary.
- *
- * You should should update these callsites to either be async functions where the `headers()` value can be awaited or you should call `headers()`
- * from outside and await the return value before passing it into this function.
- *
- * You can find instances that require manual migration by searching for `UnsafeUnwrappedHeaders` in your codebase or by search for a comment that
- * starts with `@next-codemod-error`.
- *
- * In a future version of Next.js `headers()` will only return a Promise and you will not be able to access the underlying Headers instance
- * without awaiting the return value first. When this change happens the type `UnsafeUnwrappedHeaders` will be updated to reflect that is it no longer
- * usable.
- *
- * This type is marked deprecated to help identify it as target for refactoring away.
- *
- * @deprecated
- */
-export type UnsafeUnwrappedHeaders = ReadonlyHeaders
+import { RenderStage } from '../app-render/staged-rendering'
 
 /**
  * This function allows you to read the HTTP incoming request headers in
@@ -71,7 +50,7 @@ export function headers(): Promise<ReadonlyHeaders> {
       !isRequestAPICallableInsideAfter()
     ) {
       throw new Error(
-        `Route ${workStore.route} used "headers" inside "after(...)". This is not supported. If you need this data inside an "after" callback, use "headers" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`headers()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`headers()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
       )
     }
 
@@ -79,22 +58,14 @@ export function headers(): Promise<ReadonlyHeaders> {
       // When using forceStatic we override all other logic and always just return an empty
       // headers object without tracking
       const underlyingHeaders = HeadersAdapter.seal(new Headers({}))
-      return makeUntrackedExoticHeaders(underlyingHeaders)
+      return makeUntrackedHeaders(underlyingHeaders)
     }
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache': {
           const error = new Error(
-            `Route ${workStore.route} used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-          )
-          Error.captureStackTrace(error, headers)
-          workStore.invalidDynamicUsageError ??= error
-          throw error
-        }
-        case 'private-cache': {
-          const error = new Error(
-            `Route ${workStore.route} used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+            `Route ${workStore.route} used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, headers)
           workStore.invalidDynamicUsageError ??= error
@@ -102,10 +73,12 @@ export function headers(): Promise<ReadonlyHeaders> {
         }
         case 'unstable-cache':
           throw new Error(
-            `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+            `Route ${workStore.route} used \`headers()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
           )
         case 'prerender':
         case 'prerender-client':
+        case 'validation-client':
+        case 'private-cache':
         case 'prerender-runtime':
         case 'prerender-ppr':
         case 'prerender-legacy':
@@ -118,16 +91,16 @@ export function headers(): Promise<ReadonlyHeaders> {
 
     if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'prerender':
-        case 'prerender-runtime':
           return makeHangingHeaders(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`headers`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
@@ -152,6 +125,15 @@ export function headers(): Promise<ReadonlyHeaders> {
             workStore,
             workUnitStore
           )
+        case 'prerender-runtime':
+          return delayUntilRuntimeStage(
+            workUnitStore,
+            makeUntrackedHeaders(workUnitStore.headers)
+          )
+        case 'private-cache':
+          // Private caches are delayed until the runtime stage in use-cache-wrapper,
+          // so we don't need an additional delay here.
+          return makeUntrackedHeaders(workUnitStore.headers)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -159,23 +141,17 @@ export function headers(): Promise<ReadonlyHeaders> {
             // Semantically we only need the dev tracking when running in `next dev`
             // but since you would never use next dev with production NODE_ENV we use this
             // as a proxy so we can statically exclude this code from production builds.
-            if (process.env.__NEXT_CACHE_COMPONENTS) {
-              return makeUntrackedHeadersWithDevWarnings(
-                workUnitStore.headers,
-                workStore?.route
-              )
-            }
-
-            return makeUntrackedExoticHeadersWithDevWarnings(
+            return makeUntrackedHeadersWithDevWarnings(
               workUnitStore.headers,
-              workStore?.route
+              workStore?.route,
+              workUnitStore
             )
+          } else if (workUnitStore.asyncApiPromises) {
+            return isInEarlyRenderStage(workUnitStore)
+              ? workUnitStore.asyncApiPromises.earlyHeaders
+              : workUnitStore.asyncApiPromises.headers
           } else {
-            if (process.env.__NEXT_CACHE_COMPONENTS) {
-              return makeUntrackedHeaders(workUnitStore.headers)
-            }
-
-            return makeUntrackedExoticHeaders(workUnitStore.headers)
+            return makeUntrackedHeaders(workUnitStore.headers)
           }
           break
         default:
@@ -224,257 +200,106 @@ function makeUntrackedHeaders(
   return promise
 }
 
-function makeUntrackedExoticHeaders(
-  underlyingHeaders: ReadonlyHeaders
-): Promise<ReadonlyHeaders> {
-  const cachedHeaders = CachedHeaders.get(underlyingHeaders)
-  if (cachedHeaders) {
-    return cachedHeaders
-  }
-
-  const promise = Promise.resolve(underlyingHeaders)
-  CachedHeaders.set(underlyingHeaders, promise)
-
-  Object.defineProperties(promise, {
-    append: {
-      value: underlyingHeaders.append.bind(underlyingHeaders),
-    },
-    delete: {
-      value: underlyingHeaders.delete.bind(underlyingHeaders),
-    },
-    get: {
-      value: underlyingHeaders.get.bind(underlyingHeaders),
-    },
-    has: {
-      value: underlyingHeaders.has.bind(underlyingHeaders),
-    },
-    set: {
-      value: underlyingHeaders.set.bind(underlyingHeaders),
-    },
-    getSetCookie: {
-      value: underlyingHeaders.getSetCookie.bind(underlyingHeaders),
-    },
-    forEach: {
-      value: underlyingHeaders.forEach.bind(underlyingHeaders),
-    },
-    keys: {
-      value: underlyingHeaders.keys.bind(underlyingHeaders),
-    },
-    values: {
-      value: underlyingHeaders.values.bind(underlyingHeaders),
-    },
-    entries: {
-      value: underlyingHeaders.entries.bind(underlyingHeaders),
-    },
-    [Symbol.iterator]: {
-      value: underlyingHeaders[Symbol.iterator].bind(underlyingHeaders),
-    },
-  } satisfies HeadersExtensions)
-
-  return promise
-}
-
-function makeUntrackedExoticHeadersWithDevWarnings(
-  underlyingHeaders: ReadonlyHeaders,
-  route?: string
-): Promise<ReadonlyHeaders> {
-  const cachedHeaders = CachedHeaders.get(underlyingHeaders)
-  if (cachedHeaders) {
-    return cachedHeaders
-  }
-
-  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
-
-  CachedHeaders.set(underlyingHeaders, promise)
-
-  Object.defineProperties(promise, {
-    append: {
-      value: function append() {
-        const expression = `\`headers().append(${describeNameArg(arguments[0])}, ...)\``
-        syncIODev(route, expression)
-        return underlyingHeaders.append.apply(
-          underlyingHeaders,
-          arguments as any
-        )
-      },
-    },
-    delete: {
-      value: function _delete() {
-        const expression = `\`headers().delete(${describeNameArg(arguments[0])})\``
-        syncIODev(route, expression)
-        return underlyingHeaders.delete.apply(
-          underlyingHeaders,
-          arguments as any
-        )
-      },
-    },
-    get: {
-      value: function get() {
-        const expression = `\`headers().get(${describeNameArg(arguments[0])})\``
-        syncIODev(route, expression)
-        return underlyingHeaders.get.apply(underlyingHeaders, arguments as any)
-      },
-    },
-    has: {
-      value: function has() {
-        const expression = `\`headers().has(${describeNameArg(arguments[0])})\``
-        syncIODev(route, expression)
-        return underlyingHeaders.has.apply(underlyingHeaders, arguments as any)
-      },
-    },
-    set: {
-      value: function set() {
-        const expression = `\`headers().set(${describeNameArg(arguments[0])}, ...)\``
-        syncIODev(route, expression)
-        return underlyingHeaders.set.apply(underlyingHeaders, arguments as any)
-      },
-    },
-    getSetCookie: {
-      value: function getSetCookie() {
-        const expression = '`headers().getSetCookie()`'
-        syncIODev(route, expression)
-        return underlyingHeaders.getSetCookie.apply(
-          underlyingHeaders,
-          arguments as any
-        )
-      },
-    },
-    forEach: {
-      value: function forEach() {
-        const expression = '`headers().forEach(...)`'
-        syncIODev(route, expression)
-        return underlyingHeaders.forEach.apply(
-          underlyingHeaders,
-          arguments as any
-        )
-      },
-    },
-    keys: {
-      value: function keys() {
-        const expression = '`headers().keys()`'
-        syncIODev(route, expression)
-        return underlyingHeaders.keys.apply(underlyingHeaders, arguments as any)
-      },
-    },
-    values: {
-      value: function values() {
-        const expression = '`headers().values()`'
-        syncIODev(route, expression)
-        return underlyingHeaders.values.apply(
-          underlyingHeaders,
-          arguments as any
-        )
-      },
-    },
-    entries: {
-      value: function entries() {
-        const expression = '`headers().entries()`'
-        syncIODev(route, expression)
-        return underlyingHeaders.entries.apply(
-          underlyingHeaders,
-          arguments as any
-        )
-      },
-    },
-    [Symbol.iterator]: {
-      value: function () {
-        const expression = '`...headers()` or similar iteration'
-        syncIODev(route, expression)
-        return underlyingHeaders[Symbol.iterator].apply(
-          underlyingHeaders,
-          arguments as any
-        )
-      },
-    },
-  } satisfies HeadersExtensions)
-
-  return promise
-}
-
-// Similar to `makeUntrackedExoticHeadersWithDevWarnings`, but just logging the
-// sync access without actually defining the headers properties on the promise.
 function makeUntrackedHeadersWithDevWarnings(
   underlyingHeaders: ReadonlyHeaders,
-  route?: string
+  route: string | undefined,
+  requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
+  if (requestStore.asyncApiPromises) {
+    const promise = isInEarlyRenderStage(requestStore)
+      ? requestStore.asyncApiPromises.earlyHeaders
+      : requestStore.asyncApiPromises.headers
+    return instrumentHeadersPromiseWithDevWarnings(promise, route)
+  }
+
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
   if (cachedHeaders) {
     return cachedHeaders
   }
 
-  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
+  const promise = makeDevtoolsIOAwarePromise(
+    underlyingHeaders,
+    requestStore,
+    RenderStage.Runtime
+  )
 
-  const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
-      switch (prop) {
-        case Symbol.iterator: {
-          warnForSyncAccess(route, '`...headers()` or similar iteration')
-          break
-        }
-        case 'append':
-        case 'delete':
-        case 'get':
-        case 'has':
-        case 'set':
-        case 'getSetCookie':
-        case 'forEach':
-        case 'keys':
-        case 'values':
-        case 'entries': {
-          warnForSyncAccess(route, `\`headers().${prop}\``)
-          break
-        }
-        default: {
-          // We only warn for well-defined properties of the headers object.
-        }
-      }
-
-      return ReflectAdapter.get(target, prop, receiver)
-    },
-  })
+  const proxiedPromise = instrumentHeadersPromiseWithDevWarnings(promise, route)
 
   CachedHeaders.set(underlyingHeaders, proxiedPromise)
 
   return proxiedPromise
 }
 
-function describeNameArg(arg: unknown) {
-  return typeof arg === 'string' ? `'${arg}'` : '...'
-}
-
-function syncIODev(route: string | undefined, expression: string) {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (workUnitStore) {
-    switch (workUnitStore.type) {
-      case 'request':
-        if (workUnitStore.prerenderPhase === true) {
-          // When we're rendering dynamically in dev, we need to advance out of
-          // the Prerender environment when we read Request data synchronously.
-          trackSynchronousRequestDataAccessInDev(workUnitStore)
-        }
-        break
-      case 'prerender':
-      case 'prerender-client':
-      case 'prerender-runtime':
-      case 'prerender-ppr':
-      case 'prerender-legacy':
-      case 'cache':
-      case 'private-cache':
-      case 'unstable-cache':
-        break
-      default:
-        workUnitStore satisfies never
-    }
-  }
-
-  // In all cases we warn normally
-  warnForSyncAccess(route, expression)
-}
-
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createHeadersAccessError
 )
+
+function instrumentHeadersPromiseWithDevWarnings(
+  promise: Promise<ReadonlyHeaders>,
+  route: string | undefined
+) {
+  Object.defineProperties(promise, {
+    [Symbol.iterator]: replaceableWarningDescriptorForSymbolIterator(
+      promise,
+      route
+    ),
+    append: replaceableWarningDescriptor(promise, 'append', route),
+    delete: replaceableWarningDescriptor(promise, 'delete', route),
+    get: replaceableWarningDescriptor(promise, 'get', route),
+    has: replaceableWarningDescriptor(promise, 'has', route),
+    set: replaceableWarningDescriptor(promise, 'set', route),
+    getSetCookie: replaceableWarningDescriptor(promise, 'getSetCookie', route),
+    forEach: replaceableWarningDescriptor(promise, 'forEach', route),
+    keys: replaceableWarningDescriptor(promise, 'keys', route),
+    values: replaceableWarningDescriptor(promise, 'values', route),
+    entries: replaceableWarningDescriptor(promise, 'entries', route),
+  })
+  return promise
+}
+
+function replaceableWarningDescriptor(
+  target: unknown,
+  prop: string,
+  route: string | undefined
+) {
+  return {
+    enumerable: false,
+    get() {
+      warnForSyncAccess(route, `\`headers().${prop}\``)
+      return undefined
+    },
+    set(value: unknown) {
+      Object.defineProperty(target, prop, {
+        value,
+        writable: true,
+        configurable: true,
+      })
+    },
+    configurable: true,
+  }
+}
+
+function replaceableWarningDescriptorForSymbolIterator(
+  target: unknown,
+  route: string | undefined
+) {
+  return {
+    enumerable: false,
+    get() {
+      warnForSyncAccess(route, '`...headers()` or similar iteration')
+      return undefined
+    },
+    set(value: unknown) {
+      Object.defineProperty(target, Symbol.iterator, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      })
+    },
+    configurable: true,
+  }
+}
 
 function createHeadersAccessError(
   route: string | undefined,
@@ -483,11 +308,7 @@ function createHeadersAccessError(
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
-      `\`headers()\` should be awaited before using its value. ` +
+      `\`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
-}
-
-type HeadersExtensions = {
-  [K in keyof ReadonlyHeaders]: unknown
 }

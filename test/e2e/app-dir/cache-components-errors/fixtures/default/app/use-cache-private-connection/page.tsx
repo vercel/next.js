@@ -1,7 +1,7 @@
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export default function Page() {
+export default async function Page() {
   return (
     <>
       <p>
@@ -17,6 +17,10 @@ export default function Page() {
 
 async function Private() {
   'use cache: private'
+
+  // TODO: this should be displayed as a Runtime Error even with this delay,
+  // but right now we might not read it in time and log it as as a console error instead.
+  await new Promise((resolve) => setTimeout(resolve))
 
   // Calling connection() in a cache context is not allowed. We're try/catching
   // here to ensure that, in dev mode, this error is shown even when it's caught

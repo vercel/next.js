@@ -85,42 +85,50 @@ function startObservingForPortal() {
 
   // Set up MutationObserver to watch for the portal element
   const observer = new MutationObserver((mutations) => {
-    if (mutations.length === 0 || mutations[0].addedNodes.length === 0) {
+    if (mutations.length === 0) {
       return
     }
 
-    // Check if mutation is script[data-nextjs-dev-overlay] tag, which is the
-    // parent of the nextjs-portal element
-    const mutationNode = mutations[0].addedNodes[0]
-    let portalNode = null
-    if (
-      // app router: body > script[data-nextjs-dev-overlay] > nextjs-portal
-      mutationNode.tagName === 'SCRIPT' &&
-      mutationNode.getAttribute('data-nextjs-dev-overlay')
-    ) {
-      portalNode = mutationNode.firstChild
-    } else if (
-      // pages router: body > nextjs-portal
-      mutationNode.tagName === 'NEXTJS-PORTAL'
-    ) {
-      portalNode = mutationNode
-    }
-    if (!portalNode) {
-      return
-    }
+    // Check all mutations and all added nodes
+    for (const mutation of mutations) {
+      if (mutation.addedNodes.length === 0) continue
 
-    // Wait until shadow root is available
-    const checkShadowRoot = () => {
-      if (getShadowRoot()) {
-        flushCachedElements()
-        observer.disconnect()
-        cache.isObserving = false
-      } else {
-        // Try again after a short delay
-        setTimeout(checkShadowRoot, 20)
+      for (const addedNode of mutation.addedNodes) {
+        if (addedNode.nodeType !== Node.ELEMENT_NODE) continue
+
+        const mutationNode = addedNode
+
+        let portalNode = null
+        if (
+          // app router: body > script[data-nextjs-dev-overlay] > nextjs-portal
+          mutationNode.tagName === 'SCRIPT' &&
+          mutationNode.getAttribute('data-nextjs-dev-overlay')
+        ) {
+          portalNode = mutationNode.firstChild
+        } else if (
+          // pages router: body > nextjs-portal
+          mutationNode.tagName === 'NEXTJS-PORTAL'
+        ) {
+          portalNode = mutationNode
+        }
+
+        if (portalNode) {
+          // Wait until shadow root is available
+          const checkShadowRoot = () => {
+            if (getShadowRoot()) {
+              flushCachedElements()
+              observer.disconnect()
+              cache.isObserving = false
+            } else {
+              // Try again after a short delay
+              setTimeout(checkShadowRoot, 20)
+            }
+          }
+          checkShadowRoot()
+          return // Exit early once we find a portal
+        }
       }
     }
-    checkShadowRoot()
   })
 
   observer.observe(document.body, {

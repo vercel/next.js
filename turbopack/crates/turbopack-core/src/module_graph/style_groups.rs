@@ -1,9 +1,9 @@
 use std::cmp::Reverse;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
@@ -15,7 +15,7 @@ use crate::{
         ChunkItem, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
         ChunkableModule, ChunkingContext, chunk_item_batch::attach_async_info_to_chunkable_module,
     },
-    module::{Module, StyleType},
+    module::{Module, StyleModule, StyleType},
     module_graph::{
         GraphTraversalAction, ModuleGraph, module_batch::ModuleOrBatch,
         module_batches::ModuleBatchesGraphEdge,
@@ -23,7 +23,7 @@ use crate::{
 };
 
 #[derive(
-    TaskInput, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, NonLocalValue, TraceRawVcs,
+    TaskInput, Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,
@@ -37,6 +37,7 @@ pub struct StyleGroupsConfig {
 pub struct StyleGroups {
     /// The key chunk item is contained in the value chunk item batch. All chunk items that are not
     /// contained in this map are placed in a separate chunk per chunk item.
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub shared_chunk_items:
         FxIndexMap<ChunkItemWithAsyncModuleInfo, ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
 }
@@ -129,8 +130,10 @@ pub async fn compute_style_groups(
                     }
                 }
                 Entry::Vacant(e) => {
-                    let style_type = *module.style_type().await?;
-                    if let Some(style_type) = style_type {
+                    if let Some(style_module) =
+                        ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(module)
+                    {
+                        let style_type = *style_module.style_type().await?;
                         let mut info =
                             ModuleInfo::new(style_type, module.ident().to_string().owned().await?);
                         info.chunk_group_indices.insert(idx, styles.len());

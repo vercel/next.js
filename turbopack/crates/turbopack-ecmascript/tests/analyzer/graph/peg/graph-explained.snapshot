@@ -140,7 +140,7 @@
 
 *anonymous function 5936* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
 
-*anonymous function 625* = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
+*anonymous function 625* (const after eval) = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
 
 *anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
 
@@ -253,10 +253,10 @@ ctor = (...) => undefined
 describeExpectation = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)
 
 describeExpected = (...) => (
-  | undefined
   | descriptions[0]
   | `${descriptions[0]} or ${descriptions[1]}`
   | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+  | undefined
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
@@ -483,7 +483,7 @@ parts = arguments[0]
 
 peg$FAILED = {}
 
-peg$SyntaxError = (...) => undefined
+peg$SyntaxError (const after eval) = (...) => undefined
 
 peg$anyExpectation = (...) => {"type": "any"}
 
@@ -928,7 +928,7 @@ peg$computeLocation = (...) => {
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
 }
 
-peg$computePosDetails = (...) => (undefined | details)
+peg$computePosDetails = (...) => details
 
 peg$currPos = (
   | 0
@@ -1073,7 +1073,7 @@ peg$currPos = (
 
 peg$endExpectation = (...) => {"type": "end"}
 
-peg$fail = (...) => (undefined | FreeVar(undefined))
+peg$fail = (...) => undefined
 
 peg$literalExpectation = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}
 
@@ -1083,7 +1083,7 @@ peg$maxFailPos = (0 | peg$currPos)
 
 peg$otherExpectation = (...) => {"type": "other", "description": description}
 
-peg$parse = (...) => (undefined | peg$result)
+peg$parse (const after eval) = (...) => (peg$result | undefined)
 
 peg$parse_ = (...) => s0
 
@@ -1364,7 +1364,7 @@ peg$startRuleFunction = (peg$parsesql | peg$startRuleFunctions[options["startRul
 
 peg$startRuleFunctions = {"sql": peg$parsesql}
 
-peg$subclass = (...) => undefined
+peg$subclass (const after eval) = (...) => undefined
 
 pos = arguments[0]
 

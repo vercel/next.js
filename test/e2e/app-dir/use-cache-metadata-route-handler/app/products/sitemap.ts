@@ -1,6 +1,5 @@
 import type { MetadataRoute } from 'next'
 import { getSentinelValue } from '../sentinel'
-import { setTimeout } from 'timers/promises'
 
 export async function generateSitemaps() {
   return [{ id: 0 }, { id: 1 }]
@@ -9,12 +8,13 @@ export async function generateSitemaps() {
 export default async function sitemap({
   id,
 }: {
-  id: number
+  id: Promise<number>
 }): Promise<MetadataRoute.Sitemap> {
   'use cache'
 
-  // Simulate I/O
-  await setTimeout(100)
+  const resolvedId = await id
 
-  return [{ url: `https://acme.com/${id}?sentinel=${getSentinelValue()}` }]
+  return [
+    { url: `https://acme.com/${resolvedId}?sentinel=${getSentinelValue()}` },
+  ]
 }
