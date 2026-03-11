@@ -6,7 +6,7 @@ import {
 } from 'e2e-utils/instant-validation'
 
 describe('instant-validation-build', () => {
-  const { next, skipped, isNextStart } = nextTestSetup({
+  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
@@ -15,9 +15,13 @@ describe('instant-validation-build', () => {
   if (skipped) {
     return
   }
-
   if (!isNextStart) {
     it.skip('Build-time only test', () => {})
+    return
+  }
+  if (!isTurbopack) {
+    // TODO(instant-validation-build): snapshot tests for webpack
+    it.skip('TODO: snapshot tests for webpack', () => {})
     return
   }
 

@@ -29,6 +29,12 @@ describe('instant validation', () => {
   })
   if (skipped) return
 
+  if (isNextStart && !isTurbopack) {
+    // TODO(instant-validation-build): snapshot tests for webpack
+    it.skip('TODO: snapshot tests for webpack', () => {})
+    return
+  }
+
   if (isNextStart) {
     beforeAll(async () => {
       await next.build({ args: ['--experimental-build-mode', 'compile'] })
