@@ -1595,6 +1595,8 @@ export async function handleBuildComplete({
         const partialFallback =
           partialFallbacksEnabled &&
           isAppPage &&
+          // Only fallback shells for pages that have at least one prerendered param
+          // can safely vary by route params and be upgradeable.
           hasStaticPrerenderedRoutes === true &&
           renderingMode === RenderingMode.PARTIALLY_STATIC &&
           typeof fallback === 'string' &&

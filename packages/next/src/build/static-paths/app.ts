@@ -417,9 +417,10 @@ interface TrieNode {
 }
 
 /**
- * Assigns the throwOnEmptyStaticShell property to each of the prerendered routes.
+ * Assigns static shell metadata to each prerendered route.
  * This function uses a Trie data structure to efficiently determine whether each route
- * should throw an error when its static shell is empty.
+ * should throw an error when its static shell is empty and whether a fallback shell
+ * has concrete prerendered coverage that makes it upgradeable.
  *
  * A route should not throw on empty static shell if it has child routes in the Trie. For example,
  * if we have two routes, `/blog/first-post` and `/blog/[slug]`, the route for
@@ -428,7 +429,7 @@ interface TrieNode {
  * @param prerenderedRoutes - The prerendered routes.
  * @param pathnameSegments - The keys of the route parameters.
  */
-export function assignErrorIfEmpty(
+export function assignStaticShellMetadata(
   prerenderedRoutes: readonly PrerenderedRoute[],
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
@@ -453,6 +454,9 @@ export function assignErrorIfEmpty(
   // Iterate over each prerendered route and insert it into the Trie.
   // Each route's concrete parameter values form a path in the Trie.
   for (const route of prerenderedRoutes) {
+    // `hasStaticPrerenderedRoutes` is only concerned with routes that are
+    // already fully concrete. Fallback shells can be upgradeable, but they do
+    // not contribute concrete descendant coverage themselves.
     const isFullyConcreteRoute =
       computeHasStaticPrerenderedRoutes &&
       (!route.fallbackRouteParams || route.fallbackRouteParams.length === 0)
@@ -511,6 +515,9 @@ export function assignErrorIfEmpty(
 
     if (pathNodes) {
       const concreteRouteDepth = currentNode.depth
+      // Any shell that lands on one of these ancestor nodes can only be
+      // upgradeable if there is a concrete descendant deep enough to finish
+      // all of its remaining unresolved pathname params.
       for (const node of pathNodes) {
         node.maxStaticPrerenderedRouteDepth = Math.max(
           node.maxStaticPrerenderedRouteDepth,
@@ -583,6 +590,10 @@ export function assignErrorIfEmpty(
           route.fallbackRouteParams &&
           route.fallbackRouteParams.length > 0
         ) {
+          // Only unresolved pathname params contribute to the required
+          // descendant depth. Unresolved root params are handled separately
+          // below because those generic shells can still match other root
+          // branches via `fallbackSourceRoute`.
           let missingPathParamCount = 0
 
           for (const param of route.fallbackRouteParams) {
@@ -591,14 +602,17 @@ export function assignErrorIfEmpty(
             }
           }
 
+          const requiredConcreteRouteDepth = node.depth + missingPathParamCount
+          const hasConcreteDescendantForShell =
+            node.maxStaticPrerenderedRouteDepth >= requiredConcreteRouteDepth
+
           // Shells with unresolved root params can still match entirely
           // different root branches via the source route. Those shells should
           // not inherit upgradeability from concrete descendants in another
           // root branch.
           route.hasStaticPrerenderedRoutes =
             route.fallbackRootParams.length === 0 &&
-            node.maxStaticPrerenderedRouteDepth >=
-              node.depth + missingPathParamCount
+            hasConcreteDescendantForShell
         }
       }
     }
@@ -1065,7 +1079,7 @@ export async function buildAppStaticPaths({
 
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
   if (prerenderedRoutes && cacheComponents) {
-    assignErrorIfEmpty(
+    assignStaticShellMetadata(
       prerenderedRoutes,
       pathnameRouteParamSegments,
       partialFallbacksEnabled

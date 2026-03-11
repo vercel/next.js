@@ -1,7 +1,7 @@
 import { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
 import {
-  assignErrorIfEmpty,
+  assignStaticShellMetadata,
   generateAllParamCombinations,
   calculateFallbackMode,
   filterUniqueParams,
@@ -11,7 +11,7 @@ import type { PrerenderedRoute } from './types'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { AppSegment } from '../segment-config/app/app-segments'
 
-describe('assignErrorIfEmpty', () => {
+describe('assignStaticShellMetadata', () => {
   it('should assign throwOnEmptyStaticShell true for a static route with no children', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
@@ -25,7 +25,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(prerenderedRoutes, [], true)
+    assignStaticShellMetadata(prerenderedRoutes, [], true)
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
   })
@@ -57,7 +57,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(prerenderedRoutes, [{ paramName: 'id' }], true)
+    assignStaticShellMetadata(prerenderedRoutes, [{ paramName: 'id' }], true)
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
@@ -131,7 +131,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(
+    assignStaticShellMetadata(
       prerenderedRoutes,
       [{ paramName: 'id' }, { paramName: 'name' }],
       true
@@ -189,7 +189,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(
+    assignStaticShellMetadata(
       prerenderedRoutes,
       [{ paramName: 'id' }, { paramName: 'name' }, { paramName: 'extra' }],
       true
@@ -205,7 +205,7 @@ describe('assignErrorIfEmpty', () => {
 
   it('should handle empty input', () => {
     const prerenderedRoutes: PrerenderedRoute[] = []
-    assignErrorIfEmpty(prerenderedRoutes, [], true)
+    assignStaticShellMetadata(prerenderedRoutes, [], true)
     expect(prerenderedRoutes).toEqual([])
   })
 
@@ -236,7 +236,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(prerenderedRoutes, [{ paramName: 'id' }], false)
+    assignStaticShellMetadata(prerenderedRoutes, [{ paramName: 'id' }], false)
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
@@ -280,7 +280,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(prerenderedRoutes, [{ paramName: 'slug' }], true)
+    assignStaticShellMetadata(prerenderedRoutes, [{ paramName: 'slug' }], true)
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false) // Should not throw - has concrete children
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true) // Should throw - concrete route
@@ -332,7 +332,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(
+    assignStaticShellMetadata(
       prerenderedRoutes,
       [{ paramName: 'id' }, { paramName: 'slug' }],
       true
@@ -414,7 +414,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(
+    assignStaticShellMetadata(
       prerenderedRoutes,
       [
         { paramName: 'category' },
@@ -458,7 +458,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(
+    assignStaticShellMetadata(
       prerenderedRoutes,
       [{ paramName: 'locale' }, { paramName: 'segments' }],
       true
@@ -514,7 +514,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(
+    assignStaticShellMetadata(
       prerenderedRoutes,
       [{ paramName: 'lang' }, { paramName: 'slug' }],
       true
