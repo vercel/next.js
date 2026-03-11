@@ -417,6 +417,17 @@ pub enum ActionManifestModuleId<'a> {
     Number(u64),
 }
 
+impl<'act, 'src: 'act> From<&'src turbopack_core::chunk::ModuleId>
+    for ActionManifestModuleId<'act>
+{
+    fn from(module_id: &'src turbopack_core::chunk::ModuleId) -> Self {
+        match module_id {
+            turbopack_core::chunk::ModuleId::String(s) => ActionManifestModuleId::String(s),
+            turbopack_core::chunk::ModuleId::Number(n) => ActionManifestModuleId::Number(*n),
+        }
+    }
+}
+
 #[derive(
     Debug,
     Copy,
