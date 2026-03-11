@@ -81,25 +81,41 @@ type FoundSegmentWithConfig = {
  * Checks if any segments in the loader tree have `instant` configs that need validating.
  * NOTE: Client navigations call this multiple times, so we cache it.
  * */
-export const anySegmentNeedsInstantValidation = cacheScopedToWorkStore(
-  async (rootTree: LoaderTree): Promise<boolean> => {
-    const segments = await findSegmentsWithInstantConfig(rootTree)
+// Shared helper (not exported, not cached — called by the cached wrappers)
+async function anySegmentNeedsInstantValidation(
+  rootTree: LoaderTree,
+  mode: 'dev' | 'build'
+): Promise<boolean> {
+  const segments = await findSegmentsWithInstantConfig(rootTree)
 
-    // Check if there's any configs with `prefetch: 'static'` or `mode: 'instant'`.
-    // (If there's only `false`, there's no need to run validation).
-    // If any segment has `unstable_disableValidation`, we skip validation for the whole tree.
-    let needsValidation = false
-    for (const { config } of segments) {
-      if (typeof config === 'object') {
-        if (config.unstable_disableValidation) {
-          return false
-        }
-        // do not short-circuit, some other segment might still have `unstable_disableValidation`
-        needsValidation = true
+  // Check if there's any configs with `prefetch: 'static'` or `mode: 'instant'`.
+  // (If there's only `false`, there's no need to run validation).
+  // If any segment has `unstable_disableValidation`, we skip validation for the whole tree.
+  let needsValidation = false
+  for (const { config } of segments) {
+    if (typeof config === 'object') {
+      if (
+        config.unstable_disableValidation === true ||
+        (mode === 'dev' && config.unstable_disableDevValidation === true) ||
+        (mode === 'build' && config.unstable_disableBuildValidation === true)
+      ) {
+        return false
       }
+      // do not short-circuit, some other segment might still have `unstable_disableValidation`
+      needsValidation = true
     }
-    return needsValidation
   }
+  return needsValidation
+}
+
+export const anySegmentNeedsInstantValidationInDev = cacheScopedToWorkStore(
+  async (rootTree: LoaderTree): Promise<boolean> =>
+    anySegmentNeedsInstantValidation(rootTree, 'dev')
+)
+
+export const anySegmentNeedsInstantValidationInBuild = cacheScopedToWorkStore(
+  async (rootTree: LoaderTree): Promise<boolean> =>
+    anySegmentNeedsInstantValidation(rootTree, 'build')
 )
 
 export const findSegmentsWithInstantConfig = cacheScopedToWorkStore(

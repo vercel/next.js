@@ -244,7 +244,8 @@ import { RenderStage, StagedRenderingController } from './staged-rendering'
 import {
   anySegmentHasRuntimePrefetchEnabled,
   isPageAllowedToBlock,
-  anySegmentNeedsInstantValidation,
+  anySegmentNeedsInstantValidationInDev,
+  anySegmentNeedsInstantValidationInBuild,
   resolveInstantConfigSamplesForPage,
 } from './instant-validation/instant-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
@@ -560,7 +561,7 @@ async function generateDynamicRSCPayload(
       process.env.__NEXT_DEV_SERVER &&
       ctx.renderOpts.cacheComponents &&
       !options?.actionResult && // Only for navigations
-      (await anySegmentNeedsInstantValidation(loaderTree))
+      (await anySegmentNeedsInstantValidationInDev(loaderTree))
 
     const metadataIsRuntimePrefetchable =
       await anySegmentHasRuntimePrefetchEnabled(loaderTree)
@@ -1089,7 +1090,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   const shouldValidate =
     !isBypassingCachesInDev(initialRequestStore) &&
     (initialRequestStore.isHmrRefresh === true ||
-      (await anySegmentNeedsInstantValidation(loaderTree)))
+      (await anySegmentNeedsInstantValidationInDev(loaderTree)))
 
   const getPayload = async (requestStore: RequestStore) => {
     const payload: RSCPayload &
@@ -2389,7 +2390,7 @@ async function renderToHTMLOrFlightImpl(
       workStore.cacheComponentsEnabled &&
       workStore.isBuildTimePrerendering &&
       renderOpts.runInstantValidation &&
-      (await anySegmentNeedsInstantValidation(loaderTree))
+      (await anySegmentNeedsInstantValidationInBuild(loaderTree))
     ) {
       // Throws StaticGenBailoutError if validation failed.
       await validateInstantConfigsInBuild(
@@ -4127,7 +4128,7 @@ async function spawnStaticShellValidationInDevImpl(
   const { staticChunks, runtimeChunks, dynamicChunks } = accumulatedChunks
 
   const needsInstantValidation =
-    await anySegmentNeedsInstantValidation(loaderTree)
+    await anySegmentNeedsInstantValidationInDev(loaderTree)
 
   // `samples` from instant config are only used during build
   const validationSamples = null

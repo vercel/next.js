@@ -2614,6 +2614,74 @@ describe('instant validation', () => {
           expectBuildValidationSkipped(result)
         }
       })
+
+      it('disabling dev validation', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/disable-validation/disable-dev'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/disable-validation/disable-dev'
+          )
+          expect(extractBuildValidationError(result.cliOutput)).toContain(
+            'Build-time instant validation failed for route "/suspense-in-root/disable-validation/disable-dev"'
+          )
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('disabling build validation', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/disable-validation/disable-build'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (3:33) @ unstable_instant
+           > 3 | export const unstable_instant = {
+               |                                 ^",
+                 "stack": [
+                   "unstable_instant app/suspense-in-root/disable-validation/disable-build/page.tsx (3:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1078",
+             "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+           To fix this, you can either:
+
+           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+           or
+
+           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19) @ Page
+           > 9 |   await connection()
+               |                   ^",
+             "stack": [
+               "Page app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/disable-validation/disable-build'
+          )
+          expectBuildValidationSkipped(result)
+        }
+      })
     })
   })
 })

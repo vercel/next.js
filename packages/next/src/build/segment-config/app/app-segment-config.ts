@@ -24,7 +24,9 @@ const InstantConfigStaticSchema = z
     prefetch: z.literal('static'),
     samples: z.array(RuntimeSampleSchema).min(1).optional(),
     from: z.array(z.string()).optional(),
-    unstable_disableValidation: z.boolean().optional(),
+    unstable_disableValidation: z.literal(true).optional(),
+    unstable_disableDevValidation: z.literal(true).optional(),
+    unstable_disableBuildValidation: z.literal(true).optional(),
   })
   .strict()
 
@@ -33,7 +35,9 @@ const InstantConfigRuntimeSchema = z
     prefetch: z.literal('runtime'),
     samples: z.array(RuntimeSampleSchema).min(1),
     from: z.array(z.string()).optional(),
-    unstable_disableValidation: z.boolean().optional(),
+    unstable_disableValidation: z.literal(true).optional(),
+    unstable_disableDevValidation: z.literal(true).optional(),
+    unstable_disableBuildValidation: z.literal(true).optional(),
   })
   .strict()
 
@@ -46,6 +50,7 @@ const InstantConfigSchema = z.union([
 ])
 
 export type Instant = InstantConfigStatic | InstantConfigRuntime | false
+
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericPrefetch type is used to avoid type widening issues with
 // our choice to make exports the medium for programming a Next.js application
@@ -58,20 +63,26 @@ interface __GenericInstantConfig {
   samples?: Array<WideInstantSample>
   from?: string[]
   unstable_disableValidation?: boolean
+  unstable_disableDevValidation?: boolean
+  unstable_disableBuildValidation?: boolean
 }
 
 interface InstantConfigStatic {
   prefetch: 'static'
   samples?: Array<InstantSample>
   from?: string[]
-  unstable_disableValidation?: boolean
+  unstable_disableValidation?: true
+  unstable_disableDevValidation?: true
+  unstable_disableBuildValidation?: true
 }
 
 interface InstantConfigRuntime {
   prefetch: 'runtime'
   samples: Array<InstantSample>
   from?: string[]
-  unstable_disableValidation?: boolean
+  unstable_disableValidation?: true
+  unstable_disableDevValidation?: true
+  unstable_disableBuildValidation?: true
 }
 
 type WideInstantSample = {
