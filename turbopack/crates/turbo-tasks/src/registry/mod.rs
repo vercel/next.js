@@ -237,13 +237,6 @@ pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
     get_id(&TRAITS, trait_type)
 }
 
-/// Returns the total number of registered trait types.
-/// Must only be called after TRAITS is initialized.
-#[inline]
-pub(crate) fn trait_type_count() -> usize {
-    TRAITS.len()
-}
-
 #[inline]
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
     get_item(&TRAITS, id)
