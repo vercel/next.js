@@ -144,8 +144,8 @@ impl ValueDefault for TransitionOptions {
 }
 
 impl TransitionOptions {
-    pub fn get_named(&self, name: RcStr) -> Option<ResolvedVc<Box<dyn Transition>>> {
-        self.named_transitions.get(&name).copied()
+    pub fn get_named(&self, name: &RcStr) -> Option<ResolvedVc<Box<dyn Transition>>> {
+        self.named_transitions.get(name).copied()
     }
 
     pub async fn get_by_rules(

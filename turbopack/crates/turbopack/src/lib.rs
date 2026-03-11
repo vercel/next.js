@@ -1164,7 +1164,7 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn with_transition(&self, transition: RcStr) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(
-            if let Some(transition) = self.transitions.await?.get_named(transition) {
+            if let Some(transition) = self.transitions.await?.get_named(&transition) {
                 Vc::upcast(ModuleAssetContext::new_transition(
                     *self.transitions,
                     *self.compile_time_info,

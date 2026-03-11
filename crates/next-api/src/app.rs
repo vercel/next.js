@@ -106,6 +106,40 @@ impl AppProject {
     }
 }
 
+// This is equivalent to `FullContextTransition::new(app_project.rsc_module_context())`, but breaks
+// the turbo task cycle of
+// - rsc_module_context having a transition to client_module_context, and
+// - client_module_context having a transition to rsc_module_context.
+#[turbo_tasks::value]
+struct RSCTransition {
+    app_project: ResolvedVc<AppProject>,
+    runtime: NextRuntime,
+}
+#[turbo_tasks::value_impl]
+impl RSCTransition {
+    #[turbo_tasks::function]
+    pub fn new(app_project: ResolvedVc<AppProject>, runtime: NextRuntime) -> Vc<RSCTransition> {
+        RSCTransition {
+            app_project,
+            runtime,
+        }
+        .cell()
+    }
+}
+#[turbo_tasks::value_impl]
+impl Transition for RSCTransition {
+    #[turbo_tasks::function]
+    fn process_context(
+        &self,
+        _module_asset_context: Vc<ModuleAssetContext>,
+    ) -> Vc<ModuleAssetContext> {
+        match self.runtime {
+            NextRuntime::NodeJs => self.app_project.rsc_module_context(),
+            NextRuntime::Edge => self.app_project.edge_rsc_module_context(),
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl AppProject {
     #[turbo_tasks::function]
@@ -379,6 +413,17 @@ impl AppProject {
                     rcstr!("next-server-component"),
                     ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?),
                 ),
+                // noops, but keep here to always have the transitions defined
+                (
+                    rcstr!("next-rsc"),
+                    self.rsc_transition(NextRuntime::NodeJs)
+                        .to_resolved()
+                        .await?,
+                ),
+                (
+                    rcstr!("next-edge-rsc"),
+                    self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
+                ),
             ]
             .into_iter()
             .collect(),
@@ -482,6 +527,16 @@ impl AppProject {
                 rcstr!("next-server-utility"),
                 ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
+            (
+                rcstr!("next-rsc"),
+                self.rsc_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-edge-rsc"),
+                self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
+            ),
         ]
         .into_iter()
         .collect();
@@ -533,6 +588,16 @@ impl AppProject {
                 rcstr!("next-server-utility"),
                 ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
+            (
+                rcstr!("next-rsc"),
+                self.rsc_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-edge-rsc"),
+                self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
+            ),
         ]
         .into_iter()
         .collect();
@@ -560,6 +625,16 @@ impl AppProject {
             (
                 rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                rcstr!("next-rsc"),
+                self.rsc_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-edge-rsc"),
+                self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
             ),
         ]
         .into_iter()
@@ -653,6 +728,16 @@ impl AppProject {
                 rcstr!("next-shared"),
                 self.shared_transition().to_resolved().await?,
             ),
+            (
+                rcstr!("next-rsc"),
+                self.rsc_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-edge-rsc"),
+                self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
+            ),
         ]
         .into_iter()
         .collect();
@@ -724,6 +809,16 @@ impl AppProject {
             (
                 rcstr!("next-shared"),
                 self.edge_shared_transition().to_resolved().await?,
+            ),
+            (
+                rcstr!("next-rsc"),
+                self.rsc_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-edge-rsc"),
+                self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
             ),
         ]
         .into_iter()
