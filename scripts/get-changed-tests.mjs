@@ -10,7 +10,7 @@ const { existsSync } = require('fs')
 const glob = require('glob')
 const minimatch = require('minimatch')
 
-const DEPLOY_TESTS_MANIFEST_PATH = 'test/deploy-tests-manifest.json'
+const DEFAULT_DEPLOY_TESTS_MANIFEST_PATH = 'test/deploy-tests-manifest.json'
 const TEST_FILE_REGEX = /^test\/.*?\.test\.(js|ts|tsx)$/
 const DEPLOY_TEST_FILE_REGEX = /^test\/e2e\/.*?\.test\.(js|ts|tsx)$/
 
@@ -24,6 +24,66 @@ function getExcludedCases(suite = {}) {
 
 function isVersion2Manifest(manifest) {
   return manifest?.version === 2
+}
+
+function getExternalTestsFilterPaths() {
+  const externalTestsFilters =
+    process.env.NEXT_EXTERNAL_TESTS_FILTERS ??
+    DEFAULT_DEPLOY_TESTS_MANIFEST_PATH
+
+  const manifestPaths = new Map()
+
+  for (const manifestPath of externalTestsFilters.split(',')) {
+    if (!manifestPath.trim()) {
+      continue
+    }
+
+    const absolutePath = path.resolve(process.cwd(), manifestPath)
+    const repoRelativePath = normalizePath(
+      path.relative(process.cwd(), absolutePath)
+    )
+
+    manifestPaths.set(repoRelativePath, {
+      absolutePath,
+      repoRelativePath,
+    })
+  }
+
+  return [...manifestPaths.values()]
+}
+
+export function mergeVersion2Manifests(manifests) {
+  return manifests.reduce((mergedManifest, manifest) => {
+    if (!isVersion2Manifest(manifest)) {
+      return mergedManifest
+    }
+
+    if (!mergedManifest) {
+      return structuredClone(manifest)
+    }
+
+    for (const suite in manifest.suites) {
+      if (mergedManifest.suites[suite]) {
+        const mergedSuite = mergedManifest.suites[suite]
+        const currentSuite = manifest.suites[suite]
+        mergedSuite.failed = [
+          ...(mergedSuite.failed || []),
+          ...(currentSuite.failed || []),
+        ]
+        mergedSuite.flakey = [
+          ...(mergedSuite.flakey || []),
+          ...(currentSuite.flakey || []),
+        ]
+      } else {
+        mergedManifest.suites[suite] = structuredClone(manifest.suites[suite])
+      }
+    }
+
+    mergedManifest.rules.include.push(...(manifest.rules.include || []))
+    mergedManifest.rules.exclude.push(...(manifest.rules.exclude || []))
+
+    return mergedManifest
+  }, null)
 }
 
 function isIncludedByDeployManifest(file, manifest) {
@@ -90,12 +150,13 @@ export function getDeployManifestChangedTests(
   currentManifest,
   previousManifest
 ) {
-  if (
-    !isVersion2Manifest(currentManifest) ||
-    !isVersion2Manifest(previousManifest)
-  ) {
+  if (!isVersion2Manifest(currentManifest)) {
     return []
   }
+
+  const previousVersion2Manifest = isVersion2Manifest(previousManifest)
+    ? previousManifest
+    : { version: 2, suites: {}, rules: { include: [], exclude: [] } }
 
   const changedTests = new Set()
 
@@ -104,10 +165,10 @@ export function getDeployManifestChangedTests(
       currentManifest.suites?.[file]
     )
     const previousExcludedCases = getExcludedCases(
-      previousManifest.suites?.[file]
+      previousVersion2Manifest.suites?.[file]
     )
 
-    if (!isIncludedByDeployManifest(file, previousManifest)) {
+    if (!isIncludedByDeployManifest(file, previousVersion2Manifest)) {
       changedTests.add(file)
       continue
     }
@@ -189,27 +250,42 @@ export default async function getChangedTests() {
     }
   }
 
-  if (changedFiles.includes(DEPLOY_TESTS_MANIFEST_PATH)) {
-    const currentManifest = JSON.parse(
-      await fs.readFile(
-        path.join(process.cwd(), DEPLOY_TESTS_MANIFEST_PATH),
-        'utf8'
+  const externalTestsFilterPaths = getExternalTestsFilterPaths()
+
+  if (
+    externalTestsFilterPaths.some(({ repoRelativePath }) =>
+      changedFiles.includes(repoRelativePath)
+    )
+  ) {
+    const currentManifest = mergeVersion2Manifests(
+      await Promise.all(
+        externalTestsFilterPaths.map(async ({ absolutePath }) =>
+          JSON.parse(await fs.readFile(absolutePath, 'utf8'))
+        )
       )
     )
-    const previousManifestOutput = await execa(
-      `git show ${diffRevision}:${DEPLOY_TESTS_MANIFEST_PATH}`,
-      EXECA_OPTS
-    ).catch(() => null)
+    const previousManifest = mergeVersion2Manifests(
+      (
+        await Promise.all(
+          externalTestsFilterPaths.map(async ({ repoRelativePath }) => {
+            const previousManifestOutput = await execa(
+              `git show ${diffRevision}:${repoRelativePath}`,
+              EXECA_OPTS
+            ).catch(() => null)
 
-    if (previousManifestOutput?.stdout) {
-      const previousManifest = JSON.parse(previousManifestOutput.stdout)
+            return previousManifestOutput?.stdout
+              ? JSON.parse(previousManifestOutput.stdout)
+              : null
+          })
+        )
+      ).filter(Boolean)
+    )
 
-      for (const file of getDeployManifestChangedTests(
-        currentManifest,
-        previousManifest
-      )) {
-        deployTests.add(file)
-      }
+    for (const file of getDeployManifestChangedTests(
+      currentManifest,
+      previousManifest
+    )) {
+      deployTests.add(file)
     }
   }
 
