@@ -22,11 +22,11 @@ const respectsSideEffects = async () => {
 
   const expectSideEffectsOrder = ['_document', '_app', 'page']
 
-  const sideEffectCalls = $('.side-effect-calls')
+  const sideEffectCalls = Array.from($('.side-effect-calls')).map((c) =>
+    $(c).text()
+  )
 
-  Array.from(sideEffectCalls).forEach((sideEffectCall, index) => {
-    expect($(sideEffectCall).text()).toEqual(expectSideEffectsOrder[index])
-  })
+  expect(sideEffectCalls).toEqual(expectSideEffectsOrder)
 }
 
 const respectsChunkAttachmentOrder = async () => {
