@@ -88,7 +88,7 @@ use crate::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
-    project::{BaseAndFullModuleGraph, Project},
+    project::Project,
     route::{
         AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
@@ -975,13 +975,12 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    pub async fn app_module_graphs(
+    pub async fn app_module_graph(
         &self,
-        endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
         server_action_loader_module: ResolvedVc<Box<dyn Module>>,
         client_shared_entries_when_has_layout_segments: Option<Vc<EvaluatableAssets>>,
-    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+    ) -> Result<Vc<ModuleGraph>> {
         if *self.project.per_page_module_graph().await? {
             let next_mode = self.project.next_mode();
             let next_mode_ref = next_mode.await?;
@@ -1071,17 +1070,6 @@ impl AppProject {
                     should_read_binding_usage,
                 );
                 graphs.push(graph);
-                visited_modules = VisitedModules::concatenate(visited_modules, graph);
-
-                let base = ModuleGraph::from_graphs(graphs.clone(), None);
-                let additional_entries = endpoint.additional_entries(base.connect());
-                let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    additional_entries.owned().await?,
-                    visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
-                );
-                graphs.push(additional_module_graph);
 
                 if !span.is_disabled() {
                     let mut module_count = 0u64;
@@ -1096,33 +1084,27 @@ impl AppProject {
                     .next_config()
                     .turbopack_remove_unused_imports(next_mode)
                     .await?;
+                let remove_unused_exports = *self
+                    .project
+                    .next_config()
+                    .turbopack_remove_unused_exports(next_mode)
+                    .await?;
 
-                let (full, binding_usage_info) = if remove_unused_imports {
-                    let full_with_unused_references =
-                        ModuleGraph::from_graphs(graphs.clone(), None);
-                    let binding_usage_info = compute_binding_usage_info(
-                        full_with_unused_references,
-                        should_read_binding_usage,
-                    );
-                    (
-                        ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
-                        Some(binding_usage_info),
-                    )
+                let graph = if remove_unused_imports || remove_unused_exports {
+                    let graph = ModuleGraph::from_graphs(graphs.clone(), None);
+                    let binding_usage_info =
+                        compute_binding_usage_info(graph, remove_unused_imports);
+                    ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
                 } else {
-                    (ModuleGraph::from_graphs(graphs, None), None)
+                    ModuleGraph::from_graphs(graphs, None)
                 };
 
-                Ok(BaseAndFullModuleGraph {
-                    base: base.connect().to_resolved().await?,
-                    full: full.connect().to_resolved().await?,
-                    binding_usage_info,
-                }
-                .cell())
+                Ok(graph.connect())
             }
             .instrument(span_clone)
             .await
         } else {
-            Ok(self.project.whole_app_module_graphs())
+            Ok(self.project.whole_app_module_graph())
         }
     }
 }
@@ -1387,16 +1369,13 @@ impl AppEndpoint {
         let server_action_loader = self.server_action_loader_module();
 
         // TODO replace with self.module_graphs()
-        let module_graphs = this
-            .app_project
-            .app_module_graphs(
-                self,
-                *rsc_entry,
-                server_action_loader,
-                // We only need the client runtime entries for pages not for Route Handlers
-                is_app_page.then(|| this.app_project.client_runtime_entries()),
-            )
-            .await?;
+        let module_graph = this.app_project.app_module_graph(
+            *rsc_entry,
+            server_action_loader,
+            // We only need the client runtime entries for pages not for Route Handlers
+            is_app_page.then(|| this.app_project.client_runtime_entries()),
+        )
+        ;
 
         let client_chunking_context = project.client_chunking_context().to_resolved().await?;
 
@@ -1422,7 +1401,7 @@ impl AppEndpoint {
                 AssetIdent::from_path(project.project_path().owned().await?)
                     .with_modifier(rcstr!("client-shared-chunks")),
                 this.app_project.client_runtime_entries(),
-                *module_graphs.full,
+                module_graph,
                 *client_chunking_context,
             );
 
@@ -1439,27 +1418,25 @@ impl AppEndpoint {
 
         let per_page_module_graph = *project.per_page_module_graph().await?;
 
-        let next_dynamic_imports =
-            NextDynamicGraphs::new(*module_graphs.base, per_page_module_graph)
-                .get_next_dynamic_imports_for_endpoint(*rsc_entry)
-                .await?;
+        let next_dynamic_imports = NextDynamicGraphs::new(module_graph, per_page_module_graph)
+            .get_next_dynamic_imports_for_endpoint(*rsc_entry)
+            .await?;
 
         let is_production = project.next_mode().await?.is_production();
 
-        let client_references =
-            ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
-                .get_client_references_for_endpoint(
-                    *rsc_entry,
-                    matches!(this.ty, AppEndpointType::Page { .. }),
-                    is_production,
-                    is_production,
-                )
-                .to_resolved()
-                .await?;
+        let client_references = ClientReferencesGraphs::new(module_graph, per_page_module_graph)
+            .get_client_references_for_endpoint(
+                *rsc_entry,
+                matches!(this.ty, AppEndpointType::Page { .. }),
+                is_production,
+                is_production,
+            )
+            .to_resolved()
+            .await?;
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
-            *module_graphs.full,
+            module_graph,
             *client_chunking_context,
             availability_info,
             ssr_chunking_context.map(|ctx| *ctx),
@@ -1574,7 +1551,7 @@ impl AppEndpoint {
                     node_root.clone(),
                     app_entry.original_name.clone(),
                     runtime,
-                    *module_graphs.full,
+                    module_graph,
                     this.app_project
                         .project()
                         .runtime_chunking_context(process_client_assets, runtime),
@@ -1589,7 +1566,7 @@ impl AppEndpoint {
                 *client_references,
                 server_path.clone(),
                 process_client_assets,
-                *module_graphs.full,
+                module_graph,
             )
             .to_resolved()
             .await?;
@@ -1611,7 +1588,7 @@ impl AppEndpoint {
                     client_references_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
-                    async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
+                    async_module_info: module_graph.async_module_info().to_resolved().await?,
                     next_config: project.next_config().to_resolved().await?,
                     runtime,
                     mode: *project.next_mode().await?,
@@ -1694,7 +1671,7 @@ impl AppEndpoint {
 
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
-                        *module_graphs.full,
+                        module_graph,
                         *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
@@ -1818,7 +1795,7 @@ impl AppEndpoint {
                 let loadable_manifest_output = if emit_manifests == EmitManifests::Full {
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
-                        *module_graphs.full,
+                        module_graph,
                         *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
@@ -2191,17 +2168,17 @@ impl Endpoint for AppEndpoint {
         let app_entry = self.app_endpoint_entry().await?;
         let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
         let server_action_loader = self.server_action_loader_module();
-        let module_graphs = this
+        let module_graph = this
             .app_project
-            .app_module_graphs(
-                self,
+            .app_module_graph(
                 *app_entry.rsc_entry,
                 server_action_loader,
                 // We only need the client runtime entries for pages not for Route Handlers
                 is_app_page.then(|| this.app_project.client_runtime_entries()),
             )
+            .to_resolved()
             .await?;
-        Ok(Vc::cell(vec![module_graphs.full]))
+        Ok(Vc::cell(vec![module_graph]))
     }
 
     #[turbo_tasks::function]

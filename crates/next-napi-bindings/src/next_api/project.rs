@@ -1701,13 +1701,14 @@ async fn output_assets_operation(
         return Ok(Vc::cell(output_assets.into_iter().collect()));
     }
 
-    let whole_app_module_graphs = project.whole_app_module_graphs();
+    let whole_app_module_graph = project.whole_app_module_graph();
     let nft = next_server_nft_assets(project).await?;
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
     let immutable_hashes_manifest_asset =
         immutable_hashes_manifest_asset_if_enabled(project).await?;
 
-    whole_app_module_graphs.as_side_effect().await?;
+    // Eagerly resolve the module graph here, for a hierarchy in the trace
+    whole_app_module_graph.as_side_effect().await?;
 
     Ok(Vc::cell(
         output_assets
@@ -2522,12 +2523,12 @@ async fn get_all_compilation_issues_inner_operation(
 ) -> Result<Vc<()>> {
     let project = container.project();
     // Build the whole app module graph without chunking, code gen, or disk emission.
-    // We use whole_app_module_graphs_without_dropping_issues() instead of
-    // whole_app_module_graphs() because the latter drops issues in development mode
+    // We use whole_app_module_graph_without_dropping_issues() instead of
+    // whole_app_module_graph() because the latter drops issues in development mode
     // (to avoid duplicate per-route HMR noise). The non-dropping variant ensures issues
     // like missing modules and transform errors are properly collected as collectables here.
     project
-        .whole_app_module_graphs_without_dropping_issues()
+        .whole_app_module_graph_without_dropping_issues()
         .as_side_effect()
         .await?;
     Ok(Vc::cell(()))

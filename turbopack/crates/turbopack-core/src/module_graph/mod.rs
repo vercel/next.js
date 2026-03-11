@@ -695,7 +695,7 @@ impl ImportTracer for ModuleGraphImportTracer {
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub struct ModuleGraph {
     input_graphs: Vec<OperationVc<SingleModuleGraph>>,
-    input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
+    pub input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
 
     snapshot: ModuleGraphSnapshot,
 }

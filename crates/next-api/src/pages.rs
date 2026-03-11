@@ -757,10 +757,14 @@ impl PageEndpoint {
                 .next_config()
                 .turbopack_remove_unused_imports(next_mode)
                 .await?;
+            let remove_unused_exports = *project
+                .next_config()
+                .turbopack_remove_unused_exports(next_mode)
+                .await?;
 
-            let graph = if remove_unused_imports {
+            let graph = if remove_unused_imports || remove_unused_exports {
                 let graph = ModuleGraph::from_graphs(graphs.clone(), None);
-                let binding_usage_info = compute_binding_usage_info(graph, true);
+                let binding_usage_info = compute_binding_usage_info(graph, remove_unused_imports);
                 ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
             } else {
                 ModuleGraph::from_graphs(graphs, None)
@@ -768,7 +772,7 @@ impl PageEndpoint {
 
             Ok(graph.connect())
         } else {
-            Ok(*project.whole_app_module_graphs().await?.full)
+            Ok(project.whole_app_module_graph())
         }
     }
 

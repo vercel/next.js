@@ -16,11 +16,10 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingType,
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference::all_assets_from_entries,
 };
-
-use crate::route::ModuleGraphs;
 
 pub struct EdgesData {
     pub offsets: Vec<u32>,
@@ -431,30 +430,28 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
 }
 
 #[turbo_tasks::function]
-pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc<FileContent>> {
+pub async fn analyze_module_graph(module_graph: Vc<ModuleGraph>) -> Result<Vc<FileContent>> {
     let mut builder = ModulesDataBuilder::new();
 
     let mut all_modules = FxIndexSet::default();
     let mut all_edges = FxIndexSet::default();
     let mut all_async_edges = FxIndexSet::default();
-    for &module_graph in module_graphs.await? {
-        let module_graph = module_graph.await?;
-        module_graph.traverse_edges_unordered(|parent, node| {
-            if let Some((parent_node, reference)) = parent {
-                all_modules.insert(parent_node);
-                all_modules.insert(node);
-                match reference.chunking_type {
-                    ChunkingType::Async => {
-                        all_async_edges.insert((parent_node, node));
-                    }
-                    _ => {
-                        all_edges.insert((parent_node, node));
-                    }
+    let module_graph = module_graph.await?;
+    module_graph.traverse_edges_unordered(|parent, node| {
+        if let Some((parent_node, reference)) = parent {
+            all_modules.insert(parent_node);
+            all_modules.insert(node);
+            match reference.chunking_type {
+                ChunkingType::Async => {
+                    all_async_edges.insert((parent_node, node));
+                }
+                _ => {
+                    all_edges.insert((parent_node, node));
                 }
             }
-            Ok(())
-        })?;
-    }
+        }
+        Ok(())
+    })?;
 
     type ModulePair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
     async fn mapper((from, to): ModulePair) -> Result<Option<(RcStr, RcStr)>> {
@@ -568,18 +565,14 @@ impl OutputAsset for AnalyzeDataOutputAsset {
 #[turbo_tasks::value]
 pub struct ModulesDataOutputAsset {
     pub path: FileSystemPath,
-    pub module_graphs: ResolvedVc<ModuleGraphs>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModulesDataOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(path: FileSystemPath, module_graphs: Vc<ModuleGraphs>) -> Result<Vc<Self>> {
-        Ok(Self {
-            path,
-            module_graphs: module_graphs.to_resolved().await?,
-        }
-        .cell())
+    pub fn new(path: FileSystemPath, module_graph: ResolvedVc<ModuleGraph>) -> Vc<Self> {
+        Self { path, module_graph }.cell()
     }
 }
 
@@ -587,7 +580,7 @@ impl ModulesDataOutputAsset {
 impl Asset for ModulesDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_module_graphs(*self.module_graphs);
+        let file_content = analyze_module_graph(*self.module_graph);
         AssetContent::file(file_content)
     }
 }
