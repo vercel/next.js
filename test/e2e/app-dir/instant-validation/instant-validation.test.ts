@@ -1472,45 +1472,45 @@ describe('instant validation', () => {
             `)
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
-            {
-              "cause": [
-                {
-                  "label": "Caused by: Instant Validation",
-                  "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33) @ unstable_instant
-            > 1 | export const unstable_instant = { prefetch: 'static' }
-                |                                 ^",
-                  "stack": [
-                    "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33)",
-                    "Set.forEach <anonymous>",
-                  ],
-                },
-              ],
-              "code": "E1078",
-              "description": "Runtime data was accessed outside of <Suspense>
+                         {
+                           "cause": [
+                             {
+                               "label": "Caused by: Instant Validation",
+                               "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33) @ unstable_instant
+                         > 1 | export const unstable_instant = { prefetch: 'static' }
+                             |                                 ^",
+                               "stack": [
+                                 "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33)",
+                                 "Set.forEach <anonymous>",
+                               ],
+                             },
+                           ],
+                           "code": "E1078",
+                           "description": "Runtime data was accessed outside of <Suspense>
 
-            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+                         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-            To fix this:
+                         To fix this:
 
-            Provide a fallback UI using <Suspense> around this component.
+                         Provide a fallback UI using <Suspense> around this component.
 
-            or
+                         or
 
-            Move the Runtime data access into a deeper component wrapped in <Suspense>.
+                         Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-            In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+                         In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
-            Learn more: https://nextjs.org/docs/messages/blocking-route",
-              "environmentLabel": "Server",
-              "label": "Blocking Route",
-              "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16) @ IndexSlot
-            > 4 |   await cookies()
-                |                ^",
-              "stack": [
-                "IndexSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16)",
-              ],
-            }
-            `)
+                         Learn more: https://nextjs.org/docs/messages/blocking-route",
+                           "environmentLabel": "Server",
+                           "label": "Blocking Route",
+                           "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16) @ IndexSlot
+                         > 4 |   await cookies()
+                             |                ^",
+                           "stack": [
+                             "IndexSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16)",
+                           ],
+                         }
+                        `)
           }
         } else {
           const result = await prerender(
@@ -1926,20 +1926,20 @@ describe('instant validation', () => {
           } else {
             // In SSR, we expect to only see the error coming from react.
             await expect(browser).toDisplayCollapsedRedbox(`
-            {
-              "description": "Switched to client rendering because the server rendering errored:
+                         {
+                           "description": "Switched to client rendering because the server rendering errored:
 
-            No SSR please",
-              "environmentLabel": null,
-              "label": "Recoverable Error",
-              "source": "app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11) @ ErrorInSSR
-            > 5 |     throw new Error('No SSR please')
-                |           ^",
-              "stack": [
-                "ErrorInSSR app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11)",
-              ],
-            }
-          `)
+                         No SSR please",
+                           "environmentLabel": null,
+                           "label": "Recoverable Error",
+                           "source": "app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11) @ ErrorInSSR
+                         > 5 |     throw new Error('No SSR please')
+                             |           ^",
+                           "stack": [
+                             "ErrorInSSR app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11)",
+                           ],
+                         }
+                      `)
           }
         })
       })
@@ -2675,8 +2675,8 @@ describe('instant validation', () => {
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19) @ Page
-           > 9 |   await connection()
-               |                   ^",
+           >  9 |   await connection()
+                |                   ^",
              "stack": [
                "Page app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19)",
              ],
