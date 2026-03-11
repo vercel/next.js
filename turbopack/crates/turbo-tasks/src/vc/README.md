@@ -45,9 +45,10 @@ When `.cell()` or `Vc::cell` is called, the cell counter for the `ValueTypeId` i
 
 The compare-then-update behavior [can be overridden to always update and invalidate using the `cell = "new"` argument][value-macro].
 
-Because cells are keyed by a combination of their type and construction order, **task functions should have a deterministic execution order**. A function with inconsistent ordering may result in wasted work by invalidating additional cells, though it will still give correct results.
+Because cells are keyed by a combination of their type and construction order, **task functions should have a deterministic execution order**. A function with inconsistent ordering may result in wasted work by invalidating additional cells, though it will still give correct results:
 
-You should use types with deterministic behavior such as [`IndexMap`], [`BTreeMap`], or [`FrozenMap`] in place of types like [`HashMap`] (which gives randomized iteration order).
+- You should use types with deterministic behavior. If you plan to iterate over a collection, use [`IndexMap`], [`BTreeMap`], or [`FrozenMap`] in place of types like [`HashMap`] (which gives randomized iteration order).
+- If you perform work in parallel within a single turbo-task, be careful not to construct cells inside the parts of your function that are executed across multiple threads. That can lead to accidentally non-deterministic behavior. Instead, collect results in parallel, and construct cells in the main thread after sorting the results.
 
 [value-macro]: macro@crate::value
 [`IndexMap`]: indexmap::IndexMap
@@ -82,9 +83,9 @@ There are a couple of explicit "subtypes" of `Vc`. These can both be cheaply con
 
 [`ResolvedVc`] is almost always preferred over the more awkward [`OperationVc`] API, but [`OperationVc`] can be useful when dealing with [collectibles], when you need to [read the result of a function with strong consistency][crate::OperationVc::read_strongly_consistent], or with [`State`].
 
-These many representations are stored internally using a type-erased [`RawVc`]. Type erasure
-reduces the [monomorphization] (and therefore binary size and compilation time) required to
-support `Vc` and its subtypes.
+These many representations are stored internally using a type-erased [`RawVc`]. Type erasure reduces the [monomorphization] (and therefore binary size and compilation time) required to support `Vc` and its subtypes.
+
+This means that `Vc` often uses the same in-memory representation as a `ResolvedVc` or an `OperationVc`, but it does not expose the same methods (e.g. downcasting) because the exact memory representation is not statically defined.
 
 |                 | Representation                     | Equality        | Downcasting                | Strong Consistency     | Collectibles      | [Non-Local]  |
 |-----------------|------------------------------------|-----------------|----------------------------|------------------------|-------------------|--------------|
@@ -117,8 +118,7 @@ Because `Vc`s can be equivalent but have different representation, it's not reco
 
 While task functions are expected to be side-effect free, their execution behavior is still important for performance reasons, or to code using [collectibles] to represent issues or side-effects.
 
-Even if not awaited, uncached function calls are guaranteed to execute (potentially emitting collectibles) before the root task finishes or before the completion of any strongly consistent read containing their call. However, the exact point when that execution begins is an implementation detail. Functions may execute more than once due to dirty task invalidation.
-
+Even if not awaited, uncached function calls are guaranteed to execute (potentially emitting collectibles) before the root task finishes or before the completion of any strongly consistent read containing their call. However, the exact point when that execution begins is an implementation detail. Functions may execute more than once if one of their dependencies is invalidated.
 
 ## Eventual Consistency
 
