@@ -100,7 +100,7 @@ describe('instant-validation-build', () => {
               |         ^
            25 | }
            26 | {
-           digest: '1272971139'
+           digest: '1019195341'
          }
        }
        Build-time instant validation failed for route "/server-errors/page-throws".
@@ -128,7 +128,7 @@ describe('instant-validation-build', () => {
               |         ^
            25 | }
            26 | {
-           digest: '651118872'
+           digest: '1905960767'
          }
        }
        Build-time instant validation failed for route "/server-errors/page-throws-with-suspense".
