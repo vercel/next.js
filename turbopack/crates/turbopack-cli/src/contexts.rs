@@ -6,9 +6,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
+    collect_module::CollectModuleType,
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        TypescriptTransformOptions,
+        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
+        ModuleRuleEffect, ModuleType, RuleCondition, TypescriptTransformOptions,
     },
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
@@ -21,6 +22,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     ident::Layer,
+    reference_type::ReferenceTypeCondition,
     resolve::options::{ImportMap, ImportMapping},
 };
 use turbopack_ecmascript::TreeShakingMode;
@@ -116,6 +118,12 @@ async fn get_client_module_options_context(
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         keep_last_successful_parse: is_dev,
+        module_rules: vec![ModuleRule::new(
+            RuleCondition::ReferenceType(ReferenceTypeCondition::Collect),
+            vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
+                ResolvedVc::upcast(CollectModuleType::new().to_resolved().await?),
+            ))],
+        )],
         ..Default::default()
     };
 
