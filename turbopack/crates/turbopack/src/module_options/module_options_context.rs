@@ -294,6 +294,9 @@ pub struct CssOptionsContext {
     /// `Any(ResourcePathEndsWith(".module.css"), ContentTypeStartsWith("text/css+module"))`
     pub module_css_condition: Option<RuleCondition>,
 
+    /// User-specified lightningcss feature flags (include/exclude bitmasks).
+    pub lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+
     pub placeholder_for_future_extensions: (),
 }
 

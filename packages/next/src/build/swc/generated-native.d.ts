@@ -18,6 +18,7 @@ export function lightningCssTransform(args: object): Promise<unknown>
 export function lightningCssTransformStyleAttribute(
   args: object
 ): Promise<unknown>
+export function lightningcssFeatureNamesToMaskNapi(names: Array<string>): number
 
 // GENERATED-TYPES-BELOW
 // DO NOT MANUALLY EDIT THESE TYPES

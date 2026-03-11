@@ -52,6 +52,7 @@ export interface Binding {
     lightning: {
       transform(transformOptions: any): Promise<any>
       transformStyleAttr(transformAttrOptions: any): Promise<any>
+      featureNamesToMask(names: string[]): number
     }
   }
 

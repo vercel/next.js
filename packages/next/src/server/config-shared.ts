@@ -335,6 +335,52 @@ export interface LoggingConfig {
   browserToTerminal?: boolean | 'error' | 'warn'
 }
 
+/**
+ * All recognized lightningcss feature names.
+ * Individual features map 1:1 to lightningcss `Features` bitflags.
+ * Composite names (`selectors`, `media-queries`, `colors`) enable a group of
+ * related individual features at once.
+ *
+ * The name→bitmask mapping is duplicated in:
+ * - JS:   `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
+ * - Rust: `crates/next-core/src/next_config.rs` (`lightningcss_feature_names_to_mask`)
+ */
+export const LIGHTNINGCSS_FEATURE_NAMES = [
+  // Individual features (bit 0–20)
+  'nesting',
+  'not-selector-list',
+  'dir-selector',
+  'lang-selector-list',
+  'is-selector',
+  'text-decoration-thickness-percent',
+  'media-interval-syntax',
+  'media-range-syntax',
+  'custom-media-queries',
+  'clamp-function',
+  'color-function',
+  'oklab-colors',
+  'lab-colors',
+  'p3-colors',
+  'hex-alpha-colors',
+  'space-separated-color-notation',
+  'font-family-system-ui',
+  'double-position-gradients',
+  'vendor-prefixes',
+  'logical-properties',
+  'light-dark',
+  // Composite groups
+  'selectors',
+  'media-queries',
+  'colors',
+] as const
+
+export type LightningCssFeature = (typeof LIGHTNINGCSS_FEATURE_NAMES)[number]
+
+export interface LightningCssFeatures {
+  include?: LightningCssFeature[]
+  exclude?: LightningCssFeature[]
+}
+
 export interface ExperimentalConfig {
   adapterPath?: string
   appNewScrollHandler?: boolean
@@ -770,6 +816,13 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of postcss-loader
    */
   useLightningcss?: boolean
+
+  /**
+   * Configure which CSS features lightningcss should always transpile
+   * (include) or never transpile (exclude), regardless of browser targets.
+   * Requires `useLightningcss: true`.
+   */
+  lightningCssFeatures?: LightningCssFeatures
 
   /**
    * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
