@@ -1208,17 +1208,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 )
             };
 
-        let snapshot = self.storage.take_snapshot(&process, &process_snapshot);
-
-        let task_snapshots = snapshot
-            .into_iter()
-            .filter_map(|iter| {
-                let mut iter = iter
-                    .filter_map(|item: SnapshotItem| (!item.is_empty()).then_some(item))
-                    .peekable();
-                iter.peek().is_some().then_some(iter)
-            })
-            .collect::<Vec<_>>();
+        // take_snapshot already filters empty items and empty shards in parallel
+        let task_snapshots = self.storage.take_snapshot(&process, &process_snapshot);
 
         swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
 

@@ -272,47 +272,19 @@ impl StaticSortedFile {
     /// Looks up a hash in a index block.
     fn lookup_index_block(&self, mut block: &[u8], hash: u64) -> Result<u16> {
         let first_block = block.read_u16::<BE>()?;
-        let entry_count = block.len() / 10;
-        if entry_count == 0 {
+        // Each entry is 10 bytes: 8 bytes for the hash, 2 bytes for the block index
+        let (entries, remainder) = block.as_chunks::<10>();
+        if entries.is_empty() {
             return Ok(first_block);
         }
-        let entries = block;
-        fn get_hash(entries: &[u8], index: usize) -> Result<u64> {
-            Ok((&entries[index * 10..]).read_u64::<BE>()?)
+        if !remainder.is_empty() {
+            bail!("invalid index block, {} extra bytes", remainder.len())
         }
-        fn get_block(entries: &[u8], index: usize) -> Result<u16> {
-            Ok((&entries[index * 10 + 8..]).read_u16::<BE>()?)
+        match entries.binary_search_by(|entry| (&entry[..]).read_u64::<BE>().unwrap().cmp(&hash)) {
+            Ok(i) => Ok((&entries[i][8..]).read_u16::<BE>()?),
+            Err(0) => Ok(first_block),
+            Err(i) => Ok((&entries[i - 1][8..]).read_u16::<BE>()?),
         }
-        let first_hash = get_hash(entries, 0)?;
-        match hash.cmp(&first_hash) {
-            Ordering::Less => {
-                return Ok(first_block);
-            }
-            Ordering::Equal => {
-                return get_block(entries, 0);
-            }
-            Ordering::Greater => {}
-        }
-
-        let mut l = 1;
-        let mut r = entry_count;
-        // binary search for the range
-        while l < r {
-            let m = (l + r) / 2;
-            let mid_hash = get_hash(entries, m)?;
-            match hash.cmp(&mid_hash) {
-                Ordering::Less => {
-                    r = m;
-                }
-                Ordering::Equal => {
-                    return get_block(entries, m);
-                }
-                Ordering::Greater => {
-                    l = m + 1;
-                }
-            }
-        }
-        get_block(entries, l - 1)
     }
 
     /// Looks up a key in a key block and the value in a value block.
@@ -418,15 +390,14 @@ impl StaticSortedFile {
                     // to collect all entries. The tombstone, if present, will be the
                     // last entry in the results.
                     let mut results = SmallVec::new();
-                    // Backward scan: collect all entries before `m` with the same key
-                    for i in (0..m).rev() {
+                    for i in (l..m).rev() {
                         let GetKeyEntryResult {
                             hash,
                             key: entry_key,
                             ty,
                             val,
                         } = get_entry(i)?;
-                        if compare_hash_key(hash, entry_key, key_hash, key) != Ordering::Equal {
+                        if !entry_matches_key(hash, entry_key, key_hash, key) {
                             break;
                         }
                         results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
@@ -440,15 +411,14 @@ impl StaticSortedFile {
 
                     // Add the entry at `m`
                     results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
-                    // Forward scan: collect remaining entries with the same key
-                    for i in (m + 1)..entry_count {
+                    for i in (m + 1)..r {
                         let GetKeyEntryResult {
                             hash,
                             key: entry_key,
                             ty,
                             val,
                         } = get_entry(i)?;
-                        if compare_hash_key(hash, entry_key, key_hash, key) != Ordering::Equal {
+                        if !entry_matches_key(hash, entry_key, key_hash, key) {
                             break;
                         }
                         results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
@@ -918,6 +888,24 @@ fn compare_hash_key<K: QueryKey>(
             Ordering::Equal => query_key.cmp(entry_key),
             ord => ord,
         }
+    }
+}
+
+/// Checks if a query key equals an entry key, optionally comparing stored hashes first.
+/// When a hash is stored (8 bytes), compares hashes before keys for speed.
+/// When no hash is stored, compares keys directly (avoiding hash recomputation).
+fn entry_matches_key<K: QueryKey>(
+    entry_hash: &[u8],
+    entry_key: &[u8],
+    full_hash: u64,
+    query_key: &K,
+) -> bool {
+    if entry_hash.is_empty() {
+        // No hash stored - compare keys directly instead of recomputing hash
+        query_key.cmp(entry_key) == Ordering::Equal
+    } else {
+        // Hash stored - cheap 8-byte comparison first, then key comparison
+        full_hash.to_be_bytes()[..] == *entry_hash && query_key.cmp(entry_key) == Ordering::Equal
     }
 }
 

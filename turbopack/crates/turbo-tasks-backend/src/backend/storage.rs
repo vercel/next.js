@@ -1,5 +1,6 @@
 use std::{
     hash::Hash,
+    iter::Peekable,
     ops::{Deref, DerefMut},
     sync::{Arc, atomic::AtomicBool},
 };
@@ -10,6 +11,7 @@ use turbo_tasks::{FxDashMap, TaskId, parallel};
 
 use crate::{
     backend::storage_schema::TaskStorage,
+    backing_storage::SnapshotItem,
     database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
@@ -111,16 +113,16 @@ impl Storage {
     /// receives an owned Box<TaskStorage> snapshot.
     /// Both callbacks receive a mutable scratch buffer that can be reused across iterations
     /// to avoid repeated allocations.
+    /// The returned iterators are guaranteed to be non-empty and only yield non-empty items.
     pub fn take_snapshot<
         'l,
-        R,
-        P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> R + Sync,
-        PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> R + Sync,
+        P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+        PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
     >(
         &'l self,
         process: &'l P,
         process_snapshot: &'l PS,
-    ) -> Vec<SnapshotShard<'l, P, PS>> {
+    ) -> Vec<Peekable<SnapshotShard<'l, P, PS>>> {
         if !self.snapshot_mode() {
             self.start_snapshot();
         }
@@ -134,9 +136,9 @@ impl Storage {
             let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
             {
                 // Take the snapshots from the modified map
-                let guard = shard.write();
-                // Safety: guard must outlive the iterator.
-                for bucket in unsafe { guard.iter() } {
+                let shard_guard = shard.write();
+                // Safety: shard_guard must outlive the iterator.
+                for bucket in unsafe { shard_guard.iter() } {
                     // Safety: the guard guarantees that the bucket is not removed and the ptr
                     // is valid.
                     let (key, shared_value) = unsafe { bucket.as_mut() };
@@ -152,13 +154,19 @@ impl Storage {
                         }
                     }
                 }
-                // Safety: guard must outlive the iterator.
-                drop(guard);
+                // Safety: shard_guard must outlive the iterator.
+                drop(shard_guard);
             }
+
+            // Early return for shards with no entries at all
+            if direct_snapshots.is_empty() && modified.is_empty() {
+                return None;
+            }
+
             /// How big of a buffer to allocate initially.  Based on metrics from a large
             /// application this should cover about 98% of values with no resizes
             const SCRATCH_BUFFER_SIZE: usize = 4096;
-            SnapshotShard {
+            let shard = SnapshotShard {
                 direct_snapshots,
                 modified,
                 storage: self,
@@ -166,8 +174,15 @@ impl Storage {
                 process,
                 process_snapshot,
                 scratch_buffer: TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_SIZE),
-            }
+            };
+
+            // Peek to filter out shards that only produce empty items
+            let mut iter = shard.peekable();
+            iter.peek().is_some().then_some(iter)
         })
+        .into_iter()
+        .flatten()
+        .collect()
     }
 
     /// Start snapshot mode.
@@ -388,14 +403,12 @@ pub struct SnapshotShard<'l, P, PS> {
     scratch_buffer: TurboBincodeBuffer,
 }
 
-impl<'l, R, P, PS> Iterator for SnapshotShard<'l, P, PS>
+impl<'l, P, PS> SnapshotShard<'l, P, PS>
 where
-    P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> R + Sync,
-    PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> R + Sync,
+    P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+    PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
 {
-    type Item = R;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next_item(&mut self) -> Option<SnapshotItem> {
         if let Some((task_id, snapshot)) = self.direct_snapshots.pop() {
             return Some((self.process_snapshot)(
                 task_id,
@@ -423,6 +436,23 @@ where
                         &mut self.scratch_buffer,
                     ));
                 }
+            }
+        }
+        None
+    }
+}
+
+impl<'l, P, PS> Iterator for SnapshotShard<'l, P, PS>
+where
+    P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+    PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+{
+    type Item = SnapshotItem;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(item) = self.next_item() {
+            if !item.is_empty() {
+                return Some(item);
             }
         }
         self.guard = None;
