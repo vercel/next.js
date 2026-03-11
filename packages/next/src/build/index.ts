@@ -292,10 +292,11 @@ export interface DynamicPrerenderManifestRoute {
   fallback: Fallback
 
   /**
-   * Whether this dynamic fallback shell has at least one concrete static
-   * prerendered pathname in the subtree addressed by its known params.
+   * The unresolved fallback route params that can still be specialized into a
+   * more specific prerendered shell because their segments export
+   * `generateStaticParams`.
    */
-  hasStaticPrerenderedRoutes?: boolean
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
    * When defined, it describes the revalidation configuration for the fallback
@@ -3414,7 +3415,8 @@ export default async function build(
 
                 prerenderManifest.dynamicRoutes[route.pathname] = {
                   experimentalPPR: isRoutePPREnabled,
-                  hasStaticPrerenderedRoutes: route.hasStaticPrerenderedRoutes,
+                  remainingPrerenderableParams:
+                    route.remainingPrerenderableParams,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC

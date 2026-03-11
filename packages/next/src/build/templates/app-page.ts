@@ -979,10 +979,10 @@ export async function handler(
             if (
               !isMinimalMode &&
               isRoutePPREnabled &&
-              // Match the build-time contract: only fallback shells
-              // for pages that have at least one prerendered param can
-              // should be upgraded.
-              prerenderInfo?.hasStaticPrerenderedRoutes === true &&
+              // Match the build-time contract: only fallback shells that can
+              // still be completed with prerenderable params should upgrade.
+              prerenderInfo?.remainingPrerenderableParams !== undefined &&
+              prerenderInfo.remainingPrerenderableParams.length > 0 &&
               nextConfig.experimental.partialFallbacks === true &&
               ssgCacheKey &&
               incrementalCache &&

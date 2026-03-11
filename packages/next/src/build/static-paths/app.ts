@@ -403,38 +403,29 @@ interface TrieNode {
    * These are the routes whose concrete parameters lead to this node in the Trie.
    */
   routes: PrerenderedRoute[]
-
-  /**
-   * The maximum concrete pathname depth of any fully concrete prerendered route
-   * in this node's subtree.
-   */
-  maxStaticPrerenderedRouteDepth: number
-
-  /**
-   * The number of concrete pathname params represented by this node.
-   */
-  depth: number
 }
 
 /**
  * Assigns static shell metadata to each prerendered route.
  * This function uses a Trie data structure to efficiently determine whether each route
  * should throw an error when its static shell is empty and whether a fallback shell
- * has concrete prerendered coverage that makes it upgradeable.
+ * can still be completed into a more specific prerendered shell.
  *
  * A route should not throw on empty static shell if it has child routes in the Trie. For example,
  * if we have two routes, `/blog/first-post` and `/blog/[slug]`, the route for
  * `/blog/[slug]` should not throw because `/blog/first-post` is a more specific concrete route.
  *
  * @param prerenderedRoutes - The prerendered routes.
- * @param pathnameSegments - The keys of the route parameters.
+ * @param pathnameSegments - The pathname params and whether each one is still
+ * prerenderable via generateStaticParams.
  */
 export function assignStaticShellMetadata(
   prerenderedRoutes: readonly PrerenderedRoute[],
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
+    readonly hasGenerateStaticParams: boolean
   }>,
-  computeHasStaticPrerenderedRoutes: boolean
+  computeRemainingPrerenderableParams: boolean
 ): void {
   // If there are no routes to process, exit early.
   if (prerenderedRoutes.length === 0) {
@@ -443,25 +434,13 @@ export function assignStaticShellMetadata(
 
   // Initialize the root of the Trie. This node represents the starting point
   // before any parameters have been considered.
-  const root: TrieNode = {
-    children: new Map(),
-    routes: [],
-    maxStaticPrerenderedRouteDepth: -1,
-    depth: 0,
-  }
+  const root: TrieNode = { children: new Map(), routes: [] }
 
   // Phase 1: Build the Trie.
   // Iterate over each prerendered route and insert it into the Trie.
   // Each route's concrete parameter values form a path in the Trie.
   for (const route of prerenderedRoutes) {
-    // `hasStaticPrerenderedRoutes` is only concerned with routes that are
-    // already fully concrete. Fallback shells can be upgradeable, but they do
-    // not contribute concrete descendant coverage themselves.
-    const isFullyConcreteRoute =
-      computeHasStaticPrerenderedRoutes &&
-      (!route.fallbackRouteParams || route.fallbackRouteParams.length === 0)
     let currentNode = root // Start building the path from the root for each route.
-    const pathNodes = isFullyConcreteRoute ? [root] : null
 
     // Iterate through the sorted parameter keys. The order of keys is crucial
     // for ensuring that routes with the same concrete parameters follow the
@@ -498,42 +477,23 @@ export function assignStaticShellMetadata(
           childNode = {
             children: new Map(),
             routes: [],
-            maxStaticPrerenderedRouteDepth: -1,
-            depth: currentNode.depth + 1,
           }
           currentNode.children.set(valueKey, childNode)
         }
         // Move deeper into the Trie to the `childNode` for the next parameter.
         currentNode = childNode
-        pathNodes?.push(currentNode)
       }
     }
     // After processing all concrete parameters for the route, add the full
     // `PrerenderedRoute` object to the `routes` array of the `currentNode`.
     // This node represents the unique concrete parameter combination for this route.
     currentNode.routes.push(route)
-
-    if (pathNodes) {
-      const concreteRouteDepth = currentNode.depth
-      // Any shell that lands on one of these ancestor nodes can only be
-      // upgradeable if there is a concrete descendant deep enough to finish
-      // all of its remaining unresolved pathname params.
-      for (const node of pathNodes) {
-        node.maxStaticPrerenderedRouteDepth = Math.max(
-          node.maxStaticPrerenderedRouteDepth,
-          concreteRouteDepth
-        )
-      }
-    }
   }
 
   // Phase 2: Traverse the Trie to assign the `throwOnEmptyStaticShell` property.
   // This is done using an iterative Depth-First Search (DFS) approach with an
   // explicit stack to avoid JavaScript's recursion depth limits (stack overflow)
   // for very deep routing structures.
-  const pathnameParamNames = computeHasStaticPrerenderedRoutes
-    ? new Set(pathnameSegments.map((segment) => segment.paramName))
-    : null
   const stack: TrieNode[] = [root] // Initialize the stack with the root node.
 
   while (stack.length > 0) {
@@ -586,33 +546,42 @@ export function assignStaticShellMetadata(
         }
 
         if (
-          computeHasStaticPrerenderedRoutes &&
+          computeRemainingPrerenderableParams &&
           route.fallbackRouteParams &&
           route.fallbackRouteParams.length > 0
         ) {
-          // Only unresolved pathname params contribute to the required
-          // descendant depth. Unresolved root params are handled separately
-          // below because those generic shells can still match other root
-          // branches via `fallbackSourceRoute`.
-          let missingPathParamCount = 0
+          const fallbackRouteParamsByName = new Map(
+            route.fallbackRouteParams.map((param) => [param.paramName, param])
+          )
+          const remainingPrerenderableParams: FallbackRouteParam[] = []
 
-          for (const param of route.fallbackRouteParams) {
-            if (pathnameParamNames!.has(param.paramName)) {
-              missingPathParamCount++
+          // Only unresolved pathname params that can still be filled by
+          // generateStaticParams belong here. Once we hit an unresolved param
+          // that is purely dynamic, the rest of the shell also stays dynamic
+          // and cannot be completed into a more specific prerendered shell.
+          for (const segment of pathnameSegments) {
+            if (route.params.hasOwnProperty(segment.paramName)) {
+              continue
             }
+
+            if (!segment.hasGenerateStaticParams) {
+              break
+            }
+
+            const fallbackRouteParam = fallbackRouteParamsByName.get(
+              segment.paramName
+            )
+            if (!fallbackRouteParam) {
+              break
+            }
+
+            remainingPrerenderableParams.push(fallbackRouteParam)
           }
 
-          const requiredConcreteRouteDepth = node.depth + missingPathParamCount
-          const hasConcreteDescendantForShell =
-            node.maxStaticPrerenderedRouteDepth >= requiredConcreteRouteDepth
-
-          // Shells with unresolved root params can still match entirely
-          // different root branches via the source route. Those shells should
-          // not inherit upgradeability from concrete descendants in another
-          // root branch.
-          route.hasStaticPrerenderedRoutes =
-            route.fallbackRootParams.length === 0 &&
-            hasConcreteDescendantForShell
+          route.remainingPrerenderableParams =
+            remainingPrerenderableParams.length > 0
+              ? remainingPrerenderableParams
+              : undefined
         }
       }
     }
@@ -859,6 +828,18 @@ export async function buildAppStaticPaths({
     store,
     isRoutePPREnabled
   )
+  const generatedParamNames = new Set<string>()
+  for (const params of routeParams) {
+    for (const paramName of Object.keys(params)) {
+      generatedParamNames.add(paramName)
+    }
+  }
+  const prerenderablePathSegments = pathnameRouteParamSegments.map(
+    (segment) => ({
+      paramName: segment.paramName,
+      hasGenerateStaticParams: generatedParamNames.has(segment.paramName),
+    })
+  )
 
   await afterRunner.executeAfter()
 
@@ -1081,7 +1062,7 @@ export async function buildAppStaticPaths({
   if (prerenderedRoutes && cacheComponents) {
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameRouteParamSegments,
+      prerenderablePathSegments,
       partialFallbacksEnabled
     )
   }

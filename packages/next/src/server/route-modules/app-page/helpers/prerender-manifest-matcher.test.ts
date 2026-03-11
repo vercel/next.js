@@ -102,7 +102,6 @@ describe('PrerenderManifestMatcher', () => {
               paramType: 'dynamic',
             },
           ],
-          hasStaticPrerenderedRoutes: true,
         })
 
         const genericRootRoute = createMockDynamicRoute({
@@ -119,7 +118,6 @@ describe('PrerenderManifestMatcher', () => {
               paramType: 'dynamic',
             },
           ],
-          hasStaticPrerenderedRoutes: false,
         })
 
         const manifest = createMockPrerenderManifest({
