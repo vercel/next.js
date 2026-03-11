@@ -418,12 +418,12 @@ function createHeadInsertionTransformStream(
               chunk.length + encodedInsertion.length
             )
             // Append the first part of the chunk, before the head tag
-            insertedHeadContent.set(chunk.slice(0, index))
+            insertedHeadContent.set(chunk.subarray(0, index))
             // Append the server inserted content
             insertedHeadContent.set(encodedInsertion, index)
             // Append the rest of the chunk
             insertedHeadContent.set(
-              chunk.slice(index),
+              chunk.subarray(index),
               index + encodedInsertion.length
             )
             controller.enqueue(insertedHeadContent)
@@ -471,6 +471,8 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
   )
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
   const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
+  // Pre-encode the script string once at creation time
+  const encodedInsertion = encoder.encode(NEXT_CLIENT_RESUME_SCRIPT)
 
   let didAlreadyInsert = false
   return new TransformStream({
@@ -492,8 +494,6 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
         controller.enqueue(chunk)
         return
       }
-
-      const encodedInsertion = encoder.encode(NEXT_CLIENT_RESUME_SCRIPT)
       // Get the total count of the bytes in the chunk and the insertion
       // e.g.
       // chunk = <head><meta charset="utf-8"></head>
@@ -503,12 +503,12 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
         chunk.length + encodedInsertion.length
       )
       // Append the first part of the chunk, before the head tag
-      insertedHeadContent.set(chunk.slice(0, headClosingTagIndex))
+      insertedHeadContent.set(chunk.subarray(0, headClosingTagIndex))
       // Append the server inserted content
       insertedHeadContent.set(encodedInsertion, headClosingTagIndex)
       // Append the rest of the chunk
       insertedHeadContent.set(
-        chunk.slice(headClosingTagIndex),
+        chunk.subarray(headClosingTagIndex),
         headClosingTagIndex + encodedInsertion.length
       )
 
@@ -528,6 +528,7 @@ export function createInstantTestScriptInsertionTransformStream(): TransformStre
   Uint8Array
 > {
   const INSTANT_TEST_SCRIPT = '<script>self.__next_instant_test=1</script>'
+  const encodedInstantScript = encoder.encode(INSTANT_TEST_SCRIPT)
 
   let didAlreadyInsert = false
   return new TransformStream({
@@ -556,20 +557,19 @@ export function createInstantTestScriptInsertionTransformStream(): TransformStre
         return
       }
 
-      const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
       const insertionPoint = headCloseAngle + 1
       // e.g.
       // chunk = <!DOCTYPE html><html><head><meta charset="utf-8">...
       // insertion = <script>self.__next_instant_test=1</script>
       // output = <!DOCTYPE html><html><head> [ <script>...</script> ] <meta charset="utf-8">...
       const insertedHeadContent = new Uint8Array(
-        chunk.length + encodedInsertion.length
+        chunk.length + encodedInstantScript.length
       )
-      insertedHeadContent.set(chunk.slice(0, insertionPoint))
-      insertedHeadContent.set(encodedInsertion, insertionPoint)
+      insertedHeadContent.set(chunk.subarray(0, insertionPoint))
+      insertedHeadContent.set(encodedInstantScript, insertionPoint)
       insertedHeadContent.set(
-        chunk.slice(insertionPoint),
-        insertionPoint + encodedInsertion.length
+        chunk.subarray(insertionPoint),
+        insertionPoint + encodedInstantScript.length
       )
 
       controller.enqueue(insertedHeadContent)
@@ -583,6 +583,7 @@ export function createInstantTestScriptInsertionTransformStream(): TransformStre
 function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
+  const encodedSuffix = encoder.encode(suffix)
   let flushed = false
   let pending: DetachedPromise<void> | undefined
 
@@ -592,7 +593,7 @@ function createDeferredSuffixStream(
 
     scheduleImmediate(() => {
       try {
-        controller.enqueue(encoder.encode(suffix))
+        controller.enqueue(encodedSuffix)
       } catch {
         // If an error occurs while enqueuing it can't be due to this
         // transformers fault. It's likely due to the controller being
@@ -620,7 +621,7 @@ function createDeferredSuffixStream(
       if (flushed) return
 
       // Flush now.
-      controller.enqueue(encoder.encode(suffix))
+      controller.enqueue(encodedSuffix)
     },
   })
 }
@@ -732,14 +733,14 @@ function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
         }
 
         // Write out the part before the suffix.
-        const before = chunk.slice(0, index)
+        const before = chunk.subarray(0, index)
         controller.enqueue(before)
 
         // In the case where the suffix is in the middle of the chunk, we need
         // to split the chunk into two parts.
         if (chunk.length > ENCODED_TAGS.CLOSED.BODY_AND_HTML.length + index) {
           // Write out the part after the suffix.
-          const after = chunk.slice(
+          const after = chunk.subarray(
             index + ENCODED_TAGS.CLOSED.BODY_AND_HTML.length
           )
           controller.enqueue(after)
@@ -790,6 +791,8 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
 function createHtmlDataDplIdTransformStream(
   dplId: string
 ): TransformStream<Uint8Array, Uint8Array> {
+  // Pre-encode the attribute string once at creation time
+  const encodedAttribute = encoder.encode(` data-dpl-id="${dplId}"`)
   let didTransform = false
 
   return new TransformStream({
@@ -807,8 +810,6 @@ function createHtmlDataDplIdTransformStream(
 
       // Insert the data-dpl-id attribute right after "<html "
       const insertionPoint = htmlTagIndex + ENCODED_TAGS.OPENING.HTML.length
-      const attribute = ` data-dpl-id="${dplId}"`
-      const encodedAttribute = encoder.encode(attribute)
       const modifiedChunk = new Uint8Array(
         chunk.length + encodedAttribute.length
       )
