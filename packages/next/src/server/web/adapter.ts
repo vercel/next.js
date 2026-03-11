@@ -116,11 +116,12 @@ export async function adapter(
   const isEdgeRendering =
     typeof (globalThis as any).__BUILD_MANIFEST !== 'undefined'
 
-  params.request.url = normalizeRscURL(params.request.url)
-
+  const baseUrl: string = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+    ? params.request.url
+    : normalizeRscURL(params.request.url)
   const requestURL = params.bypassNextUrl
-    ? new URL(params.request.url)
-    : new NextURL(params.request.url, {
+    ? new URL(baseUrl)
+    : new NextURL(baseUrl, {
         headers: params.request.headers,
         nextConfig: params.request.nextConfig,
       })
@@ -169,16 +170,12 @@ export async function adapter(
     }
   }
 
-  const normalizeURL = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
-    ? new URL(params.request.url)
-    : requestURL
-
-  const rscHash = normalizeURL.searchParams.get(NEXT_RSC_UNION_QUERY)
+  const rscHash = requestURL.searchParams.get(NEXT_RSC_UNION_QUERY)
 
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeURL).toString(),
+    input: stripInternalSearchParams(requestURL).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
