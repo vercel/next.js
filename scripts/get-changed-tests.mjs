@@ -6,13 +6,14 @@ import path from 'path'
 import { getDiffRevision, getGitInfo } from './git-info.mjs'
 
 const require = createRequire(import.meta.url)
-const { existsSync } = require('fs')
 const glob = require('glob')
-const minimatch = require('minimatch')
+const {
+  getTestFilterFromManifest,
+  mergeManifests,
+} = require('../test/get-test-filter')
 
 const DEFAULT_DEPLOY_TESTS_MANIFEST_PATH = 'test/deploy-tests-manifest.json'
 const TEST_FILE_REGEX = /^test\/.*?\.test\.(js|ts|tsx)$/
-const DEPLOY_TEST_FILE_REGEX = /^test\/e2e\/.*?\.test\.(js|ts|tsx)$/
 
 function normalizePath(file) {
   return file.replace(/\\/g, '/')
@@ -20,10 +21,6 @@ function normalizePath(file) {
 
 function getExcludedCases(suite = {}) {
   return new Set([...(suite.failed ?? []), ...(suite.flakey ?? [])])
-}
-
-function isVersion2Manifest(manifest) {
-  return manifest?.version === 2
 }
 
 function getExternalTestsFilterPaths() {
@@ -52,111 +49,39 @@ function getExternalTestsFilterPaths() {
   return [...manifestPaths.values()]
 }
 
-export function mergeVersion2Manifests(manifests) {
-  return manifests.reduce((mergedManifest, manifest) => {
-    if (!isVersion2Manifest(manifest)) {
-      return mergedManifest
-    }
-
-    if (!mergedManifest) {
-      return structuredClone(manifest)
-    }
-
-    for (const suite in manifest.suites) {
-      if (mergedManifest.suites[suite]) {
-        const mergedSuite = mergedManifest.suites[suite]
-        const currentSuite = manifest.suites[suite]
-        mergedSuite.failed = [
-          ...(mergedSuite.failed || []),
-          ...(currentSuite.failed || []),
-        ]
-        mergedSuite.flakey = [
-          ...(mergedSuite.flakey || []),
-          ...(currentSuite.flakey || []),
-        ]
-      } else {
-        mergedManifest.suites[suite] = structuredClone(manifest.suites[suite])
-      }
-    }
-
-    mergedManifest.rules.include.push(...(manifest.rules.include || []))
-    mergedManifest.rules.exclude.push(...(manifest.rules.exclude || []))
-
-    return mergedManifest
-  }, null)
-}
-
-function isIncludedByDeployManifest(file, manifest) {
-  if (!isVersion2Manifest(manifest)) {
-    return false
-  }
-
-  const { suites = {}, rules = {} } = manifest
-  const excludeRules = rules.exclude ?? []
-  const includeRules = rules.include ?? []
-
-  if (file in suites) {
-    return !excludeRules.includes(file)
-  }
-
-  if (
-    includeRules.length > 0 &&
-    includeRules.every((pattern) => !minimatch(file, pattern))
-  ) {
-    return false
-  }
-
-  if (excludeRules.some((pattern) => minimatch(file, pattern))) {
-    return false
-  }
-
-  return true
-}
-
 function getDeployTestsFromManifest(manifest) {
-  if (!isVersion2Manifest(manifest)) {
+  const testFilter = getTestFilterFromManifest(manifest)
+  if (!testFilter) {
     return []
   }
 
-  const files = new Set()
-
-  for (const file of Object.keys(manifest.suites ?? {})) {
-    const normalizedFile = normalizePath(file)
-    if (
-      DEPLOY_TEST_FILE_REGEX.test(normalizedFile) &&
-      existsSync(path.join(process.cwd(), normalizedFile))
-    ) {
-      files.add(normalizedFile)
-    }
-  }
-
-  for (const pattern of manifest.rules?.include ?? []) {
-    for (const file of glob.sync(pattern, {
+  const tests = glob
+    .sync('test/e2e/**/*.test.{js,ts,tsx}', {
       cwd: process.cwd(),
       ignore: '**/node_modules/**',
       nodir: true,
-    })) {
-      const normalizedFile = normalizePath(file)
-      if (DEPLOY_TEST_FILE_REGEX.test(normalizedFile)) {
-        files.add(normalizedFile)
-      }
-    }
-  }
+    })
+    .map((file) => ({ file: normalizePath(file), excludedCases: [] }))
 
-  return [...files].filter((file) => isIncludedByDeployManifest(file, manifest))
+  return testFilter(tests).map((test) => test.file)
 }
 
 export function getDeployManifestChangedTests(
   currentManifest,
   previousManifest
 ) {
-  if (!isVersion2Manifest(currentManifest)) {
+  if (!currentManifest) {
     return []
   }
 
-  const previousVersion2Manifest = isVersion2Manifest(previousManifest)
-    ? previousManifest
-    : { version: 2, suites: {}, rules: { include: [], exclude: [] } }
+  const previousVersion2Manifest = previousManifest ?? {
+    version: 2,
+    suites: {},
+    rules: { include: [], exclude: [] },
+  }
+  const previousIncludedTests = new Set(
+    getDeployTestsFromManifest(previousVersion2Manifest)
+  )
 
   const changedTests = new Set()
 
@@ -168,7 +93,7 @@ export function getDeployManifestChangedTests(
       previousVersion2Manifest.suites?.[file]
     )
 
-    if (!isIncludedByDeployManifest(file, previousVersion2Manifest)) {
+    if (!previousIncludedTests.has(file)) {
       changedTests.add(file)
       continue
     }
@@ -257,14 +182,14 @@ export default async function getChangedTests() {
       changedFiles.includes(repoRelativePath)
     )
   ) {
-    const currentManifest = mergeVersion2Manifests(
+    const currentManifest = mergeManifests(
       await Promise.all(
         externalTestsFilterPaths.map(async ({ absolutePath }) =>
           JSON.parse(await fs.readFile(absolutePath, 'utf8'))
         )
       )
     )
-    const previousManifest = mergeVersion2Manifests(
+    const previousManifest = mergeManifests(
       (
         await Promise.all(
           externalTestsFilterPaths.map(async ({ repoRelativePath }) => {
