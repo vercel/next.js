@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { ensureThrows } from '../../../../ensure-error'
 
 export const unstable_instant = {
   prefetch: 'runtime',
@@ -18,9 +18,7 @@ export default async function Page({
         error thrown by the searchParam access, but validation should still
         fail.
       </p>
-      <Suspense fallback={<div>Loading...</div>}>
-        <SearchResult searchParams={searchParams} />
-      </Suspense>
+      <SearchResult searchParams={searchParams} />
     </main>
   )
 }
@@ -33,11 +31,10 @@ async function SearchResult({
   const sp = await searchParams
 
   try {
-    const undeclared = sp.undeclared // this should throw
-    // prevent DCE of unused expression
-    if (Math.random() > 1) {
-      console.log(undeclared)
-    }
+    ensureThrows(
+      () => sp.undeclared,
+      `Expected accessing an undeclared search param to throw`
+    )
   } catch (err) {
     // We swallow the error. It should still be reported and fail the validation.
   }

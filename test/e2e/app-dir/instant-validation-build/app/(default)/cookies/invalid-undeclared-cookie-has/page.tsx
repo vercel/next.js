@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
-import assert from 'node:assert/strict'
 import { Suspense } from 'react'
+import { ensureThrows } from '../../../../ensure-error'
 
 export const unstable_instant = {
   prefetch: 'runtime',
@@ -23,12 +23,9 @@ export default async function Page() {
 
 async function TestCookies() {
   const cookieStore = await cookies()
-  // TODO(instant-validation-build): should this throw in addition to aborting?
-  const hasUndeclaredCookie = cookieStore.has('undeclaredCookie')
-  assert.strictEqual(
-    hasUndeclaredCookie,
-    false,
-    `has() should return false for missing cookies`
+  ensureThrows(
+    () => cookieStore.has('undeclaredCookie'),
+    `Expected has() to throw for undeclared cookies`
   )
   return null
 }

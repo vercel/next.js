@@ -1,5 +1,6 @@
 import { headers } from 'next/headers'
 import { Suspense } from 'react'
+import { ensureThrows } from '../../../../ensure-error'
 
 export const unstable_instant = {
   prefetch: 'runtime',
@@ -25,11 +26,10 @@ async function TestHeaders() {
   const headerStore = await headers()
 
   try {
-    const undeclaredHeader = headerStore.get('undeclaredHeader') // this should throw
-    // prevent DCE of unused expression
-    if (Math.random() > 1) {
-      console.log(undeclaredHeader)
-    }
+    ensureThrows(
+      () => headerStore.get('undeclaredHeader'),
+      `Expected get() to throw for undeclared headers`
+    )
   } catch (err) {
     // We swallow the error. It should still be reported and fail the validation.
   }

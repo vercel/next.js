@@ -1,5 +1,4 @@
 import type { Instant } from 'next'
-import { Suspense } from 'react'
 import { SearchParamsReader } from './search-params-reader'
 
 export const unstable_instant: Instant = {
@@ -21,9 +20,7 @@ export default function Page() {
         in the sample, so it should fail validation with an exhaustiveness
         error.
       </p>
-      <Suspense fallback={<div>Loading...</div>}>
-        <SearchParamsReader />
-      </Suspense>
+      <SearchParamsReader />
     </main>
   )
 }

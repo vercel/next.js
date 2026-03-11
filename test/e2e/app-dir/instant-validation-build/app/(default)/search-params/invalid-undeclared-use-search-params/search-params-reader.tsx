@@ -1,10 +1,13 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { ensureThrows } from '../../../../ensure-error'
 
 export function SearchParamsReader() {
   const sp = useSearchParams()
-  // 'undeclared' is not in the sample's searchParams, so this should error
-  const value = sp.get('undeclared')
-  return <div id="result">undeclared: {value}</div>
+  ensureThrows(
+    () => sp.get('undeclared'),
+    `Expected accessing an undeclared search param to throw`
+  )
+  return null
 }

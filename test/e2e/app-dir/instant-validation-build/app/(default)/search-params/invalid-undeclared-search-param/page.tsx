@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { ensureThrows } from '../../../../ensure-error'
 
 export const unstable_instant = {
   prefetch: 'runtime',
@@ -16,9 +16,7 @@ export default async function Page({
         This page reads a searchParam that is not declared in the sample, so it
         should fail validation with an exhaustiveness error.
       </p>
-      <Suspense fallback={<div>Loading...</div>}>
-        <SearchResult searchParams={searchParams} />
-      </Suspense>
+      <SearchResult searchParams={searchParams} />
     </main>
   )
 }
@@ -28,10 +26,10 @@ async function SearchResult({
 }: {
   searchParams: Promise<{ q?: string; undeclared?: string }>
 }) {
-  const { q, undeclared } = await searchParams
-  return (
-    <div id="search-result">
-      query: {q}, undeclared: {undeclared}
-    </div>
+  const sp = await searchParams
+  ensureThrows(
+    () => sp.undeclared,
+    `Expected accessing an undeclared search param to throw`
   )
+  return null
 }

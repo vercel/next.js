@@ -1,5 +1,4 @@
 import type { Instant } from 'next'
-import { Suspense } from 'react'
 import { PathnameReader } from './pathname-reader'
 
 export const unstable_instant: Instant = {
@@ -21,9 +20,7 @@ export default function Page() {
         usePathname() on a route with dynamic params where not all params are
         provided in the sample should fail validation.
       </p>
-      <Suspense fallback={<div>Loading...</div>}>
-        <PathnameReader />
-      </Suspense>
+      <PathnameReader />
     </main>
   )
 }

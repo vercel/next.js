@@ -1,5 +1,6 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
+import { ensureThrows } from '../../../../../../ensure-error'
 
 export const unstable_instant: Instant = {
   prefetch: 'runtime',
@@ -42,8 +43,8 @@ async function TestParams({
   assert.equal('three' in p, false)
   assert.equal(p.three, undefined)
 
-  // TODO(instant-validation-build): this should throw and abort
-  assert.equal(p.two, undefined, `Unexpected value for param 'two'`)
+  // We're not allowed to access params not in the samples.
+  ensureThrows(() => p.two)
 
   // TODO: test `in` and iteration
   // assert.deepStrictEqual(

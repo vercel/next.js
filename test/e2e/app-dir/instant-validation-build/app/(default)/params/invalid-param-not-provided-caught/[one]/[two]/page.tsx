@@ -1,5 +1,6 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
+import { ensureThrows } from '../../../../../../ensure-error'
 
 export const unstable_instant: Instant = {
   prefetch: 'runtime',
@@ -40,11 +41,8 @@ async function TestParams({
   assert.equal(p.one, '123', `Unexpected value for param 'one'`)
 
   try {
-    const twoValue = p.two // this should throw
-    // prevent DCE of unused expression
-    if (Math.random() > 1) {
-      console.log(twoValue)
-    }
+    // We're not allowed to access params not in the samples.
+    ensureThrows(() => p.two, `Expected accessing an undeclared param to throw`)
   } catch (err) {
     // We swallow the error. It should still be reported and fail the validation.
   }

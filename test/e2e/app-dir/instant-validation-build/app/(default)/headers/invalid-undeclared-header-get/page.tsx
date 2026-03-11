@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { Suspense } from 'react'
-import assert from 'node:assert/strict'
+import { ensureThrows } from '../../../../ensure-error'
 
 export const unstable_instant = {
   prefetch: 'runtime',
@@ -23,12 +23,9 @@ export default async function Page() {
 
 async function TestHeaders() {
   const headersStore = await headers()
-  // TODO(instant-validation-build): should this throw in addition to aborting?
-  const undeclaredHeader = headersStore.get('undeclaredHeader')
-  assert.strictEqual(
-    undeclaredHeader,
-    undefined,
-    `Header 'undeclaredHeader' should not be present`
+  ensureThrows(
+    () => headersStore.get('undeclaredHeader'),
+    `Expected get() to throw for undeclared headers`
   )
   return null
 }

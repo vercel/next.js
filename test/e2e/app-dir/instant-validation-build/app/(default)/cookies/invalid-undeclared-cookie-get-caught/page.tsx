@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
+import { ensureThrows } from '../../../../ensure-error'
 
 export const unstable_instant = {
   prefetch: 'runtime',
@@ -25,11 +26,10 @@ async function TestCookies() {
   const cookieStore = await cookies()
 
   try {
-    const undeclaredCookie = cookieStore.get('undeclaredCookie') // this should throw
-    // prevent DCE of unused expression
-    if (Math.random() > 1) {
-      console.log(undeclaredCookie)
-    }
+    ensureThrows(
+      () => cookieStore.get('undeclaredCookie'),
+      `Expected get() to throw for undeclared cookies`
+    )
   } catch (err) {
     // We swallow the error. It should still be reported and fail the validation.
   }

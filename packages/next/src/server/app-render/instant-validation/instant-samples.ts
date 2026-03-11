@@ -386,8 +386,6 @@ export function createRelativeURLFromSamples(
   sampleSearchParams: InstantSample['searchParams']
 ) {
   // Build searchParams query object and URL search string from sample
-  // TODO(instant-validation-build): it feels like this should happen higher up
-
   const pathname = createPathnameFromRouteAndSampleParams(
     route,
     sampleParams ?? {}

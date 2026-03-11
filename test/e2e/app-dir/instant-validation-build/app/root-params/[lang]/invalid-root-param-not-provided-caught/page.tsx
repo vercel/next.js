@@ -13,15 +13,21 @@ export default async function Page() {
   // Guard behind cookies() so that the rest of this component only runs during validation
   await cookies()
 
-  await ensureRejects(
-    () => lang(),
-    `Expected lang() to error if sample is not provided`
-  )
+  try {
+    await ensureRejects(
+      () => lang(),
+      `Expected lang() to error if sample is not provided`
+    )
+  } catch {
+    // We swallow the error. It should still be reported and fail the validation.
+  }
+
   return (
     <main>
       <p>
         This page uses a root param. It's missing a sample for it, so we can't
-        validate it.
+        validate it. It catches the error thrown by the rootparam call, but
+        validation should still fail.
       </p>
     </main>
   )
