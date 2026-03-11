@@ -235,7 +235,10 @@ interface CacheOnlyToggleAction {
 
 type InstantNavSetStatusAction =
   | { type: typeof ACTION_INSTANT_NAVS_SET_STATUS; status: 'waiting' }
-  | { type: typeof ACTION_INSTANT_NAVS_SET_STATUS; status: 'client-nav-waiting' }
+  | {
+      type: typeof ACTION_INSTANT_NAVS_SET_STATUS
+      status: 'client-nav-waiting'
+    }
   | {
       type: typeof ACTION_INSTANT_NAVS_SET_STATUS
       status: 'initial-load'
