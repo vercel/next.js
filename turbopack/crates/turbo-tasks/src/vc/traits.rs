@@ -114,8 +114,6 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 /// functions defined on the trait to be called.
 ///
 /// ```ignore
-/// use turbo_tasks::IntoTraitRef;
-///
 /// let trait_vc: Vc<Box<dyn MyTrait>> = ...;
 /// let trait_ref: TraitRef<Box<dyn MyTrait>> = trait_vc.into_trait_ref().await?;
 ///

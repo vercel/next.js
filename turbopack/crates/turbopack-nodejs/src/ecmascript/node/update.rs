@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, IntoTraitRef, ReadRef, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::ModuleId,
