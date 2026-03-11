@@ -42,11 +42,24 @@ describe('instant-navigation-testing-api', () => {
    * Next.js test infra wraps Playwright with its own BrowserInterface, but
    * the Instant Navigation Testing API is designed to work with native Playwright.
    */
-  async function openPage(url: string): Promise<Playwright.Page> {
+  async function openPage(
+    url: string,
+    options?: { cookies?: Array<{ name: string; value: string }> }
+  ): Promise<Playwright.Page> {
     let page: Playwright.Page
     await next.browser(url, {
       beforePageLoad(p) {
         page = p
+        if (options?.cookies) {
+          const { hostname } = new URL(next.url)
+          p.context().addCookies(
+            options.cookies.map((c) => ({
+              ...c,
+              domain: hostname,
+              path: '/',
+            }))
+          )
+        }
       },
     })
     return page!
@@ -293,11 +306,8 @@ describe('instant-navigation-testing-api', () => {
   // NOT be present.
   describe('runtime params are excluded from instant shell', () => {
     it('does not include cookie values in instant shell during client navigation', async () => {
-      const page = await openPage('/')
-
-      // Set a test cookie
-      await page.evaluate(() => {
-        document.cookie = 'testCookie=hello; path=/'
+      const page = await openPage('/', {
+        cookies: [{ name: 'testCookie', value: 'hello' }],
       })
 
       await instant(page, async () => {
@@ -377,11 +387,8 @@ describe('instant-navigation-testing-api', () => {
     })
 
     it('does not include cookie values in instant shell during page load', async () => {
-      const page = await openPage('/')
-
-      // Set a test cookie
-      await page.evaluate(() => {
-        document.cookie = 'testCookie=hello; path=/'
+      const page = await openPage('/', {
+        cookies: [{ name: 'testCookie', value: 'hello' }],
       })
 
       await instant(page, async () => {

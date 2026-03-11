@@ -1649,6 +1649,7 @@ async function fetchMissingDynamicData(
       seed.head,
       result.debugInfo
     )
+
     return {
       exitStatus: didReceiveUnknownParallelRoute
         ? NavigationTaskExitStatus.SoftRetry
