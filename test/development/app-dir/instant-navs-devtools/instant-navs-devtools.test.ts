@@ -27,6 +27,17 @@ describe('instant-nav-panel', () => {
     })
   }
 
+  async function clickStartClientNav(browser: any) {
+    await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p: any) =>
+          p.shadowRoot.querySelector('[data-nextjs-toast]')
+        ) as any
+      portal?.shadowRoot?.querySelector('[data-instant-nav-client]')?.click()
+    })
+  }
+
   async function getBadgeStatus(browser: any): Promise<string> {
     return browser.eval(() => {
       const portal = [].slice
@@ -82,7 +93,7 @@ describe('instant-nav-panel', () => {
     await clickInstantNavMenuItem(browser)
   }
 
-  it('should open panel in waiting state and set cookie', async () => {
+  it('should open panel in waiting state without setting cookie', async () => {
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
@@ -102,15 +113,15 @@ describe('instant-nav-panel', () => {
       expect(text).toContain('Client navigation')
     })
 
-    // Cookie should be set to activate navigation lock
+    // Cookie should NOT be set yet (only set when user clicks Reload or Start)
     const cookie = await browser.eval(() => document.cookie)
-    expect(cookie).toContain('next-instant-navigation-testing=1')
+    expect(cookie).not.toContain('next-instant-navigation-testing=')
 
     // Clean up
     await clearInstantModeCookie(browser)
   })
 
-  it('should show client nav state after SPA navigation', async () => {
+  it('should show client nav state after clicking Start and navigating', async () => {
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
@@ -126,6 +137,22 @@ describe('instant-nav-panel', () => {
     // Wait for panel to be open
     await retry(async () => {
       expect(await hasPanelOpen(browser)).toBe(true)
+    })
+
+    // Click Start to enter client-nav-waiting state
+    await clickStartClientNav(browser)
+
+    // Cookie should now be set
+    await retry(async () => {
+      const cookie = await browser.eval(() => document.cookie)
+      expect(cookie).toContain('next-instant-navigation-testing=1')
+    })
+
+    // Panel should show client-nav-waiting state
+    await retry(async () => {
+      const text = await getPanelText(browser)
+      expect(text).toContain('Client navigation')
+      expect(text).toContain('Click any link')
     })
 
     // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
@@ -145,17 +172,20 @@ describe('instant-nav-panel', () => {
     await clearInstantModeCookie(browser)
   })
 
-  it('should show loading skeleton during SPA navigation when panel is open', async () => {
+  it('should show loading skeleton during SPA navigation after clicking Start', async () => {
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
     await openInstantNavPanel(browser)
 
-    // Wait for panel to be open (instant mode is active)
+    // Wait for panel to be open
     await retry(async () => {
       expect(await hasPanelOpen(browser)).toBe(true)
     })
+
+    // Click Start to activate the navigation lock
+    await clickStartClientNav(browser)
 
     // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
     await browser.eval(() => {
@@ -174,26 +204,24 @@ describe('instant-nav-panel', () => {
     await clearInstantModeCookie(browser)
   })
 
-  it('should clear cookie when closing panel via X button', async () => {
+  it('should not set cookie when closing panel from waiting state', async () => {
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
     await openInstantNavPanel(browser)
 
-    // Verify cookie is set
-    await retry(async () => {
-      const cookie = await browser.eval(() => document.cookie)
-      expect(cookie).toContain('next-instant-navigation-testing=')
-    })
+    // Verify cookie is NOT set (panel opened without activating lock)
+    const cookie = await browser.eval(() => document.cookie)
+    expect(cookie).not.toContain('next-instant-navigation-testing=')
 
     // Close panel via X button
     await closePanelViaHeader(browser)
 
-    // Cookie should be cleared
+    // Cookie should still not be set, and no reload should happen
     await retry(async () => {
-      const cookie = await browser.eval(() => document.cookie)
-      expect(cookie).not.toContain('next-instant-navigation-testing=')
+      const cookieAfter = await browser.eval(() => document.cookie)
+      expect(cookieAfter).not.toContain('next-instant-navigation-testing=')
     })
   })
 })
