@@ -1,15 +1,52 @@
 const path = require('path')
 const minimatch = require('minimatch')
 
+function normalizeExternalTestsFilters(nextExternalTestFilters) {
+  if (!nextExternalTestFilters) {
+    return []
+  }
+
+  if (Array.isArray(nextExternalTestFilters)) {
+    return nextExternalTestFilters.flatMap((value) =>
+      normalizeExternalTestsFilters(value)
+    )
+  }
+
+  if (typeof nextExternalTestFilters === 'string') {
+    const trimmedValue = nextExternalTestFilters.trim()
+
+    if (!trimmedValue) {
+      return []
+    }
+
+    if (trimmedValue.startsWith('[')) {
+      try {
+        const parsedValue = JSON.parse(trimmedValue)
+        if (Array.isArray(parsedValue)) {
+          return parsedValue.flatMap((value) =>
+            normalizeExternalTestsFilters(value)
+          )
+        }
+      } catch {}
+    }
+
+    return trimmedValue
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+  }
+
+  return [String(nextExternalTestFilters)]
+}
+
 function getManifest() {
   const nextExternalTestFilters = process.env.NEXT_EXTERNAL_TESTS_FILTERS
   if (!nextExternalTestFilters) {
     return null
   }
 
-  return nextExternalTestFilters
-    .split(',')
-    .reduce((mergedManifest, manifestPath) => {
+  return normalizeExternalTestsFilters(nextExternalTestFilters).reduce(
+    (mergedManifest, manifestPath) => {
       const manifest = require(path.resolve(manifestPath))
       if (!mergedManifest) {
         return manifest
@@ -40,7 +77,9 @@ function getManifest() {
       throw new Error(
         `Merging manifests is only supported for version 2: ${manifestPath}`
       )
-    }, null)
+    },
+    null
+  )
 }
 
 function getTestFilter() {

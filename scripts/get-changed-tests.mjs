@@ -26,6 +26,44 @@ function isVersion2Manifest(manifest) {
   return manifest?.version === 2
 }
 
+function normalizeExternalTestsFilters(externalTestsFilters) {
+  if (!externalTestsFilters) {
+    return []
+  }
+
+  if (Array.isArray(externalTestsFilters)) {
+    return externalTestsFilters.flatMap((value) =>
+      normalizeExternalTestsFilters(value)
+    )
+  }
+
+  if (typeof externalTestsFilters === 'string') {
+    const trimmedValue = externalTestsFilters.trim()
+
+    if (!trimmedValue) {
+      return []
+    }
+
+    if (trimmedValue.startsWith('[')) {
+      try {
+        const parsedValue = JSON.parse(trimmedValue)
+        if (Array.isArray(parsedValue)) {
+          return parsedValue.flatMap((value) =>
+            normalizeExternalTestsFilters(value)
+          )
+        }
+      } catch {}
+    }
+
+    return trimmedValue
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+  }
+
+  return [String(externalTestsFilters)]
+}
+
 function getExternalTestsFilterPaths() {
   const externalTestsFilters =
     process.env.NEXT_EXTERNAL_TESTS_FILTERS ??
@@ -33,11 +71,9 @@ function getExternalTestsFilterPaths() {
 
   const manifestPaths = new Map()
 
-  for (const manifestPath of externalTestsFilters.split(',')) {
-    if (!manifestPath.trim()) {
-      continue
-    }
-
+  for (const manifestPath of normalizeExternalTestsFilters(
+    externalTestsFilters
+  )) {
     const absolutePath = path.resolve(process.cwd(), manifestPath)
     const repoRelativePath = normalizePath(
       path.relative(process.cwd(), absolutePath)
