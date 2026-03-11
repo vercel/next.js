@@ -391,6 +391,11 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
 
     let file = File::open(&path).with_context(|| format!("Failed to open {}", filename))?;
     let file_size = file.metadata()?.len();
+    println!(
+        "mmap: mapping file {} ({} bytes)",
+        path.display(),
+        file_size
+    );
     let mmap = unsafe { Mmap::map(&file)? };
     advise_mmap_for_persistence(&mmap)?;
 

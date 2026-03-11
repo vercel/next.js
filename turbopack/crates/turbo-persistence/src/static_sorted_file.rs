@@ -184,6 +184,12 @@ impl StaticSortedFile {
     ) -> Result<Self> {
         let file = File::open(&path)
             .with_context(|| format!("Failed to open SST file {}", path.display()))?;
+        let file_size = file.metadata().map(|m| m.len()).unwrap_or(0);
+        println!(
+            "mmap: mapping file {} ({} bytes)",
+            path.display(),
+            file_size
+        );
         let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
             format!(
                 "Failed to mmap SST file {} ({} bytes)",
