@@ -669,18 +669,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/instant-navs-devtools/instant-navs-devtools.test.ts": {
-    "passed": [
-      "instant-mode-toggle should show \"Instant mode\" menu item and toggle it on",
-      "instant-mode-toggle should show \"instant\" status after toggling on, not stuck on \"compiling\"",
-      "instant-mode-toggle should show loading skeleton during SPA navigation when instant mode is on",
-      "instant-mode-toggle should turn off instant mode when clicking the badge"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/app-dir/capture-console-error-owner-stack/capture-console-error-owner-stack.test.ts": {
     "passed": [
       "app-dir - capture-console-error-owner-stack should be able to capture rsc logged error",
@@ -803,6 +791,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/ecmascript-error-title/ecmascript-error-title.test.ts": {
+    "passed": [
+      "ecmascript-error-title should show the specific SWC error message as title for analysis errors",
+      "ecmascript-error-title should show the specific SWC error message as title for syntax errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/edge-errors-hmr/index.test.ts": {
     "passed": [
       "develop - app-dir - edge errros hmr should recover from build errors when client component error",
@@ -889,6 +887,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-dep-accept/hmr-dep-accept.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "hmr-dep-accept dependency accept parent accepts child dependency update without re-evaluating",
+      "hmr-dep-accept dependency accept via module.hot (CJS) CJS module registers module.hot.accept and receives dep updates",
+      "hmr-dep-accept dependency accept with array parent accepts multiple child dependencies via array",
+      "hmr-dep-accept dependency decline declining a dependency triggers full reload on update",
+      "hmr-dep-accept dependency decline with array declining multiple dependencies via array triggers full reload"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-iframe/hmr-iframe.test.ts": {
     "passed": [],
     "failed": [
@@ -965,6 +976,18 @@
       "hydration-error-count should display runtime error separately from hydration errors",
       "hydration-error-count should have correct hydration error count for bad nesting",
       "hydration-error-count should have correct hydration error count for html diff"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/instant-navs-devtools/instant-navs-devtools.test.ts": {
+    "passed": [
+      "instant-nav-panel should clear cookie when closing panel via X button",
+      "instant-nav-panel should open panel in waiting state and set cookie",
+      "instant-nav-panel should show client nav state after SPA navigation",
+      "instant-nav-panel should show loading skeleton during SPA navigation when panel is open"
     ],
     "failed": [],
     "pending": [],
@@ -3578,11 +3601,11 @@
       "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies",
-      "app-dir with middleware should support unstable_cache in middleware",
-      "app-dir with middleware should warn when deprecated middleware file is used"
+      "app-dir with middleware should support unstable_cache in middleware"
     ],
     "failed": [
-      "app-dir with middleware should filter correctly after middleware rewrite"
+      "app-dir with middleware should filter correctly after middleware rewrite",
+      "app-dir with middleware should warn when deprecated middleware file is used"
     ],
     "pending": [],
     "flakey": [],
@@ -4132,7 +4155,7 @@
       "app dir - basic searchParams prop server component should have the correct search params",
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -4195,7 +4218,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5933,6 +5956,12 @@
       "instant validation client navigation invalid - static prefetch - missing suspense around runtime",
       "instant validation client navigation invalid - static prefetch - missing suspense around search params",
       "instant validation client navigation invalid - static prefetch - suspense too high",
+      "instant validation client navigation route group shared boundary invalid - route group boundary is shared but validation treats it as new",
+      "instant validation client navigation route groups invalid - config on both route group and segment layout - cookies() blocks below",
+      "instant validation client navigation route groups invalid - config on route group layout - cookies() blocks below",
+      "instant validation client navigation route groups invalid - config on route group layout - cookies() blocks in deeper segment",
+      "instant validation client navigation route groups invalid - config on segment layout - cookies() blocks through route group below",
+      "instant validation client navigation route groups invalid - config on segment layout inside route group - cookies() blocks below",
       "instant validation client navigation valid - no suspense needed around dynamic in page if loading.js is present",
       "instant validation client navigation valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above",
       "instant validation client navigation valid - runtime prefetch - does not require Suspense around params",
@@ -5985,6 +6014,12 @@
       "instant validation initial load invalid - static prefetch - missing suspense around runtime",
       "instant validation initial load invalid - static prefetch - missing suspense around search params",
       "instant validation initial load invalid - static prefetch - suspense too high",
+      "instant validation initial load route group shared boundary invalid - route group boundary is shared but validation treats it as new",
+      "instant validation initial load route groups invalid - config on both route group and segment layout - cookies() blocks below",
+      "instant validation initial load route groups invalid - config on route group layout - cookies() blocks below",
+      "instant validation initial load route groups invalid - config on route group layout - cookies() blocks in deeper segment",
+      "instant validation initial load route groups invalid - config on segment layout - cookies() blocks through route group below",
+      "instant validation initial load route groups invalid - config on segment layout inside route group - cookies() blocks below",
       "instant validation initial load valid - no suspense needed around dynamic in page if loading.js is present",
       "instant validation initial load valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above",
       "instant validation initial load valid - runtime prefetch - does not require Suspense around params",
@@ -8248,7 +8283,6 @@
       "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
       "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
-      "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/catchall/foobar)",
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/detail-page)",
@@ -8257,7 +8291,9 @@
       "parallel-routes-revalidation should refresh the correct page when a server action triggers a redirect",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
     ],
-    "failed": [],
+    "failed": [
+      "parallel-routes-revalidation should handle router.refresh() when called in a slot"
+    ],
     "pending": [
       "parallel-routes-revalidation server action revalidation should not trigger a refresh for the page that is being redirected to"
     ],
@@ -8311,6 +8347,13 @@
       "app-dir - params hooks compat should only access path params with useParams",
       "app-dir - params hooks compat should only access search params with useSearchParams"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
+    "passed": ["partial-fallback-shell-upgrade skipped in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10061,11 +10104,12 @@
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
       "typed-routes should generate RouteContext type for route handlers",
-      "typed-routes should generate route types correctly",
-      "typed-routes should have passing tsc after start",
       "typed-routes should update route types file when routes change"
     ],
-    "failed": [],
+    "failed": [
+      "typed-routes should generate route types correctly",
+      "typed-routes should have passing tsc after start"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10400,6 +10444,20 @@
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
+    "passed": [
+      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws a plain string",
+      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws an Error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a filesystem error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a plain string",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error without stack"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
