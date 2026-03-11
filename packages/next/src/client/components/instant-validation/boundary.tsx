@@ -13,6 +13,7 @@ const {
   InstantValidationBoundaryContext,
   PlaceValidationBoundaryBelowThisLevel,
   RenderValidationBoundaryAtThisLevel,
+  SlotMarker,
 } =
   typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS
     ? (require('../../../server/app-render/instant-validation/boundary-impl') as typeof import('../../../server/app-render/instant-validation/boundary-impl'))
@@ -22,4 +23,5 @@ export {
   InstantValidationBoundaryContext,
   PlaceValidationBoundaryBelowThisLevel,
   RenderValidationBoundaryAtThisLevel,
+  SlotMarker,
 }

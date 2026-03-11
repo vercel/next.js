@@ -51,6 +51,9 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/runtime/static-layout-above-runtime-config/inner" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-generate-metadata-static-page" />
         </li>
         <li>
@@ -138,6 +141,9 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/false-below-static" />
+        </li>
       </ul>
 
       <h2>Head</h2>
@@ -192,7 +198,22 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/static/parallel-group-depths-shallow-slot-hole" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/static/parallel-nested-forks" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/static/route-group-shared-boundary/foo" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/config-depth-preference/deeper/still/deep" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/config-depth-preference-slot-wins/deeper/still/deep" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/config-children-preferred" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/cross-slot-blocking/inner/deep" />
         </li>
       </ul>
 
