@@ -42,7 +42,6 @@ import { bold, cyan, green, red, underline, yellow } from '../lib/picocolors'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
-import vm from 'vm'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
@@ -63,7 +62,6 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getRuntimeContext } from '../server/web/sandbox'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
@@ -595,9 +593,12 @@ function toProjectRelativePaths(
   return relPaths.map((f) => path.relative(dir, path.join(distDir, f)))
 }
 
-function buildRouteToAppPathsMap(
+async function buildRouteToAppPathsMap(
   appPathsManifest: Record<string, string>
-): Map<string, string[]> {
+): Promise<Map<string, string[]>> {
+  const { normalizeAppPath } = await import(
+    '../shared/lib/router/utils/app-paths'
+  )
   // Keys in appPathsManifest are app paths like /blog/[slug]/page;
   // values are server bundle file paths. Normalize the key to get the route.
   const routeToAppPaths = new Map<string, string[]>()
@@ -628,6 +629,7 @@ async function readEntryJSFiles(
     `${pagePath}_${CLIENT_REFERENCE_MANIFEST}.js`
   )
   try {
+    const vm = await import('vm')
     const code = await fs.readFile(manifestFile, 'utf8')
     const sandbox: Record<string, unknown> = {}
     vm.runInNewContext(code, sandbox)
@@ -696,7 +698,7 @@ async function collectAppRouterStats(
     // App paths manifest not available; skip app router sizes
   }
 
-  const routeToAppPaths = buildRouteToAppPathsMap(appPathsManifest)
+  const routeToAppPaths = await buildRouteToAppPathsMap(appPathsManifest)
   const sharedFiles = new Set<string>(buildManifest.rootMainFiles ?? [])
   const rows: RouteBundleStat[] = []
 
