@@ -14,6 +14,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
 import { InstantValidationError } from './instant-validation-error'
 import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
 import { wellKnownProperties } from '../../../shared/lib/utils/reflect-utils'
+import type { WorkStore } from '../work-async-storage.external'
 
 export type InstantValidationSampleTracking = {
   // TODO(instant-validation-build): track which samples config we used and attribute errors
@@ -491,4 +492,22 @@ function createPathnameFromRouteAndSampleParams(route: string, params: Params) {
     }
   }
   return interpolatedSegments.join('/')
+}
+
+export function assertRootParamInSamples(
+  workStore: WorkStore,
+  sampleParams: Params | undefined,
+  paramName: string
+) {
+  if (sampleParams && paramName in sampleParams) {
+    // The param is defined in the samples.
+  } else {
+    const route = workStore.route
+    trackMissingSampleErrorAndThrow(
+      new InstantValidationError(
+        `Route "${route}" accessed root param "${paramName}" which is not defined in the \`samples\` ` +
+          `of \`unstable_instant\`. Add it to the sample's \`params\` object.`
+      )
+    )
+  }
 }
