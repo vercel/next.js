@@ -20,65 +20,37 @@ describe('delete-dot-next-dir', () => {
     await next.clean()
   })
 
-  it('should recover after .next is deleted (app router)', async () => {
-    // 1. Verify app route loads correctly before deletion
-    await retry(async () => {
-      const res = await next.fetch('/app')
-      expect(res.status).toBe(200)
-      expect(await res.text()).toContain('app page')
-    }, 30000)
+  it.each([
+    { router: 'app', path: '/app', expectedText: 'app page' },
+    { router: 'pages', path: '/pages', expectedText: 'pages page' },
+  ])(
+    'should recover after .next is deleted ($router router)',
+    async ({ path: routePath, expectedText }) => {
+      // Verify route loads correctly before deletion
+      await retry(async () => {
+        const res = await next.fetch(routePath)
+        expect(res.status).toBe(200)
+        expect(await res.text()).toContain(expectedText)
+      }, 30000)
 
-    // 2. Delete the .next directory while dev server is running
-    await next.deleteFile('.next')
+      // Delete the .next directory while dev server is running
+      await next.deleteFile('.next')
 
-    // 3. Fetch a page — this triggers error detection and restart
-    await next.fetch('/app/other').catch(() => {})
+      // Wait for the dev server to detect the deletion and restart
+      await retry(async () => {
+        const cliOutput = next.cliOutput
+        expect(cliOutput).toContain(
+          'The .next directory was removed while the dev server was running. Restarting...'
+        )
+        expect(cliOutput).toContain('Ready in')
+      }, 30000)
 
-    // 4. Wait for the dev server to restart and become ready
-    await retry(async () => {
-      const cliOutput = next.cliOutput
-      expect(cliOutput).toContain(
-        'The .next directory was removed while the dev server was running. Restarting...'
-      )
-      expect(cliOutput).toContain('Ready in')
-    }, 30000)
-
-    // 5. After restart, pages should render normally
-    await retry(async () => {
-      const res = await next.fetch('/app')
-      expect(res.status).toBe(200)
-      expect(await res.text()).toContain('app page')
-    }, 30000)
-  })
-
-  it('should recover after .next is deleted (pages router)', async () => {
-    // 1. Verify pages route loads correctly before deletion
-    await retry(async () => {
-      const res = await next.fetch('/pages')
-      expect(res.status).toBe(200)
-      expect(await res.text()).toContain('pages page')
-    }, 30000)
-
-    // 2. Delete the .next directory while dev server is running
-    await next.deleteFile('.next')
-
-    // 3. Fetch a page — this triggers error detection and restart
-    await next.fetch('/pages/other').catch(() => {})
-
-    // 4. Wait for the dev server to restart and become ready
-    await retry(async () => {
-      const cliOutput = next.cliOutput
-      expect(cliOutput).toContain(
-        'The .next directory was removed while the dev server was running. Restarting...'
-      )
-      expect(cliOutput).toContain('Ready in')
-    }, 30000)
-
-    // 5. After restart, pages should render normally
-    await retry(async () => {
-      const res = await next.fetch('/pages')
-      expect(res.status).toBe(200)
-      expect(await res.text()).toContain('pages page')
-    }, 30000)
-  })
+      // After restart, pages should render normally
+      await retry(async () => {
+        const res = await next.fetch(routePath)
+        expect(res.status).toBe(200)
+        expect(await res.text()).toContain(expectedText)
+      }, 30000)
+    }
+  )
 })

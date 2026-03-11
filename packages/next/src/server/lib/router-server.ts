@@ -224,25 +224,19 @@ export async function initialize(opts: {
     // Watch the distDir so we can restart the dev server when it's deleted,
     // instead of serving broken pages with cryptic ENOENT errors.
     const distDir = path.join(opts.dir, config.distDir)
-    try {
-      const distDirWatcher = watch(distDir, () => {
-        if (!existsSync(distDir)) {
-          distDirWatcher.close()
-          Log.warn(
-            `The ${(config as NextConfigComplete).distDirRoot || config.distDir} directory was removed while the dev server was running. Restarting...`
-          )
-          process.exit(RESTART_EXIT_CODE)
-        }
-      })
-      distDirWatcher.on('error', () => {
-        // The watcher itself errored (e.g. the directory no longer exists).
-        // Trigger a restart in that case too.
-        distDirWatcher.close()
+    const distDirLabel =
+      (config as NextConfigComplete).distDirRoot || config.distDir
+    const restartOnDistDirRemoval = () => {
+      if (!existsSync(distDir)) {
         Log.warn(
-          `The ${(config as NextConfigComplete).distDirRoot || config.distDir} directory was removed while the dev server was running. Restarting...`
+          `The ${distDirLabel} directory was removed while the dev server was running. Restarting...`
         )
         process.exit(RESTART_EXIT_CODE)
-      })
+      }
+    }
+    try {
+      const watcher = watch(distDir, restartOnDistDirRemoval)
+      watcher.on('error', restartOnDistDirRemoval)
     } catch {
       // If we can't set up the watcher (e.g. distDir doesn't exist yet), ignore.
     }
