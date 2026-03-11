@@ -5498,7 +5498,6 @@ async function validateInstantConfigInBuildWithSample(
       return warmupValidationSamplesTracking.missingSampleErrors
     }
 
-    // TODO(instant-validation-build): do we have to log errors from RSC?
     return await validateInstantConfigs(
       accumulatedChunks,
       debugChunks,
