@@ -299,6 +299,17 @@ export async function collectStagedSegmentData(
           if (digest) {
             return digest
           }
+
+          // Forward existing digests
+          if (
+            error &&
+            typeof error === 'object' &&
+            'digest' in error &&
+            typeof error.digest === 'string'
+          ) {
+            return error.digest
+          }
+
           // We don't need to log the errors because we would have already done that
           // when generating the original Flight stream for the whole page.
           if (
@@ -526,6 +537,17 @@ export async function createCombinedPayloadStream(
             if (digest) {
               return digest
             }
+
+            // Forward existing digests
+            if (
+              error &&
+              typeof error === 'object' &&
+              'digest' in error &&
+              typeof error.digest === 'string'
+            ) {
+              return error.digest
+            }
+
             // We don't need to log the errors because we would have already done that
             // when generating the original Flight stream for the whole page.
             if (

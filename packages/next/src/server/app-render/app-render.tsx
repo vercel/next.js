@@ -4746,10 +4746,29 @@ async function validateInstantConfigs(
                 } else if (!reactController.signal.aborted) {
                   const componentStack = errorInfo.componentStack
                   if (typeof componentStack === 'string') {
+                    let errorForDisplay = err
+                    if (process.env.NODE_ENV === 'production') {
+                      // In production (i.e. build validation), Flight omits everything except the digest
+                      // when serializing errors, which makes them very unfriendly for debugging.
+                      // Map the deserialized errors back to their original error object to make it more useful.
+                      if (
+                        err &&
+                        typeof err === 'object' &&
+                        'digest' in err &&
+                        typeof err.digest === 'string'
+                      ) {
+                        const serverError =
+                          workStore.reactServerErrorsByDigest.get(err.digest)
+                        if (serverError !== undefined) {
+                          errorForDisplay = serverError
+                        }
+                      }
+                    }
+
                     trackThrownErrorInNavigation(
                       workStore,
                       instantValidationState,
-                      err,
+                      errorForDisplay,
                       componentStack
                     )
                   }
@@ -4790,13 +4809,6 @@ async function validateInstantConfigs(
         boundaryState
       )
     } catch (thrownValue) {
-      // NOTE: If an error bubbled up here, it must've not had a Suspense boundary above it.
-      instantValidationState.validationPreventingErrors.push(
-        new Error(
-          `Route "${workStore.route}": Could not validate \`unstable_instant\` because an error prevented the page from rendering.`,
-          { cause: thrownValue }
-        )
-      )
       errors = getNavigationDisallowedDynamicReasons(
         workStore,
         PreludeState.Errored,
@@ -5402,7 +5414,16 @@ async function validateInstantConfigInBuildWithSample(
       }
     }
 
-    const rscErrors: Array<unknown> = []
+    // Track server errors. If one of them surfaces during the client render
+    // in the deserialized form (with no message/stack) we'll use this to map it
+    // back to the original.
+    const onServerError = createReactServerErrorHandler(
+      true, // shouldFormatError
+      true, // isBuildTimePrerendering - disables tracing
+      workStore.reactServerErrorsByDigest,
+      () => {} // Don't report anything here. If needed, it will be reported in the client render.
+    )
+
     const {
       accumulatedChunksPromise,
       startTime,
@@ -5420,16 +5441,9 @@ async function validateInstantConfigInBuildWithSample(
           validationCtx,
           { is404: false }
         ),
-      (err) => {
-        // TODO(instant-validation-build): do something more sensible here?
-        rscErrors.push(err)
-      },
+      onServerError,
       prefilledDataCache
     )
-
-    if (process.env.NEXT_PRIVATE_DEBUG_VALIDATION) {
-      console.log('RSC errors during instant validation render:', rscErrors)
-    }
 
     const accumulatedChunks = await accumulatedChunksPromise
     const debugChunks = null // TODO(instant-validation-build): support debugChannel

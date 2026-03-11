@@ -82,21 +82,21 @@ describe('instant-validation-build', () => {
 
     it('error - server error that blocks page validation with no suspense boundary', async () => {
       const result = await prerender('/(default)/server-errors/page-throws')
-      // TODO(instant-validation-build): Server component errors that surface in the client render have bad error messages.
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/server-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
            at main (<anonymous>)
            at body (<anonymous>)
            at html (<anonymous>) {
-         [cause]: [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
-           digest: ''
-         }
-       }
-       Error: Route "/server-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the page from rendering.
-           at ignore-listed frames {
-         [cause]: [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
-           digest: ''
+         [cause]: Error: Kaboom
+             at d (app/(default)/server-errors/page-throws/page.tsx:24:9)
+           22 | async function Throws(): Promise<never> {
+           23 |   await cookies()
+         > 24 |   throw new Error('Kaboom')
+              |         ^
+           25 | }
+           26 | {
+           digest: '3180096966'
          }
        }
        Build-time instant validation failed for route "/server-errors/page-throws".
@@ -109,7 +109,6 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/(default)/server-errors/page-throws-with-suspense'
       )
-      // TODO(instant-validation-build): Server component errors that surface in the client render have bad error messages.
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/server-errors/page-throws-with-suspense": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
@@ -117,8 +116,15 @@ describe('instant-validation-build', () => {
            at Suspense (<anonymous>)
            at body (<anonymous>)
            at html (<anonymous>) {
-         [cause]: [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
-           digest: ''
+         [cause]: Error: Kaboom
+             at d (app/(default)/server-errors/page-throws-with-suspense/page.tsx:24:9)
+           22 | async function Throws(): Promise<never> {
+           23 |   await cookies()
+         > 24 |   throw new Error('Kaboom')
+              |         ^
+           25 | }
+           26 | {
+           digest: '3182971908'
          }
        }
        Build-time instant validation failed for route "/server-errors/page-throws-with-suspense".
@@ -154,17 +160,6 @@ describe('instant-validation-build', () => {
            8 | }
            9 |
        }
-       Error: Route "/client-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the page from rendering.
-           at ignore-listed frames {
-         [cause]: Error: Kaboom
-             at <unknown> (app/(default)/client-errors/page-throws/client.tsx:7:9)
-           5 | export function ThrowsInClient(): Promise<never> {
-           6 |   useSearchParams()
-         > 7 |   throw new Error('Kaboom')
-             |         ^
-           8 | }
-           9 |
-       }
        Build-time instant validation failed for route "/client-errors/page-throws".
        Stopping prerender due to instant validation errors."
       `)
@@ -175,8 +170,6 @@ describe('instant-validation-build', () => {
       const result = await prerender(
         '/(default)/client-errors/page-throws-with-suspense'
       )
-      // TODO(instant-validation-build): The page segment errored, but a suspense from a parent segment hid the error.
-      // This should be a "Unable to validate" error, because we don't even know what we didn't render.
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/client-errors/page-throws-with-suspense": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
