@@ -215,9 +215,15 @@ function createServerModuleMap(): ServerModuleMap {
           return undefined
         }
 
-        const { moduleId, async } = workerEntry
+        // @ts-expect-error fix exportedName situation
+        const { moduleId, async, exportedName } = workerEntry
 
-        return { id: moduleId, name: id, chunks: [], async }
+        return {
+          id: moduleId,
+          name: exportedName ?? id,
+          chunks: [],
+          async,
+        }
       },
     }
   )
