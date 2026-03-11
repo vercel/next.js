@@ -1,5 +1,6 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { FallbackRouteParam } from '../static-paths/types'
 
 import {
   AppPageRouteModule,
@@ -122,6 +123,35 @@ export const routeModule = new AppPageRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
+function buildCompletedShellCacheKey(
+  fallbackPathname: string,
+  remainingPrerenderableParams: readonly FallbackRouteParam[],
+  params: Record<string, undefined | string | string[]> | undefined
+): string {
+  let completedPathname = fallbackPathname
+
+  for (const { paramName, paramType } of remainingPrerenderableParams) {
+    const value = params?.[paramName]
+    if (!value) {
+      continue
+    }
+
+    const placeholder = paramType.startsWith('optional-catchall')
+      ? `[[...${paramName}]]`
+      : paramType.startsWith('catchall')
+        ? `[...${paramName}]`
+        : `[${paramName}]`
+
+    const encodedValue = Array.isArray(value)
+      ? value.map((item) => encodeURIComponent(item)).join('/')
+      : encodeURIComponent(value)
+
+    completedPathname = completedPathname.replaceAll(placeholder, encodedValue)
+  }
+
+  return completedPathname
+}
+
 export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
@@ -199,12 +229,13 @@ export async function handler(
   // treat the pathname as dynamic. Currently, there's a bug in the PPR
   // implementation that incorrectly leaves %%drp placeholders in the output of
   // parallel routes. This is addressed with cacheComponents.
-  const prerenderInfo =
+  const prerenderMatch =
     nextConfig.experimental.ppr &&
     !nextConfig.cacheComponents &&
     isInterceptionRouteAppPath(resolvedPathname)
       ? null
       : routeModule.match(resolvedPathname, prerenderManifest)
+  const prerenderInfo = prerenderMatch?.route ?? null
 
   const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
@@ -475,6 +506,8 @@ export async function handler(
   // When bots request PPR page, perform the full dynamic rendering.
   // This applies to both DOM bots (like Googlebot) and HTML-limited bots.
   const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
+  const remainingPrerenderableParams =
+    prerenderInfo?.remainingPrerenderableParams ?? []
 
   let ssgCacheKey: string | null = null
   if (
@@ -485,15 +518,52 @@ export async function handler(
     !minimalPostponed &&
     !isDynamicRSCRequest
   ) {
-    ssgCacheKey = resolvedPathname
+    // For normal SSG routes we cache by the fully resolved pathname. For
+    // partial fallbacks we instead derive the cache key from the shell
+    // that matched this request so `/prefix/[one]/[two]` can specialize into
+    // `/prefix/c/[two]` without promoting all the way to `/prefix/c/foo`.
+    const fallbackPathname = prerenderMatch
+      ? typeof prerenderInfo?.fallback === 'string'
+        ? prerenderInfo.fallback
+        : prerenderMatch.source
+      : null
+
+    if (
+      nextConfig.experimental.partialFallbacks === true &&
+      fallbackPathname &&
+      prerenderInfo?.fallbackRouteParams
+    ) {
+      if (remainingPrerenderableParams.length > 0) {
+        const completedShellCacheKey = buildCompletedShellCacheKey(
+          fallbackPathname,
+          remainingPrerenderableParams,
+          params
+        )
+
+        // If applying the current request params doesn't make the shell any
+        // more complete, then this shell is already at its most complete
+        // form and should remain shared rather than creating a new cache entry.
+        ssgCacheKey =
+          completedShellCacheKey !== fallbackPathname
+            ? completedShellCacheKey
+            : null
+      }
+    } else {
+      ssgCacheKey = resolvedPathname
+    }
   }
 
   // the staticPathKey differs from ssgCacheKey since
   // ssgCacheKey is null in dev since we're always in "dynamic"
-  // mode in dev to bypass the cache, but we still need to honor
-  // dynamicParams = false in dev mode
+  // mode in dev to bypass the cache. It can also be null for partial
+  // fallback shells that should remain shared and must not create a
+  // param-specific ISR entry, but we still need to honor fallback handling.
   let staticPathKey = ssgCacheKey
-  if (!staticPathKey && routeModule.isDev) {
+  if (
+    !staticPathKey &&
+    (routeModule.isDev ||
+      (isSSG && pageIsDynamic && prerenderInfo?.fallbackRouteParams))
+  ) {
     staticPathKey = resolvedPathname
   }
 
@@ -535,6 +605,17 @@ export async function handler(
   const isWrappedByNextServer = Boolean(
     routerServerContext?.isWrappedByNextServer
   )
+  const remainingFallbackRouteParams =
+    nextConfig.experimental.partialFallbacks === true &&
+    remainingPrerenderableParams.length > 0
+      ? (prerenderInfo?.fallbackRouteParams?.filter(
+          (param) =>
+            !remainingPrerenderableParams.some(
+              (prerenderableParam) =>
+                prerenderableParam.paramName === param.paramName
+            )
+        ) ?? [])
+      : []
 
   const render404 = async () => {
     // TODO: should route-module itself handle rendering the 404
@@ -875,6 +956,21 @@ export async function handler(
         fallbackMode = parseFallbackField(prerenderInfo.fallback)
       }
 
+      if (
+        nextConfig.experimental.partialFallbacks === true &&
+        prerenderInfo?.fallback === null &&
+        prerenderInfo.remainingPrerenderableParams &&
+        prerenderInfo?.remainingPrerenderableParams?.length > 0
+      ) {
+        // Generic source shells with unresolved prerenderable params don't
+        // have a concrete fallback file of their own, so the manifest reports
+        // them as blocking. When we can complete the shell into a more
+        // specific prerendered shell for this request, treat it like a
+        // prerender fallback so we can serve that shell instead of blocking
+        // on the full route.
+        fallbackMode = FallbackMode.PRERENDER
+      }
+
       // When serving a HTML bot request, we want to serve a blocking render and
       // not the prerendered page. This ensures that the correct content is served
       // to the bot in the head.
@@ -977,8 +1073,12 @@ export async function handler(
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
+                // Always serve the shell that matched this request
+                // immediately. If there are still prerenderable params left,
+                // the background path below will complete the shell into a
+                // more specific cache entry for later requests.
                 fallbackRouteParams,
-                forceStaticRender: false,
+                forceStaticRender: true,
               }),
             waitUntil: ctx.waitUntil,
             isMinimalMode,
@@ -994,8 +1094,7 @@ export async function handler(
               isRoutePPREnabled &&
               // Match the build-time contract: only fallback shells that can
               // still be completed with prerenderable params should upgrade.
-              prerenderInfo?.remainingPrerenderableParams !== undefined &&
-              prerenderInfo.remainingPrerenderableParams.length > 0 &&
+              remainingPrerenderableParams.length > 0 &&
               nextConfig.experimental.partialFallbacks === true &&
               ssgCacheKey &&
               incrementalCache &&
@@ -1017,6 +1116,11 @@ export async function handler(
                 const responseCache = routeModule.getResponseCache(req)
 
                 try {
+                  // Only the params that were just specialized should be
+                  // removed from the fallback render. Any remaining fallback
+                  // params stay deferred so the revalidated result is a more
+                  // specific shell (e.g. `/prefix/c/[two]`), not a fully
+                  // concrete route (`/prefix/c/foo`).
                   await responseCache.revalidate(
                     ssgCacheKey,
                     incrementalCache,
@@ -1025,9 +1129,13 @@ export async function handler(
                     (c) => {
                       return doRender({
                         span: c.span,
-                        // Route shell render should not use the fallback params.
                         postponed: undefined,
-                        fallbackRouteParams: null,
+                        fallbackRouteParams:
+                          remainingFallbackRouteParams.length > 0
+                            ? createOpaqueFallbackRouteParams(
+                                remainingFallbackRouteParams
+                              )
+                            : null,
                         forceStaticRender: true,
                       })
                     },
