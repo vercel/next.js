@@ -73,6 +73,7 @@ rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
 supports-hyperlinks = "3.1.0"
+terminal_size = { workspace = true }
 terminal_hyperlink = "0.1.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -80,6 +81,7 @@ tracing-chrome = "0.7.2"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
+regex = { workspace = true }
 
 swc_core = { workspace = true, features = [
     "base",
