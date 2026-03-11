@@ -77,8 +77,9 @@ export interface RequestStore extends CommonWorkUnitStore {
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
   fallbackParams?: OpaqueFallbackRouteParams | null
 
-  // TODO: this is duplicated with prerender stores, should probably refactor
-  // to make it make more sense
+  // Only in build-time instant-validation
+  // We mirror the controller/renderSignal from prerender stores to allow aborting the render
+  // in case we hit an error that makes it unnecessary to continue
   controller?: AbortController
   renderSignal?: AbortSignal
   validationSamples?: InstantValidationSamples

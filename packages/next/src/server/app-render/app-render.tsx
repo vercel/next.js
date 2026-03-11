@@ -3600,9 +3600,14 @@ async function renderWithRestartOnCacheMissInDev(
       // If we abort the render, we want to reject the stage-dependent promises as well.
       // Note that we want to install this listener after the render is started
       // so that it runs after react is finished running its abort code.
-      initialReactController.signal.addEventListener('abort', () => {
-        initialDataController.abort(initialReactController.signal.reason)
-      })
+      initialReactController.signal.addEventListener(
+        'abort',
+        () => {
+          const { reason } = initialReactController.signal
+          initialDataController.abort(reason)
+        },
+        { once: true }
+      )
 
       const stream = streamPair[0]
       const accumulatedChunksPromise = accumulateStreamChunks(
@@ -3611,10 +3616,14 @@ async function renderWithRestartOnCacheMissInDev(
         initialDataController.signal
       )
 
-      initialDataController.signal.addEventListener('abort', () => {
-        accumulatedChunksPromise.catch(() => {})
-        stream.cancel()
-      })
+      initialDataController.signal.addEventListener(
+        'abort',
+        () => {
+          accumulatedChunksPromise.catch(() => {})
+          stream.cancel()
+        },
+        { once: true }
+      )
 
       return {
         stream,
@@ -4866,16 +4875,24 @@ async function validateInstantConfigs(
 
 /**
  * Two-pass render for build-time instant validation.
- * Mirrors `renderWithRestartOnCacheMissInDev`: pass 1 warms caches,
+ * The flow is similar to `renderWithRestartOnCacheMissInDev`: pass 1 warms caches,
  * pass 2 renders with warm caches. If pass 1 has no cache misses,
  * its result is returned directly.
+ *
+ * Differences from `renderWithRestartOnCacheMissInDev`:
+ * - both renders are abortable: if we know that we can't use a stream, we can just
+ *   throw it away, we don't have to render a complete result.
+ * - We don't need to tee the stream, we only care about accumulating chunks.
  */
 async function renderWithRestartOnCacheMissInValidation(
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
-  onError: (error: unknown) => void,
+  createOnError: (
+    signal: AbortSignal,
+    isRestart: boolean
+  ) => (error: unknown) => void,
   prefilledDataCache: RenderResumeDataCache | null
 ): Promise<{
   accumulatedChunksPromise: Promise<AccumulatedStreamChunks>
@@ -4885,20 +4902,6 @@ async function renderWithRestartOnCacheMissInValidation(
 }> {
   const { componentMod: ComponentMod } = ctx
   const { clientModules } = getClientReferenceManifest()
-
-  const createErrorHandler = (signal: AbortSignal) => (err: unknown) => {
-    const digest = getDigestForWellKnownError(err)
-    if (digest) {
-      return digest
-    }
-
-    // TODO: consider if we should hide errors after abort
-    if (signal.aborted) {
-      return
-    }
-
-    return onError(err)
-  }
 
   let startTime = -Infinity
   let requestStore: RequestStore = initialRequestStore
@@ -4910,12 +4913,15 @@ async function renderWithRestartOnCacheMissInValidation(
   const cacheSignal = new CacheSignal()
   trackPendingModules(cacheSignal)
 
+  // The prerender we rean before the validation probably already filled some caches,
+  // so we want to save work and re-use them.
   const prerenderResumeDataCache = prefilledDataCache
     ? createPrerenderResumeDataCache(prefilledDataCache)
     : createPrerenderResumeDataCache()
 
   const initialReactController = new AbortController()
   const initialDataController = new AbortController()
+
   const initialAbandonController = new AbortController()
   const initialStageController = new StagedRenderingController(
     initialDataController.signal,
@@ -4933,6 +4939,11 @@ async function renderWithRestartOnCacheMissInValidation(
     requestStore.mutableCookies,
     requestStore.headers
   )
+  // We don't set `requestStore.controller and requestStore.renderSignal here.
+  // Right now, we only abort for sync IO, and in the first render, that's just a restart
+  // (after waiting for caches)
+  requestStore.controller = undefined
+  requestStore.renderSignal = undefined
 
   const initialRscPayload = await getPayload(requestStore)
 
@@ -4948,47 +4959,41 @@ async function renderWithRestartOnCacheMissInValidation(
     }
   }
 
-  const initialStreamResult = await runInSequentialTasks(
+  const initialResult = await runInSequentialTasks(
     () => {
       initialStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = workUnitAsyncStorage
-        .run(
-          requestStore,
-          renderToFlightStream,
-          ComponentMod,
-          initialRscPayload,
-          clientModules,
-          {
-            onError: createErrorHandler(initialReactController.signal),
-            filterStackFrame,
-            signal: initialReactController.signal,
-          }
-        )
-        .tee()
+      const stream = workUnitAsyncStorage.run(
+        requestStore,
+        renderToFlightStream,
+        ComponentMod,
+        initialRscPayload,
+        clientModules,
+        {
+          onError: createOnError(initialReactController.signal, false),
+          startTime,
+          filterStackFrame,
+          signal: initialReactController.signal, // TODO: this seems wrong? it'd break abandon
+        }
+      )
 
       initialReactController.signal.addEventListener(
         'abort',
         () => {
-          initialDataController.abort(initialReactController.signal.reason)
+          const { reason } = initialReactController.signal
+          initialDataController.abort(reason)
         },
         { once: true }
       )
 
-      const stream = streamPair[0]
       const accumulatedChunksPromise = accumulateStreamChunks(
-        streamPair[1],
+        stream,
         initialStageController,
         initialDataController.signal
       )
-
-      initialDataController.signal.addEventListener('abort', () => {
-        accumulatedChunksPromise.catch(() => {})
-        stream.cancel()
-      })
-
-      return { stream, accumulatedChunksPromise }
+      accumulatedChunksPromise.catch(() => {})
+      return { accumulatedChunksPromise }
     },
     () => {
       advanceStageIfNoCacheMiss(RenderStage.Static)
@@ -5007,7 +5012,7 @@ async function renderWithRestartOnCacheMissInValidation(
   if (initialStageController.currentStage !== RenderStage.Abandoned) {
     // No cache misses. Use the result as-is.
     return {
-      accumulatedChunksPromise: initialStreamResult.accumulatedChunksPromise,
+      accumulatedChunksPromise: initialResult.accumulatedChunksPromise,
       startTime,
       stageController: initialStageController,
       requestStore,
@@ -5039,10 +5044,6 @@ async function renderWithRestartOnCacheMissInValidation(
   requestStore.renderResumeDataCache = createRenderResumeDataCache(
     prerenderResumeDataCache
   )
-
-  requestStore.controller = finalReactController
-  requestStore.renderSignal = finalDataController.signal
-
   requestStore.stagedRendering = finalStageController
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(
@@ -5051,27 +5052,32 @@ async function renderWithRestartOnCacheMissInValidation(
     requestStore.mutableCookies,
     requestStore.headers
   )
+  // Right now, we only abort for sync IO.
+  // If sync IO occurs in a place where it's not allowed, then we have to fail validation,
+  // and we can abort the render immediately, without waiting for anything else..
+  requestStore.controller = finalReactController
+  requestStore.renderSignal = finalDataController.signal
 
   const finalRscPayload = await getPayload(requestStore)
 
-  const finalStreamResult = await runInSequentialTasks(
+  const finalResult = await runInSequentialTasks(
     () => {
       finalStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = workUnitAsyncStorage
-        .run(
-          requestStore,
-          renderToFlightStream,
-          ComponentMod,
-          finalRscPayload,
-          clientModules,
-          {
-            onError: createErrorHandler(finalReactController.signal),
-            filterStackFrame,
-          }
-        )
-        .tee()
+      const stream = workUnitAsyncStorage.run(
+        requestStore,
+        renderToFlightStream,
+        ComponentMod,
+        finalRscPayload,
+        clientModules,
+        {
+          onError: createOnError(finalReactController.signal, true),
+          startTime,
+          filterStackFrame,
+          signal: finalReactController.signal,
+        }
+      )
 
       finalReactController.signal.addEventListener(
         'abort',
@@ -5081,13 +5087,15 @@ async function renderWithRestartOnCacheMissInValidation(
         { once: true }
       )
 
+      const accumulatedChunksPromise = accumulateStreamChunks(
+        stream,
+        finalStageController,
+        null
+      )
+      accumulatedChunksPromise.catch(() => {})
+
       return {
-        stream: streamPair[0],
-        accumulatedChunksPromise: accumulateStreamChunks(
-          streamPair[1],
-          finalStageController,
-          null
-        ),
+        accumulatedChunksPromise,
       }
     },
     () => {
@@ -5105,7 +5113,7 @@ async function renderWithRestartOnCacheMissInValidation(
   )
 
   return {
-    accumulatedChunksPromise: finalStreamResult.accumulatedChunksPromise,
+    accumulatedChunksPromise: finalResult.accumulatedChunksPromise,
     startTime,
     stageController: finalStageController,
     requestStore,
@@ -5442,7 +5450,17 @@ async function validateInstantConfigInBuildWithSample(
           validationCtx,
           { is404: false }
         ),
-      onServerError,
+      (signal) =>
+        function onError(err) {
+          const digest = getDigestForWellKnownError(err)
+          if (digest) {
+            return digest
+          }
+          if (signal.aborted) {
+            return
+          }
+          return onServerError(err)
+        },
       prefilledDataCache
     )
 
