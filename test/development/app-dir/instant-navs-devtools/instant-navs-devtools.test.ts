@@ -7,6 +7,19 @@ describe('instant-nav-panel', () => {
     files: __dirname,
   })
 
+  async function waitForPanelRouterTransition() {
+    // Run all the necessary CSS transitions
+    // and click-outside event handler adjustment due to cascading update.
+    // TODO: Consider disabling transitions entirely in Next.js tests.
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        // MENU_DURATION_MS
+        200
+      )
+    )
+  }
+
   async function clearInstantModeCookie(browser: Playwright) {
     await browser.eval(() => {
       document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
@@ -18,7 +31,7 @@ describe('instant-nav-panel', () => {
   }
 
   async function clickStartClientNav(browser: Playwright) {
-    await browser.elementByCss('[data-instant-nav-client]').click()
+    await browser.elementByCssInstant('[data-instant-nav-client]').click()
   }
 
   async function getBadgeStatus(browser: Playwright): Promise<string> {
@@ -26,16 +39,7 @@ describe('instant-nav-panel', () => {
   }
 
   async function getInstantNavPanelText(browser: Playwright): Promise<string> {
-    return browser.elementByCss('.instant-nav-panel').text()
-  }
-
-  async function hasInstantNavPanelOpen(browser: Playwright): Promise<boolean> {
-    try {
-      await browser.elementByCssInstant('.instant-nav-panel')
-      return true
-    } catch {
-      return false
-    }
+    return browser.elementByCssInstant('.instant-nav-panel').text()
   }
 
   async function closePanelViaHeader(browser: Playwright) {
@@ -44,15 +48,17 @@ describe('instant-nav-panel', () => {
 
   async function openInstantNavPanel(browser: Playwright) {
     await toggleDevToolsIndicatorPopover(browser)
+    await waitForPanelRouterTransition()
     await clickInstantNavMenuItem(browser)
 
     await retry(
       async () => {
-        expect(await hasInstantNavPanelOpen(browser)).toBe(true)
+        await browser.elementByCssInstant('.instant-nav-panel')
       },
       5_000,
       500
     )
+    await waitForPanelRouterTransition()
   }
 
   it('should open panel in waiting state without setting cookie', async () => {
