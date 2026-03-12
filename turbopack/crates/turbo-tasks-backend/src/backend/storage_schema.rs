@@ -569,6 +569,27 @@ impl TaskStorage {
         });
     }
 
+    /// Returns `true` if this task has no incoming edges and is not currently executing,
+    /// meaning it is eligible for garbage collection.
+    ///
+    /// A task is GC-eligible when ALL of the following are true:
+    /// - No activeness state (active_counter=0, no root type, no active_until_clean)
+    /// - No tasks reading this task's output (`output_dependent` is empty)
+    /// - No tasks reading this task's cells (`cell_dependents` is empty)
+    /// - No tasks reading this task's collectibles (`collectibles_dependents` is empty)
+    /// - Not currently executing (`in_progress` is absent)
+    ///
+    /// Note: Aggregation tree edges (`upper`/`followers`) are NOT checked. They are a
+    /// bookkeeping overlay derived from the task graph, not independent liveness roots.
+    /// The GC processor actively cleans them up during task freeing.
+    pub fn is_gc_eligible(&self) -> bool {
+        self.get_activeness().is_none()
+            && self.output_dependent().is_empty()
+            && self.cell_dependents().is_none_or(|s| s.is_empty())
+            && self.collectibles_dependents().is_none_or(|s| s.is_empty())
+            && self.get_in_progress().is_none()
+    }
+
     /// Returns counts for aggregation tree and collectibles fields.
     /// Used for cache size statistics.
     pub fn meta_counts(&self) -> MetaCounts {
@@ -1033,6 +1054,99 @@ mod tests {
     // ==========================================================================
     // Schema Size Tests
     // ==========================================================================
+
+    #[test]
+    fn test_gc_eligible_empty_task() {
+        // A fresh task with no edges should be GC-eligible
+        let storage = TaskStorage::new();
+        assert!(storage.is_gc_eligible());
+    }
+
+    #[test]
+    fn test_gc_eligible_with_output_dependent() {
+        let mut storage = TaskStorage::new();
+        storage
+            .output_dependent_mut()
+            .insert(TaskId::new(1).unwrap());
+        assert!(!storage.is_gc_eligible());
+
+        // Remove the dependent
+        storage
+            .output_dependent_mut()
+            .remove(&TaskId::new(1).unwrap());
+        assert!(storage.is_gc_eligible());
+    }
+
+    #[test]
+    fn test_gc_eligible_with_cell_dependents() {
+        let mut storage = TaskStorage::new();
+        let cell_dep = (
+            CellId {
+                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                index: 0,
+            },
+            None,
+            TaskId::new(1).unwrap(),
+        );
+        storage.cell_dependents_mut().insert(cell_dep);
+        assert!(!storage.is_gc_eligible());
+
+        // Remove the dependent
+        storage.cell_dependents_mut().remove(&cell_dep);
+        assert!(storage.is_gc_eligible());
+    }
+
+    #[test]
+    fn test_gc_eligible_with_collectibles_dependents() {
+        let mut storage = TaskStorage::new();
+        let trait_type = unsafe { TraitTypeId::new_unchecked(1) };
+        storage
+            .collectibles_dependents_mut()
+            .insert((trait_type, TaskId::new(1).unwrap()));
+        assert!(!storage.is_gc_eligible());
+
+        // Remove the dependent
+        storage
+            .collectibles_dependents_mut()
+            .remove(&(trait_type, TaskId::new(1).unwrap()));
+        assert!(storage.is_gc_eligible());
+    }
+
+    #[test]
+    fn test_gc_eligible_with_activeness() {
+        let mut storage = TaskStorage::new();
+        storage.set_activeness(ActivenessState::new(TaskId::new(1).unwrap()));
+        assert!(!storage.is_gc_eligible());
+
+        // Remove activeness
+        storage.take_activeness();
+        assert!(storage.is_gc_eligible());
+    }
+
+    #[test]
+    fn test_gc_eligible_with_in_progress() {
+        let mut storage = TaskStorage::new();
+        use turbo_tasks::event::Event;
+        storage.set_in_progress(InProgressState::Scheduled {
+            done_event: Event::new(|| || "test".to_string()),
+            reason: TaskExecutionReason::Initial,
+        });
+        assert!(!storage.is_gc_eligible());
+
+        // Remove in_progress
+        storage.take_in_progress();
+        assert!(storage.is_gc_eligible());
+    }
+
+    #[test]
+    fn test_gc_eligible_ignores_aggregation_edges() {
+        // Aggregation tree edges (upper/followers) should NOT affect GC eligibility
+        let mut storage = TaskStorage::new();
+        storage.upper_mut().insert(TaskId::new(1).unwrap(), 1);
+        storage.followers_mut().insert(TaskId::new(2).unwrap(), 1);
+        // Still eligible despite having aggregation edges
+        assert!(storage.is_gc_eligible());
+    }
 
     #[test]
     #[cfg(target_pointer_width = "64")]

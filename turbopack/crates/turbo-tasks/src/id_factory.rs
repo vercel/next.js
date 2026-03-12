@@ -201,4 +201,108 @@ mod tests {
             factory.get();
         }
     }
+
+    #[test]
+    fn test_reuse_basic() {
+        let factory = IdFactoryWithReuse::new(NonZeroU8::MIN, NonZeroU8::MAX);
+        let id1 = factory.get();
+        let id2 = factory.get();
+        assert_eq!(id1, NonZeroU8::new(1).unwrap());
+        assert_eq!(id2, NonZeroU8::new(2).unwrap());
+
+        // Return id1 to the free list
+        unsafe { factory.reuse(id1) };
+
+        // Next get should return the reused id1
+        let id3 = factory.get();
+        assert_eq!(id3, id1);
+
+        // Next get should allocate a new id (3)
+        let id4 = factory.get();
+        assert_eq!(id4, NonZeroU8::new(3).unwrap());
+    }
+
+    #[test]
+    fn test_reuse_multiple() {
+        let factory = IdFactoryWithReuse::new(NonZeroU8::MIN, NonZeroU8::MAX);
+        let id1 = factory.get();
+        let id2 = factory.get();
+        let id3 = factory.get();
+
+        // Return multiple ids
+        unsafe { factory.reuse(id2) };
+        unsafe { factory.reuse(id1) };
+
+        // Should get back the reused ids (FIFO order from ConcurrentQueue)
+        let got1 = factory.get();
+        let got2 = factory.get();
+        assert_eq!(got1, id2);
+        assert_eq!(got2, id1);
+
+        // Now should allocate fresh
+        let got3 = factory.get();
+        assert_eq!(got3, NonZeroU8::new(4).unwrap());
+        assert_ne!(got3, id3); // id3 was never returned
+    }
+
+    #[test]
+    fn test_reuse_extends_capacity() {
+        // Verify that reuse prevents overflow by recycling ids
+        let factory =
+            IdFactoryWithReuse::new(NonZeroU8::new(1).unwrap(), NonZeroU8::new(3).unwrap());
+        let id1 = factory.get(); // 1
+        let id2 = factory.get(); // 2
+        let id3 = factory.get(); // 3 -- now at capacity
+
+        // Return id1 so we can get one more
+        unsafe { factory.reuse(id1) };
+        let id4 = factory.get(); // Should get id1 back
+        assert_eq!(id4, id1);
+
+        // All still alive: id2, id3, id4(=id1)
+        let _ = (id2, id3, id4);
+    }
+
+    #[test]
+    fn test_reuse_concurrent() {
+        use std::{sync::Arc, thread};
+
+        let factory = Arc::new(IdFactoryWithReuse::new(
+            NonZeroU64::new(1).unwrap(),
+            NonZeroU64::MAX,
+        ));
+        let num_threads = 4;
+        let ops_per_thread = 1000;
+
+        let handles: Vec<_> = (0..num_threads)
+            .map(|_| {
+                let factory = factory.clone();
+                thread::spawn(move || {
+                    let mut ids = Vec::new();
+                    for _ in 0..ops_per_thread {
+                        ids.push(factory.get());
+                    }
+                    // Return half the ids
+                    for id in ids.drain(..ops_per_thread / 2) {
+                        unsafe { factory.reuse(id) };
+                    }
+                    // Get some more (should reuse)
+                    for _ in 0..ops_per_thread / 4 {
+                        ids.push(factory.get());
+                    }
+                    ids
+                })
+            })
+            .collect();
+
+        let all_ids: Vec<Vec<NonZeroU64>> =
+            handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+        // Just verify no panics occurred and we got valid ids
+        let total = all_ids.iter().map(|v| v.len()).sum::<usize>();
+        assert_eq!(
+            total,
+            num_threads * (ops_per_thread / 2 + ops_per_thread / 4)
+        );
+    }
 }

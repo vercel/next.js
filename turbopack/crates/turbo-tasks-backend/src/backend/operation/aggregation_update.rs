@@ -2591,6 +2591,11 @@ impl AggregationUpdateQueue {
                     task_ids: followers,
                 });
             }
+            // Activeness removed - task may now be GC-eligible.
+            // Enqueue for GC check (the GC processor will re-verify all conditions).
+            if is_empty {
+                ctx.enqueue_gc(task_id);
+            }
         } else {
             drop(task);
         }

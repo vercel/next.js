@@ -19,6 +19,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
+use concurrent_queue::ConcurrentQueue;
 use indexmap::IndexSet;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -212,6 +213,16 @@ struct TurboTasksBackendInner<B: BackingStorage> {
 
     task_statistics: TaskStatisticsApi,
 
+    /// Queue of task IDs that have been identified as GC-eligible (no incoming edges).
+    /// Tasks are enqueued when an edge removal makes them eligible, and processed
+    /// in batches by `GcOperation`.
+    gc_queue: ConcurrentQueue<TaskId>,
+
+    /// Task cache entries pending deletion from the database. Populated by the GC
+    /// processor when removing tasks from the in-memory cache. Drained during
+    /// `save_snapshot` to emit database deletion records.
+    pending_task_cache_deletions: ConcurrentQueue<(Arc<CachedTaskType>, TaskId)>,
+
     backing_storage: B,
 
     #[cfg(feature = "verify_aggregation_graph")]
@@ -272,6 +283,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             #[cfg(feature = "verify_aggregation_graph")]
             is_idle: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
+            gc_queue: ConcurrentQueue::unbounded(),
+            pending_task_cache_deletions: ConcurrentQueue::unbounded(),
             backing_storage,
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
@@ -374,6 +387,38 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn track_cache_miss(&self, task_type: &CachedTaskType) {
         self.task_statistics
             .map(|stats| stats.increment_cache_miss(task_type.native_fn));
+    }
+
+    /// Enqueue a task for garbage collection. Called when an edge removal makes
+    /// a task potentially eligible for GC.
+    fn enqueue_gc(&self, task_id: TaskId) {
+        let _ = self.gc_queue.push(task_id);
+    }
+
+    /// Remove a GC'd task from Storage and task_cache. Called by the GC processor
+    /// after verifying the task has no incoming edges and disconnecting it from
+    /// the aggregation tree.
+    fn gc_remove_task(&self, task_id: TaskId) {
+        // Remove from storage, getting the task data for task_cache cleanup
+        if let Some(task_storage) = self.storage.remove_task(task_id) {
+            // Remove from task_cache using the persistent_task_type as key
+            if let Some(task_type) = task_storage.get_persistent_task_type() {
+                self.task_cache.remove(task_type.as_ref());
+                // Queue for database deletion
+                let _ = self
+                    .pending_task_cache_deletions
+                    .push((task_type.clone(), task_id));
+            }
+            // Mark for database deletion (TaskMeta + TaskData key spaces)
+            if !task_id.is_transient() {
+                self.storage.mark_deleted(task_id);
+            }
+        }
+    }
+
+    /// Returns the number of tasks currently stored in memory.
+    pub fn get_task_count(&self) -> usize {
+        self.storage.get_task_count()
     }
 
     /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
