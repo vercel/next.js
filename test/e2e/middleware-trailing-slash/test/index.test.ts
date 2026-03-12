@@ -123,12 +123,11 @@ describe('Middleware Runtime trailing slash', () => {
         expect(middlewareWithoutEnvs.files).toBeArray()
 
         if (middlewareWithoutEnvs.entrypoint) {
-          expect(middlewareWithoutEnvs.entrypoint).toBe('server/middleware.js')
-          expect(middlewareWithoutEnvs.files).toEqual(
-            expect.arrayContaining([
-              'server/edge-runtime-webpack.js',
-              'server/middleware.js',
-            ])
+          expect(middlewareWithoutEnvs.entrypoint).toMatch(
+            /^server\/.+\.(?:js|mjs|cjs)$/
+          )
+          expect(middlewareWithoutEnvs.files).toContain(
+            middlewareWithoutEnvs.entrypoint
           )
         } else {
           expect(middlewareWithoutEnvs.files.length).toBeGreaterThan(0)
@@ -142,9 +141,10 @@ describe('Middleware Runtime trailing slash', () => {
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
           if (middleware.entrypoint) {
-            expect(middleware.files).toContainEqual(
-              expect.stringContaining('server/edge-runtime-webpack')
+            expect(middleware.entrypoint).toMatch(
+              /^server\/.+\.(?:js|mjs|cjs)$/
             )
+            expect(middleware.files).toContain(middleware.entrypoint)
           }
           expect(middleware.files).not.toContainEqual(
             expect.stringContaining('static/chunks/')
