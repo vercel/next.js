@@ -471,7 +471,6 @@ impl ChunkingContext for NodeJsChunkingContext {
         let basename = source_path.file_name();
         let content_hash = content_hash.await?;
         let ContentHashing::Direct { length } = self.asset_content_hashing;
-        // 13 base40 chars ≈ 69 bits of collision resistance
         let short_hash = &content_hash[..length as usize];
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(

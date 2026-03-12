@@ -531,7 +531,6 @@ pub async fn get_client_chunking_context(
                 },
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
-            .asset_content_hashing(ContentHashing::Direct { length: 13 })
             .module_merging(*scope_hoisting.await?);
     }
 
