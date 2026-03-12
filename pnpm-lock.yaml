@@ -12722,8 +12722,8 @@ packages:
   json-schema-typed@7.0.3:
     resolution: {integrity: sha512-7DE8mpG+/fVw+dTpjbxnx47TaMnDfOI1jwft9g1VybltZCduyRQPJPvc+zzKY9WPHxhPWczyFuYa6I8Mw4iU5A==}
 
-  json-schema-typed@8.0.1:
-    resolution: {integrity: sha512-XQmWYj2Sm4kn4WeTYvmpKEbyPsL7nBsb647c7pMe6l02/yx2+Jfc4dT6UZkEXnIUb5LhD55r2HPsJ1milQ4rDg==}
+  json-schema-typed@8.0.2:
+    resolution: {integrity: sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA==}
 
   json-schema@0.2.3:
     resolution: {integrity: sha512-a3xHnILGMtk+hDOqNwHzF6e2fNbiMrXZvxKQiEv2MlgQP+pjIOzqAmKYD2mDpXYE/44M7g+n9p2bKkYWDUcXCQ==}
@@ -26686,7 +26686,7 @@ snapshots:
       debounce-fn: 6.0.0
       dot-prop: 9.0.0
       env-paths: 3.0.0
-      json-schema-typed: 8.0.1
+      json-schema-typed: 8.0.2
       semver: 7.6.3
       uint8array-extras: 1.1.0
 
@@ -32010,7 +32010,7 @@ snapshots:
 
   json-schema-typed@7.0.3: {}
 
-  json-schema-typed@8.0.1: {}
+  json-schema-typed@8.0.2: {}
 
   json-schema@0.2.3: {}
 
