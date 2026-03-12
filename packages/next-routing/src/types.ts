@@ -96,10 +96,8 @@ export type ResolveRoutesResult = {
    */
   resolvedPathname?: string
   /**
-   * Merged query produced by rewrite/middleware routing. `query` is kept as a
-   * backwards-compatible alias of `resolvedQuery`.
+   * Merged query produced by rewrite/middleware routing.
    */
-  query?: ResolveRoutesQuery
   resolvedQuery?: ResolveRoutesQuery
   /**
    * Concrete invocation target to use when invoking the resolved route/module.

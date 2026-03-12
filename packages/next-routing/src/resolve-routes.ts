@@ -217,7 +217,6 @@ function withResolvedInvocationTarget({
   return {
     ...result,
     resolvedPathname,
-    query: resolvedQuery,
     resolvedQuery,
     invocationTarget: {
       pathname: invocationPathname,

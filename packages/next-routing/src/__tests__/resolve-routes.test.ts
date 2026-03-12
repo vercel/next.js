@@ -896,7 +896,6 @@ describe('resolveRoutes - dynamic routes', () => {
       existing: '1',
       added: '2',
     })
-    expect(result.query).toEqual(result.resolvedQuery)
     expect(result.invocationTarget).toEqual({
       pathname: '/rewrite-target',
       query: {
