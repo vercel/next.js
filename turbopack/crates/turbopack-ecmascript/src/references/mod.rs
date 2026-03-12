@@ -541,6 +541,7 @@ pub async fn analyze_ecmascript_module(
 
     match result {
         Ok(result) => Ok(result),
+        // ast-grep-ignore: no-context-turbofmt
         Err(err) => Err(err
             .context(turbofmt!("failed to analyze ecmascript module '{}'", module.ident()).await?)),
     }

@@ -3,12 +3,25 @@ use std::{any::type_name, sync::Arc};
 use anyhow::Result;
 use either::Either;
 use smallvec::SmallVec;
+use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
     backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
     utils::chunked_vec::ChunkedVec,
 };
+
+pub struct SnapshotItem {
+    pub task_id: TaskId,
+    pub data: Option<TurboBincodeBuffer>,
+    pub meta: Option<TurboBincodeBuffer>,
+}
+
+impl SnapshotItem {
+    pub fn is_empty(&self) -> bool {
+        self.meta.is_none() && self.data.is_none()
+    }
+}
 
 /// Represents types accepted by [`TurboTasksBackend::new`]. Typically this is the value returned by
 /// [`default_backing_storage`] or [`noop_backing_storage`].
@@ -51,14 +64,7 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<
-                Item = (
-                    TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
-                ),
-            > + Send
-            + Sync;
+        I: Iterator<Item = SnapshotItem> + Send + Sync;
     fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>>;
     /// Returns all task IDs that match the given task type (hash collision candidates).
     ///
@@ -134,14 +140,7 @@ where
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<
-                Item = (
-                    TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
-                ),
-            > + Send
-            + Sync,
+        I: Iterator<Item = SnapshotItem> + Send + Sync,
     {
         either::for_both!(self, this => this.save_snapshot(
             operations,

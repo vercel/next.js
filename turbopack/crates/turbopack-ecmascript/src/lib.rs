@@ -1520,7 +1520,8 @@ async fn merge_modules(
         Ok(v) => v,
         Err((content_idx, err)) => {
             return Err(
-                err.context(turbofmt!("Processing {}", contents[content_idx].0.ident()).await?)
+                // ast-grep-ignore: no-context-turbofmt
+                err.context(turbofmt!("Processing {}", contents[content_idx].0.ident()).await?),
             );
         }
     };

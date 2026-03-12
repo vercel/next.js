@@ -160,6 +160,7 @@ async function main() {
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
           NEXT_EXTERNAL_TESTS_FILTERS,
+          NEXT_FLAKE_DETECTION: '1',
           IS_TURBOPACK_TEST: '1',
           TURBOPACK_BUILD:
             testMode === 'start' || testMode === 'deploy' ? '1' : undefined,

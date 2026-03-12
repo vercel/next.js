@@ -1,31 +1,4 @@
-//! A task scheduling and caching system that is focused on incremental
-//! execution.
-//!
-//! It defines 4 primitives:
-//! - **[Functions][macro@crate::function]:** Units of execution, invalidation, and reexecution.
-//! - **[Values][macro@crate::value]:** Data created, stored, and returned by functions.
-//! - **[Traits][macro@crate::value_trait]:** Traits that define a set of functions on values.
-//! - **[Collectibles][crate::TurboTasks::emit_collectible]:** Values emitted in functions that
-//!   bubble up the call graph and can be collected in parent functions.
-//!
-//! It also defines some derived elements from that:
-//! - **[Tasks][book-tasks]:** An instance of a function together with its arguments.
-//! - **[Cells][book-cells]:** The locations associated with tasks where values are stored. The
-//!   contents of a cell can change after the reexecution of a function.
-//! - **[`Vc`s ("Value Cells")][Vc]:** A reference to a cell or a return value of a function.
-//!
-//! A [`Vc`] can be read to get [a read-only reference][ReadRef] to the stored data, representing a
-//! snapshot of that cell at that point in time.
-//!
-//! On execution of functions, `turbo-tasks` will track which [`Vc`]s are read. Once any of these
-//! change, `turbo-tasks` will invalidate the task created from the function's execution and it will
-//! eventually be scheduled and reexecuted.
-//!
-//! Collectibles go through a similar process.
-//!
-//! [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
-//! [book-tasks]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html
-
+#![doc = include_str!("../README.md")]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(try_trait_v2)]
@@ -98,7 +71,7 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_macros::{TaskInput, function, turbobail, turbofmt, value_impl};
+pub use turbo_tasks_macros::{TaskInput, turbobail, turbofmt, value_impl};
 
 pub use crate::{
     capture_future::TurboTasksPanic,
@@ -186,12 +159,16 @@ macro_rules! fxindexset {
     };
 }
 
+#[doc = include_str!("../function.md")]
+#[rustfmt::skip]
+pub use turbo_tasks_macros::function;
+
 /// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
 /// inside of a "value cell" as [`Vc<...>`][Vc].
 ///
-/// A [`Vc`] represents a (potentially lazy) memoized computation. Each [`Vc`]'s value is placed
-/// into a cell associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get
-/// [a read-only reference to the value contained in the cell][ReadRef].
+/// A [`Vc`] represents the result of a computation. Each [`Vc`]'s value is placed into a cell
+/// associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get [a read-only
+/// reference to the value contained in the cell][ReadRef].
 ///
 /// This macro accepts multiple comma-separated arguments. For example:
 ///
@@ -227,17 +204,22 @@ macro_rules! fxindexset {
 ///
 /// ## `serialization = "..."`
 ///
-/// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
-/// required for filesystem cache of tasks.
+/// Affects serialization via [`bincode::Encode`] and [`bincode::Decode`]. Serialization is required
+/// for the filesystem cache of tasks.
 ///
-/// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
-/// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
-///   (you must manually implement [`serde::Serialize`] and [`serde::Deserialize`]).
+/// - **`"auto"` *(default)*:** Derives the bincode traits and enables serialization.
+/// - **`"custom"`:** Prevents deriving the bincode traits, but still enables serialization
+///   (you must manually implement [`bincode::Encode`] and [`bincode::Decode`]).
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
 ///
 /// ## `shared`
 ///
-/// Makes the `cell()` method public so everyone can use it.
+/// This flag makes the macro-generated `.cell()` method public so everyone can use it.
+///
+/// Non-transparent types are given a `.cell()` method. That method returns a `Vc` of the type.
+///
+/// This option does not apply to wrapper types that use `transparent`. Those use the public
+/// [`Vc::cell`] function for construction.
 ///
 /// ## `transparent`
 ///

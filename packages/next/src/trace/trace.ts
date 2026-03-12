@@ -133,6 +133,9 @@ export class Span {
   traceFn<T>(fn: (span: Span) => T): T {
     try {
       return fn(this)
+    } catch (e) {
+      this.attrs['failed'] = true
+      throw e
     } finally {
       this.stop()
     }
@@ -141,6 +144,9 @@ export class Span {
   async traceAsyncFn<T>(fn: (span: Span) => T | Promise<T>): Promise<T> {
     try {
       return await fn(this)
+    } catch (e) {
+      this.attrs['failed'] = true
+      throw e
     } finally {
       this.stop()
     }

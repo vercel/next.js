@@ -15,6 +15,7 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
     match value {
         Ok(v) => Ok(Some(v)),
         Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => Ok(None),
+        // ast-grep-ignore: no-context-format
         Err(e) => Err(anyhow!(e).context(format!("reading file {}", path.display()))),
     }
 }

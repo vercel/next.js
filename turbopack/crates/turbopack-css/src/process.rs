@@ -35,7 +35,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    CssModuleAssetType,
+    CssModuleAssetType, LightningCssFeatureFlags,
     lifetime_util::stylesheet_into_static,
     references::{
         analyze_references,
@@ -53,10 +53,15 @@ struct LightningCssTargets(
 );
 
 /// Returns the LightningCSS targets for the given browserslist query.
+///
+/// `extra_include` / `extra_exclude` are raw `Features` bitmasks from user
+/// config (`experimental.lightningCssFeatures`). They are OR-ed into (or masked
+/// from) the default feature set (`Nesting | MediaRangeSyntax`).
 #[turbo_tasks::function]
 async fn get_lightningcss_browser_targets(
     environment: Option<ResolvedVc<Environment>>,
     handle_nesting: bool,
+    feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<LightningCssTargets>> {
     match environment {
         Some(environment) => {
@@ -70,19 +75,19 @@ async fn get_lightningcss_browser_targets(
                     },
                 )?;
 
-            Ok(if handle_nesting {
-                Vc::cell(Targets {
-                    browsers: browserslist_browsers,
-                    include: Features::Nesting | Features::MediaRangeSyntax,
-                    ..Default::default()
-                })
-            } else {
-                Vc::cell(Targets {
-                    browsers: browserslist_browsers,
-                    include: Features::MediaRangeSyntax,
-                    ..Default::default()
-                })
-            })
+            let mut include = Features::MediaRangeSyntax;
+            if handle_nesting {
+                include |= Features::Nesting;
+            }
+            include |= Features::from_bits_truncate(feature_flags.include);
+            let exclude = Features::from_bits_truncate(feature_flags.exclude);
+            include &= !exclude;
+
+            Ok(Vc::cell(Targets {
+                browsers: browserslist_browsers,
+                include,
+                exclude,
+            }))
         }
         // Default when empty environment is passed.
         None => Ok(Vc::cell(Default::default())),
@@ -97,6 +102,7 @@ async fn stylesheet_to_css(
     handle_nesting: bool,
     mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
     environment: Option<ResolvedVc<Environment>>,
+    feature_flags: LightningCssFeatureFlags,
 ) -> Result<CssOutput> {
     let mut srcmap = if enable_srcmap {
         Some(parcel_sourcemap::SourceMap::new(""))
@@ -104,8 +110,12 @@ async fn stylesheet_to_css(
         None
     };
 
-    let targets =
-        *get_lightningcss_browser_targets(environment.as_deref().copied(), handle_nesting).await?;
+    let targets = *get_lightningcss_browser_targets(
+        environment.as_deref().copied(),
+        handle_nesting,
+        feature_flags,
+    )
+    .await?;
 
     let result = ss.to_css(PrinterOptions {
         minify: matches!(minify_type, MinifyType::Minify { .. }),
@@ -193,6 +203,7 @@ pub enum FinalCssResult {
 pub async fn process_css_with_placeholder(
     parse_result: ResolvedVc<ParseCssResult>,
     environment: Option<ResolvedVc<Environment>>,
+    feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<CssWithPlaceholderResult>> {
     let result = parse_result.await?;
 
@@ -220,6 +231,7 @@ pub async fn process_css_with_placeholder(
                 false,
                 None,
                 environment,
+                feature_flags,
             )
             .await?;
 
@@ -252,6 +264,7 @@ pub async fn finalize_css(
     minify_type: MinifyType,
     origin_source_map: Vc<FileContent>,
     environment: Option<ResolvedVc<Environment>>,
+    feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
     match &*result {
@@ -307,6 +320,7 @@ pub async fn finalize_css(
                 true,
                 origin_source_map,
                 environment,
+                feature_flags,
             )
             .await?;
 
@@ -351,6 +365,7 @@ pub async fn parse_css(
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
     environment: Option<ResolvedVc<Environment>>,
+    feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<ParseCssResult>> {
     let span = tracing::info_span!(
         "parse css",
@@ -375,6 +390,7 @@ pub async fn parse_css(
                             import_context,
                             ty,
                             environment,
+                            feature_flags,
                         )
                         .await?
                     }
@@ -395,6 +411,7 @@ async fn process_content(
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
     environment: Option<ResolvedVc<Environment>>,
+    feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
     fn without_warnings<'o, 'i>(config: ParserOptions<'o, 'i>) -> ParserOptions<'o, 'static> {
@@ -487,9 +504,12 @@ async fn process_content(
                     }
                 }
 
-                let targets =
-                    *get_lightningcss_browser_targets(environment.as_deref().copied(), true)
-                        .await?;
+                let targets = *get_lightningcss_browser_targets(
+                    environment.as_deref().copied(),
+                    true,
+                    feature_flags,
+                )
+                .await?;
 
                 // minify() is actually transform, and it performs operations like CSS modules
                 // handling.

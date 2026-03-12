@@ -5,14 +5,15 @@ import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
 import type { SizeLimit } from '../types'
-import type {
-  ExportPathMap,
-  TurbopackLoaderItem,
-  TurbopackOptions,
-  TurbopackRuleConfigItem,
-  TurbopackRuleConfigCollection,
-  TurbopackRuleCondition,
-  TurbopackLoaderBuiltinCondition,
+import {
+  LIGHTNINGCSS_FEATURE_NAMES,
+  type ExportPathMap,
+  type TurbopackLoaderItem,
+  type TurbopackOptions,
+  type TurbopackRuleConfigItem,
+  type TurbopackRuleConfigCollection,
+  type TurbopackRuleCondition,
+  type TurbopackLoaderBuiltinCondition,
 } from './config-shared'
 import type {
   Header,
@@ -355,6 +356,12 @@ export const experimentalSchema = {
   serverSourceMaps: z.boolean().optional(),
   useWasmBinary: z.boolean().optional(),
   useLightningcss: z.boolean().optional(),
+  lightningCssFeatures: z
+    .object({
+      include: z.array(z.enum(LIGHTNINGCSS_FEATURE_NAMES)).optional(),
+      exclude: z.array(z.enum(LIGHTNINGCSS_FEATURE_NAMES)).optional(),
+    })
+    .optional(),
   testProxy: z.boolean().optional(),
   defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
   allowDevelopmentBuild: z.literal(true).optional(),

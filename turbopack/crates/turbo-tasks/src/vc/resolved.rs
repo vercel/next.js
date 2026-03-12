@@ -49,6 +49,12 @@ use crate::{
 /// 3. Given a [`Vc`], use [`.to_resolved().await?`][Vc::to_resolved].
 ///
 ///
+/// ## Reading a `ResolvedVc`
+///
+/// Even though a `Vc` may be resolved as a `ResolvedVc`, we must still use `.await?` to read it's
+/// value, as the value could be invalidated or cache-evicted.
+///
+///
 /// ## Equality & Hashing
 ///
 /// Equality between two `ResolvedVc`s means that both have an identical in-memory representation
