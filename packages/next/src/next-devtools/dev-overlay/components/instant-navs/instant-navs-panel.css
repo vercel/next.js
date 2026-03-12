@@ -167,3 +167,29 @@
 .instant-nav-footer-button:hover {
   background: var(--color-gray-200);
 }
+
+/* Shimmer skeleton for pending "to" route */
+@keyframes instant-nav-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.instant-nav-skeleton {
+  display: inline-block;
+  width: 120px;
+  height: 1em;
+  vertical-align: middle;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-300) 25%,
+    var(--color-blue-300) 50%,
+    var(--color-gray-300) 75%
+  );
+  background-size: 800px 100%;
+  animation: instant-nav-shimmer 1.5s ease-in-out infinite;
+}

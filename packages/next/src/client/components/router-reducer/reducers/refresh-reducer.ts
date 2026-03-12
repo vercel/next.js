@@ -25,7 +25,7 @@ export function refreshReducer(
   // preserve prefetched data when refreshing after an MPA navigation. This is
   // only used for testing and is not exposed in production builds by default.
   const bypassCacheInvalidation =
-    process.env.__NEXT_EXPOSE_TESTING_API && action.devBypassCacheInvalidation
+    process.env.__NEXT_EXPOSE_TESTING_API && action.bypassCacheInvalidation
   if (!bypassCacheInvalidation) {
     const currentNextUrl = state.nextUrl
     const currentRouterState = state.tree
