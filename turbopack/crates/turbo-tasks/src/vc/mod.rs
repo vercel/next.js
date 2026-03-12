@@ -42,127 +42,7 @@ use crate::{
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
-/// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
-/// heap or in filesystem cache, depending on the Turbo Engine backend implementation.
-///
-/// In order to get a reference to the pointed value, you need to `.await` the [`Vc<T>`] to get a
-/// [`ReadRef<T>`][`ReadRef`]:
-///
-/// ```
-/// let some_vc: Vc<T>;
-/// let some_ref: ReadRef<T> = some_vc.await?;
-/// some_ref.some_method_on_t();
-/// ```
-///
-/// `Vc`s are similar to a [`Future`] or a Promise with a few key differences:
-///
-/// - The value pointed to by a `Vc` can be invalidated by changing dependencies or cache evicted,
-///   meaning that `await`ing a `Vc` multiple times can give different results. A [`ReadRef`] is
-///   snapshot of the underlying cell at a point in time.
-///
-/// - Reading (`await`ing) `Vc`s causes the current task to be tracked a dependent of the `Vc`'s
-///   task or task cell. When the read task or task cell changes, the current task may be
-///   re-executed.
-///
-/// - `Vc` types are always [`Copy`]. Most [`Future`]s are not. This works because `Vc`s are
-///   represented as a few ids or indices into data structures managed by the `turbo-tasks`
-///   framework. `Vc` types are not reference counted, but do support [tracing] for a hypothetical
-///   (unimplemented) garbage collector.
-///
-/// - Unlike futures (but like promises), the work that a `Vc` represents [begins execution even if
-///   the `Vc` is not `await`ed](#execution-model).
-///
-/// For a more in-depth explanation of the concepts behind value cells, [refer to the Turbopack
-/// book][book-cells].
-///
-///
-/// ## Subtypes
-///
-/// There are a couple of explicit "subtypes" of `Vc`. These can both be cheaply converted back into
-/// a `Vc`.
-///
-/// - **[`ResolvedVc`]:** *(aka [`RawVc::TaskCell`])* A reference to a cell constructed within a
-///   task, as part of a [`Vc::cell`] or `value_type.cell()` constructor. As the cell has been
-///   constructed at least once, the concrete type of the cell is known (allowing
-///   [downcasting][ResolvedVc::try_downcast]). This is stored as a combination of a task id, a type
-///   id, and a cell id.
-///
-/// - **[`OperationVc`]:** *(aka [`RawVc::TaskOutput`])* The synchronous return value of a
-///   [`turbo_tasks::function`]. Internally, this is stored using a task id. Exact type information
-///   of trait types (i.e. `Vc<Box<dyn Trait>>`) is not known because the function may not have
-///   finished execution yet. [`OperationVc`]s must first be [`connect`][OperationVc::connect]ed
-///   before being read.
-///
-/// [`ResolvedVc`] is almost always preferred over the more awkward [`OperationVc`] API, but
-/// [`OperationVc`] can be useful when dealing with [collectibles], when you need to [read the
-/// result of a function with strong consistency][OperationVc::read_strongly_consistent], or with
-/// [`State`].
-///
-/// These many representations are stored internally using a type-erased [`RawVc`]. Type erasure
-/// reduces the [monomorphization] (and therefore binary size and compilation time) required to
-/// support `Vc` and its subtypes.
-///
-/// |                 | Representation                     | Equality        | Downcasting                | Strong Consistency     | Collectibles      | [Non-Local]  |
-/// |-----------------|------------------------------------|-----------------|----------------------------|------------------------|-------------------|--------------|
-/// | [`Vc`]          | [One of many][RawVc]               | ❌ [Broken][eq] | ⚠️  After resolution        | ❌ Eventual            | ❌ No             | ❌ [No][loc] |
-/// | [`ResolvedVc`]  | [Task Id + Type Id + Cell Id][rtc] | ✅ Yes\*        | ✅ [Yes, cheaply][resolve] | ❌ Eventual            | ❌ No             | ✅ Yes       |
-/// | [`OperationVc`] | [Task Id][rto]                     | ✅ Yes\*        | ⚠️  After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
-///
-/// *\* see the type's documentation for details*
-///
-/// [Non-Local]: NonLocalValue
-/// [rtc]: RawVc::TaskCell
-/// [rto]: RawVc::TaskOutput
-/// [loc]: #optimization-local-outputs
-/// [eq]: #equality--hashing
-/// [resolve]: ResolvedVc::try_downcast
-/// [strong]: OperationVc::read_strongly_consistent
-/// [collect]: crate::CollectiblesSource
-///
-///
-/// ## Execution Model
-///
-/// While task functions are expected to be side-effect free, their execution behavior is still
-/// important for performance reasons, or to code using [collectibles] to represent issues or
-/// side-effects.
-///
-/// Function calls are neither "eager", nor "lazy". Even if not awaited, they are guaranteed to
-/// execute (potentially emitting collectibles) before the root task finishes or before the
-/// completion of any strongly consistent read containing their call. However, the exact point when
-/// that execution begins is an implementation detail. Functions may execute more than once due to
-/// dirty task invalidation.
-///
-///
-/// ## Equality & Hashing
-///
-/// Because `Vc`s can be equivalent but have different representation, it's not recommended to
-/// compare `Vc`s by equality. Instead, you should convert a `Vc` to an explicit subtype first
-/// (likely [`ResolvedVc`]). Future versions of `Vc` may not implement [`Eq`], [`PartialEq`], or
-/// [`Hash`].
-///
-///
-/// ## Optimization: Local Outputs
-///
-/// In addition to the potentially-explicit "resolved" and "operation" representations of a `Vc`,
-/// there's another internal representation of a `Vc`, known as a "Local `Vc`", or
-/// [`RawVc::LocalOutput`].
-///
-/// This is a special case of the synchronous return value of a [`turbo_tasks::function`] when some
-/// of its arguments have not yet been resolved. These are stored in task-local state that is freed
-/// after their parent non-local task exits.
-///
-/// We prevent potentially-local `Vc`s from escaping the lifetime of a function using the
-/// [`NonLocalValue`] marker trait alongside some fallback runtime checks. We do this to avoid some
-/// ergonomic challenges that would come from using lifetime annotations with `Vc`.
-///
-///
-/// [tracing]: crate::trace::TraceRawVcs
-/// [`ReadRef`]: crate::ReadRef
-/// [`turbo_tasks::function`]: crate::function
-/// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-/// [`State`]: crate::State
-/// [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
-/// [collectibles]: crate::CollectiblesSource
+#[doc = include_str!("README.md")]
 #[must_use]
 #[derive(Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent, bound = "")]
@@ -437,7 +317,7 @@ where
     /// ```
     /// Using generics you could allow users to pass any compatible type, but if you specified
     /// `UpcastStrict<...>` instead of `Upcast<...>` you would disallow calling this function if you
-    /// already had a `ResolvedVc<Box<dyn MyTrait>>.  So this function has a looser type constraint
+    /// already had a `ResolvedVc<Box<dyn MyTrait>>`. So this function has a looser type constraint
     /// to make these functions easier to write and use.
     #[inline(always)]
     pub fn upcast_non_strict<K>(vc: Self) -> Vc<K>

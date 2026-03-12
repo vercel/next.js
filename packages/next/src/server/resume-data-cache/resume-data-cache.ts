@@ -147,12 +147,23 @@ export async function stringifyResumeDataCache(
  *
  * @returns A new empty PrerenderResumeDataCache instance
  */
-export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
-  return {
-    cache: new Map(),
-    fetch: new Map(),
-    encryptedBoundArgs: new Map(),
-    decryptedBoundArgs: new Map(),
+export function createPrerenderResumeDataCache(
+  source?: PrerenderResumeDataCache | RenderResumeDataCache
+): PrerenderResumeDataCache {
+  if (source) {
+    return {
+      cache: new Map(source.cache),
+      fetch: new Map(source.fetch),
+      encryptedBoundArgs: new Map(source.encryptedBoundArgs),
+      decryptedBoundArgs: new Map(source.decryptedBoundArgs),
+    }
+  } else {
+    return {
+      cache: new Map(),
+      fetch: new Map(),
+      encryptedBoundArgs: new Map(),
+      decryptedBoundArgs: new Map(),
+    }
   }
 }
 

@@ -73,6 +73,7 @@ export interface OverlayState {
   readonly instantNavs: boolean
   readonly instantNavsPanel:
     | { readonly status: 'waiting' }
+    | { readonly status: 'client-nav-waiting' }
     | { readonly status: 'initial-load'; readonly toUrl: string }
     | {
         readonly status: 'client-nav'
@@ -234,6 +235,10 @@ interface CacheOnlyToggleAction {
 
 type InstantNavSetStatusAction =
   | { type: typeof ACTION_INSTANT_NAVS_SET_STATUS; status: 'waiting' }
+  | {
+      type: typeof ACTION_INSTANT_NAVS_SET_STATUS
+      status: 'client-nav-waiting'
+    }
   | {
       type: typeof ACTION_INSTANT_NAVS_SET_STATUS
       status: 'initial-load'
@@ -571,13 +576,15 @@ export function useErrorOverlayReducer(
             instantNavsPanel:
               action.status === 'waiting'
                 ? { status: 'waiting' }
-                : action.status === 'initial-load'
-                  ? { status: 'initial-load', toUrl: action.toUrl }
-                  : {
-                      status: 'client-nav',
-                      fromUrl: action.fromUrl,
-                      toUrl: action.toUrl,
-                    },
+                : action.status === 'client-nav-waiting'
+                  ? { status: 'client-nav-waiting' }
+                  : action.status === 'initial-load'
+                    ? { status: 'initial-load', toUrl: action.toUrl }
+                    : {
+                        status: 'client-nav',
+                        fromUrl: action.fromUrl,
+                        toUrl: action.toUrl,
+                      },
           }
         }
         case ACTION_INSTANT_NAVS_RESET: {

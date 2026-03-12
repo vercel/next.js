@@ -16,7 +16,6 @@ import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { createContext, useContext } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
-  ACTION_INSTANT_NAVS_TOGGLE,
   ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOLS_POSITION,
   ACTION_DEVTOOLS_SCALE,
@@ -112,12 +111,6 @@ const MenuPanel = () => {
             label: 'Instant Navs',
             value: <ChevronRight />,
             onClick: () => {
-              // Set cookie to activate the navigation lock (read by
-              // navigation-testing-lock.ts via CookieStore change event)
-              document.cookie = 'next-instant-navigation-testing=1; path=/'
-              if (!state.instantNavs) {
-                dispatch({ type: ACTION_INSTANT_NAVS_TOGGLE })
-              }
               setPanel('instant-navs')
             },
             attributes: {

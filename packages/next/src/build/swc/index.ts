@@ -1346,6 +1346,11 @@ async function loadWasm(importPath = '') {
             '`css.lightning.transformStyleAttr` is not supported by the wasm bindings.'
           )
         },
+        featureNamesToMask: function (_names: string[]) {
+          throw new Error(
+            '`css.lightning.featureNamesToMask` is not supported by the wasm bindings.'
+          )
+        },
       },
     },
     isWasm: true,
@@ -1650,6 +1655,9 @@ function loadNative(importPath?: string): Binding {
             return bindings.lightningCssTransformStyleAttribute(
               transformAttrOptions
             )
+          },
+          featureNamesToMask(names: string[]) {
+            return bindings.lightningcssFeatureNamesToMaskNapi(names)
           },
         },
       },

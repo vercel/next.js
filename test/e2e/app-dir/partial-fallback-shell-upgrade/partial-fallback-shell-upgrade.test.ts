@@ -1,9 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
+
 describe('partial-fallback-shell-upgrade', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // The latest changes to support this behavior on deployed infra are available in the adapter,
+    // and are not being backported to the CLI
+    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {

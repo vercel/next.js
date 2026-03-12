@@ -993,8 +993,8 @@ importers:
         specifier: 3.3.1
         version: 3.3.1
       picocolors:
-        specifier: 1.0.0
-        version: 1.0.0
+        specifier: 1.1.1
+        version: 1.1.1
       prettier-plugin-tailwindcss:
         specifier: 0.6.2
         version: 0.6.2(prettier@3.6.2)
@@ -1014,7 +1014,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 16.2.0-canary.91
+        specifier: 16.2.0-canary.94
         version: link:../eslint-plugin-next
       eslint:
         specifier: '>=9.0.0'
@@ -1091,7 +1091,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 16.2.0-canary.91
+        specifier: 16.2.0-canary.94
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.15
@@ -1216,19 +1216,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 16.2.0-canary.91
+        specifier: 16.2.0-canary.94
         version: link:../font
       '@next/polyfill-module':
-        specifier: 16.2.0-canary.91
+        specifier: 16.2.0-canary.94
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 16.2.0-canary.91
+        specifier: 16.2.0-canary.94
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 16.2.0-canary.91
+        specifier: 16.2.0-canary.94
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 16.2.0-canary.91
+        specifier: 16.2.0-canary.94
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1726,8 +1726,8 @@ importers:
         specifier: 1.0.3
         version: 1.0.3
       tar:
-        specifier: 7.5.7
-        version: 7.5.7
+        specifier: 7.5.11
+        version: 7.5.11
       taskr:
         specifier: 1.1.0
         version: 1.1.0(patch_hash=utitb3olraq7egc3hk7waltisu)
@@ -1953,7 +1953,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.2.0-canary.91
+        specifier: 16.2.0-canary.94
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -12722,8 +12722,8 @@ packages:
   json-schema-typed@7.0.3:
     resolution: {integrity: sha512-7DE8mpG+/fVw+dTpjbxnx47TaMnDfOI1jwft9g1VybltZCduyRQPJPvc+zzKY9WPHxhPWczyFuYa6I8Mw4iU5A==}
 
-  json-schema-typed@8.0.1:
-    resolution: {integrity: sha512-XQmWYj2Sm4kn4WeTYvmpKEbyPsL7nBsb647c7pMe6l02/yx2+Jfc4dT6UZkEXnIUb5LhD55r2HPsJ1milQ4rDg==}
+  json-schema-typed@8.0.2:
+    resolution: {integrity: sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA==}
 
   json-schema@0.2.3:
     resolution: {integrity: sha512-a3xHnILGMtk+hDOqNwHzF6e2fNbiMrXZvxKQiEv2MlgQP+pjIOzqAmKYD2mDpXYE/44M7g+n9p2bKkYWDUcXCQ==}
@@ -14944,9 +14944,6 @@ packages:
 
   picocolors@1.0.1:
     resolution: {integrity: sha512-anP1Z8qwhkbmu7MFP5iTt+wQKXgwzf7zTyGlcdzabySa9vd0Xt392U0rVmz9poOaBj0uHJKyyo9/upk0HrEQew==}
-
-  picocolors@1.1.0:
-    resolution: {integrity: sha512-TQ92mBOW0l3LeMeyLV6mzy/kWr8lkd/hp3mTg7wYK7zJhuBStmGMBG0BdeDZS/dZx1IukaX6Bk11zcln25o1Aw==}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -17669,6 +17666,10 @@ packages:
     engines: {node: '>=10'}
     deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
+  tar@7.5.11:
+    resolution: {integrity: sha512-ChjMH33/KetonMTAtpYdgUFr0tbz69Fp2v7zWxQfYZX4g5ZN2nOBXm1R2xyA+lMIKrLKIoKAwFj93jE/avX9cQ==}
+    engines: {node: '>=18'}
+
   tar@7.5.7:
     resolution: {integrity: sha512-fov56fJiRuThVFXD6o6/Q354S7pnWMJIVlDBYijsTNx6jKSE4pvrDTs6lUnmGvNyfJwFQQwWy3owKz1ucIhveQ==}
     engines: {node: '>=18'}
@@ -19277,7 +19278,7 @@ snapshots:
     dependencies:
       '@babel/helper-validator-identifier': 7.25.9
       js-tokens: 4.0.0
-      picocolors: 1.0.1
+      picocolors: 1.1.1
 
   '@babel/compat-data@7.26.8': {}
 
@@ -24117,7 +24118,7 @@ snapshots:
   '@tailwindcss/oxide@4.1.13':
     dependencies:
       detect-libc: 2.1.0
-      tar: 7.5.7
+      tar: 7.5.11
     optionalDependencies:
       '@tailwindcss/oxide-android-arm64': 4.1.13
       '@tailwindcss/oxide-darwin-arm64': 4.1.13
@@ -26094,7 +26095,7 @@ snapshots:
       minipass-pipeline: 1.2.4
       p-map: 7.0.4
       ssri: 12.0.0
-      tar: 7.5.7
+      tar: 7.5.11
       unique-filename: 4.0.0
 
   cacache@20.0.3:
@@ -26689,7 +26690,7 @@ snapshots:
       debounce-fn: 6.0.0
       dot-prop: 9.0.0
       env-paths: 3.0.0
-      json-schema-typed: 8.0.1
+      json-schema-typed: 8.0.2
       semver: 7.6.3
       uint8array-extras: 1.1.0
 
@@ -31941,7 +31942,7 @@ snapshots:
       graceful-fs: 4.2.11
       micromatch: 4.0.8
       neo-async: 2.6.1
-      picocolors: 1.0.1
+      picocolors: 1.1.1
       recast: 0.23.9
       temp: 0.9.4
       write-file-atomic: 5.0.1
@@ -32013,7 +32014,7 @@ snapshots:
 
   json-schema-typed@7.0.3: {}
 
-  json-schema-typed@8.0.1: {}
+  json-schema-typed@8.0.2: {}
 
   json-schema@0.2.3: {}
 
@@ -32152,7 +32153,7 @@ snapshots:
 
   launch-editor@2.9.1:
     dependencies:
-      picocolors: 1.0.1
+      picocolors: 1.1.1
       shell-quote: 1.8.2
 
   layout-base@1.0.2: {}
@@ -34142,7 +34143,7 @@ snapshots:
       nopt: 8.1.0
       proc-log: 5.0.0
       semver: 7.6.3
-      tar: 7.5.7
+      tar: 7.5.11
       tinyglobby: 0.2.15
       which: 5.0.0
     transitivePeerDependencies:
@@ -34823,7 +34824,7 @@ snapshots:
       promise-retry: 2.0.1
       sigstore: 4.0.0
       ssri: 12.0.0
-      tar: 7.5.7
+      tar: 7.5.11
     transitivePeerDependencies:
       - supports-color
 
@@ -34845,7 +34846,7 @@ snapshots:
       promise-retry: 2.0.1
       sigstore: 4.0.0
       ssri: 13.0.0
-      tar: 7.5.7
+      tar: 7.5.11
     transitivePeerDependencies:
       - supports-color
 
@@ -35064,8 +35065,6 @@ snapshots:
   picocolors@1.0.0: {}
 
   picocolors@1.0.1: {}
-
-  picocolors@1.1.0: {}
 
   picocolors@1.1.1: {}
 
@@ -35862,7 +35861,7 @@ snapshots:
   postcss@8.4.31:
     dependencies:
       nanoid: 3.3.7
-      picocolors: 1.1.0
+      picocolors: 1.1.1
       source-map-js: 1.2.1
 
   postcss@8.5.3:
@@ -38220,7 +38219,7 @@ snapshots:
       css-tree: 2.3.1
       css-what: 6.1.0
       csso: 5.0.5
-      picocolors: 1.0.1
+      picocolors: 1.1.1
 
   swc-loader@0.2.6(@swc/core@1.11.24(@swc/helpers@0.5.15))(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)):
     dependencies:
@@ -38371,6 +38370,14 @@ snapshots:
       minizlib: 2.1.2
       mkdirp: 1.0.4
       yallist: 4.0.0
+
+  tar@7.5.11:
+    dependencies:
+      '@isaacs/fs-minipass': 4.0.1
+      chownr: 3.0.0
+      minipass: 7.1.2
+      minizlib: 3.1.0(patch_hash=o4nv5mg6kfnuzlknbdln3azhvu)
+      yallist: 5.0.0
 
   tar@7.5.7:
     dependencies:
@@ -39544,7 +39551,7 @@ snapshots:
       html-escaper: 2.0.2
       is-plain-object: 5.0.0
       opener: 1.5.2
-      picocolors: 1.0.0
+      picocolors: 1.1.1
       sirv: 2.0.4
       ws: 7.5.3
     transitivePeerDependencies:
