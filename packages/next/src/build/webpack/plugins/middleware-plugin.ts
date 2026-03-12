@@ -157,7 +157,10 @@ function getEntryFiles(
   return files
 }
 
-function getEntrypointFile(entrypoint: webpack.Entrypoint): string | undefined {
+function getEntrypointFile(entrypoint: {
+  getEntrypointChunk(): { files: Iterable<string> }
+  getFiles(): Iterable<string>
+}): string | undefined {
   const getJsFile = (files: Iterable<string>): string | undefined => {
     for (const file of files) {
       if (!file.endsWith('.hot-update.js') && /\.(?:js|mjs|cjs)$/i.test(file)) {
