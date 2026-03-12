@@ -50,6 +50,7 @@ import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { INSTANT_VALIDATION_BOUNDARY_NAME } from './instant-validation/boundary-constants'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -618,6 +619,11 @@ export function useDynamicRouteParams(expression: string) {
         }
         break
       }
+      case 'validation-client': {
+        // Don't check fallbackRouteParams here. We handle params that weren't
+        // provided in the samples using a proxy that throws when accessed.
+        break
+      }
       case 'prerender-runtime':
         throw new InvariantError(
           `\`${expression}\` was called during a runtime prerender. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
@@ -627,9 +633,6 @@ export function useDynamicRouteParams(expression: string) {
         throw new InvariantError(
           `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
         )
-      case 'validation-client':
-        // TODO(instant-validation): in build, this depends on samples
-        break
       case 'prerender-legacy':
       case 'request':
       case 'unstable-cache':
@@ -655,7 +658,8 @@ export function useDynamicSearchParams(expression: string) {
 
   switch (workUnitStore.type) {
     case 'validation-client':
-      // TODO(instant-validation): in build, this depends on samples
+      // During instant validation we try to behave as close to client as possible,
+      // so this shouldn't hang during SSR.
       return
     case 'prerender-client': {
       React.use(
@@ -722,7 +726,7 @@ const hasViewportRegex = new RegExp(
 )
 const hasOutletRegex = new RegExp(`\\n\\s+at ${OUTLET_BOUNDARY_NAME}[\\n\\s]`)
 
-const hasPrefetchValidationBoundaryRegex = new RegExp(
+const hasInstantValidationBoundaryRegex = new RegExp(
   `\\n\\s+at ${INSTANT_VALIDATION_BOUNDARY_NAME}[\\n\\s]`
 )
 
@@ -853,7 +857,7 @@ export function trackDynamicHoleInNavigation(
   }
 
   const boundaryLocation =
-    hasPrefetchValidationBoundaryRegex.exec(componentStack)
+    hasInstantValidationBoundaryRegex.exec(componentStack)
   if (!boundaryLocation) {
     // We don't see the validation boundary in the component stack,
     // so this hole must be coming from a shared parent.
@@ -941,16 +945,42 @@ export function trackDynamicHoleInNavigation(
 }
 
 export function trackThrownErrorInNavigation(
+  workStore: WorkStore,
   dynamicValidation: InstantValidationState,
-  error: unknown,
+  thrownError: unknown,
   componentStack: string
 ) {
-  // If we see a validation boundary on the component stack,
-  // this error couldn't have blocked a validation boundary from rendering.
-  if (hasPrefetchValidationBoundaryRegex.test(componentStack)) {
-    return
+  const boundaryLocation =
+    hasInstantValidationBoundaryRegex.exec(componentStack)
+  if (!boundaryLocation) {
+    // There's no validation boundary on the component stack.
+    // This error may have blocked a boundary from rendering.
+    dynamicValidation.thrownErrorsOutsideBoundary.push(thrownError)
+  } else {
+    // There's validation boundary on the component stack,
+    // so we know this error didn't block a validation boundary from rendering.
+    // However, this error might be hiding be hiding dynamic content that would
+    // cause validation to fail.
+    const suspenseLocation = hasSuspenseRegex.exec(componentStack)
+    if (suspenseLocation) {
+      if (suspenseLocation.index < boundaryLocation.index) {
+        // There's a Suspense below the validation boundary but above this error's location.
+        // This subtree can't fail instant validation because any potential
+        // dynamic holes would be guarded by the Suspense anyway,
+        // so we can allow this.
+        return
+      } else {
+        // invalid - fallthrough
+      }
+    }
+    const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.`
+    const error = addErrorContext(
+      new Error(message, { cause: thrownError }),
+      componentStack,
+      null // TODO(instant-validation-build): conflicting use of cause
+    )
+    dynamicValidation.validationPreventingErrors.push(error)
   }
-  dynamicValidation.thrownErrorsOutsideBoundary.push(error)
 }
 
 export function trackDynamicHoleInRuntimeShell(
@@ -1221,8 +1251,17 @@ export function getNavigationDisallowedDynamicReasons(
   workStore: WorkStore,
   prelude: PreludeState,
   dynamicValidation: InstantValidationState,
+  validationSampleTracking: InstantValidationSampleTracking | null,
   boundaryState: ValidationBoundaryTracking
 ): Array<Error> {
+  // If we have errors related to missing samples, those should take precedence over everything else.
+  if (validationSampleTracking) {
+    const { missingSampleErrors } = validationSampleTracking
+    if (missingSampleErrors.length > 0) {
+      return missingSampleErrors
+    }
+  }
+
   const { validationPreventingErrors } = dynamicValidation
   if (validationPreventingErrors.length > 0) {
     return validationPreventingErrors
