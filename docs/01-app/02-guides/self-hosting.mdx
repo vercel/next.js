@@ -258,7 +258,7 @@ module.exports = {
 
 Beyond nginx, ensure that your entire infrastructure supports streaming end-to-end:
 
-- **Load balancers** must support chunked transfer encoding or HTTP/2 streaming. Some cloud load balancers (for example, AWS ALB in HTTP mode) may need explicit configuration to avoid buffering responses.
+- **Load balancers** must support chunked transfer encoding or HTTP/2 streaming. Some cloud load balancers (for example, AWS ALB with Lambda integration) may buffer responses by default.
 - **Reverse proxies** between the load balancer and Next.js must also pass through chunked responses without buffering.
 - If using [Partial Prerendering](/docs/app/guides/ppr-platform-guide), streaming support is required. Without it, the static shell and dynamic content are delivered together after the full render completes, eliminating PPR's time-to-first-byte advantage.
 

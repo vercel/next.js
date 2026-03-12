@@ -57,9 +57,9 @@ The following table maps infrastructure primitives for each major CDN. These are
 | CDN               | Edge Compute | Key-Value / Tags | Blob Storage   | PPR Resuming |
 | ----------------- | ------------ | ---------------- | -------------- | ------------ |
 | Cloudflare        | Workers      | KV               | R2             | Yes (worker) |
-| Akamai            | EdgeWorkers  | KV               | Object Storage | Yes (worker) |
+| Akamai            | EdgeWorkers  | EdgeKV           | Object Storage | Yes (worker) |
 | Amazon CloudFront | Lambda@Edge  | KeyValueStore    | S3             | Yes (Lambda) |
-| Fastly            | Compute      | KV               | Object Storage | Yes (WASM)   |
+| Fastly            | Compute      | KV Store         | Object Storage | Yes (WASM)   |
 | Azure             | Functions    | Managed Redis    | Blob Storage   | Yes (server) |
 | Google Cloud      | Cloud Run    | Various KV       | Cloud Storage  | Yes (server) |
 
