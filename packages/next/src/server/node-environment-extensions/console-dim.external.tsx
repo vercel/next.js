@@ -1,3 +1,4 @@
+import * as inspector from 'node:inspector'
 import { dim } from '../../lib/picocolors'
 import {
   consoleAsyncStorage,
@@ -142,6 +143,20 @@ function convertToDimmedArgs(
   methodName: InterceptableConsoleMethod,
   args: any[]
 ): any[] {
+  // When the Node.js inspector is open (e.g. --inspect), skip dimming for calls
+  // that include Error instances. Chrome DevTools only source-maps and renders
+  // Errors natively when they are direct arguments, not wrapped in a format
+  // string like %O. Ideally we would only skip dimming when a debugger frontend
+  // is actually attached, but Node.js does not expose a synchronous API for
+  // that. Detecting would require async polling of the /json/list HTTP
+  // endpoint.
+  if (
+    inspector.url() !== undefined &&
+    args.some((arg) => arg instanceof Error)
+  ) {
+    return args
+  }
+
   switch (methodName) {
     case 'dir':
     case 'dirxml':
