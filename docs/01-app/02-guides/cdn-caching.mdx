@@ -23,7 +23,7 @@ Next.js sets `Cache-Control` headers based on the rendering strategy of each rou
 - **ISR pages** (time-based revalidation): `s-maxage={revalidate}`, with `stale-while-revalidate={expire - revalidate}` appended when an [`expire`](/docs/app/api-reference/functions/cacheLife) value is configured and exceeds the revalidation interval
 - **Dynamic pages** (no caching): `private, no-cache, no-store, max-age=0, must-revalidate`
 
-CDNs that respect `s-maxage` and `stale-while-revalidate` can cache static and ISR pages at the edge without additional configuration.
+CDNs that respect `s-maxage` and `stale-while-revalidate` can cache static and ISR pages at the edge. However, CDN-level caching alone does not support on-demand revalidation (`revalidateTag()` / `revalidatePath()`): those calls invalidate the Next.js server cache, but the CDN will continue serving its cached copy until the `s-maxage` TTL expires. To propagate on-demand revalidation to the CDN, you need to wire up cache purging logic on the CDN side (for example, using the CDN's purge API when a revalidation event occurs).
 
 ### Static assets
 

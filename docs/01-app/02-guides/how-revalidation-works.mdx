@@ -30,12 +30,9 @@ This consistency matters because the RSC payload carries the component tree stru
 
 ### What happens if they get out of sync
 
-If a platform's cache serves an HTML response from one render and an RSC payload from a different render, the client's router detects the mismatch. The recovery mechanism works in two steps:
+If a platform's cache serves an HTML response from one render and an RSC payload from a different render, the user may see inconsistent data. Next.js does not automatically detect this mismatch at runtime unless [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is configured, in which case a build/deploy ID change triggers a hard navigation to fetch consistent content.
 
-1. **First mismatch**: the router triggers a soft retry, refreshing the page via a client-side navigation to fetch consistent data.
-2. **Second successive mismatch**: the router falls back to a full page reload (MPA navigation) to guarantee a consistent state.
-
-The application does not break. In the worst case, the user sees a full page reload instead of a smooth client-side transition.
+Without `deploymentId`, the consequence of a mismatch is data inconsistency: the user sees HTML from one render and client-side navigation data from another. This is not a crash, but it can result in stale or mismatched content across page transitions. Configuring `deploymentId` for rolling deployments is the primary mitigation.
 
 ## Tag System Architecture
 
@@ -72,7 +69,7 @@ The default file-system cache handles consistency automatically. Cache writes ar
 
 ### Multi-instance with shared cache
 
-The system works correctly without atomic writes or shared cache: each instance independently serves content and handles revalidation. The worst case without coordination is that a client-side navigation fetches a mismatched HTML/RSC pair and triggers a full page reload, not an application crash.
+Each instance independently serves content and handles revalidation without shared cache. The consequence without coordination is data inconsistency: different users may see different content depending on which instance serves their request, and on-demand revalidation only takes effect on the instance that received the call.
 
 To reduce this window and ensure revalidation propagates across instances:
 
@@ -91,6 +88,6 @@ The revalidation system prioritizes availability over strict consistency. Conten
 
 - **Cache write failure**: the response is still served to the user because writes are asynchronous. The cache entry is lost, and the next request triggers a fresh render.
 - **Cache read failure**: your handler should catch internal errors and return `undefined` (the cache miss signal). The route is then server-rendered fresh. The framework does not wrap `get()` in a try/catch, so unhandled exceptions will propagate as render errors.
-- **HTML/RSC payload out of sync**: the client detects the mismatch and recovers via retry, then falls back to a full page reload if the mismatch persists. The application does not crash.
+- **HTML/RSC payload out of sync**: without [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId), stale data may be served during client-side navigation. With `deploymentId` configured, a build ID change triggers a hard navigation to fetch consistent content. The application does not crash in either case.
 
-Every failure mode has a defined recovery path. The worst case is a full page reload, not a broken application.
+Cache failures result in degraded performance (stale content, extra renders), not broken applications. Configure `deploymentId` for multi-instance and rolling deployments to mitigate version-skew issues.

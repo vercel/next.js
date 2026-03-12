@@ -44,7 +44,7 @@ The component-level rendering model has real implications for platforms hosting 
 
 - **Streaming** is required because static and dynamic content are served in a single response. The server sends the static shell first, then streams dynamic portions as they resolve. See [Streaming](/docs/app/guides/streaming) for details.
 - **Cache coordination** is required when running multiple instances because any cached content can be invalidated on demand via [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) or [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath). See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for the architecture.
-- **Cache consistency** matters because revalidation regenerates both the HTML response and the RSC payload (React Server Components payload). These must stay in sync. See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for consistency requirements and graceful degradation.
+- **Cache consistency** matters because revalidation regenerates both the HTML response and the RSC payload (React Server Components payload). If these get out of sync across instances, users may see inconsistent data during navigation. See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for consistency requirements and the role of [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId).
 
 Each of these infrastructure requirements maps directly to a capability: streaming enables instant static shells, cache coordination enables on-demand updates without redeployment, and consistency ensures client-side navigations work correctly across cache boundaries.
 
