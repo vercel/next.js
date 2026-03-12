@@ -1112,5 +1112,7 @@
   "1111": "Invalid sample: Defining cookies via a \"cookie\" header is not supported. Use `cookies: [{ name: ..., value: ... }]` instead.",
   "1112": "Route \"%s\": Could not validate \\`unstable_instant\\` because an error prevented the target segment from rendering.",
   "1113": "Route \"%s\": Could not validate \\`unstable_instant\\` because an error prevented the page from rendering.",
-  "1114": "Route \"%s\" accessed root param \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object."
+  "1114": "Route \"%s\" accessed root param \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object.",
+  "1115": "Route \"%s\" accessed cookie \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`cookies\\` array, or \\`{ name: \"%s\", value: null }\\` if it should be absent.",
+  "1116": "Route \"%s\" accessed header \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`headers\\` array, or \\`[\"%s\", null]\\` if it should be absent."
 }

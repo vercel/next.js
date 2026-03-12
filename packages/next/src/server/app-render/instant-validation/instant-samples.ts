@@ -72,21 +72,6 @@ export function trackMissingSampleErrorAndThrow(
   throw error
 }
 
-// TODO(instant-validation-build): maybe inline this, or rename
-function createMissingSampleError(
-  route: string,
-  apiName: string,
-  accessedName: string,
-  sampleArrayName: string,
-  nullExample: string
-): InstantValidationError {
-  return new InstantValidationError(
-    `Route "${route}" accessed ${apiName} "${accessedName}" which is not defined in the \`samples\` ` +
-      `of \`unstable_instant\`. Add it to the sample's \`${sampleArrayName}\` array` +
-      (nullExample ? `, or ${nullExample} if it should be absent.` : '.')
-  )
-}
-
 /**
  * Creates ReadonlyRequestCookies from sample cookie data.
  * Accessing a cookie not declared in the sample will throw an error.
@@ -117,13 +102,7 @@ export function createCookiesFromSample(
         const wrappedMethod: typeof originalMethod = function (name) {
           if (!declaredNames.has(name)) {
             trackMissingSampleErrorAndThrow(
-              createMissingSampleError(
-                route,
-                'cookie',
-                name,
-                'cookies',
-                `\`{ name: "${name}", value: null }\``
-              )
+              createMissingCookieSampleError(route, name)
             )
           }
           return originalMethod.call(target, name)
@@ -149,13 +128,7 @@ export function createCookiesFromSample(
 
           if (!declaredNames.has(name)) {
             trackMissingSampleErrorAndThrow(
-              createMissingSampleError(
-                route,
-                'cookie',
-                name,
-                'cookies',
-                `\`{ name: "${name}", value: null }\``
-              )
+              createMissingCookieSampleError(route, name)
             )
           }
           return originalMethod.call(target, name)
@@ -169,6 +142,17 @@ export function createCookiesFromSample(
       return Reflect.get(target, prop, receiver)
     },
   })
+}
+
+function createMissingCookieSampleError(
+  route: string,
+  name: string
+): InstantValidationError {
+  return new InstantValidationError(
+    `Route "${route}" accessed cookie "${name}" which is not defined in the \`samples\` ` +
+      `of \`unstable_instant\`. Add it to the sample's \`cookies\` array, ` +
+      `or \`{ name: "${name}", value: null }\` if it should be absent.`
+  )
 }
 
 /**
@@ -220,12 +204,10 @@ export function createHeadersFromSample(
           const name = rawName.toLowerCase()
           if (!declaredNames.has(name)) {
             trackMissingSampleErrorAndThrow(
-              createMissingSampleError(
-                route,
-                'header',
-                name,
-                'headers',
-                `\`["${name}", null]\``
+              new InstantValidationError(
+                `Route "${route}" accessed header "${name}" which is not defined in the \`samples\` ` +
+                  `of \`unstable_instant\`. Add it to the sample's \`headers\` array, ` +
+                  `or \`["${name}", null]\` if it should be absent.`
               )
             )
           }
@@ -285,7 +267,10 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
         !declaredParamNames.has(prop)
       ) {
         trackMissingSampleErrorAndThrow(
-          createMissingSampleError(route, 'param', prop, 'params', '')
+          new InstantValidationError(
+            `Route "${route}" accessed param "${prop}" which is not defined in the \`samples\` ` +
+              `of \`unstable_instant\`. Add it to the sample's \`params\` object.`
+          )
         )
       }
       return Reflect.get(target, prop, receiver)
@@ -314,11 +299,7 @@ export function createExhaustiveSearchParamsProxy(
         !declaredSearchParamNames.has(prop)
       ) {
         trackMissingSampleErrorAndThrow(
-          new InstantValidationError(
-            `Route "${route}" accessed searchParam "${prop}" which is not defined in the \`samples\` ` +
-              `of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, ` +
-              `or \`{ "${prop}": null }\` if it should be absent.`
-          )
+          createMissingSearchParamSampleError(route, prop)
         )
       }
       return Reflect.get(target, prop, receiver)
@@ -330,11 +311,7 @@ export function createExhaustiveSearchParamsProxy(
         !declaredSearchParamNames.has(prop)
       ) {
         trackMissingSampleErrorAndThrow(
-          new InstantValidationError(
-            `Route "${route}" accessed searchParam "${prop}" which is not defined in the \`samples\` ` +
-              `of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, ` +
-              `or \`{ "${prop}": null }\` if it should be absent.`
-          )
+          createMissingSearchParamSampleError(route, prop)
         )
       }
       return Reflect.has(target, prop)
@@ -360,13 +337,7 @@ export function createExhaustiveURLSearchParamsProxy<T extends URLSearchParams>(
         return (name: string) => {
           if (typeof name === 'string' && !declaredSearchParamNames.has(name)) {
             trackMissingSampleErrorAndThrow(
-              createMissingSampleError(
-                route,
-                'searchParam',
-                name,
-                'searchParams',
-                `\`{ "${name}": null }\` if it should be absent`
-              )
+              createMissingSearchParamSampleError(route, name)
             )
           }
           return (originalMathod as (...args: any[]) => any).call(target, name)
@@ -380,6 +351,17 @@ export function createExhaustiveURLSearchParamsProxy<T extends URLSearchParams>(
       return value
     },
   })
+}
+
+function createMissingSearchParamSampleError(
+  route: string,
+  name: string
+): InstantValidationError {
+  return new InstantValidationError(
+    `Route "${route}" accessed searchParam "${name}" which is not defined in the \`samples\` ` +
+      `of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, ` +
+      `or \`{ "${name}": null }\` if it should be absent.`
+  )
 }
 
 export function createRelativeURLFromSamples(
