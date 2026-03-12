@@ -72,14 +72,14 @@ The default file-system cache handles consistency automatically. Cache writes ar
 
 ### Multi-instance with shared cache
 
-The cache backend must coordinate tag state across instances. The recommended approach is:
+The system works correctly without atomic writes or shared cache: each instance independently serves content and handles revalidation. The worst case without coordination is that a client-side navigation fetches a mismatched HTML/RSC pair and triggers a full page reload, not an application crash.
+
+To reduce this window and ensure revalidation propagates across instances:
 
 1. Store tag invalidation timestamps in a shared service (Redis, DynamoDB, or a simple HTTP API).
 2. Implement `updateTags()` to write to the shared service.
-3. Implement `refreshTags()` to read from the shared service before each request.
-4. Store cache entries (HTML + RSC payload) in shared storage with atomic writes.
-
-If atomic writes are not feasible, accept the graceful degradation: the worst case is a client-side navigation triggering a full page reload, not an application crash.
+3. Implement `refreshTags()` to read from the shared service. If `refreshTags()` fails (network partition, Redis unavailable), catch the error and continue with local tag state. The consequence is temporarily stale content until the network recovers, which is preferable to failing every request.
+4. Store cache entries (HTML + RSC payload) in shared storage. Atomic writes reduce the mismatch window further but are not required for correctness.
 
 ### CDN integration
 

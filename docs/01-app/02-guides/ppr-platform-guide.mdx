@@ -60,15 +60,23 @@ This requires the CDN to support response stitching or a similar mechanism for c
 
 ### The resume protocol
 
-To implement this pattern, the CDN or edge function uses the **resume protocol** to tell the Next.js server to skip the shell and render only the dynamic portions:
+To implement this pattern, the CDN or edge function uses the **resume protocol** to tell the Next.js handler to skip the shell and render only the dynamic portions.
+
+**For CDN-to-origin architectures** (where the CDN makes an HTTP request to a separate Next.js origin):
 
 - Send a **POST** request to the route with the header `next-resume: 1`.
 - Include the `postponedState` blob as the **request body**.
 - The server will render only the deferred Suspense boundaries and stream the result.
 
+**For adapter-based deployments** (where the platform invokes the handler function directly):
+
+- Call the entrypoint handler with `req.method` set to `'POST'`, the `next-resume: 1` header on the request, and the `postponedState` as the request body. Alternatively, set `requestMeta.postponed` directly via `addRequestMeta`.
+- The handler renders only the deferred Suspense boundaries and streams the result to `res`.
+- No HTTP round-trip is needed: the handler is invoked in-process.
+
 In the [adapter output](/docs/app/api-reference/config/next-config-js/adapterPath#output-types), `pprChain.headers` contains the headers needed for this protocol: `{ 'next-resume': '1' }`.
 
-> **Good to know:** The resume protocol only works in minimal mode (adapter-based deployments). In standard `next start`, the server handles the full shell + dynamic render in a single pass.
+> **Good to know:** The resume protocol only works in minimal mode (adapter-based deployments). Minimal mode is activated via the `NEXT_PRIVATE_MINIMAL_MODE` environment variable or by adapter configuration. In standard `next start`, the server handles the full shell + dynamic render in a single pass.
 
 For detailed implementation with code examples, see [Implementing PPR in an Adapter](/docs/app/api-reference/config/next-config-js/adapterPath#implementing-ppr-in-an-adapter).
 
@@ -81,6 +89,8 @@ For the lowest possible latency, both the shell and dynamic rendering can happen
 - The application code deployed to edge locations.
 
 This approach gives edge-level TTFB for both the static shell and dynamic content.
+
+> **Good to know:** For routes using `runtime: 'nodejs'` (the default), the dynamic portion must render on a Node.js-compatible runtime. A valid hybrid architecture is serving the static shell from edge compute while routing the resume call to a Node.js origin. This gives edge-level TTFB for the shell while using Node.js for the dynamic render.
 
 ## Storing PPR Artifacts
 
