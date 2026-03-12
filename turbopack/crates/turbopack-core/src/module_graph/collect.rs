@@ -145,6 +145,10 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
          node_idx: GraphNodeIndex,
          (module_entry_membership, emitted_references)|
          -> Result<GraphTraversalAction> {
+            if let Some(node) = ResolvedVc::try_downcast::<Box<dyn CollectingModule>>(node) {
+                collecting_modules.insert(node);
+            }
+
             let Some((parent, ref_data, _)) = parent_info else {
                 // An entry module
                 return Ok(GraphTraversalAction::Continue);
@@ -152,10 +156,6 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
 
             if let ChunkingType::Emitted { .. } = ref_data.chunking_type {
                 emitted_references.insert((ref_data, node, node_idx));
-            }
-
-            if let Some(node) = ResolvedVc::try_downcast::<Box<dyn CollectingModule>>(node) {
-                collecting_modules.insert(node);
             }
 
             if parent == node {
