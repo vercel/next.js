@@ -195,6 +195,12 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/disable-validation/in-page-with-outer" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/disable-dev" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/disable-build" />
+        </li>
       </ul>
     </main>
   )
