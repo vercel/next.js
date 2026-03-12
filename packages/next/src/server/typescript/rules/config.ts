@@ -154,7 +154,7 @@ const API_DOCS: Record<
     // with the way this plugin is currently structured.
     // For now, since we don't provide an `options` here, we won't do any validation in
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
-    insertText: 'unstable_instant = { mode: "static" };',
+    insertText: 'unstable_instant = { prefetch: "static" };',
   },
 }
 
