@@ -10,26 +10,12 @@ use crate::database::{
 pub struct NoopKvDb;
 
 impl KeyValueDatabase for NoopKvDb {
-    type ReadTransaction<'l>
-        = ()
-    where
-        Self: 'l;
-
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
-        Ok(())
-    }
-
     type ValueBuffer<'l>
         = &'l [u8]
     where
         Self: 'l;
 
-    fn get<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
-        _key_space: KeySpace,
-        _key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>> {
+    fn get(&self, _key_space: KeySpace, _key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
         Ok(None)
     }
 

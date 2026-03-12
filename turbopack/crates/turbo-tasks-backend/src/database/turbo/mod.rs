@@ -70,17 +70,8 @@ impl TurboKeyValueDatabase {
 }
 
 impl KeyValueDatabase for TurboKeyValueDatabase {
-    type ReadTransaction<'l>
-        = ()
-    where
-        Self: 'l;
-
     fn is_empty(&self) -> bool {
         self.db.is_empty()
-    }
-
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
-        Ok(())
     }
 
     type ValueBuffer<'l>
@@ -88,30 +79,23 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     where
         Self: 'l;
 
-    fn get<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>> {
+    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
         self.db.get(key_space as usize, &key)
     }
 
-    fn batch_get<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
+    fn batch_get(
+        &self,
         key_space: KeySpace,
         keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
         self.db.batch_get(key_space as usize, keys)
     }
 
-    fn get_multiple<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
+    fn get_multiple(
+        &self,
         key_space: KeySpace,
         key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
+    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
         self.db.get_multiple(key_space as usize, &key)
     }
 

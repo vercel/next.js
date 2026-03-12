@@ -29,12 +29,6 @@ impl KeySpace {
 }
 
 pub trait KeyValueDatabase {
-    type ReadTransaction<'l>
-    where
-        Self: 'l;
-
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>>;
-
     fn is_empty(&self) -> bool {
         false
     }
@@ -43,35 +37,28 @@ pub trait KeyValueDatabase {
     where
         Self: 'l;
 
-    fn get<'l, 'db: 'l>(
-        &'l self,
-        transaction: &'l Self::ReadTransaction<'db>,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>>;
+    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>>;
     /// Looks up a key and returns all matching values.
     ///
     /// Useful for keyspaces where keys are hashes and collisions are possible (e.g., TaskCache).
     /// The default implementation returns at most one value (from `get`), but implementations
     /// that support multiple values per key should override this.
-    fn get_multiple<'l, 'db: 'l>(
-        &'l self,
-        transaction: &'l Self::ReadTransaction<'db>,
+    fn get_multiple(
+        &self,
         key_space: KeySpace,
         key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
-        Ok(self.get(transaction, key_space, key)?.into_iter().collect())
+    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
+        Ok(self.get(key_space, key)?.into_iter().collect())
     }
 
-    fn batch_get<'l, 'db: 'l>(
-        &'l self,
-        transaction: &'l Self::ReadTransaction<'db>,
+    fn batch_get(
+        &self,
         key_space: KeySpace,
         keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
         let mut results = Vec::with_capacity(keys.len());
         for key in keys {
-            let value = self.get(transaction, key_space, key)?;
+            let value = self.get(key_space, key)?;
             results.push(value);
         }
         Ok(results)
