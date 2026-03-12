@@ -375,6 +375,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             .collect::<Result<Vec<_>>>()
     }
 
+    fn compact(&self) -> Result<bool> {
+        self.inner.database.compact()
+    }
+
     fn shutdown(&self) -> Result<()> {
         self.inner.database.shutdown()
     }

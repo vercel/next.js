@@ -2807,6 +2807,25 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 Ordering::Relaxed,
                             );
 
+                            // Repeat compaction while idle (up to 10 times)
+                            for _ in 0..10 {
+                                let idle_ended = tokio::select! {
+                                    biased;
+                                    _ = &mut idle_end_listener => {
+                                        idle_end_listener = self.idle_end_event.listen();
+                                        true
+                                    },
+                                    _ = std::future::ready(()) => false,
+                                };
+                                if idle_ended {
+                                    break;
+                                }
+                                match self.backing_storage.compact() {
+                                    Ok(true) => {}
+                                    Ok(false) | Err(_) => break,
+                                }
+                            }
+
                             turbo_tasks.schedule_backend_background_job(
                                 TurboTasksBackendJob::FollowUpSnapshot,
                             );
