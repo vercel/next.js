@@ -285,6 +285,8 @@ pub struct EdgeFunctionDefinition {
     pub files: Vec<RcStr>,
     pub name: RcStr,
     pub page: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entrypoint: Option<RcStr>,
     pub matchers: Vec<ProxyMatcher>,
     pub wasm: Vec<AssetBinding>,
     pub assets: Vec<AssetBinding>,

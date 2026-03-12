@@ -253,10 +253,16 @@ impl MiddlewareEndpoint {
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
+            let edge_chunk_group_ref = edge_chunk_group.await?;
+            let edge_assets = edge_chunk_group_ref.assets.await?;
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
-                    .await?;
+                get_js_paths_from_root(&node_root_value, &edge_assets).await?;
+            let entrypoint =
+                get_js_paths_from_root(&node_root_value, edge_assets.first().into_iter())
+                    .await?
+                    .into_iter()
+                    .next();
 
             let mut output_assets = edge_chunk_group.all_assets().owned().await?;
 
@@ -284,6 +290,7 @@ impl MiddlewareEndpoint {
                 assets: paths_to_bindings(all_assets),
                 name: rcstr!("middleware"),
                 page: rcstr!("/"),
+                entrypoint,
                 regions,
                 matchers: matchers.clone(),
                 env: this.project.edge_env().owned().await?,

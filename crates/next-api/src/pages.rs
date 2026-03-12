@@ -1510,6 +1510,11 @@ impl PageEndpoint {
                     } else {
                         None
                     };
+                    let entrypoint =
+                        get_js_paths_from_root(&node_root, assets_ref.first().into_iter())
+                            .await?
+                            .into_iter()
+                            .next();
 
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
@@ -1517,6 +1522,7 @@ impl PageEndpoint {
                         assets: paths_to_bindings(all_assets),
                         name: pages_function_name(&this.original_name).into(),
                         page: this.original_name.clone(),
+                        entrypoint,
                         regions,
                         matchers: vec![matchers],
                         env: this.pages_project.project().edge_env().owned().await?,
