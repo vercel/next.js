@@ -132,6 +132,7 @@ fn init_registry<T: RegistryItem>(mut items: Vec<&'static T>) -> Box<[&'static T
             );
         }
         prev_name = Some(global_name);
+        // SAFETY: Single-threaded during Lazy init; no concurrent readers yet.
         unsafe { std::ptr::write(SyncUnsafeCell::raw_get(&item.ty().id), u16::from(id)) };
         id = id.checked_add(1).expect("overflowing item ids");
     }
