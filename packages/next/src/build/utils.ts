@@ -593,12 +593,11 @@ function toProjectRelativePaths(
   return relPaths.map((f) => path.relative(dir, path.join(distDir, f)))
 }
 
-async function buildRouteToAppPathsMap(
+function buildRouteToAppPathsMap(
   appPathsManifest: Record<string, string>
-): Promise<Map<string, string[]>> {
-  const { normalizeAppPath } = await import(
-    '../shared/lib/router/utils/app-paths'
-  )
+): Map<string, string[]> {
+  const { normalizeAppPath } =
+    require('../shared/lib/router/utils/app-paths') as typeof import('../shared/lib/router/utils/app-paths')
   // Keys in appPathsManifest are app paths like /blog/[slug]/page;
   // values are server bundle file paths. Normalize the key to get the route.
   const routeToAppPaths = new Map<string, string[]>()
@@ -615,13 +614,13 @@ async function buildRouteToAppPathsMap(
 }
 
 // Reads the manfiest file and gets the entry JS files. The manifest file is
-// a JavaScript file that sets a global variable, so we run it in a temporary vm
-// and extract it.
-async function readEntryJSFiles(
+// a JavaScript file that sets a global variable (__RSC_MANIFEST). We require()
+// it with a save/restore of the global
+function readEntryJSFiles(
   distDir: string,
   pagePath: string,
   appRoute: string
-): Promise<Record<string, string[]> | undefined> {
+): Record<string, string[]> | undefined {
   const manifestFile = path.join(
     distDir,
     SERVER_DIRECTORY,
@@ -629,13 +628,14 @@ async function readEntryJSFiles(
     `${pagePath}_${CLIENT_REFERENCE_MANIFEST}.js`
   )
   try {
-    const vm = await import('vm')
-    const code = await fs.readFile(manifestFile, 'utf8')
-    const sandbox: Record<string, unknown> = {}
-    vm.runInNewContext(code, sandbox)
-    const rscManifest = sandbox.__RSC_MANIFEST as
+    const g = global as Record<string, unknown>
+    const prev = g.__RSC_MANIFEST
+    g.__RSC_MANIFEST = undefined
+    require(manifestFile)
+    const rscManifest = g.__RSC_MANIFEST as
       | Record<string, { entryJSFiles?: Record<string, string[]> }>
       | undefined
+    g.__RSC_MANIFEST = prev
 
     // The key in __RSC_MANIFEST is the app path (e.g. /blog/[slug]/page)
     const manifestEntry = rscManifest?.[pagePath] ?? rscManifest?.[appRoute]
@@ -653,7 +653,7 @@ async function collectPagesRouterStats(
   cache: Map<string, number>
 ): Promise<RouteBundleStat[]> {
   const rows: RouteBundleStat[] = []
-  const sharedFiles = new Set<string>(buildManifest.pages['/_app'] ?? [])
+  const sharedFiles = buildManifest.pages['/_app'] ?? []
   for (const page of filterAndSortList(pages, 'pages', false)) {
     if (page === '/_app' || page === '/_document' || page === '/_error')
       // Don't report on layouts directly
@@ -662,8 +662,7 @@ async function collectPagesRouterStats(
     const allFiles = (buildManifest.pages[page] ?? []).filter((f) =>
       f.endsWith('.js')
     )
-    if (allFiles.length === 0) continue
-    const sharedJs = [...sharedFiles].filter((f) => f.endsWith('.js'))
+    const sharedJs = sharedFiles.filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
     const firstLoadUncompressedJsBytes = await sumFileSizes(
       distDir,
@@ -696,10 +695,11 @@ async function collectAppRouterStats(
     appPathsManifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'))
   } catch {
     // App paths manifest not available; skip app router sizes
+    return []
   }
 
-  const routeToAppPaths = await buildRouteToAppPathsMap(appPathsManifest)
-  const sharedFiles = new Set<string>(buildManifest.rootMainFiles ?? [])
+  const routeToAppPaths = buildRouteToAppPathsMap(appPathsManifest)
+  const sharedFiles = buildManifest.rootMainFiles ?? []
   const rows: RouteBundleStat[] = []
 
   for (const appRoute of filterAndSortList(appRoutes, 'app', false)) {
@@ -708,7 +708,7 @@ async function collectAppRouterStats(
     const pagePath = appPaths.find((p) => p.endsWith('/page'))
     if (!pagePath) continue
 
-    const entryJSFiles = await readEntryJSFiles(distDir, pagePath, appRoute)
+    const entryJSFiles = readEntryJSFiles(distDir, pagePath, appRoute)
     if (!entryJSFiles) continue
 
     // Union JS files across all segments (page, layout, etc.) so that
@@ -720,9 +720,7 @@ async function collectAppRouterStats(
           .filter((f) => f.endsWith('.js'))
       ),
     ]
-    if (allFiles.length === 0) continue
-
-    const sharedJs = [...sharedFiles].filter((f) => f.endsWith('.js'))
+    const sharedJs = sharedFiles.filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
     const firstLoadUncompressedJsBytes = await sumFileSizes(
       distDir,
@@ -769,8 +767,6 @@ export async function writeRouteBundleStats(
         )
       : []),
   ]
-
-  if (rows.length === 0) return
 
   rows.sort(
     (a, b) => b.firstLoadUncompressedJsBytes - a.firstLoadUncompressedJsBytes
