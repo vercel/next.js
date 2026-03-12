@@ -53,6 +53,13 @@ const AVG_SMALL_VALUE_SIZE: usize = 64;
 /// byte-size based estimates of pending key blocks.
 const BLOCK_INDEX_CAPACITY_BUFFER: usize = 16;
 
+/// Minimum key size (in bytes) for attempting LZ4 compression on key blocks.
+///
+/// Keys are sorted by hash, so we should not expect correlation in the data between nearby keys in
+/// a block. For small keys (below this threshold), compression is unlikely to be able to exploit
+/// patterns and only wastes CPU time. We skip the compression attempt entirely in this case.
+const MIN_KEY_SIZE_FOR_COMPRESSION: usize = 16;
+
 /// Maximum key length that can use fixed-size key block layout.
 ///
 /// The on-disk fixed-key header stores the key size as a single byte, so keys longer than this
@@ -838,6 +845,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     fn flush_key_block(&mut self, start: usize, end: usize, info: KeyBlockFlushInfo) -> Result<()> {
         let entry_count = end - start;
         let has_hash = use_hash(info.max_key_len);
+        let try_compress = info.max_key_len >= MIN_KEY_SIZE_FOR_COMPRESSION;
 
         self.key_buffer.clear();
 
@@ -877,7 +885,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             &mut self.compress_buffer,
             &mut self.block_offsets,
             &self.key_buffer,
-            true,
+            try_compress,
         )
         .context("Failed to write key block")?;
         self.key_block_boundaries.push((first_hash, block_index));

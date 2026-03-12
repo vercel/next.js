@@ -11,7 +11,7 @@ use std::{
 
 use anyhow::Result;
 use either::Either;
-use napi::{JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
+use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
@@ -179,22 +179,31 @@ pub struct TurbopackInternalErrorOpts {
 }
 
 impl NapiNextTurbopackCallbacks {
-    pub fn from_js(obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
-        Ok(NapiNextTurbopackCallbacks {
-            throw_turbopack_internal_error: obj
-                .throw_turbopack_internal_error
+    pub fn from_js(env: &Env, obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
+        let mut throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts> =
+            obj.throw_turbopack_internal_error
                 .create_threadsafe_function(0, |ctx| {
                     // Avoid unpacking the struct into positional arguments, we really want to make
                     // sure we don't incorrectly order arguments and accidentally log a potentially
                     // PII-containing message in anonymized telemetry.
                     Ok(vec![ctx.value])
-                })?,
-            on_before_deferred_entries: obj
-                .on_before_deferred_entries
-                .map(|callback| {
-                    callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))
-                })
-                .transpose()?,
+                })?;
+        // Unref so this ThreadsafeFunction doesn't keep the Node.js event loop alive
+        // after shutdown.
+        let _ = throw_turbopack_internal_error.unref(env);
+
+        let on_before_deferred_entries = obj
+            .on_before_deferred_entries
+            .map(|callback| {
+                let mut f = callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))?;
+                let _ = f.unref(env);
+                Ok::<_, napi::Error>(f)
+            })
+            .transpose()?;
+
+        Ok(NapiNextTurbopackCallbacks {
+            throw_turbopack_internal_error,
+            on_before_deferred_entries,
         })
     }
 }

@@ -33,7 +33,7 @@ smallvec = { workspace = true }
 thread_local = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode= { workspace = true }
-twox-hash = { workspace = true }
+xxhash-rust = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

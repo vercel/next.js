@@ -36,9 +36,9 @@ export function InstantNavsPanel() {
     }
   }, [dispatch])
 
-  // Navigation detection: watch state.page for changes while in waiting state
+  // Navigation detection: watch state.page for changes while in client-nav-waiting state
   useEffect(() => {
-    if (status !== 'waiting') return
+    if (status !== 'client-nav-waiting') return
     if (!state.page) return
 
     // Capture the first non-empty page as baseline (state.page starts as '')
@@ -58,9 +58,18 @@ export function InstantNavsPanel() {
   }, [state.page, status, dispatch])
 
   function handleReload() {
-    // Cookie is already set to '1' from when the panel opened.
-    // Just reload — the server will see the cookie and render the static shell.
+    document.cookie = 'next-instant-navigation-testing=1; path=/'
     window.location.reload()
+  }
+
+  function handleStartClientNav() {
+    document.cookie = 'next-instant-navigation-testing=1; path=/'
+    fromUrlRef.current = window.location.pathname + window.location.search
+    initialPageRef.current = state.page
+    dispatch({
+      type: ACTION_INSTANT_NAVS_SET_STATUS,
+      status: 'client-nav-waiting',
+    })
   }
 
   function handleContinueRendering() {
@@ -85,7 +94,7 @@ export function InstantNavsPanel() {
           <div className="instant-nav-section-header">
             <label>Page load</label>
             <p className="instant-nav-section-description">
-              Reload to view the initial static UI for this page.
+              View the initial static UI for this page.
             </p>
           </div>
           <div className="instant-nav-section-control">
@@ -94,18 +103,7 @@ export function InstantNavsPanel() {
               onClick={handleReload}
               data-instant-nav-refresh
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M2.5 8a5.5 5.5 0 0 1 9.68-3.578L11.092 5.5H14.5V2.092l-1.395 1.395A7 7 0 1 0 15 8h-1.5A5.5 5.5 0 0 1 2.5 8Z"
-                  fill="currentColor"
-                />
-              </svg>
+              <RotateClockwise />
               <span>Reload</span>
             </button>
           </div>
@@ -114,10 +112,33 @@ export function InstantNavsPanel() {
           <div className="instant-nav-section-header">
             <label>Client navigation</label>
             <p className="instant-nav-section-description">
-              Click any link in your app to view the prefetched UI for that
-              page.
+              Freeze the next navigation to view the prefetched UI.
             </p>
           </div>
+          <div className="instant-nav-section-control">
+            <button
+              className="action-button"
+              onClick={handleStartClientNav}
+              data-instant-nav-client
+            >
+              <span>Start</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (panel.status === 'client-nav-waiting') {
+    return (
+      <div className="instant-nav-panel">
+        <div className="instant-nav-content">
+          <div className="instant-nav-section-header">
+            <label>Client navigation</label>
+          </div>
+          <p className="instant-nav-helper-description">
+            Click any link in your app to view the prefetched UI for that page.
+          </p>
         </div>
       </div>
     )
@@ -227,5 +248,24 @@ function ShareButton({ getShareUrl }: { getShareUrl: () => string }) {
     >
       {copied ? 'Copied!' : 'Share'}
     </button>
+  )
+}
+
+function RotateClockwise() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      strokeLinejoin="round"
+      viewBox="0 0 16 16"
+      fill="none"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M2.5 8C2.5 4.96643 4.97431 2.5 8.03548 2.5C10.5716 2.5 12.7064 4.19393 13.3628 6.5H10.75H10V8H10.75H15.25C15.6642 8 16 7.66421 16 7.25V2.75V2H14.5V2.75V5.23347C13.4215 2.74164 10.9316 1 8.03548 1C4.1539 1 1 4.13001 1 8C1 11.87 4.1539 15 8.03548 15C10.3763 15 12.4513 13.8617 13.7295 12.1122L14.172 11.5066L12.9609 10.6217L12.5184 11.2273C11.5117 12.6051 9.87945 13.5 8.03548 13.5C4.97431 13.5 2.5 11.0336 2.5 8Z"
+        fill="currentColor"
+      />
+    </svg>
   )
 }
