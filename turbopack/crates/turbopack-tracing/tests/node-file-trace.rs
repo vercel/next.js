@@ -304,7 +304,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
     node_file_trace(input, "persistent_cache", 2, 240, |directory_path| {
         TurboTasks::new(TurboTasksBackend::new(
             turbo_tasks_backend::BackendOptions::default(),
-            turbo_tasks_backend::default_backing_storage(
+            turbo_tasks_backend::turbo_backing_storage(
                 &directory_path.join(".cache"),
                 &turbo_tasks_backend::GitVersionInfo {
                     describe: "test-unversioned",

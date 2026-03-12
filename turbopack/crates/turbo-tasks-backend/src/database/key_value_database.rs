@@ -2,9 +2,7 @@ use anyhow::Result;
 use smallvec::SmallVec;
 use turbo_persistence::{FamilyConfig, FamilyKind};
 
-use crate::database::write_batch::{
-    ConcurrentWriteBatch, SerialWriteBatch, UnimplementedWriteBatch, WriteBatch,
-};
+use crate::database::write_batch::ConcurrentWriteBatch;
 
 #[derive(Debug, Clone, Copy)]
 pub enum KeySpace {
@@ -64,18 +62,11 @@ pub trait KeyValueDatabase {
         Ok(results)
     }
 
-    type SerialWriteBatch<'l>: SerialWriteBatch<'l>
-        = UnimplementedWriteBatch
-    where
-        Self: 'l;
     type ConcurrentWriteBatch<'l>: ConcurrentWriteBatch<'l>
-        = UnimplementedWriteBatch
     where
         Self: 'l;
 
-    fn write_batch(
-        &self,
-    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>>;
+    fn write_batch(&self) -> Result<Self::ConcurrentWriteBatch<'_>>;
 
     /// Called when the database has been invalidated via
     /// [`crate::backing_storage::BackingStorage::invalidate`]

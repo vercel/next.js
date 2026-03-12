@@ -50,19 +50,3 @@ pub type NoopBackingStorage = KeyValueDatabaseBackingStorage<NoopKvDb>;
 pub fn noop_backing_storage() -> NoopBackingStorage {
     KeyValueDatabaseBackingStorage::new_in_memory(NoopKvDb)
 }
-
-pub type DefaultBackingStorage = TurboBackingStorage;
-
-/// Creates the default `BackingStorage` to be passed to [`TurboTasksBackend::new`].
-///
-/// Information about the state of the on-disk cache is returned using [`StartupCacheState`].
-///
-/// This delegates to [`turbo_backing_storage`].
-pub fn default_backing_storage(
-    path: &Path,
-    version_info: &GitVersionInfo,
-    is_ci: bool,
-    is_short_session: bool,
-) -> Result<(DefaultBackingStorage, StartupCacheState)> {
-    turbo_backing_storage(path, version_info, is_ci, is_short_session)
-}

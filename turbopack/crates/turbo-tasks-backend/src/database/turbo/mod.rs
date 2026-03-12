@@ -21,7 +21,7 @@ use turbo_tasks::{
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
     turbo::parallel_scheduler::TurboTasksParallelScheduler,
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
+    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBuffer},
 };
 
 mod parallel_scheduler;
@@ -104,20 +104,18 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     where
         Self: 'l;
 
-    fn write_batch(
-        &self,
-    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
+    fn write_batch(&self) -> Result<Self::ConcurrentWriteBatch<'_>> {
         // Wait for the compaction to finish
         if let Some(join_handle) = self.compact_join_handle.lock().take() {
             join_handle.join()?;
         }
         // Start a new write batch
-        Ok(WriteBatch::concurrent(TurboWriteBatch {
+        Ok(TurboWriteBatch {
             batch: self.db.write_batch()?,
             db: &self.db,
             compact_join_handle: (!self.is_short_session && !self.db.is_empty())
                 .then_some(&self.compact_join_handle),
-        }))
+        })
     }
 
     fn prevent_writes(&self) {}

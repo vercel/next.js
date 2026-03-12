@@ -121,7 +121,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
     }
 
     fn should_check_backing_storage(&self) -> bool {
-        self.backend.should_restore() && self.backend.local_is_partial.load(Ordering::Acquire)
+        self.backend.should_restore() && self.backend.local_is_partial
     }
 
     fn restore_task_data(
@@ -130,6 +130,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         category: SpecificTaskDataCategory,
     ) -> TaskStorage {
         if !self.should_check_backing_storage() {
+            // If we don't need to restore, we can just return an empty storage
             return TaskStorage::default();
         }
         let mut storage = TaskStorage::default();
@@ -159,6 +160,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             "Use restore_task_data_typed for single task"
         );
         if !self.should_check_backing_storage() {
+            // If we don't need to restore, we return None
             return None;
         }
         let result = self

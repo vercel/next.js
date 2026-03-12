@@ -24,11 +24,11 @@ impl SnapshotItem {
 }
 
 /// Represents types accepted by [`TurboTasksBackend::new`]. Typically this is the value returned by
-/// [`default_backing_storage`] or [`noop_backing_storage`].
+/// [`turbo_backing_storage`] or [`noop_backing_storage`].
 ///
 /// This trait is [sealed]. External crates are not allowed to implement it.
 ///
-/// [`default_backing_storage`]: crate::default_backing_storage
+/// [`turbo_backing_storage`]: crate::turbo_backing_storage
 /// [`noop_backing_storage`]: crate::noop_backing_storage
 /// [`TurboTasksBackend::new`]: crate::TurboTasksBackend::new
 /// [sealed]: https://predr.ag/blog/definitive-guide-to-sealed-traits-in-rust/
@@ -70,6 +70,8 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     /// The caller must verify each returned TaskId by comparing the stored task type which will
     /// require a second database read
     fn lookup_task_candidates(&self, key: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>>;
+    /// Looks up and decodes persisted data for a single task, updating the provided storage with
+    /// data from the database in the given category.
     fn lookup_data(
         &self,
         task_id: TaskId,
