@@ -19,7 +19,7 @@ import { getDigestForWellKnownError } from '../create-error-handler'
 import {
   // NOTE: we're in the server layer, so this is a client reference
   PlaceValidationBoundaryBelowThisLevel,
-} from './boundary'
+} from '../../../client/components/instant-validation/boundary'
 import type { ValidationBoundaryTracking } from './boundary-tracking'
 import {
   getLayoutOrPageModule,

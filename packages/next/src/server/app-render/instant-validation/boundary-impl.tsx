@@ -1,11 +1,20 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
-'use client'
+
+// Do not put a "use client" directive here. Import this module via the shim in
+// `packages/next/src/client/components/instant-validation/boundary.tsx` instead.
+// 'use client'
 
 import { createContext, type ReactNode } from 'react'
 import { INSTANT_VALIDATION_BOUNDARY_NAME } from './boundary-constants'
 import { InvariantError } from '../../../shared/lib/invariant-error'
-import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
 import type { ValidationBoundaryTracking } from './boundary-tracking'
+import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
+
+if (typeof window !== 'undefined') {
+  throw new InvariantError(
+    'Instant validation boundaries should never appear in browser bundles.'
+  )
+}
 
 function getValidationBoundaryTracking(): ValidationBoundaryTracking | null {
   const store = workUnitAsyncStorage.getStore()
@@ -39,12 +48,6 @@ const NameSpace = {
     id: string
     children: ReactNode
   }) {
-    if (typeof window !== 'undefined') {
-      throw new InvariantError(
-        'InstantValidationBoundary should only be rendered in SSR'
-      )
-    }
-
     // Track which boundaries we actually managed to render.
     const state = getValidationBoundaryTracking()
     if (state === null) {

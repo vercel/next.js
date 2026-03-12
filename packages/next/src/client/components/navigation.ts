@@ -38,7 +38,7 @@ const {
   expectCompleteParamsInClientValidation,
 } =
   typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS
-    ? (require('./instant-validation-hooks') as typeof import('./instant-validation-hooks'))
+    ? (require('../../server/app-render/instant-validation/instant-samples-client') as typeof import('../../server/app-render/instant-validation/instant-samples-client'))
     : {}
 
 /**
