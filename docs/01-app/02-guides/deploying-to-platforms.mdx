@@ -73,8 +73,6 @@ The adapter API plus [custom cache handlers](/docs/app/api-reference/config/next
 
 For a list of available platform adapters, see the [Deploying](/docs/app/getting-started/deploying#adapters) page.
 
-## A Note on Framework Comparisons
+## A Note on Infrastructure Requirements
 
-Next.js's [rendering model](/docs/app/guides/rendering-philosophy) operates at the component level rather than the route level. Component-level rendering boundaries, per-function caching, and on-demand revalidation of any route are capabilities that transfer complexity from application code into infrastructure.
-
-This is a trade-off. Frameworks with route-level rendering boundaries have simpler infrastructure requirements because the boundary is coarser. Next.js's finer-grained boundaries provide more flexibility for developers at the cost of more requirements for hosting platforms. A fair comparison accounts for what each framework delivers in exchange for that infrastructure complexity.
+Next.js's [rendering model](/docs/app/guides/rendering-philosophy) places the static/dynamic boundary at the component level rather than the route level. Finer-grained boundaries provide more flexibility for developers at the cost of broader requirements for hosting platforms. This is a deliberate trade-off: the infrastructure requirements on this page exist because of what the rendering model delivers.

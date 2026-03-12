@@ -27,16 +27,13 @@ This model benefits developers and users in concrete ways:
 - **Incremental caching.** Developers can add caching and revalidation incrementally, without deciding upfront at build time whether a route is static or dynamic. Any page can be revalidated on demand, and any function can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache).
 - **Granular caching.** Cache a function with [`use cache`](/docs/app/api-reference/directives/use-cache), not a route. Revalidate a [tag](/docs/app/api-reference/functions/revalidateTag), not a deployment. This means an expensive database query can be cached independently of the rest of the page.
 
-## How This Differs from Other Frameworks
+## The Trade-Off
 
-Other modern frameworks take different approaches to the static/dynamic boundary. These are different trade-offs, not better or worse:
+Most web frameworks place the static/dynamic boundary at the **route level**: each route is either fully static or fully dynamic. This keeps infrastructure simple, since static routes are just files on a CDN and dynamic routes are requests to a server.
 
-- **Static site generators** (Gatsby, Hugo) prerender everything at build time. Dynamic content requires client-side fetching after the initial page load.
-- **Route-level hybrid frameworks** (Astro, SvelteKit, Nuxt) let each route be either static or dynamic. Some support server islands that render dynamic components via separate requests after the initial page load.
-- **Request-time SSR frameworks** (Remix / React Router) render on every request by default, a deliberate architectural choice that prioritizes simplicity. Static prerendering is available as an opt-in for specific routes.
-- **Next.js** combines static and dynamic content at the component level within a single streaming response. No separate fetch is needed for dynamic parts. Cache granularity operates at the function and component level.
+Next.js places the boundary at the **component level**: static and dynamic content coexist within a single streaming response. This gives developers more flexibility but requires more from the hosting platform: streaming, cache coordination, and cache consistency.
 
-A rendering model that operates at the component level rather than the route level transfers complexity from application code into infrastructure. That is the trade-off Next.js makes, and it is why the infrastructure requirements described below exist.
+That is a deliberate trade-off. A finer-grained rendering boundary transfers complexity from application code into infrastructure. The infrastructure requirements described below exist because of this choice.
 
 ## Infrastructure Implications
 
