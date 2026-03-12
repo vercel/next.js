@@ -63,7 +63,7 @@ The following table maps infrastructure primitives for each major CDN. These are
 | Azure             | Functions    | Managed Redis    | Blob Storage   | Yes (server) |
 | Google Cloud      | Cloud Run    | Various KV       | Cloud Storage  | Yes (server) |
 
-These are available building blocks. Platform adapters exist for several of these providers today, but not all adapters leverage the full CDN infrastructure (for example, edge-based PPR resuming or distributed KV for cache tags). See the [Deploying](/docs/app/getting-started/deploying#adapters) page for the current list. For CDN-specific caching considerations (including known limitations with `Vary` on custom headers), see [CDN Caching](/docs/app/guides/cdn-caching).
+These are available building blocks, not finished integrations. Most community adapters today deploy Next.js as a Docker container or Node.js server without leveraging CDN-specific primitives like edge KV or PPR resuming. See the [Deploying](/docs/app/getting-started/deploying#adapters) page for the current list of adapters. For CDN-specific caching considerations (including known limitations with `Vary` on custom headers), see [CDN Caching](/docs/app/guides/cdn-caching).
 
 ## Adapters
 
