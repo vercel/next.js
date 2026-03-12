@@ -18,18 +18,6 @@ impl PartialEq for RegistryType {
     }
 }
 
-impl Ord for RegistryType {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.type_id.cmp(&other.type_id)
-    }
-}
-
-impl PartialOrd for RegistryType {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl Debug for RegistryType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.global_name)

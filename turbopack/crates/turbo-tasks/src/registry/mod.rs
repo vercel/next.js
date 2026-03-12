@@ -73,20 +73,16 @@ pub trait RegistryDef<T: 'static> {
 ///
 /// This allows the generic registry to work with different types
 /// while maintaining their specific requirements.
-trait RegistryItem: 'static + Eq + std::hash::Hash {
+trait Registerable: 'static + Eq + std::hash::Hash {
     /// The ID type used for this registry item
     type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
     const TYPE_NAME: &'static str;
 
     /// Get the global registry type used for sorting and uniqueness validation
     fn ty(&self) -> &RegistryType;
-
-    /// Called after all items have been assigned IDs. Default is a no-op.
-    /// Only called during single-threaded Lazy init.
-    fn post_init(_items: &[&'static Self]) {}
 }
 
-impl RegistryItem for NativeFunction {
+impl Registerable for NativeFunction {
     type Id = FunctionId;
     const TYPE_NAME: &'static str = "Function";
 
@@ -95,19 +91,15 @@ impl RegistryItem for NativeFunction {
     }
 }
 
-impl RegistryItem for ValueType {
+impl Registerable for ValueType {
     type Id = ValueTypeId;
     const TYPE_NAME: &'static str = "Value";
     fn ty(&self) -> &RegistryType {
         &self.ty
     }
-
-    fn post_init(items: &[&'static Self]) {
-        crate::value_type::register_all_trait_methods(items);
-    }
 }
 
-impl RegistryItem for TraitType {
+impl Registerable for TraitType {
     type Id = TraitTypeId;
     const TYPE_NAME: &'static str = "Trait";
     fn ty(&self) -> &RegistryType {
@@ -116,9 +108,9 @@ impl RegistryItem for TraitType {
 }
 
 /// Assign IDs to items and call post_init. Shared logic for all registry types.
-fn init_registry<T: RegistryItem>(mut items: Vec<&'static T>) -> Box<[&'static T]> {
-    // Sort by registry type to get stable order
-    items.sort_unstable_by_key(|item| item.ty());
+fn init_registry<T: Registerable>(mut items: Vec<&'static T>) -> Box<[&'static T]> {
+    // Sort by global name for stable, deterministic ID assignment
+    items.sort_unstable_by_key(|item| item.ty().global_name);
 
     let mut id = NonZeroU16::MIN;
     let mut prev_name: Option<&str> = None;
@@ -137,22 +129,20 @@ fn init_registry<T: RegistryItem>(mut items: Vec<&'static T>) -> Box<[&'static T
         id = id.checked_add(1).expect("overflowing item ids");
     }
 
-    T::post_init(&items);
-
     items.into_boxed_slice()
 }
 
 /// Get an item by its ID from a registry slice
 #[inline]
-fn get_item<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> &'static T {
+fn get_item<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> &'static T {
     registry[*id as usize - 1]
 }
 
-/// Get the ID for a registered item
+/// Get the ID for a registered item. Forces registry init if needed, which
+/// assigns IDs to all items as a side effect.
 #[inline]
-fn get_id<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, item: &'static T) -> T::Id {
-    // Force initialization
-    let _ = &**registry;
+fn get_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, item: &'static T) -> T::Id {
+    Lazy::force(registry);
     // SAFETY: The ID write happens-before this read thanks to the fence inside of Lazy
     let n = unsafe { std::ptr::read(item.ty().id.get()) };
     let Some(id) = NonZeroU16::new(n) else {
@@ -166,7 +156,7 @@ fn get_id<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, item: &'static T)
 }
 
 /// Validate that an ID is within the valid range
-fn validate_id<T: RegistryItem>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> Option<Error> {
+fn validate_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> Option<Error> {
     let len = registry.len();
     if *id as usize <= len {
         None
@@ -202,12 +192,14 @@ pub fn validate_function_id(id: FunctionId) -> Option<Error> {
 }
 
 pub(crate) static VALUES: Lazy<Box<[&'static ValueType]>> = Lazy::new(|| {
-    init_registry(
+    let items = init_registry(
         inventory::iter::<&'static ValueType>
             .into_iter()
             .copied()
             .collect(),
-    )
+    );
+    crate::value_type::register_all_trait_methods(&items);
+    items
 });
 
 #[inline]
