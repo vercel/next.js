@@ -541,17 +541,6 @@ impl StaticSortedFile {
             return Ok(self.mmap_slice_to_arc_bytes(block));
         }
 
-        // Advise Sequential only here: we're about to linearly scan the block
-        // through the decompressor. For uncompressed blocks (returned above)
-        // and lazy medium values (which call get_raw_block directly without
-        // decompressing), the file-level Random advice applies.
-        #[cfg(unix)]
-        let _ = self.mmap.advise_range(
-            memmap2::Advice::Sequential,
-            block.as_ptr() as usize - self.mmap.as_ptr() as usize,
-            block.len(),
-        );
-
         let buffer = decompress_into_arc(uncompressed_length, block).with_context(|| {
             format!(
                 "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
