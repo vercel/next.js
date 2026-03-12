@@ -218,21 +218,27 @@ describe('Middleware Runtime', () => {
           ...middlewareWithoutEnvs.env,
         }
         delete middlewareWithoutEnvs.env
-        expect(middlewareWithoutEnvs).toEqual({
-          // Turbopack creates more files as it can do chunking.
-          files: process.env.IS_TURBOPACK_TEST
-            ? expect.toBeArray()
-            : expect.arrayContaining([
-                'server/edge-runtime-webpack.js',
-                'server/middleware.js',
-              ]),
+        expect(middlewareWithoutEnvs).toMatchObject({
           name: 'middleware',
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: process.env.IS_TURBOPACK_TEST ? expect.toBeArray() : [],
+          assets: [],
           regions: 'auto',
         })
+        expect(middlewareWithoutEnvs.files).toBeArray()
+
+        if (middlewareWithoutEnvs.entrypoint) {
+          expect(middlewareWithoutEnvs.entrypoint).toBe('server/middleware.js')
+          expect(middlewareWithoutEnvs.files).toEqual(
+            expect.arrayContaining([
+              'server/edge-runtime-webpack.js',
+              'server/middleware.js',
+            ])
+          )
+        } else {
+          expect(middlewareWithoutEnvs.files.length).toBeGreaterThan(0)
+        }
         expect(envs).toContainAllKeys([
           'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
           '__NEXT_BUILD_ID',
@@ -259,7 +265,7 @@ describe('Middleware Runtime', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (!process.env.IS_TURBOPACK_TEST) {
+          if (middleware.entrypoint) {
             expect(middleware.files).toContainEqual(
               expect.stringContaining('server/edge-runtime-webpack')
             )

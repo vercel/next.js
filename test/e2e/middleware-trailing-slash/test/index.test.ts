@@ -113,19 +113,26 @@ describe('Middleware Runtime trailing slash', () => {
           ...manifest.middleware['/'],
         }
         delete middlewareWithoutEnvs.env
-        expect(middlewareWithoutEnvs).toEqual({
-          files: process.env.IS_TURBOPACK_TEST
-            ? expect.toBeArray()
-            : expect.arrayContaining([
-                'server/edge-runtime-webpack.js',
-                'server/middleware.js',
-              ]),
+        expect(middlewareWithoutEnvs).toMatchObject({
           name: 'middleware',
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: process.env.IS_TURBOPACK_TEST ? expect.toBeArray() : [],
+          assets: [],
         })
+        expect(middlewareWithoutEnvs.files).toBeArray()
+
+        if (middlewareWithoutEnvs.entrypoint) {
+          expect(middlewareWithoutEnvs.entrypoint).toBe('server/middleware.js')
+          expect(middlewareWithoutEnvs.files).toEqual(
+            expect.arrayContaining([
+              'server/edge-runtime-webpack.js',
+              'server/middleware.js',
+            ])
+          )
+        } else {
+          expect(middlewareWithoutEnvs.files.length).toBeGreaterThan(0)
+        }
       })
 
       it('should have correct files in manifest', async () => {
@@ -134,7 +141,7 @@ describe('Middleware Runtime trailing slash', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (!process.env.IS_TURBOPACK_TEST) {
+          if (middleware.entrypoint) {
             expect(middleware.files).toContainEqual(
               expect.stringContaining('server/edge-runtime-webpack')
             )
