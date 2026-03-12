@@ -26,13 +26,11 @@ There are two types of revalidation:
 
 When a route is revalidated, Next.js regenerates **both** the HTML response and the RSC payload (React Server Components payload) from the same React component tree. Both artifacts are stored together in the same cache entry.
 
-This consistency matters because the RSC payload carries the component tree structure, not just data. If the HTML and RSC payload were from different renders, client-side navigation could see mismatched layouts or data.
+This consistency matters because the RSC payload carries the component tree structure, not just data.
 
 ### What happens if they get out of sync
 
-If a platform's cache serves an HTML response from one render and an RSC payload from a different render, the user may see inconsistent data. Next.js does not automatically detect this mismatch at runtime unless [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is configured, in which case a build/deploy ID change triggers a hard navigation to fetch consistent content.
-
-Without `deploymentId`, the consequence of a mismatch is data inconsistency: the user sees HTML from one render and client-side navigation data from another. This is not a crash, but it can result in stale or mismatched content across page transitions. Configuring `deploymentId` for rolling deployments is the primary mitigation.
+If a platform's cache serves HTML from one render and an RSC payload from a different render, users may see stale or mismatched content during client-side navigation. Next.js does not detect this automatically. The primary mitigation is configuring [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId): when the client detects a different build or deployment ID from the server, it triggers a hard navigation to fetch consistent content. Configure this for any multi-instance or rolling deployment.
 
 ## Tag System Architecture
 
