@@ -1,96 +1,58 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  retry,
-  waitForDevToolsIndicator,
-  toggleDevToolsIndicatorPopover,
-} from 'next-test-utils'
+import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
+import { Playwright } from 'next-webdriver'
 
 describe('instant-nav-panel', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  async function clearInstantModeCookie(browser: any) {
+  async function clearInstantModeCookie(browser: Playwright) {
     await browser.eval(() => {
       document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
     })
   }
 
-  async function clickInstantNavMenuItem(browser: any) {
-    await browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      portal?.shadowRoot?.querySelector('[data-instant-nav]')?.click()
-    })
+  async function clickInstantNavMenuItem(browser: Playwright) {
+    await browser.elementByCss('[data-instant-nav]').click()
   }
 
-  async function clickStartClientNav(browser: any) {
-    await browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      portal?.shadowRoot?.querySelector('[data-instant-nav-client]')?.click()
-    })
+  async function clickStartClientNav(browser: Playwright) {
+    await browser.elementByCss('[data-instant-nav-client]').click()
   }
 
-  async function getBadgeStatus(browser: any): Promise<string> {
-    return browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      return (
-        portal?.shadowRoot
-          ?.querySelector('[data-next-badge]')
-          ?.getAttribute('data-status') || ''
-      )
-    })
+  async function getBadgeStatus(browser: Playwright): Promise<string> {
+    return browser.elementByCss('[data-next-badge]').getAttribute('data-status')
   }
 
-  async function getPanelText(browser: any): Promise<string> {
-    return browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      const panel = portal?.shadowRoot?.querySelector('.instant-nav-panel')
-      return panel?.innerText || ''
-    })
+  async function getInstantNavPanelText(browser: Playwright): Promise<string> {
+    return browser.elementByCss('.instant-nav-panel').text()
   }
 
-  async function hasPanelOpen(browser: any): Promise<boolean> {
-    return browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      return !!portal?.shadowRoot?.querySelector('.instant-nav-panel')
-    })
+  async function hasInstantNavPanelOpen(browser: Playwright): Promise<boolean> {
+    try {
+      await browser.elementByCssInstant('.instant-nav-panel')
+      return true
+    } catch {
+      return false
+    }
   }
 
-  async function closePanelViaHeader(browser: any) {
-    await browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      portal?.shadowRoot?.querySelector('#_next-devtools-panel-close')?.click()
-    })
+  async function closePanelViaHeader(browser: Playwright) {
+    return browser.elementByCss('#_next-devtools-panel-close').click()
   }
 
-  async function openInstantNavPanel(browser: any) {
-    await waitForDevToolsIndicator(browser)
+  async function openInstantNavPanel(browser: Playwright) {
     await toggleDevToolsIndicatorPopover(browser)
     await clickInstantNavMenuItem(browser)
+
+    await retry(
+      async () => {
+        expect(await hasInstantNavPanelOpen(browser)).toBe(true)
+      },
+      5_000,
+      500
+    )
   }
 
   it('should open panel in waiting state without setting cookie', async () => {
@@ -108,7 +70,7 @@ describe('instant-nav-panel', () => {
 
     // Panel should show waiting state with Page load and Client navigation sections
     await retry(async () => {
-      const text = await getPanelText(browser)
+      const text = await getInstantNavPanelText(browser)
       expect(text).toContain('Page load')
       expect(text).toContain('Client navigation')
     })
@@ -134,11 +96,6 @@ describe('instant-nav-panel', () => {
 
     await openInstantNavPanel(browser)
 
-    // Wait for panel to be open
-    await retry(async () => {
-      expect(await hasPanelOpen(browser)).toBe(true)
-    })
-
     // Click Start to enter client-nav-waiting state
     await clickStartClientNav(browser)
 
@@ -150,7 +107,7 @@ describe('instant-nav-panel', () => {
 
     // Panel should show client-nav-waiting state
     await retry(async () => {
-      const text = await getPanelText(browser)
+      const text = await getInstantNavPanelText(browser)
       expect(text).toContain('Client navigation')
       expect(text).toContain('Click any link')
     })
@@ -162,7 +119,7 @@ describe('instant-nav-panel', () => {
 
     // Panel should transition to client-nav state
     await retry(async () => {
-      const text = await getPanelText(browser)
+      const text = await getInstantNavPanelText(browser)
       expect(text).toContain('Client navigation')
       expect(text).toContain('prefetched UI')
       expect(text).toContain('Continue rendering')
@@ -178,11 +135,6 @@ describe('instant-nav-panel', () => {
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
     await openInstantNavPanel(browser)
-
-    // Wait for panel to be open
-    await retry(async () => {
-      expect(await hasPanelOpen(browser)).toBe(true)
-    })
 
     // Click Start to activate the navigation lock
     await clickStartClientNav(browser)
