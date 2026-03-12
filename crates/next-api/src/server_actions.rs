@@ -4,17 +4,24 @@ use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::NextRuntime,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
+use turbo_tasks_fs::{self, File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack_core::{
+    self,
     asset::AssetContent,
-    chunk::ChunkingContext,
-    emit_collect::EmittedModuleReference,
-    module::Module,
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    emit_collect::{CollectingModule, EmittedModuleReference},
+    ident::AssetIdent,
+    module::{Module, ModuleSideEffects, Modules},
     module_graph::{ModuleGraph, async_module_info::AsyncModulesInfo},
     output::OutputAsset,
+    reference::ModuleReferences,
+    source::OptionSource,
     virtual_output::VirtualOutputAsset,
+};
+use turbopack_ecmascript::chunk::{
+    EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports, ecmascript_chunk_item,
 };
 
 /// Scans the RSC entry point's full module graph looking for emitted Server
@@ -47,19 +54,15 @@ async fn collect_actions(
     server_action_loader: ResolvedVc<Box<dyn Module>>,
     module_graph: Vc<ModuleGraph>,
 ) -> Result<Vc<AllActions>> {
+    // This mirrors what the ServerActionCollectModule ends up chunking into the chunk.
     let collected_modules = module_graph.collected_modules().await?;
-
-    // This mirrors what the __turbopack_collect__ in
-    // packages/next/src/build/templates/turbopack-action-loader.ts ends up chunking into the chunk.
-
     // This can be none if there are no server actions
     let actions =
         collected_modules
             .collected_references
             .iter()
-            .find_map(|((entry, _loader), actions)| {
-                if *entry == server_action_loader {
-                    // TODO also filter based on _loader
+            .find_map(|((entry, loader), actions)| {
+                if *entry == server_action_loader && *loader == server_action_loader {
                     Some(actions)
                 } else {
                     None
@@ -200,3 +203,113 @@ type HashToLayerNameModule = Vec<(
 /// and exported name of each found action.
 #[turbo_tasks::value(transparent)]
 pub struct AllActions(HashToLayerNameModule);
+
+/// This module performs what `__turbopack_collect__({namespace: 'next/server-actions'})` would do
+/// chunking-wise. Except that we collect the list manually into a separate JSON, so
+/// __turbopack_collect__ would unnecessarily codegen a big list of server actions.
+#[turbo_tasks::value]
+pub struct ServerActionCollectModule {
+    namespace: RcStr,
+    page: RcStr,
+}
+
+#[turbo_tasks::value_impl]
+impl ServerActionCollectModule {
+    #[turbo_tasks::function]
+    pub fn new(namespace: RcStr, page: RcStr) -> Vc<Self> {
+        ServerActionCollectModule { namespace, page }.cell()
+    }
+}
+
+#[turbo_tasks::function]
+fn server_actions_collect_virtual_fs() -> Vc<VirtualFileSystem> {
+    VirtualFileSystem::new_with_name(rcstr!("next-server-actions-collect"))
+}
+
+#[turbo_tasks::value_impl]
+impl Module for ServerActionCollectModule {
+    #[turbo_tasks::function]
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(
+            AssetIdent::from_path(server_actions_collect_virtual_fs().root().owned().await?)
+                .with_modifier(self.namespace.clone())
+                .with_modifier(self.page.clone()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<ModuleReferences> {
+        ModuleReferences::empty()
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl CollectingModule for ServerActionCollectModule {
+    #[turbo_tasks::function]
+    fn namespace(&self) -> Vc<RcStr> {
+        Vc::cell(self.namespace.clone())
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        _chunk_group: Vc<Modules>,
+    ) -> Vc<Box<dyn ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for ServerActionCollectModule {
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for ServerActionCollectModule {
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
+        EcmascriptExports::None.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        // There is no runtime behavior needed here.
+        // - __turbopack_collect__ causes all modules to chunked together with this one
+        // - server-reference-manifest.json will contains all the module ids from above. It will do
+        //   the loading itself
+        // In the future, when server-reference-manifest might be loaded/handled by the templates
+        // themselves, then it could happen here instead.
+        Ok(EcmascriptChunkItemContent {
+            ..Default::default()
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EvaluatableAsset for ServerActionCollectModule {}

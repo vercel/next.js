@@ -33,10 +33,7 @@ use next_core::{
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
     segment_config::{NextSegmentConfig, ParseSegmentMode},
-    util::{
-        NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition,
-        virtual_next_js_template_path,
-    },
+    util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
@@ -56,7 +53,6 @@ use turbopack_core::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAssets, SourceMapsType,
         availability_info::AvailabilityInfo,
     },
-    context::AssetContext,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
     module::Module,
@@ -67,9 +63,7 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
-    reference_type::{
-        CommonJsReferenceSubType, CssReferenceSubType, ReferenceType, ReferenceTypeCondition,
-    },
+    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     source_map::SourceMapAsset,
@@ -92,7 +86,7 @@ use crate::{
     route::{
         AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
-    server_actions::create_server_actions_manifest,
+    server_actions::{ServerActionCollectModule, create_server_actions_manifest},
     sri_manifest::get_sri_manifest_asset,
 };
 
@@ -1291,27 +1285,13 @@ impl AppEndpoint {
     #[turbo_tasks::function]
     async fn server_action_loader_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
-        let app_entry = self.app_endpoint_entry().await?;
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+        // let app_entry = self.app_endpoint_entry().await?;
+        // let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
-        let module_context = match runtime {
-            NextRuntime::Edge => this.app_project.edge_rsc_module_context(),
-            NextRuntime::NodeJs => this.app_project.rsc_module_context(),
-        };
-
-        Ok(module_context
-            .process(
-                Vc::upcast(FileSource::new_with_query(
-                    virtual_next_js_template_path(
-                        this.app_project.project().project_path().owned().await?,
-                        "turbopack-action-loader.js",
-                    )
-                    .await?,
-                    RcStr::from(format!("?{}", this.page)),
-                )),
-                ReferenceType::Undefined,
-            )
-            .module())
+        Ok(Vc::upcast(ServerActionCollectModule::new(
+            rcstr!("next/server-actions"),
+            this.page.to_string().into(),
+        )))
     }
 
     #[turbo_tasks::function]

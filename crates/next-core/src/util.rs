@@ -459,7 +459,7 @@ pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
     Ok(file.content().to_owned().cell())
 }
 
-pub async fn virtual_next_js_template_path(
+async fn virtual_next_js_template_path(
     project_path: FileSystemPath,
     file: &str,
 ) -> Result<FileSystemPath> {
