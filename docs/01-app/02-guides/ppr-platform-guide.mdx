@@ -93,11 +93,9 @@ Use [`requestMeta.onCacheEntryV2`](/docs/app/api-reference/config/next-config-js
 
 ## Edge Compute
 
-For the lowest possible latency, the static shell can be served directly from an edge location.
+For the lowest possible latency, the static shell can be served directly from an edge location rather than from the origin server. The platform reads the shell from edge storage (for example, a KV store populated during `onBuildComplete`) and streams it to the client immediately, while routing the resume POST to the Next.js server for the dynamic render.
 
-**Hybrid architecture (most routes):** Serve the static shell from edge compute (for example, read from a KV store populated during `onBuildComplete`) and route the resume POST to a Node.js origin. This gives edge-level TTFB for the shell while using Node.js for the dynamic render. Most routes use `runtime: 'nodejs'` (the default) and require this pattern.
-
-**Full-edge architecture:** If the route uses only edge-compatible APIs (`runtime: 'edge'`), both the shell and the resume render can run at the edge, giving the lowest possible TTFB for all content.
+This is purely a platform architecture decision about where to serve the shell from. It does not require any changes to the Next.js application or its runtime configuration.
 
 ## Implementation Checklist
 
