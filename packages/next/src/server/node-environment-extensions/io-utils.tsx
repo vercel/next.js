@@ -82,69 +82,79 @@ export function io(expression: string, type: ApiType) {
       }
       break
     }
-    case 'request':
-      if (process.env.NODE_ENV === 'development') {
-        const stageController = workUnitStore.stagedRendering
-        if (stageController && stageController.canSyncInterrupt()) {
-          let message: string
-          if (
-            stageController.currentStage === RenderStage.Static ||
-            stageController.currentStage === RenderStage.EarlyStatic
-          ) {
-            switch (type) {
-              case 'time':
-                message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
-                break
-              case 'random':
-                message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
-                break
-              case 'crypto':
-                message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
-                break
-              default:
-                throw new InvariantError(
-                  'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-                )
-            }
-          } else {
-            // We're in the Runtime stage.
-            // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
-            // This check is implemented in `stageController.canSyncInterrupt()` --
-            // if runtime prefetching isn't enabled, then we won't get here.
+    case 'request': {
+      const stageController = workUnitStore.stagedRendering
+      if (stageController && stageController.shouldTrackSyncInterrupt()) {
+        let message: string
+        if (
+          stageController.currentStage === RenderStage.Static ||
+          stageController.currentStage === RenderStage.EarlyStatic
+        ) {
+          switch (type) {
+            case 'time':
+              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
+              break
+            case 'random':
+              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
+              break
+            case 'crypto':
+              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
+              break
+            default:
+              throw new InvariantError(
+                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
+              )
+          }
+        } else {
+          // We're in the Runtime stage.
+          // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
+          // This check is implemented in `stageController.canSyncInterrupt()` --
+          // if runtime prefetching isn't enabled, then we won't get here.
 
-            let accessStatement: string
-            let additionalInfoLink: string
+          let accessStatement: string
+          let additionalInfoLink: string
 
-            switch (type) {
-              case 'time':
-                accessStatement = 'the current time'
-                additionalInfoLink =
-                  'https://nextjs.org/docs/messages/next-prerender-runtime-current-time'
-                break
-              case 'random':
-                accessStatement = 'random values synchronously'
-                additionalInfoLink =
-                  'https://nextjs.org/docs/messages/next-prerender-runtime-random'
-                break
-              case 'crypto':
-                accessStatement = 'random cryptographic values synchronously'
-                additionalInfoLink =
-                  'https://nextjs.org/docs/messages/next-prerender-runtime-crypto'
-                break
-              default:
-                throw new InvariantError(
-                  'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-                )
-            }
-
-            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing ${accessStatement} in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: ${additionalInfoLink}`
+          switch (type) {
+            case 'time':
+              accessStatement = 'the current time'
+              additionalInfoLink =
+                'https://nextjs.org/docs/messages/next-prerender-runtime-current-time'
+              break
+            case 'random':
+              accessStatement = 'random values synchronously'
+              additionalInfoLink =
+                'https://nextjs.org/docs/messages/next-prerender-runtime-random'
+              break
+            case 'crypto':
+              accessStatement = 'random cryptographic values synchronously'
+              additionalInfoLink =
+                'https://nextjs.org/docs/messages/next-prerender-runtime-crypto'
+              break
+            default:
+              throw new InvariantError(
+                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
+              )
           }
 
-          const syncIOError = applyOwnerStack(new Error(message))
-          stageController.syncInterruptCurrentStageWithReason(syncIOError)
+          message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing ${accessStatement} in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: ${additionalInfoLink}`
+        }
+
+        const syncIOError = applyOwnerStack(new Error(message))
+        stageController.syncInterruptCurrentStageWithReason(syncIOError)
+
+        // A build-time validation render uses a 'request' store type, but may be abortable.
+        // If we're in the second, restarted render of the restart-on-cache miss flow,
+        // Sync IO is an error, and unlike dev, there's no need to continue the render past the sync IO,
+        // so we can abort it.
+        if (
+          workUnitStore.controller &&
+          !workUnitStore.controller.signal.aborted
+        ) {
+          workUnitStore.controller.abort(syncIOError)
         }
       }
       break
+    }
     case 'validation-client':
     case 'prerender-ppr':
     case 'prerender-legacy':

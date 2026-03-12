@@ -80,9 +80,28 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
       )
     }
-    case 'private-cache':
-    case 'prerender-runtime':
     case 'request': {
+      if (
+        process.env.__NEXT_CACHE_COMPONENTS &&
+        workUnitStore.validationSamples
+      ) {
+        const { assertRootParamInSamples } =
+          require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+        // If we error, make sure we return a rejected promise instead of erroring synchronously.
+        try {
+          assertRootParamInSamples(
+            workStore,
+            workUnitStore.validationSamples.params,
+            paramName
+          )
+        } catch (err) {
+          return Promise.reject(err)
+        }
+      }
+      break
+    }
+    case 'private-cache':
+    case 'prerender-runtime': {
       break
     }
     default: {
