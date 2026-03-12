@@ -1,56 +1,53 @@
 const path = require('path')
 const minimatch = require('minimatch')
 
+function mergeManifests(manifests) {
+  return manifests.reduce((mergedManifest, manifest) => {
+    if (!mergedManifest) {
+      return structuredClone(manifest)
+    }
+
+    if (manifest.version === 2) {
+      for (const suite in manifest.suites) {
+        if (mergedManifest.suites[suite]) {
+          const mergedSuite = mergedManifest.suites[suite]
+          const currentSuite = manifest.suites[suite]
+          mergedSuite.failed = [
+            ...(mergedSuite.failed || []),
+            ...(currentSuite.failed || []),
+          ]
+          mergedSuite.flakey = [
+            ...(mergedSuite.flakey || []),
+            ...(currentSuite.flakey || []),
+          ]
+        } else {
+          mergedManifest.suites[suite] = structuredClone(manifest.suites[suite])
+        }
+      }
+      mergedManifest.rules.include.push(...(manifest.rules.include || []))
+      mergedManifest.rules.exclude.push(...(manifest.rules.exclude || []))
+      return mergedManifest
+    }
+
+    throw new Error(`Merging manifests is only supported for version 2`)
+  }, null)
+}
+
 function getManifest() {
   const nextExternalTestFilters = process.env.NEXT_EXTERNAL_TESTS_FILTERS
   if (!nextExternalTestFilters) {
     return null
   }
 
-  return nextExternalTestFilters
-    .split(',')
-    .reduce((mergedManifest, manifestPath) => {
-      const manifest = require(path.resolve(manifestPath))
-      if (!mergedManifest) {
-        return manifest
-      }
-
-      if (manifest.version === 2) {
-        for (const suite in manifest.suites) {
-          if (mergedManifest.suites[suite]) {
-            const mergedSuite = mergedManifest.suites[suite]
-            const currentSuite = manifest.suites[suite]
-            mergedSuite.failed = [
-              ...(mergedSuite.failed || []),
-              ...(currentSuite.failed || []),
-            ]
-            mergedSuite.flakey = [
-              ...(mergedSuite.flakey || []),
-              ...(currentSuite.flakey || []),
-            ]
-          } else {
-            mergedManifest.suites[suite] = manifest.suites[suite]
-          }
-        }
-        mergedManifest.rules.include.push(...(manifest.rules.include || []))
-        mergedManifest.rules.exclude.push(...(manifest.rules.exclude || []))
-        return mergedManifest
-      }
-
-      throw new Error(
-        `Merging manifests is only supported for version 2: ${manifestPath}`
-      )
-    }, null)
+  return mergeManifests(
+    nextExternalTestFilters.split(',').map((manifestPath) => {
+      return require(path.resolve(manifestPath))
+    })
+  )
 }
 
-function getTestFilter() {
-  const manifest = getManifest()
+function getTestFilterFromManifest(manifest) {
   if (!manifest) return null
-
-  console.log(
-    'Filtering tests using manifest:',
-    process.env.NEXT_EXTERNAL_TESTS_FILTERS
-  )
 
   // For the legacy manifest without a version, we assume it's a complete list
   // of all the tests.
@@ -134,4 +131,21 @@ function getTestFilter() {
   throw new Error(`Unknown manifest version: ${manifest.version}`)
 }
 
-module.exports = { getTestFilter }
+function getTestFilter() {
+  const manifest = getManifest()
+  if (!manifest) return null
+
+  console.log(
+    'Filtering tests using manifest:',
+    process.env.NEXT_EXTERNAL_TESTS_FILTERS
+  )
+
+  return getTestFilterFromManifest(manifest)
+}
+
+module.exports = {
+  getManifest,
+  getTestFilter,
+  getTestFilterFromManifest,
+  mergeManifests,
+}

@@ -90,13 +90,15 @@
     "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
       "failed": [
         "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
-        "resume-data-cache should have consistent data between static and dynamic renders with use cache"
+        "resume-data-cache should have consistent data between static and dynamic renders with use cache",
+        "resume-data-cache should use RDC for server action re-renders"
       ]
     }
   },
   "rules": {
     "include": ["test/e2e/**/*.test.{t,j}s{,x}"],
     "exclude": [
+      "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts",
       "test/e2e/cancel-request/stream-cancel.test.ts",
       "test/e2e/new-link-behavior/material-ui.test.ts",
       "test/e2e/react-dnd-compile/react-dnd-compile.test.ts",

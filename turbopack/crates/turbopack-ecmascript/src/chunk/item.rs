@@ -277,6 +277,8 @@ async fn module_factory_with_code_generation_issue(
         Err(error) => {
             let id = chunk_item.asset_ident().to_string().await;
             let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+
+            // ast-grep-ignore: no-context-format
             let error = error.context(format!(
                 "An error occurred while generating the chunk item {id}"
             ));

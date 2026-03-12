@@ -211,6 +211,9 @@ pub struct NapiProjectOptions {
 
     /// The version of Next.js that is running.
     pub next_version: RcStr,
+
+    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    pub server_hmr: Option<bool>,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -318,6 +321,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             deferred_entries,
             is_persistent_caching_enabled,
             next_version,
+            server_hmr,
         } = val;
         ProjectOptions {
             root_path,
@@ -341,6 +345,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             deferred_entries,
             is_persistent_caching_enabled,
             next_version,
+            server_hmr: server_hmr.unwrap_or(false),
         }
     }
 }
@@ -416,7 +421,7 @@ pub fn project_new(
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
 ) -> napi::Result<JsObject> {
-    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
+    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
     if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
