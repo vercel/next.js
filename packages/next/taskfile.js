@@ -1044,6 +1044,73 @@ export async function ncc_babel_bundle_packages(task, opts) {
     main: './packages-bundle.js',
   })
 
+  // regexpu-core (used by @babel/preset-env for unicode property escapes)
+  // uses a dynamic require(`regenerate-unicode-properties/${path}.js`) that
+  // ncc cannot resolve at bundle time. Copy the package (and its dependency
+  // `regenerate`) as siblings of the bundle output file and rewrite requires
+  // to use relative paths so they resolve at runtime without node_modules.
+  const babelPkgsDir = join(__dirname, 'src/compiled/babel-packages')
+  const regenerateUnicodeSrc = dirname(
+    require.resolve('regenerate-unicode-properties/package.json', {
+      paths: [require.resolve('@babel/preset-env')],
+    })
+  )
+  const regenerateSrc = dirname(
+    require.resolve('regenerate/package.json', {
+      paths: [regenerateUnicodeSrc],
+    })
+  )
+  await fs.cp(
+    regenerateUnicodeSrc,
+    join(babelPkgsDir, 'regenerate-unicode-properties'),
+    { recursive: true }
+  )
+  await fs.cp(regenerateSrc, join(babelPkgsDir, 'regenerate'), {
+    recursive: true,
+  })
+
+  // Rewrite bare require('regenerate') in the copied property files to
+  // relative paths (files are one or two levels deep).
+  const regenUnicodeDir = join(babelPkgsDir, 'regenerate-unicode-properties')
+  for (const subdir of await fs.readdir(regenUnicodeDir)) {
+    const subdirPath = join(regenUnicodeDir, subdir)
+    const stat = await fs.stat(subdirPath)
+    if (stat.isDirectory()) {
+      for (const file of await fs.readdir(subdirPath)) {
+        if (!file.endsWith('.js')) continue
+        const filePath = join(subdirPath, file)
+        const src = await fs.readFile(filePath, 'utf8')
+        await fs.writeFile(
+          filePath,
+          src.replace(
+            /require\('regenerate'\)/g,
+            "require('../../regenerate/regenerate.js')"
+          )
+        )
+      }
+    } else if (subdir.endsWith('.js')) {
+      const src = await fs.readFile(subdirPath, 'utf8')
+      await fs.writeFile(
+        subdirPath,
+        src.replace(
+          /require\('regenerate'\)/g,
+          "require('../regenerate/regenerate.js')"
+        )
+      )
+    }
+  }
+
+  // Rewrite the dynamic require in the ncc output to use a relative path.
+  const bundlePath = join(babelPkgsDir, 'packages-bundle.js')
+  const bundleSrc = await fs.readFile(bundlePath, 'utf8')
+  await fs.writeFile(
+    bundlePath,
+    bundleSrc.replace(
+      /require\(`regenerate-unicode-properties\//g,
+      'require(`./regenerate-unicode-properties/'
+    )
+  )
+
   await task.source('src/bundles/babel/packages/*').target('src/compiled/babel')
 }
 

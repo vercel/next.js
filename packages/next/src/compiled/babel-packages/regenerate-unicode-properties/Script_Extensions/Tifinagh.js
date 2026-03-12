@@ -1,0 +1,3 @@
+const set = require('../../regenerate/regenerate.js')(0x302, 0x304, 0x307, 0x309, 0x2D7F);
+set.addRange(0x2D30, 0x2D67).addRange(0x2D6F, 0x2D70);
+exports.characters = set;
