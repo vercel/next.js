@@ -140,6 +140,10 @@ export async function initialize(opts: {
 
   let originalFetch = globalThis.fetch
 
+  const distDir = path.join(opts.dir, config.distDir)
+  const distDirLabel =
+    (config as NextConfigComplete).distDirRoot || config.distDir
+
   if (opts.dev) {
     const { Telemetry } =
       require('../../telemetry/storage') as typeof import('../../telemetry/storage')
@@ -226,9 +230,6 @@ export async function initialize(opts: {
     // We use polling because fs.watch is unreliable for detecting directory
     // deletion across platforms (on Linux the inotify watch is destroyed with
     // the directory; on macOS kqueue may not fire at all).
-    const distDir = path.join(opts.dir, config.distDir)
-    const distDirLabel =
-      (config as NextConfigComplete).distDirRoot || config.distDir
     const distDirPollInterval = setInterval(() => {
       if (!existsSync(distDir)) {
         clearInterval(distDirPollInterval)
@@ -720,6 +721,14 @@ export async function initialize(opts: {
     try {
       await handleRequest(0)
     } catch (err) {
+      // If the distDir was deleted, restart instead of showing a 500 error.
+      if (opts.dev && !existsSync(distDir)) {
+        Log.warn(
+          `The ${distDirLabel} directory was removed while the dev server was running. Restarting...`
+        )
+        return process.exit(RESTART_EXIT_CODE)
+      }
+
       try {
         let invokePath = '/500'
         let invokeStatus = '500'
