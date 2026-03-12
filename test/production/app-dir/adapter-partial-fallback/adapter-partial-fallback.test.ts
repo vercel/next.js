@@ -6,7 +6,7 @@ describe('adapter-partial-fallback', () => {
     files: __dirname,
   })
 
-  it('should only preserve allowQuery for partial fallbacks that can upgrade', async () => {
+  it('should emit partial fallback metadata when infra can upgrade the shell', async () => {
     const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
       await next.readJSON('build-complete.json')
 
@@ -42,14 +42,14 @@ describe('adapter-partial-fallback', () => {
     expect(withoutGspPrerender.config.partialFallback).toBeUndefined()
     expect(withoutGspPrerender.config.allowQuery).toEqual([])
 
-    expect(genericPrefixPrerender.config.partialFallback).toBe(true)
-    expect(genericPrefixPrerender.config.allowQuery).toEqual(['nxtPone'])
+    expect(genericPrefixPrerender.config.partialFallback).toBeUndefined()
+    expect(genericPrefixPrerender.config.allowQuery).toEqual([])
 
     expect(generatedPrefixPrerender.config.partialFallback).toBeUndefined()
     expect(generatedPrefixPrerender.config.allowQuery).toEqual([])
 
-    expect(genericDashedPrerender.config.partialFallback).toBe(true)
-    expect(genericDashedPrerender.config.allowQuery).toEqual(['nxtPmy-slug'])
+    expect(genericDashedPrerender.config.partialFallback).toBeUndefined()
+    expect(genericDashedPrerender.config.allowQuery).toEqual([])
 
     expect(generatedDashedPrerender.config.partialFallback).toBeUndefined()
     expect(generatedDashedPrerender.config.allowQuery).toEqual([])
