@@ -1,0 +1,78 @@
+---
+title: Deploying Next.js to different platforms
+nav_title: Deploying to Platforms
+description: Understand which Next.js features require specific platform capabilities and how to choose the right deployment target.
+related:
+  description: Related guides and references.
+  links:
+    - app/guides/rendering-philosophy
+    - app/guides/self-hosting
+    - app/getting-started/deploying
+    - app/api-reference/config/next-config-js/adapterPath
+---
+
+Next.js [treats static and dynamic content as a spectrum](/docs/app/guides/rendering-philosophy) at the component level. Different features in this model require different platform capabilities. This page helps you understand what your platform needs to support and how to configure your deployment.
+
+## Minimum Requirements
+
+To run Next.js, your platform needs **a Node.js server that supports streaming HTTP responses**. That's it.
+
+A single `next start` process handles every Next.js feature correctly: Server Components, ISR, PPR, Cache Components, Server Actions, Proxy, and `after()`. Everything beyond a Node.js server (CDN caching, edge compute, shared cache) is an optimization that improves performance but is not required for correctness. [Image Optimization](/docs/app/api-reference/components/image) additionally requires the `sharp` package to be installed.
+
+## Feature Support Matrix
+
+Different features require different infrastructure capabilities. The "Edge Stitching" column is a **performance optimization**, not a correctness requirement. All features work correctly from a single origin server.
+
+| Feature                        | Streaming | Shared Cache | Edge Stitching | Notes                                                                                            |
+| ------------------------------ | --------- | ------------ | -------------- | ------------------------------------------------------------------------------------------------ |
+| Server Components              | Required  | No           | No             | Basic streaming support                                                                          |
+| ISR (time-based)               | No        | Recommended  | No             | Works per-instance without shared cache                                                          |
+| ISR (on-demand)                | No        | Recommended  | No             | [Tag propagation](/docs/app/guides/how-revalidation-works) needs shared cache for multi-instance |
+| Partial Prerendering           | Required  | Recommended  | Optional       | [See PPR Platform Guide](/docs/app/guides/ppr-platform-guide)                                    |
+| Cache Components (`use cache`) | Required  | Recommended  | No             | Shared cache enables cross-instance consistency                                                  |
+| Proxy / Middleware             | No        | No           | No             | Runs at edge or origin                                                                           |
+| Server Actions                 | Required  | No           | No             | POST requests with streaming response                                                            |
+| `after()`                      | No        | No           | No             | Requires [graceful shutdown](/docs/app/guides/self-hosting#after) support                        |
+
+**Streaming Required** means the platform must support chunked transfer encoding or HTTP/2 streaming and must not buffer the response before sending it to the client.
+
+**Shared Cache Required/Recommended** means multiple server instances need a [shared cache backend](/docs/app/api-reference/config/next-config-js/cacheHandlers) to coordinate. Without shared cache, each instance maintains its own cache independently.
+
+## CDN Infrastructure Compatibility
+
+Every major CDN has the infrastructure primitives needed for full Next.js support:
+
+| CDN               | Edge Compute | Key-Value / Tags | Blob Storage   | PPR Resuming |
+| ----------------- | ------------ | ---------------- | -------------- | ------------ |
+| Cloudflare        | Workers      | KV               | R2             | Yes (worker) |
+| Akamai            | EdgeWorkers  | KV               | Object Storage | Yes (worker) |
+| Amazon CloudFront | Lambda@Edge  | KeyValueStore    | S3             | Yes (Lambda) |
+| Fastly            | Compute      | KV               | Object Storage | Yes (WASM)   |
+| Azure             | Functions    | Managed Redis    | Blob Storage   | Yes (server) |
+| Google Cloud      | Cloud Run    | Various KV       | Cloud Storage  | Yes (server) |
+
+There are no architectural blockers on any major CDN. Implementation complexity varies, but the building blocks exist everywhere. For CDN-specific caching considerations, see [CDN Caching](/docs/app/guides/cdn-caching).
+
+## Adapters
+
+Next.js provides a [Deployment Adapter API](/docs/app/api-reference/config/next-config-js/adapterPath) that lets platforms customize how Next.js applications are built and deployed for their infrastructure. Adapters run at build time and produce platform-specific output from the standard Next.js build.
+
+The adapter API plus [custom cache handlers](/docs/app/api-reference/config/next-config-js/cacheHandlers) together form the complete platform integration surface. The adapter handles build-time output, and cache handlers manage runtime caching behavior.
+
+For a list of available platform adapters, see the [Deploying](/docs/app/getting-started/deploying#adapters) page.
+
+## Functional Fidelity vs. Performance Fidelity
+
+When evaluating platform support for Next.js, it helps to distinguish between two levels:
+
+**Functional fidelity** means every Next.js feature works correctly. The [adapter test suite](/docs/app/api-reference/config/next-config-js/adapterPath#testing-adapters) is the contract: if a platform's adapter passes the tests, it supports Next.js. This is binary: it passes or it doesn't.
+
+**Performance fidelity** means features achieve their optimal performance characteristics. Examples include PPR's static shell served at CDN latency rather than origin latency, or ISR serving stale content instantly with sub-second revalidation propagation. Performance fidelity is a spectrum that every platform will achieve differently based on their architecture.
+
+A platform with functional fidelity fully supports Next.js. Performance fidelity is how platforms differentiate, and it improves incrementally over time.
+
+## A Note on Framework Comparisons
+
+Next.js's [rendering model](/docs/app/guides/rendering-philosophy) is architecturally different from frameworks that separate static and dynamic at the route level. Component-level rendering boundaries, per-function caching, and on-demand revalidation of any route are capabilities that require more from the hosting platform.
+
+This is a trade-off, not a deficiency. Simpler rendering models have simpler infrastructure requirements because they do less at the framework level. Next.js's broader feature set means broader infrastructure requirements. When comparing framework hosting complexity, the capabilities each framework provides should be part of the comparison.

@@ -1,0 +1,108 @@
+---
+title: Implementing Partial Prerendering on your platform
+nav_title: PPR Platform Guide
+description: A guide for platform engineers on implementing PPR support, from basic origin rendering to optimized CDN integration.
+related:
+  description: Related guides and references.
+  links:
+    - app/guides/rendering-philosophy
+    - app/guides/streaming
+    - app/guides/deploying-to-platforms
+    - app/api-reference/config/next-config-js/adapterPath
+---
+
+Partial Prerendering (PPR) combines static and dynamic rendering in a single route. At build time, Next.js generates a static HTML shell and a `postponedState` blob for each PPR-enabled route. At request time, the shell is served immediately and dynamic portions are rendered and streamed to the client.
+
+This page explains how platforms can implement PPR support at different levels of sophistication.
+
+## How PPR Works
+
+### Build time
+
+For each PPR route, Next.js produces:
+
+- A **static HTML shell** containing all the content that can be prerendered, with [Suspense](/docs/app/guides/streaming#what-is-streaming) fallbacks where dynamic content will appear.
+- A **`postponedState`** value: an opaque, serialized representation of what was deferred. It contains React's postponed state and a resume data cache. Platforms should treat this as an opaque string and pass it through without parsing or modifying it.
+- An **RSC payload** for the static portions of the page.
+
+In the [adapter output](/docs/app/api-reference/config/next-config-js/adapterPath#output-types), PPR routes are identified by `renderingMode: 'PARTIALLY_STATIC'` in the prerenders section. The `postponedState` is available at `outputs.prerenders[route].fallback.postponedState`.
+
+### Request time
+
+When a request arrives for a PPR route:
+
+1. The server reads the static HTML shell from cache and begins sending it to the client immediately.
+2. The server resumes rendering the dynamic portions using the postponed state.
+3. Dynamic content is streamed to the client as inline `<script>` tags that push RSC payload chunks into the client-side buffer (`self.__next_f`), allowing React to hydrate the deferred Suspense boundaries.
+
+The client sees the static shell instantly, then dynamic content appears as it resolves.
+
+## Origin-Only Implementation
+
+**This is the simplest approach and works on every platform that supports streaming HTTP responses.**
+
+All requests go directly to the Next.js server. The server reads the shell from its local cache, sends it, then renders and streams the dynamic content. This is what `next start` does by default.
+
+Performance characteristics: Time to First Byte (TTFB) depends on origin server latency. The user sees the static shell immediately, then dynamic content streams in as it resolves.
+
+No additional infrastructure is needed. If your platform supports streaming HTTP responses, it supports PPR.
+
+## CDN Shell + Origin Compute
+
+For better TTFB, the static HTML shell can be cached at the CDN edge. When a request arrives:
+
+1. The CDN serves the cached shell immediately (edge latency).
+2. The CDN simultaneously proxies the request to the origin server.
+3. The origin server renders only the dynamic portions and streams them back.
+4. The CDN stitches the shell and dynamic content together into a single response to the client.
+
+This requires the CDN to support response stitching or a similar mechanism for combining cached and dynamic content in a single response. The static shell TTFB drops to edge latency while dynamic content still streams from origin.
+
+### The resume protocol
+
+To implement this pattern, the CDN or edge function uses the **resume protocol** to tell the Next.js server to skip the shell and render only the dynamic portions:
+
+- Send a **POST** request to the route with the header `next-resume: 1`.
+- Include the `postponedState` blob as the **request body**.
+- The server will render only the deferred Suspense boundaries and stream the result.
+
+In the [adapter output](/docs/app/api-reference/config/next-config-js/adapterPath#output-types), `pprChain.headers` contains the headers needed for this protocol: `{ 'next-resume': '1' }`.
+
+> **Good to know:** The resume protocol only works in minimal mode (adapter-based deployments). In standard `next start`, the server handles the full shell + dynamic render in a single pass.
+
+For detailed implementation with code examples, see [Implementing PPR in an Adapter](/docs/app/api-reference/config/next-config-js/adapterPath#implementing-ppr-in-an-adapter).
+
+## Edge Compute
+
+For the lowest possible latency, both the shell and dynamic rendering can happen at the edge. This requires:
+
+- An edge runtime that supports the Node.js APIs used by the route (or routes that only use edge-compatible APIs).
+- The postponed state available at the edge.
+- The application code deployed to edge locations.
+
+This approach gives edge-level TTFB for both the static shell and dynamic content.
+
+## Storing PPR Artifacts
+
+Each PPR route requires two artifacts to be stored together:
+
+1. The static HTML shell.
+2. The `postponedState` blob.
+
+These must be stored and updated atomically. When a PPR route is revalidated (via [time-based](/docs/app/guides/incremental-static-regeneration) or [on-demand revalidation](/docs/app/api-reference/functions/revalidateTag)), Next.js regenerates both the shell and the postponed state together. Serving a new shell with an old postponed state, or vice versa, will produce incorrect dynamic content.
+
+Use [`requestMeta.onCacheEntryV2`](/docs/app/api-reference/config/next-config-js/adapterPath#implementing-ppr-in-an-adapter) in your adapter to observe cache updates and propagate them to your storage backend.
+
+## Implementation Checklist
+
+1. **Read PPR outputs at build time.** In your adapter's `onBuildComplete`, identify prerenders with `renderingMode: 'PARTIALLY_STATIC'`. Store the shell HTML and `postponedState` in your cache.
+
+2. **Serve the shell at request time.** For incoming requests to PPR routes, serve the cached shell immediately and begin streaming.
+
+3. **Resume dynamic rendering.** Send a POST request to the Next.js handler with the `next-resume: 1` header and the postponed state as the body. Stream the response back to the client.
+
+4. **Handle cache updates.** Use `requestMeta.onCacheEntryV2` to capture new shell + postponed state pairs after revalidation, and update your cache atomically.
+
+5. **Support graceful degradation.** If the postponed state is unavailable or stale, fall back to a full server render. The user gets a complete page without the shell-first optimization.
+
+For the complete adapter API reference and implementation examples, see the [Deployment Adapter API](/docs/app/api-reference/config/next-config-js/adapterPath).

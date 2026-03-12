@@ -1,0 +1,130 @@
+---
+title: Using a CDN with Next.js
+nav_title: CDN Caching
+description: Learn how CDN caching works with Next.js, including cache variability, graceful degradation, and the direction toward pathname-based cache keying.
+related:
+  description: Related guides and references.
+  links:
+    - app/guides/deploying-to-platforms
+    - app/guides/self-hosting
+    - app/guides/streaming
+    - app/api-reference/config/next-config-js/assetPrefix
+---
+
+Next.js sets `Cache-Control` headers that CDNs can use to cache responses at the edge. Understanding how these interact with Next.js's features is important for optimal performance.
+
+## Cache-Control Headers
+
+Next.js sets `Cache-Control` headers based on the rendering strategy of each route:
+
+- **Static pages** (no revalidation): `s-maxage=31536000` (one year)
+- **ISR pages** (time-based revalidation): `s-maxage={revalidate}`, with `stale-while-revalidate={expire - revalidate}` appended when an [`expire`](/docs/app/api-reference/functions/cacheLife) value is configured and exceeds the revalidation interval
+- **Dynamic pages** (no caching): `private, no-cache, no-store, max-age=0, must-revalidate`
+
+CDNs that respect `s-maxage` and `stale-while-revalidate` can cache static and ISR pages at the edge without additional configuration.
+
+## How Cache Variability Works
+
+App Router responses vary based on several request headers. Next.js sets a `Vary` header on responses to signal this to CDNs:
+
+- `rsc` — whether the request is an RSC (React Server Components) request
+- `next-router-state-tree` — the client's current router state, used for targeted segment updates during dynamic navigations
+- `next-router-prefetch` — whether this is a prefetch request
+- `next-router-segment-prefetch` — the specific segment being prefetched
+- `next-url` — added only for routes that use [interception routes](/docs/app/api-reference/file-conventions/intercepting-routes), carries the URL being intercepted
+
+Next.js also appends an `_rsc` search parameter to RSC requests. This parameter is a hash of the request header values, acting as a cache-busting mechanism for CDNs that don't support `Vary` on custom headers. Without this parameter, a CDN that ignores `Vary` could serve an RSC payload when the browser expects HTML, or serve the wrong segment data, leading to cache poisoning.
+
+In practice, many CDNs don't fully support `Vary` on custom headers, which makes caching App Router responses at the edge challenging. The `_rsc` param exists specifically for this reason, but it means CDNs that key on the full URL (including search params) see high cache variability.
+
+## Caching Static Prefetches Today
+
+While full CDN support requires understanding the headers above, **static prefetches can be cached today** with a simpler approach.
+
+When a route has Partial Prerendering enabled and the `next-router-prefetch` header is set (indicating a static prefetch), the response is deterministic: it returns the same prerendered content regardless of the client's router state. The `next-router-state-tree` header is not parsed for these requests, so it does not affect the response.
+
+> **Good to know:** For routes without PPR, the `next-router-state-tree` header is still read during prefetch requests to determine which segments to include. This makes prefetch responses dependent on the client's router state, which increases cache variability.
+
+This means for PPR-enabled routes, a CDN can cache static prefetch responses if it:
+
+1. Includes the `_rsc` search parameter in the cache key (to distinguish prefetch variants from HTML responses).
+2. Respects the `Cache-Control` headers Next.js sets on the response.
+
+The `_rsc` parameter remains necessary today because it encodes which variant of the response is being requested. Dropping it can lead to the CDN serving the wrong response type.
+
+> **Good to know:** For segment-level prefetches, Next.js already uses pathname-based routing internally. Requests like `/page.segments/_tree.segment.rsc` encode the segment path directly in the URL, which CDNs can cache using standard pathname-based cache keys.
+
+## Graceful Degradation
+
+When a CDN drops or ignores Next.js's custom headers, the framework degrades gracefully. **Responses remain valid, just potentially less efficient:**
+
+### `next-router-state-tree` omitted
+
+This header is only used during dynamic navigation requests, which are inherently uncacheable (`Cache-Control: private, no-cache`). For static prefetches, the header is not required and not parsed.
+
+If omitted during a dynamic request, the server returns a full RSC payload for the entire page instead of a targeted segment update. The response is larger but correct. The client already handles this case.
+
+### `next-url` omitted
+
+This header is used for [interception routes](/docs/app/api-reference/file-conventions/intercepting-routes) to vary the response based on the referring page. If omitted, the response degrades to the non-intercepted state: the user sees the regular page instead of the intercepted modal or overlay.
+
+The response is still valid. Platforms can choose whether or not to support interception variability.
+
+> **Good to know:** Today, `next-url` is included in the `_rsc` cache-busting hash even during static prefetches. This means you cannot safely ignore it under the current scheme without potentially getting cache misses. The pathname-based direction described below resolves this gap.
+
+### Design principle
+
+**If a CDN ignores certain inputs, the response is still valid, possibly less efficient, but not incorrect.** The exception is the `_rsc` search parameter: dropping it today can lead to the CDN serving the wrong response variant (cache poisoning). Next.js validates the `_rsc` hash against the actual request headers and redirects to the correct URL if they don't match.
+
+## Caching Static Assets
+
+Static assets (JavaScript, CSS, images, fonts) served from `/_next/static/` include content hashes in their filenames and can be cached indefinitely. These files are safe to serve from any CDN with a long `max-age` and `immutable` directive.
+
+You can use [`assetPrefix`](/docs/app/api-reference/config/next-config-js/assetPrefix) to serve static assets from a different domain or CDN origin.
+
+## Direction: Pathname-Based Cache Keying
+
+We are working on moving all cache-affecting inputs into the URL pathname, eliminating the need for `Vary` on custom headers and removing the `_rsc` search parameter.
+
+### How it works
+
+The approach extends the routing scheme that [`output: 'export'`](/docs/app/guides/static-exports) and segment prefetches already use today:
+
+- **Full page RSC**: `/my/page.rsc` returns the RSC payload for the entire page
+- **Segment RSC**: `/my/page.segments/path/to/segment.segment.rsc` returns the RSC payload for a specific segment
+
+Under this model:
+
+- **The pathname determines the cache key.** Anything in the pathname affects which response variant is returned.
+- **Search parameters can be safely dropped** without affecting response correctness.
+- **Standard HTTP cache headers** (`Cache-Control`, `max-age`, etc.) are respected as usual.
+- **No custom header logic is required** from the CDN.
+
+### What this means for CDNs
+
+A CDN would be able to cache Next.js responses by:
+
+1. Using the pathname as the cache key.
+2. Ignoring search parameters without breaking semantics.
+3. Respecting standard `Cache-Control` headers.
+
+No need to understand `Vary`, inspect custom headers, or program edge logic. Advanced behavior (like interception routes) still works when inputs are respected. When they're not, Next.js degrades to a valid but less optimized response.
+
+### What changes for interception routes
+
+Under the current scheme, interception route variability is encoded in the `next-url` header, which contributes to the `_rsc` hash. You cannot safely ignore it today.
+
+Under the pathname-based scheme, interception variability would be encoded in a search parameter (not the pathname). This means:
+
+- If a CDN preserves search params, interception works correctly.
+- If a CDN drops search params, interception degrades to the non-intercepted state, but the response is still valid.
+
+This makes interception route support an opt-in CDN capability rather than a requirement.
+
+### Current status
+
+This direction extends patterns that are already operational in the codebase (segment prefetch paths, `output: 'export'` mode). It is in active design and does not have a ship date.
+
+## CDN Feature Compatibility
+
+For a full table showing the infrastructure primitives available on every major CDN (edge compute, key-value storage, blob storage, PPR resuming), see [Deploying to Platforms](/docs/app/guides/deploying-to-platforms#cdn-infrastructure-compatibility).
