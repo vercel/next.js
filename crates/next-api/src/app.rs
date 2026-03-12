@@ -930,9 +930,9 @@ impl AppProject {
                         .take(server_component_entries.len().saturating_sub(1))
                     {
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                            // This should really be ChunkGroupEntry::Shared(module.await?.module),
-                            // but that breaks everything for some reason.
-                            vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
+                            vec![ChunkGroupEntry::Shared(ResolvedVc::upcast(
+                                module.await?.module,
+                            ))],
                             visited_modules,
                             should_trace,
                             should_read_binding_usage,
@@ -2157,9 +2157,9 @@ impl Endpoint for AppEndpoint {
             .await?,
         );
 
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
+        Ok(Vc::cell(vec![ChunkGroupEntry::Shared(
             server_actions_loader,
-        ])]))
+        )]))
     }
 
     #[turbo_tasks::function]
