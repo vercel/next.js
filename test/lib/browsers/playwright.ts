@@ -333,8 +333,12 @@ export class Playwright<TCurrent = undefined> {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
+          const { payload } = frame
           page
-            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            // Note that passing the payload as a an argument is 2 orders of magnitude more expensive in Playwright.
+            .evaluate(
+              `console.log('received ws message ${JSON.stringify(payload)}')`
+            )
             .catch(() => {})
         }
       })
