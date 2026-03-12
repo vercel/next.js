@@ -19,12 +19,10 @@ export type EdgeAppRouteLoaderQuery = {
 function getCacheHandlersSetup(
   cacheHandlersStringified: string,
   contextifyImportPath: (path: string) => string
-):
-  | {
-      cacheHandlerImports: string
-      edgeCacheHandlersRegistration: string
-    }
-  | undefined {
+): {
+  cacheHandlerImports: string
+  edgeCacheHandlersRegistration: string
+} {
   const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}') as Record<
     string,
     string | undefined
@@ -32,10 +30,6 @@ function getCacheHandlersSetup(
   const definedCacheHandlers = Object.entries(cacheHandlers).filter(
     (entry): entry is [string, string] => Boolean(entry[1])
   )
-
-  if (definedCacheHandlers.length === 0) {
-    return undefined
-  }
 
   const cacheHandlerImports: string[] = []
   const edgeCacheHandlersRegistration: string[] = []
@@ -54,8 +48,9 @@ function getCacheHandlersSetup(
   }
 
   return {
-    cacheHandlerImports: cacheHandlerImports.join('\n'),
-    edgeCacheHandlersRegistration: edgeCacheHandlersRegistration.join('\n'),
+    cacheHandlerImports: cacheHandlerImports.join('\n') || '\n',
+    edgeCacheHandlersRegistration:
+      edgeCacheHandlersRegistration.join('\n') || '\n',
   }
 }
 

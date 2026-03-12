@@ -65,12 +65,10 @@ function getRouteModuleOptions(page: string) {
 function getCacheHandlersSetup(
   cacheHandlersStringified: string | undefined,
   contextifyImportPath: (path: string) => string
-):
-  | {
-      cacheHandlerImports: string
-      cacheHandlerRegistration: string
-    }
-  | undefined {
+): {
+  cacheHandlerImports: string
+  cacheHandlerRegistration: string
+} {
   const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}') as Record<
     string,
     string | undefined
@@ -78,10 +76,6 @@ function getCacheHandlersSetup(
   const definedCacheHandlers = Object.entries(cacheHandlers).filter(
     (entry): entry is [string, string] => Boolean(entry[1])
   )
-
-  if (definedCacheHandlers.length === 0) {
-    return undefined
-  }
 
   const cacheHandlerImports: string[] = []
   const cacheHandlerRegistration: string[] = []
@@ -102,8 +96,8 @@ function getCacheHandlersSetup(
   }
 
   return {
-    cacheHandlerImports: cacheHandlerImports.join('\n'),
-    cacheHandlerRegistration: cacheHandlerRegistration.join('\n'),
+    cacheHandlerImports: cacheHandlerImports.join('\n') || '\n',
+    cacheHandlerRegistration: cacheHandlerRegistration.join('\n') || '\n',
   }
 }
 

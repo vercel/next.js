@@ -189,7 +189,10 @@ async fn wrap_edge_route(
         [("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
         [
             ("cacheHandlerImports", cache_handler_imports.as_str()),
-            ("cacheHandlerMapEntries", cache_handler_map_entries.as_str()),
+            (
+                "edgeCacheHandlersRegistration",
+                cache_handler_map_entries.as_str(),
+            ),
         ],
         [(
             "incrementalCacheHandler",

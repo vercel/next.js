@@ -16,7 +16,6 @@ declare const userland500Page: any
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:* as userland500Page
 // OPTIONAL_IMPORT:incrementalCacheHandler
-// INJECT_RAW:cacheHandlerImports
 
 import RouteModule, {
   type PagesRouteHandlerContext,
@@ -39,6 +38,7 @@ declare const user500RouteModuleOptions: any
 // INJECT:pageRouteModuleOptions
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
+// INJECT_RAW:cacheHandlerImports
 
 const pageMod = {
   ...userlandPage,
