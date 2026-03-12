@@ -108,7 +108,7 @@ The hashes are sorted.
 
 `n` is `(block size + 1) / 10`
 
-#### Key Block
+#### Key Block (variable-size)
 
 - 1 byte block type (1: key block with hash, 2: key block without hash)
 - 3 bytes entry count
@@ -157,8 +157,20 @@ Depending on the `type` field entry has a different format:
 
 The entries are sorted by key hash and key.
 
-Future:
- * Some tables have fixed sized keys with consistent values (4 byte task ids).  We could optimize key block representation in this case by skipping offset tables.
+#### Key Block (fixed-size)
+
+Used when all entries in a block have the same key size and value type. Eliminates the per-entry offset table, enabling direct arithmetic indexing during binary search.
+
+- 1 byte block type (3: fixed-size with hash, 4: fixed-size without hash)
+- 3 bytes entry count
+- 1 byte key size (uniform across all entries)
+- 1 byte value type (shared by all entries, same encoding as variable-size type field)
+- foreach entry (packed at stride = hash_len + key_size + val_size):
+  - 8 bytes key hash (if block type 3)
+  - key data (key_size bytes)
+  - value data (size determined by value type)
+
+Entry position for index `i` is computed as `header_size + i * stride` with no indirection. The writer automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to the variable-size format above.
 
 #### Value Block
 

@@ -1,4 +1,6 @@
-use twox_hash::XxHash3_128;
+use std::hash::Hasher;
+
+use xxhash_rust::xxh3::Xxh3Default;
 
 use crate::{DeterministicHash, DeterministicHasher};
 
@@ -10,12 +12,12 @@ pub fn hash_xxh3_hash128<T: DeterministicHash>(input: T) -> u128 {
 }
 
 /// Xxh3Hash128 hasher.
-pub struct Xxh3Hash128Hasher(XxHash3_128);
+pub struct Xxh3Hash128Hasher(Xxh3Default);
 
 impl Xxh3Hash128Hasher {
     /// Create a new hasher.
     pub fn new() -> Self {
-        Self(XxHash3_128::with_seed(0))
+        Self(Xxh3Default::new())
     }
 
     /// Uses the DeterministicHash trait to hash the input in a
@@ -32,7 +34,7 @@ impl Xxh3Hash128Hasher {
 
     /// Finish the hash computation and return the digest.
     pub fn finish(&self) -> u128 {
-        self.0.finish_128()
+        self.0.digest128()
     }
 }
 
@@ -42,7 +44,7 @@ impl DeterministicHasher for Xxh3Hash128Hasher {
     }
 
     fn write_bytes(&mut self, bytes: &[u8]) {
-        self.0.write(bytes);
+        Xxh3Default::write(&mut self.0, bytes);
     }
 }
 

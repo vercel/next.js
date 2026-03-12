@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, ResolvedVc, TurboTasks, ValueToString, Vc, get_effects};
+use turbo_tasks::{Effects, ResolvedVc, TurboTasks, Vc, get_effects, turbofmt};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -50,7 +50,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    reference_type::{EntryReferenceSubType, ReferenceType, UrlReferenceSubType},
+    reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
@@ -347,8 +347,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await?;
 
     let conditions = RuleCondition::All(vec![
-        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-            UrlReferenceSubType::Undefined,
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+            None,
         ))),
         RuleCondition::any(vec![
             RuleCondition::ResourcePathEndsWith(".js".into()),
@@ -613,12 +613,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
-        walk_asset(asset, &output_path, &mut seen, &mut queue)
-            .await
-            .context(format!(
-                "Failed to walk asset {}",
-                asset.path().to_string().await.context("to_string failed")?
-            ))?;
+        if let Err(error) = walk_asset(asset, &output_path, &mut seen, &mut queue).await {
+            // ast-grep-ignore: no-context-turbofmt
+            return Err(error.context(turbofmt!("Failed to walk asset {}", asset.path()).await?));
+        }
     }
 
     matches_expected(expected_paths, seen)

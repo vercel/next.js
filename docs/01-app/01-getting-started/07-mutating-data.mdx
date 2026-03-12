@@ -27,6 +27,9 @@ When an action is invoked, Next.js can return both the updated UI and new data i
 
 Behind the scenes, actions use the `POST` method, and only this HTTP method can invoke them.
 
+> [!WARNING]
+> Server Functions are reachable via direct POST requests, not just through your application's UI. Always verify authentication and authorization inside every Server Function. See the [Data Security guide](/docs/app/guides/data-security#authentication-and-authorization) for recommended patterns.
+
 > **Good to know:** A Server Action is a Server Function used in a specific way (for handling form submissions and mutations). Server Function is the broader term.
 
 ## Creating Server Functions
@@ -34,8 +37,15 @@ Behind the scenes, actions use the `POST` method, and only this HTTP method can 
 A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file.
 
 ```ts filename="app/lib/actions.ts" switcher
+import { auth } from '@/lib/auth'
+
 export async function createPost(formData: FormData) {
   'use server'
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const title = formData.get('title')
   const content = formData.get('content')
 
@@ -45,16 +55,29 @@ export async function createPost(formData: FormData) {
 
 export async function deletePost(formData: FormData) {
   'use server'
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const id = formData.get('id')
 
+  // Verify the user owns this resource before deleting
   // Mutate data
   // Revalidate cache
 }
 ```
 
 ```js filename="app/lib/actions.js" switcher
+import { auth } from '@/lib/auth'
+
 export async function createPost(formData) {
   'use server'
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const title = formData.get('title')
   const content = formData.get('content')
 
@@ -64,8 +87,14 @@ export async function createPost(formData) {
 
 export async function deletePost(formData) {
   'use server'
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const id = formData.get('id')
 
+  // Verify the user owns this resource before deleting
   // Mutate data
   // Revalidate cache
 }
@@ -213,7 +242,14 @@ export function Form() {
 ```ts filename="app/actions.ts" switcher
 'use server'
 
+import { auth } from '@/lib/auth'
+
 export async function createPost(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const title = formData.get('title')
   const content = formData.get('content')
 
@@ -225,7 +261,14 @@ export async function createPost(formData: FormData) {
 ```js filename="app/actions.js" switcher
 'use server'
 
+import { auth } from '@/lib/auth'
+
 export async function createPost(formData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const title = formData.get('title')
   const content = formData.get('content')
 
@@ -337,9 +380,14 @@ After a mutation, you may want to refresh the current page to show the latest da
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
 
+import { auth } from '@/lib/auth'
 import { refresh } from 'next/cache'
 
 export async function updatePost(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
   // Mutate data
   // ...
 
@@ -350,9 +398,14 @@ export async function updatePost(formData: FormData) {
 ```js filename="app/lib/actions.js" switcher
 'use server'
 
+import { auth } from '@/lib/auth'
 import { refresh } from 'next/cache'
 
 export async function updatePost(formData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
   // Mutate data
   // ...
 
@@ -367,10 +420,15 @@ This refreshes the client router, ensuring the UI reflects the latest state. The
 After performing a mutation, you can revalidate the Next.js cache and show the updated data by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
 
 ```ts filename="app/lib/actions.ts" switcher
+import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData: FormData) {
   'use server'
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
   // Mutate data
   // ...
 
@@ -379,10 +437,15 @@ export async function createPost(formData: FormData) {
 ```
 
 ```js filename="app/actions.js" switcher
+import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData) {
   'use server'
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
   // Mutate data
   // ...
   revalidatePath('/posts')
@@ -396,10 +459,15 @@ You may want to redirect the user to a different page after a mutation. You can 
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
 
+import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
   // Mutate data
   // ...
 
@@ -411,10 +479,15 @@ export async function createPost(formData: FormData) {
 ```js filename="app/actions.js" switcher
 'use server'
 
+import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
   // Mutate data
   // ...
 

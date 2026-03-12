@@ -1589,7 +1589,10 @@ export async function handleBuildComplete({
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
         )
+        const partialFallbacksEnabled =
+          config.experimental.partialFallbacks === true
         const partialFallback =
+          partialFallbacksEnabled &&
           isAppPage &&
           renderingMode === RenderingMode.PARTIALLY_STATIC &&
           typeof fallback === 'string' &&
@@ -1611,8 +1614,9 @@ export async function handleBuildComplete({
           // RSC shell.
           else if (meta.postponed) {
             // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
-            // For partial fallbacks in cache components, keep route allowQuery so
-            // fallback shells can be upgraded per-param instead of sharing one cache key.
+            // For opt-in partial fallbacks in cache components, keep route
+            // allowQuery so fallback shells can be upgraded per-param instead
+            // of sharing one cache key.
             htmlAllowQuery =
               partialFallback && routesManifest.rsc.clientParamParsing
                 ? allowQuery

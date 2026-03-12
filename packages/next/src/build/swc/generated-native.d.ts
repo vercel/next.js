@@ -18,6 +18,7 @@ export function lightningCssTransform(args: object): Promise<unknown>
 export function lightningCssTransformStyleAttribute(
   args: object
 ): Promise<unknown>
+export function lightningcssFeatureNamesToMaskNapi(names: Array<string>): number
 
 // GENERATED-TYPES-BELOW
 // DO NOT MANUALLY EDIT THESE TYPES
@@ -247,6 +248,8 @@ export interface NapiProjectOptions {
   isPersistentCachingEnabled: boolean
   /** The version of Next.js that is running. */
   nextVersion: RcStr
+  /** Whether server-side HMR is enabled (requires --experimental-server-fast-refresh). */
+  serverHmr?: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -291,6 +294,8 @@ export interface NapiPartialProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling?: boolean
+  /** Whether server-side HMR is enabled (requires --experimental-server-fast-refresh). */
+  serverHmr?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiOptionEnvVar>
@@ -510,6 +515,11 @@ export interface NapiIssue {
   source?: NapiIssueSource
   documentationLink: string
   importTraces: any
+  /**
+   * Pre-rendered code frame for the issue's source location, if available.
+   * Rendered in Rust to avoid transferring full source file content to JS.
+   */
+  codeFrame?: string
 }
 export interface NapiIssueSource {
   source: NapiSource
@@ -521,7 +531,6 @@ export interface NapiIssueSourceRange {
 }
 export interface NapiSource {
   ident: string
-  content?: string
 }
 export interface NapiSourcePos {
   line: number

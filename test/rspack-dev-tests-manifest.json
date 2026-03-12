@@ -669,7 +669,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/cache-only-toggle/cache-only-toggle.test.ts": {
+  "test/development/app-dir/instant-navs-devtools/instant-navs-devtools.test.ts": {
     "passed": [
       "instant-mode-toggle should show \"Instant mode\" menu item and toggle it on",
       "instant-mode-toggle should show \"instant\" status after toggling on, not stuck on \"compiling\"",

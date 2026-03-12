@@ -106,6 +106,7 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<OptionEnvMap>,
     report_system_env_inlining: Vc<IssueSeverity>,
+    hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::Browser(
@@ -126,6 +127,7 @@ pub async fn get_client_compile_time_info(
             .to_resolved()
             .await?,
     )
+    .hot_module_replacement_enabled(hot_module_replacement_enabled)
     .cell()
     .await
 }
@@ -341,6 +343,7 @@ pub async fn get_client_module_options_context(
         css: CssOptionsContext {
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
+            lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             ..Default::default()
         },
         static_url_tag: Some(rcstr!("client")),

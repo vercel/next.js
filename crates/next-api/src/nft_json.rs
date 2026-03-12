@@ -307,6 +307,7 @@ impl Asset for NftJsonAsset {
                 ) {
                     Ok(specifier) => specifier,
                     Err(err) => {
+                        // ast-grep-ignore: no-context-turbofmt
                         return Err(err.context(
                             turbofmt!(
                                 "NftJsonAsset: cannot handle filepath '{referenced_chunk_path}' \

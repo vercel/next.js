@@ -15,6 +15,7 @@ use swc_core::{
                 helpers::{HELPERS, HelperData, Helpers},
             },
             react::react,
+            typescript::{Config, typescript},
         },
         utils::IsDirective,
     },
@@ -44,6 +45,7 @@ pub enum EcmascriptInputTransform {
     // it doesn't derive `Copy` so repeating values in here
     TypeScript {
         use_define_for_class_fields: bool,
+        verbatim_module_syntax: bool,
     },
     Decorators {
         is_legacy: bool,
@@ -230,9 +232,12 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::TypeScript {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
+                verbatim_module_syntax,
             } => {
-                use swc_core::ecma::transforms::typescript::typescript;
-                let config = Default::default();
+                let config = Config {
+                    verbatim_module_syntax: *verbatim_module_syntax,
+                    ..Default::default()
+                };
                 apply_transform(
                     program,
                     helpers,
