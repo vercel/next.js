@@ -582,11 +582,12 @@ When invoking Node.js entrypoints directly, adapters can pass helpers directly o
 ```ts
 await handler(req, res, {
   requestMeta: {
+    // Relative path from process.cwd() to the Next.js project directory.
     relativeProjectDir: '.',
     // Optional hostname used by route handlers when constructing absolute URLs.
     hostname: '127.0.0.1',
     // Optional internal revalidate function to avoid revalidating over the network
-    revalidate: async ({ urlPath, revalidateHeaders, opts }) => {
+    revalidate: async ({ urlPath, headers, opts }) => {
       // platform-specific revalidate implementation
     },
     // Optional function to render the 404 page for pages router `notFound: true`
