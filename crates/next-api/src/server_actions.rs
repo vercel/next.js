@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
@@ -10,7 +10,10 @@ use turbo_tasks_fs::{self, File, FileContent, FileSystem, FileSystemPath, Virtua
 use turbopack_core::{
     self,
     asset::AssetContent,
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, ChunkingType,
+        EvaluatableAsset,
+    },
     emit_collect::{CollectingModule, EmittedModuleReference},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects, Modules},
@@ -31,14 +34,14 @@ use turbopack_ecmascript::chunk::{
 /// loader.
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
-    server_action_loader: Vc<Box<dyn Module>>,
+    server_action_loader_modules: Vc<Modules>,
     node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Vc<Box<dyn OutputAsset>> {
-    let actions = collect_actions(server_action_loader, module_graph);
+    let actions = collect_actions(server_action_loader_modules, module_graph);
     build_manifest(
         node_root,
         page_name,
@@ -51,29 +54,36 @@ pub(crate) async fn create_server_actions_manifest(
 
 #[turbo_tasks::function]
 async fn collect_actions(
-    server_action_loader: ResolvedVc<Box<dyn Module>>,
+    server_action_loader_modules: Vc<Modules>,
     module_graph: Vc<ModuleGraph>,
 ) -> Result<Vc<AllActions>> {
     // This mirrors what the ServerActionCollectModule ends up chunking into the chunk.
     let collected_modules = module_graph.collected_modules().await?;
-    // This can be none if there are no server actions
-    let actions =
-        collected_modules
-            .collected_references
-            .iter()
-            .find_map(|((entry, loader), actions)| {
-                if *entry == server_action_loader && *loader == server_action_loader {
-                    Some(actions)
-                } else {
-                    None
-                }
-            });
+    let server_action_loader_modules = server_action_loader_modules.await?;
+    assert_eq!(server_action_loader_modules.len(), 2);
+
+    let actions = collected_modules
+        .collected_references
+        .iter()
+        .filter(|((_entry_modules, loader), _)| {
+            // No need to check entry_modules. Each page (ChunkGroup::Entry) has its own loader
+            // module anyway.
+
+            // server_action_loader_modules contains only 2 modules, so converting that into a
+            // hashset for quicker lookup is not necessary.
+            server_action_loader_modules.contains(loader)
+        })
+        // Early stop the search. There can only ever be two matches
+        .take(2)
+        .flat_map(|(_, actions)| actions.iter());
 
     Ok(Vc::cell(
         actions
-            .into_iter()
-            .flatten()
             .map(async |(data, module, _)| {
+                let namespace = match &data.chunking_type {
+                    ChunkingType::Collected { merge_tag, .. } => merge_tag,
+                    _ => bail!("unexpected chunking type for collected reference"),
+                };
                 let data =
                     ResolvedVc::try_sidecast::<Box<dyn EmittedModuleReference>>(data.reference)
                         .context(
@@ -92,7 +102,14 @@ async fn collect_actions(
                 Ok((
                     hash.to_string(),
                     (
-                        ActionLayer::ActionBrowser, // TODO
+                        match namespace.as_str() {
+                            "next/server-actions/rsc-edge" | "next/server-actions/rsc-nodejs" => {
+                                ActionLayer::Rsc
+                            }
+                            "next/server-actions/browser-edge"
+                            | "next/server-actions/browser-nodejs" => ActionLayer::ActionBrowser,
+                            _ => bail!("unexpected namespace {namespace} for collected reference"),
+                        },
                         ActionMeta {
                             name: name.to_string(),
                             source_path: "".to_string(), // TODO
@@ -204,8 +221,8 @@ type HashToLayerNameModule = Vec<(
 #[turbo_tasks::value(transparent)]
 pub struct AllActions(HashToLayerNameModule);
 
-/// This module performs what `__turbopack_collect__({namespace: 'next/server-actions'})` would do
-/// chunking-wise. Except that we collect the list manually into a separate JSON, so
+/// This module performs what `__turbopack_collect__({namespace: 'next/server-actions/*'})` would
+/// do chunking-wise. Except that we collect the list manually into a separate JSON, so
 /// __turbopack_collect__ would unnecessarily codegen a big list of server actions.
 #[turbo_tasks::value]
 pub struct ServerActionCollectModule {

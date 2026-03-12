@@ -3259,24 +3259,29 @@ fn emit_server_action(
         )
         .into();
         let data: Expr = format!("{action_id}|{export}").into();
+
         if is_react_server_layer {
             // Don't transition, we are already in the RSC layer
             vec![quote!(
-                "$emit($req, {namespace:'next/server-actions', data: $data});" as Stmt,
-                emit = emit,
-                req: Expr = req,
-                data: Expr = data
+                "$emit($req, {
+                    namespace: $process.env.NEXT_RUNTIME === 'nodejs' ? 'next/server-actions/rsc-nodejs' : 'next/server-actions/rsc-edge',
+                    data: $data
+                });" as Stmt,
+                process: Ident = quote_ident!(unresolved_ctxt, "process"),
+                emit = emit.clone(),
+                req: Expr = req.clone(),
+                data: Expr = data.clone()
             )]
         } else {
             vec![
                 quote!(
-                    "$emit($req, {namespace:'next/server-actions', data: $data, with: { 'turbopack-transition': 'next-rsc' }});" as Stmt,
+                    "$emit($req, {namespace:'next/server-actions/browser-nodejs', data: $data, with: { 'turbopack-transition': 'next-rsc' }});" as Stmt,
                     emit = emit.clone(),
                     req: Expr = req.clone(),
                     data: Expr = data.clone()
                 ),
                 quote!(
-                    "$emit($req, {namespace:'next/server-actions', data: $data, with: { 'turbopack-transition': 'next-edge-rsc' }});" as Stmt,
+                    "$emit($req, {namespace:'next/server-actions/browser-edge', data: $data, with: { 'turbopack-transition': 'next-edge-rsc' }});" as Stmt,
                     emit = emit,
                     req: Expr = req,
                     data: Expr = data,

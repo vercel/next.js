@@ -5,7 +5,7 @@ export const $$RSC_SERVER_ACTION_0 = async function deleteItem() {
 };
 registerServerReference($$RSC_SERVER_ACTION_0, "006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 __turbopack_emit__("./item.js", {
-    namespace: 'next/server-actions',
+    namespace: process.env.NEXT_RUNTIME === 'nodejs' ? 'next/server-actions/rsc-nodejs' : 'next/server-actions/rsc-edge',
     data: "006a88810ecce4a4e8b59d53b8327d7e98bbf251d7|$$RSC_SERVER_ACTION_0"
 });
 export function Item() {
@@ -19,7 +19,7 @@ export const $$RSC_SERVER_ACTION_1 = async function action($$ACTION_CLOSURE_BOUN
 };
 registerServerReference($$RSC_SERVER_ACTION_1, "4090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
 __turbopack_emit__("./item.js", {
-    namespace: 'next/server-actions',
+    namespace: process.env.NEXT_RUNTIME === 'nodejs' ? 'next/server-actions/rsc-nodejs' : 'next/server-actions/rsc-edge',
     data: "4090b5db271335765a4b0eab01f044b381b5ebd5cd|$$RSC_SERVER_ACTION_1"
 });
 export default function Home() {

@@ -9,7 +9,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function my_fn() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
 __turbopack_emit__("./item.js", {
-    namespace: 'next/server-actions',
+    namespace: process.env.NEXT_RUNTIME === 'nodejs' ? 'next/server-actions/rsc-nodejs' : 'next/server-actions/rsc-edge',
     data: "803128060c414d59f8552e4788b846c0d2b7f74743|$$RSC_SERVER_CACHE_0"
 });
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
