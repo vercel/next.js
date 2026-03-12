@@ -42,14 +42,15 @@ impl Display for CellId {
     }
 }
 
-/// A type-erased representation of [`Vc`][crate::Vc].
+/// A type-erased representation of [`Vc`].
 ///
 /// Type erasure reduces the [monomorphization] (and therefore binary size and compilation time)
-/// required to support [`Vc`][crate::Vc].
+/// required to support [`Vc`].
 ///
 /// This type is heavily used within the [`Backend`][crate::backend::Backend] trait, but should
 /// otherwise be treated as an internal implementation detail of `turbo-tasks`.
 ///
+/// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum RawVc {
@@ -68,6 +69,8 @@ pub enum RawVc {
     /// Local outputs are only valid within the context of their parent "non-local" task. Turbo
     /// Task's APIs are designed to prevent escapes of local [`Vc`]s, but [`ExecutionId`] is used
     /// for a fallback runtime assertion.
+    ///
+    /// [`Vc`]: crate::Vc
     LocalOutput(ExecutionId, LocalTaskId, TaskPersistence),
 }
 

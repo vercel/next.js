@@ -165,6 +165,7 @@ impl ValueDefault for DecoratorsOptions {
 #[derive(Default, Clone, Debug)]
 pub struct TypescriptTransformOptions {
     pub use_define_for_class_fields: bool,
+    pub verbatim_module_syntax: bool,
 }
 
 #[turbo_tasks::value_impl]

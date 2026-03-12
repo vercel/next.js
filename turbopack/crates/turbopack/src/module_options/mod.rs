@@ -716,12 +716,14 @@ impl ModuleOptions {
         ]);
 
         if let Some(options) = enable_typescript_transform {
+            let options = options.await?;
             let ts_preprocess = ResolvedVc::cell(
                 decorators_transform
                     .clone()
                     .into_iter()
                     .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: options.await?.use_define_for_class_fields,
+                        use_define_for_class_fields: options.use_define_for_class_fields,
+                        verbatim_module_syntax: options.verbatim_module_syntax,
                     }))
                     .collect(),
             );

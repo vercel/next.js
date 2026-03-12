@@ -1,8 +1,9 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-// No unstable_instant — this page is NOT runtime-prefetchable.
-// Sync IO in generateMetadata should be allowed.
+// this page is NOT runtime-prefetchable,
+// so Sync IO in generateMetadata should be allowed.
+export const unstable_instant = { prefetch: 'static' }
 
 export async function generateMetadata() {
   await cookies()
