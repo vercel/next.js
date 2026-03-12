@@ -1726,8 +1726,8 @@ importers:
         specifier: 1.0.3
         version: 1.0.3
       tar:
-        specifier: 7.5.7
-        version: 7.5.7
+        specifier: 7.5.11
+        version: 7.5.11
       taskr:
         specifier: 1.1.0
         version: 1.1.0(patch_hash=utitb3olraq7egc3hk7waltisu)
@@ -17666,6 +17666,10 @@ packages:
     engines: {node: '>=10'}
     deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
+  tar@7.5.11:
+    resolution: {integrity: sha512-ChjMH33/KetonMTAtpYdgUFr0tbz69Fp2v7zWxQfYZX4g5ZN2nOBXm1R2xyA+lMIKrLKIoKAwFj93jE/avX9cQ==}
+    engines: {node: '>=18'}
+
   tar@7.5.7:
     resolution: {integrity: sha512-fov56fJiRuThVFXD6o6/Q354S7pnWMJIVlDBYijsTNx6jKSE4pvrDTs6lUnmGvNyfJwFQQwWy3owKz1ucIhveQ==}
     engines: {node: '>=18'}
@@ -24114,7 +24118,7 @@ snapshots:
   '@tailwindcss/oxide@4.1.13':
     dependencies:
       detect-libc: 2.1.0
-      tar: 7.5.7
+      tar: 7.5.11
     optionalDependencies:
       '@tailwindcss/oxide-android-arm64': 4.1.13
       '@tailwindcss/oxide-darwin-arm64': 4.1.13
@@ -26091,7 +26095,7 @@ snapshots:
       minipass-pipeline: 1.2.4
       p-map: 7.0.4
       ssri: 12.0.0
-      tar: 7.5.7
+      tar: 7.5.11
       unique-filename: 4.0.0
 
   cacache@20.0.3:
@@ -34139,7 +34143,7 @@ snapshots:
       nopt: 8.1.0
       proc-log: 5.0.0
       semver: 7.6.3
-      tar: 7.5.7
+      tar: 7.5.11
       tinyglobby: 0.2.15
       which: 5.0.0
     transitivePeerDependencies:
@@ -34820,7 +34824,7 @@ snapshots:
       promise-retry: 2.0.1
       sigstore: 4.0.0
       ssri: 12.0.0
-      tar: 7.5.7
+      tar: 7.5.11
     transitivePeerDependencies:
       - supports-color
 
@@ -34842,7 +34846,7 @@ snapshots:
       promise-retry: 2.0.1
       sigstore: 4.0.0
       ssri: 13.0.0
-      tar: 7.5.7
+      tar: 7.5.11
     transitivePeerDependencies:
       - supports-color
 
@@ -38366,6 +38370,14 @@ snapshots:
       minizlib: 2.1.2
       mkdirp: 1.0.4
       yallist: 4.0.0
+
+  tar@7.5.11:
+    dependencies:
+      '@isaacs/fs-minipass': 4.0.1
+      chownr: 3.0.0
+      minipass: 7.1.2
+      minizlib: 3.1.0(patch_hash=o4nv5mg6kfnuzlknbdln3azhvu)
+      yallist: 5.0.0
 
   tar@7.5.7:
     dependencies:
