@@ -123,6 +123,13 @@ export const routeModule = new AppPageRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
+/**
+ * Builds the cache key for the most complete prerenderable shell we can derive
+ * from the shell that matched this request. Only params that can still be
+ * filled by `generateStaticParams` are substituted; fully dynamic params stay
+ * as placeholders so a request like `/c/foo` can complete `/[one]/[two]` into
+ * `/c/[two]` rather than `/c/foo`.
+ */
 function buildCompletedShellCacheKey(
   fallbackPathname: string,
   remainingPrerenderableParams: readonly FallbackRouteParam[],
@@ -508,6 +515,9 @@ export async function handler(
   const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
   const remainingPrerenderableParams =
     prerenderInfo?.remainingPrerenderableParams ?? []
+  const hasUnresolvedRootFallbackParams =
+    prerenderInfo?.fallback === null &&
+    (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
 
   let ssgCacheKey: string | null = null
   if (
@@ -531,7 +541,8 @@ export async function handler(
     if (
       nextConfig.experimental.partialFallbacks === true &&
       fallbackPathname &&
-      prerenderInfo?.fallbackRouteParams
+      prerenderInfo?.fallbackRouteParams &&
+      !hasUnresolvedRootFallbackParams
     ) {
       if (remainingPrerenderableParams.length > 0) {
         const completedShellCacheKey = buildCompletedShellCacheKey(
@@ -959,15 +970,16 @@ export async function handler(
       if (
         nextConfig.experimental.partialFallbacks === true &&
         prerenderInfo?.fallback === null &&
-        prerenderInfo.remainingPrerenderableParams &&
-        prerenderInfo?.remainingPrerenderableParams?.length > 0
+        !hasUnresolvedRootFallbackParams &&
+        remainingPrerenderableParams.length > 0
       ) {
-        // Generic source shells with unresolved prerenderable params don't
-        // have a concrete fallback file of their own, so the manifest reports
-        // them as blocking. When we can complete the shell into a more
-        // specific prerendered shell for this request, treat it like a
-        // prerender fallback so we can serve that shell instead of blocking
-        // on the full route.
+        // Generic source shells without unresolved root params don't have a
+        // concrete fallback file of their own, so they're marked as blocking.
+        // When we can complete the shell into a more specific
+        // prerendered shell for this request, treat it like a prerender
+        // fallback so we can serve that shell instead of blocking on the full
+        // route. Root-param shells stay blocking, since unknown root branches
+        // should not inherit a shell from another generated branch.
         fallbackMode = FallbackMode.PRERENDER
       }
 
