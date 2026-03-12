@@ -71,7 +71,7 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_macros::{TaskInput, function, turbobail, turbofmt, value_impl};
+pub use turbo_tasks_macros::{TaskInput, turbobail, turbofmt, value_impl};
 
 pub use crate::{
     capture_future::TurboTasksPanic,
@@ -158,6 +158,10 @@ macro_rules! fxindexset {
         }
     };
 }
+
+#[doc = include_str!("../function.md")]
+#[rustfmt::skip]
+pub use turbo_tasks_macros::function;
 
 /// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
 /// inside of a "value cell" as [`Vc<...>`][Vc].
