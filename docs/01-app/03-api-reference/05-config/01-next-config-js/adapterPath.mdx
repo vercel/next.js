@@ -566,12 +566,12 @@ Together, the adapter and cache handler form the complete platform integration s
 - **Adapter** (build-time): processes build outputs, configures routing, and sets up platform-specific infrastructure.
 - **Cache Handler** (runtime): manages cache storage, tag coordination, and revalidation across instances.
 
-### `requestMeta` Runtime Context
+### Handler Context
 
-When invoking entrypoints, adapters can pass runtime context to the Next.js handler via `requestMeta`:
+When invoking entrypoints, adapters pass a `ctx` object to the Next.js handler. Key fields include:
 
-- **`requestMeta.waitUntil`**: a function that accepts a promise. Use this to keep the serverless function alive after the response is sent, allowing background work like cache revalidation to complete.
-- **`requestMeta.onCacheEntryV2`**: a callback that fires when a cache entry is generated or updated. Use this to observe all cache operations (not just PPR) and propagate cache updates to your platform's storage backend. This callback fires on the instance that handled the request. For multi-instance deployments, your adapter should propagate updates to shared storage. See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for coordination patterns.
+- **`ctx.waitUntil`**: a function that accepts a promise. Use this to keep the serverless function alive after the response is sent, allowing background work like cache revalidation to complete.
+- **`requestMeta.onCacheEntryV2`** (set via `addRequestMeta`): a callback that fires when a cache entry is generated or looked up. Use this to observe all cache operations (not just PPR) and propagate cache updates to your platform's storage backend. This callback fires on the instance that handled the request. For multi-instance deployments, your adapter should propagate updates to shared storage. See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for coordination patterns.
 
 ### PPR Chain Headers
 

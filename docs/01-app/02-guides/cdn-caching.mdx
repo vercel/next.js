@@ -74,7 +74,7 @@ The response is still valid. Platforms can choose whether or not to support inte
 
 ### Design principle
 
-**If a CDN ignores certain inputs, the response is still valid, possibly less efficient, but not incorrect.** The exception is the `_rsc` search parameter: dropping it today can lead to the CDN serving the wrong response variant (cache poisoning). Next.js validates the `_rsc` hash against the actual request headers and redirects to the correct URL if they don't match.
+**If a CDN ignores certain inputs, the response is still valid, possibly less efficient, but not incorrect.** The exception is the `_rsc` search parameter: dropping it today can lead to the CDN serving the wrong response variant (cache poisoning). When [`experimental.validateRSCRequestHeaders`](/docs/app/api-reference/config/next-config-js/experimental) is enabled, Next.js validates the `_rsc` hash against the actual request headers and redirects to the correct URL if they don't match.
 
 ## Caching Static Assets
 

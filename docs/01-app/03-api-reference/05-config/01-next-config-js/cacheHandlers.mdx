@@ -487,10 +487,10 @@ The `CacheEntry.value` is a [`ReadableStream<Uint8Array>`](https://developer.moz
 
 ## Error Handling
 
-Cache operations are designed to be resilient:
+Cache operations should be implemented defensively:
 
-- **`set()` failure**: the response is still served to the user, but the cache entry is lost. The next request to that route will trigger a fresh render.
-- **`get()` failure**: treated as a cache miss. The route is server-rendered fresh.
+- **`set()` failure**: the response is still served to the user because `set()` is called asynchronously after the response stream is already flowing. The cache entry is lost, and the next request triggers a fresh render.
+- **`get()` failure**: your handler should catch internal errors and return `undefined` (the "cache miss" signal). The framework does not wrap `get()` in a try/catch, so an unhandled exception from `get()` will propagate as a render error.
 - **Partial writes**: if a cache entry is partially written and then read, the behavior is undefined. Use atomic writes or a write-then-rename pattern to avoid serving partial entries.
 
 ## Platform Support

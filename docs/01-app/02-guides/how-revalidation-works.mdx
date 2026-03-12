@@ -24,7 +24,7 @@ There are two types of revalidation:
 
 ## What Gets Revalidated
 
-When a route is revalidated, Next.js regenerates **both** the HTML response and the RSC payload (React Server Components payload) in a single render pass. Both artifacts are stored together in the same cache entry.
+When a route is revalidated, Next.js regenerates **both** the HTML response and the RSC payload (React Server Components payload) from the same React component tree. Both artifacts are stored together in the same cache entry.
 
 This consistency matters because the RSC payload carries the component tree structure, not just data. If the HTML and RSC payload were from different renders, client-side navigation could see mismatched layouts or data.
 
@@ -90,7 +90,7 @@ If a CDN caches Next.js responses, it should respect the `Vary` header and the `
 The revalidation system is designed to degrade gracefully when infrastructure guarantees cannot be met:
 
 - If cache writes fail, the response is still served to the user. The cache entry is lost, and the next request triggers a fresh render.
-- If cache reads fail, the route is treated as a cache miss and is server-rendered fresh.
+- If cache reads return `undefined`, the route is treated as a cache miss and is server-rendered fresh. Cache handlers should catch internal errors and return `undefined` rather than throwing.
 - If HTML and RSC payloads are out of sync, the client recovers via retry and then falls back to a full page reload.
 
 The system prioritizes availability over strict consistency. Content is always served, even if it means serving stale data or triggering a full page reload as a recovery mechanism.
