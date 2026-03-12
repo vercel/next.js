@@ -27,9 +27,8 @@ if (rscManifest && rscServerManifest) {
 
 export const ComponentMod = module
 
-const edgeCacheHandlers = {
-  // INJECT_RAW:cacheHandlerMapEntries
-}
+const edgeCacheHandlers: any = {}
+// INJECT_RAW:edgeCacheHandlersRegistration
 
 const internalHandler: EdgeHandler = EdgeRouteModuleWrapper.wrap(
   module.routeModule,

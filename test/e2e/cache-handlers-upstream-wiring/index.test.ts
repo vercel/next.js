@@ -52,7 +52,7 @@ describe('cache-handlers-upstream-wiring', () => {
   })
 
   describe('cacheComponents enabled, non-edge app router', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next, skipped, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures/non-edge-cache-components'),
       skipDeployment: true,
     })
@@ -72,7 +72,9 @@ describe('cache-handlers-upstream-wiring', () => {
       expect(pageResponse.status).toBe(200)
 
       await retry(async () => {
-        const output = next.cliOutput.slice(outputIndex)
+        const output = isNextDev
+          ? next.cliOutput.slice(outputIndex)
+          : next.cliOutput
         expect(output).toContain('WiringModernCacheHandler::set')
         expect(output).toContain('WiringModernCacheHandler::get')
       })
@@ -96,38 +98,40 @@ describe('cache-handlers-upstream-wiring', () => {
       })
     })
   })
-
-  describe('cacheComponents disabled, edge app router', () => {
-    const { next, skipped } = nextTestSetup({
-      files: join(__dirname, 'fixtures/edge-without-cache-components'),
-      skipDeployment: true,
-    })
-
-    if (skipped) {
-      return
-    }
-
-    let outputIndex = 0
-
-    beforeEach(() => {
-      outputIndex = next.cliOutput.length
-    })
-
-    it('uses configured cacheHandler for edge app page and edge app route', async () => {
-      const edgePageResponse = await next.fetch('/edge-page')
-      expect(edgePageResponse.status).toBe(200)
-
-      const edgeRouteResponse = await next.fetch('/api/edge-route')
-      expect(edgeRouteResponse.status).toBe(200)
-      expect(await edgeRouteResponse.json()).toEqual({ ok: true })
-
-      await retry(async () => {
-        const output = next.cliOutput.slice(outputIndex)
-        const constructorLogs =
-          output.match(/WiringIncrementalCacheHandler::constructor/g) ?? []
-
-        expect(constructorLogs.length).toBeGreaterThanOrEqual(2)
+  ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+    'cacheComponents disabled, edge app router',
+    () => {
+      const { next, skipped } = nextTestSetup({
+        files: join(__dirname, 'fixtures/edge-without-cache-components'),
+        skipDeployment: true,
       })
-    })
-  })
+
+      if (skipped) {
+        return
+      }
+
+      let outputIndex = 0
+
+      beforeEach(() => {
+        outputIndex = next.cliOutput.length
+      })
+
+      it('uses configured cacheHandler for edge app page and edge app route', async () => {
+        const edgePageResponse = await next.fetch('/edge-page')
+        expect(edgePageResponse.status).toBe(200)
+
+        const edgeRouteResponse = await next.fetch('/api/edge-route')
+        expect(edgeRouteResponse.status).toBe(200)
+        expect(await edgeRouteResponse.json()).toEqual({ ok: true })
+
+        await retry(async () => {
+          const output = next.cliOutput.slice(outputIndex)
+          const constructorLogs =
+            output.match(/WiringIncrementalCacheHandler::constructor/g) ?? []
+
+          expect(constructorLogs.length).toBeGreaterThanOrEqual(2)
+        })
+      })
+    }
+  )
 })

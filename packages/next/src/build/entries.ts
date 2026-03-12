@@ -166,6 +166,8 @@ export function getEdgeServerEntry(opts: {
   preferredRegion: string | string[] | undefined
   middlewareConfig?: ProxyConfig
 }) {
+  const cacheHandler = opts.config.cacheHandler || undefined
+
   if (
     opts.pagesType === 'app' &&
     isAppRouteRoute(opts.page) &&
@@ -179,8 +181,8 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
-      cacheHandler: opts.config.cacheHandler,
       cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
+      ...(cacheHandler ? { cacheHandler } : {}),
     }
 
     return {
@@ -201,7 +203,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
-      cacheHandler: opts.config.cacheHandler,
+      ...(cacheHandler ? { cacheHandler } : {}),
     }
 
     return {
@@ -220,7 +222,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
-      cacheHandler: opts.config.cacheHandler,
+      ...(cacheHandler ? { cacheHandler } : {}),
     }
 
     return {
@@ -241,13 +243,13 @@ export function getEdgeServerEntry(opts: {
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
-    cacheHandler: opts.config.cacheHandler,
     preferredRegion: opts.preferredRegion,
     middlewareConfig: Buffer.from(
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActions: opts.config.experimental.serverActions,
     cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
+    ...(cacheHandler ? { cacheHandler } : {}),
   }
 
   return {
