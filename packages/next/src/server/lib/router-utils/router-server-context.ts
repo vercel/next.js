@@ -5,7 +5,7 @@ import type { ServerCacheStatus } from '../../../next-devtools/dev-overlay/cache
 
 export type RevalidateFn = (config: {
   urlPath: string
-  revalidateHeaders: { [key: string]: string | string[] }
+  headers: { [key: string]: string | string[] }
   opts: { unstable_onlyGenerated?: boolean }
 }) => Promise<void>
 

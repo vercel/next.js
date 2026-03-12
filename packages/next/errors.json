@@ -1115,5 +1115,6 @@
   "1114": "Route \"%s\" accessed root param \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object.",
   "1115": "Route \"%s\" accessed cookie \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`cookies\\` array, or \\`{ name: \"%s\", value: null }\\` if it should be absent.",
   "1116": "Route \"%s\" accessed header \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`headers\\` array, or \\`[\"%s\", null]\\` if it should be absent.",
-  "1117": "Instant validation boundaries should never appear in browser bundles."
+  "1117": "Instant validation boundaries should never appear in browser bundles.",
+  "1118": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing."
 }
