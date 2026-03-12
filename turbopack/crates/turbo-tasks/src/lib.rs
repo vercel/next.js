@@ -159,6 +159,9 @@ macro_rules! fxindexset {
     };
 }
 
+#[doc = include_str!("../singleton_pattern.md")]
+pub mod _singleton_pattern {}
+
 #[doc = include_str!("../function.md")]
 #[rustfmt::skip]
 pub use turbo_tasks_macros::function;
