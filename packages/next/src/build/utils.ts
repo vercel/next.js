@@ -41,7 +41,7 @@ import '../server/node-environment'
 import { bold, cyan, green, red, underline, yellow } from '../lib/picocolors'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
-import { promises as fs } from 'fs'
+import { promises as fs, statSync } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
@@ -564,25 +564,27 @@ type RouteBundleStat = {
   firstLoadChunkPaths: string[]
 }
 
-async function sumFileSizes(
+function sumFileSizes(
   distDir: string,
   files: string[],
   cache: Map<string, number>
-): Promise<number> {
-  const sizes = await Promise.all(
-    files.map(async (relPath) => {
-      const cached = cache.get(relPath)
-      if (cached !== undefined) return cached
-      try {
-        const size = (await fs.stat(path.join(distDir, relPath))).size
-        cache.set(relPath, size)
-        return size
-      } catch {
-        return 0
-      }
-    })
-  )
-  return sizes.reduce((a, b) => a + b, 0)
+): number {
+  let total = 0
+  for (const relPath of files) {
+    const cached = cache.get(relPath)
+    if (cached !== undefined) {
+      total += cached
+      continue
+    }
+    try {
+      const size = statSync(path.join(distDir, relPath)).size
+      cache.set(relPath, size)
+      total += size
+    } catch {
+      // ignore missing files
+    }
+  }
+  return total
 }
 
 function toProjectRelativePaths(
@@ -645,13 +647,13 @@ function readEntryJSFiles(
   }
 }
 
-async function collectPagesRouterStats(
+function collectPagesRouterStats(
   pages: ReadonlyArray<string>,
   buildManifest: BuildManifest,
   distDir: string,
   dir: string,
   cache: Map<string, number>
-): Promise<RouteBundleStat[]> {
+): RouteBundleStat[] {
   const rows: RouteBundleStat[] = []
   const sharedFiles = buildManifest.pages['/_app'] ?? []
   for (const page of filterAndSortList(pages, 'pages', false)) {
@@ -664,11 +666,7 @@ async function collectPagesRouterStats(
     )
     const sharedJs = sharedFiles.filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
-    const firstLoadUncompressedJsBytes = await sumFileSizes(
-      distDir,
-      chunks,
-      cache
-    )
+    const firstLoadUncompressedJsBytes = sumFileSizes(distDir, chunks, cache)
     rows.push({
       route: page,
       firstLoadUncompressedJsBytes,
@@ -722,11 +720,7 @@ async function collectAppRouterStats(
     ]
     const sharedJs = sharedFiles.filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
-    const firstLoadUncompressedJsBytes = await sumFileSizes(
-      distDir,
-      chunks,
-      cache
-    )
+    const firstLoadUncompressedJsBytes = sumFileSizes(distDir, chunks, cache)
     rows.push({
       route: appRoute,
       firstLoadUncompressedJsBytes,
@@ -749,13 +743,7 @@ export async function writeRouteBundleStats(
 
   const rows = [
     ...(lists.pages.length > 0
-      ? await collectPagesRouterStats(
-          lists.pages,
-          buildManifest,
-          distDir,
-          dir,
-          cache
-        )
+      ? collectPagesRouterStats(lists.pages, buildManifest, distDir, dir, cache)
       : []),
     ...(lists.app && lists.app.length > 0
       ? await collectAppRouterStats(
