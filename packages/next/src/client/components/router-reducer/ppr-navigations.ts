@@ -88,6 +88,7 @@ export const enum FreshnessPolicy {
   RefreshAll,
   HMRRefresh,
   Gesture,
+  InstantTest,
 }
 
 const enum NavigationTaskStatus {
@@ -141,6 +142,34 @@ export function createInitialCacheNodeForHydration(
     initialTree,
     null,
     FreshnessPolicy.Hydration,
+    seedData,
+    seedHead,
+    null,
+    null,
+    false,
+    accumulation
+  )
+  return task
+}
+
+export function createInitialCacheNodeForInstantTest(
+  navigatedAt: number,
+  initialTree: RouteTree,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData
+): NavigationTask {
+  // Like createInitialCacheNodeForHydration, but uses FreshnessPolicy.InstantTest.
+  // This allows segments with partial/missing data to be marked as
+  // needsDynamicRequest, so that spawnDynamicRequests will fetch dynamic data.
+  const accumulation: NavigationRequestAccumulation = {
+    scrollableSegments: null,
+    separateRefreshUrls: null,
+  }
+  const task = createCacheNodeOnNavigation(
+    navigatedAt,
+    initialTree,
+    null,
+    FreshnessPolicy.InstantTest,
     seedData,
     seedHead,
     null,
@@ -333,6 +362,7 @@ function updateCacheNodeOnNavigation(
     case FreshnessPolicy.HistoryTraversal:
     case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
     case FreshnessPolicy.Gesture:
+    case FreshnessPolicy.InstantTest:
       // We should never drop dynamic data in shared layouts, except during
       // a refresh.
       shouldRefreshDynamicData = false
@@ -952,6 +982,27 @@ function createCacheNodeForSegment(
         cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
         needsDynamicRequest: false,
       }
+    }
+    case FreshnessPolicy.InstantTest: {
+      if (process.env.__NEXT_EXPOSE_TESTING_API) {
+        // Instant navigation test: the server served a static shell, so the
+        // seed data only contains static content. Use the seed as prefetchRsc
+        // (the partial state shown immediately) and create a deferred RSC for
+        // the full dynamic data that will be fetched from the server.
+        const prefetchRsc: React.ReactNode = seedRsc
+        const rsc: React.ReactNode = createDeferredRsc()
+        const prefetchHead: HeadData | null = isPage ? seedHead : null
+        const head: HeadData | null = isPage ? createDeferredRsc() : null
+        writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+        if (isPage && metadataVaryPath !== null) {
+          writeHeadToBFCache(now, metadataVaryPath, head, prefetchHead)
+        }
+        return {
+          cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
+          needsDynamicRequest: true,
+        }
+      }
+      break
     }
     case FreshnessPolicy.HistoryTraversal:
       const bfcacheEntry = readFromBFCache(tree.varyPath)
