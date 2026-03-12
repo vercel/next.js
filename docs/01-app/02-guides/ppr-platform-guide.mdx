@@ -76,7 +76,7 @@ To implement this pattern, the CDN or edge function uses the **resume protocol**
 
 In the [adapter output](/docs/app/api-reference/config/next-config-js/adapterPath#output-types), `pprChain.headers` contains the headers needed for this protocol: `{ 'next-resume': '1' }`.
 
-> **Good to know:** The resume protocol only works in minimal mode (adapter-based deployments). Minimal mode is activated via the `NEXT_PRIVATE_MINIMAL_MODE` environment variable or by adapter configuration. In standard `next start`, the server handles the full shell + dynamic render in a single pass.
+> **Good to know:** In standard `next start`, the server handles both the shell and dynamic render in a single pass automatically. The resume protocol is useful for CDN-to-origin architectures and adapter-based deployments that want to serve the shell separately from the dynamic render.
 
 For detailed implementation with code examples, see [Implementing PPR in an Adapter](/docs/app/api-reference/config/next-config-js/adapterPath#implementing-ppr-in-an-adapter).
 

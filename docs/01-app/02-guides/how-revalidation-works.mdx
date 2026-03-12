@@ -30,9 +30,9 @@ This consistency matters because the RSC payload carries the component tree stru
 
 ### What happens if they get out of sync
 
-If a platform's cache serves HTML from one render and an RSC payload from a different render, users may see stale or mismatched content during client-side navigation. This is a form of version skew that Next.js does not detect automatically.
+If a platform's cache serves HTML from one render and an RSC payload from a different render, users may see stale or mismatched content during client-side navigation. The primary mitigation is to cache HTML and RSC responses together with the same TTL and invalidation policy, and to respect the [`Vary` header](/docs/app/guides/cdn-caching) that Next.js sets. See [CDN Caching](/docs/app/guides/cdn-caching) for details.
 
-The primary mitigation is [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId): when the client detects a different build or deployment ID from the server, it triggers a hard navigation to fetch consistent content. Configure this for any multi-instance or rolling deployment.
+A separate but related problem is **cross-deployment skew**: during rolling deployments, a client built with deploy A may receive responses from a server running deploy B. [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) mitigates this: when the client detects a different deployment ID from the server, it triggers a hard navigation to fetch consistent content.
 
 ## Tag System Architecture
 
@@ -88,6 +88,7 @@ The revalidation system prioritizes availability over strict consistency. Conten
 
 - **Cache write failure**: the response is still served to the user because writes are asynchronous. The cache entry is lost, and the next request triggers a fresh render.
 - **Cache read failure**: your handler should catch internal errors and return `undefined` (the cache miss signal). The route is then server-rendered fresh. The framework does not wrap `get()` in a try/catch, so unhandled exceptions will propagate as render errors.
-- **HTML/RSC version skew**: without [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId), stale data may be served during client-side navigation. With `deploymentId` configured, a build ID change triggers a hard navigation to fetch consistent content.
+- **HTML/RSC cache inconsistency**: if a CDN caches HTML and RSC responses with different TTLs or invalidation timing, users may see mismatched content during client-side navigation. Cache them together and respect the `Vary` header to avoid this.
+- **Cross-deployment skew**: during rolling deployments, configure [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) so that a build ID change triggers a hard navigation to fetch consistent content.
 
-Cache failures result in degraded performance (stale content, extra renders), not broken applications. Configure [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) for multi-instance and rolling deployments to mitigate version skew.
+Cache failures result in degraded performance (stale content, extra renders), not broken applications.
