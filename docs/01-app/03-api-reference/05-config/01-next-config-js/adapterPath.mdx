@@ -583,7 +583,7 @@ When your adapter detects a PPR-enabled route with a cached static shell:
 2. Send the request as a **POST** with the `postponedState` as the request body.
 3. The handler will render only the deferred Suspense boundaries and stream the result.
 
-> **Good to know:** The resume protocol only works in minimal mode (adapter-based deployments). See the [PPR Platform Guide](/docs/app/guides/ppr-platform-guide) for the full implementation context.
+> **Good to know:** In standard `next start`, the server handles both the shell and dynamic render in a single pass automatically. The resume protocol is useful for adapter-based deployments and CDN-to-origin architectures that want to serve the shell separately. See the [PPR Platform Guide](/docs/app/guides/ppr-platform-guide) for the full implementation context.
 
 ## Invoking Entrypoints
 
