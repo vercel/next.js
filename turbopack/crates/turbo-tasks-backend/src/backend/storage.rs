@@ -78,6 +78,9 @@ enum ModifiedState {
 pub struct Storage {
     snapshot_mode: AtomicBool,
     modified: FxDashMap<TaskId, ModifiedState>,
+    /// Tracks GC'd tasks pending database deletion. Populated by the GC processor,
+    /// drained during the next snapshot to emit deletion records.
+    deleted: FxDashMap<TaskId, ()>,
     map: FxDashMap<TaskId, Box<TaskStorage>>,
 }
 
@@ -94,6 +97,11 @@ impl Storage {
             snapshot_mode: AtomicBool::new(false),
             modified: FxDashMap::with_capacity_and_hasher_and_shard_amount(
                 modified_capacity,
+                Default::default(),
+                shard_amount,
+            ),
+            deleted: FxDashMap::with_capacity_and_hasher_and_shard_amount(
+                0,
                 Default::default(),
                 shard_amount,
             ),
@@ -288,9 +296,42 @@ impl Storage {
         )
     }
 
+    /// Remove a task from storage entirely. Called by the GC processor after
+    /// verifying the task has no incoming edges and disconnecting it from the
+    /// aggregation tree.
+    ///
+    /// Returns the removed TaskStorage if it existed.
+    pub fn remove_task(&self, task_id: TaskId) -> Option<Box<TaskStorage>> {
+        self.modified.remove(&task_id);
+        self.map.remove(&task_id).map(|(_, v)| v)
+    }
+
+    /// Mark a task as deleted for database cleanup during the next snapshot.
+    /// The task should already be removed from the in-memory map via `remove_task()`.
+    pub fn mark_deleted(&self, task_id: TaskId) {
+        self.deleted.insert(task_id, ());
+    }
+
+    /// Drain all deleted task IDs, returning them for database deletion processing.
+    /// Called during snapshot to collect tasks that need their DB entries removed.
+    pub fn take_deleted(&self) -> Vec<TaskId> {
+        let mut deleted = Vec::with_capacity(self.deleted.len());
+        self.deleted.retain(|k, _| {
+            deleted.push(*k);
+            false
+        });
+        deleted
+    }
+
+    /// Returns the number of tasks currently in storage.
+    pub fn get_task_count(&self) -> usize {
+        self.map.len()
+    }
+
     pub fn drop_contents(&self) {
         drop_contents(&self.map);
         drop_contents(&self.modified);
+        drop_contents(&self.deleted);
     }
 }
 

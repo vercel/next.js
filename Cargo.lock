@@ -9578,6 +9578,7 @@ dependencies = [
  "bitfield",
  "byteorder",
  "codspeed-criterion-compat",
+ "concurrent-queue",
  "dashmap 6.1.0",
  "either",
  "futures",

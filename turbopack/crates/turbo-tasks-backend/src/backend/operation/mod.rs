@@ -2,6 +2,7 @@ mod aggregation_update;
 mod cleanup_old_edges;
 mod connect_child;
 mod connect_children;
+pub(crate) mod gc;
 mod invalidate;
 mod leaf_distance_update;
 mod prepare_new_children;
@@ -91,6 +92,13 @@ pub trait ExecuteContext<'e>: Sized {
     fn suspending_requested(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
+    /// Enqueue a task for garbage collection. Called when an edge removal
+    /// makes a task potentially eligible for GC.
+    fn enqueue_gc(&self, task_id: TaskId);
+    /// Remove a GC'd task from Storage and task_cache. Called after verifying
+    /// the task has no incoming edges and disconnecting it from the aggregation tree.
+    /// Returns true if the task was successfully removed.
+    fn gc_remove_task(&self, task_id: TaskId);
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
     /// Look up a TaskId from the backing storage for a given task type.
     ///
@@ -631,6 +639,14 @@ where
         self.backend.should_track_activeness()
     }
 
+    fn enqueue_gc(&self, task_id: TaskId) {
+        self.backend.enqueue_gc(task_id);
+    }
+
+    fn gc_remove_task(&self, task_id: TaskId) {
+        self.backend.gc_remove_task(task_id);
+    }
+
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi> {
         self.turbo_tasks.pin()
     }
@@ -1112,6 +1128,7 @@ pub enum AnyOperation {
     CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     AggregationUpdate(aggregation_update::AggregationUpdateQueue),
     LeafDistanceUpdate(leaf_distance_update::LeafDistanceUpdateQueue),
+    Gc(gc::GcOperation),
     Nested(Vec<AnyOperation>),
 }
 
@@ -1124,6 +1141,7 @@ impl AnyOperation {
             AnyOperation::CleanupOldEdges(op) => op.execute(ctx),
             AnyOperation::AggregationUpdate(op) => op.execute(ctx),
             AnyOperation::LeafDistanceUpdate(op) => op.execute(ctx),
+            AnyOperation::Gc(op) => op.execute(ctx),
             AnyOperation::Nested(ops) => {
                 for op in ops {
                     op.execute(ctx);
@@ -1139,6 +1157,25 @@ impl_operation!(UpdateCell update_cell::UpdateCellOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue);
+// GcOperation: manually implement instead of using impl_operation! macro
+// because the macro also does `pub use` which triggers an unused import warning
+// since GcOperation is only used internally.
+impl From<gc::GcOperation> for AnyOperation {
+    fn from(op: gc::GcOperation) -> Self {
+        AnyOperation::Gc(op)
+    }
+}
+
+impl TryFrom<AnyOperation> for gc::GcOperation {
+    type Error = ();
+
+    fn try_from(op: AnyOperation) -> Result<Self, Self::Error> {
+        match op {
+            AnyOperation::Gc(op) => Ok(op),
+            _ => Err(()),
+        }
+    }
+}
 
 #[cfg(feature = "trace_task_dirty")]
 pub use self::invalidate::TaskDirtyCause;

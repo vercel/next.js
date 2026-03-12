@@ -164,6 +164,11 @@ impl Operation for CleanupOldEdgesOperation {
                                 {
                                     let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
                                     task.remove_cell_dependents(&(cell, key, task_id));
+                                    // Cell dependent removed - target may now be GC-eligible
+                                    if task.typed().is_gc_eligible() {
+                                        drop(task);
+                                        ctx.enqueue_gc(cell_task_id);
+                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -187,6 +192,11 @@ impl Operation for CleanupOldEdgesOperation {
                                 {
                                     let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
                                     task.remove_output_dependent(&task_id);
+                                    // Output dependent removed - target may now be GC-eligible
+                                    if task.typed().is_gc_eligible() {
+                                        drop(task);
+                                        ctx.enqueue_gc(output_task_id);
+                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -204,6 +214,12 @@ impl Operation for CleanupOldEdgesOperation {
                                         collectible_type,
                                         task_id,
                                     ));
+                                    // Collectibles dependent removed - target may now be
+                                    // GC-eligible
+                                    if task.typed().is_gc_eligible() {
+                                        drop(task);
+                                        ctx.enqueue_gc(dependent_task_id);
+                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
