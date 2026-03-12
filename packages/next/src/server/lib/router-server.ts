@@ -7,7 +7,7 @@ import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import '../node-environment'
 import '../require-hook'
 
-import { existsSync, watch } from 'fs'
+import { existsSync } from 'fs'
 import url from 'url'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
@@ -221,25 +221,24 @@ export async function initialize(opts: {
       config: developmentConfig,
     }
 
-    // Watch the distDir so we can restart the dev server when it's deleted,
-    // instead of serving broken pages with cryptic ENOENT errors.
+    // Poll for distDir deletion so we can restart the dev server instead of
+    // serving broken pages with cryptic ENOENT errors.
+    // We use polling because fs.watch is unreliable for detecting directory
+    // deletion across platforms (on Linux the inotify watch is destroyed with
+    // the directory; on macOS kqueue may not fire at all).
     const distDir = path.join(opts.dir, config.distDir)
     const distDirLabel =
       (config as NextConfigComplete).distDirRoot || config.distDir
-    const restartOnDistDirRemoval = () => {
+    const distDirPollInterval = setInterval(() => {
       if (!existsSync(distDir)) {
+        clearInterval(distDirPollInterval)
         Log.warn(
           `The ${distDirLabel} directory was removed while the dev server was running. Restarting...`
         )
         process.exit(RESTART_EXIT_CODE)
       }
-    }
-    try {
-      const watcher = watch(distDir, restartOnDistDirRemoval)
-      watcher.on('error', restartOnDistDirRemoval)
-    } catch {
-      // If we can't set up the watcher (e.g. distDir doesn't exist yet), ignore.
-    }
+    }, 2000)
+    distDirPollInterval.unref()
   }
 
   renderServer.instance =
