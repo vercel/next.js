@@ -7,9 +7,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
-use turbo_bincode::{
-    TurboBincodeBuffer, new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode,
-};
+use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_tasks::{
     TaskId,
     backend::CachedTaskType,
@@ -21,7 +19,7 @@ use turbo_tasks_hash::Xxh3Hash64Hasher;
 use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
-    backing_storage::{BackingStorage, BackingStorageSealed},
+    backing_storage::{BackingStorage, BackingStorageSealed, SnapshotItem},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
@@ -258,14 +256,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<
-                Item = (
-                    TaskId,
-                    Option<TurboBincodeBuffer>,
-                    Option<TurboBincodeBuffer>,
-                ),
-            > + Send
-            + Sync,
+        I: Iterator<Item = SnapshotItem> + Send + Sync,
     {
         let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
         let mut batch = self.inner.database.write_batch()?;
@@ -280,8 +271,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         &[KeySpace::TaskMeta, KeySpace::TaskData],
                         |&key_space| {
                             let _span = span.clone().entered();
-                            // Safety: We already finished all processing of the task data and task
-                            // meta
+                            // Safety: `process_task_data` has returned, so no concurrent `put` or
+                            // `delete` on `TaskMeta`/`TaskData` key spaces are in-flight. The
+                            // `parallel::try_for_each` below flushes disjoint key spaces, so
+                            // concurrent flushes on different key spaces are safe.
                             unsafe { batch.flush(key_space) }
                         },
                     )?;
@@ -605,18 +598,16 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, I>(
     batch: Option<&B>,
 ) -> Result<SerializedTasks>
 where
-    I: Iterator<
-            Item = (
-                TaskId,
-                Option<TurboBincodeBuffer>,
-                Option<TurboBincodeBuffer>,
-            ),
-        > + Send
-        + Sync,
+    I: Iterator<Item = SnapshotItem> + Send + Sync,
 {
     parallel::map_collect_owned::<_, _, Result<Vec<_>>>(tasks, |tasks| {
         let mut result = Vec::new();
-        for (task_id, meta, data) in tasks {
+        for SnapshotItem {
+            task_id,
+            meta,
+            data,
+        } in tasks
+        {
             if let Some(batch) = batch {
                 let key = IntKey::new(*task_id);
                 let key = key.as_ref();

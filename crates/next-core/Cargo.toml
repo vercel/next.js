@@ -22,6 +22,7 @@ futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 indoc = { workspace = true }
 itertools = { workspace = true }
+lightningcss = { workspace = true }
 mime_guess = "2.0.4"
 once_cell = { workspace = true }
 percent-encoding = "2.3.1"

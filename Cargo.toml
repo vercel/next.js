@@ -468,6 +468,7 @@ strsim = "0.11.1"
 swc_sourcemap = "9.3.4"
 syn = "2.0.100"
 tempfile = "3.20.0"
+terminal_size = "0.3.0"
 thiserror = "1.0.48"
 thread_local = "1.1.8"
 tokio = "1.43.0"
@@ -475,7 +476,7 @@ tokio-util = { version = "0.7.13", features = ["io", "rt"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
-twox-hash = { version = "2.1.2", features = ["std", "xxhash3_64", "xxhash3_128"] }
+xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
 unsize = "1.1.0"
 unty = "0.0.4"
 url = "2.2.2"

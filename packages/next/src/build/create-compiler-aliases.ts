@@ -17,7 +17,7 @@ import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
 import { hasExternalOtelApiPackage } from './webpack-config'
 import { NEXT_PROJECT_ROOT } from './next-dir-paths'
-import { shouldUseReactServerCondition } from './webpack-layer'
+import { shouldUseReactServerCondition } from './utils'
 
 interface CompilerAliases {
   [alias: string]: string | string[]
