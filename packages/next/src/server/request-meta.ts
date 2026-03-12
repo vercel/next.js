@@ -1,5 +1,6 @@
-import type { IncomingMessage } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
+import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
@@ -11,6 +12,7 @@ import type {
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
+import type { RevalidateFn } from './lib/router-utils/router-server-context'
 import type { NextRequest } from './web/exports'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
@@ -254,6 +256,27 @@ export interface RequestMeta {
    * The dist directory the server is currently using
    */
   distDir?: string
+
+  /**
+    Optional hostname used by route handlers when constructing absolute URLs.
+    hostname: '127.0.0.1',
+   */
+  hostname?: string
+
+  /**
+   Optional internal revalidate function to avoid revalidating over the network
+   */
+  revalidate?: RevalidateFn
+
+  /**
+   Optional function to render the 404 page for pages router `notFound: true`
+   */
+  render404?: (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: UrlWithParsedQuery,
+    setHeaders?: boolean
+  ) => Promise<void>
 
   /**
    * The query after resolving routes
