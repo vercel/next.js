@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MultiSelect } from '@/components/ui/multi-select'
-import { AnalyzeData, ModulesData, mergeAnalyzeData } from '@/lib/analyze-data'
+import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { fetchStrict } from '@/lib/utils'
 import { formatBytes } from '@/lib/utils'
@@ -81,21 +81,6 @@ export default function Home() {
     },
   })
 
-  // Always try to load _app route data so its modules can be merged into the
-  // current route's view.
-  const { data: appRouteData } = useSWR<AnalyzeData | null>(
-    'data/_app/analyze.data',
-    fetchOptionalAnalyzeData,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
-
-  // Merge _app modules into the current route's data
-  const mergedAnalyzeData = useMemo(() => {
-    if (!analyzeData) return undefined
-    if (!appRouteData || selectedRoute === '/_app') return analyzeData
-    return mergeAnalyzeData(analyzeData, appRouteData)
-  }, [analyzeData, appRouteData, selectedRoute])
-
   const [sidebarWidth, setSidebarWidth] = useState(20) // percentage
   const [isResizing, setIsResizing] = useState(false)
   const [isMouseInTreemap, setIsMouseInTreemap] = useState(false)
@@ -117,7 +102,7 @@ export default function Home() {
 
         if (!isInputFocused) {
           e.preventDefault()
-          const rootSourceIndex = getRootSourceIndex(mergedAnalyzeData)
+          const rootSourceIndex = getRootSourceIndex(analyzeData)
           setSelectedSourceIndex(rootSourceIndex)
           setFocusedSourceIndex(rootSourceIndex)
         }
@@ -126,21 +111,21 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [mergedAnalyzeData])
+  }, [analyzeData])
 
   // Compute module depth map from active entries
   const moduleDepthMap = useMemo(() => {
-    if (!modulesData || !mergedAnalyzeData) return new Map()
+    if (!modulesData || !analyzeData) return new Map()
 
-    const activeEntries = computeActiveEntries(modulesData, mergedAnalyzeData)
+    const activeEntries = computeActiveEntries(modulesData, analyzeData)
     return computeModuleDepthMap(modulesData, activeEntries)
-  }, [modulesData, mergedAnalyzeData])
+  }, [modulesData, analyzeData])
 
   const filterSource = useMemo(() => {
-    if (!mergedAnalyzeData) return () => true
+    if (!analyzeData) return () => true
 
     return (sourceIndex: number) => {
-      const flags = mergedAnalyzeData.getSourceFlags(sourceIndex)
+      const flags = analyzeData.getSourceFlags(sourceIndex)
 
       // Check environment filter
       const hasEnvironment =
@@ -156,7 +141,7 @@ export default function Home() {
 
       return hasEnvironment && hasType
     }
-  }, [mergedAnalyzeData, environmentFilter, typeFilter])
+  }, [analyzeData, environmentFilter, typeFilter])
 
   const handleMouseDown = () => {
     setIsResizing(true)
@@ -174,7 +159,7 @@ export default function Home() {
 
   const error = analyzeError || modulesError
   const isAnyLoading = isAnalyzeLoading || isModulesLoading
-  const rootSourceIndex = getRootSourceIndex(mergedAnalyzeData)
+  const rootSourceIndex = getRootSourceIndex(analyzeData)
 
   return (
     <main
@@ -183,7 +168,7 @@ export default function Home() {
       onMouseUp={handleMouseUp}
     >
       <TopBar
-        analyzeData={mergedAnalyzeData}
+        analyzeData={analyzeData}
         selectedRoute={selectedRoute}
         setSelectedRoute={setSelectedRoute}
         environmentFilter={environmentFilter}
@@ -222,11 +207,11 @@ export default function Home() {
               isLoading={true}
             />
           </>
-        ) : mergedAnalyzeData ? (
+        ) : analyzeData ? (
           <>
             <div className="flex-1 min-w-0">
               <TreemapVisualizer
-                analyzeData={mergedAnalyzeData}
+                analyzeData={analyzeData}
                 sourceIndex={rootSourceIndex}
                 selectedSourceIndex={selectedSourceIndex ?? rootSourceIndex}
                 onSelectSourceIndex={setSelectedSourceIndex}
@@ -250,7 +235,7 @@ export default function Home() {
 
             <Sidebar
               sidebarWidth={sidebarWidth}
-              analyzeData={mergedAnalyzeData ?? null}
+              analyzeData={analyzeData ?? null}
               modulesData={modulesData ?? null}
               selectedSourceIndex={selectedSourceIndex}
               moduleDepthMap={moduleDepthMap}
@@ -261,7 +246,7 @@ export default function Home() {
         ) : null}
       </div>
 
-      {mergedAnalyzeData && (
+      {analyzeData && (
         <div className="flex-none border-t border-border bg-background px-4 py-2 h-10">
           <div className="text-sm text-muted-foreground">
             {hoveredNodeInfo ? (
@@ -411,19 +396,6 @@ function getRootSourceIndex(analyzeData: AnalyzeData | undefined): number {
 async function fetchAnalyzeData(url: string): Promise<AnalyzeData> {
   const resp = await fetchStrict(url)
   return new AnalyzeData(await resp.arrayBuffer())
-}
-
-async function fetchOptionalAnalyzeData(
-  url: string
-): Promise<AnalyzeData | null> {
-  let res: Response
-  try {
-    res = await fetch(url)
-  } catch {
-    return null
-  }
-  if (!res.ok) return null
-  return new AnalyzeData(await res.arrayBuffer())
 }
 
 async function fetchModulesData(url: string): Promise<ModulesData> {
