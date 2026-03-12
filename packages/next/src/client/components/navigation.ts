@@ -261,6 +261,16 @@ export function useSelectedLayoutSegments(
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
+  // During build-time instant validation, error if fallback params exist
+  // because useSelectedLayoutSegments() can't return a sensible value without all params.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    context
+  ) {
+    expectCompleteParamsInClientValidation!('useSelectedLayoutSegments()')
+  }
+
   // Instrument with Suspense DevTools (dev-only)
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
@@ -303,6 +313,12 @@ export function useSelectedLayoutSegment(
   useDynamicRouteParams?.('useSelectedLayoutSegment()')
   const navigationPromises = useContext(NavigationPromisesContext)
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+
+  // During build-time instant validation, error if fallback params exist
+  // because useSelectedLayoutSegment() can't return a sensible value without all params.
+  if (typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS) {
+    expectCompleteParamsInClientValidation!('useSelectedLayoutSegment()')
+  }
 
   // Instrument with Suspense DevTools (dev-only)
   if (
