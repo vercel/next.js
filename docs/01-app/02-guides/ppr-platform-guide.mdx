@@ -22,7 +22,7 @@ This page explains how platforms can implement PPR support at different levels o
 For each PPR route, Next.js produces:
 
 - A **static HTML shell** containing all the content that can be prerendered, with [Suspense](/docs/app/guides/streaming#what-is-streaming) fallbacks where dynamic content will appear.
-- A **`postponedState`** value: an opaque, serialized representation of what was deferred. It contains React's postponed state and a resume data cache. Platforms should treat this as an opaque string and pass it through without parsing or modifying it.
+- A **`postponedState`** value: an opaque, serialized string. Treat it as an opaque blob: pass it through without parsing or modifying it. Altering the `postponedState` will produce incorrect dynamic rendering output.
 - An **RSC payload** for the static portions of the page.
 
 In the [adapter output](/docs/app/api-reference/config/next-config-js/adapterPath#output-types), PPR routes are identified by `renderingMode: 'PARTIALLY_STATIC'` in the prerenders array. Iterate `outputs.prerenders` to find these entries and read `fallback.postponedState`.

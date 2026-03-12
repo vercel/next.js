@@ -15,7 +15,7 @@ The [Caching](/docs/app/getting-started/caching) page covers how to use `use cac
 
 ## The Revalidation Model
 
-Every server-rendered route in Next.js can be revalidated on demand. This is a deliberate design choice: the ability to update any cached content without redeploying is a core part of Next.js's [rendering model](/docs/app/guides/rendering-philosophy).
+Every server-rendered route in Next.js can be revalidated on demand. The ability to update any cached content without redeploying is a core part of Next.js's [rendering model](/docs/app/guides/rendering-philosophy).
 
 There are two types of revalidation:
 
@@ -87,10 +87,10 @@ If a CDN caches Next.js responses, it should respect the `Vary` header and the `
 
 ## Graceful Degradation
 
-The revalidation system is designed to degrade gracefully when infrastructure guarantees cannot be met:
+The revalidation system prioritizes availability over strict consistency. Content is always served, even when infrastructure guarantees cannot be fully met:
 
-- If cache writes fail, the response is still served to the user. The cache entry is lost, and the next request triggers a fresh render.
-- If cache reads return `undefined`, the route is treated as a cache miss and is server-rendered fresh. Cache handlers should catch internal errors and return `undefined` rather than throwing.
-- If HTML and RSC payloads are out of sync, the client recovers via retry and then falls back to a full page reload.
+- **Cache write failure**: the response is still served to the user because writes are asynchronous. The cache entry is lost, and the next request triggers a fresh render.
+- **Cache read failure**: your handler should catch internal errors and return `undefined` (the cache miss signal). The route is then server-rendered fresh. The framework does not wrap `get()` in a try/catch, so unhandled exceptions will propagate as render errors.
+- **HTML/RSC payload out of sync**: the client detects the mismatch and recovers via retry, then falls back to a full page reload if the mismatch persists. The application does not crash.
 
-The system prioritizes availability over strict consistency. Content is always served, even if it means serving stale data or triggering a full page reload as a recovery mechanism.
+Every failure mode has a defined recovery path. The worst case is a full page reload, not a broken application.
