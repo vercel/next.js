@@ -179,6 +179,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
+      cacheHandler: opts.config.cacheHandler,
       cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
     }
 
@@ -200,6 +201,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
+      cacheHandler: opts.config.cacheHandler,
     }
 
     return {
@@ -218,6 +220,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
+      cacheHandler: opts.config.cacheHandler,
     }
 
     return {

@@ -5,7 +5,7 @@ import {
   type NextRequestHint,
 } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 
 import Document from 'VAR_MODULE_DOCUMENT'
 import * as appMod from 'VAR_MODULE_APP'
@@ -16,6 +16,7 @@ declare const userland500Page: any
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:* as userland500Page
 // OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT_RAW:cacheHandlerImports
 
 import RouteModule, {
   type PagesRouteHandlerContext,
@@ -120,7 +121,8 @@ async function requestHandler(
     clientAssetToken,
   } = prepareResult
 
-  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
 
   const renderContext: PagesRouteHandlerContext = {
     page: srcPage,

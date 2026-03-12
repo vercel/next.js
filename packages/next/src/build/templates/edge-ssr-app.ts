@@ -9,7 +9,7 @@ import { IncrementalCache } from '../../server/lib/incremental-cache'
 import * as pageMod from 'VAR_USERLAND'
 
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
@@ -32,6 +32,7 @@ import type { RequestMeta } from '../../server/request-meta'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT_RAW:cacheHandlerImports
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -89,7 +90,8 @@ async function requestHandler(
   } = prepareResult
 
   // Initialize the cache handlers interface.
-  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')

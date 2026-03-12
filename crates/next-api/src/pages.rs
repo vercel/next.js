@@ -885,6 +885,7 @@ impl PageEndpoint {
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
+                    this.pages_project.project().next_config(),
                     runtime,
                 )
                 .await?;
