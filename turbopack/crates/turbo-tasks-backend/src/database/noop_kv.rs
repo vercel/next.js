@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBuffer},
+    write_batch::{ConcurrentWriteBatch, WriteBuffer},
 };
 
 pub struct NoopKvDb;
@@ -29,7 +29,7 @@ impl KeyValueDatabase for NoopKvDb {
 
 pub struct NoopWriteBatch;
 
-impl<'a> BaseWriteBatch<'a> for NoopWriteBatch {
+impl<'a> ConcurrentWriteBatch<'a> for NoopWriteBatch {
     type ValueBuffer<'l>
         = &'l [u8]
     where
@@ -46,9 +46,7 @@ impl<'a> BaseWriteBatch<'a> for NoopWriteBatch {
     fn commit(self) -> Result<()> {
         Ok(())
     }
-}
 
-impl ConcurrentWriteBatch<'_> for NoopWriteBatch {
     fn put(
         &self,
         _key_space: KeySpace,

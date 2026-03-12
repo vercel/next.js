@@ -24,7 +24,7 @@ use crate::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
         key_value_database::{KeySpace, KeyValueDatabase},
-        write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBuffer},
+        write_batch::{ConcurrentWriteBatch, WriteBuffer},
     },
     db_invalidation::invalidation_reasons,
     utils::chunked_vec::ChunkedVec,
@@ -380,7 +380,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
     }
 }
 
-fn get_next_free_task_id<'a>(batch: &impl BaseWriteBatch<'a>) -> Result<u32, anyhow::Error> {
+fn get_next_free_task_id<'a>(batch: &impl ConcurrentWriteBatch<'a>) -> Result<u32, anyhow::Error> {
     Ok(
         match batch.get(
             KeySpace::Infra,
@@ -486,7 +486,7 @@ mod tests {
     use crate::database::{
         key_value_database::KeyValueDatabase,
         turbo::TurboKeyValueDatabase,
-        write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBuffer},
+        write_batch::{ConcurrentWriteBatch, WriteBuffer},
     };
 
     /// Helper to write to the database using the concurrent batch API.

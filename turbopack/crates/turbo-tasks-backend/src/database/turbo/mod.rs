@@ -21,7 +21,7 @@ use turbo_tasks::{
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
     turbo::parallel_scheduler::TurboTasksParallelScheduler,
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBuffer},
+    write_batch::{ConcurrentWriteBatch, WriteBuffer},
 };
 
 mod parallel_scheduler;
@@ -192,7 +192,7 @@ pub struct TurboWriteBatch<'a> {
     compact_join_handle: Option<&'a Mutex<Option<JoinHandle<Result<()>>>>>,
 }
 
-impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
+impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     type ValueBuffer<'l>
         = ArcBytes
     where
@@ -225,9 +225,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
 
         Ok(())
     }
-}
 
-impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         self.batch
             .put(key_space as u32, key.into_static(), value.into())
