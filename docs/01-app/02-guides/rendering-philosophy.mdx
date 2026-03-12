@@ -29,11 +29,21 @@ This model benefits developers and users in concrete ways:
 
 ## The Trade-Off
 
-Most web frameworks place the static/dynamic boundary at the **route level**: each route is either fully static or fully dynamic. This keeps infrastructure simple, since static routes are just files on a CDN and dynamic routes are requests to a server.
+Web frameworks differ in where they place the boundary between static and dynamic content. Each approach makes a different trade-off between developer flexibility and infrastructure complexity.
 
-Next.js places the boundary at the **component level**: static and dynamic content coexist within a single streaming response. This gives developers more flexibility but requires more from the hosting platform: streaming, cache coordination, and cache consistency.
+### Build-time prerendering
 
-That is a deliberate trade-off. A finer-grained rendering boundary transfers complexity from application code into infrastructure. The infrastructure requirements described below exist because of this choice.
+Every page is generated at build time. The output is static files that can be served from any CDN or file server with zero runtime infrastructure. Dynamic content, if any, requires client-side fetching after the page loads. This is the simplest model to deploy, but every content change requires a rebuild and redeploy.
+
+### Route-level boundaries
+
+Each route chooses whether it is static or dynamic. Static routes are prerendered at build time, dynamic routes are server-rendered per request. The infrastructure splits cleanly: static files go to a CDN, dynamic routes go to a server. This is straightforward to reason about but the choice is all-or-nothing per route. A mostly-static page with one dynamic element (a user greeting, a live price) must either be fully dynamic or fetch that element on the client after load.
+
+### Component-level boundaries
+
+This is the approach Next.js takes. Static and dynamic content coexist within a single streaming response. A page can have a static shell that loads instantly, a cached function that revalidates independently, and a dynamic section that streams in as it resolves, all without the developer splitting anything into separate routes or client-side fetches.
+
+The trade-off is infrastructure complexity. A finer-grained rendering boundary transfers complexity from application code into the hosting platform. The infrastructure requirements described below exist because of this choice.
 
 ## Infrastructure Implications
 
