@@ -208,6 +208,10 @@ fn default_fn() {
     panic!("Pure virtual function called")
 }
 
+/// Sentinel used as placeholder in trait vtables before overrides are applied.
+/// A single static (not per-monomorphization) avoids bloating the FUNCTIONS registry.
+pub static VTABLE_DEFAULT: NativeFunction = NativeFunction::DEFAULT;
+
 impl NativeFunction {
     #[allow(clippy::declare_interior_mutable_const)] // Interior mutability from RegistryType::id is only written during init
     pub const DEFAULT: NativeFunction = NativeFunction {

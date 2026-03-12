@@ -221,14 +221,14 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let native_function_def = native_function.definition();
 
             let method_name_str = syn::LitStr::new(&ident.to_string(), ident.span());
-            let index = trait_methods.len();
+            let index = trait_methods.len() as u8;
             trait_methods.push(quote! {
                 #method_name_str => turbo_tasks::TraitMethod {
                     trait_type: &#trait_type_ident,
                     trait_name: stringify!(#trait_ident),
                     method_name: #method_name_str,
                     default_method: Some(&#native_function_ident),
-                    index: #index as _,
+                    index: #index,
                 },
             });
             method_names.push(quote! { #method_name_str });
@@ -259,14 +259,14 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_fn.static_block(&native_function_ident)
         } else {
             let method_name_str = syn::LitStr::new(&ident.to_string(), ident.span());
-            let index = trait_methods.len();
+            let index = trait_methods.len() as u8;
             trait_methods.push(quote! {
                 #method_name_str => turbo_tasks::TraitMethod {
                     trait_type: &#trait_type_ident,
                     trait_name: stringify!(#trait_ident),
                     method_name: #method_name_str,
                     default_method: None,
-                    index: #index as _,
+                    index: #index,
                 },
             });
             method_names.push(quote! { #method_name_str });
@@ -308,6 +308,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         extended_supertraits.push(quote!(turbo_tasks::debug::ValueDebug));
     }
 
+    let num_methods = method_names.len();
     let trait_name = global_name_for_type(quote! { dyn #trait_ident });
     let expanded = quote! {
         #[must_use]
@@ -334,8 +335,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         );
 
-        impl turbo_tasks::macro_helpers::TraitBuilder for Box<dyn #trait_ident> {
-            const LEN: usize = ["", #(#method_names),*].len() - 1;
+        impl turbo_tasks::macro_helpers::TraitVtablePrototype for Box<dyn #trait_ident> {
+            const LEN: usize = #num_methods;
             const NAMES: &[&str] = &[#(#method_names),*];
             const DEFAULTS: &[Option<&turbo_tasks::macro_helpers::NativeFunction>] = &[#(#default_methods),*];
         }
@@ -348,6 +349,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
             }
 
+            // TODO: Remove this Lazy VTableRegistry once trait resolution is fully migrated
             fn get_impl_vtables() -> &'static turbo_tasks::macro_helpers::VTableRegistry<Self::ValueTrait> {
                 static registry: turbo_tasks::macro_helpers::Lazy<turbo_tasks::macro_helpers::VTableRegistry<dyn # trait_ident>> =
                     turbo_tasks::macro_helpers::Lazy::new(|| turbo_tasks::macro_helpers::VTableRegistry::new(turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)));

@@ -292,14 +292,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // 3 ValueTypes (requires functions and TraitTypeIds)
             // 4.VTableRegistries (requires ValueTypeIds)
             turbo_tasks::macro_helpers::inventory_submit!{{
-                const LEN: usize = <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::TraitBuilder>::LEN;
+                const LEN: usize = <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::TraitVtablePrototype>::LEN;
                 static METHODS: [&turbo_tasks::macro_helpers::NativeFunction; LEN] = turbo_tasks::macro_helpers::build_trait_vtable::<::std::boxed::Box<dyn #trait_path>, LEN>(&[#(#trait_methods),*]);
 
-                turbo_tasks::macro_helpers::CollectableTraitMethods(
-                    <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
-                    <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
-                    &METHODS
-                )
+                turbo_tasks::macro_helpers::CollectableTraitMethods {
+                    value_type: <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
+                    trait_type: <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
+                    methods: &METHODS,
+                }
             }}
 
             // These can execute later so they can reference trait_types during registration

@@ -223,6 +223,12 @@ pub fn validate_value_type_id(id: ValueTypeId) -> Option<Error> {
     validate_id(&VALUES, id)
 }
 
+/// Number of registered trait types. Forces TRAITS init.
+#[inline]
+pub(crate) fn trait_type_count() -> usize {
+    TRAITS.len()
+}
+
 static TRAITS: Lazy<Box<[&'static TraitType]>> = Lazy::new(|| {
     init_registry(
         inventory::iter::<&'static TraitType>

@@ -18,11 +18,13 @@ pub use crate::{
     global_name_for_trait_method_impl, global_name_for_type, inventory_submit,
     magic_any::MagicAny,
     manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
-    native_function::{ArgMeta, NativeFunction, downcast_args_owned, downcast_args_ref},
+    native_function::{
+        ArgMeta, NativeFunction, VTABLE_DEFAULT, downcast_args_owned, downcast_args_ref,
+    },
     registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
     turbo_register,
-    value_type::{TraitBuilder, build_trait_vtable},
+    value_type::{TraitVtablePrototype, build_trait_vtable},
 };
 
 #[inline(never)]
@@ -229,12 +231,11 @@ pub struct CollectableTraitCastFunctions(
 unsafe impl Sync for CollectableTraitCastFunctions {}
 inventory::collect! {CollectableTraitCastFunctions}
 
-#[allow(clippy::type_complexity)]
-pub struct CollectableTraitMethods(
-    pub &'static ValueType,
-    pub &'static TraitType,
-    pub &'static [&'static NativeFunction],
-);
+pub struct CollectableTraitMethods {
+    pub value_type: &'static ValueType,
+    pub trait_type: &'static TraitType,
+    pub methods: &'static [&'static NativeFunction],
+}
 inventory::collect! {CollectableTraitMethods}
 
 /// Submit an item to the inventory.

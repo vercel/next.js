@@ -5,7 +5,6 @@ use std::{
     hash::Hash,
 };
 
-use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
@@ -15,12 +14,13 @@ use crate::{
     id::TraitTypeId,
     macro_helpers::{CollectableTraitMethods, NativeFunction},
     magic_any::any_as_encode,
-    registry::{RegistryType, get_trait_type_id, turbo_registry},
+    registry::{RegistryType, get_trait_type_id, trait_type_count, turbo_registry},
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
 
 type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
+type Vtable = &'static [&'static NativeFunction];
 
 // TODO this type need some refactoring when multiple languages are added to
 // turbo-task In this case a trait_method might be of a different function type.
@@ -66,7 +66,10 @@ impl Display for ValueType {
 }
 
 struct ValueTypeTraits {
-    traits: AutoMap<TraitTypeId, &'static [&'static NativeFunction]>,
+    /// Flat array indexed by TraitTypeId (1-based, so index 0 = TraitTypeId 1).
+    /// `None` means this value type does not implement that trait.
+    /// The outer Option is None before init, Some after.
+    traits: Option<Box<[Option<Vtable>]>>,
 }
 
 pub trait ManualEncodeWrapper: Encode {
@@ -145,9 +148,7 @@ impl ValueType {
             ty: RegistryType::new::<T>(std::any::type_name::<T>(), global_name),
             bincode,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
-            traits: SyncUnsafeCell::new(ValueTypeTraits {
-                traits: AutoMap::new(),
-            }),
+            traits: SyncUnsafeCell::new(ValueTypeTraits { traits: None }),
         }
     }
 
@@ -156,16 +157,9 @@ impl ValueType {
         self.ty.type_id
     }
 
-    /// Access trait info for reading.
-    ///
-    /// SAFETY: Must only be called after registry init is complete (i.e. after
-    /// the Lazy inside Registry has been initialized). This is guaranteed because
-    /// the only way to get a `&ValueType` is through the registry, which forces init.
     #[inline]
     fn trait_info(&self) -> &ValueTypeTraits {
-        // SAFETY: After Lazy init completes, no more writes happen to trait_info,
-        // and Lazy provides the necessary acquire barrier. The caller must have
-        // obtained `&self` through the registry, which guarantees init.
+        // SAFETY: Written during single-threaded Lazy init, read-only after.
         unsafe { &*self.traits.get() }
     }
 
@@ -175,34 +169,38 @@ impl ValueType {
         trait_method: &'static TraitMethod,
     ) -> Option<&'static NativeFunction> {
         let trait_type_id = trait_method.trait_type_id();
-        let vtable = self.trait_info().traits.get(&trait_type_id)?;
+        let vtable = self.trait_info().traits.as_ref()?[*trait_type_id as usize - 1]?;
         Some(vtable[trait_method.index as usize])
     }
 
-    fn register_trait(
-        &self,
-        trait_type: &'static TraitType,
-        trait_methods: &'static [&'static NativeFunction],
-    ) {
+    fn register_trait(&self, trait_type: &'static TraitType, trait_methods: Vtable) {
         // SAFETY: Called only during single-threaded registry init
         let traits = unsafe { &mut *self.traits.get() };
         let trait_type_id = get_trait_type_id(trait_type);
-        traits.traits.insert(trait_type_id, trait_methods);
+        let array = traits
+            .traits
+            .get_or_insert_with(|| vec![None; trait_type_count()].into_boxed_slice());
+        array[*trait_type_id as usize - 1] = Some(trait_methods);
     }
 
     #[inline]
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
-        self.trait_info().traits.contains_key(trait_type)
+        self.trait_info()
+            .traits
+            .as_ref()
+            .is_some_and(|t| t[**trait_type as usize - 1].is_some())
     }
 }
 
 turbo_registry!("Value", ValueType);
 
-// Called during ValueType registry post_init to register all trait methods on all value types.
-// This runs inside the Lazy init (single-threaded), so the unsafe SyncUnsafeCell access is safe.
+// Called during ValueType registry post_init to register all trait methods.
+// Single-threaded during Lazy init.
 pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
-    for methods in inventory::iter::<CollectableTraitMethods> {
-        methods.0.register_trait(methods.1, methods.2)
+    for entry in inventory::iter::<CollectableTraitMethods> {
+        entry
+            .value_type
+            .register_trait(entry.trait_type, entry.methods)
     }
 }
 
@@ -240,9 +238,7 @@ impl TraitMethod {
     /// Must only be called after registry init.
     #[inline]
     fn trait_type_id(&self) -> TraitTypeId {
-        // SAFETY: The ID was written during Lazy init (single-threaded).
-        // We can only reach here through get_trait_method on a &ValueType,
-        // which was obtained from the registry, guaranteeing init is complete.
+        // SAFETY: Written during single-threaded Lazy init. Lazy provides acquire barrier.
         let raw = unsafe { std::ptr::read(self.trait_type.ty.id.get()) };
         debug_assert!(raw != 0, "TraitMethod::trait_type_id not initialized");
         unsafe { TraitTypeId::new_unchecked(raw) }
@@ -304,13 +300,13 @@ impl TraitType {
 
 turbo_registry!("Trait", TraitType);
 
-pub trait TraitBuilder {
+pub trait TraitVtablePrototype {
     const LEN: usize;
     const NAMES: &'static [&'static str];
     const DEFAULTS: &'static [Option<&'static NativeFunction>];
 }
 
-pub const fn index_of_name(array: &'static [&'static str], name: &'static str) -> usize {
+pub(crate) const fn index_of_name(array: &'static [&'static str], name: &'static str) -> usize {
     let mut i = 0;
     'outer: while i < array.len() {
         if array[i].len() == name.len() {
@@ -329,14 +325,10 @@ pub const fn index_of_name(array: &'static [&'static str], name: &'static str) -
     panic!("Method not found!")
 }
 
-/// Sentinel NativeFunction used as placeholder in trait vtables before overrides are applied.
-/// Must be a single static (not per-monomorphization) to avoid bloating the FUNCTIONS registry.
-static TRAIT_VTABLE_DEFAULT: NativeFunction = NativeFunction::DEFAULT;
-
-pub const fn build_trait_vtable<B: TraitBuilder, const LEN: usize>(
+pub const fn build_trait_vtable<B: TraitVtablePrototype, const LEN: usize>(
     overrides: &[(&'static str, &'static NativeFunction)],
 ) -> [&'static NativeFunction; LEN] {
-    let mut methods = [&TRAIT_VTABLE_DEFAULT; LEN];
+    let mut methods = [&crate::native_function::VTABLE_DEFAULT; LEN];
     let mut i = 0;
     while i < LEN {
         if let Some(default) = B::DEFAULTS[i] {
@@ -344,6 +336,7 @@ pub const fn build_trait_vtable<B: TraitBuilder, const LEN: usize>(
         }
         i += 1;
     }
+    // N*M scan where N = overrides, M = method names. Both are small (single digits).
     let mut i = 0;
     while i < overrides.len() {
         let (name, f) = overrides[i];
