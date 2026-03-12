@@ -231,9 +231,13 @@ export class Playwright<TCurrent = undefined> {
         },
       })
     } else {
+      let launchArgs: string[] = []
+      if (!launchOptions.headless) {
+        launchArgs.push('--auto-open-devtools-for-tabs')
+      }
       return await chromium.launch({
-        devtools: !launchOptions.headless,
         ...launchOptions,
+        args: launchArgs,
         ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
