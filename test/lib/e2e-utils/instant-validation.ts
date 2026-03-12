@@ -1,4 +1,5 @@
 import { retry } from '../next-test-utils'
+import { getDeterministicOutput } from '../../e2e/app-dir/cache-components-errors/utils'
 
 export type ValidationEvent =
   | { type: 'validation_start'; requestId: string; url: string }
@@ -20,7 +21,10 @@ export function parseValidationMessages(output: string): ValidationEvent[] {
   return events
 }
 
-export function extractBuildValidationError(cliOutput: string): string {
+export function extractBuildValidationError(
+  cliOutput: string,
+  { isMinified = true } = {}
+): string {
   const markerRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g
 
   // Find all marker positions and their content
@@ -64,7 +68,8 @@ export function extractBuildValidationError(cliOutput: string): string {
     )
   }
 
-  return cliOutput.slice(start.endIndex, end.index).trim()
+  const output = cliOutput.slice(start.endIndex, end.index).trim()
+  return getDeterministicOutput(output, { isMinified })
 }
 
 export function normalizeValidationUrl(url: string): string {

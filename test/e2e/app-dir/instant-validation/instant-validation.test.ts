@@ -215,7 +215,7 @@ describe('instant validation', () => {
          "Error: Route "/suspense-in-root/static/missing-suspense-around-runtime": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-runtime".
          Stopping prerender due to instant validation errors."
         `)
@@ -275,7 +275,7 @@ describe('instant validation', () => {
          "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-dynamic".
          Stopping prerender due to instant validation errors."
         `)
@@ -338,7 +338,7 @@ describe('instant validation', () => {
              at main (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/missing-suspense-around-dynamic".
          Stopping prerender due to instant validation errors."
         `)
@@ -400,7 +400,7 @@ describe('instant validation', () => {
          "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic-layout": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-dynamic-layout".
          Stopping prerender due to instant validation errors."
         `)
@@ -460,7 +460,7 @@ describe('instant validation', () => {
          "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout".
          Stopping prerender due to instant validation errors."
         `)
@@ -587,7 +587,7 @@ describe('instant validation', () => {
          "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-search-params".
          Stopping prerender due to instant validation errors."
         `)
@@ -682,12 +682,12 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/suspense-too-high": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
              at div (<anonymous>)
              at div (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at b (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/suspense-too-high".
          Stopping prerender due to instant validation errors."
         `)
@@ -748,10 +748,10 @@ describe('instant validation', () => {
          "Error: Route "/suspense-in-root/runtime/suspense-too-high": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at b (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/suspense-too-high".
          Stopping prerender due to instant validation errors."
         `)
@@ -786,7 +786,7 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at d (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:10:20)
+             at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:10:20)
             8 | export default async function Page() {
             9 |   await cookies()
          > 10 |   const now = Date.now()
@@ -795,7 +795,7 @@ describe('instant validation', () => {
            12 |     <main>
            13 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at d (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:10:20)
+             at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:10:20)
             8 | export default async function Page() {
             9 |   await cookies()
          > 10 |   const now = Date.now()
@@ -841,7 +841,7 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at d (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
+             at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
            12 | export default async function Page() {
            13 |   await cookies()
          > 14 |   const now = Date.now()
@@ -850,7 +850,7 @@ describe('instant validation', () => {
            16 |     <main>
            17 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at d (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
+             at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
            12 | export default async function Page() {
            13 |   await cookies()
          > 14 |   const now = Date.now()
@@ -859,7 +859,7 @@ describe('instant validation', () => {
            16 |     <main>
            17 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at d (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
+             at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
            12 | export default async function Page() {
            13 |   await cookies()
          > 14 |   const now = Date.now()
@@ -1182,7 +1182,7 @@ describe('instant validation', () => {
              at div (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
-             at Suspense (<anonymous>)
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/invalid-dynamic-layout-with-loading".
          Stopping prerender due to instant validation errors."
         `)
@@ -1259,7 +1259,7 @@ describe('instant validation', () => {
            "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic".
            Stopping prerender due to instant validation errors."
           `)
@@ -1350,7 +1350,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-blocking-inside-static".
            Stopping prerender due to instant validation errors."
           `)
@@ -1411,7 +1411,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-blocking-inside-runtime".
            Stopping prerender due to instant validation errors."
           `)
@@ -1523,7 +1523,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route".
            Stopping prerender due to instant validation errors."
           `)
@@ -1587,7 +1587,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo".
            Stopping prerender due to instant validation errors."
           `)
@@ -1650,7 +1650,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar".
            Stopping prerender due to instant validation errors."
           `)
@@ -1706,7 +1706,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
              4 | import { useDataCache } from '../../../../client-data-fetching-lib/client'
              5 |
            > 6 | export function FetchesClientData({ children }) {
@@ -2255,7 +2255,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-only".
            Stopping prerender due to instant validation errors."
           `)
@@ -2319,7 +2319,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-and-segment-config".
            Stopping prerender due to instant validation errors."
           `)
@@ -2383,7 +2383,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-segment-config-only".
            Stopping prerender due to instant validation errors."
           `)
@@ -2447,7 +2447,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner".
            Stopping prerender due to instant validation errors."
           `)
@@ -2511,7 +2511,7 @@ describe('instant validation', () => {
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-deeper-segment-config/inner".
            Stopping prerender due to instant validation errors."
           `)
@@ -2631,7 +2631,7 @@ describe('instant validation', () => {
            "Error: Route "/suspense-in-root/disable-validation/disable-dev": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
-               at Suspense (<anonymous>)
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/disable-validation/disable-dev".
            Stopping prerender due to instant validation errors."
           `)

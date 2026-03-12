@@ -93,14 +93,14 @@ describe('instant-validation-build', () => {
            at body (<anonymous>)
            at html (<anonymous>) {
          [cause]: Error: Kaboom
-             at d (app/(default)/server-errors/page-throws/page.tsx:24:9)
+             at a (app/(default)/server-errors/page-throws/page.tsx:24:9)
            22 | async function Throws(): Promise<never> {
            23 |   await cookies()
          > 24 |   throw new Error('Kaboom')
               |         ^
            25 | }
            26 | {
-           digest: '1019195341'
+           digest: '<error-digest>'
          }
        }
        Build-time instant validation failed for route "/server-errors/page-throws".
@@ -117,18 +117,18 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/server-errors/page-throws-with-suspense": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
            at main (<anonymous>)
-           at Suspense (<anonymous>)
+           at a (<anonymous>)
            at body (<anonymous>)
            at html (<anonymous>) {
          [cause]: Error: Kaboom
-             at d (app/(default)/server-errors/page-throws-with-suspense/page.tsx:24:9)
+             at b (app/(default)/server-errors/page-throws-with-suspense/page.tsx:24:9)
            22 | async function Throws(): Promise<never> {
            23 |   await cookies()
          > 24 |   throw new Error('Kaboom')
               |         ^
            25 | }
            26 | {
-           digest: '1905960767'
+           digest: '<error-digest>'
          }
        }
        Build-time instant validation failed for route "/server-errors/page-throws-with-suspense".
@@ -179,7 +179,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/client-errors/page-throws-with-suspense": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
            at <unknown> (app/(default)/client-errors/page-throws-with-suspense/client.tsx:6:3)
            at main (<anonymous>)
-           at Suspense (<anonymous>)
+           at a (<anonymous>)
            at body (<anonymous>)
            at html (<anonymous>)
          4 |
@@ -223,7 +223,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/search-params/invalid-undeclared-search-param" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
            at <unknown> (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:31:14)
            at <unknown> (ensure-error.ts:11:5)
-           at e (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:30:3)
+           at a (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:30:3)
          29 |   const sp = await searchParams
          30 |   ensureThrows(
        > 31 |     () => sp.undeclared,
@@ -257,7 +257,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/search-params/invalid-undeclared-search-param-caught" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
            at <unknown> (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:35:16)
            at <unknown> (ensure-error.ts:11:5)
-           at e (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:34:5)
+           at a (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:34:5)
          33 |   try {
          34 |     ensureThrows(
        > 35 |       () => sp.undeclared,
@@ -361,7 +361,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/headers/invalid-undeclared-header-get" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at <unknown> (app/(default)/headers/invalid-undeclared-header-get/page.tsx:27:24)
            at <unknown> (ensure-error.ts:11:5)
-           at g (app/(default)/headers/invalid-undeclared-header-get/page.tsx:26:3)
+           at a (app/(default)/headers/invalid-undeclared-header-get/page.tsx:26:3)
          25 |   const headersStore = await headers()
          26 |   ensureThrows(
        > 27 |     () => headersStore.get('undeclaredHeader'),
@@ -387,7 +387,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/headers/invalid-undeclared-header-get-caught" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at <unknown> (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:30:25)
            at <unknown> (ensure-error.ts:11:5)
-           at g (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:29:5)
+           at a (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:29:5)
          28 |   try {
          29 |     ensureThrows(
        > 30 |       () => headerStore.get('undeclaredHeader'),
@@ -412,7 +412,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/headers/invalid-undeclared-header-has" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at <unknown> (app/(default)/headers/invalid-undeclared-header-has/page.tsx:27:23)
            at <unknown> (ensure-error.ts:11:5)
-           at g (app/(default)/headers/invalid-undeclared-header-has/page.tsx:26:3)
+           at a (app/(default)/headers/invalid-undeclared-header-has/page.tsx:26:3)
          25 |   const headerStore = await headers()
          26 |   ensureThrows(
        > 27 |     () => headerStore.has('undeclaredHeader'),
@@ -464,7 +464,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/cookies/invalid-undeclared-cookie-get" accessed cookie "undeclaredCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
            at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:28:23)
            at <unknown> (ensure-error.ts:11:5)
-           at g (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:27:3)
+           at a (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:27:3)
          26 |
          27 |   ensureThrows(
        > 28 |     () => cookieStore.get('undeclaredCookie'),
@@ -490,7 +490,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/cookies/invalid-undeclared-cookie-get-caught" accessed cookie "undeclaredCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
            at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:30:25)
            at <unknown> (ensure-error.ts:11:5)
-           at g (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:29:5)
+           at a (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:29:5)
          28 |   try {
          29 |     ensureThrows(
        > 30 |       () => cookieStore.get('undeclaredCookie'),
@@ -516,7 +516,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/cookies/invalid-undeclared-cookie-has" accessed cookie "undeclaredCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
            at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:27:23)
            at <unknown> (ensure-error.ts:11:5)
-           at g (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:26:3)
+           at a (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:26:3)
          25 |   const cookieStore = await cookies()
          26 |   ensureThrows(
        > 27 |     () => cookieStore.has('undeclaredCookie'),
@@ -560,7 +560,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` array.
            at <unknown> (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:24)
            at <unknown> (ensure-error.ts:11:5)
-           at f (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:3)
+           at a (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:3)
          45 |
          46 |   // We're not allowed to access params not in the samples.
        > 47 |   ensureThrows(() => p.two)
@@ -586,7 +586,7 @@ describe('instant-validation-build', () => {
        "Error: Route "/params/invalid-param-not-provided-caught/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` array.
            at <unknown> (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:45:26)
            at <unknown> (ensure-error.ts:11:5)
-           at f (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:45:5)
+           at a (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:45:5)
          43 |   try {
          44 |     // We're not allowed to access params not in the samples.
        > 45 |     ensureThrows(() => p.two, \`Expected accessing an undeclared param to throw\`)
@@ -769,8 +769,8 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/root-params/[lang]/invalid-root-param-not-provided" accessed root param "lang" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:17:11)
-           at b (ensure-error.ts:48:11)
-           at f (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:16:9)
+           at a (ensure-error.ts:48:11)
+           at b (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:16:9)
          15 |
          16 |   await ensureRejects(
        > 17 |     () => lang(),
@@ -795,8 +795,8 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/root-params/[lang]/invalid-root-param-not-provided-caught" accessed root param "lang" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:18:13)
-           at b (ensure-error.ts:48:11)
-           at f (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:17:11)
+           at a (ensure-error.ts:48:11)
+           at b (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:17:11)
          16 |   try {
          17 |     await ensureRejects(
        > 18 |       () => lang(),
