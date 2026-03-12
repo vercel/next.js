@@ -81,10 +81,10 @@ Retrieve a cache entry for the given cache key.
 get(cacheKey: string, softTags: string[]): Promise<CacheEntry | undefined>
 ```
 
-| Parameter  | Type       | Description                                                                                                             |
-| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `cacheKey` | `string`   | The unique key for the cache entry.                                                                                     |
-| `softTags` | `string[]` | Implicit tags derived from the route path. See [Understanding Soft Tags](#understanding-soft-tags) for how to use them. |
+| Parameter  | Type       | Description                                                                                 |
+| ---------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `cacheKey` | `string`   | The unique key for the cache entry.                                                         |
+| `softTags` | `string[]` | Implicit tags derived from the route path. See [Soft Tags](#soft-tags) for how to use them. |
 
 Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
 

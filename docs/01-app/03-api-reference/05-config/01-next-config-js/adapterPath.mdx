@@ -575,7 +575,7 @@ When invoking entrypoints, adapters pass a `ctx` object to the Next.js handler. 
 
 ### PPR Chain Headers
 
-In the [prerenders output type](#prerenders), `pprChain.headers` contains the headers needed for the [resume protocol](#implementing-ppr-in-an-adapter). Specifically, it contains `{ 'next-resume': '1' }`.
+In the [prerenders output type](#prerenders-outputsprerenders), `pprChain.headers` contains the headers needed for the [resume protocol](#implementing-ppr-in-an-adapter). Specifically, it contains `{ 'next-resume': '1' }`.
 
 When your adapter detects a PPR-enabled route with a cached static shell:
 
