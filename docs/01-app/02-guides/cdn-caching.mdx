@@ -62,13 +62,17 @@ When a CDN drops or ignores Next.js's custom headers, responses remain valid, ju
 
 ### What you can safely drop
 
-**`next-router-state-tree`**: this header is only used during dynamic navigation requests, which are inherently uncacheable (`Cache-Control: private, no-cache`). If omitted, the server returns a full RSC payload for the entire page instead of a targeted segment update. The response is larger but correct.
+**`next-router-state-tree`**: if omitted, the server returns a full RSC payload for the entire page instead of a targeted segment update. For static and ISR pages, the response is byte-identical with or without this header. For dynamic pages, the response is larger (full tree instead of diff) but correct.
+
+**`next-router-prefetch`**: if omitted, the server returns the full rendered response instead of a lightweight prefetch payload. For static and ISR pages, the response is identical. For dynamic pages, the response is larger but correct.
 
 **`next-url`**: used for [interception routes](/docs/app/api-reference/file-conventions/intercepting-routes) to vary the response based on the referring page. If omitted, the response degrades to the non-intercepted state: the user sees the regular page instead of the intercepted modal. The response is still valid.
 
 ### What you must preserve today
 
-The **`_rsc` search parameter** must be included in the cache key. It distinguishes response variants (HTML vs. RSC, different prefetch types). Dropping it can cause a CDN to serve the wrong content to clients. When [`experimental.validateRSCRequestHeaders`](/docs/app/api-reference/config/next-config-js/experimental) is enabled, Next.js detects mismatches and redirects to the correct URL.
+The **`rsc` header** must be forwarded from the client to the server. This is the header that tells the server to return an RSC payload instead of HTML. If a CDN strips this header, the server returns HTML when the client-side router expects RSC data, which breaks client-side navigation. The `Vary` header and `_rsc` parameter exist specifically to prevent CDNs from serving a cached HTML response to an RSC request (or vice versa).
+
+The **`_rsc` search parameter** must be included in the cache key. It distinguishes response variants (HTML vs. RSC, different prefetch types). If an RSC request arrives without the correct `_rsc` value, the server responds with a **307 redirect** to the URL with the correct hash. CDNs should either follow this redirect or pre-populate `_rsc` to avoid double-request overhead.
 
 > **Good to know:** Today, `next-url` is included in the `_rsc` hash even during static prefetches. This means you cannot safely ignore it under the current scheme without potentially getting cache misses. The pathname-based direction described below resolves this gap.
 
