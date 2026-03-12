@@ -1,5 +1,5 @@
-import { Suspense, type ReactNode } from 'react'
-import { ErrorInSSR } from './client'
+import type { ReactNode } from 'react'
+import { LazyClientWrapperWithNoSSR } from './lazy-client'
 import { connection } from 'next/server'
 
 // Make sure that the holes from this layout aren't factored in for validation
@@ -12,14 +12,11 @@ export default async function Layout({ children }: { children: ReactNode }) {
     <>
       <div>
         <p>
-          This layout errors in SSR, but the error is wrapped in Suspense and
-          does not block the children slot, so it does not prevent us from
-          validating the page.
+          This layout renders a component wrapped in next/dynamic with ssr:
+          false around the children slot. This blocks the children slot so it
+          prevents validation.
         </p>
-        <Suspense>
-          <ErrorInSSR />
-        </Suspense>
-        {children}
+        <LazyClientWrapperWithNoSSR>{children}</LazyClientWrapperWithNoSSR>
       </div>
     </>
   )

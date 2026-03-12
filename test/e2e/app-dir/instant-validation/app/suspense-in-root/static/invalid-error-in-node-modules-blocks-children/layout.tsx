@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from 'react'
-import { ErrorInSSR } from './client'
+import { ErrorInSSRFromPackage } from 'my-pkg'
 import { connection } from 'next/server'
 
 // Make sure that the holes from this layout aren't factored in for validation
@@ -12,14 +12,14 @@ export default async function Layout({ children }: { children: ReactNode }) {
     <>
       <div>
         <p>
-          This layout errors in SSR, but the error is wrapped in Suspense and
-          does not block the children slot, so it does not prevent us from
-          validating the page.
+          This layout errors in SSR, and the errors is caught by a Suspense
+          boundary, but it blocks the children slot so it prevents validation.
+          The error is thrown in a component from node_modules, which means that
+          the component is ignore-listed away.
         </p>
         <Suspense>
-          <ErrorInSSR />
+          <ErrorInSSRFromPackage>{children}</ErrorInSSRFromPackage>
         </Suspense>
-        {children}
       </div>
     </>
   )

@@ -1778,35 +1778,33 @@ describe('instant validation', () => {
       })
     })
 
-    if (isNextDev) {
-      // The errors we throw in these tests are recoverable in dev,
-      // but fail the prerender in prod, so we don't get to validating.
-      describe('client errors', () => {
-        function removeExpectedError(
-          errors: RedboxSnapshot,
-          shouldRemove: (error: ErrorSnapshot) => boolean
-        ): ErrorSnapshot[] {
-          if (!Array.isArray(errors)) {
-            throw new Error('Expected to receive multiple errors to filter')
-          }
-          let found = false
-          const result = errors.filter((err) => {
-            if (shouldRemove(err)) {
-              found = true
-              return false
-            } else {
-              return true
-            }
-          })
-          if (!found) {
-            throw new Error(
-              `Did not find expected error in errors array: ${JSON.stringify(errors, null, 2)}`
-            )
-          }
-          return result
+    describe('client errors', () => {
+      function removeExpectedError(
+        errors: RedboxSnapshot,
+        shouldRemove: (error: ErrorSnapshot) => boolean
+      ): ErrorSnapshot[] {
+        if (!Array.isArray(errors)) {
+          throw new Error('Expected to receive multiple errors to filter')
         }
+        let found = false
+        const result = errors.filter((err) => {
+          if (shouldRemove(err)) {
+            found = true
+            return false
+          } else {
+            return true
+          }
+        })
+        if (!found) {
+          throw new Error(
+            `Did not find expected error in errors array: ${JSON.stringify(errors, null, 2)}`
+          )
+        }
+        return result
+      }
 
-        it('unable to validate - client error in parent blocks children', async () => {
+      it('unable to validate - client error in parent blocks children', async () => {
+        if (isNextDev) {
           const browser = await navigateTo(
             '/suspense-in-root/static/invalid-client-error-in-parent-blocks-children'
           )
@@ -1831,34 +1829,237 @@ describe('instant validation', () => {
           }
 
           expect(errors).toMatchInlineSnapshot(`
-            [
-              {
-                "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
-                "environmentLabel": "Server",
-                "label": "Console Error",
-                "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33) @ unstable_instant
-            > 1 | export const unstable_instant = {
-                |                                 ^",
-                "stack": [
-                  "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33)",
-                ],
-              },
-              {
-                "description": "No SSR please",
-                "environmentLabel": "Server",
-                "label": "Console Error",
-                "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx (5:11) @ ErrorInSSR
-            > 5 |     throw new Error('No SSR please')
+           [
+             {
+               "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = {
+               |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33)",
+               ],
+             },
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Error",
+                   "message": "No SSR please",
+                   "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx (5:11) @ ErrorInSSR
+           > 5 |     throw new Error('No SSR please')
+               |           ^",
+                   "stack": [
+                     "ErrorInSSR app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx (5:11)",
+                   ],
+                 },
+               ],
+               "code": "E1118",
+               "description": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/layout.tsx (19:11) @ Layout
+           > 19 |           <ErrorInSSR>{children}</ErrorInSSR>
                 |           ^",
-                "stack": [
-                  "ErrorInSSR app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx (5:11)",
-                ],
-              },
-            ]
+               "stack": [
+                 "Layout app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/layout.tsx (19:11)",
+               ],
+             },
+           ]
           `)
-        })
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/invalid-client-error-in-parent-blocks-children'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+               at ignore-listed frames
+           Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
+               at <unknown> (app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx:3:30)
+               at a (<anonymous>)
+               at div (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at b (<anonymous>)
+             1 | 'use client'
+             2 |
+           > 3 | export function ErrorInSSR({ children }) {
+               |                              ^
+             4 |   if (typeof window === 'undefined') {
+             5 |     throw new Error('No SSR please')
+             6 |   } {
+             [cause]: Error: No SSR please
+                 at <unknown> (app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx:5:11)
+               3 | export function ErrorInSSR({ children }) {
+               4 |   if (typeof window === 'undefined') {
+             > 5 |     throw new Error('No SSR please')
+                 |           ^
+               6 |   }
+               7 |   return <>{children}</>
+               8 | }
+           }
+           Build-time instant validation failed for route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
 
-        it('unable to validate - client error from sibling of children slot without suspense', async () => {
+      it('unable to validate - client error in component from node_modules blocks children', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/static/invalid-error-in-node-modules-blocks-children'
+          )
+          // We expect a collapsed redbox. We need to open it to assert on the messages.
+          await openRedbox(browser)
+
+          let errors = await createRedboxSnapshot(browser, next)
+
+          if (!isClientNav) {
+            // In SSR, we expect a "Switched to client rendering ..." error because we deliberately throw in a client component.
+            // However, the timing of when it appears is inconsistent -- sometimes it's before validation errors,
+            // and sometimes it's after.
+            // To avoid flakiness, we filter it out (but assert that it appears in the redbox)
+            errors = removeExpectedError(errors, (err) => {
+              return (
+                err.label === 'Recoverable Error' &&
+                err.description.startsWith(
+                  'Switched to client rendering because the server rendering errored:\n\nError from node_modules'
+                )
+              )
+            })
+          }
+
+          expect(errors).toMatchInlineSnapshot(`
+           [
+             {
+               "description": "Route "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = {
+               |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:33)",
+               ],
+             },
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Error",
+                   "message": "Error from node_modules",
+                   "source": null,
+                   "stack": [],
+                 },
+               ],
+               "code": "E1118",
+               "description": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/layout.tsx (21:11) @ Layout
+           > 21 |           <ErrorInSSRFromPackage>{children}</ErrorInSSRFromPackage>
+                |           ^",
+               "stack": [
+                 "Layout app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/layout.tsx (21:11)",
+               ],
+             },
+           ]
+          `)
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/invalid-error-in-node-modules-blocks-children'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+               at ignore-listed frames
+           Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
+               at a (<anonymous>)
+               at div (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at b (<anonymous>) {
+             [cause]: Error: Error from node_modules
+                 at ignore-listed frames
+           }
+           Build-time instant validation failed for route "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('unable to validate - CSR bailout from next/dynamic blocks children', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/static/invalid-csr-bailout-blocks-children'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           [
+             {
+               "description": "Route "/suspense-in-root/static/invalid-csr-bailout-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = {
+               |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:33)",
+               ],
+             },
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Error",
+                   "message": "Bail out to client-side rendering: next/dynamic",
+                   "source": null,
+                   "stack": [],
+                 },
+               ],
+               "code": "E1118",
+               "description": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/static/invalid-csr-bailout-blocks-children/layout.tsx (19:9) @ Layout
+           > 19 |         <LazyClientWrapperWithNoSSR>{children}</LazyClientWrapperWithNoSSR>
+                |         ^",
+               "stack": [
+                 "Layout app/suspense-in-root/static/invalid-csr-bailout-blocks-children/layout.tsx (19:9)",
+               ],
+             },
+           ]
+          `)
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/invalid-csr-bailout-blocks-children'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/static/invalid-csr-bailout-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+               at ignore-listed frames
+           Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
+               at a (<anonymous>)
+               at b (<anonymous>)
+               at div (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at c (<anonymous>) {
+             [cause]: Error: Bail out to client-side rendering: next/dynamic
+                 at ignore-listed frames {
+               reason: 'next/dynamic',
+               digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
+             }
+           }
+           Build-time instant validation failed for route "/suspense-in-root/static/invalid-csr-bailout-blocks-children".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('unable to validate - client error from sibling of children slot without suspense', async () => {
+        if (isNextDev) {
           const browser = await navigateTo(
             '/suspense-in-root/static/invalid-client-error-in-parent-sibling'
           )
@@ -1888,34 +2089,83 @@ describe('instant validation', () => {
           }
 
           expect(errors).toMatchInlineSnapshot(`
-            [
-              {
-                "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
-                "environmentLabel": "Server",
-                "label": "Console Error",
-                "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33) @ unstable_instant
-            > 1 | export const unstable_instant = {
-                |                                 ^",
-                "stack": [
-                  "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33)",
-                ],
-              },
-              {
-                "description": "No SSR please",
-                "environmentLabel": "Server",
-                "label": "Console Error",
-                "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx (5:11) @ ErrorInSSR
-            > 5 |     throw new Error('No SSR please')
-                |           ^",
-                "stack": [
-                  "ErrorInSSR app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx (5:11)",
-                ],
-              },
-            ]
+           [
+             {
+               "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = {
+               |                                 ^",
+               "stack": [
+                 "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33)",
+               ],
+             },
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Error",
+                   "message": "No SSR please",
+                   "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx (5:11) @ ErrorInSSR
+           > 5 |     throw new Error('No SSR please')
+               |           ^",
+                   "stack": [
+                     "ErrorInSSR app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx (5:11)",
+                   ],
+                 },
+               ],
+               "code": "E1118",
+               "description": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/layout.tsx (20:7) @ Layout
+           > 20 |       <ErrorInSSR />
+                |       ^",
+               "stack": [
+                 "Layout app/suspense-in-root/static/invalid-client-error-in-parent-sibling/layout.tsx (20:7)",
+               ],
+             },
+           ]
           `)
-        })
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/invalid-client-error-in-parent-sibling'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+               at ignore-listed frames
+           Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
+               at <unknown> (app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx:5:11)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at a (<anonymous>)
+             3 | export function ErrorInSSR() {
+             4 |   if (typeof window === 'undefined') {
+           > 5 |     throw new Error('No SSR please')
+               |           ^
+             6 |   }
+             7 |   return <div>Hello, browser!</div>
+             8 | } {
+             [cause]: Error: No SSR please
+                 at <unknown> (app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx:5:11)
+               3 | export function ErrorInSSR() {
+               4 |   if (typeof window === 'undefined') {
+             > 5 |     throw new Error('No SSR please')
+                 |           ^
+               6 |   }
+               7 |   return <div>Hello, browser!</div>
+               8 | }
+           }
+           Build-time instant validation failed for route "/suspense-in-root/static/invalid-client-error-in-parent-sibling".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
 
-        it('valid - client error from sibling of children slot with suspense', async () => {
+      it('valid - client error from sibling of children slot with suspense', async () => {
+        if (isNextDev) {
           const browser = await navigateTo(
             '/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation'
           )
@@ -1926,24 +2176,29 @@ describe('instant validation', () => {
           } else {
             // In SSR, we expect to only see the error coming from react.
             await expect(browser).toDisplayCollapsedRedbox(`
-                         {
-                           "description": "Switched to client rendering because the server rendering errored:
+              {
+                "description": "Switched to client rendering because the server rendering errored:
 
-                         No SSR please",
-                           "environmentLabel": null,
-                           "label": "Recoverable Error",
-                           "source": "app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11) @ ErrorInSSR
-                         > 5 |     throw new Error('No SSR please')
-                             |           ^",
-                           "stack": [
-                             "ErrorInSSR app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11)",
-                           ],
-                         }
-                      `)
+              No SSR please",
+                "environmentLabel": null,
+                "label": "Recoverable Error",
+                "source": "app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11) @ ErrorInSSR
+              > 5 |     throw new Error('No SSR please')
+                  |           ^",
+                "stack": [
+                  "ErrorInSSR app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11)",
+                ],
+              }
+          `)
           }
-        })
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation'
+          )
+          expectNoBuildValidationErrors(result)
+        }
       })
-    }
+    })
 
     describe('head', () => {
       it('valid - runtime prefetch - dynamic generateMetadata does not block navigation', async () => {
