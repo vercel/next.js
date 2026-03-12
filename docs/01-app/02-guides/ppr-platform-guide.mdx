@@ -22,7 +22,7 @@ This page explains how platforms can implement PPR support at different levels o
 For each PPR route, Next.js produces:
 
 - A **static HTML shell** containing all the content that can be prerendered, with [Suspense](/docs/app/guides/streaming#what-is-streaming) fallbacks where dynamic content will appear.
-- A **`postponedState`** value: an opaque, serialized string. Treat it as an opaque blob: pass it through without parsing or modifying it. Altering the `postponedState` will produce incorrect dynamic rendering output.
+- A **`postponedState`** value: a serialized string. Treat it as opaque: pass it through without parsing or modifying it. Altering `postponedState` produces incorrect dynamic rendering output.
 - An **RSC payload** for the static portions of the page.
 
 In the [adapter output](/docs/app/api-reference/config/next-config-js/adapterPath#output-types), PPR routes are identified by `renderingMode: 'PARTIALLY_STATIC'` in the prerenders array. Iterate `outputs.prerenders` to find these entries and read `fallback.postponedState`.
@@ -70,7 +70,7 @@ To implement this pattern, the CDN or edge function uses the **resume protocol**
 
 **For adapter-based deployments** (where the platform invokes the handler function directly):
 
-- Call the entrypoint handler with `req.method` set to `'POST'`, the `next-resume: 1` header on the request, and the `postponedState` as the request body. Alternatively, set `requestMeta.postponed` directly via `addRequestMeta`.
+- Call the entrypoint handler with `req.method` set to `'POST'`, the `next-resume: 1` header on the request, and the `postponedState` as the request body. (You can also set `requestMeta.postponed` directly via `addRequestMeta`, which is equivalent but bypasses the HTTP layer entirely.)
 - The handler renders only the deferred Suspense boundaries and streams the result to `res`.
 - No HTTP round-trip is needed: the handler is invoked in-process.
 
@@ -79,18 +79,6 @@ In the [adapter output](/docs/app/api-reference/config/next-config-js/adapterPat
 > **Good to know:** The resume protocol only works in minimal mode (adapter-based deployments). Minimal mode is activated via the `NEXT_PRIVATE_MINIMAL_MODE` environment variable or by adapter configuration. In standard `next start`, the server handles the full shell + dynamic render in a single pass.
 
 For detailed implementation with code examples, see [Implementing PPR in an Adapter](/docs/app/api-reference/config/next-config-js/adapterPath#implementing-ppr-in-an-adapter).
-
-## Edge Compute
-
-For the lowest possible latency, both the shell and dynamic rendering can happen at the edge. This requires:
-
-- An edge runtime that supports the Node.js APIs used by the route (or routes that only use edge-compatible APIs).
-- The postponed state available at the edge.
-- The application code deployed to edge locations.
-
-This approach gives edge-level TTFB for both the static shell and dynamic content.
-
-> **Good to know:** For routes using `runtime: 'nodejs'` (the default), the dynamic portion must render on a Node.js-compatible runtime. A valid hybrid architecture is serving the static shell from edge compute while routing the resume call to a Node.js origin. This gives edge-level TTFB for the shell while using Node.js for the dynamic render.
 
 ## Storing PPR Artifacts
 
@@ -103,13 +91,21 @@ These must be stored and updated atomically. When a PPR route is revalidated (vi
 
 Use [`requestMeta.onCacheEntryV2`](/docs/app/api-reference/config/next-config-js/adapterPath#implementing-ppr-in-an-adapter) in your adapter to observe cache updates and propagate them to your storage backend.
 
+## Edge Compute
+
+For the lowest possible latency, the static shell can be served directly from an edge location.
+
+**Hybrid architecture (most routes):** Serve the static shell from edge compute (for example, read from a KV store populated during `onBuildComplete`) and route the resume POST to a Node.js origin. This gives edge-level TTFB for the shell while using Node.js for the dynamic render. Most routes use `runtime: 'nodejs'` (the default) and require this pattern.
+
+**Full-edge architecture:** If the route uses only edge-compatible APIs (`runtime: 'edge'`), both the shell and the resume render can run at the edge, giving the lowest possible TTFB for all content.
+
 ## Implementation Checklist
 
 1. **Read PPR outputs at build time.** In your adapter's `onBuildComplete`, identify prerenders with `renderingMode: 'PARTIALLY_STATIC'`. Store the shell HTML and `postponedState` in your cache.
 
 2. **Serve the shell at request time.** For incoming requests to PPR routes, serve the cached shell immediately and begin streaming.
 
-3. **Resume dynamic rendering.** Send a POST request to the Next.js handler with the `next-resume: 1` header and the postponed state as the body. Stream the response back to the client.
+3. **Resume dynamic rendering.** For CDN-to-origin: send a POST request to the Next.js handler with the `next-resume: 1` header and the postponed state as the body. For adapter-based: call the handler directly with POST method and the postponed state in the request body (or set `requestMeta.postponed`). Stream the response back to the client.
 
 4. **Handle cache updates.** Use `requestMeta.onCacheEntryV2` to capture new shell + postponed state pairs after revalidation, and update your cache atomically.
 

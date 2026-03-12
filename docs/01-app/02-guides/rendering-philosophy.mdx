@@ -21,10 +21,10 @@ This is what Partial Prerendering, [Cache Components](/docs/app/getting-started/
 
 ## What This Enables
 
-This model has real benefits for developers and users:
+This model benefits developers and users in concrete ways:
 
 - **Faster perceived load times.** The static shell renders immediately while dynamic content streams in. Users see useful content right away instead of waiting for the entire page to render.
-- **Incremental caching.** Developers can add caching and revalidation incrementally, without deciding upfront at build time whether a route is static or dynamic. Any page can be revalidated on demand, and any function can be cached with [`use cache`](/docs/app/getting-started/caching).
+- **Incremental caching.** Developers can add caching and revalidation incrementally, without deciding upfront at build time whether a route is static or dynamic. Any page can be revalidated on demand, and any function can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache).
 - **Granular caching.** Cache a function with [`use cache`](/docs/app/api-reference/directives/use-cache), not a route. Revalidate a [tag](/docs/app/api-reference/functions/revalidateTag), not a deployment. This means an expensive database query can be cached independently of the rest of the page.
 
 ## How This Differs from Other Frameworks
@@ -33,24 +33,24 @@ Other modern frameworks take different approaches to the static/dynamic boundary
 
 - **Static site generators** (Gatsby, Hugo) prerender everything at build time. Dynamic content requires client-side fetching after the initial page load.
 - **Route-level hybrid frameworks** (Astro, SvelteKit, Nuxt) let each route be either static or dynamic. Some support server islands that render dynamic components via separate requests after the initial page load.
-- **Request-time SSR frameworks** (Remix / React Router) render on every request by default a deliberate architectural choice that prioritizes simplicity. Static prerendering is available as an opt-in for specific routes.
+- **Request-time SSR frameworks** (Remix / React Router) render on every request by default, a deliberate architectural choice that prioritizes simplicity. Static prerendering is available as an opt-in for specific routes.
 - **Next.js** combines static and dynamic content at the component level within a single streaming response. No separate fetch is needed for dynamic parts. Cache granularity operates at the function and component level.
 
 A rendering model that operates at the component level rather than the route level transfers complexity from application code into infrastructure. That is the trade-off Next.js makes, and it is why the infrastructure requirements described below exist.
 
 ## Infrastructure Implications
 
-The component-level rendering model has real implications for platforms hosting Next.js applications:
+The component-level rendering model has direct implications for platforms hosting Next.js applications:
 
 - **Streaming** is required because static and dynamic content are served in a single response. The server sends the static shell first, then streams dynamic portions as they resolve. See [Streaming](/docs/app/guides/streaming) for details.
 - **Cache coordination** is required when running multiple instances because any cached content can be invalidated on demand via [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) or [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath). See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for the architecture.
-- **Cache consistency** matters because revalidation regenerates both the HTML response and the RSC payload (React Server Components payload). If these get out of sync across instances, users may see inconsistent data during navigation. See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for consistency requirements and the role of [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId).
+- **Cache consistency** matters because revalidation regenerates both the HTML response and the RSC payload (the serialized React Server Components data used for client-side navigation). If these get out of sync across instances, users may see inconsistent data during navigation. See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for consistency requirements and the role of [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId).
 
 Each of these infrastructure requirements maps directly to a capability: streaming enables instant static shells, cache coordination enables on-demand updates without redeployment, and consistency ensures client-side navigations work correctly across cache boundaries.
 
 ## Portability and Fidelity
 
-Next.js runs on any platform that supports Node.js and streaming HTTP responses. That's the minimum requirement: a single server process handles every feature correctly. Every additional infrastructure investment (CDN caching, edge compute, shared cache) is an optimization that improves performance.
+Next.js runs on any platform that supports Node.js. A single server process handles every feature correctly. Streaming support enables progressive delivery of Server Components and PPR; without it, responses are buffered but features still work. Every additional infrastructure investment (CDN caching, edge compute, shared cache) is an optimization that improves performance.
 
 To make this concrete, we distinguish between two types of platform support:
 

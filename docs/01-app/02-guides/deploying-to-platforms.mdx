@@ -52,7 +52,7 @@ Different features require different infrastructure capabilities. The "Edge Stit
 
 ## CDN Infrastructure Compatibility
 
-Every major CDN has the infrastructure primitives to build full Next.js support:
+The following table maps infrastructure primitives for each major CDN. These are available building blocks, not finished integrations:
 
 | CDN               | Edge Compute | Key-Value / Tags | Blob Storage   | PPR Resuming |
 | ----------------- | ------------ | ---------------- | -------------- | ------------ |
@@ -63,7 +63,7 @@ Every major CDN has the infrastructure primitives to build full Next.js support:
 | Azure             | Functions    | Managed Redis    | Blob Storage   | Yes (server) |
 | Google Cloud      | Cloud Run    | Various KV       | Cloud Storage  | Yes (server) |
 
-Implementation complexity varies, and the table above shows available primitives, not finished integrations. Platform adapters are available for several of these providers today, with more in development. For CDN-specific caching considerations (including known limitations with `Vary` on custom headers), see [CDN Caching](/docs/app/guides/cdn-caching).
+Platform adapters are available for several of these providers today, with more in development. For CDN-specific caching considerations (including known limitations with `Vary` on custom headers), see [CDN Caching](/docs/app/guides/cdn-caching).
 
 ## Adapters
 
@@ -77,4 +77,4 @@ For a list of available platform adapters, see the [Deploying](/docs/app/getting
 
 Next.js's [rendering model](/docs/app/guides/rendering-philosophy) operates at the component level rather than the route level. Component-level rendering boundaries, per-function caching, and on-demand revalidation of any route are capabilities that transfer complexity from application code into infrastructure.
 
-This is a trade-off. Frameworks with route-level rendering boundaries have simpler infrastructure requirements because the boundary is coarser. Next.js's finer-grained boundaries provide more flexibility for developers at the cost of more requirements for hosting platforms. When comparing framework hosting complexity, the capabilities each framework provides should be part of the comparison.
+This is a trade-off. Frameworks with route-level rendering boundaries have simpler infrastructure requirements because the boundary is coarser. Next.js's finer-grained boundaries provide more flexibility for developers at the cost of more requirements for hosting platforms. A fair comparison accounts for what each framework delivers in exchange for that infrastructure complexity.
