@@ -1,0 +1,169 @@
+.instant-nav-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.instant-nav-content {
+  flex: 1;
+  padding: 12px 20px 0;
+}
+
+/* Waiting state: preference-style sections */
+.instant-nav-section {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-gray-400);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.instant-nav-section:last-child {
+  border-bottom: none;
+}
+
+.instant-nav-section-header {
+  flex: 1;
+}
+
+.instant-nav-section-header label {
+  font-size: var(--size-14);
+  font-weight: 500;
+  color: var(--color-gray-1000);
+  margin: 0;
+}
+
+.instant-nav-section-description {
+  color: var(--color-gray-900);
+  font-size: var(--size-14);
+  margin: 0;
+}
+
+.instant-nav-section-control {
+  flex-shrink: 0;
+}
+
+.instant-nav-section-control .action-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: var(--rounded-lg);
+  font-weight: 400;
+  font-size: var(--size-14);
+  color: var(--color-gray-1000);
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: border-color 150ms var(--timing-swift);
+}
+
+.instant-nav-section-control .action-button:hover {
+  border-color: var(--color-gray-500);
+}
+
+.instant-nav-section-control .action-button svg {
+  width: 14px;
+  height: 14px;
+  overflow: visible;
+}
+
+.instant-nav-helper-text {
+  font-size: var(--size-14);
+  color: var(--color-gray-900);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* Result states (client-nav, initial-load) */
+.instant-nav-status-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.instant-nav-urls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.instant-nav-url-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.instant-nav-url-label {
+  color: var(--color-gray-700);
+  flex-shrink: 0;
+}
+
+.instant-nav-url-value {
+  color: var(--color-gray-900);
+  word-break: break-all;
+  font-family: var(--font-mono);
+}
+
+.instant-nav-actions {
+  margin-top: 8px;
+  display: flex;
+}
+
+.instant-nav-share-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--color-gray-alpha-400);
+  background: var(--color-background-200);
+  color: var(--color-gray-900);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.instant-nav-share-button:hover {
+  background: var(--color-gray-alpha-200);
+}
+
+.instant-nav-helper-description {
+  color: var(--color-gray-900);
+  font-size: var(--size-14);
+  margin: 8px 0 0;
+}
+
+/* Footer (pinned to bottom, matching segment-explorer-footer) */
+.instant-nav-footer {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--color-gray-400);
+  user-select: none;
+}
+
+.instant-nav-footer-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+  padding: 6px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: 6px;
+  color: var(--color-gray-1000);
+  font-size: var(--size-14);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.instant-nav-footer-button:hover {
+  background: var(--color-gray-200);
+}

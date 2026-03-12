@@ -43,7 +43,10 @@ import {
 } from './utils'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  compareAppPaths,
+} from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -417,7 +420,10 @@ export async function createEntrypoints(
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(
-      Object.entries(appPathsPerRoute).map(([k, v]) => [k, v.sort()])
+      Object.entries(appPathsPerRoute).map(([k, v]) => [
+        k,
+        v.sort(compareAppPaths),
+      ])
     )
   }
 

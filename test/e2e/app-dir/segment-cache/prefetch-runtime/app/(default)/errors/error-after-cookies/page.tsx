@@ -5,7 +5,10 @@ import { ErrorBoundary } from '../../../../components/error-boundary'
 
 export const unstable_instant = {
   prefetch: 'runtime',
-  samples: [{ cookies: [] }],
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
+  samples: [{ cookies: [{ name: 'user-agent', value: null }] }],
 }
 
 export default async function Page() {

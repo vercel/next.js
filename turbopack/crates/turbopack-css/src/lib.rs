@@ -43,3 +43,14 @@ pub enum CssModuleAssetType {
     /// The CSS is parsed as CSS modules.
     Module,
 }
+
+/// User-specified lightningcss feature flags (from `experimental.lightningCssFeatures`).
+///
+/// Both fields are raw `Features` bitmasks. `include` bits are OR-ed into the
+/// default feature set; `exclude` bits are masked off.
+#[turbo_tasks::value(shared, serialization = "auto")]
+#[derive(PartialOrd, Ord, Hash, Copy, Clone, Debug, Default, TaskInput)]
+pub struct LightningCssFeatureFlags {
+    pub include: u32,
+    pub exclude: u32,
+}

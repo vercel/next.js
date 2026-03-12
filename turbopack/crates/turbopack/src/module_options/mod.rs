@@ -253,6 +253,7 @@ impl ModuleOptions {
                     enable_raw_css,
                     source_maps: css_source_maps,
                     ref module_css_condition,
+                    lightningcss_features,
                     ..
                 },
             ref static_url_tag,
@@ -491,6 +492,7 @@ impl ModuleOptions {
                                     postprocess,
                                     ecmascript_options_vc,
                                     environment,
+                                    lightningcss_features,
                                 )
                                 .await?,
                         )
@@ -714,12 +716,14 @@ impl ModuleOptions {
         ]);
 
         if let Some(options) = enable_typescript_transform {
+            let options = options.await?;
             let ts_preprocess = ResolvedVc::cell(
                 decorators_transform
                     .clone()
                     .into_iter()
                     .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: options.await?.use_define_for_class_fields,
+                        use_define_for_class_fields: options.use_define_for_class_fields,
+                        verbatim_module_syntax: options.verbatim_module_syntax,
                     }))
                     .collect(),
             );
@@ -817,6 +821,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 ModuleRule::new(
@@ -827,6 +832,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
             ]);
@@ -890,6 +896,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
@@ -903,6 +910,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
@@ -916,6 +924,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 ModuleRule::new(
@@ -930,6 +939,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
             ]);

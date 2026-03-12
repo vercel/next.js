@@ -208,6 +208,13 @@ export interface RenderOptsPartial {
    * Prerendering those routes would catch any invalid dynamic accesses.
    */
   allowEmptyStaticShell?: boolean
+
+  /**
+   * When true, attempt to run build-time instant validation for this prerender.
+   * Only the first prerender per page sets this, since validation uses
+   * unstable_instant.samples and is independent of actual route params.
+   */
+  runInstantValidation?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
