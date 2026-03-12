@@ -568,7 +568,6 @@ export function completeSoftNavigation(
   scrollableSegments: Array<FlightSegmentPath> | null,
   collectedDebugInfo: Array<unknown> | null
 ) {
-
   // The "Next-Url" is a special representation of the URL that Next.js
   // uses to implement interception routes.
   // TODO: Get rid of this extra traversal by computing this during the
@@ -894,6 +893,15 @@ async function ensurePrefetchThenNavigate(
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
 
+  // Transition the cookie to captured-SPA immediately, before waiting
+  // for the prefetch. This ensures the devtools panel can update its UI
+  // right away, even if the prefetch takes time (e.g. dev compilation).
+  // The "to" tree starts as null and is filled in after the prefetch
+  // resolves and the navigation produces a new router state.
+  const { transitionToCapturedSPA, updateCapturedSPAToTree } =
+    require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+  transitionToCapturedSPA(currentFlightRouterState, null)
+
   const cacheKey = createCacheKey(url.href, nextUrl)
 
   await new Promise<void>((resolve) => {
@@ -909,7 +917,7 @@ async function ensurePrefetchThenNavigate(
 
   // Prefetch is complete. Proceed with the normal navigation flow, which
   // will now find the route in the cache.
-  return navigateImpl(
+  const result = await navigateImpl(
     state,
     url,
     currentUrl,
@@ -921,4 +929,10 @@ async function ensurePrefetchThenNavigate(
     shouldScroll,
     navigateType
   )
+
+  // Update the cookie with the resolved "to" tree so the devtools
+  // panel can display both routes immediately.
+  updateCapturedSPAToTree(currentFlightRouterState, result.tree)
+
+  return result
 }
