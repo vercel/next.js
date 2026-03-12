@@ -524,10 +524,9 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
  * element inside <head>. Used during instant navigation testing to set
  * self.__next_instant_test before any async bootstrap scripts execute.
  */
-export function createInstantTestScriptInsertionTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+export function createInstantTestScriptInsertionTransformStream(
+  requestId: string | null
+): TransformStream<Uint8Array, Uint8Array> {
   // Kick off a fetch for the static RSC payload. This is the hydration
   // source for the locked static shell — same as the __NEXT_CLIENT_RESUME
   // fetch used for fallback routes, but with NEXT_INSTANT_PREFETCH_HEADER
@@ -544,7 +543,13 @@ export function createInstantTestScriptInsertionTransformStream(): TransformStre
     undefined
   )
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
-  const INSTANT_TEST_SCRIPT = `<script>self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}','${NEXT_INSTANT_PREFETCH_HEADER}':'1'}})</script>`
+  // In dev mode, inject self.__next_r (request ID) so that HMR WebSocket
+  // and debug channel initialization don't crash. The static shell
+  // bypasses renderToFizzStream which normally injects this via
+  // bootstrapScriptContent.
+  const requestIdScript =
+    requestId !== null ? `self.__next_r=${JSON.stringify(requestId)};` : ''
+  const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}','${NEXT_INSTANT_PREFETCH_HEADER}':'1'}})</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({

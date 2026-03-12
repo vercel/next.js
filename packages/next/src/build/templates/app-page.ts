@@ -1526,8 +1526,14 @@ export async function handler(
       // injected script that sets self.__next_instant_test and kicks off a
       // static RSC fetch for hydration. The transform stream also appends
       // closing </body></html> tags so the browser can parse the full document.
+      // In dev mode, also inject self.__next_r so the HMR WebSocket and
+      // debug channel can initialize.
       if (isInstantNavigationTest && isDebugStaticShell) {
-        body.pipeThrough(createInstantTestScriptInsertionTransformStream())
+        const instantTestRequestId =
+          routeModule.isDev === true ? crypto.randomUUID() : null
+        body.pipeThrough(
+          createInstantTestScriptInsertionTransformStream(instantTestRequestId)
+        )
         return sendRenderResult({
           req,
           res,
