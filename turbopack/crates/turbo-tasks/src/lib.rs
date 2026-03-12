@@ -71,7 +71,7 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_macros::{TaskInput, function, turbobail, turbofmt, value_impl};
+pub use turbo_tasks_macros::{turbobail, turbofmt, value_impl};
 
 pub use crate::{
     capture_future::TurboTasksPanic,
@@ -158,6 +158,10 @@ macro_rules! fxindexset {
         }
     };
 }
+
+#[doc = include_str!("../function.md")]
+#[rustfmt::skip]
+pub use turbo_tasks_macros::function;
 
 /// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
 /// inside of a "value cell" as [`Vc<...>`][Vc].
@@ -304,6 +308,10 @@ pub use turbo_tasks_macros::value_trait;
 /// - Serialization methods
 #[rustfmt::skip]
 pub use turbo_tasks_macros::task_storage;
+
+/// Refer to [the trait documentation][trait@TaskInput] for usage.
+#[rustfmt::skip]
+pub use turbo_tasks_macros::TaskInput;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 
