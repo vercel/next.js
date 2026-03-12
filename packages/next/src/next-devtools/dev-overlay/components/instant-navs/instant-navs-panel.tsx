@@ -58,12 +58,12 @@ export function InstantNavsPanel() {
   }, [state.page, status, dispatch])
 
   function handleReload() {
-    document.cookie = 'next-instant-navigation-testing=1; path=/'
+    document.cookie = `next-instant-navigation-testing=${Date.now()}; path=/`
     window.location.reload()
   }
 
   function handleStartClientNav() {
-    document.cookie = 'next-instant-navigation-testing=1; path=/'
+    document.cookie = `next-instant-navigation-testing=${Date.now()}; path=/`
     fromUrlRef.current = window.location.pathname + window.location.search
     initialPageRef.current = state.page
     dispatch({

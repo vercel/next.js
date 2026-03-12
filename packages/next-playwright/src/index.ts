@@ -26,6 +26,12 @@ interface PlaywrightPage {
 
 const INSTANT_COOKIE = 'next-instant-navigation-testing'
 
+// Counter ensures each addCookies call uses a distinct value so the
+// browser's CookieStore always fires a "change" event — even when the
+// cookie already exists.  Newer Chromium versions (≥136, shipped with
+// Playwright ≥1.58) skip the event when the value is unchanged.
+let cookieCounter = 0
+
 /**
  * Runs a function with instant navigation enabled. Within this scope,
  * navigations render the prefetched UI immediately and wait for the
@@ -58,11 +64,14 @@ export async function instant<T>(
   // navigation-testing-lock.ts, which acquires the in-memory navigation lock.
   const { hostname } = new URL(resolveURL(page, options))
   await step('Acquire Instant Lock', () =>
-    page
-      .context()
-      .addCookies([
-        { name: INSTANT_COOKIE, value: '1', domain: hostname, path: '/' },
-      ])
+    page.context().addCookies([
+      {
+        name: INSTANT_COOKIE,
+        value: String(++cookieCounter),
+        domain: hostname,
+        path: '/',
+      },
+    ])
   )
   try {
     return await fn()
