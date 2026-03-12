@@ -1873,4 +1873,12 @@ describe('instant validation', () => {
       })
     })
   })
+
+  it('should not validate on parallel slot not rendered', async () => {
+    const browser = await next.browser('/parallel-slot-not-rendered/123')
+    expect(await browser.elementByCss('p').text()).toBe('hello world')
+
+    // There should be no validation errors
+    await waitForNoErrorToast(browser)
+  })
 })
