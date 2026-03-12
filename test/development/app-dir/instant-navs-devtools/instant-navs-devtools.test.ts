@@ -34,10 +34,6 @@ describe('instant-nav-panel', () => {
     await browser.elementByCssInstant('[data-instant-nav-client]').click()
   }
 
-  async function getBadgeStatus(browser: Playwright): Promise<string> {
-    return browser.elementByCss('[data-next-badge]').getAttribute('data-status')
-  }
-
   async function getInstantNavPanelText(browser: Playwright): Promise<string> {
     return browser.elementByCssInstant('.instant-nav-panel').text()
   }
@@ -66,12 +62,6 @@ describe('instant-nav-panel', () => {
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
-    // Wait for initial compilation to settle
-    await retry(async () => {
-      const status = await getBadgeStatus(browser)
-      expect(status).toBe('none')
-    })
-
     await openInstantNavPanel(browser)
 
     // Panel should show waiting state with Page load and Client navigation sections
@@ -93,12 +83,6 @@ describe('instant-nav-panel', () => {
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
-
-    // Wait for initial compilation to settle (tsconfig creation triggers Fast Refresh)
-    await retry(async () => {
-      const status = await getBadgeStatus(browser)
-      expect(status).toBe('none')
-    })
 
     await openInstantNavPanel(browser)
 
