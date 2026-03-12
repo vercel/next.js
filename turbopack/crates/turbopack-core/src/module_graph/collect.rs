@@ -34,19 +34,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
 
     let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
 
-    let mut module_entry_membership: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
-        FxHashMap::with_capacity_and_hasher(module_count, Default::default());
     // We are only interested in ChunkGroupEntry::Entry here
-    for (i, entry) in graphs.iter().flat_map(|g| g.entries.iter()).enumerate() {
-        if let ChunkGroupEntry::Entry(entries) = entry {
-            for entry in entries.iter() {
-                module_entry_membership
-                    .entry(*entry)
-                    .or_default()
-                    .insert(i as u32);
-            }
-        }
-    }
     let entries = graphs
         .iter()
         .flat_map(|g| g.entries.iter())
@@ -56,7 +44,16 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         })
         .flatten()
         .copied()
-        .collect::<Vec<_>>();
+        .collect::<FxIndexSet<_>>();
+
+    // Create a mapping of module -> entry modules that import it
+    // (Entry modules = listed in any ChunkGroupEntry::Entry)
+    let mut module_entry_membership: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+        entries
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (*e, RoaringBitmapWrapper([i as u32].into())))
+            .collect();
 
     // First, compute the depth for each module in the graph
     let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
@@ -111,6 +108,9 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         GraphNodeIndex,
     )> = FxIndexSet::default();
 
+    // - Discover all collecting module
+    // - Discover all emitted references
+    // - Set module_entry_membership
     graph.traverse_edges_fixed_point_with_priority(
         entries
             .iter()
@@ -234,6 +234,8 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         map
     };
 
+    // Now we have all necessary information. List out all collected references for each (Entry
+    // Module, Collecting Module) pair they are contained in.
     #[allow(clippy::type_complexity)]
     let mut collected_references: FxHashMap<
         (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
