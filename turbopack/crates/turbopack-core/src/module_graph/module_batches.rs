@@ -964,21 +964,23 @@ pub async fn compute_module_batches(
         }
 
         // Add collected reference edges (conditional on page entry)
-        for ((page_entry, collecting_module), refs) in &collected_modules.collected_references {
+        for ((entry_modules, collecting_module), refs) in &collected_modules.collected_references {
             let source_node = *module_to_node
                 .get(collecting_module)
                 .context("could not find single module entry index")?;
             for (ref_data, target_module, _graph_node_idx) in refs {
                 if let Some(batch) = pre_batches.entries.get(target_module).copied() {
-                    graph.add_edge(
-                        source_node,
-                        batch_indices[batch],
-                        ModuleBatchesGraphEdge {
-                            ty: ref_data.chunking_type.clone(),
-                            module: Some(*target_module),
-                            active_for_page_entry: Some(*page_entry),
-                        },
-                    );
+                    for entry_module in entry_modules {
+                        graph.add_edge(
+                            source_node,
+                            batch_indices[batch],
+                            ModuleBatchesGraphEdge {
+                                ty: ref_data.chunking_type.clone(),
+                                module: Some(*target_module),
+                                active_for_page_entry: Some(*entry_module),
+                            },
+                        );
+                    }
                     continue;
                 }
                 let idx = pre_batches
@@ -986,15 +988,17 @@ pub async fn compute_module_batches(
                     .get_index_of(target_module)
                     .context("could not find single module entry index")?;
                 let idx = single_module_indices[idx];
-                graph.add_edge(
-                    source_node,
-                    idx,
-                    ModuleBatchesGraphEdge {
-                        ty: ref_data.chunking_type.clone(),
-                        module: Some(*target_module),
-                        active_for_page_entry: Some(*page_entry),
-                    },
-                );
+                for entry_module in entry_modules {
+                    graph.add_edge(
+                        source_node,
+                        idx,
+                        ModuleBatchesGraphEdge {
+                            ty: ref_data.chunking_type.clone(),
+                            module: Some(*target_module),
+                            active_for_page_entry: Some(*entry_module),
+                        },
+                    );
+                }
             }
         }
 

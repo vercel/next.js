@@ -19,14 +19,22 @@ pub struct CollectedModules {
     /// Additional references that need to be added to the graph due to collecting modules. They
     /// are conditional based on the current page being chunked.
     ///
-    /// (Page Entry Module, Collecting Module) -> Vec<(Reference, Collected Module)>
+    /// (ChunkGroup::Entry Modules, Collecting Module) -> Vec<(Reference, Collected Module)>
     pub collected_references: FxHashMap<
-        (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
+        (
+            Vec<ResolvedVc<Box<dyn Module>>>,
+            ResolvedVc<Box<dyn Module>>,
+        ),
         // TODO this GraphNodeIndex can be removed again
         Vec<(RefData, ResolvedVc<Box<dyn Module>>, GraphNodeIndex)>,
     >,
 }
 
+// The goal is:
+// 1. Find all ChunkingType::Emitted references
+// 2. Find all CollectingModules
+// 3. For each CollectingModule, collect all emitted references within the same ChunkGroup::Entry as
+//    the CollectingModule where the .namespace() matches.
 #[tracing::instrument(level = "info", name = "compute emit-collect", skip_all)]
 pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules>> {
     let graph = graph.await?;
@@ -34,32 +42,39 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
 
     let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
 
-    // We are only interested in ChunkGroupEntry::Entry here
-    let entries = graphs
+    let mut module_entry_membership: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+        FxHashMap::with_capacity_and_hasher(module_count, Default::default());
+
+    // Create a mapping of module -> ChunkGroupEntry::Entry that import it
+    let entry_groups = graphs
         .iter()
         .flat_map(|g| g.entries.iter())
         .flat_map(|g| match g {
             ChunkGroupEntry::Entry(entries) => Some(entries),
             _ => None,
         })
-        .flatten()
-        .copied()
-        .collect::<FxIndexSet<_>>();
+        .collect::<Vec<_>>();
 
-    // Create a mapping of module -> entry modules that import it
-    // (Entry modules = listed in any ChunkGroupEntry::Entry)
-    let mut module_entry_membership: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
-        entries
-            .iter()
-            .enumerate()
-            .map(|(i, e)| (*e, RoaringBitmapWrapper([i as u32].into())))
-            .collect();
+    // We are only interested in ChunkGroupEntry::Entry here
+    for (i, entries) in entry_groups.iter().enumerate() {
+        for entry in *entries {
+            module_entry_membership
+                .entry(*entry)
+                .or_default()
+                .insert(i as u32);
+        }
+    }
+
+    let entry_modules = entry_groups
+        .iter()
+        .flat_map(|entries| entries.iter().copied())
+        .collect::<FxIndexSet<_>>();
 
     // First, compute the depth for each module in the graph
     let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
         let mut module_depth =
             FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-        graph.traverse_edges_bfs(entries.iter().copied(), |parent, node| {
+        graph.traverse_edges_bfs(entry_modules.iter().copied(), |parent, node| {
             if let Some((parent, _)) = parent {
                 let parent_depth = *module_depth
                     .get(&parent)
@@ -112,7 +127,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
     // - Discover all emitted references
     // - Set module_entry_membership
     graph.traverse_edges_fixed_point_with_priority(
-        entries
+        entry_modules
             .iter()
             .map(|e| {
                 Ok((
@@ -186,7 +201,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
     // println!("after graph:");
     // println!(
     //     "{:#?}",
-    //     entries
+    //     entry_modules
     //         .iter()
     //         .enumerate()
     //         .map(async |(i, m)| Ok((i, m.ident_string().await?)))
@@ -238,7 +253,10 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
     // Module, Collecting Module) pair they are contained in.
     #[allow(clippy::type_complexity)]
     let mut collected_references: FxHashMap<
-        (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
+        (
+            Vec<ResolvedVc<Box<dyn Module>>>,
+            ResolvedVc<Box<dyn Module>>,
+        ),
         Vec<(RefData, ResolvedVc<Box<dyn Module>>, GraphNodeIndex)>,
     > = FxHashMap::default();
 
@@ -266,7 +284,8 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                     if *emit_to_all_entries || emitted_membership.contains(entry) {
                         collected_references
                             .entry((
-                                entries[entry as usize],
+                                // TODO don't clone
+                                entry_groups[entry as usize].clone(),
                                 ResolvedVc::upcast(*collecting_module),
                             ))
                             .or_default()
@@ -293,7 +312,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
     //     collected_references
     //         .iter()
     //         .map(async |((page, collecting), references)| Ok((
-    //             page.ident_string().await?,
+    //             page.iter().map(|m| m.ident_string()).try_join().await?,
     //             collecting.ident_string().await?,
     //             references
     //                 .iter()
