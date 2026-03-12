@@ -334,7 +334,11 @@ export class Playwright<TCurrent = undefined> {
 
         if (tracePlaywright) {
           page
-            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            .evaluate(
+              (payload) =>
+                console.log('received ws message with payload: ', payload),
+              frame.payload
+            )
             .catch(() => {})
         }
       })
