@@ -280,7 +280,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/search-params/invalid-undeclared-use-search-params" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` array, or \`{ "undeclared": null }\` if it should be absent if it should be absent.
+       "Error: Route "/search-params/invalid-undeclared-use-search-params" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
            at <unknown> (app/(default)/search-params/invalid-undeclared-use-search-params/search-params-reader.tsx:9:14)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/search-params/invalid-undeclared-use-search-params/search-params-reader.tsx:8:3)
@@ -306,7 +306,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/search-params/invalid-undeclared-use-search-params-caught" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` array, or \`{ "undeclared": null }\` if it should be absent if it should be absent.
+       "Error: Route "/search-params/invalid-undeclared-use-search-params-caught" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
            at <unknown> (app/(default)/search-params/invalid-undeclared-use-search-params-caught/search-params-reader.tsx:10:16)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/search-params/invalid-undeclared-use-search-params-caught/search-params-reader.tsx:9:5)
@@ -557,7 +557,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` array.
+       "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:24)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:3)
@@ -583,7 +583,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/params/invalid-param-not-provided-caught/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` array.
+       "Error: Route "/params/invalid-param-not-provided-caught/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:45:26)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:45:5)
@@ -617,7 +617,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/params/invalid-undeclared-use-params/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` array.
+       "Error: Route "/params/invalid-undeclared-use-params/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/(default)/params/invalid-undeclared-use-params/[one]/[two]/params-reader.tsx:10:18)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/params/invalid-undeclared-use-params/[one]/[two]/params-reader.tsx:9:3)
@@ -643,7 +643,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/params/invalid-undeclared-use-params-caught/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` array.
+       "Error: Route "/params/invalid-undeclared-use-params-caught/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/(default)/params/invalid-undeclared-use-params-caught/[one]/[two]/params-reader.tsx:11:20)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/params/invalid-undeclared-use-params-caught/[one]/[two]/params-reader.tsx:10:5)
