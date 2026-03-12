@@ -4974,7 +4974,7 @@ async function renderWithRestartOnCacheMissInValidation(
           onError: createOnError(initialReactController.signal, false),
           startTime,
           filterStackFrame,
-          signal: initialReactController.signal, // TODO: this seems wrong? it'd break abandon
+          signal: initialReactController.signal,
         }
       )
 

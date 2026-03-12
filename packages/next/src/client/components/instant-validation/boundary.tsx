@@ -6,7 +6,7 @@
 // references to code in `packages/next/src/server` in browser bundles and errors if it finds any.
 // A "use client" module seems to always have always have an entry in the browser bundle,
 // so this module cannot be colocated with the rest of the instant validation code,
-// because it end up looking like it's importing server code in the browser
+// because it ends up looking like it's importing server code in the browser
 // even though all the server code inside is actually DCE'd.
 
 const {
