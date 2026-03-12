@@ -277,7 +277,8 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
   return new Proxy(underlyingParams, {
     get(target, prop, receiver) {
       if (
-        isUserPropertyAccess(prop) &&
+        typeof prop === 'string' &&
+        !wellKnownProperties.has(prop) &&
         // Only error when accessing a param that is part of the route but wasn't provided.
         // accessing properties that aren't expected to be a valid param value is fine.
         prop in underlyingParams &&
@@ -295,13 +296,6 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
   })
 }
 
-// TODO(instant-validation-build): we have other code like this, we should try to keep it in sync
-function isUserPropertyAccess(prop: string | symbol): prop is string {
-  if (typeof prop !== 'string') return false
-  if (wellKnownProperties.has(prop)) return false
-  return true
-}
-
 /**
  * Creates searchParams wrapped with an exhaustive proxy.
  * Accessing a searchParam not declared in the sample will throw an error.
@@ -314,7 +308,11 @@ export function createExhaustiveSearchParamsProxy(
 ): SearchParams {
   return new Proxy(searchParams, {
     get(target, prop, receiver) {
-      if (isUserPropertyAccess(prop) && !declaredSearchParamNames.has(prop)) {
+      if (
+        typeof prop === 'string' &&
+        !wellKnownProperties.has(prop) &&
+        !declaredSearchParamNames.has(prop)
+      ) {
         trackMissingSampleErrorAndThrow(
           new InstantValidationError(
             `Route "${route}" accessed searchParam "${prop}" which is not defined in the \`samples\` ` +
@@ -326,7 +324,11 @@ export function createExhaustiveSearchParamsProxy(
       return Reflect.get(target, prop, receiver)
     },
     has(target, prop) {
-      if (isUserPropertyAccess(prop) && !declaredSearchParamNames.has(prop)) {
+      if (
+        typeof prop === 'string' &&
+        !wellKnownProperties.has(prop) &&
+        !declaredSearchParamNames.has(prop)
+      ) {
         trackMissingSampleErrorAndThrow(
           new InstantValidationError(
             `Route "${route}" accessed searchParam "${prop}" which is not defined in the \`samples\` ` +
