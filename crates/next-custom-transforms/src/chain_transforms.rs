@@ -8,12 +8,12 @@ use serde::Deserialize;
 use swc_core::{
     atoms::Atom,
     common::{
+        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         comments::{Comments, NoopComments},
         pass::Optional,
-        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{fn_pass, noop_pass, EsVersion, Pass},
+        ast::{EsVersion, Pass, fn_pass, noop_pass},
         parser::parse_file_as_module,
         visit::visit_mut_pass,
     },
@@ -23,7 +23,7 @@ use crate::{
     linter::linter,
     transforms::{
         cjs_finder::contains_cjs,
-        dynamic::{next_dynamic, NextDynamicMode},
+        dynamic::{NextDynamicMode, next_dynamic},
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
@@ -136,6 +136,7 @@ where
     C: Clone + Comments + 'a,
 {
     let file_path_str = file.name.to_string();
+    let file_path_for_instant_stack = file_path_str.clone();
 
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop_pass();
@@ -161,21 +162,17 @@ where
 
         fn_pass(move |program| {
             if let Some(config) = opts.styled_jsx.to_option() {
-                let target_browsers = opts
-                    .css_env
-                    .as_ref()
-                    .map(|env| {
-                        targets_to_versions(env.targets.clone(), None)
-                            .expect("failed to parse env.targets")
-                    })
-                    .unwrap_or_default();
+                let target_browsers = opts.css_env.as_ref().map(|env| {
+                    targets_to_versions(env.targets.clone(), None)
+                        .expect("failed to parse env.targets")
+                });
 
                 program.mutate(styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     &file.name,
                     &styled_jsx::visitor::Config {
                         use_lightningcss: config.use_lightningcss,
-                        browsers: *target_browsers,
+                        browsers: *target_browsers.map(|t| t.versions).unwrap_or_default(),
                     },
                     &styled_jsx::visitor::NativeConfig { process_css: None },
                 ))
@@ -322,6 +319,7 @@ where
                     None,
                     config.clone(),
                     comments.clone(),
+                    unresolved_mark,
                     cm.clone(),
                     use_cache_telemetry_tracker,
                     ServerActionsMode::Webpack,
@@ -332,6 +330,7 @@ where
                 true => Either::Left(
                     crate::transforms::track_dynamic_imports::track_dynamic_imports(
                         unresolved_mark,
+                        comments.clone(),
                     ),
                 ),
                 false => Either::Right(noop_pass()),
@@ -348,6 +347,15 @@ where
             Optional::new(
                 crate::transforms::debug_fn_name::debug_fn_name(),
                 opts.debug_function_name,
+            ),
+            crate::transforms::debug_instant_stack::debug_instant_stack(
+                file_path_for_instant_stack,
+                match &opts.server_components {
+                    Some(react_server_components::Config::WithOptions(options)) => {
+                        options.page_extensions.clone()
+                    }
+                    _ => vec![],
+                },
             ),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(

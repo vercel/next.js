@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, type FormEvent, useContext } from 'react'
+import { useCallback, type SubmitEvent, useContext } from 'react'
 import { addBasePath } from '../add-base-path'
 import { useMergedRef } from '../use-merged-ref'
 import {
@@ -19,7 +19,7 @@ import {
   mountFormInstance,
   unmountPrefetchableInstance,
 } from '../components/links'
-import { FetchStrategy } from '../components/segment-cache'
+import { FetchStrategy } from '../components/segment-cache/types'
 
 export type { FormProps }
 
@@ -145,7 +145,7 @@ export default function Form({
 }
 
 function onFormSubmit(
-  event: FormEvent<HTMLFormElement>,
+  event: SubmitEvent<HTMLFormElement>,
   {
     actionHref,
     onSubmit,
@@ -177,7 +177,7 @@ function onFormSubmit(
   }
 
   const formElement = event.currentTarget
-  const submitter = (event.nativeEvent as SubmitEvent).submitter
+  const submitter = event.nativeEvent.submitter
 
   let action = actionHref
 

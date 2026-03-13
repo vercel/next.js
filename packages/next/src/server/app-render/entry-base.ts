@@ -13,7 +13,10 @@ export { prerender } from 'react-server-dom-webpack/static'
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
 
-export { default as LayoutRouter } from '../../client/components/layout-router'
+export {
+  default as LayoutRouter,
+  LoadingBoundaryProvider,
+} from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'
 export { workAsyncStorage } from '../app-render/work-async-storage.external'
 export { workUnitAsyncStorage } from './work-unit-async-storage.external'
@@ -39,6 +42,18 @@ export { Postpone } from './rsc/postpone'
 export { taintObjectReference } from './rsc/taint'
 export { collectSegmentData } from './collect-segment-data'
 
+export const InstantValidation = () => {
+  if (
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    process.env.__NEXT_CACHE_COMPONENTS
+  ) {
+    return require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation')
+  } else {
+    return undefined
+  }
+}
+
+import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
@@ -58,7 +73,11 @@ if (process.env.NODE_ENV === 'development') {
 declare global {
   var __next__clear_chunk_cache__: (() => void) | null | undefined
   var __turbopack_clear_chunk_cache__: () => void | null | undefined
+  var __turbopack_server_hmr_apply__:
+    | ((update: NodeJsPartialHmrUpdate) => boolean)
+    | undefined
 }
+
 // hot-reloader modules are not bundled so we need to inject `__next__clear_chunk_cache__`
 // into globalThis from this file which is bundled.
 if (process.env.TURBOPACK) {

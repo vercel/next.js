@@ -9,6 +9,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
+  type PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
@@ -16,6 +17,7 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   NextConfig,
+  NextConfigRuntime,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -38,15 +40,12 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
-import {
-  CanaryOnlyConfigError,
-  isStableBuild,
-} from '../shared/lib/errors/canary-only-config-error'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
+import { Bundler } from '../lib/bundler'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -196,6 +195,16 @@ function checkDeprecations(
         silent
       )
     }
+  }
+
+  // browserDebugInfoInTerminal has moved to logging.browserToTerminal
+  if (userConfig.experimental?.browserDebugInfoInTerminal !== undefined) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.browserDebugInfoInTerminal',
+      `\`experimental.browserDebugInfoInTerminal\` has been moved to \`logging.browserToTerminal\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
   }
 }
 
@@ -372,8 +381,31 @@ function assignDefaultsAndValidate(
   }
 
   // ensure correct default is set for api-resolver revalidate handling
-  if (!result.experimental?.trustHostHeader && ciEnvironment.hasNextSupport) {
+  if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
+  }
+
+  // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
+  if (
+    result.logging !== false &&
+    result.experimental?.browserDebugInfoInTerminal !== undefined
+  ) {
+    const loggingConfig = result.logging || {}
+    if (!('browserToTerminal' in loggingConfig)) {
+      const expConfig = result.experimental.browserDebugInfoInTerminal
+      // Convert object config to simple format (level or true)
+      const level =
+        typeof expConfig === 'object' && expConfig !== null
+          ? (expConfig.level ?? true)
+          : expConfig
+      // Map 'verbose' to true since browserToTerminal doesn't support 'verbose'
+      const normalizedValue = level === 'verbose' ? true : level
+
+      result.logging = {
+        ...loggingConfig,
+        browserToTerminal: normalizedValue,
+      }
+    }
   }
 
   if (
@@ -398,13 +430,10 @@ function assignDefaultsAndValidate(
     )
   }
 
-  if (isStableBuild()) {
-    // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.turbopackFileSystemCacheForBuild) {
-      throw new CanaryOnlyConfigError({
-        feature: 'experimental.turbopackFileSystemCacheForBuild',
-      })
-    }
+  if (result.experimental.cachedNavigations && !result.cacheComponents) {
+    throw new Error(
+      `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
   }
 
   if (result.experimental.ppr) {
@@ -764,10 +793,18 @@ function assignDefaultsAndValidate(
   if (
     typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
   ) {
-    const value = parseInt(
-      result.experimental.serverActions?.bodySizeLimit.toString()
-    )
-    if (isNaN(value) || value < 1) {
+    const bytes =
+      require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+    const bodySizeLimit = result.experimental.serverActions.bodySizeLimit
+    let value: number | null
+
+    if (typeof bodySizeLimit === 'number') {
+      value = bodySizeLimit
+    } else {
+      value = bytes.parse(bodySizeLimit)
+    }
+
+    if (value === null || isNaN(value) || value < 1) {
       throw new Error(
         'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
@@ -927,9 +964,38 @@ function assignDefaultsAndValidate(
     }
   }
 
+  if (
+    result.experimental.runtimeServerDeploymentId == null &&
+    phase === PHASE_PRODUCTION_BUILD &&
+    ciEnvironment.hasNextSupport &&
+    process.env.NEXT_DEPLOYMENT_ID
+  ) {
+    if (
+      result.deploymentId != null &&
+      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
+    ) {
+      throw new Error(
+        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
+      )
+    }
+    result.experimental.runtimeServerDeploymentId = true
+  }
+
   // only leverage deploymentId
   if (process.env.NEXT_DEPLOYMENT_ID) {
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  // Only read process.env.__NEXT_IMMUTABLE_ASSET_TOKEN to make our testing setup easier. This is
+  // actually done by the adapter's modifyConfig
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.IS_TURBOPACK_TEST &&
+    result.deploymentId &&
+    process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+  ) {
+    result.experimental.immutableAssetToken =
+      process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
   }
 
   const tracingRoot = result?.outputFileTracingRoot
@@ -1352,12 +1418,9 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
-  // Store the distDirRoot in the config before it is modified by the isolatedDevBuild flag
+  // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  if (
-    phase === PHASE_DEVELOPMENT_SERVER &&
-    result.experimental?.isolatedDevBuild
-  ) {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }
 
@@ -1385,6 +1448,7 @@ async function applyModifyConfig(
 
       config = await adapterMod.modifyConfig(config, {
         phase,
+        nextVersion: process.env.__NEXT_VERSION as string,
       })
     }
   }
@@ -1424,6 +1488,35 @@ function getCacheKey(
 
   return djb2Hash(keyData).toString(36)
 }
+
+type LoadConfigOptions = {
+  customConfig?: object | null
+  rawConfig?: boolean
+  silent?: boolean
+  reportExperimentalFeatures?: (
+    configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+  ) => void
+  reactProductionProfiling?: boolean
+  debugPrerender?: boolean
+  bundler?: Bundler
+}
+
+export default async function loadConfig(
+  phase: typeof PHASE_DEVELOPMENT_SERVER,
+  dir: string,
+  opts?: LoadConfigOptions
+): Promise<NextConfigComplete>
+export default async function loadConfig(
+  phase: typeof PHASE_PRODUCTION_SERVER | typeof PHASE_DEVELOPMENT_SERVER,
+  dir: string,
+  opts?: LoadConfigOptions
+): Promise<NextConfigRuntime | NextConfigComplete>
+export default async function loadConfig(
+  phase: PHASE_TYPE,
+  dir: string,
+  opts?: LoadConfigOptions
+): Promise<NextConfigComplete>
+
 export default async function loadConfig(
   phase: PHASE_TYPE,
   dir: string,
@@ -1434,16 +1527,8 @@ export default async function loadConfig(
     reportExperimentalFeatures,
     reactProductionProfiling,
     debugPrerender,
-  }: {
-    customConfig?: object | null
-    rawConfig?: boolean
-    silent?: boolean
-    reportExperimentalFeatures?: (
-      configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
-    ) => void
-    reactProductionProfiling?: boolean
-    debugPrerender?: boolean
-  } = {}
+    bundler,
+  }: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
   // Include process.pid to invalidate cache on server restart
@@ -1571,8 +1656,7 @@ export default async function loadConfig(
       } else if (configFileName === 'next.config.ts') {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
-          configFileName,
-          cwd: dir,
+          dir,
         })
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
@@ -1664,14 +1748,37 @@ export default async function loadConfig(
       )
     }
 
+    if (
+      phase === PHASE_PRODUCTION_BUILD &&
+      bundler !== Bundler.Turbopack &&
+      userConfig.experimental?.immutableAssetToken
+    ) {
+      // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
+      // in `static/chunks` are always immutable without checking the manifest.
+      userConfig.experimental.immutableAssetToken = undefined
+    }
+
     if (reactProductionProfiling) {
       userConfig.reactProductionProfiling = reactProductionProfiling
+    }
+
+    if (
+      userConfig.experimental?.lightningCssFeatures &&
+      !userConfig.experimental?.useLightningcss &&
+      bundler !== Bundler.Turbopack
+    ) {
+      curLog.warn(
+        `experimental.lightningCssFeatures is set but experimental.useLightningcss is not enabled. ` +
+          `The lightningCssFeatures option has no effect without useLightningcss.`
+      )
     }
 
     if (userConfig.experimental?.useLightningcss) {
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')
-      const isLightningSupported = (await loadBindings())?.css?.lightning
+      const isLightningSupported = (
+        await loadBindings(userConfig.experimental?.useWasmBinary)
+      )?.css?.lightning
 
       if (!isLightningSupported) {
         curLog.warn(
@@ -1830,6 +1937,13 @@ function enforceExperimentalFeatures(
       false,
       configuredExperimentalFeatures
     )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'allowDevelopmentBuild',
+      true,
+      configuredExperimentalFeatures
+    )
   }
 
   // TODO: Remove this once we've made Cache Components the default.
@@ -1842,21 +1956,77 @@ function enforceExperimentalFeatures(
     config.cacheComponents = true
   }
 
-  // TODO: Remove this once using the debug channel is the default.
+  // TODO: Remove this once cachedNavigations is the default.
   if (
-    process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
+    process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.reactDebugChannel === undefined ||
-      (isDefaultConfig && !config.experimental.reactDebugChannel))
+    (config.experimental.cachedNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.cachedNavigations))
   ) {
-    config.experimental.reactDebugChannel = true
+    config.experimental.cachedNavigations = true
 
     if (configuredExperimentalFeatures) {
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
-        'reactDebugChannel',
+        'cachedNavigations',
         true,
-        'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
+        'enabled by `__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once appNewScrollHandler is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.appNewScrollHandler === undefined ||
+      (isDefaultConfig && !config.experimental.appNewScrollHandler))
+  ) {
+    config.experimental.appNewScrollHandler = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'appNewScrollHandler',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
+      )
+    }
+  }
+
+  // TODO: Remove this once strictRouteTypes is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.strictRouteTypes === undefined ||
+      (isDefaultConfig && !config.experimental.strictRouteTypes))
+  ) {
+    config.experimental.strictRouteTypes = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'strictRouteTypes',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES`'
+      )
+    }
+  }
+
+  if (
+    process.env.__NEXT_EXPERIMENTAL_TRANSITION_INDICATOR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.transitionIndicator === undefined ||
+      (isDefaultConfig && !config.experimental.transitionIndicator))
+  ) {
+    config.experimental.transitionIndicator = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'transitionIndicator',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_TRANSITION_INDICATOR`'
       )
     }
   }

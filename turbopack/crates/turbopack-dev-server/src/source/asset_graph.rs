@@ -10,17 +10,20 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     introspect::{Introspectable, IntrospectableChildren, output_asset::IntrospectableOutputAsset},
-    output::{OutputAsset, OutputAssetsSet},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsSet},
 };
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceSideEffect,
     GetContentSourceContent,
     route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsMap(FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
+struct OutputAssetsMap(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
+);
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 
@@ -60,33 +63,6 @@ impl AssetGraphContentSource {
         })
     }
 
-    /// Serves all assets references by all root_assets.
-    #[turbo_tasks::function]
-    pub fn new_eager_multiple(
-        root_path: FileSystemPath,
-        root_assets: ResolvedVc<OutputAssetsSet>,
-    ) -> Vc<Self> {
-        Self::cell(AssetGraphContentSource {
-            root_path,
-            root_assets,
-            expanded: None,
-        })
-    }
-
-    /// Serves all assets references by all root_assets. Only serve references
-    /// of an asset when it has served its content before.
-    #[turbo_tasks::function]
-    pub fn new_lazy_multiple(
-        root_path: FileSystemPath,
-        root_assets: ResolvedVc<OutputAssetsSet>,
-    ) -> Vc<Self> {
-        Self::cell(AssetGraphContentSource {
-            root_path,
-            root_assets,
-            expanded: Some(State::new(FxHashSet::default())),
-        })
-    }
-
     #[turbo_tasks::function]
     async fn all_assets_map(&self) -> Result<Vc<OutputAssetsMap>> {
         Ok(Vc::cell(
@@ -107,7 +83,8 @@ async fn expand(
 ) -> Result<FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>> {
     let mut map = FxIndexMap::default();
     let mut assets = Vec::new();
-    let mut queue = VecDeque::with_capacity(32);
+    let mut queue: VecDeque<ResolvedVc<Box<dyn OutputAssetsReference>>> =
+        VecDeque::with_capacity(32);
     let mut assets_set = FxHashSet::default();
     let root_assets_with_path = root_assets
         .iter()
@@ -132,7 +109,7 @@ async fn expand(
                 }
                 assets_set.insert(root_asset);
                 if expanded {
-                    queue.push_back(root_asset.references());
+                    queue.push_back(ResolvedVc::upcast(root_asset));
                 }
             }
         }
@@ -143,15 +120,24 @@ async fn expand(
                 for sub_path in sub_paths_buffer.into_iter().take(sub_paths) {
                     assets.push((sub_path, root_asset));
                 }
-                queue.push_back(root_asset.references());
+                queue.push_back(ResolvedVc::upcast(root_asset));
                 assets_set.insert(root_asset);
             }
         }
     }
 
-    while let Some(references) = queue.pop_front() {
-        for asset in references.await?.iter() {
-            if assets_set.insert(*asset) {
+    while let Some(asset) = queue.pop_front() {
+        let refs = asset.references().await?;
+        for &reference in refs.references.await?.iter() {
+            queue.push_back(reference);
+        }
+        let ref_assets = refs
+            .assets
+            .await?
+            .into_iter()
+            .chain(refs.referenced_assets.await?.into_iter());
+        for &asset in ref_assets {
+            if assets_set.insert(asset) {
                 let path = asset.path().await?;
                 if let Some(sub_path) = root_path.get_path_to(&path) {
                     let (sub_paths_buffer, sub_paths) = get_sub_paths(sub_path);
@@ -165,10 +151,10 @@ async fn expand(
                         true
                     };
                     if expanded {
-                        queue.push_back(asset.references());
+                        queue.push_back(ResolvedVc::upcast(asset));
                     }
                     for sub_path in sub_paths_buffer.into_iter().take(sub_paths) {
-                        assets.push((sub_path, *asset));
+                        assets.push((sub_path, asset));
                     }
                 }
             }

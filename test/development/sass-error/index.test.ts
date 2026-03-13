@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('app dir - css', () => {
   const { next, skipped } = nextTestSetup({
@@ -21,7 +21,7 @@ describe('app dir - css', () => {
         it('should use original source points for sass errors', async () => {
           const browser = await next.browser('/sass-error')
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           const source = await getRedboxSource(browser)
 
           // css-loader does not report an error for this case

@@ -39,23 +39,46 @@ cd my-app
 bun dev
 ```
 
-- `--yes` skips prompts using saved preferences or defaults. The default setup enables TypeScript, Tailwind, App Router, and Turbopack, with import alias `@/*`.
+- `--yes` skips prompts using saved preferences or defaults. The default setup enables TypeScript, Tailwind CSS, ESLint, App Router, and Turbopack, with import alias `@/*`, and includes `AGENTS.md` (with a `CLAUDE.md` that references it) to guide coding agents to write up-to-date Next.js code.
 
 </AppOnly>
 
 ## System requirements
 
-Before you begin, make sure your system meets the following requirements:
+Before you begin, make sure your development environment meets the following requirements:
 
-- [Node.js 20.9](https://nodejs.org/) or later.
-- macOS, Windows (including WSL), or Linux.
+- Minimum Node.js version: [20.9](https://nodejs.org/)
+- Operating systems: macOS, Windows (including WSL), and Linux.
+
+## Supported browsers
+
+Next.js supports modern browsers with zero configuration.
+
+- Chrome 111+
+- Edge 111+
+- Firefox 111+
+- Safari 16.4+
+
+Learn more about [browser support](/docs/architecture/supported-browsers), including how to configure polyfills and target specific browsers.
 
 ## Create with the CLI
 
 The quickest way to create a new Next.js app is using [`create-next-app`](/docs/app/api-reference/cli/create-next-app), which sets up everything automatically for you. To create a project, run:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app
+```
+
+```bash package="npm"
 npx create-next-app@latest
+```
+
+```bash package="yarn"
+yarn create next-app
+```
+
+```bash package="bun"
+bun create next-app
 ```
 
 On installation, you'll see the following prompts:
@@ -63,7 +86,7 @@ On installation, you'll see the following prompts:
 ```txt filename="Terminal"
 What is your project named? my-app
 Would you like to use the recommended Next.js defaults?
-    Yes, use recommended defaults - TypeScript, ESLint, Tailwind CSS, App Router, Turbopack
+    Yes, use recommended defaults - TypeScript, ESLint, Tailwind CSS, App Router, AGENTS.md
     No, reuse previous settings
     No, customize settings - Choose your own preferences
 ```
@@ -77,9 +100,9 @@ Would you like to use React Compiler? No / Yes
 Would you like to use Tailwind CSS? No / Yes
 Would you like your code inside a `src/` directory? No / Yes
 Would you like to use App Router? (recommended) No / Yes
-Would you like to use Turbopack? (recommended) No / Yes
 Would you like to customize the import alias (`@/*` by default)? No / Yes
 What import alias would you like configured? @/*
+Would you like to include AGENTS.md to guide coding agents to write up-to-date Next.js code? No / Yes
 ```
 
 After the prompts, [`create-next-app`](/docs/app/api-reference/cli/create-next-app) will create a folder with your project name and install the required dependencies.
@@ -104,7 +127,10 @@ yarn add next@latest react@latest react-dom@latest
 bun add next@latest react@latest react-dom@latest
 ```
 
-> **Good to know**: The App Router uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries) built-in, which include all the stable React 19 changes, as well as newer features being validated in frameworks. The Pages Router uses the React version you install in `package.json`.
+> **Good to know**:
+>
+> - The `App Router` uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries) built-in, which include all the stable React 19 changes, as well as newer features being validated in frameworks, but you should still declare react and react-dom in package.json for tooling and ecosystem compatibility.
+> - The `Pages Router` uses the React version from your `package.json`.
 
 Then, add the following scripts to your `package.json` file:
 
@@ -320,7 +346,7 @@ You can enable the plugin in VS Code by:
 
 </AppOnly>
 
-See the [TypeScript reference](/docs/app/api-reference/config/next-config-js/typescript) page for more information.
+See the [TypeScript reference](/docs/app/api-reference/config/typescript) page for more information.
 
 ## Set up linting
 

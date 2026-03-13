@@ -5,8 +5,9 @@ import type {
   InitialRSCPayload,
   DynamicParamTypesShort,
   HeadData,
-  LoadingModuleData,
 } from '../../shared/lib/app-router-types'
+import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -24,48 +25,92 @@ import {
   createSegmentRequestKeyPart,
   appendSegmentRequestKeyPart,
   ROOT_SEGMENT_REQUEST_KEY,
+  HEAD_REQUEST_KEY,
 } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
+import {
+  Phase,
+  printDebugThrownValueForProspectiveRender,
+} from './prospective-render-utils'
+import { workAsyncStorage } from './work-async-storage.external'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
 export type RootTreePrefetch = {
-  buildId: string
+  buildId?: string
   tree: TreePrefetch
-  head: HeadData
-  isHeadPartial: boolean
   staleTime: number
+}
+
+export type TreePrefetchParam = {
+  type: DynamicParamTypesShort
+  // When cacheComponents is enabled, this field is always null.
+  // Instead we parse the param on the client, allowing us to omit it from
+  // the prefetch response and increase its cacheability.
+  key: string | null
+  // Static sibling segments at the same URL level. Used by the client
+  // router to determine if a prefetch can be reused when navigating to
+  // a static sibling of a dynamic route. For example, if the route is
+  // /products/[id] and there's also /products/sale, then siblings
+  // would be ['sale']. null means the siblings are unknown (e.g. in
+  // webpack dev mode).
+  siblings: readonly string[] | null
 }
 
 export type TreePrefetch = {
   name: string
-  paramType: DynamicParamTypesShort | null
-  // When cacheComponents is enabled, this field is always null.
-  // Instead we parse the param on the client, allowing us to omit it from
-  // the prefetch response and increase its cacheability.
-  paramKey: string | null
+  // Only present for parameterized (dynamic) segments.
+  param: TreePrefetchParam | null
 
   // Child segments.
   slots: null | {
     [parallelRouteKey: string]: TreePrefetch
   }
 
-  /** Whether this segment should be fetched using a runtime prefetch */
-  hasRuntimePrefetch: boolean
-
-  // Extra fields that only exist so we can reconstruct a FlightRouterState on
-  // the client. We may be able to unify TreePrefetch and FlightRouterState
-  // after some refactoring, but in the meantime it would be wasteful to add a
-  // bunch of new prefetch-only fields to FlightRouterState. So think of
-  // TreePrefetch as a superset of FlightRouterState.
-  isRootLayout: boolean
+  /** Bitmask of PrefetchHint flags for this segment and its subtree */
+  prefetchHints: number
 }
 
 export type SegmentPrefetch = {
-  buildId: string
+  buildId?: string
   rsc: React.ReactNode | null
-  loading: LoadingModuleData | Promise<LoadingModuleData>
   isPartial: boolean
+  staleTime: number
+  /**
+   * The set of params that this segment's output depends on. Used by the client
+   * cache to determine which entries can be reused across different param
+   * values.
+   * - `null` means vary params were not tracked (conservative: assume all
+   *   params matter)
+   * - Empty set means no params were accessed (segment is reusable for any
+   *   param values)
+   */
+  varyParams: Set<string> | null
+}
+
+/**
+ * A node in the inlined prefetch tree. Wraps a SegmentPrefetch with child
+ * slots so all segments for a route can be bundled into a single response.
+ *
+ * This is a separate type from SegmentPrefetch because the inlined flow is
+ * temporary — eventually inlining will be the default behavior (controlled by
+ * a size heuristic rather than a boolean flag), and the per-segment and inlined
+ * paths will merge.
+ */
+export type InlinedSegmentPrefetch = {
+  segment: SegmentPrefetch
+  slots: null | {
+    [parallelRouteKey: string]: InlinedSegmentPrefetch
+  }
+}
+
+/**
+ * The response shape for the /_inlined prefetch endpoint. Contains all segment
+ * data for a route bundled into a single tree structure, plus the head segment.
+ */
+export type InlinedPrefetchResponse = {
+  tree: InlinedSegmentPrefetch
+  head: SegmentPrefetch
 }
 
 const filterStackFrame =
@@ -86,6 +131,14 @@ function onSegmentPrerenderError(error: unknown) {
   }
   // We don't need to log the errors because we would have already done that
   // when generating the original Flight stream for the whole page.
+  if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
+    const workStore = workAsyncStorage.getStore()
+    printDebugThrownValueForProspectiveRender(
+      error,
+      workStore?.route ?? 'unknown route',
+      Phase.SegmentCollection
+    )
+  }
 }
 
 export async function collectSegmentData(
@@ -93,7 +146,8 @@ export async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
-  serverConsumerManifest: any
+  serverConsumerManifest: any,
+  prefetchInlining: boolean
 ): Promise<Map<SegmentRequestKey, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
@@ -141,6 +195,7 @@ export async function collectSegmentData(
       staleTime={staleTime}
       segmentTasks={segmentTasks}
       onCompletedProcessingRouteTree={onCompletedProcessingRouteTree}
+      prefetchInlining={prefetchInlining}
     />,
     clientModules,
     {
@@ -175,6 +230,7 @@ async function PrefetchTreeData({
   staleTime,
   segmentTasks,
   onCompletedProcessingRouteTree,
+  prefetchInlining,
 }: {
   isClientParamParsingEnabled: boolean
   fullPageDataBuffer: Buffer
@@ -183,6 +239,7 @@ async function PrefetchTreeData({
   staleTime: number
   segmentTasks: Array<Promise<[SegmentRequestKey, Buffer]>>
   onCompletedProcessingRouteTree: () => void
+  prefetchInlining: boolean
 }): Promise<RootTreePrefetch | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
@@ -212,20 +269,66 @@ async function PrefetchTreeData({
   const seedData: CacheNodeSeedData = flightDataPaths[0][1]
   const head: HeadData = flightDataPaths[0][2]
 
+  // Extract the head vary params from the decoded response.
+  // The head vary params thenable should be fulfilled by now; if not, treat
+  // as unknown (null).
+  const headVaryParamsThenable = initialRSCPayload.h
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
+
   // Compute the route metadata tree by traversing the FlightRouterState. As we
   // walk the tree, we will also spawn a task to produce a prefetch response for
-  // each segment.
+  // each segment (unless prefetch inlining is enabled, in which case all
+  // segments are bundled into a single /_inlined response).
   const tree = collectSegmentDataImpl(
     isClientParamParsingEnabled,
     flightRouterState,
     buildId,
+    staleTime,
     seedData,
     clientModules,
     ROOT_SEGMENT_REQUEST_KEY,
-    segmentTasks
+    segmentTasks,
+    prefetchInlining
   )
 
-  const isHeadPartial = await isPartialRSCData(head, clientModules)
+  if (prefetchInlining) {
+    // When prefetch inlining is enabled, bundle all segment data into a single
+    // /_inlined response instead of individual per-segment responses. The head
+    // is also included in the inlined response.
+    segmentTasks.push(
+      waitAtLeastOneReactRenderTask().then(() =>
+        renderInlinedPrefetchResponse(
+          flightRouterState,
+          buildId,
+          staleTime,
+          seedData,
+          head,
+          headVaryParams,
+          clientModules
+        )
+      )
+    )
+  } else {
+    // Also spawn a task to produce a prefetch response for the "head" segment.
+    // The head contains metadata, like the title; it's not really a route
+    // segment, but it contains RSC data, so it's treated like a segment by
+    // the client cache.
+    segmentTasks.push(
+      waitAtLeastOneReactRenderTask().then(() =>
+        renderSegmentPrefetch(
+          buildId,
+          staleTime,
+          head,
+          HEAD_REQUEST_KEY,
+          headVaryParams,
+          clientModules
+        )
+      )
+    )
+  }
 
   // Notify the abort controller that we're done processing the route tree.
   // Anything async that happens after this point must be due to hanging
@@ -234,11 +337,11 @@ async function PrefetchTreeData({
 
   // Render the route tree to a special `/_tree` segment.
   const treePrefetch: RootTreePrefetch = {
-    buildId,
     tree,
-    head,
-    isHeadPartial,
     staleTime,
+  }
+  if (buildId) {
+    treePrefetch.buildId = buildId
   }
   return treePrefetch
 }
@@ -246,11 +349,13 @@ async function PrefetchTreeData({
 function collectSegmentDataImpl(
   isClientParamParsingEnabled: boolean,
   route: FlightRouterState,
-  buildId: string,
+  buildId: string | undefined,
+  staleTime: number,
   seedData: CacheNodeSeedData | null,
   clientModules: ManifestNode,
   requestKey: SegmentRequestKey,
-  segmentTasks: Array<Promise<[string, Buffer]>>
+  segmentTasks: Array<Promise<[string, Buffer]>>,
+  prefetchInlining: boolean
 ): TreePrefetch {
   // Metadata about the segment. Sent as part of the tree prefetch. Null if
   // there are no children.
@@ -273,10 +378,12 @@ function collectSegmentDataImpl(
       isClientParamParsingEnabled,
       childRoute,
       buildId,
+      staleTime,
       childSeedData,
       clientModules,
       childRequestKey,
-      segmentTasks
+      segmentTasks,
+      prefetchInlining
     )
     if (slotMetadata === null) {
       slotMetadata = {}
@@ -284,69 +391,90 @@ function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
-  const hasRuntimePrefetch = seedData !== null ? seedData[4] : false
+  const prefetchHints = route[4] ?? 0
 
-  if (seedData !== null) {
-    // Spawn a task to write the segment data to a new Flight stream.
-    segmentTasks.push(
-      // Since we're already in the middle of a render, wait until after the
-      // current task to escape the current rendering context.
-      waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(buildId, seedData, requestKey, clientModules)
+  // Determine which params this segment varies on.
+  // Read the vary params thenable directly from the seed data. By the time
+  // collectSegmentData runs, the thenable should be fulfilled. If it's not
+  // fulfilled or null, treat as unknown (null means we can't share cache
+  // entries across param values).
+  const varyParamsThenable = seedData !== null ? seedData[4] : null
+  const varyParams =
+    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+
+  if (!prefetchInlining) {
+    // When prefetch inlining is disabled, spawn individual segment tasks.
+    // When enabled, segment data is bundled into the /_inlined response
+    // instead, so we skip per-segment tasks here.
+    if (seedData !== null) {
+      // Spawn a task to write the segment data to a new Flight stream.
+      segmentTasks.push(
+        // Since we're already in the middle of a render, wait until after the
+        // current task to escape the current rendering context.
+        waitAtLeastOneReactRenderTask().then(() =>
+          renderSegmentPrefetch(
+            buildId,
+            staleTime,
+            seedData[0],
+            requestKey,
+            varyParams,
+            clientModules
+          )
+        )
       )
-    )
-  } else {
-    // This segment does not have any seed data. Skip generating a prefetch
-    // response for it. We'll still include it in the route tree, though.
-    // TODO: We should encode in the route tree whether a segment is missing
-    // so we don't attempt to fetch it for no reason. As of now this shouldn't
-    // ever happen in practice, though.
+    } else {
+      // This segment does not have any seed data. Skip generating a prefetch
+      // response for it. We'll still include it in the route tree, though.
+      // TODO: We should encode in the route tree whether a segment is missing
+      // so we don't attempt to fetch it for no reason. As of now this shouldn't
+      // ever happen in practice, though.
+    }
   }
 
   const segment = route[0]
-  let name
-  let paramType: DynamicParamTypesShort | null = null
-  let paramKey: string | null = null
+  let name: string
+  let param: TreePrefetchParam | null
   if (typeof segment === 'string') {
     name = segment
-    paramKey = segment
-    paramType = null
+    param = null
   } else {
     name = segment[0]
-    paramKey = segment[1]
-    paramType = segment[2] as DynamicParamTypesShort
+    param = {
+      type: segment[2],
+      // This value is omitted from the prefetch response when cacheComponents
+      // is enabled.
+      key: isClientParamParsingEnabled ? null : segment[1],
+      siblings: segment[3],
+    }
   }
 
   // Metadata about the segment. Sent to the client as part of the
   // tree prefetch.
   return {
     name,
-    paramType,
-    // This value is ommitted from the prefetch response when cacheComponents
-    // is enabled.
-    paramKey: isClientParamParsingEnabled ? null : paramKey,
-    hasRuntimePrefetch,
+    param,
+    prefetchHints,
     slots: slotMetadata,
-    isRootLayout: route[4] === true,
   }
 }
 
 async function renderSegmentPrefetch(
-  buildId: string,
-  seedData: CacheNodeSeedData,
+  buildId: string | undefined,
+  staleTime: number,
+  rsc: React.ReactNode,
   requestKey: SegmentRequestKey,
+  varyParams: Set<string> | null,
   clientModules: ManifestNode
 ): Promise<[SegmentRequestKey, Buffer]> {
   // Render the segment data to a stream.
-  // In the future, this is where we can include additional metadata, like the
-  // stale time and cache tags.
-  const rsc = seedData[0]
-  const loading = seedData[2]
   const segmentPrefetch: SegmentPrefetch = {
-    buildId,
     rsc,
-    loading,
     isPartial: await isPartialRSCData(rsc, clientModules),
+    staleTime,
+    varyParams,
+  }
+  if (buildId) {
+    segmentPrefetch.buildId = buildId
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
@@ -370,6 +498,99 @@ async function renderSegmentPrefetch(
   }
 }
 
+async function renderInlinedPrefetchResponse(
+  route: FlightRouterState,
+  buildId: string | undefined,
+  staleTime: number,
+  seedData: CacheNodeSeedData | null,
+  head: HeadData,
+  headVaryParams: Set<string> | null,
+  clientModules: ManifestNode
+): Promise<[SegmentRequestKey, Buffer]> {
+  // Build the inlined tree by walking the route and collecting all segments.
+  const inlinedTree = await buildInlinedSegmentPrefetch(
+    route,
+    buildId,
+    staleTime,
+    seedData,
+    clientModules
+  )
+
+  // Build the head segment.
+  const headPrefetch: SegmentPrefetch = {
+    rsc: head,
+    isPartial: await isPartialRSCData(head, clientModules),
+    staleTime,
+    varyParams: headVaryParams,
+  }
+  if (buildId) {
+    headPrefetch.buildId = buildId
+  }
+
+  const response: InlinedPrefetchResponse = {
+    tree: inlinedTree,
+    head: headPrefetch,
+  }
+
+  // Render as a single Flight response.
+  const abortController = new AbortController()
+  waitAtLeastOneReactRenderTask().then(() => abortController.abort())
+  const { prelude } = await prerender(response, clientModules, {
+    filterStackFrame,
+    signal: abortController.signal,
+    onError: onSegmentPrerenderError,
+  })
+  const buffer = await streamToBuffer(prelude)
+  return [('/' + PAGE_SEGMENT_KEY) as SegmentRequestKey, buffer]
+}
+
+async function buildInlinedSegmentPrefetch(
+  route: FlightRouterState,
+  buildId: string | undefined,
+  staleTime: number,
+  seedData: CacheNodeSeedData | null,
+  clientModules: ManifestNode
+): Promise<InlinedSegmentPrefetch> {
+  let slots: {
+    [parallelRouteKey: string]: InlinedSegmentPrefetch
+  } | null = null
+
+  const children = route[1]
+  const seedDataChildren = seedData !== null ? seedData[1] : null
+  for (const parallelRouteKey in children) {
+    const childRoute = children[parallelRouteKey]
+    const childSeedData =
+      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+    const childPrefetch = await buildInlinedSegmentPrefetch(
+      childRoute,
+      buildId,
+      staleTime,
+      childSeedData,
+      clientModules
+    )
+    if (slots === null) {
+      slots = {}
+    }
+    slots[parallelRouteKey] = childPrefetch
+  }
+
+  const rsc = seedData !== null ? seedData[0] : null
+  const varyParamsThenable = seedData !== null ? seedData[4] : null
+  const varyParams =
+    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+
+  const segment: SegmentPrefetch = {
+    rsc,
+    isPartial: rsc !== null ? await isPartialRSCData(rsc, clientModules) : true,
+    staleTime,
+    varyParams,
+  }
+  if (buildId) {
+    segment.buildId = buildId
+  }
+  return { segment, slots }
+}
+
 async function isPartialRSCData(
   rsc: React.ReactNode,
   clientModules: ManifestNode
@@ -391,11 +612,6 @@ async function isPartialRSCData(
     filterStackFrame,
     signal: abortController.signal,
     onError() {},
-    onPostpone() {
-      // If something postponed, i.e. when Cache Components is not enabled, we can
-      // infer that the RSC data is partial.
-      isPartial = true
-    },
   })
   return isPartial
 }

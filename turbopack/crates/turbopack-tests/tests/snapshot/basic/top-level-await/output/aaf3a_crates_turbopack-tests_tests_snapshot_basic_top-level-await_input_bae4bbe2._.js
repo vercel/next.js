@@ -1,14 +1,14 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_bae4bbe2._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_bae4bbe2._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/Actions.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-// import() doesn't care about whether a module is an async module or not
 __turbopack_context__.s([
     "AlternativeCreateUserAction",
     ()=>AlternativeCreateUserAction,
     "CreateUserAction",
     ()=>CreateUserAction
 ]);
+// import() doesn't care about whether a module is an async module or not
 const UserApi = __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript, async loader)");
 const CreateUserAction = async (name)=>{
     console.log('Creating user', name);

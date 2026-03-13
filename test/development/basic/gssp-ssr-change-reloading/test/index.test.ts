@@ -3,7 +3,7 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { assertNoRedbox, check } from 'next-test-utils'
+import { waitForNoRedbox, check } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
@@ -278,6 +278,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
 
        	return { props: { title: 'My Title', content: '...' } }
@@ -292,7 +293,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
       `)
 
       await next.patchFile(page, originalContent)
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     } finally {
       await next.patchFile(page, originalContent)
     }
@@ -319,6 +320,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "custom oops",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -333,7 +335,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
       expect(next.cliOutput).toMatch(/custom oops/)
 
       await next.patchFile(page, originalContent)
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     } finally {
       await next.patchFile(page, originalContent)
     }

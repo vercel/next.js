@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 
 describe('DevErrorOverlay', () => {
   const { next } = nextTestSetup({
@@ -86,7 +86,7 @@ describe('DevErrorOverlay', () => {
       },
     })
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     await browser.waitForIdleNetwork()
 
     // Verify woff2 files were requested and loaded successfully
@@ -96,10 +96,98 @@ describe('DevErrorOverlay', () => {
     }
   })
 
+  it('shows Error.cause in the error overlay', async () => {
+    const browser = await next.browser('/error-cause')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: TypeError",
+           "message": "Connection refused",
+           "source": "app/error-cause/page.tsx (6:16) @ Page
+     > 6 |   const root = new TypeError('Connection refused')
+         |                ^",
+           "stack": [
+             "Page app/error-cause/page.tsx (6:16)",
+           ],
+         },
+       ],
+       "description": "Database query failed",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": "app/error-cause/page.tsx (7:15) @ Page
+     >  7 |   const mid = new Error('Database query failed', { cause: root })
+          |               ^",
+       "stack": [
+         "Page app/error-cause/page.tsx (7:15)",
+       ],
+     }
+    `)
+  })
+
+  it('shows nested Error.cause chain in the error overlay', async () => {
+    const browser = await next.browser('/error-cause-nested')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: Error",
+           "message": "Database query failed",
+           "source": "app/error-cause-nested/page.tsx (7:15) @ Page
+     >  7 |   const mid = new Error('Database query failed', { cause: root })
+          |               ^",
+           "stack": [
+             "Page app/error-cause-nested/page.tsx (7:15)",
+           ],
+         },
+         {
+           "label": "Caused by: TypeError",
+           "message": "Connection refused",
+           "source": "app/error-cause-nested/page.tsx (6:16) @ Page
+     > 6 |   const root = new TypeError('Connection refused')
+         |                ^",
+           "stack": [
+             "Page app/error-cause-nested/page.tsx (6:16)",
+           ],
+         },
+       ],
+       "description": "Failed to load user",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": "app/error-cause-nested/page.tsx (8:15) @ Page
+     >  8 |   const top = new Error('Failed to load user', { cause: mid })
+          |               ^",
+       "stack": [
+         "Page app/error-cause-nested/page.tsx (8:15)",
+       ],
+     }
+    `)
+  })
+
+  it('ignores non-Error cause in the error overlay', async () => {
+    const browser = await next.browser('/error-cause-non-error')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "description": "Something went wrong",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": "app/error-cause-non-error/page.tsx (6:15) @ Page
+     > 6 |   const err = new Error('Something went wrong', {
+         |               ^",
+       "stack": [
+         "Page app/error-cause-non-error/page.tsx (6:15)",
+       ],
+     }
+    `)
+  })
+
   it('should load dev overlay styles successfully', async () => {
     const browser = await next.browser('/hydration-error')
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = browser.locateRedbox()
 
     // check the data-nextjs-dialog-header="true" DOM element styles under redbox is applied

@@ -9,11 +9,6 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/project/:slug',
-        destination: '/project/:slug',
-        permanent: true,
-      },
-      {
         source: '/blog/:category/:slug*',
         destination: '/posts/:category/:slug*',
         permanent: false,

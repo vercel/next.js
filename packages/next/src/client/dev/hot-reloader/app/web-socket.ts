@@ -223,6 +223,14 @@ function parseBinaryMessage(data: ArrayBuffer): HmrMessageSentToBrowser {
   const messageType = view.getUint8(0)
 
   switch (messageType) {
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
+      const serializedErrors = new Uint8Array(data, 1)
+
+      return {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER,
+        serializedErrors,
+      }
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
       assertByteLength(data, 2)
       const requestIdLength = view.getUint8(1)

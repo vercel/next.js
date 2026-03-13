@@ -1,6 +1,5 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use next_core::{
-    all_assets_from_entries,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
 };
@@ -29,10 +28,10 @@ use turbopack_core::{
 use crate::{
     nft_json::NftJsonAsset,
     paths::{
-        all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
+        all_asset_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, EndpointOutput, EndpointOutputPaths},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
 
 #[turbo_tasks::value]
@@ -69,7 +68,7 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn core_modules(&self) -> Result<Vc<InstrumentationCoreModules>> {
+    async fn entry_module(&self) -> Result<Vc<Box<dyn Module>>> {
         let userland_module = self
             .asset_context
             .process(
@@ -80,6 +79,10 @@ impl InstrumentationEndpoint {
             .to_resolved()
             .await?;
 
+        if !self.is_edge {
+            return Ok(*userland_module);
+        }
+
         let edge_entry_module = wrap_edge_entry(
             *self.asset_context,
             self.project.project_path().owned().await?,
@@ -89,17 +92,13 @@ impl InstrumentationEndpoint {
         .to_resolved()
         .await?;
 
-        Ok(InstrumentationCoreModules {
-            userland_module,
-            edge_entry_module,
-        }
-        .cell())
+        Ok(*edge_entry_module)
     }
 
     #[turbo_tasks::function]
     async fn edge_chunk_group(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
-        let module = self.core_modules().await?.edge_entry_module;
+        let module = self.entry_module().to_resolved().await?;
 
         let module_graph = this.project.module_graph(*module);
 
@@ -108,7 +107,7 @@ impl InstrumentationEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         ))
     }
 
@@ -118,12 +117,8 @@ impl InstrumentationEndpoint {
 
         let chunking_context = this.project.server_chunking_context(false);
 
-        let userland_module = self.core_modules().await?.userland_module;
+        let userland_module = self.entry_module().to_resolved().await?;
         let module_graph = this.project.module_graph(*userland_module);
-
-        let Some(module) = ResolvedVc::try_downcast(userland_module) else {
-            bail!("Entry module must be evaluatable");
-        };
 
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .entry_chunk_group(
@@ -131,11 +126,11 @@ impl InstrumentationEndpoint {
                     .node_root()
                     .await?
                     .join("server/instrumentation.js")?,
-                Vc::cell(vec![module]),
+                ChunkGroup::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::Root,
+                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)
@@ -147,7 +142,7 @@ impl InstrumentationEndpoint {
 
         if this.is_edge {
             let edge_chunk_group = self.edge_chunk_group();
-            let edge_all_assets = edge_chunk_group.all_assets();
+            let edge_all_assets = edge_chunk_group.expand_all_assets();
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
@@ -156,10 +151,10 @@ impl InstrumentationEndpoint {
                 get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
                     .await?;
 
-            let mut output_assets = all_assets_from_entries(edge_all_assets).owned().await?;
+            let mut output_assets = edge_chunk_group.all_assets().owned().await?;
 
             let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, &output_assets).await?;
+                get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,
@@ -200,12 +195,6 @@ impl InstrumentationEndpoint {
     }
 }
 
-#[turbo_tasks::value]
-struct InstrumentationCoreModules {
-    pub userland_module: ResolvedVc<Box<dyn Module>>,
-    pub edge_entry_module: ResolvedVc<Box<dyn Module>>,
-}
-
 #[turbo_tasks::value_impl]
 impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
@@ -217,7 +206,9 @@ impl Endpoint for InstrumentationEndpoint {
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root().owned().await?;
-                all_server_paths(output_assets, node_root).owned().await?
+                all_asset_paths(output_assets, node_root, None)
+                    .owned()
+                    .await?
             } else {
                 vec![]
             };
@@ -249,13 +240,20 @@ impl Endpoint for InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let core_modules = self.core_modules().await?;
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(
-            if self.await?.is_edge {
-                vec![core_modules.edge_entry_module]
-            } else {
-                vec![core_modules.userland_module]
-            },
-        )]))
+        let entry_module = self.entry_module().to_resolved().await?;
+        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![entry_module])]))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
+        let this = self.await?;
+        let module = self.entry_module();
+        let module_graph = this.project.module_graph(module).to_resolved().await?;
+        Ok(Vc::cell(vec![module_graph]))
+    }
+
+    #[turbo_tasks::function]
+    fn project(&self) -> Vc<Project> {
+        *self.project
     }
 }

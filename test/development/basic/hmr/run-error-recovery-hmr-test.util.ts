@@ -1,7 +1,7 @@
 import { join } from 'path'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getBrowserBodyText,
   getRedboxHeader,
   getRedboxDescription,
@@ -156,73 +156,72 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       join('pages', 'hmr', 'about2.js'),
       (content) => content.replace('</div>', 'div'),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         const source = next.normalizeTestDirContent(
           await getRedboxSource(browser)
         )
 
         if (process.env.IS_TURBOPACK_TEST) {
           expect(source).toMatchInlineSnapshot(`
-       "./pages/hmr/about2.js (7:1)
-       Parsing ecmascript source code failed
-         5 |     div
-         6 |   )
-       > 7 | }
-           | ^
-         8 |
+                  "./pages/hmr/about2.js (7:1)
+                  Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+                    5 |     div
+                    6 |   )
+                  > 7 | }
+                      | ^
+                    8 |
 
-       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
-      `)
+                  Parsing ecmascript source code failed"
+                `)
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
-       "./pages/hmr/about2.js
-         × Module build failed:
-         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-               │    ,-[7:1]
-               │  4 |       <p>This is the about page.</p>
-               │  5 |     div
-               │  6 |   )
-               │  7 | }
-               │    : ^
-               │    \`----
-               │   x Expected '</', got '<eof>'
-               │    ,-[7:3]
-               │  5 |     div
-               │  6 |   )
-               │  7 | }
-               │    \`----
-               │
-               │
-               │ Caused by:
-               │     Syntax Error
+           "./pages/hmr/about2.js
+             ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+                   │    ,-[7:1]
+                   │  4 |       <p>This is the about page.</p>
+                   │  5 |     div
+                   │  6 |   )
+                   │  7 | }
+                   │    : ^
+                   │    \`----
+                   │   x Expected '</', got '<eof>'
+                   │    ,-[7:3]
+                   │  5 |     div
+                   │  6 |   )
+                   │  7 | }
+                   │    \`----
+                   │
+                   │
+                   │ Caused by:
+                   │     Syntax Error
 
-       Import trace for requested module:
-       ./pages/hmr/about2.js"
-      `)
+           Import trace for requested module:
+           ./pages/hmr/about2.js"
+          `)
         } else {
           expect(source).toMatchInlineSnapshot(`
-          "./pages/hmr/about2.js
-          Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-             ,-[7:1]
-           4 |       <p>This is the about page.</p>
-           5 |     div
-           6 |   )
-           7 | }
-             : ^
-             \`----
-            x Expected '</', got '<eof>'
-             ,-[7:3]
-           5 |     div
-           6 |   )
-           7 | }
-             \`----
+                     "./pages/hmr/about2.js
+                     Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+                        ,-[7:1]
+                      4 |       <p>This is the about page.</p>
+                      5 |     div
+                      6 |   )
+                      7 | }
+                        : ^
+                        \`----
+                       x Expected '</', got '<eof>'
+                        ,-[7:3]
+                      5 |     div
+                      6 |   )
+                      7 | }
+                        \`----
 
-          Caused by:
-              Syntax Error
+                     Caused by:
+                         Syntax Error
 
-          Import trace for requested module:
-          ./pages/hmr/about2.js"
-        `)
+                     Import trace for requested module:
+                     ./pages/hmr/about2.js"
+                  `)
         }
       }
     )
@@ -247,7 +246,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           // Ensure dev server has time to break:
           await new Promise((resolve) => setTimeout(resolve, 2000))
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
             "Expected '</', got '<eof>'"
           )
@@ -275,7 +274,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       join('pages', 'hmr', 'about3.js'),
       (content) => content.replace('export', 'aa=20;\nexport'),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
       }
     )
@@ -304,7 +303,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'throw new Error("an-expected-error");\nreturn'
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
       }
     )
@@ -333,7 +332,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'export default {};\nexport const fn ='
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"The default export is not a React Component in page: "/hmr/about5""`
         )
@@ -364,7 +363,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'export default () => /search/;\nexport const fn ='
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         // TODO: Replace this when webpack 5 is the default
         expect(await getRedboxHeader(browser)).toMatch(
           `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
@@ -397,7 +396,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         'export default undefined;\nexport const fn ='
       ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"The default export is not a React Component in page: "/hmr/about7""`
         )
@@ -409,7 +408,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         /This is the about page/
       )
     })
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should recover after webpack parse error in an imported file', async () => {
@@ -429,7 +428,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'import "../../components/parse-error.xyz"\nexport default'
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch('Build Error')
 
         if (process.env.IS_TURBOPACK_TEST) {
@@ -443,25 +442,25 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(await getRedboxSource(browser)))
             .toMatchInlineSnapshot(`
-         "./components/parse-error.xyz
-           × Module parse failed:
-           ╰─▶   × JavaScript parse error: Expression expected
-                  ╭─[3:0]
-                1 │ This
-                2 │ is
-                3 │ }}}
-                  · ─
-                4 │ invalid
-                5 │ js
-                  ╰────
+           "./components/parse-error.xyz
+             × Module parse failed:
+             ╰─▶   × JavaScript parse error: Expression expected
+                    ╭─[3:0]
+                  1 │ This
+                  2 │ is
+                  3 │ }}}
+                    · ─
+                  4 │ invalid
+                  5 │ js
+                    ╰────
 
-           help:
-                 You may need an appropriate loader to handle this file type.
+             help:
+                   You may need an appropriate loader to handle this file type.
 
-         Import trace for requested module:
-         ./components/parse-error.xyz
-         ./pages/hmr/about8.js"
-        `)
+           Import trace for requested module:
+           ./components/parse-error.xyz
+           ./pages/hmr/about8.js"
+          `)
         } else {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
                       "./components/parse-error.xyz
@@ -486,7 +485,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         /This is the about page/
       )
     })
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should recover after loader parse error in an imported file', async () => {
@@ -506,7 +505,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'import "../../components/parse-error.js"\nexport default'
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch('Build Error')
         let redboxSource = await getRedboxSource(browser)
 
@@ -514,49 +513,48 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         if (process.env.IS_TURBOPACK_TEST) {
           expect(next.normalizeTestDirContent(redboxSource))
             .toMatchInlineSnapshot(`
-         "./components/parse-error.js (3:1)
-         Parsing ecmascript source code failed
-           1 | This
-           2 | is
-         > 3 | }}}
-             | ^
-           4 | invalid
-           5 | js
+                    "./components/parse-error.js (3:1)
+                    Expression expected
+                      1 | This
+                      2 | is
+                    > 3 | }}}
+                        | ^
+                      4 | invalid
+                      5 | js
 
-         Expression expected
+                    Parsing ecmascript source code failed
 
-         Import traces:
-           Browser:
-             ./components/parse-error.js
-             ./pages/hmr/about9.js
+                    Import traces:
+                      Browser:
+                        ./components/parse-error.js
+                        ./pages/hmr/about9.js
 
-           SSR:
-             ./components/parse-error.js
-             ./pages/hmr/about9.js"
-        `)
+                      SSR:
+                        ./components/parse-error.js
+                        ./pages/hmr/about9.js"
+                  `)
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))
             .toMatchInlineSnapshot(`
-         "./components/parse-error.js
-           × Module build failed:
-           ╰─▶   × Error:   x Expression expected
-                 │    ,-[3:1]
-                 │  1 | This
-                 │  2 | is
-                 │  3 | }}}
-                 │    : ^
-                 │  4 | invalid
-                 │  5 | js
-                 │    \`----
-                 │
-                 │
-                 │ Caused by:
-                 │     Syntax Error
+           "./components/parse-error.js
+             ╰─▶   × Error:   x Expression expected
+                   │    ,-[3:1]
+                   │  1 | This
+                   │  2 | is
+                   │  3 | }}}
+                   │    : ^
+                   │  4 | invalid
+                   │  5 | js
+                   │    \`----
+                   │
+                   │
+                   │ Caused by:
+                   │     Syntax Error
 
-         Import trace for requested module:
-         ./components/parse-error.js
-         ./pages/hmr/about9.js"
-        `)
+           Import trace for requested module:
+           ./components/parse-error.js
+           ./pages/hmr/about9.js"
+          `)
         } else {
           redboxSource = redboxSource.substring(
             0,
@@ -585,7 +583,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         /This is the about page/
       )
     })
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should recover from errors in getInitialProps in client', async () => {
@@ -594,7 +592,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
     const errorContent = await next.readFile(erroredPage)
     await browser.elementByCss('#error-in-gip-link').click()
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
       `"an-expected-error-in-gip"`
     )
@@ -626,7 +624,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
   it('should recover after an error reported via SSR', async () => {
     const browser = await next.browser(basePath + '/hmr/error-in-gip')
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
       `"an-expected-error-in-gip"`
     )

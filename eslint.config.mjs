@@ -303,7 +303,13 @@ export default defineConfig([
       'jest/no-standalone-expect': [
         'error',
         {
-          additionalTestBlockFunctions: ['retry', 'itCI', 'itHeaded'],
+          additionalTestBlockFunctions: [
+            'retry',
+            'itCI',
+            'itHeaded',
+            'itTurbopackDev',
+            'itOnlyTurbopack',
+          ],
         },
       ],
     },

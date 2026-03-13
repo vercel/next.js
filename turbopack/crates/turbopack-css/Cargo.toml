@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 indoc = { workspace = true }
 lightningcss = { workspace = true }
 parcel_selectors = { workspace = true }
@@ -28,6 +29,7 @@ swc_core = { workspace = true, features = [
 ] }
 tokio = { workspace = true }
 tracing = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }

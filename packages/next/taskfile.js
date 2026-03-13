@@ -31,6 +31,12 @@ export async function copy_regenerator_runtime(task, opts) {
     .target('src/compiled/regenerator-runtime')
 }
 
+export async function copy_docs(task, opts) {
+  // Copy documentation from repo root into the package
+  const docsSource = join(__dirname, '../../docs')
+  await task.source(join(docsSource, '**/*')).target('dist/docs')
+}
+
 export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
@@ -50,10 +56,12 @@ export async function copy_styled_jsx_assets(task, opts) {
 }
 
 const externals = {
-  // don't bundle caniuse-lite data so users can
+  // don't bundle caniuse-lite and baseline-browser-mapping data so users can
   // update it manually
   'caniuse-lite': 'caniuse-lite',
   '/caniuse-lite(/.*)/': 'caniuse-lite$1',
+  'baseline-browser-mapping': 'baseline-browser-mapping',
+  '/baseline-browser-mapping(/.*)/': 'baseline-browser-mapping$1',
 
   postcss: 'postcss',
   // Ensure latest version is used
@@ -207,15 +215,6 @@ export async function copy_vercel_og(task, opts) {
     .source(
       join(dirname(require.resolve('satori/package.json')), 'dist/index.d.ts')
     )
-    // eslint-disable-next-line require-yield
-    .run({ every: true }, function* (file) {
-      const source = file.data.toString()
-      // Ignore yoga-wasm-web types
-      file.data = source.replace(
-        /import { Yoga } from ['"]yoga-wasm-web['"]/g,
-        'type Yoga = any'
-      )
-    })
     .target('src/compiled/@vercel/og/satori')
   await task
     .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
@@ -232,9 +231,10 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source
-        .replace(/['"]satori['"]/g, '"next/dist/compiled/@vercel/og/satori"')
-        .replace("typeof import('@resvg/resvg-wasm')", 'any')
+      file.data = source.replace(
+        /['"]satori['"]/g,
+        '"next/dist/compiled/@vercel/og/satori"'
+      )
     })
     .target('src/compiled/@vercel/og')
 
@@ -258,6 +258,13 @@ export async function copy_vercel_og(task, opts) {
     },
     { spaces: 2 }
   )
+}
+
+export async function copy_bundle_analyzer_ui(task, opts) {
+  const bundleAnalyzerPath = join(__dirname, '../../apps/bundle-analyzer/dist')
+  await task
+    .source(join(bundleAnalyzerPath, '**/*'))
+    .target('dist/bundle-analyzer')
 }
 
 externals['anser'] = 'next/dist/compiled/anser'
@@ -975,7 +982,6 @@ export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
 }
 
 const babelCorePackages = {
-  'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/types': 'next/dist/compiled/babel/types',
@@ -991,12 +997,6 @@ const babelCorePackages = {
   '@babel/core/lib/transformation/plugin-pass':
     'next/dist/compiled/babel/core-lib-plugin-pass',
 }
-externals['next/dist/compiled/babel/code-frame'] =
-  'next/dist/compiled/babel/code-frame'
-
-externals['next/dist/compiled/babel-code-frame'] =
-  'next/dist/compiled/babel-code-frame'
-
 Object.assign(externals, babelCorePackages)
 
 export async function ncc_babel_bundle(task, opts) {
@@ -1015,21 +1015,6 @@ export async function ncc_babel_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/babel')
-}
-
-export async function ncc_babel_code_frame(task, opts) {
-  const bundleExternals = {
-    ...externals,
-    'next/dist/compiled/babel-packages': 'next/dist/compiled/babel-packages',
-  }
-  await task
-    .source('src/bundles/babel-code-frame/index.js')
-    .ncc({
-      packageName: '@babel/code-frame',
-      bundleName: 'babel-code-frame',
-      externals: bundleExternals,
-    })
-    .target('src/compiled/babel-code-frame')
 }
 
 export async function ncc_babel_bundle_packages(task, opts) {
@@ -1218,12 +1203,12 @@ export async function ncc_is_animated(task, opts) {
     .ncc({ packageName: 'is-animated', externals })
     .target('src/compiled/is-animated')
 }
-externals['is-local-address'] = 'next/dist/compiled/is-local-address'
-export async function ncc_is_local_address(task, opts) {
+externals['ipaddr.js'] = 'next/dist/compiled/ipaddr.js'
+export async function ncc_ipaddr_js(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('is-local-address')))
-    .ncc({ packageName: 'is-local-address', externals })
-    .target('src/compiled/is-local-address')
+    .source(relative(__dirname, require.resolve('ipaddr.js')))
+    .ncc({ packageName: 'ipaddr.js', externals })
+    .target('src/compiled/ipaddr.js')
 }
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
@@ -1862,6 +1847,13 @@ export async function ncc_source_map08(task, opts) {
     })
     .target('src/compiled/source-map08')
 }
+externals['serve-handler'] = 'next/dist/compiled/serve-handler'
+export async function ncc_serve_handler(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('serve-handler')))
+    .ncc({ packageName: 'serve-handler', externals })
+    .target('src/compiled/serve-handler')
+}
 externals['string-hash'] = 'next/dist/compiled/string-hash'
 export async function ncc_string_hash(task, opts) {
   await task
@@ -2172,7 +2164,7 @@ export async function ncc_safe_stable_stringify(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
+    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
     opts
   )
 }
@@ -2228,7 +2220,6 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
-        'ncc_babel_code_frame',
         'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
@@ -2248,7 +2239,7 @@ export async function ncc(task, opts) {
         'ncc_http_proxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
-        'ncc_is_local_address',
+        'ncc_ipaddr_js',
         'ncc_is_docker',
         'ncc_is_wsl',
         'ncc_json5',
@@ -2279,6 +2270,7 @@ export async function ncc(task, opts) {
         'ncc_send',
         'ncc_source_map',
         'ncc_source_map08',
+        'ncc_serve_handler',
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_superstruct',
@@ -2336,6 +2328,7 @@ export async function next_compile(task, opts) {
   await task.parallel(
     [
       'cli',
+      'copy_bundle_analyzer_ui',
       'bin',
       'server',
       'server_esm',
@@ -2399,14 +2392,14 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }
@@ -2666,6 +2659,16 @@ export async function build(task, opts) {
     ['precompile', 'compile', 'check_error_codes', 'generate_types'],
     opts
   )
+  // Write git commit hash to dist for stale build detection during tests
+  try {
+    const { stdout: commitHash } = await execa('git', ['rev-parse', 'HEAD'])
+    await fs.writeFile(
+      join(__dirname, 'dist', '.build-commit'),
+      commitHash.trim()
+    )
+  } catch (err) {
+    console.warn(`Warning: Could not write build commit hash: ${err.message}`)
+  }
 }
 
 export async function generate_types(task, opts) {

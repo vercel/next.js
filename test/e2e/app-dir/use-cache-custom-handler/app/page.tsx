@@ -7,7 +7,7 @@ import React from 'react'
 async function getData() {
   'use cache'
 
-  cacheLife({ revalidate: 3 })
+  cacheLife({ revalidate: 6 })
   cacheTag('modern')
 
   return new Date().toISOString()

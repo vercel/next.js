@@ -2,10 +2,12 @@ import path from 'path'
 
 import { Worker } from '../../lib/worker'
 import { NextBuildContext } from '../build-context'
+import { exportTraceState, recordTraceEvents } from '../../trace'
 
 async function turbopackBuildWithWorker(): ReturnType<
   typeof import('./impl').turbopackBuild
 > {
+  const nextBuildSpan = NextBuildContext.nextBuildSpan!
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain', 'waitForShutdown'],
@@ -17,18 +19,35 @@ async function turbopackBuildWithWorker(): ReturnType<
       forkOptions: {
         env: {
           NEXT_PRIVATE_BUILD_WORKER: '1',
+          ...(process.env.NEXT_CPU_PROF
+            ? {
+                NEXT_CPU_PROF: '1',
+                NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+                __NEXT_PRIVATE_CPU_PROFILE: 'build-turbopack',
+              }
+            : undefined),
         },
       },
     }) as Worker & typeof import('./impl')
     const {
-      nextBuildSpan,
+      nextBuildSpan: _nextBuildSpan,
       // Config is not serializable and is loaded in the worker.
       config: _config,
       ...prunedBuildContext
     } = NextBuildContext
-    const { buildTraceContext, duration } = await worker.workerMain({
-      buildContext: prunedBuildContext,
-    })
+    const { buildTraceContext, duration, debugTraceEvents } =
+      await worker.workerMain({
+        buildContext: prunedBuildContext,
+        traceState: {
+          ...exportTraceState(),
+          defaultParentSpanId: nextBuildSpan.getId(),
+          shouldSaveTraceEvents: true,
+        },
+      })
+
+    if (debugTraceEvents) {
+      recordTraceEvents(debugTraceEvents)
+    }
 
     return {
       // destroy worker when Turbopack has shutdown so it's not sticking around using memory

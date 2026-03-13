@@ -6,10 +6,14 @@ import {
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import {
@@ -82,9 +86,13 @@ export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: {
-    waitUntil: (prom: Promise<void>) => void
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
 ) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
@@ -185,41 +193,60 @@ export async function handler(
   // set the reference manifests to our global store so Server Action's
   // encryption util can access to them at the top level of the page module.
   if (serverActionsManifest && clientReferenceManifest) {
-    setReferenceManifestsSingleton({
+    setManifestsSingleton({
       page: srcPage,
       clientReferenceManifest,
       serverActionsManifest,
-      serverModuleMap: createServerModuleMap({
-        serverActionsManifest,
-      }),
     })
   }
 
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
+  const isWrappedByNextServer = Boolean(
+    routerServerContext?.isWrappedByNextServer
+  )
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
+
+  const incrementalCache =
+    getRequestMeta(req, 'incrementalCache') ||
+    (await routeModule.getIncrementalCache(
+      req,
+      nextConfig,
+      prerenderManifest,
+      isMinimalMode
+    ))
+
+  incrementalCache?.resetRequestCache()
+  ;(globalThis as any).__incrementalCache = incrementalCache
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest,
+    previewProps: prerenderManifest.preview,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       supportsDynamicResponse,
-      incrementalCache: getRequestMeta(req, 'incrementalCache'),
+      incrementalCache,
       cacheLifeProfiles: nextConfig.cacheLife,
       waitUntil: ctx.waitUntil,
       onClose: (cb) => {
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
         routeModule.onRequestError(
           req,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
     },
@@ -236,6 +263,7 @@ export async function handler(
   )
 
   try {
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (span?: Span) => {
       return routeModule.handle(nextReq, context).finally(() => {
         if (!span) return
@@ -273,14 +301,18 @@ export async function handler(
             'next.span_name': name,
           })
           span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists (e.g.
+          // a platform-created HTTP span in adapter deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+            parentSpan.updateName(name)
+          }
         } else {
           span.updateName(`${method} ${srcPage}`)
         }
       })
     }
-    const isMinimalMode = Boolean(
-      process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-    )
 
     const handleResponse = async (currentSpan?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
@@ -369,6 +401,7 @@ export async function handler(
           // if this is a background revalidate we need to report
           // the request error here as it won't be bubbled
           if (previousCacheEntry?.isStale) {
+            const silenceLog = false
             await routeModule.onRequestError(
               req,
               err,
@@ -381,6 +414,7 @@ export async function handler(
                   isOnDemandRevalidate,
                 }),
               },
+              silenceLog,
               routerServerContext
             )
           }
@@ -468,35 +502,47 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
-      await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      parentSpan = tracer.getActiveScopeSpan()
+      await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          handleResponse
-        )
+            handleResponse
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {
     if (!(err instanceof NoFallbackError)) {
-      await routeModule.onRequestError(req, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'route',
-        revalidateReason: getRevalidateReason({
-          isStaticGeneration,
-          isOnDemandRevalidate,
-        }),
-      })
+      const silenceLog = false
+      await routeModule.onRequestError(
+        req,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'route',
+          revalidateReason: getRevalidateReason({
+            isStaticGeneration,
+            isOnDemandRevalidate,
+          }),
+        },
+        silenceLog,
+        routerServerContext
+      )
     }
 
     // rethrow so that we can handle serving error page

@@ -24,6 +24,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
+bincode = { workspace = true }
 bytes-str = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
@@ -34,6 +35,7 @@ num-bigint = "0.4"
 num-traits = "0.2.15"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
+phf = { version = "0.11", features = ["macros"] }
 petgraph = { workspace = true }
 dashmap = { workspace = true }
 regex = { workspace = true }
@@ -45,6 +47,7 @@ smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-esregex = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -69,7 +72,6 @@ swc_core = { workspace = true, features = [
   "ecma_parser",
   "ecma_preset_env",
   "ecma_transforms",
-  "ecma_transforms_module",
   "ecma_transforms_react",
   "ecma_transforms_optimization",
   "ecma_transforms_typescript",

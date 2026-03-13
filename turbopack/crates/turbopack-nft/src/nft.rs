@@ -2,11 +2,10 @@ use std::{collections::HashSet, env::current_dir, path::PathBuf};
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::AnalyzeMode,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -20,11 +19,12 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{IssueReporter, IssueSeverity, handle_issues},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     reference::all_assets_from_entries,
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
 };
+use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 pub async fn node_file_trace(
@@ -35,7 +35,7 @@ pub async fn node_file_trace(
     max_depth: Option<usize>,
 ) -> Result<()> {
     let op = node_file_trace_operation(project_root.clone(), input.clone(), graph, max_depth);
-    let result = op.resolve_strongly_consistent().await?;
+    let result = op.read_strongly_consistent().await?;
 
     if show_issues {
         let issue_reporter: Vc<Box<dyn IssueReporter>> =
@@ -51,7 +51,7 @@ pub async fn node_file_trace(
     }
 
     println!("FILELIST:");
-    for a in result.await? {
+    for a in result {
         println!("{a}");
     }
 
@@ -76,11 +76,13 @@ async fn node_file_trace_operation(
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),
     ));
-    let module_asset_context = ModuleAssetContext::new(
+    let module_asset_context = ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         // This config should be kept in sync with
-        // turbopack/crates/turbopack/tests/node-file-trace.rs and
-        // turbopack/crates/turbopack/src/lib.rs
+        // turbopack/crates/turbopack-tracing/tests/node-file-trace.rs and
+        // turbopack/crates/turbopack-tracing/tests/unit.rs and
+        // turbopack/crates/turbopack/src/lib.rs and
+        // turbopack/crates/turbopack-nft/src/nft.rs
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
@@ -97,6 +99,9 @@ async fn node_file_trace_operation(
             // node-file-trace.
             environment: None,
             analyze_mode: AnalyzeMode::Tracing,
+            // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
+            // execute at runtime.
+            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),
@@ -104,6 +109,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir),
             custom_conditions: vec![rcstr!("node")],
+            enable_node_externals: true,
             loose_errors: true,
             collect_affecting_sources: true,
             ..Default::default()
@@ -144,22 +150,23 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> 
 
     let mut result = vec![];
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");
         }
+        let path = asset.path();
         if visited.insert(asset) {
             if depth < max_depth {
                 for &asset in references.iter().rev() {
                     queue.push((depth + 1, asset));
                 }
             }
-            result.push(format!("{}{}", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{path}").await?);
         } else if references.is_empty() {
-            result.push(format!("{}{} *", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{path} *").await?);
         } else {
-            result.push(format!("{}{} *...", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{path} *...").await?);
         }
     }
     result.push("".into());

@@ -20,6 +20,7 @@ module.exports = function (task) {
       if (
         file.base.endsWith('.d.ts') ||
         file.base.endsWith('.json') ||
+        file.base.endsWith('.jsonc') ||
         file.base.endsWith('.woff2')
       )
         return
@@ -123,7 +124,11 @@ module.exports = function (task) {
       const distFilePath = path.dirname(
         // we must strip src from filePath as it isn't carried into
         // the dist file path
-        path.join(__dirname, 'dist', filePath.replace(/^src[/\\]/, ''))
+        path.join(
+          __dirname,
+          esm ? 'dist/esm' : 'dist',
+          filePath.replace(/^src[/\\]/, '')
+        )
       )
 
       const options = {

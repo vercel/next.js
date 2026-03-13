@@ -18,8 +18,9 @@ export default async function Page() {
 
 export async function generateMetadata() {
   await connection()
+  // Delay until after the shell is flushed so that the tags end up in the body.
+  await new Promise((resolve) => setTimeout(resolve, 10))
   return {
-    // This long text description will lead to the metadata being inserted after the head tag.
     description: 'long text description'.repeat(1000),
     icons: {
       icon: `/heart.png`,

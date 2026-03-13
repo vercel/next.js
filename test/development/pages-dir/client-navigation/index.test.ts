@@ -10,13 +10,12 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Client Navigation', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
     },
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   describe('with empty getInitialProps()', () => {
     it('should render a redbox', async () => {
@@ -31,6 +30,7 @@ describe('Client Navigation', () => {
       await browser.elementByCss('#empty-props').click()
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E1025",
          "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",

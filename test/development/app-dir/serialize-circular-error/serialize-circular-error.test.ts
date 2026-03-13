@@ -10,6 +10,7 @@ describe('serialize-circular-error', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
+       "code": "E394",
        "description": "An error occurred but serializing the error message failed.",
        "environmentLabel": "Server",
        "label": "Runtime Error",
@@ -19,7 +20,7 @@ describe('serialize-circular-error', () => {
     `)
     const output = next.cliOutput
     expect(output).toContain(
-      'Error: {"objA":{"other":{"a":"[Circular]"}},"objB":{"a":{"other":"[Circular]"}}}'
+      'Error: {"objA":{"other":{"a":"[Circular]"}},"objB":"[Circular]"}'
     )
   })
 
@@ -29,6 +30,7 @@ describe('serialize-circular-error', () => {
     // TODO: Format arbitrary messages in Redbox
     await expect(browser).toDisplayRedbox(`
      {
+       "code": "E394",
        "description": "[object Object]",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -38,13 +40,11 @@ describe('serialize-circular-error', () => {
     `)
 
     const bodyText = await browser.elementByCss('body').text()
-    expect(bodyText).toContain(
-      'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
-    )
+    expect(bodyText).toContain('This page couldn\u2019t load')
 
     const output = next.cliOutput
     expect(output).toContain(
-      'Error: {"objC":{"other":{"a":"[Circular]"}},"objD":{"a":{"other":"[Circular]"}}}'
+      'Error: {"objC":{"other":{"a":"[Circular]"}},"objD":"[Circular]"}'
     )
   })
 })

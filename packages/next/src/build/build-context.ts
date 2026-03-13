@@ -95,4 +95,9 @@ export const NextBuildContext: Partial<{
   allowedRevalidateHeaderKeys?: string[]
   isCompileMode?: boolean
   debugPrerender: boolean
+  analyze: boolean
+  debugBuildPaths?: {
+    app: string[]
+    pages: string[]
+  }
 }> = {}

@@ -5,7 +5,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source::Source,
 };
 
@@ -32,6 +32,9 @@ impl WebAssemblyAsset {
         })
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for WebAssemblyAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for WebAssemblyAsset {

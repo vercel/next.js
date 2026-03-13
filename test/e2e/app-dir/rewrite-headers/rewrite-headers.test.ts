@@ -411,6 +411,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',

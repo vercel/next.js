@@ -4,6 +4,7 @@ import type { ResponseCookies } from '../web/spec-extension/cookies'
 import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
+import type { ResponseVaryParamsAccumulator } from './vary-params'
 import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
@@ -20,6 +21,9 @@ import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
+import { RenderStage } from './staged-rendering'
+import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -66,24 +70,66 @@ export interface RequestStore extends CommonWorkUnitStore {
    */
   renderResumeDataCache: RenderResumeDataCache | null
 
-  // DEV-only
-  usedDynamic?: boolean
-  devFallbackParams?: OpaqueFallbackRouteParams | null
+  stale?: number
   stagedRendering?: StagedRenderingController | null
-  asyncApiPromises?: DevAsyncApiPromises
+  asyncApiPromises?: AsyncApiPromises
   cacheSignal?: CacheSignal | null
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
+  fallbackParams?: OpaqueFallbackRouteParams | null
+
+  // Only in build-time instant-validation
+  // We mirror the controller/renderSignal from prerender stores to allow aborting the render
+  // in case we hit an error that makes it unnecessary to continue
+  controller?: AbortController
+  renderSignal?: AbortSignal
+  validationSamples?: InstantValidationSamples
+  validationSampleTracking?: InstantValidationSampleTracking | null
+
+  // DEV-only
+  usedDynamic?: boolean
 }
 
-type DevAsyncApiPromises = {
+export type InstantValidationSamples = {
+  params: Params | undefined
+  searchParams: Record<string, string | string[] | null> | undefined
+}
+
+export type AsyncApiPromises = {
   cookies: Promise<ReadonlyRequestCookies>
+  earlyCookies: Promise<ReadonlyRequestCookies>
+
   mutableCookies: Promise<ReadonlyRequestCookies>
+  earlyMutableCookies: Promise<ReadonlyRequestCookies>
+
   headers: Promise<ReadonlyHeaders>
+  earlyHeaders: Promise<ReadonlyHeaders>
 
   sharedParamsParent: Promise<string>
-  sharedSearchParamsParent: Promise<string>
+  earlySharedParamsParent: Promise<string>
 
+  sharedSearchParamsParent: Promise<string>
+  earlySharedSearchParamsParent: Promise<string>
+
+  // Connection is not a runtime promise and doesn't
+  // need to distinguish between early and late
   connection: Promise<undefined>
+}
+
+/**
+ * Returns true if the current render stage is an early stage (EarlyStatic or
+ * EarlyRuntime). The early stages are for runtime-prefetchable segments. When
+ * true, runtime APIs should use the early promise variant that resolves at
+ * EarlyRuntime rather than Runtime.
+ */
+export function isInEarlyRenderStage(requestStore: RequestStore): boolean {
+  const stagedRendering = requestStore.stagedRendering
+  if (stagedRendering) {
+    return (
+      stagedRendering.currentStage === RenderStage.EarlyStatic ||
+      stagedRendering.currentStage === RenderStage.EarlyRuntime
+    )
+  }
+  return false
 }
 
 /**
@@ -100,17 +146,26 @@ export type PrerenderStoreModern =
   | PrerenderStoreModernClient
   | PrerenderStoreModernServer
   | PrerenderStoreModernRuntime
+  | ValidationStoreClient
 
 /** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
 export type StaticPrerenderStoreModern = Exclude<
   PrerenderStoreModern,
-  PrerenderStoreModernRuntime
+  PrerenderStoreModernRuntime | ValidationStoreClient
 >
 
 export interface PrerenderStoreModernClient
   extends PrerenderStoreModernCommon,
     StaticPrerenderStoreCommon {
   readonly type: 'prerender-client'
+}
+
+export interface ValidationStoreClient extends PrerenderStoreModernCommon {
+  readonly type: 'validation-client'
+  readonly boundaryState: ValidationBoundaryTracking | null
+  validationSamples: InstantValidationSamples | null
+  validationSampleTracking: InstantValidationSampleTracking | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 }
 
 export interface PrerenderStoreModernServer
@@ -124,16 +179,11 @@ export interface PrerenderStoreModernRuntime
   readonly type: 'prerender-runtime'
 
   /**
-   * A runtime prerender resolves APIs in two tasks:
-   *
-   * 1. Static data (available in a static prerender)
-   * 2. Runtime data (available in a runtime prerender)
-   *
-   * This separation is achieved by awaiting this promise in "runtime" APIs.
-   * In the final prerender, the promise will be resolved during the second task,
-   * and the render will be aborted in the task that follows it.
+   * The staged rendering controller for this prerender. Models stage
+   * transitions (Before → Static → Runtime → Dynamic). Null for prospective
+   * renders where all stages run without sequencing.
    */
-  readonly runtimeStagePromise: Promise<void> | null
+  readonly stagedRendering: StagedRenderingController | null
 
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
@@ -209,9 +259,11 @@ interface PrerenderStoreModernCommon
   readonly hmrRefreshHash: string | undefined
 
   /**
-   * Only available in dev mode.
+   * A mutable accumulator for per-segment vary params during prerender. Tracks
+   * which route params each segment actually accesses, allowing the client
+   * cache to re-key entries for better sharing across different param values.
    */
-  readonly captureOwnerStack: undefined | (() => string | null)
+  readonly varyParamsAccumulator: ResponseVaryParamsAccumulator | null
 }
 
 interface StaticPrerenderStoreCommon {
@@ -264,7 +316,7 @@ export type PrerenderStore =
 // /** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
 export type StaticPrerenderStore = Exclude<
   PrerenderStore,
-  PrerenderStoreModernRuntime
+  PrerenderStoreModernRuntime | ValidationStoreClient
 >
 
 export interface CommonCacheStore
@@ -297,18 +349,6 @@ export interface PublicUseCacheStore extends CommonUseCacheStore {
 
 export interface PrivateUseCacheStore extends CommonUseCacheStore {
   readonly type: 'private-cache'
-
-  /**
-   * A runtime prerender resolves APIs in two tasks:
-   *
-   * 1. Static data (available in a static prerender)
-   * 2. Runtime data (available in a runtime prerender)
-   *
-   * This separation is achieved by awaiting this promise in "runtime" APIs.
-   * In the final prerender, the promise will be resolved during the second task,
-   * and the render will be aborted in the task that follows it.
-   */
-  readonly runtimeStagePromise: Promise<void> | null
 
   readonly headers: ReadonlyHeaders
   readonly cookies: ReadonlyRequestCookies
@@ -363,6 +403,7 @@ export function getPrerenderResumeDataCache(
     case 'prerender-ppr':
       return workUnitStore.prerenderResumeDataCache
     case 'prerender-client':
+    case 'validation-client':
       // TODO eliminate fetch caching in client scope and stop exposing this data
       // cache during SSR.
       return workUnitStore.prerenderResumeDataCache
@@ -391,6 +432,7 @@ export function getRenderResumeDataCache(
     case 'prerender':
     case 'prerender-runtime':
     case 'prerender-client':
+    case 'validation-client':
       if (workUnitStore.renderResumeDataCache) {
         // If we are in a prerender, we might have a render resume data cache
         // that is used to read from prefilled caches.
@@ -412,10 +454,9 @@ export function getRenderResumeDataCache(
 }
 
 export function getHmrRefreshHash(
-  workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): string | undefined {
-  if (workStore.dev) {
+  if (process.env.__NEXT_DEV_SERVER) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
@@ -425,6 +466,7 @@ export function getHmrRefreshHash(
       case 'request':
         return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       case 'prerender-client':
+      case 'validation-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
@@ -437,11 +479,8 @@ export function getHmrRefreshHash(
   return undefined
 }
 
-export function isHmrRefresh(
-  workStore: WorkStore,
-  workUnitStore: WorkUnitStore
-): boolean {
-  if (workStore.dev) {
+export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
+  if (process.env.__NEXT_DEV_SERVER) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
@@ -449,6 +488,7 @@ export function isHmrRefresh(
         return workUnitStore.isHmrRefresh ?? false
       case 'prerender':
       case 'prerender-client':
+      case 'validation-client':
       case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
@@ -463,10 +503,9 @@ export function isHmrRefresh(
 }
 
 export function getServerComponentsHmrCache(
-  workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): ServerComponentsHmrCache | undefined {
-  if (workStore.dev) {
+  if (process.env.__NEXT_DEV_SERVER) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
@@ -474,6 +513,7 @@ export function getServerComponentsHmrCache(
         return workUnitStore.serverComponentsHmrCache
       case 'prerender':
       case 'prerender-client':
+      case 'validation-client':
       case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
@@ -504,6 +544,7 @@ export function getDraftModeProviderForCacheScope(
         return workUnitStore.draftMode
       case 'prerender':
       case 'prerender-client':
+      case 'validation-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         break
@@ -515,12 +556,34 @@ export function getDraftModeProviderForCacheScope(
   return undefined
 }
 
+export function getStagedRenderingController(
+  workUnitStore: WorkUnitStore
+): StagedRenderingController | null {
+  switch (workUnitStore.type) {
+    case 'request':
+    case 'prerender-runtime':
+      return workUnitStore.stagedRendering ?? null
+    case 'prerender':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
+}
+
 export function getCacheSignal(
   workUnitStore: WorkUnitStore
 ): CacheSignal | null {
   switch (workUnitStore.type) {
     case 'prerender':
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-runtime':
       return workUnitStore.cacheSignal
     case 'request': {
@@ -534,26 +597,6 @@ export function getCacheSignal(
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
-    case 'unstable-cache':
-      return null
-    default:
-      return workUnitStore satisfies never
-  }
-}
-
-export function getRuntimeStagePromise(
-  workUnitStore: WorkUnitStore
-): Promise<void> | null {
-  switch (workUnitStore.type) {
-    case 'prerender-runtime':
-    case 'private-cache':
-      return workUnitStore.runtimeStagePromise
-    case 'prerender':
-    case 'prerender-client':
-    case 'prerender-ppr':
-    case 'prerender-legacy':
-    case 'request':
-    case 'cache':
     case 'unstable-cache':
       return null
     default:

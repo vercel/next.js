@@ -1,6 +1,6 @@
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('async imports in cacheComponents', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
@@ -62,7 +62,7 @@ describe('async imports in cacheComponents', () => {
     if (isNextDev) {
       await retry(async () => {
         // we shouldn't get any errors from `spawnDynamicValidationInDev`
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
     }
   }

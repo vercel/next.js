@@ -1,6 +1,6 @@
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextConfigComplete } from '../../config-shared'
+import type { NextConfigRuntime } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { Redirect } from '../../../types'
@@ -8,7 +8,6 @@ import type { Header } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
-import url from 'url'
 import path from 'node:path'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
@@ -26,6 +25,7 @@ import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
+import { parseUrl } from '../../../shared/lib/router/utils/parse-url'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
@@ -51,12 +51,24 @@ export function getResolveRoutes(
   fsChecker: UnwrapPromise<
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >,
-  config: NextConfigComplete,
+  config: NextConfigRuntime,
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
   ensureMiddleware?: (url?: string) => Promise<void>
 ) {
+  let clientHashes: Record<string, string> | undefined = undefined
+  if (process.env.__NEXT_TEST_MODE && process.env.IS_TURBOPACK_TEST) {
+    try {
+      clientHashes = JSON.parse(
+        (require('fs') as typeof import('fs')).readFileSync(
+          path.join(opts.dir, config.distDir, 'immutable-static-hashes.json'),
+          'utf8'
+        )
+      )
+    } catch {}
+  }
+
   type Route = {
     /**
      * The path matcher to check if this route applies to this request.
@@ -117,14 +129,14 @@ export function getResolveRoutes(
     finished: boolean
     statusCode?: number
     bodyStream?: ReadableStream | null
-    resHeaders: Record<string, string | string[]>
+    resHeaders: Record<string, string | string[]> | null
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
   }> {
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
     let matchedOutput: FsOutput | null = null
-    let parsedUrl = url.parse(req.url || '', true) as NextUrlWithParsedQuery
+    let parsedUrl = parseUrl(req.url || '') as NextUrlWithParsedQuery
     let didRewrite = false
 
     const urlParts = (req.url || '').split('?', 1)
@@ -142,7 +154,7 @@ export function getResolveRoutes(
     // handle trailing slash as that is handled the same as a next.config.js
     // redirect
     if (urlNoQuery?.match(/(\\|\/\/)/)) {
-      parsedUrl = url.parse(normalizeRepeatedSlashes(req.url!), true)
+      parsedUrl = parseUrl(normalizeRepeatedSlashes(req.url!))
       return {
         parsedUrl,
         resHeaders,
@@ -474,6 +486,33 @@ export function getResolveRoutes(
               if (output.locale) {
                 addRequestMeta(req, 'locale', output.locale)
               }
+
+              if (
+                process.env.__NEXT_TEST_MODE &&
+                process.env.IS_TURBOPACK_TEST &&
+                output.type === 'nextStaticFolder' &&
+                config.deploymentId
+              ) {
+                let useImmutableToken =
+                  config.experimental.immutableAssetToken &&
+                  clientHashes![`static${decodeURI(output.itemPath)}`]
+
+                const expectedToken = useImmutableToken
+                  ? config.experimental.immutableAssetToken
+                  : config.deploymentId
+                if (parsedUrl.query.dpl !== expectedToken) {
+                  console.error(
+                    `Invalid dpl query param: ${req.url}, expected: ${expectedToken}`
+                  )
+                  return {
+                    finished: true,
+                    parsedUrl,
+                    resHeaders,
+                    matchedOutput: null,
+                  }
+                }
+              }
+
               return {
                 parsedUrl,
                 resHeaders,
@@ -662,7 +701,7 @@ export function getResolveRoutes(
               const destination = getRelativeURL(value, initUrl)
               resHeaders['x-middleware-rewrite'] = destination
 
-              parsedUrl = url.parse(destination, true)
+              parsedUrl = parseUrl(destination)
 
               if (parsedUrl.protocol) {
                 return {
@@ -697,7 +736,7 @@ export function getResolveRoutes(
                 // Process as redirect: update parsedUrl and convert to relative URL
                 const rel = getRelativeURL(value, initUrl)
                 resHeaders['location'] = rel
-                parsedUrl = url.parse(rel, true)
+                parsedUrl = parseUrl(rel)
 
                 return {
                   parsedUrl,
@@ -754,8 +793,8 @@ export function getResolveRoutes(
 
           return {
             finished: true,
-            // @ts-expect-error custom ParsedUrl
             parsedUrl: parsedDestination,
+            resHeaders: null,
             statusCode: getRedirectStatus(route),
           }
         }
@@ -827,8 +866,8 @@ export function getResolveRoutes(
 
           if (parsedDestination.protocol) {
             return {
-              // @ts-expect-error custom ParsedUrl
               parsedUrl: parsedDestination,
+              resHeaders: null,
               finished: true,
             }
           }
@@ -867,6 +906,12 @@ export function getResolveRoutes(
     for (const route of routes) {
       const result = await handleRoute(route)
       if (result) {
+        if (result.matchedOutput) {
+          // handle onMatchHeaders
+          for (const onMatchHeaders of fsChecker.onMatchHeaders) {
+            await handleRoute(onMatchHeaders)
+          }
+        }
         return result
       }
     }

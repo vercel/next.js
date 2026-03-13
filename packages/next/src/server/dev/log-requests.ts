@@ -13,7 +13,8 @@ import { stripNextRscUnionQuery } from '../../lib/url'
 import type { FetchMetric } from '../base-http'
 import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
 import type { LoggingConfig } from '../config-shared'
-import { getRequestMeta } from '../request-meta'
+import { getRequestMeta, removeRequestMeta } from '../request-meta'
+import { formatArgs } from './server-action-logger'
 
 /**
  * Returns true if the incoming request should be ignored for logging.
@@ -47,7 +48,8 @@ export function logRequests(
   requestEndTime: bigint,
   devRequestTimingMiddlewareStart: bigint | undefined,
   devRequestTimingMiddlewareEnd: bigint | undefined,
-  devRequestTimingInternalsEnd: bigint | undefined
+  devRequestTimingInternalsEnd: bigint | undefined,
+  devGenerateStaticParamsDuration: bigint | undefined
 ): void {
   if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
     logIncomingRequests(
@@ -57,8 +59,19 @@ export function logRequests(
       response.statusCode,
       devRequestTimingMiddlewareStart,
       devRequestTimingMiddlewareEnd,
-      devRequestTimingInternalsEnd
+      devRequestTimingInternalsEnd,
+      devGenerateStaticParamsDuration
     )
+
+    // Log server action after the request log
+    const serverActionLog = getRequestMeta(request, 'devServerActionLog')
+    if (serverActionLog) {
+      const argsStr = formatArgs(serverActionLog.args)
+      process.stdout.write(
+        `  └─ ƒ ${serverActionLog.functionName}(${argsStr}) in ${serverActionLog.duration}ms ${dim(serverActionLog.location)}\n`
+      )
+      removeRequestMeta(request, 'devServerActionLog')
+    }
   }
 
   if (request.fetchMetrics) {
@@ -75,7 +88,8 @@ function logIncomingRequests(
   statusCode: number,
   devRequestTimingMiddlewareStart: bigint | undefined,
   devRequestTimingMiddlewareEnd: bigint | undefined,
-  devRequestTimingInternalsEnd: bigint | undefined
+  devRequestTimingInternalsEnd: bigint | undefined,
+  devGenerateStaticParamsDuration: bigint | undefined
 ): void {
   const isRSC = getRequestMeta(request, 'isRSCRequest')
   const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url
@@ -112,8 +126,18 @@ function logIncomingRequests(
       frameworkTime -= middlewareTime
     }
     // Insert as the first item to be rendered in the list
-    times.unshift(['compile', frameworkTime])
-    times.push(['render', requestEndTime - devRequestTimingInternalsEnd])
+    times.unshift(['next.js', frameworkTime])
+
+    // Insert after compile, before render based on the execution order.
+    if (devGenerateStaticParamsDuration) {
+      // Pages Router getStaticPaths are technically "generate params" as well.
+      times.push(['generate-params', devGenerateStaticParamsDuration])
+    }
+
+    times.push([
+      'application-code',
+      requestEndTime - devRequestTimingInternalsEnd,
+    ])
   }
 
   return writeLine(

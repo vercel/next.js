@@ -1,5 +1,5 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
@@ -143,7 +143,7 @@ describe.each(['default', 'babelrc'] as const)(
             '\n  2 |'
         )
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
       }
     })
   }

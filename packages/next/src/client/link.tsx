@@ -82,7 +82,7 @@ type InternalLinkProps = {
    * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
    * @defaultValue `true` (pages router) or `null` (app router)
    */
-  prefetch?: boolean | 'auto' | null | 'unstable_forceStale'
+  prefetch?: boolean | 'auto' | null
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
@@ -113,6 +113,20 @@ type InternalLinkProps = {
    * Optional event handler for when the `<Link>` is navigated.
    */
   onNavigate?: OnNavigateEventHandler
+
+  /**
+   * Transition types to apply when navigating. These types are passed to
+   * [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType)
+   * inside the navigation transition, enabling
+   * [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) components
+   * to apply different animations based on the type of navigation.
+   *
+   * @example
+   * ```tsx
+   * <Link href="/about" transitionTypes={['slide-in']}>About</Link>
+   * ```
+   */
+  transitionTypes?: string[]
 }
 
 // TODO-APP: Include the full set of Anchor props
@@ -311,6 +325,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
+      transitionTypes,
       ...restProps
     } = props
 
@@ -381,6 +396,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onTouchStart: true,
         legacyBehavior: true,
         onNavigate: true,
+        transitionTypes: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -440,6 +456,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             throw createPropError({
               key,
               expected: '`boolean | "auto"`',
+              actual: valType,
+            })
+          }
+        } else if (key === 'transitionTypes') {
+          if (props[key] != null && !Array.isArray(props[key])) {
+            throw createPropError({
+              key,
+              expected: '`string[]`',
               actual: valType,
             })
           }

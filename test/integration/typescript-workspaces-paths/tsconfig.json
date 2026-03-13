@@ -27,5 +27,6 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true
-  }
+  },
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
 }

@@ -46,6 +46,7 @@ import {
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
+import { parseMaxPostponedStateSize } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../server/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -63,20 +64,135 @@ import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
 import { getNextBuildDebuggerPortOffset } from '../lib/worker'
+import { getParams } from './helpers/get-params'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import type { Params } from '../server/request/params'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
 }
 
+/**
+ * Picks an RDC seed by matching on the params that are
+ * already known, so fallback shells use a seed that has already
+ * computed those known params.
+ */
+function buildRDCCacheByPage(
+  results: ExportPagesResult,
+  finalPhaseExportPaths: ExportPathEntry[]
+): Record<string, string> {
+  const renderResumeDataCachesByPage: Record<string, string> = {}
+  const seedCandidatesByPage = new Map<
+    string,
+    Array<{ path: string; renderResumeDataCache: string }>
+  >()
+
+  for (const { page, path, result } of results) {
+    if (!result) {
+      continue
+    }
+
+    if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
+      // Collect all RDC seeds for this page so we can pick the best match
+      // for each fallback shell later (e.g. locale-specific variants).
+      const candidates = seedCandidatesByPage.get(page) ?? []
+      candidates.push({
+        path,
+        renderResumeDataCache: result.renderResumeDataCache,
+      })
+      seedCandidatesByPage.set(page, candidates)
+      // Remove the RDC string from the result so that it can be garbage
+      // collected, when there are more results for the same page.
+      result.renderResumeDataCache = undefined
+    }
+  }
+
+  const getKnownParamsKey = (
+    normalizedPage: string,
+    path: string,
+    fallbackParamNames: Set<string>
+  ): string | null => {
+    let params: Params
+    try {
+      params = getParams(normalizedPage, path)
+    } catch {
+      return null
+    }
+
+    // Only keep params that are known, then sort
+    // for a stable key so we can match a compatible seed.
+    const entries = Object.entries(params).filter(
+      ([key]) => !fallbackParamNames.has(key)
+    )
+
+    entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return JSON.stringify(entries)
+  }
+
+  for (const exportPath of finalPhaseExportPaths) {
+    const { page, path, _fallbackRouteParams = [] } = exportPath
+    if (!isDynamicRoute(page)) {
+      continue
+    }
+
+    // Normalize app pages before param matching.
+    const normalizedPage = normalizeAppPath(page)
+    const pageKey = page !== path ? `${page}: ${path}` : path
+    const fallbackParamNames = new Set(
+      _fallbackRouteParams.map((param) => param.paramName)
+    )
+    // Build a key from the known params for this fallback shell so we can
+    // select a seed from a compatible prerendered route.
+    const targetKey = getKnownParamsKey(
+      normalizedPage,
+      path,
+      fallbackParamNames
+    )
+
+    if (!targetKey) {
+      continue
+    }
+
+    const candidates = seedCandidatesByPage.get(page)
+
+    // No suitable candidates, so there's no RDC seed to select
+    if (!candidates || candidates.length === 0) {
+      continue
+    }
+
+    let selected: string | null = null
+    for (const candidate of candidates) {
+      // Pick the seed whose known params match this fallback shell.
+      const candidateKey = getKnownParamsKey(
+        normalizedPage,
+        candidate.path,
+        fallbackParamNames
+      )
+      if (candidateKey === targetKey) {
+        selected = candidate.renderResumeDataCache
+        break
+      }
+    }
+
+    if (selected) {
+      renderResumeDataCachesByPage[pageKey] = selected
+    }
+  }
+
+  return renderResumeDataCachesByPage
+}
+
 async function exportAppImpl(
   dir: string,
   options: Readonly<ExportAppOptions>,
-  span: Span
+  span: Span,
+  staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
   dir = resolve(dir)
 
@@ -358,10 +474,9 @@ async function exportAppImpl(
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
-    nextExport: true,
+    isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
-    dev: false,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
     trailingSlash: nextConfig.trailingSlash,
@@ -384,36 +499,24 @@ async function exportAppImpl(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    ...(enabledDirectories.app
-      ? {
-          serverActionsManifest,
-        }
-      : {}),
-    deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      clientSegmentCache:
-        nextConfig.experimental.clientSegmentCache === 'client-only'
-          ? 'client-only'
-          : Boolean(nextConfig.experimental.clientSegmentCache),
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
+      optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
+      prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
+      maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+        nextConfig.experimental.maxPostponedStateSize
+      ),
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
-    hasReadableErrorStacks:
-      nextConfig.experimental.serverSourceMaps === true &&
-      // TODO(NDX-531): Checking (and setting) the minify flags should be
-      // unnecessary once name mapping is fixed.
-      (process.env.TURBOPACK
-        ? nextConfig.experimental.turbopackMinify === false
-        : nextConfig.experimental.serverMinification === false) &&
-      nextConfig.enablePrerenderSourceMaps === true,
   }
 
   // We need this for server rendering the Link component.
@@ -602,6 +705,10 @@ async function exportAppImpl(
         batches.map(async (batch) =>
           worker.exportPages({
             buildId,
+            deploymentId: nextConfig.deploymentId,
+            clientAssetToken:
+              nextConfig.experimental.immutableAssetToken ||
+              nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
@@ -626,11 +733,20 @@ async function exportAppImpl(
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
   if (renderOpts.cacheComponents) {
+    // Only run instant validation once per route, even if multiple param sets from generateStaticParams exist.
+    const routesWithInstantValidation = new Set<string>()
+
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)
       } else {
         initialPhaseExportPaths.push(exportPath)
+      }
+
+      const route = exportPath.page
+      if (!routesWithInstantValidation.has(route)) {
+        exportPath._runInstantValidation = true
+        routesWithInstantValidation.add(route)
       }
     }
   } else {
@@ -645,36 +761,32 @@ async function exportAppImpl(
   if (totalExportPaths > 0) {
     const progress = createProgress(
       totalExportPaths,
-      options.statusMessage || 'Exporting'
+      options.statusMessage ??
+        `Exporting using ${options.numWorkers} worker${options.numWorkers > 1 ? 's' : ''}`
     )
 
-    worker = createStaticWorker(nextConfig, {
-      debuggerPortOffset: getNextBuildDebuggerPortOffset({
-        kind: 'export-page',
-      }),
-      progress,
-    })
+    if (staticWorker) {
+      // TODO: progress shouldn't rely on "activity" event sent from `exportPage`.
+      staticWorker.setOnActivity(progress.run)
+      staticWorker.setOnActivityAbort(progress.clear)
+      worker = staticWorker
+    } else {
+      worker = createStaticWorker(nextConfig, {
+        debuggerPortOffset: getNextBuildDebuggerPortOffset({
+          kind: 'export-page',
+        }),
+        numberOfWorkers: options.numWorkers,
+        progress,
+      })
+    }
 
     results = await exportPagesInBatches(worker, initialPhaseExportPaths)
 
     if (finalPhaseExportPaths.length > 0) {
-      const renderResumeDataCachesByPage: Record<string, string> = {}
-
-      for (const { page, result } of results) {
-        if (!result) {
-          continue
-        }
-
-        if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
-          // The last RDC for each page is used. We only need one. It should have
-          // all the entries that the fallback shell also needs. We don't need to
-          // merge them per page.
-          renderResumeDataCachesByPage[page] = result.renderResumeDataCache
-          // Remove the RDC string from the result so that it can be garbage
-          // collected, when there are more results for the same page.
-          result.renderResumeDataCache = undefined
-        }
-      }
+      const renderResumeDataCachesByPage = buildRDCCacheByPage(
+        results,
+        finalPhaseExportPaths
+      )
 
       const finalPhaseResults = await exportPagesInBatches(
         worker,
@@ -727,6 +839,10 @@ async function exportAppImpl(
 
       if (typeof result.hasPostponed !== 'undefined') {
         info.hasPostponed = result.hasPostponed
+      }
+
+      if (typeof result.hasStaticRsc !== 'undefined') {
+        info.hasStaticRsc = result.hasStaticRsc
       }
 
       if (typeof result.fetchMetrics !== 'undefined') {
@@ -895,7 +1011,7 @@ async function exportAppImpl(
   if (failedExportAttemptsByPage.size > 0) {
     const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${failedPages
+      `Export encountered errors on ${failedPages.length} ${failedPages.length === 1 ? 'path' : 'paths'}:\n\t${failedPages
         .sort()
         .join('\n\t')}`
     )
@@ -915,7 +1031,13 @@ async function exportAppImpl(
     await telemetry.flush()
   }
 
-  if (worker) {
+  // Clean up activity listeners for progress.
+  if (staticWorker) {
+    staticWorker.setOnActivity(undefined)
+    staticWorker.setOnActivityAbort(undefined)
+  }
+
+  if (!staticWorker && worker) {
     await worker.end()
   }
 
@@ -959,11 +1081,12 @@ async function collectSegmentPathsImpl(
 export default async function exportApp(
   dir: string,
   options: ExportAppOptions,
-  span: Span
+  span: Span,
+  staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
   const nextExportSpan = span.traceChild('next-export')
 
   return nextExportSpan.traceAsyncFn(async () => {
-    return await exportAppImpl(dir, options, nextExportSpan)
+    return await exportAppImpl(dir, options, nextExportSpan, staticWorker)
   })
 }

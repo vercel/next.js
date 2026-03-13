@@ -26,6 +26,48 @@ pub fn expand_next_js_template<'a>(
     injections: impl IntoIterator<Item = (&'a str, &'a str)>,
     imports: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
 ) -> Result<String> {
+    expand_next_js_template_inner(
+        content,
+        template_path,
+        next_package_dir_path,
+        replacements,
+        injections,
+        imports,
+        true,
+    )
+}
+
+/// Same as [`expand_next_js_template`], but does not enforce that at least one relative
+/// import is present and rewritten. This is useful for very small templates that only
+/// use template variables/injections and have no imports of their own.
+pub fn expand_next_js_template_no_imports<'a>(
+    content: &str,
+    template_path: &str,
+    next_package_dir_path: &str,
+    replacements: impl IntoIterator<Item = (&'a str, &'a str)>,
+    injections: impl IntoIterator<Item = (&'a str, &'a str)>,
+    imports: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+) -> Result<String> {
+    expand_next_js_template_inner(
+        content,
+        template_path,
+        next_package_dir_path,
+        replacements,
+        injections,
+        imports,
+        false,
+    )
+}
+
+fn expand_next_js_template_inner<'a>(
+    content: &str,
+    template_path: &str,
+    next_package_dir_path: &str,
+    replacements: impl IntoIterator<Item = (&'a str, &'a str)>,
+    injections: impl IntoIterator<Item = (&'a str, &'a str)>,
+    imports: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+    require_import_replacement: bool,
+) -> Result<String> {
     let template_parent_path = normalize_path(get_parent_path(template_path))
         .context("failed to normalize template path")?;
     let next_package_dir_parent_path = normalize_path(get_parent_path(next_package_dir_path))
@@ -92,10 +134,11 @@ pub fn expand_next_js_template<'a>(
     })
     .context("replacing imports failed")?;
 
-    // Verify that at least one import was replaced. It's the case today where every template file
-    // has at least one import to update, so this ensures that we don't accidentally remove the
-    // import replacement code or use the wrong template file.
-    if count == 0 {
+    // Verify that at least one import was replaced when required. It's the case today where every
+    // template file (except a few small internal helpers) has at least one import to update, so
+    // this ensures that we don't accidentally remove the import replacement code or use the wrong
+    // template file.
+    if require_import_replacement && count == 0 {
         bail!("Invariant: Expected to replace at least one import")
     }
 

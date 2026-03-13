@@ -1,7 +1,8 @@
 import React from 'react'
-import type {
-  FlightData,
-  FlightRouterState,
+import {
+  PrefetchHint,
+  type FlightData,
+  type FlightRouterState,
 } from '../../../shared/lib/app-router-types'
 import { shouldHardNavigate } from './should-hard-navigate'
 
@@ -19,7 +20,7 @@ describe('shouldHardNavigate', () => {
       },
       undefined,
       undefined,
-      true,
+      PrefetchHint.IsRootLayout,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {
@@ -68,7 +69,7 @@ describe('shouldHardNavigate', () => {
           'link-hard-push',
           {
             children: [
-              ['id', '123', 'd'],
+              ['id', '123', 'd', null],
               {
                 children: ['', {}],
               },
@@ -78,7 +79,7 @@ describe('shouldHardNavigate', () => {
       },
       null,
       null,
-      true,
+      PrefetchHint.IsRootLayout,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {
@@ -87,14 +88,14 @@ describe('shouldHardNavigate', () => {
           'children',
           'link-hard-push',
           'children',
-          ['id', '123', 'd'],
+          ['id', '123', 'd', null],
           [
-            ['id', '123', 'd'],
+            ['id', '123', 'd', null],
             {
               children: ['', {}],
             },
           ],
-          [['id', '123', 'd'], {}, null],
+          [['id', '123', 'd', null], {}, null],
           null,
         ],
       ]
@@ -125,7 +126,7 @@ describe('shouldHardNavigate', () => {
           'link-hard-push',
           {
             children: [
-              ['id', '456', 'd'],
+              ['id', '456', 'd', null],
               {
                 children: ['', {}],
               },
@@ -135,7 +136,7 @@ describe('shouldHardNavigate', () => {
       },
       null,
       null,
-      true,
+      PrefetchHint.IsRootLayout,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {
@@ -144,14 +145,14 @@ describe('shouldHardNavigate', () => {
           'children',
           'link-hard-push',
           'children',
-          ['id', '123', 'd'],
+          ['id', '123', 'd', null],
           [
-            ['id', '123', 'd'],
+            ['id', '123', 'd', null],
             {
               children: ['', {}],
             },
           ],
-          [['id', '123', 'd'], {}, null],
+          [['id', '123', 'd', null], {}, null],
           null,
           false,
         ],

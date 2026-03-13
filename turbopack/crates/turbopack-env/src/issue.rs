@@ -19,7 +19,7 @@ impl Issue for ProcessEnvIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Load.into()
+        IssueStage::Load.cell()
     }
 
     #[turbo_tasks::function]

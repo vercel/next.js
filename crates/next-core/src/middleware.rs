@@ -46,7 +46,7 @@ pub async fn get_middleware_module(
 
     // Validate that the module has the required exports
     if let Some(ecma_module) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*userland_module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(userland_module)
     {
         let exports = ecma_module.get_exports().await?;
 
@@ -91,9 +91,9 @@ pub async fn get_middleware_module(
     let source = load_next_js_template(
         "middleware.js",
         project_root,
-        &[("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
-        &[],
-        &[],
+        [("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
+        [],
+        [],
     )
     .await?;
 
@@ -122,7 +122,7 @@ struct MiddlewareMissingExportIssue {
 impl Issue for MiddlewareMissingExportIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.into()
+        IssueStage::Transform.cell()
     }
 
     fn severity(&self) -> IssueSeverity {

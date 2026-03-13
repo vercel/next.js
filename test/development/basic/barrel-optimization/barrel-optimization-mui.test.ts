@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 // This is implemented in Turbopack, but Turbopack doesn't log the module count.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -27,7 +27,7 @@ import { assertNoRedbox } from 'next-test-utils'
         expect($('#typography').text()).toContain('typography')
 
         const browser = await next.browser('/mui')
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
     })
   }

@@ -119,9 +119,7 @@ describe.skip('cache-components - Console Dimming - Validation', () => {
     } else {
       try {
         await next.build({
-          env: {
-            NEXT_PRIVATE_APP_PATHS: `["${path === '/' ? '' : path}/page.tsx"]`,
-          },
+          args: ['--debug-build-paths', `app${path}/page.tsx`],
         })
       } catch (err) {
         const error = new Error(
@@ -309,9 +307,7 @@ describe.skip('cache-components - Logging after Abort', () => {
       } else {
         try {
           await next.build({
-            env: {
-              NEXT_PRIVATE_APP_PATHS: `["${path === '/' ? '' : path}/page.tsx"]`,
-            },
+            args: ['--debug-build-paths', `app${path}/page.tsx`],
           })
         } catch (err) {
           const error = new Error(
@@ -480,9 +476,7 @@ describe.skip('cache-components - Logging after Abort', () => {
       } else {
         try {
           await next.build({
-            env: {
-              NEXT_PRIVATE_APP_PATHS: `["${path === '/' ? '' : path}/page.tsx"]`,
-            },
+            args: ['--debug-build-paths', `app${path}/page.tsx`],
           })
         } catch (err) {
           const error = new Error(
@@ -632,9 +626,7 @@ describe.skip('cache-components - Logging after Abort', () => {
       } else {
         try {
           await next.build({
-            env: {
-              NEXT_PRIVATE_APP_PATHS: `["${path === '/' ? '' : path}/page.tsx"]`,
-            },
+            args: ['--debug-build-paths', `app${path}/page.tsx`],
           })
         } catch (err) {
           const error = new Error(
@@ -728,9 +720,7 @@ describe.skip('cache-components - Logging after Abort', () => {
       } else {
         try {
           await next.build({
-            env: {
-              NEXT_PRIVATE_APP_PATHS: `["${path === '/' ? '' : path}/page.tsx"]`,
-            },
+            args: ['--debug-build-paths', `app${path}/page.tsx`],
           })
         } catch (err) {
           const error = new Error(

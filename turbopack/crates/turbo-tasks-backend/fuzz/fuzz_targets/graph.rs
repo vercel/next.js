@@ -10,7 +10,8 @@ mod graph;
 
 // Run with:
 // cd turbopack/crates/turbo-tasks-backend
-// cargo fuzz run fuzz_graph -- -timeout=3 -print_pcs=1 -print_funcs=999999 -print_final_stats=1
+// cargo fuzz run fuzz_graph -s none -- -timeout=3 -print_pcs=1 -print_funcs=999999
+// -print_final_stats=1
 // add --jobs=6 -workers=6 for parallel fuzzing
 
 fuzz_target!(init: { init(); }, |data: Vec<TaskSpec>| {

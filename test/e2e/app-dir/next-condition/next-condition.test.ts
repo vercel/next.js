@@ -1,9 +1,14 @@
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 
-describe('`next-js` Condition', () => {
+describe('`next-js` Condition - Rendering', () => {
   const { next, isTurbopack, skipped } = nextTestSetup({
-    files: __dirname,
-    dependencies: require('./package.json').dependencies,
+    files: __dirname + '/fixtures/render',
+    // copy shared packages over to the test folder. This will override the symlink that currently
+    // exists in the fixture with relative paths
+    overrideFiles: {
+      'sym-linked-packages': new FileRef(__dirname + '/packages'),
+    },
+    dependencies: require('./fixtures/render/package.json').dependencies,
     // Deploy tests are broken with `config.serverExternalPackages`
     skipDeployment: true,
   })
@@ -618,6 +623,136 @@ describe('`next-js` Condition', () => {
   }
 })
 
+describe('`next-js` Condition - middleware (legacy)', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname + '/fixtures/middleware',
+    // copy shared packages over to the test folder. This will override the symlink that currently
+    // exists in the fixture with relative paths
+    overrideFiles: {
+      'sym-linked-packages': new FileRef(__dirname + '/packages'),
+    },
+    dependencies: require('./fixtures/middleware/package.json').dependencies,
+    // Deploy tests are broken with `config.serverExternalPackages`
+    skipDeployment: true,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
+  describe('With or Without Cache Components', () => {
+    it('should follow the next-js condition from a bundled commonjs package', async () => {
+      let cliIndex = next.cliOutput.length
+      const $ = await next.render$('/')
+
+      const middlewareOutput = formatMiddlewareOutput(
+        next.cliOutput.slice(cliIndex)
+      )
+      expect(middlewareOutput).toMatchInlineSnapshot(`
+       "CJSExportsDefault: {
+         default: 'EXPORTS DEFAULT SERVER - Default Export',
+         named: 'EXPORTS DEFAULT SERVER - Named Export'
+       }
+       ExternalCJSExportsDefault: {
+         default: 'EXPORTS DEFAULT SERVER - Default Export',
+         named: 'EXPORTS DEFAULT SERVER - Named Export'
+       }
+       ESMExportsDefault: EXPORTS DEFAULT SERVER - Default Export
+       ExternalESMExportsDefault: EXPORTS DEFAULT SERVER - Default Export"
+      `)
+
+      const text = formatHtmlText($('main').html())
+      expect(text).toMatchInlineSnapshot(`"Hello World"`)
+    })
+  })
+})
+
+describe('`next-js` Condition - proxy', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname + '/fixtures/proxy',
+    // copy shared packages over to the test folder. This will override the symlink that currently
+    // exists in the fixture with relative paths
+    overrideFiles: {
+      'sym-linked-packages': new FileRef(__dirname + '/packages'),
+    },
+    dependencies: require('./fixtures/proxy/package.json').dependencies,
+    // Deploy tests are broken with `config.serverExternalPackages`
+    skipDeployment: true,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
+  describe('With or Without Cache Components', () => {
+    it('should follow the next-js condition from a bundled commonjs package', async () => {
+      let cliIndex = next.cliOutput.length
+      const $ = await next.render$('/')
+
+      const middlewareOutput = formatMiddlewareOutput(
+        next.cliOutput.slice(cliIndex)
+      )
+      expect(middlewareOutput).toMatchInlineSnapshot(`
+         "CJSExportsDefault: {
+           default: 'EXPORTS DEFAULT SERVER - Default Export',
+           named: 'EXPORTS DEFAULT SERVER - Named Export'
+         }
+         ExternalCJSExportsDefault: {
+           default: 'EXPORTS DEFAULT CLIENT - Default Export',
+           named: 'EXPORTS DEFAULT CLIENT - Named Export'
+         }
+         ESMExportsDefault: EXPORTS DEFAULT SERVER - Default Export
+         ExternalESMExportsDefault: EXPORTS DEFAULT CLIENT - Default Export"
+        `)
+
+      const text = formatHtmlText($('main').html())
+      expect(text).toMatchInlineSnapshot(`"Hello World"`)
+    })
+  })
+})
+
+describe('`next-js` Condition - instrumentation', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname + '/fixtures/instrumentation',
+    // copy shared packages over to the test folder. This will override the symlink that currently
+    // exists in the fixture with relative paths
+    overrideFiles: {
+      'sym-linked-packages': new FileRef(__dirname + '/packages'),
+    },
+    dependencies: require('./fixtures/instrumentation/package.json')
+      .dependencies,
+    // Deploy tests are broken with `config.serverExternalPackages`
+    skipDeployment: true,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
+  describe('With or Without Cache Components', () => {
+    it('should not follow the next-js condition inside instrumentation', async () => {
+      // We need a request to trigger the server start in start tests
+      await next.render$('/')
+      const registerOutput = formatRegisterOutput(next.cliOutput)
+      expect(registerOutput).toMatchInlineSnapshot(`
+         "CJSExportsDefault: {
+           default: 'EXPORTS DEFAULT SERVER - Default Export',
+           named: 'EXPORTS DEFAULT SERVER - Named Export'
+         }
+         ExternalCJSExportsDefault: {
+           default: 'EXPORTS DEFAULT CLIENT - Default Export',
+           named: 'EXPORTS DEFAULT CLIENT - Named Export'
+         }
+         ESMExportsDefault: EXPORTS DEFAULT SERVER - Default Export
+         ExternalESMExportsDefault: EXPORTS DEFAULT CLIENT - Default Export"
+        `)
+    })
+  })
+})
+
 /**
  * produces more readable snapshots by stripping tags and auto formatting
  */
@@ -644,4 +779,20 @@ function formatHtmlText(html) {
     })
     .filter(Boolean)
     .join('\n')
+}
+
+function formatMiddlewareOutput(cliOutput) {
+  return (
+    cliOutput.match(
+      /==== MIDDLEWARE START ====(.*?)==== MIDDLEWARE END ====/s
+    )?.[1] ?? ''
+  ).trim()
+}
+
+function formatRegisterOutput(cliOutput) {
+  return (
+    cliOutput.match(
+      /==== REGISTER START ====(.*?)==== REGISTER END ====/s
+    )?.[1] ?? ''
+  ).trim()
 }
