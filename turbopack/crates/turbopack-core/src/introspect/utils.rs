@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, IntoTraitRef, Vc};
+use turbo_tasks::{FxIndexSet, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{

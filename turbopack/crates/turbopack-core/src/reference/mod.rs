@@ -4,8 +4,8 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, IntoTraitRef, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{
