@@ -45,8 +45,8 @@ export function restoreReducer(
 
   const now = Date.now()
   const accumulation: NavigationRequestAccumulation = {
-    scrollableSegments: null,
     separateRefreshUrls: null,
+    scrollRef: null,
   }
   const restoreSeed = convertServerPatchToFullTree(
     treeToRestore,

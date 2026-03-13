@@ -1,8 +1,5 @@
-import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type {
-  FlightRouterState,
-  FlightSegmentPath,
-} from '../../../shared/lib/app-router-types'
+import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
+import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
@@ -165,17 +162,24 @@ export interface PushRef {
 
 export type FocusAndScrollRef = {
   /**
-   * If focus and scroll should be set in the layout-router's useEffect()
+   * A shared mutable ref that controls whether a scroll should happen.
+   * When set, the first segment whose scroll handler fires will scroll
+   * and set `current` to `false`, preventing other segments from also
+   * scrolling.
+   *
+   * The scroll handler checks `cacheNode.scrollRef` first (per-node),
+   * then falls back to this (top-level). This ensures that even if a
+   * subsequent reducer (e.g. refresh) rebuilds the cache tree without
+   * per-node refs, the scroll intent from a prior reducer (e.g. push)
+   * is preserved.
+   *
+   * `null` means no scroll should happen.
    */
-  apply: boolean
+  scrollRef: ScrollRef | null
   /**
    * The hash fragment that should be scrolled to.
    */
   hashFragment: string | null
-  /**
-   * The paths of the segments that should be focused.
-   */
-  segmentPaths: FlightSegmentPath[]
   /**
    * If only the URLs hash fragment changed
    */

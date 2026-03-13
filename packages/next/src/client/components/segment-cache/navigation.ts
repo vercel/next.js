@@ -2,6 +2,7 @@ import type {
   CacheNodeSeedData,
   FlightRouterState,
   FlightSegmentPath,
+  ScrollRef,
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
@@ -223,8 +224,8 @@ export function navigateToKnownRoute(
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
   const accumulation: NavigationRequestAccumulation = {
-    scrollableSegments: null,
     separateRefreshUrls: null,
+    scrollRef: null,
   }
   // We special case navigations to the exact same URL as the current location.
   // It's a common UI pattern for apps to refresh when you click a link to the
@@ -281,7 +282,7 @@ export function navigateToKnownRoute(
       canonicalUrl,
       navigateType,
       shouldScroll,
-      accumulation.scrollableSegments,
+      accumulation.scrollRef,
       debugInfo
     )
   }
@@ -565,7 +566,7 @@ export function completeSoftNavigation(
   canonicalUrl: string,
   navigateType: 'push' | 'replace',
   shouldScroll: boolean,
-  scrollableSegments: Array<FlightSegmentPath> | null,
+  scrollRef: ScrollRef | null,
   collectedDebugInfo: Array<unknown> | null
 ) {
   // The "Next-Url" is a special representation of the URL that Next.js
@@ -594,20 +595,42 @@ export function completeSoftNavigation(
     url.search === oldUrl.search &&
     url.hash !== oldUrl.hash
 
-  // During a hash-only change, setting scrollableSegments to an empty
-  // array triggers a scroll for all new and updated segments. See
-  // `ScrollAndFocusHandler` for more details.
-  //
-  // TODO: Given the previous comment, I don't know why shouldScroll =
-  // false sets this to an empty array. Seems like an accident. I'm just
-  // preserving the logic that was already here. Clean this up when we
-  // move the per-segment scroll state to the CacheNode.
-  const segmentPathsToScrollTo =
-    onlyHashChange || !shouldScroll
-      ? []
-      : scrollableSegments !== null
-        ? scrollableSegments
-        : oldState.focusAndScrollRef.segmentPaths
+  let activeScrollRef: ScrollRef | null
+  if (!shouldScroll) {
+    // When shouldScroll is false, preserve the previous scroll state.
+    // This handles cases like router.push() + router.refresh() batched
+    // together — the push sets up scroll state, and the refresh should
+    // not clobber it.
+    //
+    // However, if this navigation itself created new scroll targets
+    // (e.g. scroll={false} on a Link), neutralize them — the user
+    // explicitly opted out of scrolling.
+    if (scrollRef !== null) {
+      scrollRef.current = false
+    }
+    activeScrollRef = oldState.focusAndScrollRef.scrollRef
+  } else if (onlyHashChange) {
+    // Hash-only navigations should scroll regardless of per-node state.
+    // Create a fresh ref on the top-level state so every segment falls
+    // back to it; the first one to scroll consumes it.
+    activeScrollRef = { current: true }
+  } else {
+    // Use per-node scrollRef to decide whether to scroll. New/reused leaf
+    // nodes created during navigation get a scrollRef; refreshed nodes
+    // don't. This means a server action calling refresh() won't scroll
+    // (no scrollRef), but a router.push() will (new leaf gets scrollRef).
+    activeScrollRef = scrollRef
+
+    // If this navigation created new scroll targets, invalidate any
+    // pending scroll from a previous navigation by marking the old
+    // ScrollRef as already consumed.
+    if (scrollRef !== null) {
+      const oldScrollRef = oldState.focusAndScrollRef.scrollRef
+      if (oldScrollRef !== null) {
+        oldScrollRef.current = false
+      }
+    }
+  }
 
   const newState: AppRouterState = {
     canonicalUrl,
@@ -618,13 +641,7 @@ export function completeSoftNavigation(
       preserveCustomHistoryState: false,
     },
     focusAndScrollRef: {
-      // TODO: We should track all the per-segment scroll state on the CacheNode
-      // instead of using the paths.
-      apply: shouldScroll
-        ? segmentPathsToScrollTo !== null
-          ? true
-          : oldState.focusAndScrollRef.apply
-        : oldState.focusAndScrollRef.apply,
+      scrollRef: activeScrollRef,
       onlyHashChange,
       hashFragment:
         // Remove leading # and decode hash to make non-latin hashes work.
@@ -636,7 +653,6 @@ export function completeSoftNavigation(
         shouldScroll && url.hash !== ''
           ? decodeURIComponent(url.hash.slice(1))
           : oldState.focusAndScrollRef.hashFragment,
-      segmentPaths: segmentPathsToScrollTo,
     },
     cache,
     tree,

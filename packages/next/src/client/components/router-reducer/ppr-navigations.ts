@@ -1,11 +1,10 @@
 import type {
   CacheNodeSeedData,
   FlightRouterState,
-  FlightSegmentPath,
   Segment,
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type { HeadData } from '../../../shared/lib/app-router-types'
+import type { HeadData, ScrollRef } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import {
   PAGE_SEGMENT_KEY,
@@ -118,8 +117,14 @@ const enum NavigationTaskExitStatus {
 }
 
 export type NavigationRequestAccumulation = {
-  scrollableSegments: Array<FlightSegmentPath> | null
   separateRefreshUrls: Set<string> | null
+  /**
+   * A shared mutable ref assigned to all new leaf segments during this
+   * navigation. If no new segments are created (e.g. during a refresh),
+   * this stays null — signaling that the previous navigation's scroll
+   * targets should be preserved.
+   */
+  scrollRef: ScrollRef | null
 }
 
 const noop = () => {}
@@ -133,8 +138,8 @@ export function createInitialCacheNodeForHydration(
   // Create the initial cache node tree, using the data embedded into the
   // HTML document.
   const accumulation: NavigationRequestAccumulation = {
-    scrollableSegments: null,
     separateRefreshUrls: null,
+    scrollRef: null,
   }
   const task = createCacheNodeOnNavigation(
     navigatedAt,
@@ -143,11 +148,14 @@ export function createInitialCacheNodeForHydration(
     FreshnessPolicy.Hydration,
     seedData,
     seedHead,
-    null,
-    null,
     false,
     accumulation
   )
+  // The initial hydration should not trigger a scroll. Neutralize any
+  // scroll ref that was created during tree construction.
+  if (accumulation.scrollRef !== null) {
+    accumulation.scrollRef.current = false
+  }
   return task
 }
 
@@ -213,8 +221,6 @@ export function startPPRNavigation(
     seedData,
     seedHead,
     isSamePageNavigation,
-    null,
-    null,
     parentNeedsDynamicRequest,
     oldRootRefreshState,
     parentRefreshState,
@@ -234,8 +240,6 @@ function updateCacheNodeOnNavigation(
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   isSamePageNavigation: boolean,
-  parentSegmentPath: FlightSegmentPath | null,
-  parentParallelRouteKey: string | null,
   parentNeedsDynamicRequest: boolean,
   oldRootRefreshState: RefreshState,
   parentRefreshState: RefreshState | null,
@@ -285,12 +289,6 @@ function updateCacheNodeOnNavigation(
     ) {
       return null
     }
-    if (parentSegmentPath === null || parentParallelRouteKey === null) {
-      // The root should never mismatch. If it does, it suggests an internal
-      // Next.js error, or a malformed server response. Trigger a full-
-      // page navigation.
-      return null
-    }
     return createCacheNodeOnNavigation(
       navigatedAt,
       newRouteTree,
@@ -298,23 +296,10 @@ function updateCacheNodeOnNavigation(
       freshness,
       seedData,
       seedHead,
-      parentSegmentPath,
-      parentParallelRouteKey,
       parentNeedsDynamicRequest,
       accumulation
     )
   }
-
-  // TODO: The segment paths are tracked so that LayoutRouter knows which
-  // segments to scroll to after a navigation. But we should just mark this
-  // information on the CacheNode directly. It used to be necessary to do this
-  // separately because CacheNodes were created lazily during render, not when
-  // rather than when creating the route tree.
-  const segmentPath =
-    parentParallelRouteKey !== null && parentSegmentPath !== null
-      ? parentSegmentPath.concat([parentParallelRouteKey, newSegment])
-      : // NOTE: The root segment is intentionally omitted from the segment path
-        []
 
   const newSlots = newRouteTree.slots
   const oldRouterStateChildren = oldRouterState[1]
@@ -327,22 +312,31 @@ function updateCacheNodeOnNavigation(
     didFindRootLayout ||
     (newRouteTree.prefetchHints & PrefetchHint.IsRootLayout) !== 0
 
-  let shouldRefreshDynamicData: boolean = false
+  let shouldRefreshDynamicData: boolean
+  // Whether reused leaf segments should be marked as scroll targets.
+  // Only true for genuine navigations; refreshes and history traversals
+  // should not trigger a scroll.
+  let shouldScrollReusedLeaf: boolean
   switch (freshness) {
     case FreshnessPolicy.Default:
+    case FreshnessPolicy.Gesture:
+      shouldRefreshDynamicData = false
+      shouldScrollReusedLeaf = true
+      break
     case FreshnessPolicy.HistoryTraversal:
     case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
-    case FreshnessPolicy.Gesture:
-      // We should never drop dynamic data in shared layouts, except during
-      // a refresh.
       shouldRefreshDynamicData = false
+      shouldScrollReusedLeaf = false
       break
     case FreshnessPolicy.RefreshAll:
     case FreshnessPolicy.HMRRefresh:
       shouldRefreshDynamicData = true
+      shouldScrollReusedLeaf = false
       break
     default:
       freshness satisfies never
+      shouldRefreshDynamicData = false
+      shouldScrollReusedLeaf = false
       break
   }
 
@@ -369,6 +363,16 @@ function updateCacheNodeOnNavigation(
     const dropPrefetchRsc = false
     newCacheNode = reuseSharedCacheNode(dropPrefetchRsc, oldCacheNode)
     needsDynamicRequest = false
+
+    if (isLeafSegment && shouldScrollReusedLeaf) {
+      // Lazily create a single ScrollRef shared by all leaves in this
+      // navigation. The first segment to scroll sets current to false,
+      // preventing the others from also scrolling.
+      if (accumulation.scrollRef === null) {
+        accumulation.scrollRef = { current: true }
+      }
+      newCacheNode.scrollRef = accumulation.scrollRef
+    }
   } else {
     // If this is part of a refresh, ignore the existing CacheNode and create a
     // new one.
@@ -501,8 +505,6 @@ function updateCacheNodeOnNavigation(
         seedDataChild ?? null,
         seedHeadChild,
         isSamePageNavigation,
-        segmentPath,
-        parallelRouteKey,
         parentNeedsDynamicRequest || needsDynamicRequest,
         oldRootRefreshState,
         refreshState,
@@ -572,8 +574,6 @@ function createCacheNodeOnNavigation(
   freshness: FreshnessPolicy,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
-  parentSegmentPath: FlightSegmentPath | null,
-  parentParallelRouteKey: string | null,
   parentNeedsDynamicRequest: boolean,
   accumulation: NavigationRequestAccumulation
 ): NavigationTask {
@@ -588,32 +588,9 @@ function createCacheNodeOnNavigation(
   // diverges, which is why we keep them separate.
 
   const newSegment = createSegmentFromRouteTree(newRouteTree)
-  const segmentPath =
-    parentParallelRouteKey !== null && parentSegmentPath !== null
-      ? parentSegmentPath.concat([parentParallelRouteKey, newSegment])
-      : // NOTE: The root segment is intentionally omitted from the segment path
-        []
 
   const newSlots = newRouteTree.slots
   const seedDataChildren = seedData !== null ? seedData[1] : null
-
-  const isLeafSegment = newSlots === null
-
-  if (isLeafSegment) {
-    // The segment path of every leaf segment (i.e. page) is collected into
-    // a result array. This is used by the LayoutRouter to scroll to ensure that
-    // new pages are visible after a navigation.
-    //
-    // This only happens for new pages, not for refreshed pages.
-    //
-    // TODO: We should use a string to represent the segment path instead of
-    // an array. We already use a string representation for the path when
-    // accessing the Segment Cache, so we can use the same one.
-    if (accumulation.scrollableSegments === null) {
-      accumulation.scrollableSegments = []
-    }
-    accumulation.scrollableSegments.push(segmentPath)
-  }
 
   const seedRsc = seedData !== null ? seedData[0] : null
   const result = createCacheNodeForSegment(
@@ -626,6 +603,18 @@ function createCacheNodeOnNavigation(
   )
   const newCacheNode = result.cacheNode
   const needsDynamicRequest = result.needsDynamicRequest
+
+  const isLeafSegment = newSlots === null
+  if (isLeafSegment) {
+    // Mark leaf segments (pages) for scrolling after navigation.
+    // Lazily create a single ScrollRef shared by all leaves in this
+    // navigation. The first segment to scroll sets current to false,
+    // preventing the others from also scrolling.
+    if (accumulation.scrollRef === null) {
+      accumulation.scrollRef = { current: true }
+    }
+    newCacheNode.scrollRef = accumulation.scrollRef
+  }
 
   let patchedRouterStateChildren: {
     [parallelRouteKey: string]: FlightRouterState
@@ -653,8 +642,6 @@ function createCacheNodeOnNavigation(
         freshness,
         seedDataChild ?? null,
         seedHead,
-        segmentPath,
-        parallelRouteKey,
         parentNeedsDynamicRequest || needsDynamicRequest,
         accumulation
       )
@@ -1199,6 +1186,7 @@ function createCacheNode(
     head,
     prefetchHead,
     slots: null,
+    scrollRef: null,
   }
 }
 
