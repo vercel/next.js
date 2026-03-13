@@ -455,6 +455,7 @@ export default defineConfig([
       'packages/next/taskfile*.js',
       'packages/next/next-devtools.webpack-config.js',
       'packages/next/next-runtime.webpack-config.js',
+      'packages/next/next-react-devtools.webpack-config.js',
     ],
     rules: {
       'no-shadow': [

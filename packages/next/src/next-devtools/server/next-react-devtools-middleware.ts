@@ -7,6 +7,10 @@ import { middlewareResponse } from './middleware-response'
 const NEXT_REACT_DEVTOOLS_ASSET_PATH = '/__nextjs_react_devtools/'
 const NEXT_REACT_DEVTOOLS_FRONTEND_PATH = `${NEXT_REACT_DEVTOOLS_ASSET_PATH}frontend.js`
 
+/**
+ * React DevTools emits flat asset files here, so reject anything that looks
+ * like a nested or platform-specific path traversal before joining it.
+ */
 function getReactDevToolsExtraAssetPath(
   pathname: string | null
 ): string | null {

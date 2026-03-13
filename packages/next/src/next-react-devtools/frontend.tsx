@@ -13,6 +13,75 @@ const ROOT_ID = '__next-react-devtools-root'
 const fileCache = new Map<string, Promise<string>>()
 type ReactResourceLocation = [string, string, number, number]
 
+/**
+ * The inline React DevTools bundle is served outside Next's normal client
+ * compilation pipeline, so read the live basePath from the parent window
+ * instead of depending on injected env constants.
+ */
+function getParentBasePath(): string {
+  return (
+    (
+      window.parent as typeof window & {
+        next?: { router?: { basePath?: string } }
+      }
+    ).next?.router?.basePath ?? ''
+  )
+}
+
+/**
+ * Inline `data:` sourcemap URLs need a base64 payload to safely embed arbitrary
+ * JSON without relying on URL escaping rules.
+ */
+function encodeBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte)
+  }
+
+  return btoa(binary)
+}
+
+/**
+ * React server component sources resolve to virtual or file-backed URLs that
+ * page `fetch()` cannot read directly, so reuse Next's existing sourcemap
+ * endpoint and hand React DevTools a synthetic inline sourcemap instead.
+ */
+async function fetchVirtualServerSource(resolvedURL: string): Promise<string> {
+  const params = new URLSearchParams()
+  params.append('filename', resolvedURL)
+
+  const res = await fetch(
+    `${getParentBasePath()}/__nextjs_source-map?${params.toString()}`
+  )
+  if (!res.ok) {
+    throw new Error(`Failed to load source map for ${resolvedURL}`)
+  }
+
+  const sourceMapPayload = await res.text()
+  return `//# sourceMappingURL=data:application/json;base64,${encodeBase64(sourceMapPayload)}`
+}
+
+/**
+ * Only React virtual URLs and file-backed server chunk URLs need the sourcemap
+ * endpoint detour. Browser-fetchable asset URLs should stay on the direct path.
+ */
+function shouldUseSourceMapEndpoint(
+  originalURL: string,
+  resolvedURL: string
+): boolean {
+  return (
+    originalURL.startsWith('about://React/') ||
+    resolvedURL.startsWith('file://') ||
+    /^[A-Za-z]:[\\/]/.test(resolvedURL)
+  )
+}
+
+/**
+ * Cache by the devirtualized URL so the React virtual form and the underlying
+ * file-backed form share one lookup result.
+ */
 function fetchFileWithCaching(url: string): Promise<string> {
   const resolvedURL = devirtualizeReactServerURL(url)
   console.log('[next-react-devtools] fetchFileWithCaching', resolvedURL)
@@ -22,23 +91,33 @@ function fetchFileWithCaching(url: string): Promise<string> {
     return cached
   }
 
-  const request = fetch(resolvedURL).then(async (res) => {
-    if (!res.ok) {
-      throw new Error(`Failed to load ${resolvedURL}`)
-    }
+  const request = shouldUseSourceMapEndpoint(url, resolvedURL)
+    ? fetchVirtualServerSource(resolvedURL)
+    : fetch(resolvedURL).then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to load ${resolvedURL}`)
+        }
 
-    return res.text()
-  })
+        return res.text()
+      })
 
   fileCache.set(resolvedURL, request)
   return request
 }
 
+/**
+ * Match standalone React DevTools behavior and only enable source clicks once
+ * we have a sourcemapped location to act on.
+ */
 function canViewElementSourceFunction(
-  source: ReactResourceLocation,
+  _source: ReactResourceLocation,
   symbolicatedSource: ReactResourceLocation | null
 ) {
-  const [, sourceURL, line, column] = symbolicatedSource ?? source
+  if (symbolicatedSource === null) {
+    return false
+  }
+
+  const [, sourceURL, line, column] = symbolicatedSource
   const resolvedURL = devirtualizeReactServerURL(sourceURL)
 
   return (
@@ -49,31 +128,28 @@ function canViewElementSourceFunction(
   )
 }
 
+/**
+ * Source clicks should open the symbolicated file location, not the generated
+ * server chunk path that React reports before sourcemap resolution.
+ */
 function viewElementSourceFunction(
-  source: ReactResourceLocation,
+  _source: ReactResourceLocation,
   symbolicatedSource: ReactResourceLocation | null
 ) {
-  const [, sourceURL, line, column] = symbolicatedSource ?? source
-  const resolvedURL = devirtualizeReactServerURL(sourceURL)
-
-  if (!canViewElementSourceFunction(source, symbolicatedSource)) {
+  if (symbolicatedSource === null) {
     return
   }
+
+  const [, sourceURL, line, column] = symbolicatedSource
+  const resolvedURL = devirtualizeReactServerURL(sourceURL)
 
   const params = new URLSearchParams()
   params.append('file', resolvedURL)
   params.append('line1', String(line))
   params.append('column1', String(column))
 
-  const parentBasePath =
-    (
-      window.parent as typeof window & {
-        next?: { router?: { basePath?: string } }
-      }
-    ).next?.router?.basePath ?? ''
-
   void fetch(
-    `${parentBasePath}/__nextjs_launch-editor?${params.toString()}`
+    `${getParentBasePath()}/__nextjs_launch-editor?${params.toString()}`
   ).catch((cause) => {
     console.error(
       `Failed to open file "${resolvedURL} (${line}:${column})" in your editor. Cause:`,
