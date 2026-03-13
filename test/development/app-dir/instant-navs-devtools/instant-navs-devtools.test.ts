@@ -20,6 +20,13 @@ describe('instant-nav-panel', () => {
     )
   }
 
+  async function waitForInstantModeCookie(browser: Playwright): Promise<void> {
+    await retry(async () => {
+      const cookie = await browser.eval(() => document.cookie)
+      expect(cookie).toMatch(/next-instant-navigation-testing=[^;]+/)
+    })
+  }
+
   async function clearInstantModeCookie(browser: Playwright) {
     await browser.eval(() => {
       document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
@@ -32,6 +39,7 @@ describe('instant-nav-panel', () => {
 
   async function clickStartClientNav(browser: Playwright) {
     await browser.elementByCssInstant('[data-instant-nav-client]').click()
+    await waitForInstantModeCookie(browser)
   }
 
   async function getInstantNavPanelText(browser: Playwright): Promise<string> {
@@ -94,10 +102,7 @@ describe('instant-nav-panel', () => {
     await clickStartClientNav(browser)
 
     // Cookie should now be set
-    await retry(async () => {
-      const cookie = await browser.eval(() => document.cookie)
-      expect(cookie).toContain('next-instant-navigation-testing=')
-    })
+    await waitForInstantModeCookie(browser)
 
     // Panel should show client-nav-waiting state
     await retry(async () => {
