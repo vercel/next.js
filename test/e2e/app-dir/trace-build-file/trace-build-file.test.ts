@@ -133,6 +133,7 @@ describe('trace-build-file', () => {
                   "static-check",
                   "static-generation",
                   "telemetry-flush",
+                  "turbopack-build-events",
                 ]
               `)
       } else {

@@ -283,9 +283,7 @@ export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
   traceState: TraceState & { shouldSaveTraceEvents: boolean }
 }): Promise<
-  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'> & {
-    debugTraceEvents?: ReturnType<typeof getTraceEvents>
-  }
+  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
 > {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
@@ -324,14 +322,12 @@ export async function workerMain(workerData: {
       duration,
     } = await turbopackBuild()
     shutdownPromise = resultShutdownPromise
-    // Wait for shutdown to complete so that all compilation events
-    // (e.g. persistence trace spans) have been processed before we
-    // collect the saved trace events.
-    await shutdownPromise
+    // Don't await shutdownPromise here -- persistence trace spans are
+    // collected later in waitForShutdown() so that the caller can start
+    // SSG in parallel with the Turbopack shutdown / persistence flush.
     return {
       buildTraceContext,
       duration,
-      debugTraceEvents: getTraceEvents(),
     }
   } finally {
     // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)
@@ -341,8 +337,13 @@ export async function workerMain(workerData: {
   }
 }
 
-export async function waitForShutdown(): Promise<void> {
+export async function waitForShutdown(): Promise<{
+  debugTraceEvents?: ReturnType<typeof getTraceEvents>
+}> {
   if (shutdownPromise) {
     await shutdownPromise
   }
+  // Collect trace events after shutdown completes so that all compilation
+  // events (e.g. persistence trace spans) have been processed.
+  return { debugTraceEvents: getTraceEvents() }
 }
