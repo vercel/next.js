@@ -36,30 +36,30 @@ The `AGENTS.md` file at the root of your project tells agents to read these bund
 [`create-next-app`](/docs/app/api-reference/cli/create-next-app) generates `AGENTS.md` and `CLAUDE.md` automatically. No additional setup is needed:
 
 ```bash package="pnpm"
-pnpm create next-app@canary
+pnpm create next-app@latest
 ```
 
 ```bash package="npm"
-npx create-next-app@canary
+npx create-next-app@latest
 ```
 
 ```bash package="yarn"
-yarn create next-app@canary
+yarn create next-app@latest
 ```
 
 ```bash package="bun"
-bun create next-app@canary
+bun create next-app@latest
 ```
 
 If you don't want the agent files, pass `--no-agents-md`:
 
 ```bash
-npx create-next-app@canary --no-agents-md
+npx create-next-app@latest --no-agents-md
 ```
 
 ### Existing projects
 
-Ensure you are on Next.js `v16.2.0-canary.37` or later, then add the following files to the root of your project.
+Ensure you are on Next.js `16.2` or later, then add the following files to the root of your project.
 
 `AGENTS.md` contains the instructions that agents will read:
 
