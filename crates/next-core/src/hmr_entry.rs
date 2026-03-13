@@ -8,7 +8,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, ChunkingType,
-        ChunkingTypeOption, EvaluatableAsset,
+        EvaluatableAsset,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -164,11 +164,10 @@ impl ModuleReference for HmrEntryModuleReference {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
     }
 }

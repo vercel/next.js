@@ -9,7 +9,7 @@ mod update_cell;
 mod update_collectible;
 use std::{
     fmt::{Debug, Display, Formatter},
-    sync::{Arc, atomic::Ordering},
+    sync::Arc,
 };
 
 use bincode::{Decode, Encode};
@@ -98,12 +98,64 @@ pub trait ChildExecuteContext<'e>: Send + Sized {
     fn create(self) -> impl ExecuteContext<'e>;
 }
 
+/// Counter that tracks how many task guards are alive, detecting concurrent access.
+///
+/// In release builds all methods are no-ops and the struct is zero-sized, so there is no runtime
+/// cost.
+
+#[derive(Clone)]
+struct TaskLockCounter(#[cfg(debug_assertions)] std::sync::Arc<std::sync::atomic::AtomicU8>);
+
+impl TaskLockCounter {
+    fn new() -> Self {
+        Self(
+            #[cfg(debug_assertions)]
+            std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
+        )
+    }
+
+    /// Increment the count by 1 and panic if concurrent access is detected.
+    fn acquire(&self) {
+        #[cfg(debug_assertions)]
+        if self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel) != 0 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+    }
+
+    /// Increment the count by `n` and panic if concurrent access is detected.
+    fn acquire_multiple(&self, n: u8) {
+        let _ = n; // silence warning
+        #[cfg(debug_assertions)]
+        if self.0.fetch_add(n, std::sync::atomic::Ordering::AcqRel) != 0 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+    }
+
+    /// Increment the count by 1 without checking for concurrent access.
+    /// Used when the caller knows another guard already validated exclusive access.
+    fn reacquire(&self) {
+        #[cfg(debug_assertions)]
+        self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+    }
+
+    /// Decrement the count by 1.
+    fn release(&self) {
+        #[cfg(debug_assertions)]
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+    }
+}
+
 pub struct ExecuteContextImpl<'e, B: BackingStorage> {
     backend: &'e TurboTasksBackendInner<B>,
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     _operation_guard: Option<OperationGuard<'e, B>>,
-    #[cfg(debug_assertions)]
-    active_task_locks: std::sync::Arc<std::sync::atomic::AtomicU8>,
+    task_lock_counter: TaskLockCounter,
 }
 
 impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
@@ -115,8 +167,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
-            #[cfg(debug_assertions)]
-            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            task_lock_counter: TaskLockCounter::new(),
         }
     }
 
@@ -228,13 +279,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         let mut tasks_to_restore_for_meta = Vec::with_capacity(meta_count);
         let mut tasks_to_restore_for_meta_indicies = Vec::with_capacity(meta_count);
         for (i, &(task_id, category, _, _)) in tasks.iter().enumerate() {
-            #[cfg(debug_assertions)]
-            if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
-                panic!(
-                    "Concurrent task lock acquisition detected. This is not allowed and indicates \
-                     a bug. It can lead to deadlocks."
-                );
-            }
+            self.task_lock_counter.acquire();
 
             let task = self.backend.storage.access_mut(task_id);
             let mut ready = true;
@@ -255,8 +300,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             if ready {
                 prepared_task_callback(self, task_id, category, task);
             }
-            #[cfg(debug_assertions)]
-            self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+            self.task_lock_counter.release();
         }
         if tasks_to_restore_for_meta.is_empty() && tasks_to_restore_for_data.is_empty() {
             return;
@@ -317,13 +361,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             if storage_for_data.is_none() && storage_for_meta.is_none() {
                 continue;
             }
-            #[cfg(debug_assertions)]
-            if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
-                panic!(
-                    "Concurrent task lock acquisition detected. This is not allowed and indicates \
-                     a bug. It can lead to deadlocks."
-                );
-            }
+            self.task_lock_counter.acquire();
 
             let mut task_type = None;
             let mut task = self.backend.storage.access_mut(task_id);
@@ -341,8 +379,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                 task.flags.set_restored(TaskDataCategory::Meta);
             }
             prepared_task_callback(self, task_id, category, task);
-            #[cfg(debug_assertions)]
-            self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+            self.task_lock_counter.release();
             if let Some(task_type) = task_type {
                 // Insert into the task cache to avoid future lookups
                 self.backend.task_cache.entry(task_type).or_insert(task_id);
@@ -365,13 +402,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     }
 
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
-        #[cfg(debug_assertions)]
-        if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
-            panic!(
-                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
-                 bug. It can lead to deadlocks."
-            );
-        }
+        self.task_lock_counter.acquire();
 
         let mut task = self.backend.storage.access_mut(task_id);
         if !task.flags.is_restored(category) {
@@ -417,8 +448,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
             task_id,
             #[cfg(debug_assertions)]
             category,
-            #[cfg(debug_assertions)]
-            active_task_locks: self.active_task_locks.clone(),
+            task_lock_counter: self.task_lock_counter.clone(),
         }
     }
 
@@ -431,22 +461,18 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         mut func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
-        #[cfg(debug_assertions)]
-        let active_task_locks = self.active_task_locks.clone();
+        let task_lock_counter = self.task_lock_counter.clone();
         self.prepare_tasks_with_callback(task_ids, true, |this, task_id, _category, task| {
-            // The prepare_tasks_with_callback already increased the active_task_locks count and
-            // checked for concurrent access but it will also decrement it again, so we
-            // need to increase it again here as Drop will decrement it
-            #[cfg(debug_assertions)]
-            active_task_locks.fetch_add(1, Ordering::AcqRel);
+            // The prepare_tasks_with_callback already checked for concurrent access
+            // but will also decrement, so we re-increment here since Drop will decrement.
+            task_lock_counter.reacquire();
 
             let guard = TaskGuardImpl {
                 task,
                 task_id,
                 #[cfg(debug_assertions)]
                 category: _category,
-                #[cfg(debug_assertions)]
-                active_task_locks: active_task_locks.clone(),
+                task_lock_counter: task_lock_counter.clone(),
             };
             func(guard, this);
         });
@@ -458,13 +484,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl) {
-        #[cfg(debug_assertions)]
-        if self.active_task_locks.fetch_add(2, Ordering::AcqRel) != 0 {
-            panic!(
-                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
-                 bug. It can lead to deadlocks."
-            );
-        }
+        self.task_lock_counter.acquire_multiple(2);
 
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
 
@@ -529,16 +549,14 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
                 task_id: task_id1,
                 #[cfg(debug_assertions)]
                 category,
-                #[cfg(debug_assertions)]
-                active_task_locks: self.active_task_locks.clone(),
+                task_lock_counter: self.task_lock_counter.clone(),
             },
             TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
                 #[cfg(debug_assertions)]
                 category,
-                #[cfg(debug_assertions)]
-                active_task_locks: self.active_task_locks.clone(),
+                task_lock_counter: self.task_lock_counter.clone(),
             },
         )
     }
@@ -624,8 +642,7 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
             _operation_guard: None,
-            #[cfg(debug_assertions)]
-            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            task_lock_counter: TaskLockCounter::new(),
         }
     }
 }
@@ -898,14 +915,12 @@ pub struct TaskGuardImpl<'a> {
     task: StorageWriteGuard<'a>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
-    #[cfg(debug_assertions)]
-    active_task_locks: std::sync::Arc<std::sync::atomic::AtomicU8>,
+    task_lock_counter: TaskLockCounter,
 }
 
-#[cfg(debug_assertions)]
 impl Drop for TaskGuardImpl<'_> {
     fn drop(&mut self) {
-        self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+        self.task_lock_counter.release();
     }
 }
 

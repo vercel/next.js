@@ -5,7 +5,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
+    common::{
+        BytePos, Span, Spanned, SyntaxContext,
+        comments::Comments,
+        errors::{DiagnosticId, HANDLER},
+        source_map::SmallPos,
+    },
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -15,7 +20,9 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Source};
+use turbopack_core::{
+    chunk::ChunkingType, issue::IssueSource, loader::WebpackLoaderItem, source::Source,
+};
 
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
@@ -113,6 +120,23 @@ impl ImportAnnotations {
                             PropName::Str(s) => s.value.clone(),
                             _ => continue,
                         };
+                        // Validate known annotation values
+                        if key == *ANNOTATION_CHUNKING_TYPE {
+                            let value = str.value.to_string_lossy();
+                            if value != "parallel" && value != "none" {
+                                HANDLER.with(|handler| {
+                                    handler.span_warn_with_code(
+                                        kv.value.span(),
+                                        &format!(
+                                            "unknown turbopack-chunking-type: \"{value}\", \
+                                             expected \"parallel\" or \"none\""
+                                        ),
+                                        DiagnosticId::Error("turbopack-chunking-type".into()),
+                                    );
+                                });
+                                continue;
+                            }
+                        }
                         map.insert(key, str.value.clone());
                     }
                 }
@@ -171,9 +195,23 @@ impl ImportAnnotations {
             .map(|v| v.to_string_lossy())
     }
 
-    /// Returns the content on the chunking-type annotation
-    pub fn chunking_type(&self) -> Option<&Wtf8Atom> {
-        self.get(&ANNOTATION_CHUNKING_TYPE)
+    /// Returns the chunking type override from the `turbopack-chunking-type` annotation.
+    ///
+    /// - `None` — no annotation present
+    /// - `Some(None)` — annotation is `"none"` (opt out of chunking)
+    /// - `Some(Some(..))` — explicit chunking type (e.g. `"parallel"`)
+    ///
+    /// Unknown values are rejected during [`ImportAnnotations::parse`] and omitted.
+    pub fn chunking_type(&self) -> Option<Option<ChunkingType>> {
+        let chunking_type = self.get(&ANNOTATION_CHUNKING_TYPE)?;
+        if chunking_type == "none" {
+            Some(None)
+        } else {
+            Some(Some(ChunkingType::Parallel {
+                inherit_async: true,
+                hoisted: true,
+            }))
+        }
     }
 
     /// Returns the content on the type attribute
