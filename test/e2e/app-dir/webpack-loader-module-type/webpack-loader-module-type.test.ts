@@ -15,7 +15,7 @@ describe('webpack-loader-module-type', () => {
     const $ = await next.render$('/')
     const src = $('#svg-url').text()
     // asset/resource should emit the file and return URL path
-    expect(src).toMatch(/\/_next\/static\/media\/test\.[a-f0-9]+\.svg$/)
+    expect(src).toMatch(/\/_next\/static\/media\/test\.[0-9a-z_.~-]+\.svg$/)
   })
 
   itTurbopackOnly(

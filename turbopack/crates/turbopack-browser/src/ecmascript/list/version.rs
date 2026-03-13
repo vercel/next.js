@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::version::{Version, VersionedContentMerger};
 
 type VersionTraitRef = TraitRef<Box<dyn Version>>;
@@ -62,7 +62,7 @@ impl Version for EcmascriptDevChunkListVersion {
             hasher.write_value(id);
         }
         let hash = hasher.finish();
-        let hex_hash = encode_hex(hash);
-        Ok(Vc::cell(hex_hash.into()))
+        let hash = encode_base64(hash);
+        Ok(Vc::cell(hash.into()))
     }
 }

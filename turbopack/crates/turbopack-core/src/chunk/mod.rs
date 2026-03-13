@@ -46,6 +46,31 @@ use crate::{
     output::{OutputAssets, OutputAssetsReference},
 };
 
+#[derive(
+    Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub enum ContentHashing {
+    /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
+    /// Benefit: No hash manifest needed.
+    /// Downside: Causes cascading hash invalidation.
+    Direct {
+        /// The length of the content hash in base40 chars. Anything lower than 7 is not
+        /// recommended due to the high risk of collisions.
+        length: u8,
+    },
+}
+
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared, operation)]
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize, ValueToString)]

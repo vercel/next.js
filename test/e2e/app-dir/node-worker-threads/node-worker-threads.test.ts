@@ -72,7 +72,7 @@ describe('node-worker-threads', () => {
 
     const url = new URL(data.pngInfo.url, 'http://localhost')
     expect(url.pathname).toMatch(
-      /\/_next\/static.*\/test-image\.[a-f0-9]+\.png/
+      /\/_next\/static.*\/test-image\.[0-9a-z_.~-]+\.png/
     )
     if (!isNextDev) {
       expect(next.assetToken).toMatch(/.+/)
