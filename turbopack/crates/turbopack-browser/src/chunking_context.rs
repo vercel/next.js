@@ -937,7 +937,7 @@ impl ChunkingContext for BrowserChunkingContext {
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
         if let Some(export_usage) = self.export_usage {
-            Ok(export_usage.await?.used_exports(module).await?)
+            Ok(export_usage.used_exports(module))
         } else {
             Ok(ModuleExportUsage::all())
         }
