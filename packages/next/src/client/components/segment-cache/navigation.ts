@@ -57,6 +57,57 @@ export function navigate(
   shouldScroll: boolean,
   navigateType: 'push' | 'replace'
 ): AppRouterState | Promise<AppRouterState> {
+  // Instant Navigation Testing API: when the lock is active, ensure a
+  // prefetch task has been initiated before proceeding with the navigation.
+  // This guarantees that segment data requests are at least pending, even
+  // for routes that already have a cached route tree. Without this, the
+  // static shell might be incomplete because some segments were never
+  // requested.
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { isNavigationLocked } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    if (isNavigationLocked()) {
+      return ensurePrefetchThenNavigate(
+        state,
+        url,
+        currentUrl,
+        currentRenderedSearch,
+        currentCacheNode,
+        currentFlightRouterState,
+        nextUrl,
+        freshnessPolicy,
+        shouldScroll,
+        navigateType
+      )
+    }
+  }
+
+  return navigateImpl(
+    state,
+    url,
+    currentUrl,
+    currentRenderedSearch,
+    currentCacheNode,
+    currentFlightRouterState,
+    nextUrl,
+    freshnessPolicy,
+    shouldScroll,
+    navigateType
+  )
+}
+
+function navigateImpl(
+  state: AppRouterState,
+  url: URL,
+  currentUrl: URL,
+  currentRenderedSearch: string,
+  currentCacheNode: CacheNode | null,
+  currentFlightRouterState: FlightRouterState,
+  nextUrl: string | null,
+  freshnessPolicy: FreshnessPolicy,
+  shouldScroll: boolean,
+  navigateType: 'push' | 'replace'
+): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
 
@@ -306,27 +357,6 @@ async function navigateToUnknownRoute(
   shouldScroll: boolean,
   navigateType: 'push' | 'replace'
 ): Promise<AppRouterState> {
-  // If the Instant Navigation Testing API lock is active, try to prefetch the
-  // route first. If the prefetch succeeds, navigate using the prefetched route
-  // tree. If it fails, fall through to the normal path.
-  if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    const prefetchResult = await tryNavigateUsingTestingAPIPrefetch(
-      state,
-      url,
-      currentUrl,
-      currentRenderedSearch,
-      nextUrl,
-      currentCacheNode,
-      currentFlightRouterState,
-      freshnessPolicy,
-      shouldScroll,
-      navigateType
-    )
-    if (prefetchResult !== null) {
-      return prefetchResult
-    }
-  }
-
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
   // navigation that contains both static and dynamic data in a single stream.
@@ -841,44 +871,40 @@ function convertServerPatchToFullTreeImpl(
 }
 
 /**
- * Helper for the Instant Navigation Testing API. If the navigation lock is
- * active, schedules a prefetch task, waits for it to complete, and navigates
- * using the prefetched route tree.
+ * Instant Navigation Testing API: ensures a prefetch task has been initiated
+ * and completed before proceeding with the navigation. This guarantees that
+ * segment data requests are at least pending, even for routes whose route
+ * tree is already cached.
  *
- * Returns the new router state if navigation succeeded via prefetch, or null
- * if the lock isn't active or the prefetch failed (caller should fall through
- * to the normal unknown route path).
- *
- * Not exposed in production builds by default.
+ * After the prefetch completes, delegates to the normal navigation flow.
  */
-async function tryNavigateUsingTestingAPIPrefetch(
+async function ensurePrefetchThenNavigate(
   state: AppRouterState,
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  nextUrl: string | null,
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
+  nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   shouldScroll: boolean,
   navigateType: 'push' | 'replace'
-): Promise<AppRouterState | null> {
-  if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    // Lazy require to ensure dead code elimination
-    const { isNavigationLocked } =
-      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
-    if (!isNavigationLocked()) {
-      return null
-    }
+): Promise<AppRouterState> {
+  const link = getLinkForCurrentNavigation()
+  const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
 
-    // Use the link's fetch strategy so the test behavior matches what would
-    // happen if the route had been prefetched before navigation
-    const link = getLinkForCurrentNavigation()
-    const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
+  // Transition the cookie to captured-SPA immediately, before waiting
+  // for the prefetch. This ensures the devtools panel can update its UI
+  // right away, even if the prefetch takes time (e.g. dev compilation).
+  // The "to" tree starts as null and is filled in after the prefetch
+  // resolves and the navigation produces a new router state.
+  const { transitionToCapturedSPA, updateCapturedSPAToTree } =
+    require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+  transitionToCapturedSPA(currentFlightRouterState, null)
 
-    const cacheKey = createCacheKey(url.href, nextUrl)
-    const { promise, resolve } = Promise.withResolvers<void>()
+  const cacheKey = createCacheKey(url.href, nextUrl)
 
+  await new Promise<void>((resolve) => {
     schedulePrefetchTask(
       cacheKey,
       currentFlightRouterState,
@@ -887,37 +913,26 @@ async function tryNavigateUsingTestingAPIPrefetch(
       null, // onInvalidate
       resolve // _onComplete callback
     )
+  })
 
-    await promise
+  // Prefetch is complete. Proceed with the normal navigation flow, which
+  // will now find the route in the cache.
+  const result = await navigateImpl(
+    state,
+    url,
+    currentUrl,
+    currentRenderedSearch,
+    currentCacheNode,
+    currentFlightRouterState,
+    nextUrl,
+    freshnessPolicy,
+    shouldScroll,
+    navigateType
+  )
 
-    // Re-read from cache (should now be populated)
-    const now = Date.now()
-    const route = readRouteCacheEntry(now, cacheKey)
-    if (route !== null && route.status === EntryStatus.Fulfilled) {
-      return navigateUsingPrefetchedRouteTree(
-        now,
-        state,
-        url,
-        currentUrl,
-        currentRenderedSearch,
-        nextUrl,
-        currentCacheNode,
-        currentFlightRouterState,
-        freshnessPolicy,
-        shouldScroll,
-        navigateType,
-        route
-      )
-    }
+  // Update the cookie with the resolved "to" tree so the devtools
+  // panel can display both routes immediately.
+  updateCapturedSPAToTree(currentFlightRouterState, result.tree)
 
-    // Prefetch failed. Wait for the lock to be released before falling
-    // through to the normal navigation path. This prevents runtime data
-    // from leaking into the shell while the lock is held — the navigation
-    // blocks until the instant scope ends, then proceeds normally.
-    const { waitForNavigationLockIfActive } =
-      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
-    await waitForNavigationLockIfActive()
-    return null
-  }
-  return null
+  return result
 }

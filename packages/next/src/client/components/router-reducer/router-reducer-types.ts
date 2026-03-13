@@ -35,7 +35,7 @@ export interface RefreshAction {
    * Testing API to preserve prefetched data when refreshing after an MPA
    * navigation. Not exposed in production builds by default.
    */
-  devBypassCacheInvalidation?: boolean
+  bypassCacheInvalidation?: boolean
 }
 
 export interface HmrRefreshAction {

@@ -37,6 +37,14 @@ const createFromFetch =
 
 const appElement: HTMLElement | Document = document
 
+// Instant Navigation Testing API: captured once at module init. When truthy,
+// this is the fetch promise for the static RSC payload (set by an injected
+// <script> tag in the static shell HTML).
+const instantTestStaticFetch: Promise<Response> | undefined =
+  self.__next_instant_test
+    ? (self.__next_instant_test as unknown as Promise<Response>)
+    : undefined
+
 const encoder = new TextEncoder()
 
 let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
@@ -120,12 +128,20 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
       ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
+      // Instant Navigation Testing API: don't close or error the inline
+      // Flight stream. The static shell has no inline Flight data, so the
+      // stream is empty. Closing it would cause React to log an error about
+      // missing data. Leaving it open lets React treat any holes as
+      // "still suspended." Hydration uses the separately fetched RSC payload
+      // (self.__next_instant_test), not this stream.
       if (isStreamErrorOrUnfinished(ctr)) {
-        ctr.error(
-          new Error(
-            'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+        if (!instantTestStaticFetch) {
+          ctr.error(
+            new Error(
+              'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+            )
           )
-        )
+        }
       } else {
         ctr.close()
       }
@@ -204,12 +220,35 @@ if (
   debugChannel = createDebugChannel(undefined)
 }
 
-const clientResumeFetch: Promise<Response> | undefined =
+let initialServerResponse: Promise<InitialRSCPayload>
+if (instantTestStaticFetch) {
+  // Instant Navigation Testing API: hydrate from the static RSC payload
+  // fetch kicked off by an injected <script> tag, instead of the inline
+  // Flight data (which is not present in the static shell).
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(instantTestStaticFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      // The static fetch response is a partial stream (static-only Flight
+      // data with no dynamic content). Allow it to close without error so
+      // React treats dynamic holes as still-suspended rather than
+      // triggering error recovery.
+      unstable_allowPartialStream: true,
+    })
+  ).then(async (initialRSCPayload) => {
+    return createInitialRSCPayloadFromFallbackPrerender(
+      await instantTestStaticFetch,
+      initialRSCPayload
+    )
+  })
+} else if (
   // @ts-expect-error
   window.__NEXT_CLIENT_RESUME
-
-let initialServerResponse: Promise<InitialRSCPayload>
-if (clientResumeFetch) {
+) {
+  const clientResumeFetch: Promise<Response> =
+    // @ts-expect-error
+    window.__NEXT_CLIENT_RESUME
   initialServerResponse = Promise.resolve(
     createFromFetch<InitialRSCPayload>(clientResumeFetch, {
       callServer,

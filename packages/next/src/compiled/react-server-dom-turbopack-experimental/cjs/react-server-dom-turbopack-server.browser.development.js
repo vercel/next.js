@@ -4104,7 +4104,9 @@
           (cachedPromise = requireModule(serverReference)),
           (id = blockedPromise),
           (id.status = "fulfilled"),
-          (id.value = cachedPromise)
+          (id.value = cachedPromise),
+          (id.reason = null),
+          cachedPromise
         );
       if (initializingHandler) {
         var handler = initializingHandler;

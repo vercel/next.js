@@ -354,7 +354,6 @@ export async function handler(
   //   with blocking happening on the client side.
   const isInstantNavigationTest =
     exposeTestingApi &&
-    couldSupportPPR &&
     (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
       (req.headers[RSC_HEADER] === undefined &&
         typeof req.headers.cookie === 'string' &&
@@ -363,7 +362,11 @@ export async function handler(
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
   const isRoutePPREnabled: boolean =
-    couldSupportPPR &&
+    // When the instant navigation testing API is active, enable the PPR
+    // prerender path even without Cache Components. In dev mode without CC,
+    // static pages need this path to produce buffered segment data (the
+    // legacy prerender path hangs in dev mode).
+    (couldSupportPPR || isInstantNavigationTest) &&
     ((
       prerenderManifest.routes[normalizedSrcPage] ??
       prerenderManifest.dynamicRoutes[normalizedSrcPage]
@@ -1522,19 +1525,26 @@ export async function handler(
       // This is a request for HTML data.
       const body = cachedData.html
 
-      // When serving a static shell for instant navigation testing, inject
-      // self.__next_instant_test=1 as the first thing inside <head> so the
-      // client can detect the static shell. This must be before any async
-      // bootstrap scripts — otherwise a cached async script can execute
-      // before the global is set.
-      //
-      // TODO: Currently the client skips hydration entirely during
-      // instant navigation testing. Ideally we would still hydrate but
-      // without the dynamic data — the static shell is valid HTML that
-      // could be hydrated. This is just an implementation gap; the
-      // page gets reloaded when the instant scope ends anyway.
+      // Instant Navigation Testing API: serve the static shell with an
+      // injected script that sets self.__next_instant_test and kicks off a
+      // static RSC fetch for hydration. The transform stream also appends
+      // closing </body></html> tags so the browser can parse the full document.
+      // In dev mode, also inject self.__next_r so the HMR WebSocket and
+      // debug channel can initialize.
       if (isInstantNavigationTest && isDebugStaticShell) {
-        body.pipeThrough(createInstantTestScriptInsertionTransformStream())
+        const instantTestRequestId =
+          routeModule.isDev === true ? crypto.randomUUID() : null
+        body.pipeThrough(
+          createInstantTestScriptInsertionTransformStream(instantTestRequestId)
+        )
+        return sendRenderResult({
+          req,
+          res,
+          generateEtags: nextConfig.generateEtags,
+          poweredByHeader: nextConfig.poweredByHeader,
+          result: body,
+          cacheControl: { revalidate: 0, expire: undefined },
+        })
       }
 
       // If there's no postponed state, we should just serve the HTML. This
@@ -1571,22 +1581,16 @@ export async function handler(
       // HTML will be the static shell so all the Dynamic API's will be used
       // during static generation.
       if (isDebugStaticShell || isDebugDynamicAccesses) {
-        if (!isInstantNavigationTest) {
-          // Since we're not resuming the render, we need to at least add the
-          // closing body and html tags to create valid HTML.
-          body.push(
-            new ReadableStream({
-              start(controller) {
-                controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
-                controller.close()
-              },
-            })
-          )
-        }
-        // When in instant navigation testing mode, we intentionally omit
-        // the closing </body></html> tags so the client interprets the
-        // response as a partial stream rather than a complete document
-        // with incoherent content.
+        // Since we're not resuming the render, we need to at least add the
+        // closing body and html tags to create valid HTML.
+        body.push(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+              controller.close()
+            },
+          })
+        )
 
         return sendRenderResult({
           req,

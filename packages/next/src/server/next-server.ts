@@ -1284,16 +1284,16 @@ export default class NextNodeServer extends BaseServer<
 
   public async revalidate({
     urlPath,
-    revalidateHeaders,
+    headers,
     opts,
   }: {
     urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
+    headers: { [key: string]: string | string[] }
     opts: { unstable_onlyGenerated?: boolean }
   }) {
     const mocked = createRequestResponseMocks({
       url: urlPath,
-      headers: revalidateHeaders,
+      headers,
     })
 
     const handler = this.getRequestHandler()

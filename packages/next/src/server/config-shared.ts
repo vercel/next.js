@@ -1114,6 +1114,16 @@ export type ExportPathMap = {
      * @internal
      */
     _allowEmptyStaticShell?: boolean
+
+    /**
+     * When true, run build-time instant validation for this export path.
+     * Only set on the first export entry per page, since validation uses
+     * unstable_instant.samples (not actual params from generateStaticParams),
+     * so the result is the same for all param combinations.
+     *
+     * @internal
+     */
+    _runInstantValidation?: boolean
   }
 }
 
