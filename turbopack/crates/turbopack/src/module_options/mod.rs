@@ -25,7 +25,7 @@ use turbopack_core::{
     },
     resolve::options::{ImportMap, ImportMapping},
 };
-use turbopack_css::CssModuleAssetType;
+use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions,
     SpecifiedModuleType, bytes_source_transform::BytesSourceTransform,
@@ -819,7 +819,7 @@ impl ModuleOptions {
                 ModuleRule::new(
                     module_css_condition.clone(),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
                     })],
@@ -830,7 +830,7 @@ impl ModuleOptions {
                         RuleCondition::ContentTypeStartsWith("text/css".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
+                        ty: CssModuleType::Default,
                         environment,
                         lightningcss_features,
                     })],
@@ -894,7 +894,7 @@ impl ModuleOptions {
                         ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
                     })],
@@ -908,7 +908,7 @@ impl ModuleOptions {
                         ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
                     })],
@@ -922,7 +922,7 @@ impl ModuleOptions {
                         ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
                     })],
@@ -937,7 +937,7 @@ impl ModuleOptions {
                         RuleCondition::ContentTypeStartsWith("text/css".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
+                        ty: CssModuleType::Default,
                         environment,
                         lightningcss_features,
                     })],

@@ -221,7 +221,7 @@ pub enum CssReferenceSubType {
     /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
     /// class name
     Compose,
-    /// Reference from ModuleCssAsset to the CssModuleAsset
+    /// Reference from ModuleCssAsset to the CssModule
     Inner,
     /// Used for generating the list of classes in a ModuleCssAsset
     Analyze,

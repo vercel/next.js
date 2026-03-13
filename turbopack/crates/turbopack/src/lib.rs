@@ -43,7 +43,7 @@ use turbopack_core::{
     source::Source,
     source_transform::SourceTransforms,
 };
-use turbopack_css::{CssModuleAsset, ModuleCssAsset};
+use turbopack_css::{CssModule, ModuleCssAsset};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
     EcmascriptOptions, TreeShakingMode,
@@ -259,7 +259,7 @@ async fn apply_module_type(
             environment,
             lightningcss_features,
         } => ResolvedVc::upcast(
-            CssModuleAsset::new(
+            CssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
                 *ty,
