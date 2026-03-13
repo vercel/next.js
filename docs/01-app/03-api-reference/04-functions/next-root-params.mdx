@@ -2,13 +2,54 @@
 title: next/root-params
 description: API Reference for the next/root-params module that provides access to root-level route parameters.
 version: canary
+related:
+  description: Related API references and conventions.
+  links:
+    - app/api-reference/file-conventions/layout
+    - app/api-reference/functions/generate-static-params
+    - app/api-reference/directives/use-cache
+    - app/api-reference/file-conventions/dynamic-routes
 ---
 
-The `next/root-params` module provides individual getter functions for accessing root-level route parameters in **Server Components**. This experimental feature enables type-safe access to parameters defined in root layout segments.
+The `next/root-params` module provides getter functions for accessing root-level [parameters](/docs/app/api-reference/file-conventions/dynamic-routes) in [**Server Components**](/docs/app/glossary#server-component). Each root parameter is exported as an async function that resolves to the parameter value for the current route.
+
+This is useful for values like a language or locale segment that need to be accessed across your application, for example in shared utilities, layouts, and deeply nested components, without passing them down as props.
+
+```tsx filename="app/[lang]/layout.tsx" highlight={1,5} switcher
+import { lang } from 'next/root-params'
+
+export default async function RootLayout(props: LayoutProps<'/[lang]'>) {
+  return (
+    <html lang={await lang()}>
+      <body>{props.children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/[lang]/layout.js" highlight={1,5} switcher
+import { lang } from 'next/root-params'
+
+export default async function RootLayout({ children }) {
+  return (
+    <html lang={await lang()}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Root parameters are the [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes) that appear before the [root layout](/docs/app/api-reference/file-conventions/layout#root-layout). Unlike the regular [`params` prop](/docs/app/api-reference/file-conventions/page#params-optional), root parameter getters can be called from any Server Component in your application without prop drilling. See [Why root parameters are special](#why-root-parameters-are-special) for more details.
+
+> **Good to know:**
+>
+> - Root parameter names must be valid JavaScript function identifiers. Kebab-cased segment names (e.g. `[post-slug]`) are not supported and will cause an error at dev time or during build.
+> - `next/root-params` is only available in Server Components. It cannot be used in Client Components, Server Actions, or Route Handlers.
+> - The examples on this page use [`PageProps`](/docs/app/api-reference/file-conventions/page#page-props-helper) and [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper), which are auto-generated type helpers based on your route structure.
 
 ## Configuration
 
-To use `next/root-params`, you must enable the experimental flag in your `next.config.js`:
+Enable the `rootParams` experimental flag in your Next config file:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -21,188 +62,311 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-## Usage
+> **Good to know:**
+>
+> - If you have [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `rootParams` is automatically enabled as well.
+> - With Cache Components, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one value for each root parameter. This is required for prerendering the fallback shell.
 
-The module automatically generates individual getter functions for each root parameter found in your app directory structure. Root parameters are dynamic segments that appear in the path leading up to the first `layout.tsx` file.
+## Root parameters vs dynamic parameters
 
-```tsx filename="app/[lang]/[locale]/page.tsx"
-import { lang, locale } from 'next/root-params'
+Root parameters are the [dynamic segments](/docs/app/glossary#dynamic-segment) that appear in the path up to the root layout file. Other dynamic segments deeper in the route tree are accessed through the [`params` prop](/docs/app/api-reference/file-conventions/page#params-optional) as usual.
 
-export default async function Page() {
+Given this file structure:
+
+- `app/[lang]/layout.tsx` (root layout)
+- `app/[lang]/posts/[slug]/page.tsx`
+
+Only `lang` is a root parameter. `slug` is a regular dynamic parameter:
+
+```tsx filename="app/[lang]/posts/[slug]/page.tsx" highlight={1,5} switcher
+import { lang } from 'next/root-params'
+
+export default async function PostPage(
+  props: PageProps<'/[lang]/posts/[slug]'>
+) {
+  const { slug } = await props.params
+  const language = await lang()
+
   return (
-    <div>
-      <h1>Language: {await lang()}</h1>
-      <p>Locale: {await locale()}</p>
-    </div>
+    <article>
+      <p>Language: {language}</p>
+      <p>Post: {slug}</p>
+    </article>
   )
 }
 ```
 
-```tsx filename="app/[lang]/[locale]/layout.tsx"
-import { lang, locale } from 'next/root-params'
+```jsx filename="app/[lang]/posts/[slug]/page.js" highlight={1,5} switcher
+import { lang } from 'next/root-params'
 
-export default async function Layout({ children }) {
-  return (
-    <html lang={`${await lang()}-${await locale()}`}>
-      <body>{children}</body>
-    </html>
-  )
-}
-
-export async function generateStaticParams() {
-  return [
-    { lang: 'en', locale: 'us' },
-    { lang: 'fr', locale: 'ca' },
-  ]
-}
-```
-
-## Root Parameters vs Dynamic Parameters
-
-Root parameters are different from regular dynamic parameters. They are only the parameters that exist in the path segments up to the first layout file:
-
-File structure:
-
-- `app/[lang]/[locale]/layout.tsx` - Root layout
-- `app/[lang]/[locale]/posts/[slug]/page.tsx`
-
-```tsx
-import { lang, locale } from 'next/root-params' // Available
-// import { slug } from 'next/root-params'      // Not available - 'slug' is not a root param
-
-export default async function PostPage({
-  params,
-}: {
-  params: { slug: string }
-}) {
-  const { slug } = await params // Access non-root params this way
+export default async function PostPage({ params }) {
+  const { slug } = await params
+  const language = await lang()
 
   return (
-    <div>
-      <h1>Language: {await lang()}</h1>
-      <h2>Locale: {await locale()}</h2>
-      <h3>Post: {slug}</h3>
-    </div>
+    <article>
+      <p>Language: {language}</p>
+      <p>Post: {slug}</p>
+    </article>
   )
 }
 ```
 
-## Multiple Root Layouts
+## Accessing root parameters in shared code
 
-Applications can have multiple root layouts with different parameter structures:
+Root parameter getters are module imports, they can be called from any Server Component or server-side utility, not just layouts and pages:
 
-File structure:
+```tsx filename="lib/get-translations.ts" highlight={4}
+import { lang } from 'next/root-params'
 
-- `app/dashboard/[id]/layout.tsx` - Root layout with 'id' param
-- `app/marketing/layout.tsx` - Root layout with no params
+export async function getTranslations() {
+  const language = await lang()
+  // Load translations based on the root language parameter
+  return import(`@/locales/${language}.json`)
+}
+```
 
-```tsx
-// In dashboard pages:
+> **Good to know:** You do not need to add `import 'server-only'` to files that use `next/root-params`. The import already fails at build time if used in a Client Component.
+
+## Behavior with caching directives
+
+Because root parameter getters are imported functions, Next.js can track which ones a [cached](/docs/app/api-reference/directives/use-cache) function uses. Only those root parameters become part of the [cache key](/docs/app/api-reference/directives/use-cache#how-cache-keys-are-created), so cache entries are not split across unrelated parameter values.
+
+```tsx filename="app/[lang]/components/cached-nav.tsx" highlight={7} switcher
+import { lang } from 'next/root-params'
+
+// The cache key for this function only includes `lang`,
+// not every dynamic segment in the route.
+async function getNavigation() {
+  'use cache'
+  const language = await lang()
+  const res = await fetch(`https://api.example.com/nav?lang=${language}`)
+  return res.json()
+}
+
+export default async function CachedNav() {
+  const nav = await getNavigation()
+  return <nav>{/* render nav items */}</nav>
+}
+```
+
+```jsx filename="app/[lang]/components/cached-nav.js" highlight={7} switcher
+import { lang } from 'next/root-params'
+
+// The cache key for this function only includes `lang`,
+// not every dynamic segment in the route.
+async function getNavigation() {
+  'use cache'
+  const language = await lang()
+  const res = await fetch(`https://api.example.com/nav?lang=${language}`)
+  return res.json()
+}
+
+export default async function CachedNav() {
+  const nav = await getNavigation()
+  return <nav>{/* render nav items */}</nav>
+}
+```
+
+With the regular `params` prop, you would need to `await params` outside the cached function and pass the value in as an argument:
+
+```tsx filename="app/[lang]/page.tsx" highlight={6,17} switcher
+import { lang } from 'next/root-params'
+
+// With root params: call directly inside the cached function
+async function getDataWithRootParams() {
+  'use cache'
+  const language = await lang()
+  return fetch(`https://api.example.com/data?lang=${language}`)
+}
+
+// Without root params: await params outside, pass as argument
+async function getDataWithParams(language: string) {
+  'use cache'
+  return fetch(`https://api.example.com/data?lang=${language}`)
+}
+
+export default async function Page(props: PageProps<'/[lang]'>) {
+  const { lang: language } = await props.params
+  const data = await getDataWithParams(language)
+  // ...
+}
+```
+
+```jsx filename="app/[lang]/page.js" highlight={6,17} switcher
+import { lang } from 'next/root-params'
+
+// With root params: call directly inside the cached function
+async function getDataWithRootParams() {
+  'use cache'
+  const language = await lang()
+  return fetch(`https://api.example.com/data?lang=${language}`)
+}
+
+// Without root params: await params outside, pass as argument
+async function getDataWithParams(language) {
+  'use cache'
+  return fetch(`https://api.example.com/data?lang=${language}`)
+}
+
+export default async function Page({ params }) {
+  const { lang: language } = await params
+  const data = await getDataWithParams(language)
+  // ...
+}
+```
+
+> **Good to know:** To prevent blocking routes during prerendering, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one value for each root parameter. See [Why root parameters are special](#why-root-parameters-are-special) for more on how root parameters differ from other dynamic APIs.
+
+## Multiple root layouts
+
+When an application has multiple root layouts with different parameters, getter functions are typed to account for usage in any of all possible routes. A parameter that does not exist in every root layout has the type `string | undefined`.
+
+Given this file structure:
+
+- `app/dashboard/[id]/layout.tsx` (root layout with `id`)
+- `app/marketing/layout.tsx` (root layout without `id`)
+
+```tsx filename="app/dashboard/[id]/page.tsx" highlight={4} switcher
 import { id } from 'next/root-params'
 
 export default async function DashboardPage() {
-  const dashboardId = await id() // Type: string | undefined
-  return <div>Dashboard ID: {dashboardId}</div>
-}
-
-// In marketing pages:
-import { id } from 'next/root-params'
-
-export default async function MarketingPage() {
-  const dashboardId = await id() // Type: string | undefined, returns undefined
-  return <div>Marketing Page</div>
+  const dashboardId = await id() // string | undefined
+  return <div>Dashboard: {dashboardId}</div>
 }
 ```
 
-When you have multiple root layouts with different parameters, the getter functions are typed to account for all possible routes. Since `id` doesn't exist in the marketing layout, `await id()` has the type `string | undefined` to reflect that it may return `undefined` when accessed from routes without that parameter.
+```jsx filename="app/dashboard/[id]/page.js" highlight={4} switcher
+import { id } from 'next/root-params'
 
-## Catch-all and Optional Catch-all Routes
+export default async function DashboardPage() {
+  const dashboardId = await id() // string | undefined
+  return <div>Dashboard: {dashboardId}</div>
+}
+```
 
-Root parameters work with catch-all and optional catch-all routes:
+Since `id` does not exist in the marketing root layout, `await id()` returns `undefined` when accessed from marketing routes.
 
-```tsx filename="app/docs/[...path]/layout.tsx"
+## Catch-all and optional catch-all segments
+
+Root parameters work with [catch-all and optional catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments) segments:
+
+```tsx filename="app/docs/[...path]/layout.tsx" highlight={4} switcher
+import { path } from 'next/root-params'
+
+export default async function DocsLayout(
+  props: LayoutProps<'/docs/[...path]'>
+) {
+  const segments = await path() // string[] | undefined
+  return (
+    <div>
+      <nav>Path: {segments?.join(' / ')}</nav>
+      {props.children}
+    </div>
+  )
+}
+```
+
+```jsx filename="app/docs/[...path]/layout.js" highlight={4} switcher
 import { path } from 'next/root-params'
 
 export default async function DocsLayout({ children }) {
-  const pathSegments = await path() // string[] | undefined
+  const segments = await path() // string[] | undefined
   return (
     <div>
-      <nav>Path: {pathSegments?.join(' / ')}</nav>
+      <nav>Path: {segments?.join(' / ')}</nav>
       {children}
     </div>
   )
 }
 ```
 
-```tsx filename="app/optional/[[...segments]]/page.tsx"
-import { segments } from 'next/root-params'
+## Returns
 
-export default async function OptionalPage() {
-  const pathSegments = await segments() // string[] | undefined
-  return (
-    <div>
-      {pathSegments ? (
-        <p>Segments: {pathSegments.join(', ')}</p>
-      ) : (
-        <p>No segments</p>
-      )}
-    </div>
-  )
-}
-```
+Each root parameter getter returns a `Promise` that resolves to one of the following:
 
-## Return Values
+| Segment type       | Example       | Return type             |
+| ------------------ | ------------- | ----------------------- |
+| Dynamic            | `[id]`        | `string`                |
+| Catch-all          | `[...path]`   | `string[]`              |
+| Optional catch-all | `[[...path]]` | `string[] \| undefined` |
 
-Each root parameter getter returns a `Promise` that resolves to:
-
-- `string` for regular dynamic segments like `[id]`
-- `string[]` for catch-all segments like `[...path]`
-- `string[] | undefined` for optional catch-all segments like `[[...path]]`
-- `undefined` if the parameter doesn't exist in the current route's root layout
+If the parameter does not exist in the current route's root layout (see [Multiple root layouts](#multiple-root-layouts)), the return type includes `undefined`.
 
 ## Restrictions
 
-### Server Components Only
+### Server Components only
 
-Root parameter getters can only be used in **Server Components**:
+Root parameter getters can only be used in Server Components:
 
 ```tsx
 // This will cause a build error
 'use client'
 
 import { lang } from 'next/root-params' // Error: Cannot import in Client Component
-
-export default function ClientComponent() {
-  // ...
-}
 ```
 
-### Not Available in Server Actions
+### Not available in `unstable_cache`
+
+Calling a root parameter getter inside `unstable_cache` will throw a runtime error. Use [`"use cache"`](/docs/app/api-reference/directives/use-cache) instead.
+
+```tsx
+import { lang } from 'next/root-params'
+import { unstable_cache } from 'next/cache'
+
+const getCachedData = unstable_cache(async () => {
+  const language = await lang() // Error: Not supported inside unstable_cache
+  return fetch(`https://api.example.com/data?lang=${language}`)
+})
+```
+
+### Not available in Server Actions
 
 ```tsx
 import { lang } from 'next/root-params'
 
-// This will cause a runtime error
-async function serverAction() {
+async function submitForm() {
   'use server'
   const language = await lang() // Error: Not supported in Server Actions
 }
 ```
 
-### Not Available in Route Handlers
+### Not available in Route Handlers
+
+Support for Route Handlers is planned for a future version of Next.js. In the meantime, use the [`params`](/docs/app/api-reference/file-conventions/route#context) from the route context:
 
 ```tsx filename="app/[lang]/api/route.ts"
-import { lang } from 'next/root-params'
+import { NextRequest } from 'next/server'
 
-// This will cause a runtime error (support planned for future)
-export async function GET() {
-  const language = await lang() // Error: Not supported in Route Handlers yet
-  return Response.json({ lang: language })
+export async function GET(req: NextRequest, ctx: RouteContext<'/[lang]/api'>) {
+  const { lang } = await ctx.params
+  return Response.json({ lang })
 }
 ```
+
+## Why root parameters are special
+
+The [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) is the top-level rendering boundary. Dynamic segments before it are shared by all routes under that root layout, which is what makes them safe to access from any Server Component in that tree. Parameters deeper in the route vary depending on which child page is being rendered, so they are only available through the [`params` prop](/docs/app/api-reference/file-conventions/page#params-optional) in the page or layout that defines them.
+
+```txt
+app/
+  [lang]/              ← root parameter (shared by all routes below)
+    layout.tsx         ← root layout
+    page.tsx           ← has no slug, doesn't know about blog or store
+    blog/
+      [slug]/          ← regular dynamic segment
+        page.tsx
+    store/
+      [...slug]/       ← catch-all segment with the same name
+        page.tsx
+```
+
+In this example, `lang` is the only root parameter. The `page.tsx` directly under the root layout has no `slug` at all. The blog and store branches both define `slug`, but with different segment types (`[slug]` vs `[...slug]`). Each route only knows about its own parameters. The same name can have different types, different meanings, or not exist at all depending on the route. This is why parameters below the root layout are accessed through the `params` prop rather than as global getters.
+
+The exception is [multiple root layouts](#multiple-root-layouts). When different root layouts define different parameters, the getter functions include `undefined` in their return type to account for routes where a given parameter may not exist.
 
 ## Version History
 
 | Version   | Changes                                                |
 | --------- | ------------------------------------------------------ |
-| `v15.1.0` | `next/root-params` introduced as experimental feature. |
+| `v16.2.0` | `next/root-params` introduced as experimental feature. |
