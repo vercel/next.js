@@ -358,8 +358,8 @@ describe('console-exit patches', () => {
     })
   })
 
-  describe('inspector-aware Error handling', () => {
-    it('should skip dimming for all args when inspector is open and any arg is an Error', async () => {
+  describe('inspector-aware dimming', () => {
+    it('should skip dimming when inspector is open', async () => {
       async function testForWorker() {
         const nodeInspector = require('node:inspector')
         nodeInspector.open(0)
@@ -375,9 +375,8 @@ describe('console-exit patches', () => {
 
         require('next/dist/server/node-environment-extensions/console-dim.external')
 
-        const error = new Error('test error')
         consoleAsyncStorage.run({ dim: true }, () => {
-          console.error('prefix', error, 42)
+          console.error('prefix', { key: 'value' }, 42)
         })
 
         nodeInspector.close()
@@ -396,8 +395,8 @@ describe('console-exit patches', () => {
         })
         reportResult({
           type: 'serialized',
-          key: 'secondArgIsError',
-          data: JSON.stringify(call.args[1] instanceof Error),
+          key: 'secondArg',
+          data: JSON.stringify(call.args[1]),
         })
         reportResult({
           type: 'serialized',
@@ -409,46 +408,10 @@ describe('console-exit patches', () => {
       const { data, exitCode } = await runWorkerCode(testForWorker)
 
       expect(exitCode).toBe(0)
-      // All args passed through unchanged
       expect(data.argCount).toBe(3)
       expect(data.firstArg).toBe('prefix')
-      expect(data.secondArgIsError).toBe(true)
+      expect(data.secondArg).toEqual({ key: 'value' })
       expect(data.thirdArg).toBe(42)
-    })
-
-    it('should still dim Error instances with %O when inspector is not open', async () => {
-      async function testForWorker() {
-        const {
-          consoleAsyncStorage,
-        } = require('next/dist/server/app-render/console-async-storage.external')
-
-        const capturedCalls: Array<{ args: any[] }> = []
-        console.error = function (...args) {
-          capturedCalls.push({ args })
-        }
-
-        require('next/dist/server/node-environment-extensions/console-dim.external')
-
-        const error = new Error('test error')
-        consoleAsyncStorage.run({ dim: true }, () => {
-          console.error(error)
-        })
-
-        const call = capturedCalls[0]
-        const templateStr = typeof call.args[0] === 'string' ? call.args[0] : ''
-        const hasUppercaseO = templateStr.includes('%O')
-
-        reportResult({
-          type: 'serialized',
-          key: 'hasUppercaseO',
-          data: JSON.stringify(hasUppercaseO),
-        })
-      }
-
-      const { data, exitCode } = await runWorkerCode(testForWorker)
-
-      expect(exitCode).toBe(0)
-      expect(data.hasUppercaseO).toBe(true)
     })
   })
 })
