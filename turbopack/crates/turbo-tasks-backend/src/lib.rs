@@ -14,11 +14,12 @@ mod utils;
 use std::path::Path;
 
 use anyhow::Result;
-use turbo_persistence::{
-    CompactConfig, DbConfig, FamilyConfig, FamilyKind, SerialScheduler, TurboPersistence,
-};
+use turbo_persistence::{CompactConfig, SerialScheduler, TurboPersistence};
 
-use crate::database::{noop_kv::NoopKvDb, turbo::TurboKeyValueDatabase};
+use crate::database::{
+    noop_kv::NoopKvDb,
+    turbo::{self, TurboKeyValueDatabase},
+};
 pub use crate::{
     backend::{BackendOptions, StorageMode, TurboTasksBackend},
     backing_storage::BackingStorage,
@@ -57,11 +58,6 @@ pub fn noop_backing_storage() -> NoopBackingStorage {
     KeyValueDatabaseBackingStorage::new_in_memory(NoopKvDb)
 }
 
-/// Number of key families, see KeySpace enum for their numbers.
-const COMPACT_FAMILIES: usize = 4;
-
-const MB: u64 = 1024 * 1024;
-
 /// Opens a Turbopack persistent cache database at the given base path and performs a full
 /// compaction. This is intended for use by the `next internal post-build` CLI command to optimize
 /// the database after a build, without requiring the full turbo-tasks runtime.
@@ -71,34 +67,15 @@ pub fn compact_database(
     is_ci: bool,
 ) -> Result<()> {
     let versioned_path = handle_db_versioning(base_path, version_info, is_ci)?;
-    let config: DbConfig<COMPACT_FAMILIES> = DbConfig {
-        family_configs: [
-            FamilyConfig {
-                kind: FamilyKind::SingleValue,
-            },
-            FamilyConfig {
-                kind: FamilyKind::SingleValue,
-            },
-            FamilyConfig {
-                kind: FamilyKind::SingleValue,
-            },
-            FamilyConfig {
-                kind: FamilyKind::MultiValue,
-            },
-        ],
-    };
-    let db = TurboPersistence::<SerialScheduler, COMPACT_FAMILIES>::open_with_config(
+    let db = TurboPersistence::<SerialScheduler, { turbo::FAMILIES }>::open_with_config(
         versioned_path,
-        config,
+        turbo::DB_CONFIG,
     )?;
+    // Fully compact with no segment count limit (unlike the runtime shutdown path
+    // which caps segments based on available parallelism).
     db.compact(&CompactConfig {
-        min_merge_count: 3,
-        optimal_merge_count: 8,
-        max_merge_count: 64,
-        max_merge_bytes: 512 * MB,
-        min_merge_duplication_bytes: 50 * MB,
-        optimal_merge_duplication_bytes: 100 * MB,
         max_merge_segment_count: usize::MAX,
+        ..turbo::COMPACT_CONFIG
     })?;
     db.shutdown()
 }

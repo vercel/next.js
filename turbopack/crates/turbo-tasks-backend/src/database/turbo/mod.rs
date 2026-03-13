@@ -24,12 +24,24 @@ use crate::database::{
 
 mod parallel_scheduler;
 
-/// Number of key families, see KeySpace enum for their numbers.
-const FAMILIES: usize = 4;
+/// Number of key families, see [`KeySpace`] enum for their numbers.
+pub const FAMILIES: usize = 4;
 
 const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction";
 
 const MB: u64 = 1024 * 1024;
+
+/// Database configuration for the Turbopack persistent cache, mapping each [`KeySpace`] to its
+/// persistence family config.
+pub const DB_CONFIG: DbConfig<FAMILIES> = DbConfig {
+    family_configs: [
+        KeySpace::Infra.family_config(),
+        KeySpace::TaskMeta.family_config(),
+        KeySpace::TaskData.family_config(),
+        KeySpace::TaskCache.family_config(),
+    ],
+};
+
 pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
     min_merge_count: 3,
     optimal_merge_count: 8,
@@ -55,15 +67,10 @@ impl TurboKeyValueDatabase {
         is_short_session: bool,
         skip_compaction: bool,
     ) -> Result<Self> {
-        const CONFIG: DbConfig<FAMILIES> = DbConfig {
-            family_configs: [
-                KeySpace::Infra.family_config(),
-                KeySpace::TaskMeta.family_config(),
-                KeySpace::TaskData.family_config(),
-                KeySpace::TaskCache.family_config(),
-            ],
-        };
-        let db = Arc::new(TurboPersistence::open_with_config(versioned_path, CONFIG)?);
+        let db = Arc::new(TurboPersistence::open_with_config(
+            versioned_path,
+            DB_CONFIG,
+        )?);
         Ok(Self {
             db: db.clone(),
             is_ci,

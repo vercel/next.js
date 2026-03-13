@@ -53,7 +53,7 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
     trace::TraceRawVcs,
 };
-use turbo_tasks_backend::{BackingStorage, GitVersionInfo, db_invalidation::invalidation_reasons};
+use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
 };
@@ -2501,14 +2501,9 @@ pub async fn project_write_analyze_data(
 /// The `path` should point to the `<distDir>/cache/turbopack` directory.
 #[napi]
 pub async fn turbopack_database_compact(path: String) -> napi::Result<()> {
-    let version_info = GitVersionInfo {
-        describe: env!("VERGEN_GIT_DESCRIBE"),
-        dirty: option_env!("CI").is_none_or(|value| value.is_empty())
-            && env!("VERGEN_GIT_DIRTY") == "true",
-    };
+    let version_info = crate::next_api::turbopack_ctx::git_version_info();
     let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
-    let base_path = PathBuf::from(path);
-    turbo_tasks_backend::compact_database(&base_path, &version_info, is_ci)
+    turbo_tasks_backend::compact_database(&PathBuf::from(path), &version_info, is_ci)
         .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;
     Ok(())
 }

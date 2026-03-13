@@ -208,6 +208,18 @@ impl NapiNextTurbopackCallbacks {
     }
 }
 
+/// Returns version info derived from compile-time git metadata.
+///
+/// The `dirty` flag is only set when not running in CI (`CI` env var unset at build time) and the
+/// working tree was dirty at build time.
+pub fn git_version_info() -> GitVersionInfo<'static> {
+    GitVersionInfo {
+        describe: env!("VERGEN_GIT_DESCRIBE"),
+        dirty: option_env!("CI").is_none_or(|value| value.is_empty())
+            && env!("VERGEN_GIT_DIRTY") == "true",
+    }
+}
+
 pub fn create_turbo_tasks(
     output_path: PathBuf,
     persistent_caching: bool,
@@ -218,11 +230,7 @@ pub fn create_turbo_tasks(
     skip_compaction: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
-        let version_info = GitVersionInfo {
-            describe: env!("VERGEN_GIT_DESCRIBE"),
-            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
-                && env!("VERGEN_GIT_DIRTY") == "true",
-        };
+        let version_info = git_version_info();
         let (backing_storage, cache_state) = turbo_backing_storage(
             &output_path.join("cache/turbopack"),
             &version_info,
