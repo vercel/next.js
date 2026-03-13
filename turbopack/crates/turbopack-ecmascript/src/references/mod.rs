@@ -68,6 +68,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::ChunkingType,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
         DefinableNameSegmentRef, FreeVarReference, FreeVarReferences, FreeVarReferencesMembers,
@@ -541,6 +542,7 @@ pub async fn analyze_ecmascript_module(
 
     match result {
         Ok(result) => Ok(result),
+        // ast-grep-ignore: no-context-turbofmt
         Err(err) => Err(err
             .context(turbofmt!("failed to analyze ecmascript module '{}'", module.ident()).await?)),
     }
@@ -1508,8 +1510,14 @@ async fn analyze_ecmascript_module_internal(
                     };
 
                     if let Some("__turbopack_module_id__") = export.as_deref() {
+                        let chunking_type = r.await?.annotations.chunking_type().unwrap_or(Some(
+                            ChunkingType::Parallel {
+                                inherit_async: true,
+                                hoisted: true,
+                            },
+                        ));
                         analysis.add_reference_code_gen(
-                            EsmModuleIdAssetReference::new(*r),
+                            EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.into(),
                         )
                     } else {

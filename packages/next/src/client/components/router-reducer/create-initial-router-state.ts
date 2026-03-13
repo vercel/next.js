@@ -69,6 +69,13 @@ export function createInitialRouterState({
   // NOTE: The metadataVaryPath isn't used for anything currently because the
   // head is embedded into the CacheNode tree, but eventually we'll lift it out
   // and store it on the top-level state object.
+  //
+  // TODO: For statically-generated-at-build-time HTML pages, the
+  // FlightRouterState baked into the initial RSC payload won't have the
+  // correct segment inlining hints (ParentInlinedIntoSelf, InlinedIntoChild)
+  // because those are computed after the pre-render. The client will need to
+  // fetch the correct hints from the route tree prefetch (/_tree) response
+  // before acting on inlining decisions.
   const acc = { metadataVaryPath: null }
   const initialRouteTree = convertRootFlightRouterStateToRouteTree(
     initialTree,

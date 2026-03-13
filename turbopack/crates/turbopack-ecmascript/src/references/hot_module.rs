@@ -16,7 +16,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType},
@@ -112,12 +112,11 @@ impl ModuleReference for ModuleHotReferenceAssetReference {
         self.resolve().await
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
     }
 }
 

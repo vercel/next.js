@@ -481,12 +481,15 @@ impl<C: Comments> ServerActions<C> {
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
+        let closure_bound_ident =
+            Ident::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP, self.private_ctxt);
+
         if !ids_from_closure.is_empty() {
             // First param is the encrypted closure variables.
             new_params.push(Param {
                 span: DUMMY_SP,
                 decorators: vec![],
-                pat: Pat::Ident(IdentName::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP).into()),
+                pat: Pat::Ident(closure_bound_ident.clone().into()),
             });
         }
 
@@ -542,10 +545,7 @@ impl<C: Comments> ServerActions<C> {
                         arg: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
-                                action_id.clone().as_arg(),
-                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                            ],
+                            args: vec![action_id.clone().as_arg(), closure_bound_ident.as_arg()],
                             ..Default::default()
                         })),
                     }))),
@@ -646,12 +646,15 @@ impl<C: Comments> ServerActions<C> {
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
+        let closure_bound_ident =
+            Ident::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP, self.private_ctxt);
+
         if !ids_from_closure.is_empty() {
             // First param is the encrypted closure variables.
             new_params.push(Param {
                 span: DUMMY_SP,
                 decorators: vec![],
-                pat: Pat::Ident(IdentName::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP).into()),
+                pat: Pat::Ident(closure_bound_ident.clone().into()),
             });
         }
 
@@ -705,10 +708,7 @@ impl<C: Comments> ServerActions<C> {
                         arg: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
-                                action_id.clone().as_arg(),
-                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                            ],
+                            args: vec![action_id.clone().as_arg(), closure_bound_ident.as_arg()],
                             ..Default::default()
                         })),
                     }))),
@@ -2326,7 +2326,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             decls: vec![VarDeclarator {
                                 span: DUMMY_SP,
                                 name: Pat::Ident(
-                                    IdentName::new(var_name.clone(), name_span).into(),
+                                    Ident::new(var_name.clone(), name_span, self.private_ctxt)
+                                        .into(),
                                 ),
                                 init: Some(Box::new(Expr::Call(CallExpr {
                                     span: PURE_SP,

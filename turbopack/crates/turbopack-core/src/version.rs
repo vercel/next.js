@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
+    NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::HashAlgorithm;
@@ -226,7 +226,7 @@ impl FileHashVersion {
         match asset_content {
             AssetContent::File(file_vc) => {
                 let hash = file_vc
-                    .content_hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .content_hash(HashAlgorithm::Xxh3Hash128Base40)
                     .owned()
                     .await?
                     .context("file not found")?;

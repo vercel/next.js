@@ -16,6 +16,14 @@ import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
+/**
+ * Resolved form of the prefetchInlining config after normalization in
+ * config.ts. User input (true, partial objects) is converted to this shape.
+ */
+export type PrefetchInliningConfig =
+  | false
+  | { maxSize: number; maxBundleSize: number }
+
 export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
@@ -24,7 +32,10 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: ExperimentalConfig
+  experimental: ExperimentalConfig & {
+    // Normalized by config.ts: true and partial objects become resolved objects
+    prefetchInlining?: PrefetchInliningConfig
+  }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
@@ -335,6 +346,52 @@ export interface LoggingConfig {
   browserToTerminal?: boolean | 'error' | 'warn'
 }
 
+/**
+ * All recognized lightningcss feature names.
+ * Individual features map 1:1 to lightningcss `Features` bitflags.
+ * Composite names (`selectors`, `media-queries`, `colors`) enable a group of
+ * related individual features at once.
+ *
+ * The name→bitmask mapping is duplicated in:
+ * - JS:   `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
+ * - Rust: `crates/next-core/src/next_config.rs` (`lightningcss_feature_names_to_mask`)
+ */
+export const LIGHTNINGCSS_FEATURE_NAMES = [
+  // Individual features (bit 0–20)
+  'nesting',
+  'not-selector-list',
+  'dir-selector',
+  'lang-selector-list',
+  'is-selector',
+  'text-decoration-thickness-percent',
+  'media-interval-syntax',
+  'media-range-syntax',
+  'custom-media-queries',
+  'clamp-function',
+  'color-function',
+  'oklab-colors',
+  'lab-colors',
+  'p3-colors',
+  'hex-alpha-colors',
+  'space-separated-color-notation',
+  'font-family-system-ui',
+  'double-position-gradients',
+  'vendor-prefixes',
+  'logical-properties',
+  'light-dark',
+  // Composite groups
+  'selectors',
+  'media-queries',
+  'colors',
+] as const
+
+export type LightningCssFeature = (typeof LIGHTNINGCSS_FEATURE_NAMES)[number]
+
+export interface LightningCssFeatures {
+  include?: LightningCssFeature[]
+  exclude?: LightningCssFeature[]
+}
+
 export interface ExperimentalConfig {
   adapterPath?: string
   appNewScrollHandler?: boolean
@@ -361,7 +418,12 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
-  prefetchInlining?: boolean
+  prefetchInlining?:
+    | boolean
+    | {
+        maxSize?: number
+        maxBundleSize?: number
+      }
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -772,6 +834,13 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
+   * Configure which CSS features lightningcss should always transpile
+   * (include) or never transpile (exclude), regardless of browser targets.
+   * Requires `useLightningcss: true`.
+   */
+  lightningCssFeatures?: LightningCssFeatures
+
+  /**
    * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
    */
   viewTransition?: boolean
@@ -1061,6 +1130,16 @@ export type ExportPathMap = {
      * @internal
      */
     _allowEmptyStaticShell?: boolean
+
+    /**
+     * When true, run build-time instant validation for this export path.
+     * Only set on the first export entry per page, since validation uses
+     * unstable_instant.samples (not actual params from generateStaticParams),
+     * so the result is the same for all param combinations.
+     *
+     * @internal
+     */
+    _runInstantValidation?: boolean
   }
 }
 

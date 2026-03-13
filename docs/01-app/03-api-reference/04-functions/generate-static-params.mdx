@@ -53,7 +53,7 @@ export default async function Page({ params }) {
 
 > **Good to know**:
 >
-> - You can use the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option to control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
+> - You can use the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) segment config option to control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
 > - You must return [an empty array from `generateStaticParams`](#all-paths-at-build-time) or utilize [`export const dynamic = 'force-static'`](/docs/app/guides/caching-without-cache-components#dynamic) in order to revalidate (ISR) [paths at runtime](#all-paths-at-runtime).
 > - During `next dev`, `generateStaticParams` will be called when you navigate to a route.
 > - During `next build`, `generateStaticParams` runs before the corresponding Layouts or Pages are generated.
@@ -257,7 +257,7 @@ export async function generateStaticParams() {
 }
 ```
 
-Then, by using the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option, you can control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
+Then, by using the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) segment config option, you can control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // All posts besides the top 10 will be a 404

@@ -52,6 +52,7 @@ export interface Binding {
     lightning: {
       transform(transformOptions: any): Promise<any>
       transformStyleAttr(transformAttrOptions: any): Promise<any>
+      featureNamesToMask(names: string[]): number
     }
   }
 
@@ -121,7 +122,6 @@ export interface Issue {
   source?: {
     source: {
       ident: string
-      content?: string
     }
     range?: {
       start: {
@@ -140,6 +140,8 @@ export interface Issue {
   }
   documentationLink: string
   importTraces?: PlainTraceItem[][]
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
 }
 export interface PlainTraceItem {
   fsName: string

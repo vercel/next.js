@@ -117,6 +117,9 @@ async function exportPageImpl(
     // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
+    // When true, attempt to run build-time instant validation for this export path.
+    _runInstantValidation: runInstantValidation = false,
+
     // Pull the original query out.
     query: originalQuery = {},
   } = exportPath
@@ -269,6 +272,7 @@ async function exportPageImpl(
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
+    runInstantValidation,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,

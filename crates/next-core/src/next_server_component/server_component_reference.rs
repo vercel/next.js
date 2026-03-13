@@ -1,9 +1,6 @@
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkingType, ChunkingTypeOption},
-    module::Module,
-    reference::ModuleReference,
-    resolve::ModuleResolveResult,
+    chunk::ChunkingType, module::Module, reference::ModuleReference, resolve::ModuleResolveResult,
 };
 
 #[turbo_tasks::value]
@@ -27,11 +24,10 @@ impl ModuleReference for NextServerComponentModuleReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(self.asset)
     }
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Shared {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Shared {
             inherit_async: true,
             merge_tag: None,
-        }))
+        })
     }
 }

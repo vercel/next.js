@@ -354,7 +354,6 @@ export async function handler(
   //   with blocking happening on the client side.
   const isInstantNavigationTest =
     exposeTestingApi &&
-    couldSupportPPR &&
     (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
       (req.headers[RSC_HEADER] === undefined &&
         typeof req.headers.cookie === 'string' &&
@@ -363,7 +362,11 @@ export async function handler(
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
   const isRoutePPREnabled: boolean =
-    couldSupportPPR &&
+    // When the instant navigation testing API is active, enable the PPR
+    // prerender path even without Cache Components. In dev mode without CC,
+    // static pages need this path to produce buffered segment data (the
+    // legacy prerender path hangs in dev mode).
+    (couldSupportPPR || isInstantNavigationTest) &&
     ((
       prerenderManifest.routes[normalizedSrcPage] ??
       prerenderManifest.dynamicRoutes[normalizedSrcPage]
@@ -735,7 +738,7 @@ export async function handler(
               nextConfig.experimental.optimisticRouting
             ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
-            prefetchInlining: Boolean(nextConfig.experimental.prefetchInlining),
+            prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             cachedNavigations: Boolean(
               nextConfig.experimental.cachedNavigations
@@ -935,18 +938,28 @@ export async function handler(
               : normalizedSrcPage
 
           const fallbackRouteParams =
-            // If we're in production and we have fallback route params, always
-            // use them for the fallback shell.
-            isProduction && prerenderInfo?.fallbackRouteParams
+            // In production or when debugging the static shell (e.g. instant
+            // navigation testing), use the prerender manifest's fallback
+            // route params which correctly identifies which params are
+            // unknown. Note: in dev, this block is only entered for
+            // non-prerendered URLs (guarded by the outer condition).
+            (isProduction || isDebugStaticShell) &&
+            prerenderInfo?.fallbackRouteParams
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
                 )
-              : // Otherwise, if we're debugging the fallback shell or the
-                // static shell, then we have to manually generate the
-                // fallback route params.
-                isDebugFallbackShell || isDebugStaticShell
+              : // When debugging the fallback shell, treat all params as
+                // fallback (simulating the worst-case shell).
+                isDebugFallbackShell
                 ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
+
+          // When rendering a debug static shell, override the fallback
+          // params on the request so that the staged rendering correctly
+          // defers params that are not statically known.
+          if (isDebugStaticShell && fallbackRouteParams) {
+            addRequestMeta(req, 'fallbackParams', fallbackRouteParams)
+          }
 
           // We use the response cache here to handle the revalidation and
           // management of the fallback shell.
@@ -1151,27 +1164,24 @@ export async function handler(
       }
 
       const fallbackRouteParams =
-        // If we're in production and we have fallback route params, then we
-        // can use the manifest fallback route params if we need to render the
-        // fallback shell.
-        isProduction &&
-        prerenderInfo?.fallbackRouteParams &&
-        getRequestMeta(req, 'renderFallbackShell')
+        // In production or when debugging the static shell for a
+        // non-prerendered URL, use the prerender manifest's fallback route
+        // params which correctly identifies which params are unknown.
+        ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
+          (isDebugStaticShell && !isPrerendered)) &&
+        prerenderInfo?.fallbackRouteParams
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : // Otherwise, if we're debugging the fallback shell or the static
-            // shell, then we have to manually generate the fallback route
-            // params.
-            isDebugFallbackShell || isDebugStaticShell
+          : isDebugFallbackShell
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
 
-      // For staged dynamic rendering (cached navigations), pass the fallback
-      // params via request meta so the RequestStore knows which params to defer
-      // to the runtime stage. We don't pass them as fallbackRouteParams because
-      // that would replace actual param values with opaque placeholders during
-      // segment resolution.
+      // For staged dynamic rendering (Cached Navigations) and debug static
+      // shell rendering, pass the fallback params via request meta so the
+      // RequestStore knows which params to defer. We don't pass them as
+      // fallbackRouteParams because that would replace actual param values
+      // with opaque placeholders during segment resolution.
       if (
-        isProduction &&
+        (isProduction || isDebugStaticShell) &&
         nextConfig.cacheComponents &&
         !isPrerendered &&
         prerenderInfo?.fallbackRouteParams
@@ -1522,19 +1532,26 @@ export async function handler(
       // This is a request for HTML data.
       const body = cachedData.html
 
-      // When serving a static shell for instant navigation testing, inject
-      // self.__next_instant_test=1 as the first thing inside <head> so the
-      // client can detect the static shell. This must be before any async
-      // bootstrap scripts — otherwise a cached async script can execute
-      // before the global is set.
-      //
-      // TODO: Currently the client skips hydration entirely during
-      // instant navigation testing. Ideally we would still hydrate but
-      // without the dynamic data — the static shell is valid HTML that
-      // could be hydrated. This is just an implementation gap; the
-      // page gets reloaded when the instant scope ends anyway.
+      // Instant Navigation Testing API: serve the static shell with an
+      // injected script that sets self.__next_instant_test and kicks off a
+      // static RSC fetch for hydration. The transform stream also appends
+      // closing </body></html> tags so the browser can parse the full document.
+      // In dev mode, also inject self.__next_r so the HMR WebSocket and
+      // debug channel can initialize.
       if (isInstantNavigationTest && isDebugStaticShell) {
-        body.pipeThrough(createInstantTestScriptInsertionTransformStream())
+        const instantTestRequestId =
+          routeModule.isDev === true ? crypto.randomUUID() : null
+        body.pipeThrough(
+          createInstantTestScriptInsertionTransformStream(instantTestRequestId)
+        )
+        return sendRenderResult({
+          req,
+          res,
+          generateEtags: nextConfig.generateEtags,
+          poweredByHeader: nextConfig.poweredByHeader,
+          result: body,
+          cacheControl: { revalidate: 0, expire: undefined },
+        })
       }
 
       // If there's no postponed state, we should just serve the HTML. This
@@ -1571,22 +1588,16 @@ export async function handler(
       // HTML will be the static shell so all the Dynamic API's will be used
       // during static generation.
       if (isDebugStaticShell || isDebugDynamicAccesses) {
-        if (!isInstantNavigationTest) {
-          // Since we're not resuming the render, we need to at least add the
-          // closing body and html tags to create valid HTML.
-          body.push(
-            new ReadableStream({
-              start(controller) {
-                controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
-                controller.close()
-              },
-            })
-          )
-        }
-        // When in instant navigation testing mode, we intentionally omit
-        // the closing </body></html> tags so the client interprets the
-        // response as a partial stream rather than a complete document
-        // with incoherent content.
+        // Since we're not resuming the render, we need to at least add the
+        // closing body and html tags to create valid HTML.
+        body.push(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+              controller.close()
+            },
+          })
+        )
 
         return sendRenderResult({
           req,

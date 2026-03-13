@@ -13904,6 +13904,11 @@
           case 7:
             null === finishedWork.stateNode &&
               ((instanceToUse = new FragmentInstance(finishedWork)),
+              traverseFragmentInstance(
+                finishedWork,
+                addFragmentHandleToFiber,
+                instanceToUse
+              ),
               (finishedWork.stateNode = instanceToUse));
             instanceToUse = finishedWork.stateNode;
             break;
@@ -14061,9 +14066,10 @@
     function commitFragmentInstanceDeletionEffects(fiber) {
       for (var parent = fiber.return; null !== parent; ) {
         if (isFragmentInstanceParent(parent)) {
-          var childInstance = fiber.stateNode;
+          var childInstance = fiber.stateNode,
+            fragmentInstance = parent.stateNode;
           if (3 !== childInstance.nodeType) {
-            var eventListeners = parent.stateNode._eventListeners;
+            var eventListeners = fragmentInstance._eventListeners;
             if (null !== eventListeners)
               for (var i = 0; i < eventListeners.length; i++) {
                 var _eventListeners$i3 = eventListeners[i];
@@ -14073,6 +14079,8 @@
                   _eventListeners$i3.optionsOrUseCapture
                 );
               }
+            null != childInstance.reactFragments &&
+              childInstance.reactFragments.delete(fragmentInstance);
           }
         }
         if (isHostParent(parent)) break;
@@ -24471,6 +24479,15 @@
             fragmentFiber)
           : !1;
     }
+    function addFragmentHandleToFiber(child, fragmentInstance) {
+      child = getInstanceFromHostFiber(child);
+      null != child && addFragmentHandleToInstance(child, fragmentInstance);
+      return !1;
+    }
+    function addFragmentHandleToInstance(instance, fragmentInstance) {
+      null == instance.reactFragments && (instance.reactFragments = new Set());
+      instance.reactFragments.add(fragmentInstance);
+    }
     function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
       if (3 !== childInstance.nodeType) {
         var eventListeners = fragmentInstance._eventListeners;
@@ -24487,6 +24504,7 @@
           fragmentInstance._observers.forEach(function (observer) {
             observer.observe(childInstance);
           });
+        addFragmentHandleToInstance(childInstance, fragmentInstance);
       }
     }
     function clearContainerSparingly(container) {
@@ -30582,11 +30600,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-46103596-20260305" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-5e9eedb5-20260312" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-46103596-20260305\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-5e9eedb5-20260312\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -30623,10 +30641,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-canary-46103596-20260305",
+          version: "19.3.0-canary-5e9eedb5-20260312",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-canary-46103596-20260305"
+          reconcilerVersion: "19.3.0-canary-5e9eedb5-20260312"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -31094,7 +31112,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-canary-46103596-20260305";
+    exports.version = "19.3.0-canary-5e9eedb5-20260312";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

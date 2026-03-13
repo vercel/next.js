@@ -45,6 +45,10 @@ export interface EdgeFunctionDefinition {
   files: string[]
   name: string
   page: string
+  /**
+   * Canonical entrypoint module path (relative to distDir) for this edge function.
+   */
+  entrypoint: string
   matchers: ProxyMatcher[]
   env: Record<string, string>
   wasm?: AssetBinding[]
@@ -153,6 +157,31 @@ function getEntryFiles(
   return files
 }
 
+function getEntrypointFile(entrypoint: {
+  getEntrypointChunk(): { files: Iterable<string> }
+  getFiles(): Iterable<string>
+}): string {
+  const getJsFile = (files: Iterable<string>): string | undefined => {
+    for (const file of files) {
+      if (!file.endsWith('.hot-update.js') && /\.(?:js|mjs|cjs)$/i.test(file)) {
+        return `server/${file}`
+      }
+    }
+  }
+
+  const file =
+    getJsFile(entrypoint.getEntrypointChunk().files) ||
+    getJsFile(entrypoint.getFiles())
+
+  if (!file) {
+    throw new Error(
+      'Expected edge function entrypoint to emit a JavaScript file'
+    )
+  }
+
+  return file
+}
+
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
@@ -224,6 +253,7 @@ function getCreateAssets(params: {
           hasInstrumentationHook,
           opts
         ),
+        entrypoint: getEntrypointFile(entrypoint),
         name: entrypoint.name,
         page: page,
         matchers,

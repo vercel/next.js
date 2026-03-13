@@ -284,6 +284,7 @@ pub async fn parse(
         .await
     {
         Ok(result) => Ok(result),
+        // ast-grep-ignore: no-context-turbofmt
         Err(error) => Err(error.context(turbofmt!("failed to parse {}", source.ident()).await?)),
     }
 }
@@ -344,6 +345,7 @@ async fn parse_internal(
                         {
                             Ok(result) => result,
                             Err(e) => {
+                                // ast-grep-ignore: no-context-turbofmt
                                 return Err(e).context(
                                     turbofmt!(
                                         "Transforming and/or parsing of {} failed",

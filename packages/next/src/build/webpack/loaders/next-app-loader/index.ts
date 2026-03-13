@@ -427,11 +427,10 @@ async function createTreeCodeFromPath(
       // earlier logic (such as children$ and page$). These should never appear in the loader tree, and
       // should instead be the corresponding segment keys (ie `__PAGE__`) or the `children` parallel route.
       parallelSegmentKey =
-        parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT
+        parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT ||
+        parallelSegmentKey === PAGE_SEGMENT
           ? '(slot)'
-          : parallelSegmentKey === PAGE_SEGMENT
-            ? PAGE_SEGMENT_KEY
-            : parallelSegmentKey
+          : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
       let subtreeCode: string | undefined
