@@ -8,7 +8,7 @@ import React, { startTransition, useContext } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
-import { HandleISRError } from './handle-isr-error'
+import { handleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
 import { RouterContext as PagesRouterContext } from '../../shared/lib/router-context.shared-runtime'
@@ -16,10 +16,16 @@ import { RouterContext as PagesRouterContext } from '../../shared/lib/router-con
 const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
-type CatchErrorProps = {
-  fallback: React.ComponentType<{ errorInfo: ErrorInfo }>
+type UserProps = Record<string, any>
+
+type CatchErrorProps<P extends UserProps> = {
   pathname: string | null
   isPagesRouter: boolean
+  fallback: React.ComponentType<{
+    userPropsWithoutChildren: Omit<P, 'children'>
+    errorInfo: ErrorInfo
+  }>
+  userPropsWithoutChildren: Omit<P, 'children'>
   children: React.ReactNode
 }
 
@@ -30,15 +36,17 @@ type CatchErrorState = {
 
 // This is forked from error-boundary.
 // TODO: Extend it instead of forking to easily sync the behavior?
-class CatchError extends React.Component<
-  CatchErrorProps,
+class CatchError<P extends UserProps> extends React.Component<
+  CatchErrorProps<P>,
   { error: Error | null; previousPathname: string | null }
 > {
   declare context: AppRouterInstance | null
   static contextType = AppRouterContext
-  static displayName = 'CatchError'
+  // `unstable_catchError()` is parsed as an HOC-style name and displays as
+  // a label (<name> [unstable_catchError]) in DevTools.
+  static displayName = 'unstable_catchError(NextErrorBoundary)'
 
-  constructor(props: CatchErrorProps) {
+  constructor(props: CatchErrorProps<P>) {
     super(props)
     this.state = {
       error: null,
@@ -57,7 +65,7 @@ class CatchError extends React.Component<
   }
 
   static getDerivedStateFromProps(
-    props: CatchErrorProps,
+    props: CatchErrorProps<UserProps>,
     state: CatchErrorState
   ): CatchErrorState | null {
     const { error } = state
@@ -116,18 +124,17 @@ class CatchError extends React.Component<
     //When it's bot request, segment level error boundary will keep rendering the children,
     // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
     if (this.state.error && !isBotUserAgent) {
+      handleISRError({ error: this.state.error })
+
       return (
-        <>
-          {/* TODO: Do we need this in CatchError? */}
-          <HandleISRError error={this.state.error} />
-          <this.props.fallback
-            errorInfo={{
-              error: this.state.error,
-              reset: this.reset,
-              unstable_retry: this.unstable_retry,
-            }}
-          />
-        </>
+        <this.props.fallback
+          userPropsWithoutChildren={this.props.userPropsWithoutChildren}
+          errorInfo={{
+            error: this.state.error,
+            reset: this.reset,
+            unstable_retry: this.unstable_retry,
+          }}
+        />
       )
     }
 
@@ -172,7 +179,7 @@ class CatchError extends React.Component<
  * }
  * ```
  */
-export function unstable_catchError<P extends Record<string, any>>(
+export function unstable_catchError<P extends UserProps>(
   fallback: (
     // children is omitted by design as the error fallback component is the "fallback"
     // for the children when an error occurs.
@@ -180,7 +187,19 @@ export function unstable_catchError<P extends Record<string, any>>(
     errorInfo: ErrorInfo
   ) => React.ReactNode
 ) {
-  function NextErrorBoundary({ children, ...userPropsWithoutChildren }: P) {
+  // Create Fallback component from the closure of `unstable_catchError`.
+  const Fallback = ({
+    userPropsWithoutChildren,
+    errorInfo,
+  }: {
+    userPropsWithoutChildren: Omit<P, 'children'>
+    errorInfo: ErrorInfo
+  }) => fallback(userPropsWithoutChildren, errorInfo)
+
+  // Rename to match the user component name for DevTools.
+  Fallback.displayName = fallback.name
+
+  return ({ children, ...userPropsWithoutChildren }: P) => {
     // When we're rendering the missing params shell, this will return null. This
     // is because we won't be rendering any not found boundaries or error
     // boundaries for the missing params shell. When this runs on the client
@@ -192,21 +211,11 @@ export function unstable_catchError<P extends Record<string, any>>(
       <CatchError
         pathname={pathname}
         isPagesRouter={isPagesRouter}
-        fallback={({ errorInfo }) =>
-          fallback(userPropsWithoutChildren, errorInfo)
-        }
+        fallback={Fallback}
+        userPropsWithoutChildren={userPropsWithoutChildren}
       >
         {children}
       </CatchError>
     )
   }
-
-  if (process.env.NODE_ENV !== 'production') {
-    // `unstable_catchError()` is parsed as an HOC-style name and displays as
-    // a label (<name> [unstable_catchError]) in DevTools.
-    NextErrorBoundary.displayName = 'unstable_catchError(NextErrorBoundary)'
-    CatchError.displayName = fallback.name
-  }
-
-  return NextErrorBoundary
 }
