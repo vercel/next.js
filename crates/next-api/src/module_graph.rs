@@ -25,7 +25,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
-use turbopack_css::{CssModule, ModuleCssAsset};
+use turbopack_css::{CssModule, EcmascriptCssModule};
 
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
@@ -816,7 +816,7 @@ async fn validate_pages_css_imports_individual(
             }
 
             let parent_is_css_module =
-                ResolvedVc::try_downcast_type::<ModuleCssAsset>(parent_module).is_some()
+                ResolvedVc::try_downcast_type::<EcmascriptCssModule>(parent_module).is_some()
                     || ResolvedVc::try_downcast_type::<CssModule>(parent_module).is_some();
 
             // We also always allow .module css/scss/sass files to import global css files as

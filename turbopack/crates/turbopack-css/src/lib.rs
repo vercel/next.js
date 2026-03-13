@@ -18,7 +18,7 @@ use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 use crate::references::import::ImportAssetReference;
-pub use crate::{asset::CssModule, module_asset::ModuleCssAsset, process::*};
+pub use crate::{asset::CssModule, module_asset::EcmascriptCssModule, process::*};
 
 #[derive(
     PartialOrd,
