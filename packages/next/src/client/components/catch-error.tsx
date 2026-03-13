@@ -186,7 +186,7 @@ export function unstable_catchError<P extends UserProps>(
     userPropsWithoutChildren: Omit<P, 'children'>,
     errorInfo: ErrorInfo
   ) => React.ReactNode
-) {
+): React.ComponentType<P> {
   // Create Fallback component from the closure of `unstable_catchError`.
   const Fallback = ({
     userPropsWithoutChildren,
