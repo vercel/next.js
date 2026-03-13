@@ -444,7 +444,21 @@ const result = await resolveRoutes({
     return {}
   },
 })
+
+if (result.resolvedPathname) {
+  console.log('Resolved pathname:', result.resolvedPathname)
+  console.log('Resolved query:', result.resolvedQuery)
+  console.log('Invocation target:', result.invocationTarget)
+}
 ```
+
+`resolveRoutes()` returns:
+
+- `resolvedPathname`: The route pathname selected by Next.js routing. For dynamic routes, this is the matched route template such as `/blog/[slug]`.
+- `resolvedQuery`: The final query after rewrites or middleware have added or replaced search params.
+- `invocationTarget`: The concrete pathname and query to invoke for the matched route.
+
+For example, if `/blog/post-1?draft=1` matches `/blog/[slug]?slug=post-1`, `resolvedPathname` is `/blog/[slug]` while `invocationTarget.pathname` is `/blog/post-1`.
 
 ## Implementing PPR in an Adapter
 
