@@ -4,7 +4,7 @@ import React, { startTransition, useContext, type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
-import { HandleISRError } from './handle-isr-error'
+import { handleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import {
   AppRouterContext,
@@ -126,9 +126,10 @@ export class ErrorBoundaryHandler extends React.Component<
     //When it's bot request, segment level error boundary will keep rendering the children,
     // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
     if (this.state.error && !isBotUserAgent) {
+      handleISRError({ error: this.state.error })
+
       return (
         <>
-          <HandleISRError error={this.state.error} />
           {this.props.errorStyles}
           {this.props.errorScripts}
           <this.props.errorComponent
