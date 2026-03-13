@@ -442,6 +442,14 @@ function assignDefaultsAndValidate(
     )
   }
 
+  if (result.experimental.exposeDevToolsInProductionBuild) {
+    // This flag enables the Instant Navigation Mode toggle on prod builds.
+    // It is meant to be used in non-production environments like preview deployments
+    // as it sends more bundles related to testing API to the client.
+    result.experimental.instantNavigationDevToolsToggle = true
+    result.experimental.exposeTestingApiInProductionBuild = true
+  }
+
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(

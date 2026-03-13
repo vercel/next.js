@@ -192,4 +192,20 @@ describe('loadConfig', () => {
       expect(result.experimental.externalProxyRewritesResolve).toBe(true)
     })
   })
+
+  describe('instant navigation devtools config normalization', () => {
+    it('enables the existing prod instant-navigation hooks from one opt-in', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            exposeDevToolsInProductionBuild: true,
+          },
+        },
+      })
+
+      expect(result.experimental.exposeDevToolsInProductionBuild).toBe(true)
+      expect(result.experimental.instantNavigationDevToolsToggle).toBe(true)
+      expect(result.experimental.exposeTestingApiInProductionBuild).toBe(true)
+    })
+  })
 })

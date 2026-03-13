@@ -113,6 +113,7 @@ const MenuPanel = () => {
             onClick: () => {
               setPanel('instant-navs')
             },
+            allowedInProd: true,
             attributes: {
               'data-instant-nav': true,
             },

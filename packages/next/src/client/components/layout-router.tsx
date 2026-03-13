@@ -736,14 +736,26 @@ export default function OuterLayoutRouter({
 
     let segmentBoundaryTriggerNode: React.ReactNode = null
     let segmentViewStateNode: React.ReactNode = null
-    if (process.env.NODE_ENV !== 'production') {
-      const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
+    if (
+      process.env.NODE_ENV !== 'production' ||
+      process.env.__NEXT_DEVTOOLS_IN_PROD
+    ) {
+      const { SegmentViewStateNode } =
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
       const pagePrefix = normalizeAppPath(url)
       segmentViewStateNode = (
         <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />
       )
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      // Prod Instant Navs only need the passive route-state feed from
+      // SegmentViewStateNode. SegmentBoundaryTriggerNode actively forces a
+      // segment into a simulated loading, not-found, or error state, which is
+      // useful for dev Route Info debugging but not for the prod surface here.
+      const { SegmentBoundaryTriggerNode } =
+        require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
       segmentBoundaryTriggerNode = (
         <>

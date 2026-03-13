@@ -436,6 +436,15 @@ export interface ExperimentalConfig {
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
   /**
+   * Enables the DevTools in production builds to expose features like
+   * Instant Navigation Mode toggle. Enabling this implies `instantNavigationDevToolsToggle`
+   * and `exposeTestingApiInProductionBuild` is enabled.
+   *
+   * WARNING: This flag is intended for profiling and testing purposes only.
+   * Do not enable in user-facing production deployments.
+   */
+  exposeDevToolsInProductionBuild?: boolean
+  /**
    * Exposes the Instant Navigation Testing API in production builds. This
    * API is always available in development mode.
    *

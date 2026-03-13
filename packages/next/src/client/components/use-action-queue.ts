@@ -83,7 +83,13 @@ export function useActionQueue(
   // weird implementation details.
   let nextDispatch: Dispatch<ReducerActions>
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (
+    process.env.NODE_ENV !== 'production' ||
+    // Prod Instant Navs needs to know whether a captured navigation is still
+    // rendering. Otherwise the panel can describe the destination as done while
+    // the page is still showing the frozen prefetched/static UI.
+    process.env.__NEXT_DEVTOOLS_IN_PROD
+  ) {
     const { useAppDevRenderingIndicator } =
       require('../../next-devtools/userspace/use-app-dev-rendering-indicator') as typeof import('../../next-devtools/userspace/use-app-dev-rendering-indicator')
     // eslint-disable-next-line react-hooks/rules-of-hooks

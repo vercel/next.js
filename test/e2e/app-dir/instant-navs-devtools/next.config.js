@@ -5,6 +5,7 @@ const nextConfig = {
   cacheComponents: true,
   experimental: {
     instantNavigationDevToolsToggle: true,
+    exposeDevToolsInProductionBuild: true,
   },
 }
 

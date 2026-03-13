@@ -242,6 +242,7 @@ export const experimentalSchema = {
   externalDir: z.boolean().optional(),
   externalMiddlewareRewritesResolve: z.boolean().optional(),
   externalProxyRewritesResolve: z.boolean().optional(),
+  exposeDevToolsInProductionBuild: z.boolean().optional(),
   exposeTestingApiInProductionBuild: z.boolean().optional(),
   instantNavigationDevToolsToggle: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),

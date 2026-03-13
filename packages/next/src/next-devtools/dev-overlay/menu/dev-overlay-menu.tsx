@@ -23,6 +23,16 @@ interface C {
 
 const MenuContext = createContext({} as C)
 
+export type DevtoolMenuItem = {
+  onClick?: () => void
+  title?: string
+  label: string
+  value: React.ReactNode
+  attributes?: Record<string, string | boolean>
+  footer?: boolean
+  allowedInProd?: boolean
+}
+
 function MenuItem({
   index,
   label,
@@ -87,19 +97,7 @@ export const DevtoolMenu = ({
   items,
 }: {
   closeOnClickOutside?: boolean
-  items: Array<
-    | false
-    | undefined
-    | null
-    | {
-        onClick?: () => void
-        title?: string
-        label: string
-        value: React.ReactNode
-        attributes?: Record<string, string | boolean>
-        footer?: boolean
-      }
-  >
+  items: Array<false | undefined | null | DevtoolMenuItem>
 }) => {
   const { state } = useDevOverlayContext()
   const { setPanel, triggerRef, setSelectedIndex, selectedIndex } =
@@ -166,9 +164,29 @@ export const DevtoolMenu = ({
     [vertical === 'top' ? 'bottom' : 'top']: 'auto',
     [horizontal === 'left' ? 'right' : 'left']: 'auto',
   } as CSSProperties
-  const definedItems = items.filter((item) => !!item)
-  const itemsAboveFooter = definedItems.filter((item) => !item.footer)
-  const itemsBelowFooter = definedItems.filter((item) => item.footer)
+  const definedItems: DevtoolMenuItem[] = []
+  const itemsAboveFooter: DevtoolMenuItem[] = []
+  const itemsBelowFooter: DevtoolMenuItem[] = []
+
+  for (const item of items) {
+    if (!item) {
+      continue
+    }
+
+    // In prod builds, keep the menu surface limited to entries that are safe
+    // to expose without the development server.
+    if (!process.env.__NEXT_DEV_SERVER && !item.allowedInProd) {
+      continue
+    }
+
+    definedItems.push(item)
+
+    if (item.footer) {
+      itemsBelowFooter.push(item)
+    } else {
+      itemsAboveFooter.push(item)
+    }
+  }
 
   function onMenuKeydown(e: React.KeyboardEvent<HTMLDivElement | null>) {
     e.preventDefault()
@@ -268,24 +286,26 @@ export const DevtoolMenu = ({
             />
           ))}
         </div>
-        <div className="dev-tools-indicator-footer">
-          {itemsBelowFooter.map((item, index) => (
-            <MenuItem
-              key={item.label}
-              title={item.title}
-              label={item.label}
-              value={item.value}
-              onClick={item.onClick}
-              {...item.attributes}
-              index={
-                item.onClick
-                  ? getAdjustedIndex(itemsBelowFooter, index) +
-                    getClickableItemsCount(itemsAboveFooter)
-                  : undefined
-              }
-            />
-          ))}
-        </div>
+        {itemsBelowFooter.length > 0 ? (
+          <div className="dev-tools-indicator-footer">
+            {itemsBelowFooter.map((item, index) => (
+              <MenuItem
+                key={item.label}
+                title={item.title}
+                label={item.label}
+                value={item.value}
+                onClick={item.onClick}
+                {...item.attributes}
+                index={
+                  item.onClick
+                    ? getAdjustedIndex(itemsBelowFooter, index) +
+                      getClickableItemsCount(itemsAboveFooter)
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+        ) : null}
       </MenuContext>
     </div>
   )

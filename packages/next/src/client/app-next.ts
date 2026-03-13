@@ -14,5 +14,23 @@ appBootstrap((assetPrefix) => {
   require('next/dist/client/components/app-router')
   // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   require('next/dist/client/components/layout-router')
-  hydrate(instrumentationHooks, assetPrefix)
+  try {
+    hydrate(instrumentationHooks, assetPrefix)
+  } finally {
+    if (process.env.__NEXT_DEV_SERVER || process.env.__NEXT_DEVTOOLS_IN_PROD) {
+      const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
+      const { getOwnerStack } =
+        require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
+      const { renderAppDevOverlay } =
+        require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
+      const { isRecoverableError } =
+        require('./react-client-callbacks/on-recoverable-error') as typeof import('./react-client-callbacks/on-recoverable-error')
+
+      renderAppDevOverlay(
+        getOwnerStack,
+        isRecoverableError,
+        enableCacheIndicator
+      )
+    }
+  }
 })

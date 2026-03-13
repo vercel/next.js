@@ -277,6 +277,9 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
+const shouldShowProdDevTools =
+  !!process.env.__NEXT_DEVTOOLS_IN_PROD && !shouldDisableDevIndicator
+
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 
@@ -303,7 +306,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   // When instant nav is active, show the indicator immediately so the user
   // can toggle it off. Normally this is set to true by the HMR connection,
   // but the HMR WebSocket is only created during hydration.
-  showIndicator: hasInstantNavsCookie,
+  showIndicator: hasInstantNavsCookie || shouldShowProdDevTools,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
