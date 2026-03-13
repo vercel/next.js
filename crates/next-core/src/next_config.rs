@@ -70,6 +70,9 @@ impl Default for CacheKinds {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct CacheHandlersMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -1839,6 +1842,11 @@ impl NextConfig {
         } else {
             Ok(Vc::cell(vec![]))
         }
+    }
+
+    #[turbo_tasks::function]
+    pub fn cache_handlers_map(&self) -> Vc<CacheHandlersMap> {
+        Vc::cell(self.cache_handlers.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]
