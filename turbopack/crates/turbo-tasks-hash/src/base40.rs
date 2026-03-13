@@ -4,13 +4,45 @@
 /// case-insensitive filesystems (macOS HFS+/APFS, Windows NTFS).
 const BASE40_CHARS: &[u8; 40] = b"0123456789abcdefghijklmnopqrstuvwxyz_-~.";
 
+const BASE: u128 = BASE40_CHARS.len() as u128;
+
+/// Computes the number of base-N digits needed to represent all values of
+/// `bits` width: the smallest `n` such that `base^n > 2^bits - 1`.
+const fn digits_for_bits(base: u128, bits: u32) -> usize {
+    let mut power: u128 = 1;
+    let mut n: usize = 0;
+    // We need base^n > u{bits}::MAX, i.e. base^n > 2^bits - 1.
+    // Since 2^128 doesn't fit in u128, we compare by checking if
+    // power has "overflowed past" the bit width. For bits == 128,
+    // we need base^n >= 2^128 which means power must overflow to 0
+    // (or we track via a flag). For bits < 128, we compare directly.
+    loop {
+        // Check if power > 2^bits - 1 (i.e. power can represent all values)
+        if bits < 128 && power > ((1u128 << bits) - 1) {
+            break;
+        }
+        let (new_power, overflowed) = power.overflowing_mul(base);
+        n += 1;
+        if overflowed {
+            // power * base >= 2^128 > 2^bits - 1 for any bits <= 128
+            break;
+        }
+        power = new_power;
+    }
+    n
+}
+
 /// Number of base40 characters needed to represent a 64-bit value without
-/// information loss: `ceil(64 / log2(40))` = 13.
-pub const BASE40_LEN_64: usize = 13;
+/// information loss.
+pub const BASE40_LEN_64: usize = digits_for_bits(BASE, 64);
 
 /// Number of base40 characters needed to represent a 128-bit value without
-/// information loss: `ceil(128 / log2(40))` = 25.
-pub const BASE40_LEN_128: usize = 25;
+/// information loss.
+pub const BASE40_LEN_128: usize = digits_for_bits(BASE, 128);
+
+// Verify our const computation matches the expected values.
+const _: () = assert!(BASE40_LEN_64 == 13);
+const _: () = assert!(BASE40_LEN_128 == 25);
 
 /// Encodes a value into a fixed-width base40 string by repeatedly dividing by
 /// 40.
