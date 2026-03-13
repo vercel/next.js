@@ -20,6 +20,11 @@ use crate::{
     },
 };
 
+/// Converts a [`ChunkableModule`] into a [`ChunkItemWithAsyncModuleInfo`] by resolving its chunk
+/// item and, if the module is async, looking up its referenced async modules from the graph.
+///
+/// Uses keyed access on `async_module_info` so only the queried module's entry is read,
+/// enabling per-key invalidation via `cell = "keyed"` on [`AsyncModulesInfo`].
 pub async fn attach_async_info_to_chunkable_module(
     module: ResolvedVc<Box<dyn ChunkableModule>>,
     async_module_info: Vc<AsyncModulesInfo>,

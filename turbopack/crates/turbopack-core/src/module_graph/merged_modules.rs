@@ -157,12 +157,14 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .into_iter()
             .collect::<FxHashSet<_>>();
 
-        // Pre-fetch async status for all mergeable modules to avoid reading the full
-        // AsyncModulesInfo set during the synchronous traversal below.
+        // Pre-fetch async status for all mergeable modules using keyed access to avoid
+        // reading the full AsyncModulesInfo set during the synchronous traversal below.
+        let inner_span = tracing::info_span!("pre-fetch async module status");
         let async_modules: FxHashSet<_> = mergeable
             .iter()
             .map(async |&module| Ok(async_module_info.is_async(module).await?.then_some(module)))
             .try_flat_join()
+            .instrument(inner_span)
             .await?
             .into_iter()
             .collect();
