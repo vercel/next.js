@@ -611,14 +611,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 chunk_groups,
                             )))
                         }
-                        ChunkingType::Emitted { .. } => {
-                            // Already handled during module graph construction and turned into
-                            // ChunkingType::Collected
-                            return Ok(GraphTraversalAction::Skip);
-                        }
-                        ChunkingType::Collected {
-                            merge_tag: _merge_tag,
+                        ChunkingType::Emitted {
+                            merge_tag: _,
                             is_async,
+                            emit_to_all_entries: _,
                         } => {
                             // TODO ideally this would get the chunk group bitset of the parent
                             // ChunkGroup::Entry
@@ -630,6 +626,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                     ChunkGroupKey::Collected(node)
                                 },
                             )))
+                        }
+                        ChunkingType::Collected { .. } => {
+                            // These only exist in the module_batches graph.
+                            unreachable!();
                         }
                         ChunkingType::PerEntry => {
                             // This edge in itself is irrelevant, but continue with transitive
