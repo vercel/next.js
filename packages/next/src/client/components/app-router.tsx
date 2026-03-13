@@ -3,7 +3,6 @@ import React, {
   useMemo,
   startTransition,
   useInsertionEffect,
-  useDeferredValue,
 } from 'react'
 import {
   AppRouterContext,
@@ -30,6 +29,7 @@ import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
+import { useCacheNodeRsc } from './layout-router'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import {
@@ -130,23 +130,11 @@ function copyNextJsInternalHistoryState(data: any) {
 function Head({
   headCacheNode,
 }: {
-  headCacheNode: CacheNode | null
+  headCacheNode: CacheNode
 }): React.ReactNode {
-  // If this segment has a `prefetchHead`, it's the statically prefetched data.
-  // We should use that on initial render instead of `head`. Then we'll switch
-  // to `head` when the dynamic response streams in.
-  const head = headCacheNode !== null ? headCacheNode.head : null
-  const prefetchHead =
-    headCacheNode !== null ? headCacheNode.prefetchHead : null
-
-  // If no prefetch data is available, then we go straight to rendering `head`.
-  const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
-
-  // We use `useDeferredValue` to handle switching between the prefetched and
-  // final values. The second argument is returned on initial render, then it
-  // re-renders with the first argument.
-  return useDeferredValue(head, resolvedPrefetchRsc)
+  return useCacheNodeRsc(headCacheNode.head, headCacheNode.prefetchHead)
 }
+
 
 /**
  * The global router that wraps the application components.
@@ -408,6 +396,7 @@ function Router({
   }, [])
 
   const { cache, tree, nextUrl, focusAndScrollRef, previousNextUrl } = state
+  const rootRsc = useCacheNodeRsc(cache.rsc, cache.prefetchRsc)
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -484,14 +473,25 @@ function Router({
     head = null
   }
 
+  let devtoolsRouteStateNode: React.ReactNode = null
+  if (process.env.NODE_ENV !== 'production') {
+    // Render SegmentViewStateNode at the root level so the devtools overlay
+    // receives the route tree immediately, without waiting for the full
+    // segment tree to mount (which may be delayed by deferred rendering).
+    const { SegmentViewStateNode } =
+      require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+    devtoolsRouteStateNode = <SegmentViewStateNode page={pathname} />
+  }
+
   let content = (
     <RedirectBoundary>
       {head}
       {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
           When users wrap their layout in <Suspense>, this creates the component stack pattern
           "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
-      <RootLayoutBoundary>{cache.rsc}</RootLayoutBoundary>
+      <RootLayoutBoundary>{rootRsc}</RootLayoutBoundary>
       <AppRouterAnnouncer tree={tree} />
+      {devtoolsRouteStateNode}
     </RedirectBoundary>
   )
 
