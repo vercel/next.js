@@ -818,18 +818,16 @@ impl ModuleGraph {
         let async_module_info = self.async_module_info();
 
         let entry = graph_ref.get_entry(module)?;
-        let mut candidates = graph_ref
+        let referenced_modules = graph_ref
             .iter_graphs_neighbors_rev(entry, Direction::Outgoing)
             .filter(|(edge_idx, _)| {
                 let ty = graph_ref.get_edge(*edge_idx).unwrap();
                 ty.chunking_type.is_inherit_async()
             })
             .map(|(_, child_idx)| anyhow::Ok(graph_ref.get_node(child_idx)?.module()))
-            .collect::<Result<Vec<_>>>()?;
-        candidates.reverse();
-
-        let referenced_modules = candidates
+            .collect::<Result<Vec<_>>>()?
             .into_iter()
+            .rev()
             .map(async |m| Ok(async_module_info.is_async(m).await?.then_some(*m)))
             .try_flat_join()
             .await?;
