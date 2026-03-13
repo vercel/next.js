@@ -5,7 +5,9 @@ import type {
   InitialRSCPayload,
   DynamicParamTypesShort,
   HeadData,
+  PrefetchHints,
 } from '../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../shared/lib/app-router-types'
 import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -93,9 +95,8 @@ export type SegmentPrefetch = {
  * slots so all segments for a route can be bundled into a single response.
  *
  * This is a separate type from SegmentPrefetch because the inlined flow is
- * temporary — eventually inlining will be the default behavior (controlled by
- * a size heuristic rather than a boolean flag), and the per-segment and inlined
- * paths will merge.
+ * still gated behind a feature flag. Eventually inlining will always be
+ * enabled, and the per-segment and inlined paths will merge.
  */
 export type InlinedSegmentPrefetch = {
   segment: SegmentPrefetch
@@ -141,13 +142,42 @@ function onSegmentPrerenderError(error: unknown) {
   }
 }
 
+/**
+ * Extract the FlightRouterState, seed data, and head from a prerendered
+ * InitialRSCPayload. Returns null if the payload doesn't match the expected
+ * shape (single path with 3 elements).
+ */
+function extractFlightData(initialRSCPayload: InitialRSCPayload): {
+  buildId: string | undefined
+  flightRouterState: FlightRouterState
+  seedData: CacheNodeSeedData
+  head: HeadData
+} | null {
+  const flightDataPaths = initialRSCPayload.f
+  // FlightDataPath is an unsound type, hence the additional checks.
+  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
+    console.error(
+      'Internal Next.js error: InitialRSCPayload does not match the expected ' +
+        'shape for a prerendered page during segment prefetch generation.'
+    )
+    return null
+  }
+  return {
+    buildId: initialRSCPayload.b,
+    flightRouterState: flightDataPaths[0][0],
+    seedData: flightDataPaths[0][1],
+    head: flightDataPaths[0][2],
+  }
+}
+
 export async function collectSegmentData(
   isCacheComponentsEnabled: boolean,
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
   serverConsumerManifest: any,
-  prefetchInlining: boolean
+  prefetchInlining: boolean,
+  hints: PrefetchHints | null
 ): Promise<Map<SegmentRequestKey, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
@@ -196,6 +226,7 @@ export async function collectSegmentData(
       segmentTasks={segmentTasks}
       onCompletedProcessingRouteTree={onCompletedProcessingRouteTree}
       prefetchInlining={prefetchInlining}
+      hints={hints}
     />,
     clientModules,
     {
@@ -222,6 +253,311 @@ export async function collectSegmentData(
   return resultMap
 }
 
+/**
+ * Compute prefetch hints for a route by measuring segment sizes and deciding
+ * which segments should be inlined. Only runs at build time. The results are
+ * written to prefetch-hints.json and loaded at server startup.
+ *
+ * This is a separate pass from collectSegmentData so that the inlining
+ * decisions can be fed back into collectSegmentData to control which segments
+ * are output as separate entries vs. inlined into their parent.
+ */
+export async function collectPrefetchHints(
+  fullPageDataBuffer: Buffer,
+  staleTime: number,
+  clientModules: ManifestNode,
+  serverConsumerManifest: any,
+  maxSize: number,
+  maxBundleSize: number
+): Promise<PrefetchHints> {
+  // Warm up the module cache, same as collectSegmentData.
+  try {
+    await createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
+      findSourceMapURL,
+      serverConsumerManifest,
+    })
+    await waitAtLeastOneReactRenderTask()
+  } catch {}
+
+  // Decode the Flight data to walk the route tree.
+  const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
+    createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
+    {
+      findSourceMapURL,
+      serverConsumerManifest,
+    }
+  )
+
+  const flightData = extractFlightData(initialRSCPayload)
+  if (flightData === null) {
+    return { hints: 0, slots: null }
+  }
+  const { buildId, flightRouterState, seedData, head } = flightData
+
+  // Measure the head (metadata/viewport) gzip size so the main traversal
+  // can decide whether to inline it into a page's bundle.
+  const headVaryParamsThenable = initialRSCPayload.h
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
+
+  const [, headBuffer] = await renderSegmentPrefetch(
+    buildId,
+    staleTime,
+    head,
+    HEAD_REQUEST_KEY,
+    headVaryParams,
+    clientModules
+  )
+  const headGzipSize = await getGzipSize(headBuffer)
+
+  // Mutable accumulator: the first page leaf that can fit the head sets
+  // this to true. Once set, subsequent leaves skip the check.
+  const headInlineState = { inlined: false }
+
+  // Walk the tree with the parent-first, child-decides algorithm.
+  const { node } = await collectPrefetchHintsImpl(
+    flightRouterState,
+    buildId,
+    staleTime,
+    seedData,
+    clientModules,
+    ROOT_SEGMENT_REQUEST_KEY,
+    null, // root has no parent to inline
+    maxSize,
+    maxBundleSize,
+    headGzipSize,
+    headInlineState
+  )
+
+  if (!headInlineState.inlined) {
+    // No page could accept the head. Set HeadOutlined on the root so the
+    // client knows to fetch the head separately.
+    node.hints |= PrefetchHint.HeadOutlined
+  }
+
+  return node
+}
+
+// Measure a segment's gzip size and decide whether it should be inlined.
+//
+// These hints are computed once during build and never change for the
+// lifetime of that deployment. The client can assume that hints delivered as
+// part of one request will be the same during a subsequent request, given
+// the same build ID. There's no skew to worry about as long as the build
+// itself is consistent.
+//
+// In the Segment Cache, we split page prefetches into multiple requests so
+// that each one can be cached and deduped independently. However, some
+// segments are small enough that the potential caching benefits are not worth
+// the additional network overhead. For these, we inline a parent's data into
+// one of its children's responses, avoiding a separate request. The parent
+// is inlined into the child (not the other way around) because the parent's
+// response is more likely to be shared across multiple pages. The child's
+// response is already page-specific, so adding the parent's data there
+// doesn't meaningfully reduce deduplication. It's similar to how JS bundlers
+// decide whether to inline a module into a chunk.
+//
+// The algorithm is parent-first, child-decides: the parent measures itself
+// and passes its gzip size down. Each child decides whether to accept. A
+// child rejects if the parent exceeds maxSize or if accepting would push
+// the cumulative inlined bytes past maxBundleSize. This produces
+// both ParentInlinedIntoSelf (on the child) and InlinedIntoChild (on the
+// parent) in a single pass.
+async function collectPrefetchHintsImpl(
+  route: FlightRouterState,
+  buildId: string | undefined,
+  staleTime: number,
+  seedData: CacheNodeSeedData | null,
+  clientModules: ManifestNode,
+  // TODO: Consider persisting the computed requestKey into the hints output
+  // so it doesn't need to be recomputed during the build. This might also
+  // suggest renaming prefetch-hints.json to something like
+  // segment-manifest.json, since it would contain more than just hints.
+  requestKey: SegmentRequestKey,
+  parentGzipSize: number | null,
+  maxSize: number,
+  maxBundleSize: number,
+  headGzipSize: number,
+  headInlineState: { inlined: boolean }
+): Promise<{
+  node: PrefetchHints
+  // Total inlined bytes accumulated along the deepest accepting path in this
+  // subtree. Used by ancestors for budget checks.
+  inlinedBytes: number
+}> {
+  // Render current segment and measure its gzip size.
+  let currentGzipSize: number | null = null
+  if (seedData !== null) {
+    const varyParamsThenable = seedData[4]
+    const varyParams =
+      varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+
+    const [, buffer] = await renderSegmentPrefetch(
+      buildId,
+      staleTime,
+      seedData[0],
+      requestKey,
+      varyParams,
+      clientModules
+    )
+    currentGzipSize = await getGzipSize(buffer)
+  }
+
+  // Only offer this segment to its children for inlining if its gzip size
+  // is below maxSize. Segments above this get their own response.
+  const sizeToInline =
+    currentGzipSize !== null && currentGzipSize < maxSize
+      ? currentGzipSize
+      : null
+
+  // Process children serially (not in parallel) to ensure deterministic
+  // results. Since this only runs at build time and the rendering is just
+  // re-encoding cached prerenders, this won't impact build times. Each child
+  // receives our gzip size and decides whether to inline us. Once a child
+  // accepts, we stop offering to remaining siblings — the parent is only
+  // inlined into one child. In parallel routes, this avoids duplicating the
+  // parent's data across multiple sibling responses.
+  const children = route[1]
+  const seedDataChildren = seedData !== null ? seedData[1] : null
+
+  let slots: Record<string, PrefetchHints> | null = null
+  let didInlineIntoChild = false
+  let acceptingChildInlinedBytes = 0
+  // Track the smallest inlinedBytes across all children so we know how much
+  // budget remains along the best path. When our own parent asks whether we
+  // can accept its data, the parent's bytes would flow through to the child
+  // with the most remaining headroom.
+  let smallestChildInlinedBytes = Infinity
+  let hasChildren = false
+
+  for (const parallelRouteKey in children) {
+    hasChildren = true
+    const childRoute = children[parallelRouteKey]
+    const childSegment = childRoute[0]
+    const childSeedData =
+      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+
+    const childRequestKey = appendSegmentRequestKeyPart(
+      requestKey,
+      parallelRouteKey,
+      createSegmentRequestKeyPart(childSegment)
+    )
+
+    const childResult = await collectPrefetchHintsImpl(
+      childRoute,
+      buildId,
+      staleTime,
+      childSeedData,
+      clientModules,
+      childRequestKey,
+      // Once a child has accepted us, stop offering to remaining siblings.
+      didInlineIntoChild ? null : sizeToInline,
+      maxSize,
+      maxBundleSize,
+      headGzipSize,
+      headInlineState
+    )
+
+    if (slots === null) {
+      slots = {}
+    }
+    slots[parallelRouteKey] = childResult.node
+
+    if (childResult.node.hints & PrefetchHint.ParentInlinedIntoSelf) {
+      // This child accepted our data — it will include our segment's
+      // response in its own. No need to track headroom anymore since
+      // we already know which child we're inlined into.
+      didInlineIntoChild = true
+      acceptingChildInlinedBytes = childResult.inlinedBytes
+    } else if (!didInlineIntoChild) {
+      // Track the child with the most remaining headroom. Used below
+      // when deciding whether to accept our own parent's data.
+      if (childResult.inlinedBytes < smallestChildInlinedBytes) {
+        smallestChildInlinedBytes = childResult.inlinedBytes
+      }
+    }
+  }
+
+  // Leaf segment: no children have consumed any budget yet.
+  if (!hasChildren) {
+    smallestChildInlinedBytes = 0
+  }
+
+  // Mark this segment as InlinedIntoChild if one of its children accepted.
+  // This means this segment doesn't need its own prefetch response — its
+  // data is included in the accepting child's response instead.
+  let hints = 0
+  if (didInlineIntoChild) {
+    hints |= PrefetchHint.InlinedIntoChild
+  }
+
+  // inlinedBytes represents the total gzipped bytes of parent data inlined
+  // into the deepest "inlining target" along this branch. It starts at 0 at
+  // the leaves and grows as parents are inlined going back up the tree. If a
+  // child accepted us, our size is already counted in that child's value.
+  let inlinedBytes = didInlineIntoChild
+    ? acceptingChildInlinedBytes
+    : smallestChildInlinedBytes
+
+  // At leaf nodes (pages), try to inline the head (metadata/viewport) into
+  // this page's response. The head is treated like an additional inlined
+  // entry — it counts against the same total budget. Only the first page
+  // that has room gets the head; subsequent pages skip via the shared
+  // headInlineState accumulator.
+  if (!hasChildren && !headInlineState.inlined) {
+    if (inlinedBytes + headGzipSize < maxBundleSize) {
+      hints |= PrefetchHint.HeadInlinedIntoSelf
+      inlinedBytes += headGzipSize
+      headInlineState.inlined = true
+    }
+  }
+
+  // Decide whether to accept our own parent's data. Two conditions:
+  //
+  // 1. The parent offered us a size (parentGzipSize is not null). It's null
+  //    when the parent is too large to inline or when this is the root.
+  //
+  // 2. The total inlined bytes along this branch wouldn't exceed the budget.
+  //    Even if each segment is individually small, at some point it no
+  //    longer makes sense to keep adding bytes because the combined response
+  //    is unique per URL and can't be deduped.
+  //
+  // A node can be both InlinedIntoChild and ParentInlinedIntoSelf. This
+  // happens in multi-level chains: GP → P → C where all are small. C
+  // accepts P (P is InlinedIntoChild), then P also accepts GP (P is
+  // ParentInlinedIntoSelf). The result: C's response includes both P's
+  // and GP's data. The parent's data flows through to the deepest
+  // accepting descendant.
+  if (parentGzipSize !== null) {
+    if (inlinedBytes + parentGzipSize < maxBundleSize) {
+      hints |= PrefetchHint.ParentInlinedIntoSelf
+      inlinedBytes += parentGzipSize
+    }
+  }
+
+  return {
+    node: { hints, slots },
+    inlinedBytes,
+  }
+}
+
+// We use gzip size rather than raw size because it better reflects the actual
+// transfer cost. The inlining trade-off is about whether the overhead of an
+// additional HTTP request (connection setup, headers, round trip) is worth
+// the deduplication benefit of keeping a segment separate. Below some
+// compressed size, the request overhead dominates and inlining is better.
+// Above it, the deduplication benefit of a cacheable standalone response
+// wins out.
+async function getGzipSize(buffer: Buffer): Promise<number> {
+  const stream = new Blob([new Uint8Array(buffer)])
+    .stream()
+    .pipeThrough(new CompressionStream('gzip'))
+  const compressedBlob = await new Response(stream).blob()
+  return compressedBlob.size
+}
+
 async function PrefetchTreeData({
   isClientParamParsingEnabled,
   fullPageDataBuffer,
@@ -231,6 +567,7 @@ async function PrefetchTreeData({
   segmentTasks,
   onCompletedProcessingRouteTree,
   prefetchInlining,
+  hints,
 }: {
   isClientParamParsingEnabled: boolean
   fullPageDataBuffer: Buffer
@@ -240,6 +577,7 @@ async function PrefetchTreeData({
   segmentTasks: Array<Promise<[SegmentRequestKey, Buffer]>>
   onCompletedProcessingRouteTree: () => void
   prefetchInlining: boolean
+  hints: PrefetchHints | null
 }): Promise<RootTreePrefetch | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
@@ -254,20 +592,11 @@ async function PrefetchTreeData({
     }
   )
 
-  const buildId = initialRSCPayload.b
-
-  // FlightDataPath is an unsound type, hence the additional checks.
-  const flightDataPaths = initialRSCPayload.f
-  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
-    console.error(
-      'Internal Next.js error: InitialRSCPayload does not match the expected ' +
-        'shape for a prerendered page during segment prefetch generation.'
-    )
+  const flightData = extractFlightData(initialRSCPayload)
+  if (flightData === null) {
     return null
   }
-  const flightRouterState: FlightRouterState = flightDataPaths[0][0]
-  const seedData: CacheNodeSeedData = flightDataPaths[0][1]
-  const head: HeadData = flightDataPaths[0][2]
+  const { buildId, flightRouterState, seedData, head } = flightData
 
   // Extract the head vary params from the decoded response.
   // The head vary params thenable should be fulfilled by now; if not, treat
@@ -291,7 +620,8 @@ async function PrefetchTreeData({
     clientModules,
     ROOT_SEGMENT_REQUEST_KEY,
     segmentTasks,
-    prefetchInlining
+    prefetchInlining,
+    hints
   )
 
   if (prefetchInlining) {
@@ -355,7 +685,8 @@ function collectSegmentDataImpl(
   clientModules: ManifestNode,
   requestKey: SegmentRequestKey,
   segmentTasks: Array<Promise<[string, Buffer]>>,
-  prefetchInlining: boolean
+  prefetchInlining: boolean,
+  hintTree: PrefetchHints | null
 ): TreePrefetch {
   // Metadata about the segment. Sent as part of the tree prefetch. Null if
   // there are no children.
@@ -374,6 +705,10 @@ function collectSegmentDataImpl(
       parallelRouteKey,
       createSegmentRequestKeyPart(childSegment)
     )
+    const childHintTree =
+      hintTree !== null && hintTree.slots !== null
+        ? (hintTree.slots[parallelRouteKey] ?? null)
+        : null
     const childTree = collectSegmentDataImpl(
       isClientParamParsingEnabled,
       childRoute,
@@ -383,7 +718,8 @@ function collectSegmentDataImpl(
       clientModules,
       childRequestKey,
       segmentTasks,
-      prefetchInlining
+      prefetchInlining,
+      childHintTree
     )
     if (slotMetadata === null) {
       slotMetadata = {}
@@ -391,7 +727,14 @@ function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
-  const prefetchHints = route[4] ?? 0
+  // Union the hints already embedded in the FlightRouterState with the
+  // separately-computed build-time hints. During the initial build, the
+  // FlightRouterState was produced before collectPrefetchHints ran, so
+  // inlining hints (ParentInlinedIntoSelf, InlinedIntoChild) won't be in
+  // route[4] yet. On subsequent renders the hints are already in the
+  // FlightRouterState, so the union is idempotent.
+  const prefetchHints =
+    (route[4] ?? 0) | (hintTree !== null ? hintTree.hints : 0)
 
   // Determine which params this segment varies on.
   // Read the vary params thenable directly from the seed data. By the time
