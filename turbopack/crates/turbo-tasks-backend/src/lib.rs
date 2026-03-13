@@ -62,23 +62,33 @@ pub fn noop_backing_storage() -> NoopBackingStorage {
 /// compaction. This is intended for use by the `next internal post-build` CLI command to optimize
 /// the database after a build, without requiring the full turbo-tasks runtime.
 ///
-/// A multi-threaded Tokio runtime is created internally to drive the parallel scheduler.
+/// The parallel scheduler requires a Tokio runtime. If one is already active (e.g. when called
+/// from a NAPI async function), it is reused. Otherwise a new multi-threaded runtime is created.
 pub fn compact_database(
     base_path: &Path,
     version_info: &GitVersionInfo,
     is_ci: bool,
 ) -> Result<()> {
     let versioned_path = handle_db_versioning(base_path, version_info, is_ci)?;
-    // Use the same parallel scheduler as the normal runtime path. This requires a
-    // Tokio runtime for `block_in_place` and parallel work-stealing.
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
-    let _guard = runtime.enter();
-    let db = TurboPersistence::<turbo::TurboTasksParallelScheduler, { turbo::FAMILIES }>::open_with_config(
-        versioned_path,
-        turbo::DB_CONFIG,
-    )?;
+    // The parallel scheduler uses `tokio::task::block_in_place` internally, which
+    // requires a multi-threaded Tokio runtime. Create one only if there is no
+    // active runtime (e.g. when called from a standalone CLI context).
+    let _owned_runtime = if tokio::runtime::Handle::try_current().is_ok() {
+        None
+    } else {
+        Some(
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()?,
+        )
+    };
+    // If we created a runtime, enter it so the scheduler can find it.
+    let _guard = _owned_runtime.as_ref().map(|rt| rt.enter());
+    let db =
+        TurboPersistence::<turbo::TurboTasksParallelScheduler, { turbo::FAMILIES }>::open_with_config(
+            versioned_path,
+            turbo::DB_CONFIG,
+        )?;
     // Fully compact with no segment count limit (unlike the runtime shutdown path
     // which caps segments based on available parallelism).
     db.compact(&CompactConfig {

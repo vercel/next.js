@@ -355,7 +355,6 @@ export declare function projectOnExit(project: {
 export declare function projectShutdown(project: {
   __napiType: 'Project'
 }): Promise<void>
-export declare function turbopackDatabaseCompact(path: string): Promise<void>
 export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
   originalName?: RcStr
@@ -484,6 +483,12 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+/**
+ * Opens the Turbopack persistent cache database at the given path and performs a full compaction.
+ *
+ * The `path` should point to the `<distDir>/cache/turbopack` directory.
+ */
+export declare function turbopackDatabaseCompact(path: string): Promise<void>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

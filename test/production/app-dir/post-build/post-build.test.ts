@@ -40,21 +40,10 @@ describe('post-build', () => {
       stdout: true,
     })
 
-    // The native binary may not include `turbopackDatabaseCompact` when
-    // running against a pre-built npm binary (e.g. local dev with
-    // NEXT_SKIP_ISOLATE). In CI the binary is built from source and the
-    // function is available.
-    if (
-      (result.stderr || '').includes(
-        'turbopackDatabaseCompact is not a function'
-      )
-    ) {
-      console.log(
-        'Skipping: native binary does not include turbopackDatabaseCompact'
-      )
-      return
+    if (result.code !== 0) {
+      console.log('post-build stdout:', result.stdout)
+      console.log('post-build stderr:', result.stderr)
     }
-
     expect(result.code).toBe(0)
     expect(result.stdout + result.stderr).toContain(
       'Turbopack database compaction complete.'
