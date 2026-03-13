@@ -635,6 +635,26 @@ handler(
 
 The shape is aligned around `handler(..., ctx)`, but Node.js and Edge runtimes use different request/response primitives.
 
+For outputs with `runtime: 'edge'`, Next.js also provides `output.edgeRuntime` with the canonical metadata needed to invoke the entrypoint:
+
+```typescript
+{
+  modulePath: string // Absolute path to the module registered in the edge runtime
+  entryKey: string // Canonical key used by the edge entry registry
+  handlerExport: string // Export name to invoke, currently 'handler'
+}
+```
+
+After your edge runtime loads and evaluates the chunks for `modulePath`, use `entryKey` to read the registered entry from the global edge entry registry (`globalThis._ENTRIES`), then invoke `handlerExport` from that entry:
+
+```ts
+const entry = await globalThis._ENTRIES[output.edgeRuntime.entryKey]
+const handler = entry[output.edgeRuntime.handlerExport]
+await handler(request, ctx)
+```
+
+Use `edgeRuntime` instead of deriving registry keys or handler names from filenames.
+
 Relevant files in the Next.js core:
 
 - [`packages/next/src/build/templates/edge-ssr.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/edge-ssr.ts)
@@ -656,6 +676,8 @@ The `outputs` object contains arrays of build output types:
 
 > **Note:** When `config.output` is set to `'export'`, only `outputs.staticFiles` is populated. All other arrays (`pages`, `appPages`, `pagesApi`, `appRoutes`, `prerenders`) will be empty since the entire application is exported as static files.
 
+For any route output with `runtime: 'edge'`, `edgeRuntime` is included and contains the canonical entry metadata for invoking that output in your edge runtime.
+
 ### Pages (`outputs.pages`)
 
 React pages from the `pages/` directory:
@@ -670,6 +692,11 @@ React pages from the `pages/` directory:
   runtime: 'nodejs' | 'edge'
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region
@@ -692,6 +719,11 @@ API routes from `pages/api/`:
   runtime: 'nodejs' | 'edge'
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region
@@ -714,6 +746,11 @@ React pages from the `app/` directory:
   runtime: 'nodejs' | 'edge' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region
@@ -736,6 +773,11 @@ API and metadata routes from the `app/` directory:
   runtime: 'nodejs' | 'edge' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region
@@ -806,6 +848,11 @@ Static assets and auto-statically optimized pages:
   runtime: 'nodejs' | 'edge' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region

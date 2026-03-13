@@ -285,6 +285,7 @@ pub struct EdgeFunctionDefinition {
     pub files: Vec<RcStr>,
     pub name: RcStr,
     pub page: RcStr,
+    pub entrypoint: RcStr,
     pub matchers: Vec<ProxyMatcher>,
     pub wasm: Vec<AssetBinding>,
     pub assets: Vec<AssetBinding>,

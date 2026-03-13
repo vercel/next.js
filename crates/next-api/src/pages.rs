@@ -1511,6 +1511,13 @@ impl PageEndpoint {
                     } else {
                         None
                     };
+                    let entrypoint_asset = *assets_ref
+                        .last()
+                        .context("expected assets for edge pages endpoint")?;
+                    let entrypoint = node_root
+                        .get_path_to(&*entrypoint_asset.path().await?)
+                        .context("expected edge pages asset to be within node root")?
+                        .into();
 
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
@@ -1518,6 +1525,7 @@ impl PageEndpoint {
                         assets: paths_to_bindings(all_assets),
                         name: pages_function_name(&this.original_name).into(),
                         page: this.original_name.clone(),
+                        entrypoint,
                         regions,
                         matchers: vec![matchers],
                         env: this.pages_project.project().edge_env().owned().await?,
