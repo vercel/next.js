@@ -42,6 +42,10 @@ describe('instant-nav-panel', () => {
     return browser.elementByCss('#_next-devtools-panel-close').click()
   }
 
+  async function hasInstantNavPanelOpen(browser: Playwright): Promise<void> {
+    await browser.elementByCssInstant('.instant-nav-panel')
+  }
+
   async function openInstantNavPanel(browser: Playwright) {
     await toggleDevToolsIndicatorPopover(browser)
     await waitForPanelRouterTransition()
@@ -49,7 +53,7 @@ describe('instant-nav-panel', () => {
 
     await retry(
       async () => {
-        await browser.elementByCssInstant('.instant-nav-panel')
+        await hasInstantNavPanelOpen(browser)
       },
       5_000,
       500
@@ -158,9 +162,6 @@ describe('instant-nav-panel', () => {
 
     // Open the panel and click Start to set the cookie
     await openInstantNavPanel(browser)
-    await retry(async () => {
-      expect(await hasPanelOpen(browser)).toBe(true)
-    })
     await clickStartClientNav(browser)
 
     // Reload — the cookie persists, so the panel should auto-open
@@ -168,7 +169,7 @@ describe('instant-nav-panel', () => {
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
     await retry(async () => {
-      expect(await hasPanelOpen(browser)).toBe(true)
+      await hasInstantNavPanelOpen(browser)
     })
 
     // Clean up
