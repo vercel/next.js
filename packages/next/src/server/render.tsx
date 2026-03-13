@@ -870,7 +870,7 @@ export async function renderToHTMLImpl(
     let data: Readonly<UnwrapPromise<ReturnType<GetStaticProps>>>
 
     try {
-      data = await getTracer().trace(
+      data = await getTracer().traceWithOptions(
         RenderSpan.getStaticProps,
         {
           spanName: `getStaticProps ${pathname}`,
@@ -1090,7 +1090,7 @@ export async function renderToHTMLImpl(
     }
 
     try {
-      data = await getTracer().trace(
+      data = await getTracer().traceWithOptions(
         RenderSpan.getServerSideProps,
         {
           spanName: `getServerSideProps ${pathname}`,
@@ -1437,7 +1437,7 @@ export async function renderToHTMLImpl(
   }
 
   getTracer().setRootSpanAttribute('next.route', renderOpts.page)
-  const documentResult = await getTracer().trace(
+  const documentResult = await getTracer().traceWithOptions(
     RenderSpan.renderDocument,
     {
       spanName: `render route (pages) ${renderOpts.page}`,

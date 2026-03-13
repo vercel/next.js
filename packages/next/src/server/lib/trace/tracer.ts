@@ -92,18 +92,14 @@ interface NextTracer {
    */
   trace<T>(
     type: SpanTypes,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
-  trace<T>(
-    type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
-  trace<T>(
-    type: SpanTypes,
-    options: TracerSpanOptions,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
-  trace<T>(
+
+  /**
+   * Like {@link trace}, but accepts additional span options (e.g. spanName,
+   * attributes, parentSpan, hideSpan).
+   */
+  traceWithOptions<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => T
@@ -258,45 +254,23 @@ class NextTracerImpl implements NextTracer {
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
     type: SpanTypes,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
-  public trace<T>(
-    type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
-  public trace<T>(
+  ): T {
+    if (
+      !NextVanillaSpanAllowlist.has(type) &&
+      process.env.NEXT_OTEL_VERBOSE !== '1'
+    ) {
+      return fn()
+    }
+
+    return this._traceSpan(type, type, undefined, fn)
+  }
+
+  public traceWithOptions<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
-  public trace<T>(
-    type: SpanTypes,
-    options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
-  public trace<T>(...args: Array<any>) {
-    const [type, fnOrOptions, fnOrEmpty] = args
-
-    // coerce options form overload
-    const {
-      fn,
-      options,
-    }: {
-      fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T>
-      options: TracerSpanOptions
-    } =
-      typeof fnOrOptions === 'function'
-        ? {
-            fn: fnOrOptions,
-            options: {},
-          }
-        : {
-            fn: fnOrEmpty,
-            options: { ...fnOrOptions },
-          }
-
-    const spanName = options.spanName ?? type
-
+  ): T {
     if (
       (!NextVanillaSpanAllowlist.has(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
@@ -305,7 +279,15 @@ class NextTracerImpl implements NextTracer {
       return fn()
     }
 
-    // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
+    return this._traceSpan(type, options.spanName ?? type, options, fn)
+  }
+
+  private _traceSpan<T>(
+    type: SpanTypes,
+    spanName: string,
+    options: TracerSpanOptions | undefined,
+    fn: (span?: Span, done?: (error?: Error) => any) => T
+  ): T {
     let spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
     )
@@ -313,10 +295,7 @@ class NextTracerImpl implements NextTracer {
     if (!spanContext) {
       spanContext = context?.active() ?? ROOT_CONTEXT
     }
-    // Check if there's already a root span in the store for this trace
-    // We are intentionally not checking whether there is an active context
-    // from outside of nextjs to ensure that we can provide the same level
-    // of telemetry when using a custom server
+
     const existingRootSpanId = spanContext.getValue(rootSpanIdKey)
     const isRootSpan =
       typeof existingRootSpanId !== 'number' ||
@@ -324,16 +303,35 @@ class NextTracerImpl implements NextTracer {
 
     const spanId = getSpanId()
 
-    options.attributes = {
-      'next.span_name': spanName,
-      'next.span_type': type,
-      ...options.attributes,
+    let spanOptions: TracerSpanOptions
+    if (options) {
+      if (!options.attributes) {
+        // Edit in-place to avoid creating a new object
+        options.attributes = {
+          'next.span_name': spanName,
+          'next.span_type': type,
+        }
+      } else {
+        // Edit in-place to avoid creating a new object
+        options.attributes['next.span_name'] = spanName
+        options.attributes['next.span_type'] = type
+      }
+      spanOptions = options
+    } else {
+      // No existing options, create a new options object.
+      // No existing options, create a new options object.
+      spanOptions = {
+        attributes: {
+          'next.span_name': spanName,
+          'next.span_type': type,
+        },
+      }
     }
 
     return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
       this.getTracerInstance().startActiveSpan(
         spanName,
-        options,
+        spanOptions,
         (span: Span) => {
           let startTime: number | undefined
           if (
@@ -372,7 +370,7 @@ class NextTracerImpl implements NextTracer {
             rootSpanAttributesStore.set(
               spanId,
               new Map(
-                Object.entries(options.attributes ?? {}) as [
+                Object.entries(spanOptions.attributes ?? {}) as [
                   AttributeNames,
                   AttributeValue | undefined,
                 ][]
@@ -393,12 +391,9 @@ class NextTracerImpl implements NextTracer {
           try {
             const result = fn(span)
             if (isThenable(result)) {
-              // If there's error make sure it throws
               return result
                 .then((res) => {
                   span.end()
-                  // Need to pass down the promise result,
-                  // it could be react stream response with error { error, stream }
                   return res
                 })
                 .catch((err) => {
@@ -419,7 +414,7 @@ class NextTracerImpl implements NextTracer {
           }
         }
       )
-    )
+    ) as T
   }
 
   public wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T
@@ -456,7 +451,7 @@ class NextTracerImpl implements NextTracer {
 
       if (typeof cb === 'function') {
         const scopeBoundCb = tracer.getContext().bind(context.active(), cb)
-        return tracer.trace(name, optionsObj, (_span, done) => {
+        return tracer.traceWithOptions(name, optionsObj, (_span, done) => {
           arguments[lastArgId] = function (err: any) {
             done?.(err)
             return scopeBoundCb.apply(this, arguments)
@@ -465,7 +460,9 @@ class NextTracerImpl implements NextTracer {
           return fn.apply(this, arguments)
         })
       } else {
-        return tracer.trace(name, optionsObj, () => fn.apply(this, arguments))
+        return tracer.traceWithOptions(name, optionsObj, () =>
+          fn.apply(this, arguments)
+        )
       }
     }
   }

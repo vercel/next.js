@@ -69,7 +69,7 @@ function createWriterFromResponse(
         }
 
         res.flushHeaders()
-        getTracer().trace(
+        getTracer().traceWithOptions(
           NextNodeServerSpan.startResponse,
           {
             spanName: 'start response',
