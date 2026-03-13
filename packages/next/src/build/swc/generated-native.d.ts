@@ -111,6 +111,14 @@ export declare function codeFrameColumns(
   location: NapiCodeFrameLocation,
   options?: NapiCodeFrameOptions | undefined | null
 ): string | null
+/**
+ * Convert an array of dash-case feature name strings to a lightningcss
+ * `Features` bitmask (u32). Called from the webpack lightningcss-loader to
+ * avoid duplicating the name-to-bit mapping in JavaScript.
+ */
+export declare function lightningcssFeatureNamesToMaskNapi(
+  names: Array<string>
+): number
 export declare function lockfileTryAcquireSync(
   path: string,
   content?: string | undefined | null
@@ -248,7 +256,7 @@ export interface NapiProjectOptions {
   isPersistentCachingEnabled: boolean
   /** The version of Next.js that is running. */
   nextVersion: RcStr
-  /** Whether server-side HMR is enabled (requires --experimental-server-fast-refresh). */
+  /** Whether server-side HMR is enabled (--experimental-server-fast-refresh). */
   serverHmr?: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
@@ -294,8 +302,6 @@ export interface NapiPartialProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling?: boolean
-  /** Whether server-side HMR is enabled (requires --experimental-server-fast-refresh). */
-  serverHmr?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiOptionEnvVar>

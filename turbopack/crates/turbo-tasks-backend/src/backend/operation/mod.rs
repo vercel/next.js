@@ -9,7 +9,7 @@ mod update_cell;
 mod update_collectible;
 use std::{
     fmt::{Debug, Display, Formatter},
-    sync::{Arc, atomic::Ordering},
+    sync::Arc,
 };
 
 use bincode::{Decode, Encode};
