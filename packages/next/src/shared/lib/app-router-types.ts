@@ -166,6 +166,18 @@ export const enum PrefetchHint {
   SubtreeHasLoadingBoundary = 0b01000,
   // This segment is the root layout of the application.
   IsRootLayout = 0b10000,
+  // This segment's response includes its parent's data inlined into it.
+  // Set at build time by the segment size measurement pass.
+  ParentInlinedIntoSelf = 0b100000,
+  // This segment's data is inlined into one of its children — don't fetch
+  // it separately. Set at build time by the segment size measurement pass.
+  InlinedIntoChild = 0b1000000,
+  // On a __PAGE__: this page's response includes the head (metadata/viewport)
+  // at the end of its SegmentPrefetch[] array.
+  HeadInlinedIntoSelf = 0b10000000,
+  // On the root hint node: the head was NOT inlined into any page — fetch
+  // it separately. Absence of this bit means the head is bundled into a page.
+  HeadOutlined = 0b100000000,
 }
 
 /**
@@ -238,6 +250,23 @@ export type FlightDataPath =
  * The Flight response data
  */
 export type FlightData = Array<FlightDataPath> | string
+
+/**
+ * Per-route prefetch hints computed at build time. Mirrors the shape of the
+ * loader tree so hints can be traversed in parallel during router state
+ * creation. Each node stores a bitmask of PrefetchHint flags
+ * (ParentInlinedIntoSelf, InlinedIntoChild) computed by the segment size
+ * measurement pass.
+ *
+ * Persisted to prefetch-hints.json as Record<string, PrefetchHints> (keyed
+ * by route pattern) and loaded at server startup.
+ */
+export type PrefetchHints = {
+  /** Bitmask of PrefetchHint flags for this segment. */
+  hints: number
+  /** Child hint nodes, keyed by parallel route key. */
+  slots: Record<string, PrefetchHints> | null
+}
 
 export type ActionResult = Promise<any>
 

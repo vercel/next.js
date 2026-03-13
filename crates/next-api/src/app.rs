@@ -1632,12 +1632,20 @@ impl AppEndpoint {
                         original_source: app_entry.pathname.clone(),
                         ..Default::default()
                     };
+                    let entrypoint_chunk = *app_entry_chunks_ref
+                        .last()
+                        .context("expected app entry chunks for edge app endpoint")?;
+                    let entrypoint = node_root_value
+                        .get_path_to(&*entrypoint_chunk.path().await?)
+                        .context("expected app entry chunk to be within node root")?
+                        .into();
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: app_function_name(&app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
+                        entrypoint,
                         regions: app_entry
                             .config
                             .await?

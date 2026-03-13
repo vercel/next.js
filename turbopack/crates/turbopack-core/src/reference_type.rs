@@ -218,12 +218,12 @@ impl ImportContext {
 )]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
-    /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
-    /// class name
+    /// Reference from EcmascriptCssModule to an imported EcmascriptCssModule for retrieving the
+    /// composed class name
     Compose,
-    /// Reference from ModuleCssAsset to the CssModuleAsset
+    /// Reference from EcmascriptCssModule to the CssModule
     Inner,
-    /// Used for generating the list of classes in a ModuleCssAsset
+    /// Used for generating the list of classes in a EcmascriptCssModule
     Analyze,
     Custom(u8),
     #[default]

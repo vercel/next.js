@@ -7,7 +7,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit},
-    turbobail, turbofmt,
+    turbofmt,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, File, FileContent, FileSystem, FileSystemPath,
@@ -287,7 +287,7 @@ impl Asset for NftJsonAsset {
                             &*current_path.get_type().await?,
                             FileSystemEntryType::Symlink
                         ) {
-                            turbobail!(
+                            turbo_tasks::turbobail!(
                                 "Encountered file inside of symlink in NFT list: {current_path} \
                                  is a symlink, but {referenced_chunk_path} was created inside of \
                                  it"

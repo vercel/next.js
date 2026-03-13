@@ -90,6 +90,26 @@ interface SharedRouteFields {
   wasmAssets?: Record<string, string>
 
   /**
+   * edgeRuntime contains canonical entry metadata for invoking
+   * this output in an edge runtime.
+   */
+  edgeRuntime?: {
+    /**
+     * modulePath is the canonical module path that registers this
+     * output in the edge runtime.
+     */
+    modulePath: string
+    /**
+     * entryKey is the canonical key used for the global edge entry registry.
+     */
+    entryKey: string
+    /**
+     * handlerExport is the export name to invoke on the edge entry.
+     */
+    handlerExport: string
+  }
+
+  /**
    * config related to the route
    */
   config: {
@@ -709,6 +729,11 @@ export async function handleBuildComplete({
           : route === '/index'
             ? '/'
             : route
+        const edgeEntrypointRelativePath = page.entrypoint
+        const edgeEntrypointPath = path.join(
+          distDir,
+          edgeEntrypointRelativePath
+        )
 
         const output: Omit<AdapterOutput[typeof type], 'type'> & {
           type: any
@@ -718,19 +743,12 @@ export async function handleBuildComplete({
           runtime: 'edge',
           sourcePage: route,
           pathname,
-          filePath: path.join(
-            distDir,
-            page.files.find(
-              (item) =>
-                item.startsWith('server/app') || item.startsWith('server/pages')
-            ) ||
-              // TODO: turbopack build doesn't name the main entry chunk
-              // identifiably so we don't know which to mark here but
-              // technically edge needs all chunks to load always so
-              // should this field even be provided?
-              page.files[0] ||
-              ''
-          ),
+          filePath: edgeEntrypointPath,
+          edgeRuntime: {
+            modulePath: edgeEntrypointPath,
+            entryKey: `middleware_${page.name}`,
+            handlerExport: 'handler',
+          },
           assets: {},
           wasmAssets: {},
           config: {

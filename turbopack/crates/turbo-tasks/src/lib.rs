@@ -108,7 +108,7 @@ pub use crate::{
         task_input::{EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
-    trait_ref::{IntoTraitRef, TraitRef},
+    trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
     value_type::{TraitMethod, TraitType, ValueType},
     vc::{

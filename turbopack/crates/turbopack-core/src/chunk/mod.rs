@@ -377,9 +377,6 @@ impl ChunkingType {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ChunkingTypeOption(Option<ChunkingType>);
-
 pub struct ChunkGroupContent {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
