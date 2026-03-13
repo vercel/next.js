@@ -441,17 +441,10 @@ impl ClientReferencesGraph {
                 graph.traverse_nodes_dfs(
                     std::iter::once(ResolvedVc::upcast(sc)),
                     &mut (),
-                    |node, _| {
-                        let module = node;
-                        let module_type = data.get(&module);
-
-                        Ok(match module_type {
-                            Some(
-                                ClientManifestEntryType::EcmascriptClientReference { .. }
-                                | ClientManifestEntryType::CssClientReference { .. },
-                            ) => GraphTraversalAction::Skip,
-                            _ => GraphTraversalAction::Continue,
-                        })
+                    |_, _| {
+                        // Don't skip once we found a Client Reference, because there might be
+                        // nested client references imported by server actions.
+                        Ok(GraphTraversalAction::Continue)
                     },
                     |node, _| {
                         let module = node;
