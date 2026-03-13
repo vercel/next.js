@@ -379,9 +379,10 @@ impl Display for LogicalProperty {
 }
 
 /// TODO: Use `Arc`
+///
 /// There are 4 kinds of values: Leaves, Nested, Operations, and Placeholders
-/// (see [JsValueMetaKind] for details). Values are processed in two phases:
-/// - Analyze phase: We convert AST into [JsValue]s. We don't have contextual information so we need
+/// (see `JsValueMetaKind` for details). Values are processed in two phases:
+/// - Analyze phase: We convert AST into `JsValue`s. We don't have contextual information so we need
 ///   to insert placeholders to represent that.
 /// - Link phase: We try to reduce a value to a constant value. The link phase has 5 substeps that
 ///   are executed on each node in the graph depth-first. When a value is modified, we need to visit

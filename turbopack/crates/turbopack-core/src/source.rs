@@ -3,8 +3,11 @@ use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent};
 
-/// (Unparsed) Source Code. Source Code is processed into [Module]s by the
-/// [AssetContext]. All [Source]s have content and an identifier.
+/// Unparsed input source code. Source code is processed into [`Module`]s by the [`AssetContext`].
+/// All `Source`s have content and an identifier.
+///
+/// [`Module`]: crate::module::Module
+/// [`AssetContext`]: crate::context::AssetContext
 #[turbo_tasks::value_trait]
 pub trait Source: Asset {
     /// The identifier of the [Source]. It's expected to be unique and capture

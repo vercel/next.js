@@ -352,7 +352,7 @@ impl Display for ReferenceType {
 
 impl ReferenceType {
     /// Returns true if this reference type is internal. This will be used in
-    /// combination with [`ModuleRuleCondition::Internal`] to determine if a
+    /// combination with [`ReferenceTypeCondition::Internal`] to determine if a
     /// rule should be applied to an internal asset/reference.
     pub fn is_internal(&self) -> bool {
         matches!(
