@@ -1,5 +1,9 @@
 import { Suspense } from 'react'
 
+export function generateStaticParams() {
+  return [{ slug: 'hello' }]
+}
+
 export default function DynamicParamsPage({
   params,
 }: {

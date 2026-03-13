@@ -938,18 +938,28 @@ export async function handler(
               : normalizedSrcPage
 
           const fallbackRouteParams =
-            // If we're in production and we have fallback route params, always
-            // use them for the fallback shell.
-            isProduction && prerenderInfo?.fallbackRouteParams
+            // In production or when debugging the static shell (e.g. instant
+            // navigation testing), use the prerender manifest's fallback
+            // route params which correctly identifies which params are
+            // unknown. Note: in dev, this block is only entered for
+            // non-prerendered URLs (guarded by the outer condition).
+            (isProduction || isDebugStaticShell) &&
+            prerenderInfo?.fallbackRouteParams
               ? createOpaqueFallbackRouteParams(
                   prerenderInfo.fallbackRouteParams
                 )
-              : // Otherwise, if we're debugging the fallback shell or the
-                // static shell, then we have to manually generate the
-                // fallback route params.
-                isDebugFallbackShell || isDebugStaticShell
+              : // When debugging the fallback shell, treat all params as
+                // fallback (simulating the worst-case shell).
+                isDebugFallbackShell
                 ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
+
+          // When rendering a debug static shell, override the fallback
+          // params on the request so that the staged rendering correctly
+          // defers params that are not statically known.
+          if (isDebugStaticShell && fallbackRouteParams) {
+            addRequestMeta(req, 'fallbackParams', fallbackRouteParams)
+          }
 
           // We use the response cache here to handle the revalidation and
           // management of the fallback shell.
@@ -1154,27 +1164,24 @@ export async function handler(
       }
 
       const fallbackRouteParams =
-        // If we're in production and we have fallback route params, then we
-        // can use the manifest fallback route params if we need to render the
-        // fallback shell.
-        isProduction &&
-        prerenderInfo?.fallbackRouteParams &&
-        getRequestMeta(req, 'renderFallbackShell')
+        // In production or when debugging the static shell for a
+        // non-prerendered URL, use the prerender manifest's fallback route
+        // params which correctly identifies which params are unknown.
+        ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
+          (isDebugStaticShell && !isPrerendered)) &&
+        prerenderInfo?.fallbackRouteParams
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : // Otherwise, if we're debugging the fallback shell or the static
-            // shell, then we have to manually generate the fallback route
-            // params.
-            isDebugFallbackShell || isDebugStaticShell
+          : isDebugFallbackShell
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
 
-      // For staged dynamic rendering (cached navigations), pass the fallback
-      // params via request meta so the RequestStore knows which params to defer
-      // to the runtime stage. We don't pass them as fallbackRouteParams because
-      // that would replace actual param values with opaque placeholders during
-      // segment resolution.
+      // For staged dynamic rendering (Cached Navigations) and debug static
+      // shell rendering, pass the fallback params via request meta so the
+      // RequestStore knows which params to defer. We don't pass them as
+      // fallbackRouteParams because that would replace actual param values
+      // with opaque placeholders during segment resolution.
       if (
-        isProduction &&
+        (isProduction || isDebugStaticShell) &&
         nextConfig.cacheComponents &&
         !isPrerendered &&
         prerenderInfo?.fallbackRouteParams
