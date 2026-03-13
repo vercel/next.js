@@ -820,7 +820,7 @@ async fn analyze_ecmascript_module_internal(
                 RcStr::from(&*r.module_path.to_string_lossy()),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
-                r.annotations.clone(),
+                r.annotations.as_ref().map(|a| (**a).clone()),
                 match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         should_add_evaluation = true;
@@ -1510,12 +1510,15 @@ async fn analyze_ecmascript_module_internal(
                     };
 
                     if let Some("__turbopack_module_id__") = export.as_deref() {
-                        let chunking_type = r.await?.annotations.chunking_type().unwrap_or(Some(
-                            ChunkingType::Parallel {
+                        let chunking_type = r
+                            .await?
+                            .annotations
+                            .as_ref()
+                            .and_then(|a| a.chunking_type())
+                            .unwrap_or(Some(ChunkingType::Parallel {
                                 inherit_async: true,
                                 hoisted: true,
-                            },
-                        ));
+                            }));
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.into(),
@@ -4264,7 +4267,7 @@ pub static TURBOPACK_HELPER_WTF8: Lazy<Wtf8Atom> =
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());
 
-    annotations.get(&TURBOPACK_HELPER_WTF8).is_some()
+    annotations.is_some_and(|a| a.get(&TURBOPACK_HELPER_WTF8).is_some())
 }
 
 pub fn is_swc_helper_import(import: &ImportDecl) -> bool {

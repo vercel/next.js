@@ -322,13 +322,13 @@ impl EsmAssetReferences {
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("import {request} with {annotations}")]
+#[value_to_string("import {request}")]
 pub struct EsmAssetReference {
     pub module: ResolvedVc<EcmascriptModuleAsset>,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     // Request is a string to avoid eagerly parsing into a `Request` VC
     pub request: RcStr,
-    pub annotations: ImportAnnotations,
+    pub annotations: Option<ImportAnnotations>,
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
     pub import_usage: ImportUsage,
@@ -339,7 +339,7 @@ pub struct EsmAssetReference {
 
 impl EsmAssetReference {
     fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        if let Some(transition) = self.annotations.transition() {
+        if let Some(transition) = self.annotations.as_ref().and_then(|a| a.transition()) {
             self.origin.with_transition(transition.into())
         } else {
             *self.origin
@@ -353,7 +353,7 @@ impl EsmAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
         issue_source: IssueSource,
-        annotations: ImportAnnotations,
+        annotations: Option<ImportAnnotations>,
         export_name: Option<ModulePart>,
         import_usage: ImportUsage,
         import_externals: bool,
@@ -378,7 +378,7 @@ impl EsmAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
         issue_source: IssueSource,
-        annotations: ImportAnnotations,
+        annotations: Option<ImportAnnotations>,
         export_name: Option<ModulePart>,
         import_usage: ImportUsage,
         import_externals: bool,
@@ -406,7 +406,8 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if let Some(loader) = self.annotations.turbopack_loader() {
+        let ty = if let Some(loader) = self.annotations.as_ref().and_then(|a| a.turbopack_loader())
+        {
             // Resolve the loader path relative to the importing file
             let origin = self.get_origin();
             let origin_path = origin.origin_path().await?;
@@ -428,10 +429,18 @@ impl ModuleReference for EsmAssetReference {
                     loader: loader_fs_path,
                     options: loader.options.clone(),
                 },
-                rename_as: self.annotations.turbopack_rename_as().cloned(),
-                module_type: self.annotations.turbopack_module_type().cloned(),
+                rename_as: self
+                    .annotations
+                    .as_ref()
+                    .and_then(|a| a.turbopack_rename_as())
+                    .cloned(),
+                module_type: self
+                    .annotations
+                    .as_ref()
+                    .and_then(|a| a.turbopack_module_type())
+                    .cloned(),
             }
-        } else if let Some(module_type) = self.annotations.module_type() {
+        } else if let Some(module_type) = self.annotations.as_ref().and_then(|a| a.module_type()) {
             EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
                 &*module_type.to_string_lossy(),
             ))
@@ -498,7 +507,8 @@ impl ModuleReference for EsmAssetReference {
 
     fn chunking_type(&self) -> Option<ChunkingType> {
         self.annotations
-            .chunking_type()
+            .as_ref()
+            .and_then(|a| a.chunking_type())
             .unwrap_or(Some(ChunkingType::Parallel {
                 inherit_async: true,
                 hoisted: true,
@@ -534,7 +544,10 @@ impl EsmAssetReference {
         }
 
         // only chunked references can be imported
-        if !matches!(this.annotations.chunking_type(), Some(None)) {
+        if !matches!(
+            this.annotations.as_ref().and_then(|a| a.chunking_type()),
+            Some(None)
+        ) {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;
 
