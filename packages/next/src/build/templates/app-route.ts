@@ -36,8 +36,6 @@ import {
   type ResponseGenerator,
 } from '../../server/response-cache'
 
-import * as userland from 'VAR_USERLAND'
-
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
 // an empty string.
@@ -59,7 +57,7 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  userland,
+  userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
 })
 
 // Pull out the exports that we need to expose from the module. This should
