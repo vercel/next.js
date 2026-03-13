@@ -130,7 +130,7 @@ export async function getTranslations() {
 
 ## Behavior with caching directives
 
-Because root parameter getters are imported functions, Next.js can track which ones a [cached](/docs/app/api-reference/directives/use-cache) function uses. Only those root parameters become part of the [cache key](/docs/app/api-reference/directives/use-cache#how-cache-keys-are-created), so cache entries are not split across unrelated parameter values.
+Because root parameter getters are imported functions, Next.js can track which ones a [cached](/docs/app/api-reference/directives/use-cache) function uses. Only those root parameters become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), so cache entries are not split across unrelated parameter values.
 
 ```tsx filename="app/[lang]/components/cached-nav.tsx" highlight={7} switcher
 import { lang } from 'next/root-params'
@@ -333,7 +333,7 @@ async function submitForm() {
 
 ### Not available in Route Handlers
 
-Support for Route Handlers is planned for a future version of Next.js. In the meantime, use the [`params`](/docs/app/api-reference/file-conventions/route#context) from the route context:
+Support for Route Handlers is planned for a future version of Next.js. In the meantime, use the [`params`](/docs/app/api-reference/file-conventions/route#context-optional) from the route context:
 
 ```tsx filename="app/[lang]/api/route.ts"
 import { NextRequest } from 'next/server'
