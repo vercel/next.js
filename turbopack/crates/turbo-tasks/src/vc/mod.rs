@@ -514,6 +514,22 @@ where
 
 impl<T> Unpin for Vc<T> where T: ?Sized {}
 
+impl<T> Vc<T>
+where
+    T: VcValueTrait + ?Sized,
+{
+    /// Converts this trait vc into a trait reference.
+    ///
+    /// The signature is similar to [`IntoFuture::into_future`], but we don't want trait vcs to
+    /// have the same future-like semantics as value vcs when it comes to producing refs. This
+    /// behavior is rarely needed, so in most cases, `.await`ing a trait vc is a mistake.
+    pub fn into_trait_ref(self) -> ReadVcFuture<T, VcValueTraitCast<T>> {
+        self.node
+            .into_read_with_unknown_is_serializable_cell_content()
+            .into()
+    }
+}
+
 impl<T> Default for Vc<T>
 where
     T: ValueDefault,

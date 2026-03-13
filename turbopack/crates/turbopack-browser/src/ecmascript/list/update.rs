@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, TraitRef, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TraitRef, Vc};
 use turbopack_core::version::{
     MergeableVersionedContent, PartialUpdate, TotalUpdate, Update, Version, VersionedContent,
     VersionedContentMerger,

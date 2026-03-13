@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, Vc, turbofmt};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},

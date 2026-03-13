@@ -15,9 +15,9 @@ use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, IntoTraitRef, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
-    TaskInput, TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault,
-    ValueToString, Vc, emit, trace::TraceRawVcs,
+    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
+    TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString, Vc,
+    emit, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
