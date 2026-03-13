@@ -1,3 +1,9 @@
+//! Removal of stale dependency edges after task re-execution.
+//!
+//! When a task is re-executed, its new set of dependencies may differ from the old set.
+//! [`CleanupOldEdgesOperation`] removes outdated output dependencies, cell dependencies,
+//! collectible dependencies, and child edges, updating the aggregation tree accordingly.
+
 use std::mem::take;
 
 use bincode::{Decode, Encode};
@@ -20,6 +26,9 @@ use crate::{
     data::{CellRef, CollectibleRef, CollectiblesRef},
 };
 
+/// Resumable operation that removes stale edges from a task after re-execution.
+///
+/// Progress states: `RemoveEdges` -> `AggregationUpdate` -> `Done`.
 #[derive(Encode, Decode, Clone, Default)]
 pub enum CleanupOldEdgesOperation {
     RemoveEdges {

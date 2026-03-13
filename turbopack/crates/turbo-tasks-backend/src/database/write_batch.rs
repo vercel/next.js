@@ -1,3 +1,9 @@
+//! Write batch abstractions for key-value database operations.
+//!
+//! Provides [`ConcurrentWriteBatch`] for thread-safe batched writes to the key-value database.
+//! This allows database implementations to support concurrent writes from multiple threads
+//! while presenting a consistent interface to the backing storage layer.
+
 use std::{borrow::Cow, ops::Deref};
 
 use anyhow::Result;
@@ -5,6 +11,7 @@ use smallvec::SmallVec;
 
 use crate::database::key_value_database::KeySpace;
 
+/// A buffer for write batch keys/values, supporting borrowed, heap-allocated, and inline storage.
 pub enum WriteBuffer<'a> {
     Borrowed(&'a [u8]),
     Vec(Vec<u8>),
@@ -42,6 +49,7 @@ impl<'l> From<Cow<'l, [u8]>> for WriteBuffer<'l> {
     }
 }
 
+/// A thread-safe write batch that allows concurrent `&self` writes from multiple threads.
 pub trait ConcurrentWriteBatch<'a>: Sync + Send {
     type ValueBuffer<'l>: std::borrow::Borrow<[u8]>
     where

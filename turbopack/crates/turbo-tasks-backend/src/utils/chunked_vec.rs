@@ -1,3 +1,7 @@
+/// A growable vector organized into geometrically-sized chunks to avoid large reallocations.
+///
+/// Each chunk doubles in size, so appending N items requires O(log N) allocations total.
+/// Iteration yields items across all chunks in order.
 pub struct ChunkedVec<T> {
     chunks: Vec<Vec<T>>,
 }

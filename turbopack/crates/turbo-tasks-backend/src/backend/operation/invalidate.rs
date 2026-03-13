@@ -1,3 +1,9 @@
+//! Task invalidation and dirty propagation.
+//!
+//! [`InvalidateOperation`] marks tasks as dirty and schedules them for re-execution.
+//! After marking tasks dirty, it triggers aggregation updates to propagate the dirty
+//! state through the aggregation tree to upper nodes.
+
 use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_tasks::{TaskExecutionReason, TaskId, event::EventDescription};
@@ -15,6 +21,9 @@ use crate::{
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
+/// Resumable operation that marks tasks dirty and propagates the change through aggregation.
+///
+/// Progress states: `MakeDirty` -> `AggregationUpdate` -> `Done`.
 #[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum InvalidateOperation {

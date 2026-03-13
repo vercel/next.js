@@ -7,6 +7,8 @@ use bincode::{
     impl_borrow_decode_with_context,
 };
 
+/// Either an `Arc<T>` or an owned `T`, avoiding unnecessary indirection when ownership
+/// is already available.
 #[derive(Clone)]
 pub enum ArcOrOwned<T> {
     Arc(Arc<T>),

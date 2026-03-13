@@ -1,3 +1,10 @@
+//! [`KeyValueDatabase`] implementation backed by `turbo-persistence`.
+//!
+//! [`TurboKeyValueDatabase`] is the default high-performance storage backend. It uses the
+//! `turbo_persistence` crate, a custom embedded database optimized for the turbo-tasks
+//! workload of large batch writes followed by random reads. Supports adaptive compaction:
+//! short sessions skip compaction, CI runs perform full compaction for smaller disk footprint.
+
 use std::{
     cmp::max,
     path::PathBuf,
@@ -40,6 +47,10 @@ const COMPACT_CONFIG: CompactConfig = CompactConfig {
     max_merge_segment_count: 16,
 };
 
+/// High-performance [`KeyValueDatabase`] backed by `turbo_persistence::TurboPersistence`.
+///
+/// Supports concurrent write batches and background compaction. The compaction strategy adapts
+/// to usage: short sessions and CI have different compaction behaviors.
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
     is_ci: bool,

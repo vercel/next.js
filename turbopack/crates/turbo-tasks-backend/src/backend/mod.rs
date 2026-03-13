@@ -1,3 +1,13 @@
+//! Core backend engine for turbo-tasks.
+//!
+//! This module contains [`TurboTasksBackend`], the primary `Backend` trait implementation. It
+//! manages the full lifecycle of tasks: scheduling, execution, dependency tracking, invalidation,
+//! and snapshot-based persistence.
+//!
+//! The backend uses an atomic snapshot coordination protocol: the high bit of an
+//! `in_progress_operations` counter signals snapshot requests, and operations pause at
+//! suspension points to allow batch persistence writes.
+
 mod counter_map;
 mod operation;
 mod storage;
@@ -112,6 +122,7 @@ impl SnapshotRequest {
     }
 }
 
+/// Controls how the backend interacts with the persistent backing storage.
 pub enum StorageMode {
     /// Queries the storage for cache entries that don't exist locally.
     ReadOnly,
@@ -123,6 +134,7 @@ pub enum StorageMode {
     ReadWriteOnShutdown,
 }
 
+/// Configuration options for [`TurboTasksBackend`].
 pub struct BackendOptions {
     /// Enables dependency tracking.
     ///
@@ -160,11 +172,18 @@ impl Default for BackendOptions {
     }
 }
 
+/// Background jobs scheduled by the backend for snapshot persistence.
 pub enum TurboTasksBackendJob {
     InitialSnapshot,
     FollowUpSnapshot,
 }
 
+/// The primary backend implementation for turbo-tasks.
+///
+/// Generic over a [`BackingStorage`] implementation that provides persistent caching.
+/// Create one using [`TurboTasksBackend::new`] with [`BackendOptions`] and a backing storage
+/// instance from [`crate::turbo_backing_storage`], [`crate::lmdb_backing_storage`], or
+/// [`crate::noop_backing_storage`].
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
 
 type TaskCacheLog = Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>;

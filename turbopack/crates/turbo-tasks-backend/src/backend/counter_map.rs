@@ -1,3 +1,9 @@
+//! A reference-counting map used for tracking graph edges and collectible counts.
+//!
+//! [`CounterMap`] automatically removes entries when their count reaches zero, providing
+//! memory-efficient storage for sparse counter data such as aggregation tree edges and
+//! collectible reference counts.
+
 use std::{
     hash::{BuildHasherDefault, Hash},
     ops::{Add, AddAssign, Sub},

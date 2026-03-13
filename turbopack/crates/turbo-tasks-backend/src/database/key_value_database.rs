@@ -1,9 +1,18 @@
+//! Abstract key-value database trait.
+//!
+//! [`KeyValueDatabase`] defines the interface for low-level storage backends. Implementations
+//! must support read transactions, key-space-scoped reads, and write batches (serial or
+//! concurrent). The trait is used by
+//! [`KeyValueDatabaseBackingStorage`](crate::KeyValueDatabaseBackingStorage) to bridge to the
+//! [`BackingStorage`](crate::BackingStorage) trait.
+
 use anyhow::Result;
 use smallvec::SmallVec;
 use turbo_persistence::{FamilyConfig, FamilyKind};
 
 use crate::database::write_batch::ConcurrentWriteBatch;
 
+/// Logical key namespaces within the database, stored as separate families/tables.
 #[derive(Debug, Clone, Copy)]
 pub enum KeySpace {
     Infra = 0,
@@ -26,6 +35,10 @@ impl KeySpace {
     }
 }
 
+/// A low-level key-value database supporting transactional reads and batched writes.
+///
+/// Implementations provide the storage layer for [`BackingStorage`](crate::BackingStorage).
+/// The database operates on four [`KeySpace`]s (Infra, TaskMeta, TaskData, TaskCache).
 pub trait KeyValueDatabase {
     fn is_empty(&self) -> bool {
         false
