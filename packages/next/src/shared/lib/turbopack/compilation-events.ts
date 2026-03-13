@@ -15,8 +15,13 @@ export function msToNs(ms: number): bigint {
  * When `parentSpan` is provided, `TraceEvent` compilation events are recorded
  * as trace spans in the `.next/trace` file.
  *
- * The `signal` argument is partially implemented. The abort may not happen until the next
- * compilation event arrives.
+ * Returns a promise that resolves when the subscription ends.  The promise
+ * has a `stop()` method that closes the underlying async iterator, causing
+ * the promise to settle promptly.  The iterator also closes automatically
+ * when the Rust side drops the subscription (e.g. after project shutdown).
+ *
+ * The `signal` argument is partially implemented. The abort may not happen
+ * until the next compilation event arrives.
  */
 export function backgroundLogCompilationEvents(
   project: Project,
@@ -25,9 +30,10 @@ export function backgroundLogCompilationEvents(
     signal,
     parentSpan,
   }: { eventTypes?: string[]; signal?: AbortSignal; parentSpan?: Span } = {}
-): Promise<void> {
+): Promise<void> & { stop(): void } {
+  const iterator = project.compilationEventsSubscribe(eventTypes)
   const promise = (async function () {
-    for await (const event of project.compilationEventsSubscribe(eventTypes)) {
+    for await (const event of iterator) {
       if (signal?.aborted) {
         return
       }
@@ -78,5 +84,10 @@ export function backgroundLogCompilationEvents(
   })()
   // Prevent unhandled rejection if the subscription errors after the project shuts down.
   promise.catch(() => {})
-  return promise
+
+  // Expose both the promise and a stop function that closes the underlying
+  // async iterator so that awaiting the promise resolves promptly.
+  return Object.assign(promise, {
+    stop: () => iterator.return?.(undefined as any),
+  })
 }

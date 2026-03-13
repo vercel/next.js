@@ -151,7 +151,7 @@ export async function turbopackBuild(): Promise<{
     // Stop immediately: this span is only used as a parent for
     // manualTraceChild calls which carry their own timestamps.
     buildEventsSpan.stop()
-    backgroundLogCompilationEvents(project, {
+    const compilationEvents = backgroundLogCompilationEvents(project, {
       parentSpan: buildEventsSpan,
     })
 
@@ -265,13 +265,15 @@ export async function turbopackBuild(): Promise<{
     }
 
     // Shutdown triggers persistence/compaction which emit TraceEvent
-    // compilation events via the compilationEventsSubscribe iterator.
-    // After shutdown resolves, Rust has finished but the JS for-await
-    // loop may still be processing buffered events.  We wait briefly to
-    // let the event loop drain before getTraceEvents() is called.
-    const shutdownPromise = project
-      .shutdown()
-      .then(() => new Promise<void>((resolve) => setTimeout(resolve, 100)))
+    // compilation events.  After shutdown we explicitly stop the
+    // iterator and wait for it to drain so that getTraceEvents()
+    // collects them in waitForShutdown.  The iterator also self-closes
+    // when the Rust subscription drops, but we stop it explicitly for
+    // deterministic ordering.
+    const shutdownPromise = project.shutdown().then(() => {
+      compilationEvents.stop()
+      return compilationEvents.catch(() => {})
+    })
 
     const time = process.hrtime(startTime)
     return {
@@ -329,9 +331,6 @@ export async function workerMain(workerData: {
       duration,
     } = await turbopackBuild()
     shutdownPromise = resultShutdownPromise
-    // Don't await shutdownPromise here -- persistence trace spans are
-    // collected later in waitForShutdown() so that the caller can start
-    // SSG in parallel with the Turbopack shutdown / persistence flush.
     return {
       buildTraceContext,
       duration,
