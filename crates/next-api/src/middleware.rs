@@ -90,6 +90,7 @@ impl MiddlewareEndpoint {
             self.project.project_path().owned().await?,
             userland_module,
             is_proxy,
+            self.project.next_config(),
         );
 
         if matches!(self.runtime, NextRuntime::NodeJs) {

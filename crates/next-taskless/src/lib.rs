@@ -174,16 +174,39 @@ fn expand_next_js_template_inner<'a>(
         )
     }
 
-    // Replace the injections.
+    // Replace the raw injections.
     let mut missing_injections = Vec::new();
     for (key, injection) in injections {
+        let mut used = false;
+        let full_raw = format!("// INJECT_RAW:{key}");
+
+        if content.contains(&full_raw) {
+            content = content.replace(&full_raw, injection);
+            used = true;
+        }
+
         let full = format!("// INJECT:{key}");
 
         if content.contains(&full) {
             content = content.replace(&full, &format!("const {key} = {injection}"));
-        } else {
+            used = true;
+        }
+
+        if !used {
             missing_injections.push(key);
         }
+    }
+
+    // Check to see if there's any remaining raw injections.
+    static INJECT_RAW_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("// INJECT_RAW:[A-Za-z0-9_]+").unwrap());
+    let mut matches = INJECT_RAW_RE.find_iter(&content).peekable();
+
+    if matches.peek().is_some() {
+        bail!(
+            "Invariant: Expected to inject all injections, found {}",
+            matches.map(|m| m.as_str()).collect::<Vec<_>>().join(", "),
+        )
     }
 
     // Check to see if there's any remaining injections.
@@ -276,6 +299,7 @@ mod tests {
             import * as userlandPage from 'VAR_USERLAND'
             // OPTIONAL_IMPORT:* as userland500Page
             // OPTIONAL_IMPORT:incrementalCacheHandler
+            // INJECT_RAW:extraImports
 
             // INJECT:nextConfig
             const srcPage = 'VAR_PAGE'
@@ -286,6 +310,7 @@ mod tests {
             import * as userlandPage from "INNER_PAGE_ENTRY"
             import * as userland500Page from "INNER_ERROR_500"
             const incrementalCacheHandler = null
+            import handlerX from "INNER_HANDLER"
 
             const nextConfig = {}
             const srcPage = "./some/path.js"
@@ -299,7 +324,10 @@ mod tests {
                 ("VAR_USERLAND", "INNER_PAGE_ENTRY"),
                 ("VAR_PAGE", "./some/path.js"),
             ],
-            [("nextConfig", "{}")],
+            [
+                ("nextConfig", "{}"),
+                ("extraImports", r#"import handlerX from "INNER_HANDLER""#),
+            ],
             [
                 ("incrementalCacheHandler", None),
                 ("userland500Page", Some("INNER_ERROR_500")),
