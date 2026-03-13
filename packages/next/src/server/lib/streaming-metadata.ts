@@ -4,16 +4,20 @@ import {
 } from '../../shared/lib/router/utils/is-bot'
 import type { BaseNextRequest } from '../base-http'
 
+let cachedPattern: string | undefined
+let cachedRegex: RegExp | undefined
+
 export function shouldServeStreamingMetadata(
   userAgent: string,
   htmlLimitedBots: string | undefined
 ): boolean {
-  const blockingMetadataUARegex = new RegExp(
-    htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING,
-    'i'
-  )
+  const pattern = htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
+  if (cachedPattern !== pattern) {
+    cachedPattern = pattern
+    cachedRegex = new RegExp(pattern, 'i')
+  }
   // Only block metadata for HTML-limited bots
-  if (userAgent && blockingMetadataUARegex.test(userAgent)) {
+  if (userAgent && cachedRegex!.test(userAgent)) {
     return false
   }
   return true
