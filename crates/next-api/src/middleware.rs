@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
@@ -258,11 +258,15 @@ impl MiddlewareEndpoint {
 
             let file_paths_from_root =
                 get_js_paths_from_root(&node_root_value, &edge_assets).await?;
-            let entrypoint =
-                get_js_paths_from_root(&node_root_value, edge_assets.first().into_iter())
-                    .await?
-                    .into_iter()
-                    .next();
+            let entrypoint_asset = *edge_assets
+                .last()
+                .context("expected assets for edge middleware endpoint")?;
+            let entrypoint = Some(
+                node_root_value
+                    .get_path_to(&*entrypoint_asset.path().await?)
+                    .context("expected edge middleware asset to be within node root")?
+                    .into(),
+            );
 
             let mut output_assets = edge_chunk_group.all_assets().owned().await?;
 
