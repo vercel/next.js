@@ -1,6 +1,6 @@
 'use client'
 
-import React, { startTransition, useContext, type JSX } from 'react'
+import React, { startTransition, type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
@@ -10,7 +10,6 @@ import {
   AppRouterContext,
   type AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import { RouterContext as PagesRouterContext } from '../../shared/lib/router-context.shared-runtime'
 
 const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
@@ -33,7 +32,6 @@ export interface ErrorBoundaryProps {
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
   pathname: string | null
   errorComponent: ErrorComponent
-  isPagesRouter: boolean
 }
 
 interface ErrorBoundaryHandlerState {
@@ -109,12 +107,6 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 
   unstable_retry = () => {
-    if (this.props.isPagesRouter) {
-      throw new Error(
-        '`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
-      )
-    }
-
     startTransition(() => {
       this.context?.refresh()
       this.reset()
@@ -167,7 +159,6 @@ export function ErrorBoundary({
   // boundaries for the missing params shell. When this runs on the client
   // (where these errors can occur), we will get the correct pathname.
   const pathname = useUntrackedPathname()
-  const isPagesRouter = useContext(PagesRouterContext) !== null
 
   if (errorComponent) {
     return (
@@ -176,7 +167,6 @@ export function ErrorBoundary({
         errorComponent={errorComponent}
         errorStyles={errorStyles}
         errorScripts={errorScripts}
-        isPagesRouter={isPagesRouter}
       >
         {children}
       </ErrorBoundaryHandler>
