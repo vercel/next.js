@@ -162,7 +162,7 @@ export function isInstrumentationHookFilename(file?: string | null) {
   )
 }
 
-const filterAndSortList = (
+export const filterAndSortList = (
   list: ReadonlyArray<string>,
   routeType: ROUTER_TYPE,
   hasCustomApp: boolean
