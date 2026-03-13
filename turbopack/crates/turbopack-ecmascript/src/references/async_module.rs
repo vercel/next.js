@@ -7,8 +7,8 @@ use swc_core::{
 };
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, trace::TraceRawVcs,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
