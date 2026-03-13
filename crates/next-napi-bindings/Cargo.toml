@@ -5,7 +5,7 @@ version = "0.0.0"
 publish = false
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [features]
 # Instead of enabling all the plugin-related functionality by default, make it
