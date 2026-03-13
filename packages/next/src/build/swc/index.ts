@@ -229,16 +229,6 @@ export async function loadBindings(
   }
 
   pendingBindings = new Promise(async (resolve, reject) => {
-    if (!lockfilePatchPromise.cur) {
-      // always run lockfile check once so that it gets patched
-      // even if it doesn't fail to load locally
-      lockfilePatchPromise.cur = (
-        require('../../lib/patch-incorrect-lockfile') as typeof import('../../lib/patch-incorrect-lockfile')
-      )
-        .patchIncorrectLockfile(process.cwd())
-        .catch(console.error)
-    }
-
     let attempts: any[] = []
     const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
     const unsupportedPlatform = triples.some(
@@ -428,7 +418,14 @@ async function logLoadFailure(attempts: any, triedWasm = false) {
     wasm: triedWasm ? 'failed' : undefined,
     nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
   })
-  await (lockfilePatchPromise.cur || Promise.resolve())
+  if (!lockfilePatchPromise.cur) {
+    lockfilePatchPromise.cur = (
+      require('../../lib/patch-incorrect-lockfile') as typeof import('../../lib/patch-incorrect-lockfile')
+    )
+      .patchIncorrectLockfile(process.cwd())
+      .catch(console.error)
+  }
+  await lockfilePatchPromise.cur
 
   Log.error(
     `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
