@@ -6,9 +6,11 @@ import { useState } from 'react'
 export function LinkAccordion({
   href,
   children,
+  id,
 }: {
   href: LinkProps['href']
   children: React.ReactNode
+  id?: string
 }) {
   const [isVisible, setIsVisible] = useState(false)
   return (
@@ -17,7 +19,7 @@ export function LinkAccordion({
         type="checkbox"
         checked={isVisible}
         onChange={() => setIsVisible(!isVisible)}
-        data-link-accordion={href}
+        data-link-accordion={id ?? href}
       />
       {isVisible ? (
         <Link href={href}>{children}</Link>
