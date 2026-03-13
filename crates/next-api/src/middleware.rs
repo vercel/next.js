@@ -261,12 +261,10 @@ impl MiddlewareEndpoint {
             let entrypoint_asset = *edge_assets
                 .last()
                 .context("expected assets for edge middleware endpoint")?;
-            let entrypoint = Some(
-                node_root_value
-                    .get_path_to(&*entrypoint_asset.path().await?)
-                    .context("expected edge middleware asset to be within node root")?
-                    .into(),
-            );
+            let entrypoint = node_root_value
+                .get_path_to(&*entrypoint_asset.path().await?)
+                .context("expected edge middleware asset to be within node root")?
+                .into();
 
             let mut output_assets = edge_chunk_group.all_assets().owned().await?;
 

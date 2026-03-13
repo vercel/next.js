@@ -729,16 +729,7 @@ export async function handleBuildComplete({
           : route === '/index'
             ? '/'
             : route
-        const edgeEntrypointRelativePath =
-          page.entrypoint ||
-          page.files.find(
-            (item) =>
-              item.startsWith('server/app') || item.startsWith('server/pages')
-          ) ||
-          // TODO: turbopack build doesn't always name the main entry chunk in a
-          // predictable way, so fallback to the first emitted file.
-          page.files[0] ||
-          ''
+        const edgeEntrypointRelativePath = page.entrypoint
         const edgeEntrypointPath = path.join(
           distDir,
           edgeEntrypointRelativePath

@@ -227,17 +227,12 @@ describe('Middleware Runtime', () => {
           regions: 'auto',
         })
         expect(middlewareWithoutEnvs.files).toBeArray()
-
-        if (middlewareWithoutEnvs.entrypoint) {
-          expect(middlewareWithoutEnvs.entrypoint).toMatch(
-            /^server\/.+\.(?:js|mjs|cjs)$/
-          )
-          expect(middlewareWithoutEnvs.files).toContain(
-            middlewareWithoutEnvs.entrypoint
-          )
-        } else {
-          expect(middlewareWithoutEnvs.files.length).toBeGreaterThan(0)
-        }
+        expect(middlewareWithoutEnvs.entrypoint).toMatch(
+          /^server\/.+\.(?:js|mjs|cjs)$/
+        )
+        expect(middlewareWithoutEnvs.files).toContain(
+          middlewareWithoutEnvs.entrypoint
+        )
         expect(envs).toContainAllKeys([
           'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
           '__NEXT_BUILD_ID',
@@ -264,12 +259,8 @@ describe('Middleware Runtime', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (middleware.entrypoint) {
-            expect(middleware.entrypoint).toMatch(
-              /^server\/.+\.(?:js|mjs|cjs)$/
-            )
-            expect(middleware.files).toContain(middleware.entrypoint)
-          }
+          expect(middleware.entrypoint).toMatch(/^server\/.+\.(?:js|mjs|cjs)$/)
+          expect(middleware.files).toContain(middleware.entrypoint)
 
           expect(middleware.files).not.toContainEqual(
             expect.stringContaining('static/chunks/')

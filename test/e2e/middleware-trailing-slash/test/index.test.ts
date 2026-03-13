@@ -121,17 +121,12 @@ describe('Middleware Runtime trailing slash', () => {
           assets: [],
         })
         expect(middlewareWithoutEnvs.files).toBeArray()
-
-        if (middlewareWithoutEnvs.entrypoint) {
-          expect(middlewareWithoutEnvs.entrypoint).toMatch(
-            /^server\/.+\.(?:js|mjs|cjs)$/
-          )
-          expect(middlewareWithoutEnvs.files).toContain(
-            middlewareWithoutEnvs.entrypoint
-          )
-        } else {
-          expect(middlewareWithoutEnvs.files.length).toBeGreaterThan(0)
-        }
+        expect(middlewareWithoutEnvs.entrypoint).toMatch(
+          /^server\/.+\.(?:js|mjs|cjs)$/
+        )
+        expect(middlewareWithoutEnvs.files).toContain(
+          middlewareWithoutEnvs.entrypoint
+        )
       })
 
       it('should have correct files in manifest', async () => {
@@ -140,12 +135,8 @@ describe('Middleware Runtime trailing slash', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (middleware.entrypoint) {
-            expect(middleware.entrypoint).toMatch(
-              /^server\/.+\.(?:js|mjs|cjs)$/
-            )
-            expect(middleware.files).toContain(middleware.entrypoint)
-          }
+          expect(middleware.entrypoint).toMatch(/^server\/.+\.(?:js|mjs|cjs)$/)
+          expect(middleware.files).toContain(middleware.entrypoint)
           expect(middleware.files).not.toContainEqual(
             expect.stringContaining('static/chunks/')
           )

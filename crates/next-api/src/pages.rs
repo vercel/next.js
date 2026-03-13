@@ -1513,12 +1513,10 @@ impl PageEndpoint {
                     let entrypoint_asset = *assets_ref
                         .last()
                         .context("expected assets for edge pages endpoint")?;
-                    let entrypoint = Some(
-                        node_root
-                            .get_path_to(&*entrypoint_asset.path().await?)
-                            .context("expected edge pages asset to be within node root")?
-                            .into(),
-                    );
+                    let entrypoint = node_root
+                        .get_path_to(&*entrypoint_asset.path().await?)
+                        .context("expected edge pages asset to be within node root")?
+                        .into();
 
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
