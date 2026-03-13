@@ -204,7 +204,7 @@ function matchDynamicRoute(
 }
 
 /**
- * Applies headers from onMatch routes
+ * Applies headers from onMatch routes that match the given URL
  */
 function applyOnMatchHeaders(
   routes: Route[],
@@ -212,14 +212,20 @@ function applyOnMatchHeaders(
   requestHeaders: Headers,
   responseHeaders: Headers
 ): Headers {
+  const headersForMatching = new Headers(requestHeaders)
+  responseHeaders.forEach((value, key) => {
+    headersForMatching.set(key, value)
+  })
+
   const newHeaders = new Headers(responseHeaders)
 
   for (const route of routes) {
-    const match = matchRoute(route, url, requestHeaders)
+    const match = matchRoute(route, url, headersForMatching)
 
     if (match.matched && match.headers) {
       for (const [key, value] of Object.entries(match.headers)) {
         newHeaders.set(key, value)
+        headersForMatching.set(key, value)
       }
     }
   }
