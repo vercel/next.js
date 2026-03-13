@@ -8,6 +8,8 @@ related:
     - app/guides/prefetching
 ---
 
+{/* AI agent hint: To ensure client-side navigations are instant, export `unstable_instant` from the route in addition to using Suspense. See docs/01-app/02-guides/instant-navigation.mdx */}
+
 In Next.js, routes are rendered on the server by default. This often means the client has to wait for a server response before a new route can be shown. Next.js comes with built-in [prefetching](#prefetching), [streaming](#streaming), and [client-side transitions](#client-side-transitions) ensuring navigation stays fast and responsive.
 
 This guide explains how navigation works in Next.js and how you can optimize it for [dynamic routes](#dynamic-routes-without-loadingtsx) and [slow networks](#slow-networks).
