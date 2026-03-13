@@ -790,37 +790,46 @@ export default class DevServer extends Server {
     const __getStaticPaths = async () => {
       const { configFileName, httpAgentOptions } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
+
+      const args = {
+        dir: this.dir,
+        distDir: this.distDir,
+        pathname,
+        config: {
+          pprConfig: this.nextConfig.experimental.ppr,
+          partialFallbacks:
+            this.nextConfig.experimental.partialFallbacks === true,
+          configFileName,
+          cacheComponents: Boolean(this.nextConfig.cacheComponents),
+        },
+        httpAgentOptions,
+        locales,
+        defaultLocale,
+        page,
+        isAppPath,
+        requestHeaders,
+        cacheHandler: this.nextConfig.cacheHandler,
+        cacheHandlers: this.nextConfig.cacheHandlers,
+        cacheLifeProfiles: this.nextConfig.cacheLife,
+        fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
+        isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
+        cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
+        nextConfigOutput: this.nextConfig.output,
+        buildId: this.buildId,
+        authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+        sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
+      }
+
+      if (this.nextConfig.experimental.devGetStaticPathsInProcess) {
+        const { loadStaticPaths } =
+          require('./static-paths-worker') as typeof import('./static-paths-worker')
+        return loadStaticPaths(args)
+      }
+
       const staticPathsWorker = this.getStaticPathsWorker()
 
       try {
-        const pathsResult = await staticPathsWorker.loadStaticPaths({
-          dir: this.dir,
-          distDir: this.distDir,
-          pathname,
-          config: {
-            pprConfig: this.nextConfig.experimental.ppr,
-            partialFallbacks:
-              this.nextConfig.experimental.partialFallbacks === true,
-            configFileName,
-            cacheComponents: Boolean(this.nextConfig.cacheComponents),
-          },
-          httpAgentOptions,
-          locales,
-          defaultLocale,
-          page,
-          isAppPath,
-          requestHeaders,
-          cacheHandler: this.nextConfig.cacheHandler,
-          cacheHandlers: this.nextConfig.cacheHandlers,
-          cacheLifeProfiles: this.nextConfig.cacheLife,
-          fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
-          isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
-          nextConfigOutput: this.nextConfig.output,
-          buildId: this.buildId,
-          authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
-          sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
-        })
+        const pathsResult = await staticPathsWorker.loadStaticPaths(args)
         return pathsResult
       } finally {
         // we don't re-use workers so destroy the used one
