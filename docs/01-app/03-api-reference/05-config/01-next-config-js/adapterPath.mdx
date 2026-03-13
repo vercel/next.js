@@ -631,6 +631,14 @@ For outputs with `runtime: 'edge'`, Next.js also provides `output.edgeRuntime` w
 }
 ```
 
+After your edge runtime loads and evaluates the chunks for `modulePath`, use `entryKey` to read the registered entry from the global edge entry registry (`globalThis._ENTRIES`), then invoke `handlerExport` from that entry:
+
+```ts
+const entry = await globalThis._ENTRIES[output.edgeRuntime.entryKey]
+const handler = entry[output.edgeRuntime.handlerExport]
+await handler(request, ctx)
+```
+
 Use `edgeRuntime` instead of deriving registry keys or handler names from filenames.
 
 Relevant files in the Next.js core:
