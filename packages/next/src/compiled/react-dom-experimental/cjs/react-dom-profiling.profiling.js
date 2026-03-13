@@ -20350,12 +20350,13 @@ function setFocusIfFocusable(node, focusOptions) {
   function handleFocus() {
     didFocus = !0;
   }
+  if (node.ownerDocument.activeElement === node) return !0;
   var didFocus = !1;
   try {
-    node.addEventListener("focus", handleFocus),
+    node.ownerDocument.addEventListener("focus", handleFocus, !0),
       (node.focus || HTMLElement.prototype.focus).call(node, focusOptions);
   } finally {
-    node.removeEventListener("focus", handleFocus);
+    node.ownerDocument.removeEventListener("focus", handleFocus, !0);
   }
   return didFocus;
 }
@@ -22009,14 +22010,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2540 = React.version;
 if (
-  "19.3.0-experimental-5e9eedb5-20260312" !==
+  "19.3.0-experimental-c80a0750-20260312" !==
   isomorphicReactPackageVersion$jscomp$inline_2540
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2540,
-      "19.3.0-experimental-5e9eedb5-20260312"
+      "19.3.0-experimental-c80a0750-20260312"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -22038,10 +22039,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3242 = {
   bundleType: 0,
-  version: "19.3.0-experimental-5e9eedb5-20260312",
+  version: "19.3.0-experimental-c80a0750-20260312",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-5e9eedb5-20260312"
+  reconcilerVersion: "19.3.0-experimental-c80a0750-20260312"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3243 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -22309,7 +22310,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-experimental-5e9eedb5-20260312";
+exports.version = "19.3.0-experimental-c80a0750-20260312";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
