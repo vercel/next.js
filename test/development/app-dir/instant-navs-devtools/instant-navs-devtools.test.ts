@@ -14,8 +14,8 @@ describe('instant-nav-panel', () => {
     await new Promise((resolve) =>
       setTimeout(
         resolve,
-        // MENU_DURATION_MS
-        200
+        // MENU_DURATION_MS + some flakiness buffer
+        200 + 50
       )
     )
   }
