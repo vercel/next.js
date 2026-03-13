@@ -38,20 +38,20 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
-/// A CSS Module asset, as in `.module.css`. For a global CSS module, see [`CssModuleAsset`].
-pub struct ModuleCssAsset {
+/// A CSS Module asset, as in `.module.css`. For a global CSS module, see [`CssModule`].
+pub struct EcmascriptCssModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleCssAsset {
+impl EcmascriptCssModule {
     #[turbo_tasks::function]
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Self> {
-        Self::cell(ModuleCssAsset {
+        Self::cell(EcmascriptCssModule {
             source,
             asset_context,
         })
@@ -59,7 +59,7 @@ impl ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Module for ModuleCssAsset {
+impl Module for EcmascriptCssModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self
@@ -164,7 +164,7 @@ struct ModuleCssClasses(
 );
 
 #[turbo_tasks::value_impl]
-impl ModuleCssAsset {
+impl EcmascriptCssModule {
     #[turbo_tasks::function]
     pub fn inner(&self, ty: ReferenceType) -> Vc<ProcessResult> {
         self.asset_context.process(*self.source, ty)
@@ -244,7 +244,7 @@ impl ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModule for ModuleCssAsset {
+impl ChunkableModule for EcmascriptCssModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
@@ -256,7 +256,7 @@ impl ChunkableModule for ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for ModuleCssAsset {
+impl EcmascriptChunkPlaceable for EcmascriptCssModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
@@ -303,7 +303,7 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
                         };
 
                         let Some(css_module) =
-                            ResolvedVc::try_downcast_type::<ModuleCssAsset>(*resolved_module)
+                            ResolvedVc::try_downcast_type::<EcmascriptCssModule>(*resolved_module)
                         else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error,
@@ -371,7 +371,7 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ResolveOrigin for ModuleCssAsset {
+impl ResolveOrigin for EcmascriptCssModule {
     #[turbo_tasks::function]
     fn origin_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
