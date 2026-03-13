@@ -2,12 +2,16 @@
   "compilerOptions": {
     "module": "commonjs",
     "sourceMap": true,
+    "strict": false,
     "esModuleInterop": true,
     "target": "es2015",
-    "lib": ["dom"],
+    "lib": ["dom", "es2020"],
     "downlevelIteration": true,
+    "ignoreDeprecations": "6.0",
     "preserveWatchOutput": true,
+    "skipLibCheck": true,
     "outDir": "dist",
+    "types": ["node"],
     "paths": {
       "webpack": ["../../node_modules/webpack5"]
     }
