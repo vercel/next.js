@@ -9,6 +9,7 @@ import {
   type NavigateAction,
   ACTION_HMR_REFRESH,
   PrefetchKind,
+  ScrollBehavior,
   type AppHistoryState,
 } from './router-reducer/router-reducer-types'
 import { reducer } from './router-reducer/router-reducer'
@@ -277,7 +278,7 @@ function getProfilingHookForOnNavigationStart() {
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
-  shouldScroll: boolean,
+  scrollBehavior: ScrollBehavior,
   linkInstanceRef: LinkInstance | null,
   transitionTypes: string[] | undefined
 ): void {
@@ -307,7 +308,7 @@ export function dispatchNavigateAction(
     url,
     isExternalUrl: isExternalURL(url),
     locationSearch: location.search,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
   })
 }
@@ -356,7 +357,10 @@ function gesturePush(href: string, options?: NavigateOptions): void {
 
     // Fork the router state for the duration of the gesture transition.
     const currentUrl = new URL(state.canonicalUrl, location.href)
-    const shouldScroll = options?.scroll ?? true
+    const scrollBehavior =
+      options?.scroll === false
+        ? ScrollBehavior.NoScroll
+        : ScrollBehavior.Default
     // This is a special freshness policy that prevents dynamic requests from
     // being spawned. During the gesture, we should only show the cached
     // prefetched UI, not dynamic data.
@@ -373,7 +377,7 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       state.tree,
       state.nextUrl,
       freshnessPolicy,
-      shouldScroll,
+      scrollBehavior,
       'push'
     )
     dispatchGestureState(forkedGestureState)
@@ -442,7 +446,9 @@ export const publicAppRouterInstance: AppRouterInstance = {
       dispatchNavigateAction(
         href,
         'replace',
-        options?.scroll ?? true,
+        options?.scroll === false
+          ? ScrollBehavior.NoScroll
+          : ScrollBehavior.Default,
         null,
         options?.transitionTypes
       )
@@ -458,7 +464,9 @@ export const publicAppRouterInstance: AppRouterInstance = {
       dispatchNavigateAction(
         href,
         'push',
-        options?.scroll ?? true,
+        options?.scroll === false
+          ? ScrollBehavior.NoScroll
+          : ScrollBehavior.Default,
         null,
         options?.transitionTypes
       )

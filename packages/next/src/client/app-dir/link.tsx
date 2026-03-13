@@ -8,6 +8,7 @@ import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+import { ScrollBehavior } from '../components/router-reducer/router-reducer-types'
 import type { PENDING_LINK_STATUS } from '../components/links'
 import {
   IDLE_LINK_STATUS,
@@ -307,7 +308,7 @@ function linkClicked(
       dispatchNavigateAction(
         href,
         replace ? 'replace' : 'push',
-        scroll ?? true,
+        scroll === false ? ScrollBehavior.NoScroll : ScrollBehavior.Default,
         linkInstanceRef.current,
         transitionTypes
       )

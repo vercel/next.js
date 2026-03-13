@@ -233,10 +233,10 @@ export function createInitialRouterState({
       preserveCustomHistoryState: true,
     },
     focusAndScrollRef: {
-      apply: false,
+      scrollRef: null,
+      forceScroll: false,
       onlyHashChange: false,
       hashFragment: null,
-      segmentPaths: [],
     },
     canonicalUrl,
     renderedSearch: initialRenderedSearch,

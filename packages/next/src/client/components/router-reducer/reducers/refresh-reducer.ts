@@ -3,6 +3,7 @@ import type {
   ReducerState,
   RefreshAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import {
   convertServerPatchToFullTree,
   navigateToKnownRoute,
@@ -56,7 +57,7 @@ export function refreshDynamicData(
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
-  const shouldScroll = false
+  const scrollBehavior = ScrollBehavior.NoScroll
 
   // Create a NavigationSeed from the current FlightRouterState.
   // TODO: Eventually we will store this type directly on the state object
@@ -82,7 +83,7 @@ export function refreshDynamicData(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
     null,
     // Refresh navigations don't use route prediction, so there's no route
