@@ -62,6 +62,12 @@ describe('trace-build-file', () => {
     files: __dirname,
     skipStart: !isNextDev,
     skipDeployment: true,
+    env: {
+      // Enable persistent caching even when the git repo is dirty (test dirs
+      // are always dirty). Without this, the cache falls back to a temp
+      // directory and persistence/compaction spans are not emitted.
+      TURBO_ENGINE_IGNORE_DIRTY: '1',
+    },
   })
 
   if (isNextStart) {
@@ -136,6 +142,9 @@ describe('trace-build-file', () => {
                   "turbopack-build-events",
                 ]
               `)
+        // Note: turbopack-persistence and turbopack-compaction are in the
+        // allowlist but only appear when there's significant cache activity.
+        // They may not appear in small test fixtures on the first build.
       } else {
         expect([...foundEvents].sort()).toMatchInlineSnapshot(`
          [

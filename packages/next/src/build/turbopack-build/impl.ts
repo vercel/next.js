@@ -264,7 +264,14 @@ export async function turbopackBuild(): Promise<{
       await project.writeAnalyzeData(appDirOnly)
     }
 
-    const shutdownPromise = project.shutdown()
+    // Shutdown triggers persistence/compaction which emit TraceEvent
+    // compilation events via the compilationEventsSubscribe iterator.
+    // After shutdown resolves, Rust has finished but the JS for-await
+    // loop may still be processing buffered events.  We wait briefly to
+    // let the event loop drain before getTraceEvents() is called.
+    const shutdownPromise = project
+      .shutdown()
+      .then(() => new Promise<void>((resolve) => setTimeout(resolve, 100)))
 
     const time = process.hrtime(startTime)
     return {
