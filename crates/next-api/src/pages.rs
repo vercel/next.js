@@ -1744,7 +1744,7 @@ async fn get_pages_ssr_module_graph_operation(
     endpoint: ResolvedVc<PageEndpoint>,
 ) -> Result<Vc<ModuleGraph>> {
     let this = endpoint.await?;
-    let project = this.pages_project.project();
+    let project = this.pages_project.project().to_resolved().await?;
 
     if *project.per_page_module_graph().await? {
         let next_mode = project.next_mode();

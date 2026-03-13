@@ -1614,7 +1614,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn runtime_chunking_context(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         client_assets: bool,
         runtime: NextRuntime,
     ) -> Vc<Box<dyn ChunkingContext>> {
