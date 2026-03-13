@@ -120,9 +120,9 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
+import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
-  writeRouteBundleStats,
   printCustomRoutes,
   printTreeView,
   copyTracedFiles,
