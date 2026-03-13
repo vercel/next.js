@@ -215,6 +215,7 @@ pub fn create_turbo_tasks(
     dependency_tracking: bool,
     is_ci: bool,
     is_short_session: bool,
+    skip_compaction: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         let version_info = GitVersionInfo {
@@ -227,6 +228,7 @@ pub fn create_turbo_tasks(
             &version_info,
             is_ci,
             is_short_session,
+            skip_compaction,
         )?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {

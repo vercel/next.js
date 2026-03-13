@@ -1393,6 +1393,11 @@ async function loadWasm(importPath = '') {
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
         )
       },
+      databaseCompact(_path: string): Promise<void> {
+        throw new Error(
+          'Turbopack database compaction is not supported on this platform'
+        )
+      },
     },
     mdx: {
       compile(src: string, options: any) {
@@ -1636,6 +1641,9 @@ function loadNative(importPath?: string): Binding {
             traceFilePath,
             port
           )
+        },
+        databaseCompact(dbPath: string) {
+          return (customBindings ?? bindings).turbopackDatabaseCompact(dbPath)
         },
       },
       mdx: {

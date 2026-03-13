@@ -317,6 +317,8 @@ export interface NapiTurboEngineOptions {
   isCi?: boolean
   /** Whether the project is running in a short session. */
   isShortSession?: boolean
+  /** Whether to skip database compaction during shutdown. */
+  skipCompaction?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -353,6 +355,7 @@ export declare function projectOnExit(project: {
 export declare function projectShutdown(project: {
   __napiType: 'Project'
 }): Promise<void>
+export declare function turbopackDatabaseCompact(path: string): Promise<void>
 export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
   originalName?: RcStr
