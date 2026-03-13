@@ -576,6 +576,28 @@ handler(
 ): Promise<void>
 ```
 
+When invoking Node.js entrypoints directly, adapters can pass helpers directly on `requestMeta` instead of relying on internals. Some of the supported fields are `hostname`,
+`revalidate`, and `render404`:
+
+```ts
+await handler(req, res, {
+  requestMeta: {
+    // Relative path from process.cwd() to the Next.js project directory.
+    relativeProjectDir: '.',
+    // Optional hostname used by route handlers when constructing absolute URLs.
+    hostname: '127.0.0.1',
+    // Optional internal revalidate function to avoid revalidating over the network
+    revalidate: async ({ urlPath, headers, opts }) => {
+      // platform-specific revalidate implementation
+    },
+    // Optional function to render the 404 page for pages router `notFound: true`
+    render404: async (req, res, parsedUrl, setHeaders) => {
+      // platform-specific 404 rendering implementation
+    },
+  },
+})
+```
+
 Relevant files in the Next.js core:
 
 - [`packages/next/src/build/templates/app-page.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/app-page.ts)

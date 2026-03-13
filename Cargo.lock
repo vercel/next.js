@@ -267,15 +267,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arc-swap"
-version = "1.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9f3647c145568cec02c42054e07bdf9a5a698e15b466fb2341bfc393cd24aa5"
-dependencies = [
- "rustversion",
-]
-
-[[package]]
 name = "arg_enum_proc_macro"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3935,29 +3926,6 @@ name = "litrs"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
-
-[[package]]
-name = "lmdb-rkv"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "447a296f7aca299cfbb50f4e4f3d49451549af655fb7215d7f8c0c3d64bad42b"
-dependencies = [
- "bitflags 1.3.2",
- "byteorder",
- "libc",
- "lmdb-rkv-sys",
-]
-
-[[package]]
-name = "lmdb-rkv-sys"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61b9ce6b3be08acefa3003c57b7565377432a89ec24476bbe72e11d101f852fe"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
-]
 
 [[package]]
 name = "lock_api"
@@ -9572,11 +9540,9 @@ name = "turbo-tasks-backend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "arc-swap",
  "auto-hash-map",
  "bincode 2.0.1",
  "bitfield",
- "byteorder",
  "codspeed-criterion-compat",
  "dashmap 6.1.0",
  "either",
@@ -9584,7 +9550,6 @@ dependencies = [
  "hashbrown 0.14.5",
  "indexmap 2.13.0",
  "indoc",
- "lmdb-rkv",
  "lzzzz",
  "once_cell",
  "parking_lot",
@@ -9598,7 +9563,6 @@ dependencies = [
  "serde_path_to_error",
  "smallvec",
  "tempfile",
- "thread_local",
  "tokio",
  "tracing",
  "turbo-bincode",

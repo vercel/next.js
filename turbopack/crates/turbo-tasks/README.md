@@ -14,6 +14,9 @@ It defines some derived elements from that:
 - **Tasks:** An instance of a function together with its arguments.
 - **[`Vc`s ("Value Cells")][`Vc`]:** References to locations associated with tasks where values are stored. The contents of a cell can change after the reexecution of a function due to invalidation. A [`Vc`] can be read to get [a read-only reference][crate::ReadRef] to the stored data, representing a snapshot of that cell at that point in time.
 
+There are a few design patterns that are commonly used with Turbo Tasks:
+- **[Singleton Pattern][crate::_singleton_pattern]:** Use a private constructor function to ensure a 1:1 mapping between values and value cells.
+
 [blog-post]: https://nextjs.org/blog/turbopack-incremental-computation
 [cell id equality]: crate::ResolvedVc#equality--hashing
 [`Vc`]: crate::Vc

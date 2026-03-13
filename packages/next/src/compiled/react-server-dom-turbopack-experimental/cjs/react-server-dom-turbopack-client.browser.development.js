@@ -1880,6 +1880,7 @@
         }
         chunk.status = "fulfilled";
         chunk.value = value;
+        chunk.reason = null;
         filterDebugInfo(response, chunk);
         moveDebugInfoFromChunkToInnerValue(chunk, value);
       } catch (error) {
@@ -1893,6 +1894,7 @@
         var value = requireModule(chunk.value);
         chunk.status = "fulfilled";
         chunk.value = value;
+        chunk.reason = null;
       } catch (error) {
         (chunk.status = "rejected"), (chunk.reason = error);
       }
@@ -5144,10 +5146,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-46103596-20260305",
+      version: "19.3.0-experimental-5e9eedb5-20260312",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-46103596-20260305",
+      reconcilerVersion: "19.3.0-experimental-5e9eedb5-20260312",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

@@ -947,7 +947,7 @@ export function trackDynamicHoleInNavigation(
 export function trackThrownErrorInNavigation(
   workStore: WorkStore,
   dynamicValidation: InstantValidationState,
-  thrownError: unknown,
+  thrownValue: unknown,
   componentStack: string
 ) {
   const boundaryLocation =
@@ -955,7 +955,20 @@ export function trackThrownErrorInNavigation(
   if (!boundaryLocation) {
     // There's no validation boundary on the component stack.
     // This error may have blocked a boundary from rendering.
-    dynamicValidation.thrownErrorsOutsideBoundary.push(thrownError)
+
+    // Wrap the error to provide component context.
+    // This helps for errors from node_modules which would otherwise
+    // have no useful stack information due to ignore-listing,
+    // e.g. next/dynamic with `ssr: false`.
+    const error = addErrorContext(
+      new Error(
+        'An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.',
+        { cause: thrownValue }
+      ),
+      componentStack,
+      null
+    )
+    dynamicValidation.thrownErrorsOutsideBoundary.push(error)
   } else {
     // There's validation boundary on the component stack,
     // so we know this error didn't block a validation boundary from rendering.
@@ -975,7 +988,7 @@ export function trackThrownErrorInNavigation(
     }
     const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.`
     const error = addErrorContext(
-      new Error(message, { cause: thrownError }),
+      new Error(message, { cause: thrownValue }),
       componentStack,
       null // TODO(instant-validation-build): conflicting use of cause
     )

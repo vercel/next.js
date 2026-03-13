@@ -9,7 +9,6 @@ mod update_cell;
 mod update_collectible;
 use std::{
     fmt::{Debug, Display, Formatter},
-    mem::transmute,
     sync::{Arc, atomic::Ordering},
 };
 
@@ -26,17 +25,12 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{BackingStorage, BackingStorageSealed},
+    backing_storage::BackingStorage,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
     fn execute(self, ctx: &mut impl ExecuteContext<'_>);
-}
-
-enum TransactionState<'tx, B: BackingStorage> {
-    None,
-    Owned(Option<B::ReadTransaction<'tx>>),
 }
 
 pub trait ExecuteContext<'e>: Sized {
@@ -104,23 +98,15 @@ pub trait ChildExecuteContext<'e>: Send + Sized {
     fn create(self) -> impl ExecuteContext<'e>;
 }
 
-pub struct ExecuteContextImpl<'e, 'tx, B: BackingStorage>
-where
-    Self: 'e,
-    'tx: 'e,
-{
+pub struct ExecuteContextImpl<'e, B: BackingStorage> {
     backend: &'e TurboTasksBackendInner<B>,
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     _operation_guard: Option<OperationGuard<'e, B>>,
-    transaction: TransactionState<'tx, B>,
     #[cfg(debug_assertions)]
     active_task_locks: std::sync::Arc<std::sync::atomic::AtomicU8>,
 }
 
-impl<'e, 'tx, B: BackingStorage> ExecuteContextImpl<'e, 'tx, B>
-where
-    'tx: 'e,
-{
+impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
     pub(super) fn new(
         backend: &'e TurboTasksBackendInner<B>,
         turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
@@ -129,50 +115,29 @@ where
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
-            transaction: TransactionState::None,
             #[cfg(debug_assertions)]
             active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
-    fn ensure_transaction(&mut self) -> bool {
-        if matches!(self.transaction, TransactionState::None) {
-            let check_backing_storage = self.backend.should_restore()
-                && self.backend.local_is_partial.load(Ordering::Acquire);
-            if !check_backing_storage {
-                return false;
-            }
-            let tx = self.backend.backing_storage.start_read_transaction();
-            let tx = tx.map(|tx| {
-                // Safety: `self.backend.backing_storage` lives for at least `'e`. The
-                // transaction returned by `start_read_transaction()` borrows it for `'e`.
-                // Since `'tx: 'e`, transmuting to `'tx` is sound because the transaction
-                // is stored in `self.transaction` (as `Owned`) and dropped with `self`,
-                // while `self.backend` remains alive for `'e`.
-                unsafe { transmute::<B::ReadTransaction<'_>, B::ReadTransaction<'tx>>(tx) }
-            });
-            self.transaction = TransactionState::Owned(tx);
-        }
-        true
+    fn should_check_backing_storage(&self) -> bool {
+        self.backend.should_restore() && self.backend.local_is_partial
     }
 
     fn restore_task_data(
-        &mut self,
+        &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
     ) -> TaskStorage {
-        if !self.ensure_transaction() {
+        if !self.should_check_backing_storage() {
             // If we don't need to restore, we can just return an empty storage
             return TaskStorage::default();
         }
-        let tx = self.get_tx();
         let mut storage = TaskStorage::default();
-        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        let result = unsafe {
-            self.backend
-                .backing_storage
-                .lookup_data(tx, task_id, category, &mut storage)
-        };
+        let result = self
+            .backend
+            .backing_storage
+            .lookup_data(task_id, category, &mut storage);
 
         match result {
             Ok(()) => storage,
@@ -186,7 +151,7 @@ where
     }
 
     fn restore_task_data_batch(
-        &mut self,
+        &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
     ) -> Option<Vec<TaskStorage>> {
@@ -194,17 +159,14 @@ where
             task_ids.len() > 1,
             "Use restore_task_data_typed for single task"
         );
-        if !self.ensure_transaction() {
+        if !self.should_check_backing_storage() {
             // If we don't need to restore, we return None
             return None;
         }
-        let tx = self.get_tx();
-        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        let result = unsafe {
-            self.backend
-                .backing_storage
-                .batch_lookup_data(tx, task_ids, category)
-        };
+        let result = self
+            .backend
+            .backing_storage
+            .batch_lookup_data(task_ids, category);
         match result {
             Ok(result) => Some(result),
             Err(e) => {
@@ -216,13 +178,6 @@ where
                     ))
                 )
             }
-        }
-    }
-
-    fn get_tx(&self) -> Option<&<B as BackingStorageSealed>::ReadTransaction<'tx>> {
-        match &self.transaction {
-            TransactionState::None => unreachable!(),
-            TransactionState::Owned(tx) => tx.as_ref(),
         }
     }
 
@@ -396,13 +351,10 @@ where
     }
 }
 
-impl<'e, 'tx, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, 'tx, B>
-where
-    'tx: 'e,
-{
+impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     type TaskGuardImpl = TaskGuardImpl<'e>;
 
-    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'tx, 'l, B>
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, B>
     where
         'e: 'l,
     {
@@ -636,20 +588,16 @@ where
     }
 
     fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId> {
-        // Ensure we have a transaction (this will be reused by subsequent task() calls)
-        if !self.ensure_transaction() {
+        if !self.should_check_backing_storage() {
             return None;
         }
-        let tx = self.get_tx();
 
         // Get candidates from backing storage (hash-based lookup may return multiple)
-        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        let candidates = unsafe {
-            self.backend
-                .backing_storage
-                .lookup_task_candidates(tx, task_type)
-                .expect("Failed to lookup task ids")
-        };
+        let candidates = self
+            .backend
+            .backing_storage
+            .lookup_task_candidates(task_type)
+            .expect("Failed to lookup task ids");
 
         // Verify each candidate by comparing the stored persistent_task_type.
         // Only rarely is there more than one candidate, so no need for parallelization.
@@ -676,7 +624,6 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
             _operation_guard: None,
-            transaction: TransactionState::None,
             #[cfg(debug_assertions)]
             active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
