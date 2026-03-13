@@ -870,6 +870,49 @@ describe('resolveRoutes - dynamic routes', () => {
     expect(result.resolvedHeaders?.get('x-matched')).toBe('true')
   })
 
+  it('should apply onMatch headers using merged destination query for dynamic routes', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/blog/post-1?draft=1'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^/blog/(?<slug>[^/]+?)$',
+            destination: '/blog/[slug]?slug=$slug',
+          },
+        ],
+        onMatch: [
+          {
+            sourceRegex: '^/blog/post-1$',
+            has: [
+              {
+                type: 'query',
+                key: 'slug',
+                value: 'post-1',
+              },
+            ],
+            headers: {
+              'x-slug-match': 'true',
+            },
+          },
+        ],
+        fallback: [],
+      },
+      pathnames: ['/blog/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/blog/[slug]')
+    expect(result.resolvedHeaders?.get('x-slug-match')).toBe('true')
+    expect(result.resolvedQuery).toEqual({
+      draft: '1',
+      slug: 'post-1',
+    })
+  })
+
   it('should expose resolved query and invocation target for rewrite matches', async () => {
     const params = createBaseParams({
       url: new URL('https://example.com/rewrite-source?existing=1'),

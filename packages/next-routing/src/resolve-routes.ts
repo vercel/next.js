@@ -336,15 +336,15 @@ function checkDynamicRoutes(
           : checkUrl.pathname
         const matchedPath = matchesPathname(pathnameToCheck, pathnames)
         if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(
-            onMatchRoutes,
-            checkUrl,
-            requestHeaders,
-            responseHeaders
-          )
           const resolvedUrl = replacedDestination
             ? mergeDestinationQueryIntoUrl(checkUrl, replacedDestination)
             : checkUrl
+          const finalHeaders = applyOnMatchHeaders(
+            onMatchRoutes,
+            resolvedUrl,
+            requestHeaders,
+            responseHeaders
+          )
           const result = withResolvedInvocationTarget({
             result: {
               routeMatches: match.params,
@@ -660,7 +660,7 @@ export async function resolveRoutes(
             : currentUrl
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
-            currentUrl,
+            resolvedUrl,
             currentRequestHeaders,
             currentResponseHeaders
           )
@@ -849,7 +849,7 @@ export async function resolveRoutes(
             : currentUrl
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
-            currentUrl,
+            resolvedUrl,
             currentRequestHeaders,
             currentResponseHeaders
           )
