@@ -1,10 +1,10 @@
 import { __turbopack_module_id__ as id } from "./components/hello1" with {
     "turbopack-transition": "next-client-dynamic",
-    "turbopack-chunking-type": "none"
+    "turbopackChunkingType": "none"
 };
 import { __turbopack_module_id__ as id1 } from "./components/hello2" with {
     "turbopack-transition": "next-client-dynamic",
-    "turbopack-chunking-type": "none"
+    "turbopackChunkingType": "none"
 };
 import dynamic from 'next/dynamic';
 const DynamicComponent1 = dynamic(()=>handleImport(import('./components/hello1', {

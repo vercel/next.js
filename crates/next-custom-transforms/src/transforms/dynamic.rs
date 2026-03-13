@@ -579,7 +579,7 @@ fn with_transition(transition_name: &str) -> ObjectLit {
 fn with_transition_chunking_type(transition_name: &str, chunking_type: &str) -> Box<ObjectLit> {
     Box::new(with_clause(&[
         ("turbopack-transition", transition_name),
-        ("turbopack-chunking-type", chunking_type),
+        ("turbopackChunkingType", chunking_type),
     ]))
 }
 

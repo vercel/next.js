@@ -4,7 +4,7 @@ use swc_core::{
 };
 
 /// Changes the chunking type for the annotated import
-pub const ANNOTATION_CHUNKING_TYPE: &str = "turbopack-chunking-type";
+pub const ANNOTATION_CHUNKING_TYPE: &str = "turbopackChunkingType";
 
 /// Enables a specified transition for the annotated import
 pub const ANNOTATION_TRANSITION: &str = "turbopack-transition";

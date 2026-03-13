@@ -1,10 +1,10 @@
 import { __turbopack_module_id__ as id } from "../components/hello1" with {
     "turbopack-transition": "next-client-dynamic",
-    "turbopack-chunking-type": "none"
+    "turbopackChunkingType": "none"
 };
 import { __turbopack_module_id__ as id1 } from "../components/hello2" with {
     "turbopack-transition": "next-client-dynamic",
-    "turbopack-chunking-type": "none"
+    "turbopackChunkingType": "none"
 };
 import dynamic1 from 'next/dynamic';
 import dynamic2 from 'next/dynamic';

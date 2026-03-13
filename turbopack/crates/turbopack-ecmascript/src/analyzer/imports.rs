@@ -102,7 +102,7 @@ impl ImportAnnotations {
                             Some(RcStr::from(s.value.to_string_lossy().into_owned()));
                     }
                 }
-                "turbopack-chunking-type" => {
+                "turbopackChunkingType" => {
                     if let Some(Lit::Str(s)) = kv.value.as_lit() {
                         chunking_type = parse_chunking_type_annotation(
                             kv.value.span(),
