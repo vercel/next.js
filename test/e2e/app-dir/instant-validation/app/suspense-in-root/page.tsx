@@ -127,6 +127,12 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/static/invalid-client-error-in-parent-blocks-children" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-csr-bailout-blocks-children" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-error-in-node-modules-blocks-children" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/static/invalid-client-error-in-parent-sibling" />
         </li>
         <li>
@@ -194,6 +200,12 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/disable-validation/in-page-with-outer" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/disable-dev" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/disable-build" />
         </li>
       </ul>
     </main>

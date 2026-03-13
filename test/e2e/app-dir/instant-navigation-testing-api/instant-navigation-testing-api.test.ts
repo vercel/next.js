@@ -42,11 +42,24 @@ describe('instant-navigation-testing-api', () => {
    * Next.js test infra wraps Playwright with its own BrowserInterface, but
    * the Instant Navigation Testing API is designed to work with native Playwright.
    */
-  async function openPage(url: string): Promise<Playwright.Page> {
+  async function openPage(
+    url: string,
+    options?: { cookies?: Array<{ name: string; value: string }> }
+  ): Promise<Playwright.Page> {
     let page: Playwright.Page
     await next.browser(url, {
       beforePageLoad(p) {
         page = p
+        if (options?.cookies) {
+          const { hostname } = new URL(next.url)
+          p.context().addCookies(
+            options.cookies.map((c) => ({
+              ...c,
+              domain: hostname,
+              path: '/',
+            }))
+          )
+        }
       },
     })
     return page!
@@ -134,23 +147,21 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
-  it('logs an error when attempting to nest instant scopes', async () => {
+  it('throws when attempting to nest instant scopes', async () => {
     const page = await openPage('/')
-
-    // Listen for the specific error message
-    const consolePromise = page.waitForEvent('console', {
-      predicate: (msg) =>
-        msg.type() === 'error' && msg.text().includes('already acquired'),
-      timeout: 5000,
-    })
 
     await instant(page, async () => {
       // Attempt to acquire the lock again by nesting instant() calls.
-      // The inner call sets the cookie again, and the handler detects
-      // that the lock is already held, logging an error.
-      await instant(page, async () => {})
-      const msg = await consolePromise
-      expect(msg.text()).toContain('already acquired')
+      // The inner call detects the cookie is already set and throws
+      // before touching the browser state.
+      let caughtError: Error | undefined
+      try {
+        await instant(page, async () => {})
+      } catch (e) {
+        caughtError = e as Error
+      }
+      expect(caughtError).toBeDefined()
+      expect(caughtError!.message).toContain('already active')
     })
   })
 
@@ -293,11 +304,8 @@ describe('instant-navigation-testing-api', () => {
   // NOT be present.
   describe('runtime params are excluded from instant shell', () => {
     it('does not include cookie values in instant shell during client navigation', async () => {
-      const page = await openPage('/')
-
-      // Set a test cookie
-      await page.evaluate(() => {
-        document.cookie = 'testCookie=hello; path=/'
+      const page = await openPage('/', {
+        cookies: [{ name: 'testCookie', value: 'hello' }],
       })
 
       await instant(page, async () => {
@@ -377,11 +385,8 @@ describe('instant-navigation-testing-api', () => {
     })
 
     it('does not include cookie values in instant shell during page load', async () => {
-      const page = await openPage('/')
-
-      // Set a test cookie
-      await page.evaluate(() => {
-        document.cookie = 'testCookie=hello; path=/'
+      const page = await openPage('/', {
+        cookies: [{ name: 'testCookie', value: 'hello' }],
       })
 
       await instant(page, async () => {

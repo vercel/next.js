@@ -23,13 +23,13 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, StartupCacheState,
-    TurboTasksBackend, db_invalidation::invalidation_reasons, default_backing_storage,
-    noop_backing_storage,
+    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, TurboBackingStorage,
+    TurboTasksBackend, db_invalidation::invalidation_reasons, noop_backing_storage,
+    turbo_backing_storage,
 };
 
 pub type NextTurboTasks =
-    Arc<TurboTasks<TurboTasksBackend<Either<DefaultBackingStorage, NoopBackingStorage>>>>;
+    Arc<TurboTasks<TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>>>;
 
 /// A value often wrapped in [`napi::bindgen_prelude::External`] that retains the [TurboTasks]
 /// instance used by Next.js, and [various napi helpers that are passed to us from
@@ -222,7 +222,7 @@ pub fn create_turbo_tasks(
             dirty: option_env!("CI").is_none_or(|value| value.is_empty())
                 && env!("VERGEN_GIT_DIRTY") == "true",
         };
-        let (backing_storage, cache_state) = default_backing_storage(
+        let (backing_storage, cache_state) = turbo_backing_storage(
             &output_path.join("cache/turbopack"),
             &version_info,
             is_ci,
