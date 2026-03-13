@@ -59,16 +59,7 @@ impl BindingUsageInfo {
     pub fn is_reference_unused_edge(&self, edge: &GraphEdgeIndex) -> bool {
         self.unused_references_edges.contains(edge)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl BindingUsageInfo {
-    #[turbo_tasks::function]
-    pub fn unused_references(&self) -> Vc<UnusedReferences> {
-        *self.unused_references
-    }
-
-    #[turbo_tasks::function]
     pub async fn used_exports(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
@@ -92,6 +83,14 @@ impl BindingUsageInfo {
             is_circuit_breaker,
         }
         .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl BindingUsageInfo {
+    #[turbo_tasks::function]
+    pub fn unused_references(&self) -> Vc<UnusedReferences> {
+        *self.unused_references
     }
 }
 
