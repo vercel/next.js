@@ -127,6 +127,7 @@ impl TaskLockCounter {
 
     /// Increment the count by `n` and panic if concurrent access is detected.
     fn acquire_multiple(&self, n: u8) {
+        let _ = n; // silence warning
         #[cfg(debug_assertions)]
         if self.0.fetch_add(n, std::sync::atomic::Ordering::AcqRel) != 0 {
             panic!(
