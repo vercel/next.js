@@ -602,23 +602,29 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType, page: entryPage } = splitEntryKey(key)
-    const isAppPage =
-      entryType === 'app' &&
-      currentEntrypoints.app.get(entryPage)?.type === 'app-page'
+    const { type: entryType, page } = splitEntryKey(key)
 
-    // Server HMR only applies to app router pages since these use the Turbopack runtime.
-    // Currently, this is only app router pages.
-    //
-    // This excludes:
-    //   - Pages Router pages
-    //   - Edge routes
-    //   - Middleware
-    //   - App Router route handlers (route.ts)
+    // Server HMR applies to all App Router entries built with the Turbopack
+    // Node.js runtime: both app pages and route handlers. Edge routes,
+    // Pages Router pages, and middleware/instrumentation do not use the
+    // Turbopack Node.js dev runtime and are excluded.
     const usesServerHmr =
       experimentalServerFastRefresh &&
-      isAppPage &&
+      entryType === 'app' &&
       writtenEndpoint.type !== 'edge'
+
+    // Route handlers (app-route) reference userland exports directly via
+    // AppRouteRouteModule.userland, captured at module instantiation time.
+    // Unlike app pages which use __next_app__.require() for dynamic devModuleCache
+    // lookup, route handler exports are static. After HMR updates devModuleCache,
+    // we must re-execute the entry chunk so requirePage() picks up fresh exports.
+    const isAppRoute =
+      usesServerHmr &&
+      writtenEndpoint.type === 'nodejs' &&
+      currentEntrypoints.app.get(page)?.type === 'app-route'
+    const entryAbsPath = isAppRoute
+      ? join(distDir, writtenEndpoint.entryPath)
+      : null
 
     const filesToDelete: string[] = []
     for (const file of serverPaths) {
@@ -626,12 +632,16 @@ export async function createHotReloaderTurbopack(
 
       const relativePath = relative(distDir, file)
       if (
-        // For Pages Router, edge routes, middleware, and manifest files
-        // (e.g., *_client-reference-manifest.js): clear the sharedCache in
-        // evalManifest(), Node.js require.cache, and edge runtime module contexts.
+        // For Pages Router, edge routes, middleware, and manifest files:
+        // clear the sharedCache in evalManifest(), Node.js require.cache,
+        // and edge runtime module contexts.
         force ||
         !usesServerHmr ||
-        !serverHmrSubscriptions?.has(relativePath)
+        !serverHmrSubscriptions?.has(relativePath) ||
+        // For app route handlers: always clear the entry chunk so the next
+        // requirePage() call re-executes it and picks up updated module exports
+        // from devModuleCache after HMR fires.
+        file === entryAbsPath
       ) {
         filesToDelete.push(file)
       }
