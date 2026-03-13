@@ -18,11 +18,11 @@ use turbo_tasks::{
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    turbo::parallel_scheduler::TurboTasksParallelScheduler,
     write_batch::{ConcurrentWriteBatch, WriteBuffer},
 };
 
 mod parallel_scheduler;
+pub(crate) use parallel_scheduler::TurboTasksParallelScheduler;
 
 /// Number of key families, see [`KeySpace`] enum for their numbers.
 pub const FAMILIES: usize = 4;

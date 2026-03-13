@@ -14,7 +14,7 @@ mod utils;
 use std::path::Path;
 
 use anyhow::Result;
-use turbo_persistence::{CompactConfig, SerialScheduler, TurboPersistence};
+use turbo_persistence::{CompactConfig, TurboPersistence};
 
 use crate::database::{
     noop_kv::NoopKvDb,
@@ -61,13 +61,21 @@ pub fn noop_backing_storage() -> NoopBackingStorage {
 /// Opens a Turbopack persistent cache database at the given base path and performs a full
 /// compaction. This is intended for use by the `next internal post-build` CLI command to optimize
 /// the database after a build, without requiring the full turbo-tasks runtime.
+///
+/// A multi-threaded Tokio runtime is created internally to drive the parallel scheduler.
 pub fn compact_database(
     base_path: &Path,
     version_info: &GitVersionInfo,
     is_ci: bool,
 ) -> Result<()> {
     let versioned_path = handle_db_versioning(base_path, version_info, is_ci)?;
-    let db = TurboPersistence::<SerialScheduler, { turbo::FAMILIES }>::open_with_config(
+    // Use the same parallel scheduler as the normal runtime path. This requires a
+    // Tokio runtime for `block_in_place` and parallel work-stealing.
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+    let _guard = runtime.enter();
+    let db = TurboPersistence::<turbo::TurboTasksParallelScheduler, { turbo::FAMILIES }>::open_with_config(
         versioned_path,
         turbo::DB_CONFIG,
     )?;
