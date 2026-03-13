@@ -120,6 +120,9 @@ importers:
       '@next/mdx':
         specifier: workspace:*
         version: link:packages/next-mdx
+      '@next/playwright':
+        specifier: workspace:*
+        version: link:packages/next-playwright
       '@next/plugin-storybook':
         specifier: workspace:*
         version: link:packages/next-plugin-storybook
@@ -763,7 +766,7 @@ importers:
         version: 9.37.0(jiti@2.6.1)
       eslint-config-next:
         specifier: canary
-        version: 16.2.0-canary.77(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2))(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2)
+        version: 16.2.0-canary.91(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2))(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2)
       tailwindcss:
         specifier: 4.1.13
         version: 4.1.13
@@ -1014,7 +1017,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 16.2.0-canary.94
+        specifier: 16.2.0-canary.95
         version: link:../eslint-plugin-next
       eslint:
         specifier: '>=9.0.0'
@@ -1091,7 +1094,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 16.2.0-canary.94
+        specifier: 16.2.0-canary.95
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.15
@@ -1216,19 +1219,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 16.2.0-canary.94
+        specifier: 16.2.0-canary.95
         version: link:../font
       '@next/polyfill-module':
-        specifier: 16.2.0-canary.94
+        specifier: 16.2.0-canary.95
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 16.2.0-canary.94
+        specifier: 16.2.0-canary.95
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 16.2.0-canary.94
+        specifier: 16.2.0-canary.95
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 16.2.0-canary.94
+        specifier: 16.2.0-canary.95
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1953,7 +1956,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.2.0-canary.94
+        specifier: 16.2.0-canary.95
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -4468,8 +4471,8 @@ packages:
   '@next/env@16.0.8':
     resolution: {integrity: sha512-xP4WrQZuj9MdmLJy3eWFHepo+R3vznsMSS8Dy3wdA7FKpjCiesQ6DxZvdGziQisj0tEtCgBKJzjcAc4yZOgLEQ==}
 
-  '@next/eslint-plugin-next@16.2.0-canary.77':
-    resolution: {integrity: sha512-4p+uljMaSpu8BDE5wcPEgTZGqs7LDLgSrQK2Mnbd/2QhguNPUrGJ0XmPOru9xNylTubHozPJX2dcdqP+XxYUSQ==}
+  '@next/eslint-plugin-next@16.2.0-canary.91':
+    resolution: {integrity: sha512-vAc4mOQQtSvtEptf+stRvUCS0pXF5m4R9pJIkbjE5CHrvmjplMiwHN/nGiWCdlVm8OiPBf3h4ZYkEysOr32jdQ==}
 
   '@next/rspack-binding-android-arm-eabi@1.0.2':
     resolution: {integrity: sha512-ayoNrm5Z9xYIHdYfhUSvzPzNXRunMXx5B6Bonch9pJBfyC/3tUlcqVlI5+1HS+H4euWtPMeGqe8bARjQ71J/ug==}
@@ -10103,8 +10106,8 @@ packages:
     engines: {node: '>=6.0'}
     hasBin: true
 
-  eslint-config-next@16.2.0-canary.77:
-    resolution: {integrity: sha512-T2HaHZEVBjKoXw3gvXFZrn5bqDAmCYzA+bt6U8HBddZIuw1gqpHuo3M7VySGHabQBbnHlHCBCjrbE7OQlslpFQ==}
+  eslint-config-next@16.2.0-canary.91:
+    resolution: {integrity: sha512-mdmW3ceuoxE6U0Mlj4VzfTxe9Qlm3YqEY8aDCNIsvxeBtSNSeLR17URzzuciOHRlOvd4CrSoZOHIiveI8jPZvg==}
     peerDependencies:
       eslint: '>=9.0.0'
       typescript: '>=3.3.1'
@@ -11149,15 +11152,15 @@ packages:
 
   glob@7.1.6:
     resolution: {integrity: sha512-LwaxwyZ72Lk7vZINtNNrywX0ZuLyStrdDtabefZKAY5ZGJhVtgdznluResxNmPitE0SAO+O26sWTHeKSI2wMBA==}
-    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+    deprecated: Glob versions prior to v9 are no longer supported
 
   glob@7.1.7:
     resolution: {integrity: sha512-OvD9ENzPLbegENnYP5UUfJIirTg4+XwMWGaQfQTY0JenxNvvIKP3U3/tAQSPIu/lHxXYSZmpXlUHeqAIdKzBLQ==}
-    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+    deprecated: Glob versions prior to v9 are no longer supported
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+    deprecated: Glob versions prior to v9 are no longer supported
 
   glob@9.3.5:
     resolution: {integrity: sha512-e1LleDykUz2Iu+MTYdkSsuWX8lvAjAcs0Xef0lNIu0S2wOAzuTxCJtcd9S3cijlwYF18EsU3rzb8jPVobxDh9Q==}
@@ -17532,7 +17535,7 @@ packages:
   superagent@3.8.3:
     resolution: {integrity: sha512-GLQtLMCoEIK4eDv6OGtkOoSMt3D+oq0y3dsxMuYuDvaNUvuT8eFBuLmfR0iYYzHC1e8hpzC6ZsxbuP6DIalMFA==}
     engines: {node: '>= 4.0'}
-    deprecated: Please upgrade to superagent v10.2.2+, see release notes at https://github.com/forwardemail/superagent/releases/tag/v10.2.2 - maintenance is supported by Forward Email @ https://forwardemail.net
+    deprecated: Please upgrade to v7.0.2+ of superagent.  We have fixed numerous issues with streams, form-data, attach(), filesystem errors not bubbling up (ENOENT on attach()), and all tests are now passing.  See the releases tab for more information at <https://github.com/visionmedia/superagent/releases>.
 
   superstruct@1.0.3:
     resolution: {integrity: sha512-8iTn3oSS8nRGn+C2pgXSKPI3jmpm6FExNazNpjvqS6ZUJQCej3PUXEKM8NjHBOs54ExM+LPW/FBRhymrdcCiSg==}
@@ -21947,7 +21950,7 @@ snapshots:
 
   '@next/env@16.0.8': {}
 
-  '@next/eslint-plugin-next@16.2.0-canary.77':
+  '@next/eslint-plugin-next@16.2.0-canary.91':
     dependencies:
       fast-glob: 3.3.1
 
@@ -28396,9 +28399,9 @@ snapshots:
     optionalDependencies:
       source-map: 0.6.1
 
-  eslint-config-next@16.2.0-canary.77(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2))(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2):
+  eslint-config-next@16.2.0-canary.91(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2))(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2):
     dependencies:
-      '@next/eslint-plugin-next': 16.2.0-canary.77
+      '@next/eslint-plugin-next': 16.2.0-canary.91
       eslint: 9.37.0(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.2))(eslint-plugin-import@2.32.0)(eslint@9.37.0(jiti@2.6.1))

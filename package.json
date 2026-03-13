@@ -146,6 +146,7 @@
     "@next/polyfill-module": "workspace:*",
     "@next/polyfill-nomodule": "workspace:*",
     "@next/swc": "workspace:*",
+    "@next/playwright": "workspace:*",
     "@next/third-parties": "workspace:*",
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",

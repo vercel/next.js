@@ -258,7 +258,7 @@ async function revalidate(
       `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
     )
   }
-  const revalidateHeaders: HeadersInit = {
+  const headers: HeadersInit = {
     [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
     ...(opts.unstable_onlyGenerated
       ? {
@@ -280,7 +280,7 @@ async function revalidate(
 
   for (const key of Object.keys(req.headers)) {
     if (allowedRevalidateHeaderKeys.includes(key)) {
-      revalidateHeaders[key] = req.headers[key] as string
+      headers[key] = req.headers[key] as string
     }
   }
 
@@ -293,7 +293,7 @@ async function revalidate(
     if (internalRevalidate) {
       return await internalRevalidate({
         urlPath,
-        revalidateHeaders,
+        headers,
         opts,
       })
     }
@@ -301,7 +301,7 @@ async function revalidate(
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
         method: 'HEAD',
-        headers: revalidateHeaders,
+        headers,
       })
       // we use the cache header to determine successful revalidate as
       // a non-200 status code can be returned from a successful revalidate
