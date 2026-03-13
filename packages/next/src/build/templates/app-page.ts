@@ -102,6 +102,10 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes'
+import {
+  getParamProperties,
+  getSegmentParam,
+} from '../../shared/lib/router/utils/get-segment-param'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -123,6 +127,22 @@ export const routeModule = new AppPageRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
+function buildDynamicSegmentPlaceholder(
+  param: Pick<FallbackRouteParam, 'paramName' | 'paramType'>
+): string {
+  const { repeat, optional } = getParamProperties(param.paramType)
+
+  if (optional) {
+    return `[[...${param.paramName}]]`
+  }
+
+  if (repeat) {
+    return `[...${param.paramName}]`
+  }
+
+  return `[${param.paramName}]`
+}
+
 /**
  * Builds the cache key for the most complete prerenderable shell we can derive
  * from the shell that matched this request. Only params that can still be
@@ -135,28 +155,42 @@ function buildCompletedShellCacheKey(
   remainingPrerenderableParams: readonly FallbackRouteParam[],
   params: Record<string, undefined | string | string[]> | undefined
 ): string {
-  let completedPathname = fallbackPathname
+  const prerenderableParamsByName = new Map(
+    remainingPrerenderableParams.map((param) => [param.paramName, param])
+  )
 
-  for (const { paramName, paramType } of remainingPrerenderableParams) {
-    const value = params?.[paramName]
-    if (!value) {
-      continue
-    }
+  return (
+    fallbackPathname
+      .split('/')
+      .map((segment) => {
+        const segmentParam = getSegmentParam(segment)
+        if (!segmentParam) {
+          return segment
+        }
 
-    const placeholder = paramType.startsWith('optional-catchall')
-      ? `[[...${paramName}]]`
-      : paramType.startsWith('catchall')
-        ? `[...${paramName}]`
-        : `[${paramName}]`
+        const remainingParam = prerenderableParamsByName.get(
+          segmentParam.paramName
+        )
+        if (!remainingParam) {
+          return segment
+        }
 
-    const encodedValue = Array.isArray(value)
-      ? value.map((item) => encodeURIComponent(item)).join('/')
-      : encodeURIComponent(value)
+        const value = params?.[remainingParam.paramName]
+        if (!value) {
+          return segment
+        }
 
-    completedPathname = completedPathname.replaceAll(placeholder, encodedValue)
-  }
+        const encodedValue = Array.isArray(value)
+          ? value.map((item) => encodeURIComponent(item)).join('/')
+          : encodeURIComponent(value)
 
-  return completedPathname
+        return segment.replace(
+          buildDynamicSegmentPlaceholder(remainingParam),
+          encodedValue
+        )
+      })
+      .join('/') || '/'
+  )
 }
 
 export async function handler(
