@@ -1,0 +1,15 @@
+[package]
+name = "swc_plugin_backend_wasmtime"
+edition = "2024"
+version = "0.0.0"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+once_cell = { workspace = true }
+swc_plugin_runner = { version = "24.0.0", default-features = false }
+wasmtime = { workspace = true }
+wasmtime-wasi = { workspace = true }

@@ -12,6 +12,7 @@ members = [
   "crates/next-core",
   "crates/next-custom-transforms",
   "crates/next-taskless",
+  "crates/swc-plugin-backend-wasmtime",
   "turbopack/crates/*",
   "turbopack/crates/*/fuzz",
   "turbopack/xtask",
@@ -69,7 +70,7 @@ opt-level = 3
 [profile.release.package.next-api]
 opt-level = 3
 
-[profile.release.package.wasmer-wasix]
+[profile.release.package.swc_plugin_backend_wasmtime]
 opt-level = "s"
 
 [profile.release.package.cranelift-codegen]
@@ -150,9 +151,6 @@ opt-level = 3
 [profile.release.package.auto-hash-map]
 opt-level = 3
 
-[profile.release.package.webc]
-opt-level = "s"
-
 [profile.release.package.turbopack-nodejs]
 opt-level = 3
 
@@ -190,12 +188,6 @@ opt-level = "s"
 opt-level = "s"
 
 [profile.release.package.swc_ecma_compat_es2022]
-opt-level = "s"
-
-[profile.release.package.wasmer-config]
-opt-level = "s"
-
-[profile.release.package.wasmer-compiler]
 opt-level = "s"
 
 [profile.release.package.swc_ecma_utils]
@@ -246,19 +238,7 @@ opt-level = 3
 [profile.release.package.serde]
 opt-level = 3
 
-[profile.release.package.wasmer]
-opt-level = "s"
-
-[profile.release.package.wasmer-vm]
-opt-level = "s"
-
-[profile.release.package.wasmer-compiler-cranelift]
-opt-level = "s"
-
 [profile.release.package.regalloc2]
-opt-level = "s"
-
-[profile.release.package.swc_plugin_backend_wasmer]
 opt-level = "s"
 
 [profile.release.package.globset]
@@ -342,8 +322,10 @@ swc_core = { version = "57.0.0", features = [
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-swc_plugin_backend_wasmer = { version = "7.0.0" }
+swc_plugin_backend_wasmtime = { path = "crates/swc-plugin-backend-wasmtime" }
 testing = "19.0.0"
+wasmtime = { version = "29", default-features = false, features = ["cranelift", "runtime"] }
+wasmtime-wasi = { version = "29", default-features = false, features = ["preview1"] }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
