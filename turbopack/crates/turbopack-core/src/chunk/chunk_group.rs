@@ -81,7 +81,7 @@ pub async fn make_chunk_group(
     )
     .await?;
 
-    let async_modules_info = module_graph.async_module_info().await?;
+    let async_module_info = module_graph.async_module_info();
 
     // Attach async info to chunkable modules
     let mut chunk_items = chunkable_items
@@ -90,7 +90,7 @@ pub async fn make_chunk_group(
         .map(|m| {
             ChunkItemOrBatchWithAsyncModuleInfo::from_chunkable_module_or_batch(
                 m,
-                &async_modules_info,
+                async_module_info,
                 module_graph,
                 *chunking_context,
             )
