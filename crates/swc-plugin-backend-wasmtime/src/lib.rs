@@ -1,8 +1,7 @@
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
 use once_cell::sync::Lazy;
 use swc_plugin_runner::runtime;
-use wasmtime::AsContextMut;
 
 /// Identifier for bytecode cache stored in local filesystem.
 ///
@@ -38,8 +37,11 @@ struct WasmtimeCache {
     module: wasmtime::Module,
 }
 
+// WasmtimeInstance needs to wrap Store in a way that satisfies Send + Sync.
+// Store itself is Send but not Sync, so we use an UnsafeCell wrapper.
 struct WasmtimeInstance {
-    store: wasmtime::Store<StoreState>,
+    // Store is !Sync, but we ensure single-threaded access via &mut self methods
+    store: std::cell::UnsafeCell<wasmtime::Store<StoreState>>,
     module: wasmtime::Module,
 
     memory: wasmtime::Memory,
@@ -48,20 +50,15 @@ struct WasmtimeInstance {
     transform_func: wasmtime::TypedFunc<(u32, u32, u32, u32), u32>,
 }
 
+// SAFETY: WasmtimeInstance is Sync because all access to store goes through &mut self,
+// ensuring single-threaded access. The swc_plugin_runner framework enforces this.
+unsafe impl Sync for WasmtimeInstance {}
+
 struct WasmtimeCaller<'a> {
     memory: wasmtime::Memory,
-    alloc_func: wasmtime::TypedFunc<u32, u32>,
-    free_func: wasmtime::TypedFunc<(u32, u32), u32>,
+    alloc_func: &'a wasmtime::TypedFunc<u32, u32>,
+    free_func: &'a wasmtime::TypedFunc<(u32, u32), u32>,
     store: &'a mut wasmtime::Store<StoreState>,
-}
-
-/// Caller adapter used inside host function callbacks.
-/// Wasmtime's `Caller<'_, StoreState>` provides store access directly.
-struct WasmtimeCallerRef<'a> {
-    memory: wasmtime::Memory,
-    alloc_func: wasmtime::TypedFunc<u32, u32>,
-    free_func: wasmtime::TypedFunc<(u32, u32), u32>,
-    caller: wasmtime::Caller<'a, StoreState>,
 }
 
 /// The wasmtime-based SWC plugin runtime.
@@ -83,7 +80,7 @@ impl runtime::Runtime for WasmtimeRuntime {
 
     fn init(
         &self,
-        name: &str,
+        _name: &str,
         imports: Vec<(String, runtime::Func)>,
         envs: Vec<(String, String)>,
         module: runtime::Module,
@@ -165,9 +162,10 @@ impl runtime::Runtime for WasmtimeRuntime {
         )?;
 
         // Store handles in the table for host function callbacks
+        // Clone the TypedFunc values since they need to be used in multiple places
         store.data_mut().table.memory = Some(memory);
-        store.data_mut().table.alloc_func = Some(alloc_func);
-        store.data_mut().table.free_func = Some(free_func);
+        store.data_mut().table.alloc_func = Some(alloc_func.clone());
+        store.data_mut().table.free_func = Some(free_func.clone());
 
         // Handshake: call diagnostics function to verify plugin initialization
         instance
@@ -175,7 +173,7 @@ impl runtime::Runtime for WasmtimeRuntime {
             .call(&mut store, ())?;
 
         Ok(Box::new(WasmtimeInstance {
-            store,
+            store: std::cell::UnsafeCell::new(store),
             module,
             memory,
             alloc_func,
@@ -221,9 +219,11 @@ impl runtime::Instance for WasmtimeInstance {
         unresolved_mark: u32,
         should_enable_comments_proxy: u32,
     ) -> anyhow::Result<u32> {
+        // SAFETY: We have &mut self, ensuring exclusive access to the store
+        let store = unsafe { &mut *self.store.get() };
         self.transform_func
             .call(
-                &mut self.store,
+                store,
                 (
                     program_ptr,
                     program_len,
@@ -235,11 +235,13 @@ impl runtime::Instance for WasmtimeInstance {
     }
 
     fn caller(&mut self) -> anyhow::Result<Box<dyn runtime::Caller<'_> + '_>> {
+        // SAFETY: We have &mut self, ensuring exclusive access to the store
+        let store = unsafe { &mut *self.store.get() };
         Ok(Box::new(WasmtimeCaller {
             memory: self.memory,
-            alloc_func: self.alloc_func,
-            free_func: self.free_func,
-            store: &mut self.store,
+            alloc_func: &self.alloc_func,
+            free_func: &self.free_func,
+            store,
         }))
     }
 
@@ -286,42 +288,6 @@ impl<'a> runtime::Caller<'a> for WasmtimeCaller<'a> {
     }
 }
 
-impl<'a> runtime::Caller<'a> for WasmtimeCallerRef<'a> {
-    fn read_buf(&self, ptr: u32, buf: &mut [u8]) -> anyhow::Result<()> {
-        let data = self.memory.data(&self.caller);
-        let start = ptr as usize;
-        let end = start + buf.len();
-        if end > data.len() {
-            anyhow::bail!("read out of bounds: {}..{} > {}", start, end, data.len());
-        }
-        buf.copy_from_slice(&data[start..end]);
-        Ok(())
-    }
-
-    fn write_buf(&mut self, ptr: u32, buf: &[u8]) -> anyhow::Result<()> {
-        let data = self.memory.data_mut(&mut self.caller);
-        let start = ptr as usize;
-        let end = start + buf.len();
-        if end > data.len() {
-            anyhow::bail!("write out of bounds: {}..{} > {}", start, end, data.len());
-        }
-        data[start..end].copy_from_slice(buf);
-        Ok(())
-    }
-
-    fn alloc(&mut self, size: u32) -> anyhow::Result<u32> {
-        self.alloc_func
-            .call(&mut self.caller, size)
-            .map_err(Into::into)
-    }
-
-    fn free(&mut self, ptr: u32, size: u32) -> anyhow::Result<u32> {
-        self.free_func
-            .call(&mut self.caller, (ptr, size))
-            .map_err(Into::into)
-    }
-}
-
 /// Register a single host function with the wasmtime linker under the "env" module.
 ///
 /// This bridges the `runtime::Func` closure interface to wasmtime's host function mechanism.
@@ -344,43 +310,89 @@ fn register_host_func(
         results.iter().cloned(),
     );
 
-    let func = Arc::new(func);
+    let func_inner = func.func;
+    let sign = func.sign;
     linker.func_new(
         "env",
         name,
         func_type,
         move |mut caller, args, results_out| {
-            // Extract handles from store state. These were set after instantiation.
-            let memory = caller
-                .data()
-                .table
-                .memory
-                .expect("memory not set in store state");
-            let alloc_func = caller
-                .data()
-                .table
-                .alloc_func
-                .expect("alloc_func not set in store state");
-            let free_func = caller
-                .data()
-                .table
-                .free_func
-                .expect("free_func not set in store state");
-
-            let mut adapter = WasmtimeCallerRef {
-                memory,
-                alloc_func,
-                free_func,
-                caller,
-            };
-
-            let input: Vec<runtime::Value> = args[..func.sign.0 as usize]
+            let input: Vec<runtime::Value> = args[..sign.0 as usize]
                 .iter()
                 .map(|v| v.unwrap_i32())
                 .collect();
-            let mut output = vec![0i32; func.sign.1 as usize];
+            let mut output = vec![0i32; sign.1 as usize];
 
-            (func.func)(&mut adapter, &input, &mut output);
+            // Use a raw pointer to work around lifetime constraints.
+            // SAFETY: The pointer is only dereferenced within this closure,
+            // and we ensure the original caller is not moved or dropped until after all uses.
+            let caller_ptr: *mut wasmtime::Caller<StoreState> = &mut caller;
+
+            struct UnsafeCaller {
+                caller_ptr: *mut wasmtime::Caller<'static, StoreState>,
+            }
+
+            impl<'a> runtime::Caller<'a> for UnsafeCaller {
+                fn read_buf(&self, ptr: u32, buf: &mut [u8]) -> anyhow::Result<()> {
+                    // SAFETY: caller_ptr is valid for the duration of the outer closure
+                    let caller = unsafe { &*self.caller_ptr };
+                    let memory = caller.data().table.memory.expect("memory not set");
+                    let data = memory.data(caller);
+                    let start = ptr as usize;
+                    let end = start + buf.len();
+                    if end > data.len() {
+                        anyhow::bail!("read out of bounds: {}..{} > {}", start, end, data.len());
+                    }
+                    buf.copy_from_slice(&data[start..end]);
+                    Ok(())
+                }
+
+                fn write_buf(&mut self, ptr: u32, buf: &[u8]) -> anyhow::Result<()> {
+                    // SAFETY: caller_ptr is valid for the duration of the outer closure
+                    let caller = unsafe { &mut *self.caller_ptr };
+                    let memory = caller.data().table.memory.expect("memory not set");
+                    let data = memory.data_mut(caller);
+                    let start = ptr as usize;
+                    let end = start + buf.len();
+                    if end > data.len() {
+                        anyhow::bail!("write out of bounds: {}..{} > {}", start, end, data.len());
+                    }
+                    data[start..end].copy_from_slice(buf);
+                    Ok(())
+                }
+
+                fn alloc(&mut self, size: u32) -> anyhow::Result<u32> {
+                    // SAFETY: caller_ptr is valid for the duration of the outer closure
+                    let caller = unsafe { &mut *self.caller_ptr };
+                    let alloc_func = caller
+                        .data()
+                        .table
+                        .alloc_func
+                        .as_ref()
+                        .expect("alloc not set")
+                        .clone();
+                    alloc_func.call(caller, size).map_err(Into::into)
+                }
+
+                fn free(&mut self, ptr: u32, size: u32) -> anyhow::Result<u32> {
+                    // SAFETY: caller_ptr is valid for the duration of the outer closure
+                    let caller = unsafe { &mut *self.caller_ptr };
+                    let free_func = caller
+                        .data()
+                        .table
+                        .free_func
+                        .as_ref()
+                        .expect("free not set")
+                        .clone();
+                    free_func.call(caller, (ptr, size)).map_err(Into::into)
+                }
+            }
+
+            let mut unsafe_caller = UnsafeCaller {
+                caller_ptr: unsafe { std::mem::transmute(caller_ptr) },
+            };
+
+            (func_inner)(&mut unsafe_caller, &input, &mut output);
 
             for (i, v) in output.into_iter().enumerate() {
                 results_out[i] = wasmtime::Val::I32(v);
