@@ -34,6 +34,9 @@ pub enum ModuleSideEffects {
 }
 
 /// A module. This usually represents parsed source code, which has references to other modules.
+///
+/// For documentation about where this is used and how it fits into the rest of Turbopack, see
+/// [`crate::_layers`].
 #[turbo_tasks::value_trait]
 pub trait Module {
     /// The identifier of the [`Module`]. It's expected to be unique and capture all properties of

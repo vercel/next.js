@@ -26,8 +26,10 @@ pub trait OutputAssetsReference {
     }
 }
 
-/// An asset that should be outputted, e. g. written to disk or served from a
-/// server.
+/// An asset that should be outputted, e. g. written to disk or served from a server.
+///
+/// For documentation about where this is used and how it fits into the rest of Turbopack, see
+/// [`crate::_layers`].
 #[turbo_tasks::value_trait]
 pub trait OutputAsset: Asset + OutputAssetsReference {
     /// The identifier of the [OutputAsset]. It's expected to be unique and
