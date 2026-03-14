@@ -3,7 +3,7 @@ import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { createServer } from 'http'
 import { spawn } from 'child_process'
-import { parseTraceFile } from 'parse-trace-file'
+import { parseTraceFile } from '../../../lib/parse-trace-file'
 
 describe('enabled features in trace', () => {
   const { next, isNextDev } = nextTestSetup({

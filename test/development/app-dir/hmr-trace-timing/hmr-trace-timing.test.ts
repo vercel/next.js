@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import { parseTraceFile } from 'parse-trace-file'
+import { parseTraceFile } from '../../../lib/parse-trace-file'
 
 describe('render-path tracing', () => {
   const { next, isNextDev } = nextTestSetup({

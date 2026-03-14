@@ -4,7 +4,7 @@ import { waitFor } from 'next-test-utils'
 import fs from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
-import { parseTraceEvents } from 'parse-trace-file'
+import { parseTraceEvents } from '../../lib/parse-trace-file'
 
 async function getDirectorySize(dirPath: string): Promise<number> {
   try {
@@ -441,57 +441,6 @@ for (const cacheEnabled of [false, true]) {
           expect(typeof tags.snapshot_duration_ms).toBe('number')
           expect(typeof tags.persist_duration_ms).toBe('number')
           expect(typeof tags.task_count).toBe('number')
-        }
-      )
-
-      // Production-only: verify that SSG and persistence flush are
-      // independent operations (not sequential dependencies).  The
-      // turbopack-persistence span is a child of turbopack-build-events,
-      // while static-generation is a sibling — if SSG were blocked on
-      // the shutdown promise, the persistence span would not appear in
-      // trace-build (the iterator would not be drained).
-      ;(process.env.IS_TURBOPACK_TEST && !isNextDev ? it : it.skip)(
-        'should run SSG in parallel with persistence flush',
-        async () => {
-          // beforeEach already called start() which triggers a build.
-          // The trace-build file was written during that build.
-          const traceBuildPath = path.join(next.testDir, '.next/trace-build')
-          expect(existsSync(traceBuildPath)).toBe(true)
-
-          const events = parseTraceEvents(traceBuildPath)
-          const eventsById = new Map(events.map((e) => [e.id, e]))
-
-          const ssgEvents = events.filter((e) => e.name === 'static-generation')
-          const persistenceEvents = events.filter(
-            (e) => e.name === 'turbopack-persistence'
-          )
-
-          // Both spans must exist: persistence proves the compilation
-          // events iterator was properly drained after shutdown, and
-          // static-generation proves SSG ran to completion.
-          expect(ssgEvents.length).toBe(1)
-          expect(persistenceEvents.length).toBeGreaterThan(0)
-
-          const ssg = ssgEvents[0]
-          const persistence = persistenceEvents[0]
-
-          // Verify they are independent: persistence must NOT be an
-          // ancestor of static-generation (which would mean SSG was
-          // blocked waiting for persistence).
-          function getAncestorIds(event: (typeof events)[0]): Set<number> {
-            const ancestors = new Set<number>()
-            let current = event
-            while (current.parentId != null) {
-              ancestors.add(current.parentId as number)
-              const parent = eventsById.get(current.parentId)
-              if (!parent) break
-              current = parent
-            }
-            return ancestors
-          }
-
-          const ssgAncestors = getAncestorIds(ssg)
-          expect(ssgAncestors.has(persistence.id as number)).toBe(false)
         }
       )
     }

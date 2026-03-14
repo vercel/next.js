@@ -1,6 +1,6 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { join } from 'path'
-import { parseTraceEvents } from 'parse-trace-file'
+import { parseTraceEvents } from '../../lib/parse-trace-file'
 
 describe('build-failed-trace', () => {
   if (!isNextStart) {
