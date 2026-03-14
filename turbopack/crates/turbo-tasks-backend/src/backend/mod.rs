@@ -2797,18 +2797,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         let snapshot = this.snapshot_and_persist(None, reason, turbo_tasks);
                         if let Some((snapshot_start, new_data)) = snapshot {
                             last_snapshot = snapshot_start;
-                            if !new_data {
-                                fresh_idle = false;
-                                continue;
-                            }
-                            let last_snapshot = last_snapshot.duration_since(self.start_time);
-                            self.last_snapshot.store(
-                                last_snapshot.as_millis().try_into().unwrap(),
-                                Ordering::Relaxed,
-                            );
 
-                            // Repeat compaction while idle (up to 10 times)
-                            for _ in 0..10 {
+                            // Compact while idle (up to limit), regardless of
+                            // whether the snapshot had new data.
+                            const MAX_IDLE_COMPACTION_PASSES: usize = 10;
+                            for _ in 0..MAX_IDLE_COMPACTION_PASSES {
                                 let idle_ended = tokio::select! {
                                     biased;
                                     _ = &mut idle_end_listener => {
@@ -2822,9 +2815,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 }
                                 match self.backing_storage.compact() {
                                     Ok(true) => {}
-                                    Ok(false) | Err(_) => break,
+                                    Ok(false) => break,
+                                    Err(err) => {
+                                        eprintln!("Compaction failed: {err:?}");
+                                        break;
+                                    }
                                 }
                             }
+
+                            if !new_data {
+                                fresh_idle = false;
+                                continue;
+                            }
+                            let last_snapshot = last_snapshot.duration_since(self.start_time);
+                            self.last_snapshot.store(
+                                last_snapshot.as_millis().try_into().unwrap(),
+                                Ordering::Relaxed,
+                            );
 
                             turbo_tasks.schedule_backend_background_job(
                                 TurboTasksBackendJob::FollowUpSnapshot,

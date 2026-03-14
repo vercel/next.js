@@ -27,6 +27,8 @@ mod parallel_scheduler;
 /// Number of key families, see KeySpace enum for their numbers.
 const FAMILIES: usize = 4;
 
+const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction";
+
 const MB: u64 = 1024 * 1024;
 const COMPACT_CONFIG: CompactConfig = CompactConfig {
     min_merge_count: 3,
@@ -115,7 +117,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         }
         do_compact(
             &self.db,
-            "Finished filesystem cache database compaction",
+            COMPACTION_MESSAGE,
             available_parallelism().map_or(4, |c| max(4, c.get() / 2)),
         )
     }
@@ -126,16 +128,12 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         if !self.is_fresh {
             if self.is_ci {
                 // Fully compact in CI to reduce cache size
-                do_compact(
-                    &self.db,
-                    "Finished filesystem cache database compaction",
-                    usize::MAX,
-                )?;
+                do_compact(&self.db, COMPACTION_MESSAGE, usize::MAX)?;
             } else {
                 // Compact with a reasonable limit in non-CI environments
                 do_compact(
                     &self.db,
-                    "Finished filesystem cache database compaction",
+                    COMPACTION_MESSAGE,
                     available_parallelism().map_or(4, |c| max(4, c.get())),
                 )?;
             }
