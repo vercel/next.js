@@ -1,10 +1,12 @@
+import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
+import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { retry } from 'next-test-utils'
 
 const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
 
 describe('partial-fallback-shell-upgrade', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI
@@ -14,6 +16,29 @@ describe('partial-fallback-shell-upgrade', () => {
   if (isNextDev) {
     it('skipped in dev', () => {})
     return
+  }
+
+  async function fetchSplitHTML(pathname: string) {
+    let response: Awaited<ReturnType<typeof next.fetch>> | undefined
+    const [staticPart, dynamicPart] = await splitResponseWithPPRSentinel(
+      async () => {
+        response = await next.fetch(pathname)
+        expect(response.status).toBe(200)
+
+        if (!response.body) {
+          throw new Error(`Expected a streamed response body for ${pathname}`)
+        }
+
+        return response.body
+      }
+    )
+
+    return {
+      response: response!,
+      staticPart,
+      dynamicPart,
+      static$: cheerio.load(staticPart),
+    }
   }
 
   it('should upgrade the fallback shell to a route shell', async () => {
@@ -48,4 +73,72 @@ describe('partial-fallback-shell-upgrade', () => {
       'no-gsp fallback shell should remain unupgraded'
     )
   })
+
+  // TODO: Re-enable once infra supports multiple layers of fallbacks
+  if (!isNextDeploy) {
+    it('should upgrade a generic shell into the most specific prerendered shell', async () => {
+      const firstResult = await fetchSplitHTML('/prefix/c/foo')
+
+      expect(firstResult.response.status).toBe(200)
+      expect(firstResult.static$('#one').length).toBe(0)
+      expect(firstResult.static$('#one-fallback').text()).toBe('loading one...')
+      expect(firstResult.static$('#two-fallback').length).toBe(0)
+      expect(firstResult.static$('#two').length).toBe(0)
+      expect(firstResult.dynamicPart).toContain('<div id="one">c</div>')
+      expect(firstResult.dynamicPart).toContain('<div id="two">foo</div>')
+
+      await retry(async () => {
+        const secondResult = await fetchSplitHTML('/prefix/c/bar')
+
+        expect(secondResult.response.status).toBe(200)
+        expect(secondResult.static$('#one').text()).toBe('c')
+        expect(secondResult.static$('#one-fallback').length).toBe(0)
+        expect(secondResult.static$('#two-fallback').text()).toBe(
+          'loading two...'
+        )
+        expect(secondResult.static$('#two').length).toBe(0)
+        expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
+        expect(secondResult.dynamicPart).not.toContain(
+          '<div id="two">foo</div>'
+        )
+      })
+    })
+
+    it('should not keep upgrading once only fully dynamic params remain', async () => {
+      const firstResult = await fetchSplitHTML('/prefix/b/foo')
+      const start = Date.now()
+
+      expect(firstResult.response.status).toBe(200)
+      expect(firstResult.static$('#one').text()).toBe('b')
+      expect(firstResult.static$('#one-fallback').length).toBe(0)
+      expect(firstResult.static$('#two-fallback').text()).toBe('loading two...')
+      expect(firstResult.static$('#two').length).toBe(0)
+      expect(firstResult.dynamicPart).toContain('<div id="two">foo</div>')
+
+      await retry(
+        async () => {
+          const secondResult = await fetchSplitHTML('/prefix/b/bar')
+
+          expect(secondResult.response.status).toBe(200)
+          expect(secondResult.static$('#one').text()).toBe('b')
+          expect(secondResult.static$('#one-fallback').length).toBe(0)
+          expect(secondResult.static$('#two-fallback').text()).toBe(
+            'loading two...'
+          )
+          expect(secondResult.static$('#two').length).toBe(0)
+          expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
+          expect(secondResult.dynamicPart).not.toContain(
+            '<div id="two">foo</div>'
+          )
+
+          if (Date.now() - start < 5000) {
+            throw new Error('continue polling more complete shell')
+          }
+        },
+        6000,
+        500,
+        'shell should remain partial when remaining params are dynamic'
+      )
+    })
+  }
 })
