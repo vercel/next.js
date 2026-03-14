@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use either::Either;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
@@ -268,7 +269,7 @@ impl Display for ConstantValue {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
     pub module: Wtf8Atom,
-    pub annotations: ImportAnnotations,
+    pub annotations: Option<Arc<ImportAnnotations>>,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -799,7 +800,16 @@ impl Display for JsValue {
                 module: name,
                 annotations,
             }) => {
-                write!(f, "Module({}, {annotations})", name.to_string_lossy())
+                write!(
+                    f,
+                    "Module({}, {})",
+                    name.to_string_lossy(),
+                    if let Some(annotations) = annotations {
+                        Either::Left(annotations)
+                    } else {
+                        Either::Right("{}")
+                    }
+                )
             }
             JsValue::Unknown { .. } => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
@@ -1618,7 +1628,15 @@ impl JsValue {
                 module: name,
                 annotations,
             }) => {
-                format!("module<{}, {annotations}>", name.to_string_lossy())
+                format!(
+                    "module<{}, {}>",
+                    name.to_string_lossy(),
+                    if let Some(annotations) = annotations {
+                        Either::Left(annotations)
+                    } else {
+                        Either::Right("{}")
+                    }
+                )
             }
             JsValue::Unknown {
                 original_value: inner,
@@ -3527,9 +3545,7 @@ pub mod test_utils {
     };
     use crate::{
         analyzer::{
-            RequireContextValue,
-            builtin::replace_builtin,
-            imports::{ImportAnnotations, ImportAttributes},
+            RequireContextValue, builtin::replace_builtin, imports::ImportAttributes,
             parse_require_context,
         },
         utils::module_value_to_well_known_object,
@@ -3557,7 +3573,7 @@ pub mod test_utils {
                 JsValue::Constant(ConstantValue::Str(v)) => {
                     JsValue::promise(JsValue::Module(ModuleValue {
                         module: v.as_atom().into_owned().into(),
-                        annotations: ImportAnnotations::default(),
+                        annotations: None,
                     }))
                 }
                 _ => v.into_unknown(true, "import() non constant"),

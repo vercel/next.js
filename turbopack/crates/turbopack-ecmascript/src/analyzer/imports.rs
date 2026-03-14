@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display, sync::Arc};
 
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -60,10 +60,8 @@ static ANNOTATION_CHUNKING_TYPE: Lazy<Wtf8Atom> =
 static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
 
 impl ImportAnnotations {
-    pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
-        let Some(with) = with else {
-            return ImportAnnotations::default();
-        };
+    pub fn parse(with: Option<&ObjectLit>) -> Option<ImportAnnotations> {
+        let with = with?;
 
         let mut map = BTreeMap::new();
         let mut turbopack_loader_name: Option<RcStr> = None;
@@ -148,11 +146,19 @@ impl ImportAnnotations {
             options: turbopack_loader_options,
         });
 
-        ImportAnnotations {
-            map,
-            turbopack_loader,
-            turbopack_rename_as,
-            turbopack_module_type,
+        if !map.is_empty()
+            || turbopack_loader.is_some()
+            || turbopack_rename_as.is_some()
+            || turbopack_module_type.is_some()
+        {
+            Some(ImportAnnotations {
+                map,
+                turbopack_loader,
+                turbopack_rename_as,
+                turbopack_module_type,
+            })
+        } else {
+            None
         }
     }
 
@@ -181,12 +187,16 @@ impl ImportAnnotations {
             );
         }
 
-        Some(ImportAnnotations {
-            map,
-            turbopack_loader: None,
-            turbopack_rename_as: None,
-            turbopack_module_type: None,
-        })
+        if !map.is_empty() {
+            Some(ImportAnnotations {
+                map,
+                turbopack_loader: None,
+                turbopack_rename_as: None,
+                turbopack_module_type: None,
+            })
+        } else {
+            None
+        }
     }
 
     /// Returns the content on the transition annotation
@@ -395,7 +405,7 @@ pub(crate) enum ImportedSymbol {
 pub(crate) struct ImportMapReference {
     pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
-    pub annotations: ImportAnnotations,
+    pub annotations: Option<Arc<ImportAnnotations>>,
     pub issue_source: Option<IssueSource>,
 }
 
@@ -581,7 +591,7 @@ impl Analyzer<'_> {
         span: Span,
         module_path: Wtf8Atom,
         imported_symbol: ImportedSymbol,
-        annotations: ImportAnnotations,
+        annotations: Option<ImportAnnotations>,
     ) -> Option<usize> {
         let issue_source = self
             .source
@@ -591,7 +601,7 @@ impl Analyzer<'_> {
             module_path,
             imported_symbol,
             issue_source,
-            annotations,
+            annotations: annotations.map(Arc::new),
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
             Some(i)
@@ -897,11 +907,11 @@ impl Visit for Analyzer<'_> {
                 _ => None,
             };
 
-            let attributes = parse_directives(comments, n.args.first());
-
-            if let Some((callee_span, attributes)) = callee_span.zip(attributes) {
+            if let Some(callee_span) = callee_span
+                && let Some(attributes) = parse_directives(comments, n.args.first())
+            {
                 self.data.attributes.insert(callee_span.lo, attributes);
-            };
+            }
         }
 
         n.visit_children_with(self);
@@ -915,11 +925,11 @@ impl Visit for Analyzer<'_> {
                 _ => None,
             };
 
-            let attributes = parse_directives(comments, n.args.iter().flatten().next());
-
-            if let Some((callee_span, attributes)) = callee_span.zip(attributes) {
+            if let Some(callee_span) = callee_span
+                && let Some(attributes) = parse_directives(comments, n.args.iter().flatten().next())
+            {
                 self.data.attributes.insert(callee_span.lo, attributes);
-            };
+            }
         }
 
         n.visit_children_with(self);
@@ -1069,7 +1079,7 @@ mod tests {
             props: vec![kv_prop(ident_key("turbopackLoader"), str_lit("raw-loader"))],
         };
 
-        let annotations = ImportAnnotations::parse(Some(&with));
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
         assert!(annotations.has_turbopack_loader());
 
         let loader = annotations.turbopack_loader().unwrap();
@@ -1091,7 +1101,7 @@ mod tests {
             ],
         };
 
-        let annotations = ImportAnnotations::parse(Some(&with));
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
         assert!(annotations.has_turbopack_loader());
 
         let loader = annotations.turbopack_loader().unwrap();
@@ -1107,7 +1117,7 @@ mod tests {
             props: vec![kv_prop(ident_key("type"), str_lit("json"))],
         };
 
-        let annotations = ImportAnnotations::parse(Some(&with));
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
         assert!(!annotations.has_turbopack_loader());
         assert!(annotations.module_type().is_some());
     }
@@ -1115,7 +1125,6 @@ mod tests {
     #[test]
     fn test_parse_empty_with() {
         let annotations = ImportAnnotations::parse(None);
-        assert!(!annotations.has_turbopack_loader());
-        assert!(annotations.module_type().is_none());
+        assert!(annotations.is_none());
     }
 }
