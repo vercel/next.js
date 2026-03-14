@@ -13,6 +13,8 @@ related:
 
 The `next/root-params` module provides getter functions for accessing root-level [parameters](/docs/app/api-reference/file-conventions/dynamic-routes) in [**Server Components**](/docs/app/glossary#server-component). Each root parameter is exported as an async function that resolves to the parameter value for the current route.
 
+The export names are generated from your dynamic segment folder names. For example, if your root layout is inside `app/[locale]`, you import `locale` from `next/root-params`.
+
 This is useful for values like a language or locale segment that need to be accessed across your application, for example in shared utilities, layouts, and deeply nested components, without passing them down as props.
 
 ```tsx filename="app/[lang]/layout.tsx" highlight={1,5} switcher
