@@ -1,8 +1,10 @@
+import '../node-environment-baseline'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
   expectNoPendingImmediates,
+  unpatchedSetImmediate,
 } from './fast-set-immediate.external'
 import { createAtomicTimerGroup } from '../app-render/app-render-scheduling'
 
@@ -1441,5 +1443,24 @@ describe('error recovery', () => {
         }
       )
     })
+  })
+})
+
+describe('module re-evaluation', () => {
+  it('keeps unpatchedSetImmediate bound to the base original', () => {
+    const baseUnpatchedSetImmediate = unpatchedSetImmediate
+
+    for (let i = 0; i < 3; i++) {
+      const previousPatchedSetImmediate = globalThis.setImmediate
+      jest.resetModules()
+
+      const reloaded =
+        require('./fast-set-immediate.external') as typeof import('./fast-set-immediate.external')
+
+      expect(reloaded.unpatchedSetImmediate).toBe(baseUnpatchedSetImmediate)
+      expect(reloaded.unpatchedSetImmediate).not.toBe(
+        previousPatchedSetImmediate
+      )
+    }
   })
 })

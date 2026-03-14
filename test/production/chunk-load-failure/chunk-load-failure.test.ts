@@ -30,7 +30,7 @@ describe('chunk-load-failure', () => {
     let pageError: Error | undefined
     const browser = await next.browser('/dynamic', {
       beforePageLoad(page) {
-        page.route('**/' + nextDynamicChunk, async (route) => {
+        page.route(`**/${nextDynamicChunk}*`, async (route) => {
           await route.abort('connectionreset')
         })
         page.on('pageerror', (error: Error) => {
@@ -41,8 +41,8 @@ describe('chunk-load-failure', () => {
 
     await retry(async () => {
       const body = await browser.elementByCss('body')
-      // Client errors show "This page crashed"
-      expect(await body.text()).toMatch(/This page crashed/)
+      // Client errors show "This page couldn\u2019t load"
+      expect(await body.text()).toMatch(/This page couldn\u2019t load/)
     })
 
     expect(pageError).toBeDefined()
@@ -64,7 +64,7 @@ describe('chunk-load-failure', () => {
     try {
       const browser = await next.browser('/dynamic', {
         beforePageLoad(page) {
-          page.route('**/' + nextDynamicChunk, async (route) => {
+          page.route(`**/${nextDynamicChunk}*`, async (route) => {
             // deterministically ensure that the async chunk is still loading during the navigation
             await new Promise((r) => {
               resolve = r

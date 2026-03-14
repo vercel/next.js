@@ -6,7 +6,6 @@ import type {
 } from '../../../build/swc/types'
 
 import { bold, green, magenta, red } from '../../../lib/picocolors'
-import isInternal from '../is-internal'
 import { deobfuscateText } from '../magic-identifier'
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
@@ -127,31 +126,8 @@ export function formatIssue(issue: Issue) {
   }
   message += '\n'
 
-  if (
-    source?.range &&
-    source.source.content &&
-    // ignore Next.js/React internals, as these can often be huge bundled files.
-    !isInternal(filePath)
-  ) {
-    const { start, end } = source.range
-    const { codeFrameColumns } =
-      require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
-
-    message +=
-      codeFrameColumns(
-        source.source.content,
-        {
-          start: {
-            line: start.line + 1,
-            column: start.column + 1,
-          },
-          end: {
-            line: end.line + 1,
-            column: end.column + 1,
-          },
-        },
-        { forceColor: true }
-      ).trim() + '\n\n'
+  if (issue.codeFrame) {
+    message += issue.codeFrame.trimEnd() + '\n\n'
   }
 
   if (description) {
@@ -314,10 +290,4 @@ export function isFileSystemCacheEnabledForDev(
   config: NextConfigComplete
 ): boolean {
   return config.experimental?.turbopackFileSystemCacheForDev || false
-}
-
-export function isFileSystemCacheEnabledForBuild(
-  config: NextConfigComplete
-): boolean {
-  return config.experimental?.turbopackFileSystemCacheForBuild || false
 }

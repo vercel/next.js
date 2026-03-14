@@ -86,6 +86,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1080",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -128,7 +129,7 @@ describe('Cache Components Errors', () => {
                "Route "/dynamic-metadata-static-route" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
                Error occurred prerendering page "/dynamic-metadata-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/dynamic-metadata-static-route/page: /dynamic-metadata-static-route"
               `)
           } else {
@@ -151,6 +152,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1084",
              "description": "Data that blocks navigation was accessed outside of <Suspense>
 
            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -194,13 +196,19 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at main (<anonymous>)
-                   at body (<anonymous>)
-                   at html (<anonymous>)
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
+                   at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
+                   at Page (app/dynamic-metadata-error-route/page.tsx:15:7)
+                 18 | }
+                 19 |
+               > 20 | async function Dynamic() {
+                    |                ^
+                 21 |   await new Promise((r) => setTimeout(r))
+                 22 |   return <p id="dynamic">Dynamic</p>
+                 23 | }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/dynamic-metadata-error-route/page: /dynamic-metadata-error-route"
               `)
             } else {
@@ -220,11 +228,19 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at <FIXME-library-internal>
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
+                   at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
+                   at Page (webpack:///app/dynamic-metadata-error-route/page.tsx:15:7)
+                 18 | }
+                 19 |
+               > 20 | async function Dynamic() {
+                    |                ^
+                 21 |   await new Promise((r) => setTimeout(r))
+                 22 |   return <p id="dynamic">Dynamic</p>
+                 23 | }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/dynamic-metadata-error-route/page: /dynamic-metadata-error-route"
               `)
             } else {
@@ -275,6 +291,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1080",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -317,7 +334,7 @@ describe('Cache Components Errors', () => {
                "Route "/dynamic-metadata-static-with-suspense" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
                Error occurred prerendering page "/dynamic-metadata-static-with-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/dynamic-metadata-static-with-suspense/page: /dynamic-metadata-static-with-suspense"
               `)
           } else {
@@ -365,6 +382,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1077",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -407,7 +425,7 @@ describe('Cache Components Errors', () => {
              "Route "/dynamic-viewport-static-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
              Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
-             > Export encountered errors on following paths:
+             > Export encountered errors on 1 path:
              	/dynamic-viewport-static-route/page: /dynamic-viewport-static-route"
             `)
           } else {
@@ -430,6 +448,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1077",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -472,7 +491,7 @@ describe('Cache Components Errors', () => {
              "Route "/dynamic-viewport-dynamic-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
              Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
-             > Export encountered errors on following paths:
+             > Export encountered errors on 1 path:
              	/dynamic-viewport-dynamic-route/page: /dynamic-viewport-dynamic-route"
             `)
           } else {
@@ -515,6 +534,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
+               "code": "E1084",
                "description": "Data that blocks navigation was accessed outside of <Suspense>
 
            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -540,6 +560,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
+               "code": "E1084",
                "description": "Data that blocks navigation was accessed outside of <Suspense>
 
            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -584,26 +605,32 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at IndirectionTwo (app/dynamic-root/indirection.tsx:7:34)
-                   at main (<anonymous>)
-                   at body (<anonymous>)
-                   at html (<anonymous>)
-                  5 | }
-                  6 |
-               >  7 | export function IndirectionTwo({ children }) {
-                    |                                  ^
-                  8 |   return children
-                  9 | }
-                 10 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+                   at fetchRandom (app/dynamic-root/page.tsx:62:16)
+                   at FetchingComponent (app/dynamic-root/page.tsx:46:56)
+                   at Page (app/dynamic-root/page.tsx:23:9)
+                 60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
+                 61 |   // correct owner stack for the error.
+               > 62 |   await cookies()
+                    |                ^
+                 63 |   const response = await fetch(
+                 64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
+                 65 |   )
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at main (<anonymous>)
-                   at body (<anonymous>)
-                   at html (<anonymous>)
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+                   at fetchRandom (app/dynamic-root/page.tsx:62:16)
+                   at FetchingComponent (app/dynamic-root/page.tsx:46:56)
+                   at Page (app/dynamic-root/page.tsx:28:7)
+                 60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
+                 61 |   // correct owner stack for the error.
+               > 62 |   await cookies()
+                    |                ^
+                 63 |   const response = await fetch(
+                 64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
+                 65 |   )
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/dynamic-root/page: /dynamic-root"
               `)
             } else {
@@ -638,22 +665,32 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at IndirectionTwo (webpack:///app/dynamic-root/indirection.tsx:7:34)
-                   at <FIXME-library-internal>
-                  5 | }
-                  6 |
-               >  7 | export function IndirectionTwo({ children }) {
-                    |                                  ^
-                  8 |   return children
-                  9 | }
-                 10 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+                   at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
+                   at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
+                   at Page (webpack:///app/dynamic-root/page.tsx:23:9)
+                 60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
+                 61 |   // correct owner stack for the error.
+               > 62 |   await cookies()
+                    |                ^
+                 63 |   const response = await fetch(
+                 64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
+                 65 |   )
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at <FIXME-library-internal>
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+                   at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
+                   at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
+                   at Page (webpack:///app/dynamic-root/page.tsx:28:7)
+                 60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
+                 61 |   // correct owner stack for the error.
+               > 62 |   await cookies()
+                    |                ^
+                 63 |   const response = await fetch(
+                 64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
+                 65 |   )
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/dynamic-root/page: /dynamic-root"
               `)
             } else {
@@ -762,6 +799,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-random-with-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -793,6 +831,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                      at RandomReadingComponent (app/sync-random-with-fallback/page.tsx:37:23)
+                     at Page (app/sync-random-with-fallback/page.tsx:18:11)
                    35 |     use(new Promise((r) => process.nextTick(r)))
                    36 |   }
                  > 37 |   const random = Math.random()
@@ -800,16 +839,17 @@ describe('Cache Components Errors', () => {
                    38 |   return (
                    39 |     <div>
                    40 |       <span id="rand">{random}</span>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-random-with-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-random-with-fallback/page: /sync-random-with-fallback"
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                      at RandomReadingComponent (webpack:///app/sync-random-with-fallback/page.tsx:37:23)
+                     at Page (webpack:///app/sync-random-with-fallback/page.tsx:18:11)
                    35 |     use(new Promise((r) => process.nextTick(r)))
                    36 |   }
                  > 37 |   const random = Math.random()
@@ -817,10 +857,10 @@ describe('Cache Components Errors', () => {
                    38 |   return (
                    39 |     <div>
                    40 |       <span id="rand">{random}</span>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-random-with-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-random-with-fallback/page: /sync-random-with-fallback"
                 `)
               }
@@ -871,6 +911,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-random-without-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -904,6 +945,7 @@ describe('Cache Components Errors', () => {
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                      at getRandomNumber (app/sync-random-without-fallback/page.tsx:32:15)
                      at RandomReadingComponent (app/sync-random-without-fallback/page.tsx:40:18)
+                     at Page (app/sync-random-without-fallback/page.tsx:18:11)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -911,10 +953,10 @@ describe('Cache Components Errors', () => {
                    33 | }
                    34 |
                    35 | function RandomReadingComponent() {
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-random-without-fallback/page: /sync-random-without-fallback"
                 `)
               } else {
@@ -922,6 +964,7 @@ describe('Cache Components Errors', () => {
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                      at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
                      at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:18)
+                     at Page (webpack:///app/sync-random-without-fallback/page.tsx:18:11)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -929,10 +972,10 @@ describe('Cache Components Errors', () => {
                    33 | }
                    34 |
                    35 | function RandomReadingComponent() {
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-random-without-fallback/page: /sync-random-without-fallback"
                 `)
               }
@@ -993,6 +1036,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": null,
                "label": "Console Error",
@@ -1162,9 +1206,8 @@ describe('Cache Components Errors', () => {
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
                      at CookiesReadingComponent (app/sync-cookies/page.tsx:18:36)
-                     at stringify (<anonymous>)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1173,7 +1216,7 @@ describe('Cache Components Errors', () => {
                    digest: '<error-digest>'
                  }
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-cookies/page: /sync-cookies"
                 `)
               } else {
@@ -1181,9 +1224,8 @@ describe('Cache Components Errors', () => {
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
                      at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:18:36)
-                     at stringify (<anonymous>)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1192,7 +1234,7 @@ describe('Cache Components Errors', () => {
                    digest: '<error-digest>'
                  }
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-cookies/page: /sync-cookies"
                 `)
               }
@@ -1204,7 +1246,7 @@ describe('Cache Components Errors', () => {
                      at a (app/sync-cookies/page.tsx:18:36)
                      at b (<anonymous>)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1498,9 +1540,8 @@ describe('Cache Components Errors', () => {
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
                      at HeadersReadingComponent (app/sync-headers/page.tsx:18:40)
-                     at stringify (<anonymous>)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1509,7 +1550,7 @@ describe('Cache Components Errors', () => {
                    digest: '<error-digest>'
                  }
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-headers/page: /sync-headers"
                 `)
               } else {
@@ -1517,9 +1558,8 @@ describe('Cache Components Errors', () => {
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
                      at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:18:40)
-                     at stringify (<anonymous>)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1528,7 +1568,7 @@ describe('Cache Components Errors', () => {
                    digest: '<error-digest>'
                  }
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-headers/page: /sync-headers"
                 `)
               }
@@ -1540,7 +1580,7 @@ describe('Cache Components Errors', () => {
                      at a (app/sync-headers/page.tsx:18:40)
                      at b (<anonymous>)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1682,19 +1722,20 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(`${pathname}/test`)
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                 "environmentLabel": null,
-                 "label": "Console Error",
-                 "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
-               > 20 |       <span id="param">{String(params.slug)}</span>
-                    |                                       ^",
-                 "stack": [
-                   "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
-                   "Page app/sync-client-params/[slug]/page.tsx (11:7)",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": null,
+               "label": "Console Error",
+               "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
+             > 20 |       <span id="param">{String(params.slug)}</span>
+                  |                                       ^",
+               "stack": [
+                 "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
+                 "Page app/sync-client-params/[slug]/page.tsx (11:7)",
+               ],
+             }
+            `)
           })
         }
       })
@@ -1774,6 +1815,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -1805,6 +1847,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1812,16 +1855,17 @@ describe('Cache Components Errors', () => {
                    6 |
                    7 |   return (
                    8 |     <main>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync"
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1829,10 +1873,10 @@ describe('Cache Components Errors', () => {
                    6 |
                    7 |   return (
                    8 |     <main>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync"
                 `)
               }
@@ -1883,6 +1927,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
              This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -1927,18 +1972,19 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at section (<anonymous>)
-                     at main (<anonymous>)
-                     at RenderFromTemplateContext (<anonymous>)
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                     at RenderFromTemplateContext (<anonymous>)
-                     at RenderFromTemplateContext (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
+                     at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
+                     at Page (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
+                   32 |
+                   33 | async function RequestData() {
+                 > 34 |   ;(await cookies()).get('foo')
+                      |                  ^
+                   35 |   return (
+                   36 |     <div>
+                   37 |       <h2>Request Data Access</h2>
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-attribution/unguarded-async-guarded-clientsync/page: /sync-attribution/unguarded-async-guarded-clientsync"
                 `)
               } else {
@@ -1960,13 +2006,19 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at section (<anonymous>)
-                     at main (<anonymous>)
-                     at <FIXME-library-internal>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
+                     at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
+                     at Page (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
+                   32 |
+                   33 | async function RequestData() {
+                 > 34 |   ;(await cookies()).get('foo')
+                      |                  ^
+                   35 |   return (
+                   36 |     <div>
+                   37 |       <h2>Request Data Access</h2>
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-attribution/unguarded-async-guarded-clientsync/page: /sync-attribution/unguarded-async-guarded-clientsync"
                 `)
               } else {
@@ -2034,6 +2086,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -2065,6 +2118,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2072,16 +2126,17 @@ describe('Cache Components Errors', () => {
                    6 |
                    7 |   return (
                    8 |     <main>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync"
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2089,10 +2144,10 @@ describe('Cache Components Errors', () => {
                    6 |
                    7 |   return (
                    8 |     <main>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync"
                 `)
               }
@@ -2140,18 +2195,19 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
-               > 22 |     await cookies()
-                    |                  ^",
-                 "stack": [
-                   "CookiesReadingComponent app/use-cache-cookies/page.tsx (22:18)",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
+             > 22 |     await cookies()
+                  |                  ^",
+               "stack": [
+                 "CookiesReadingComponent app/use-cache-cookies/page.tsx (22:18)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2178,10 +2234,10 @@ describe('Cache Components Errors', () => {
                    23 |   } catch {}
                    24 |
                    25 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-cookies/page: /use-cache-cookies"
                 `)
               } else {
@@ -2214,10 +2270,10 @@ describe('Cache Components Errors', () => {
                    23 |   } catch {}
                    24 |
                    25 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-cookies/page: /use-cache-cookies"
                 `)
               } else {
@@ -2245,18 +2301,19 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
-               > 20 |     ;(await draftMode()).enable()
-                    |                          ^",
-                 "stack": [
-                   "DraftModeEnablingComponent app/use-cache-draft-mode/page.tsx (20:26)",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
+             > 20 |     ;(await draftMode()).enable()
+                  |                          ^",
+               "stack": [
+                 "DraftModeEnablingComponent app/use-cache-draft-mode/page.tsx (20:26)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2283,10 +2340,10 @@ describe('Cache Components Errors', () => {
                    21 |   } catch {}
                    22 |
                    23 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-draft-mode/page: /use-cache-draft-mode"
                 `)
               } else {
@@ -2300,10 +2357,10 @@ describe('Cache Components Errors', () => {
                    21 |   } catch {}
                    22 |
                    23 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-draft-mode/page: /use-cache-draft-mode"
                 `)
               }
@@ -2349,18 +2406,19 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
-               > 21 |     await headers()
-                    |                  ^",
-                 "stack": [
-                   "HeadersReadingComponent app/use-cache-headers/page.tsx (21:18)",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
+             > 21 |     await headers()
+                  |                  ^",
+               "stack": [
+                 "HeadersReadingComponent app/use-cache-headers/page.tsx (21:18)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2387,10 +2445,10 @@ describe('Cache Components Errors', () => {
                    22 |   } catch {}
                    23 |
                    24 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-headers". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-headers/page: /use-cache-headers"
                 `)
               } else {
@@ -2423,10 +2481,10 @@ describe('Cache Components Errors', () => {
                    22 |   } catch {}
                    23 |
                    24 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-headers". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-headers/page: /use-cache-headers"
                 `)
               } else {
@@ -2454,6 +2512,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
                This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -2497,13 +2556,18 @@ describe('Cache Components Errors', () => {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
+                       at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
+                     1 | import { cacheLife } from 'next/cache'
+                     2 |
+                   > 3 | export default async function Page() {
+                       |                ^
+                     4 |   'use cache: remote'
+                     5 |
+                     6 |   cacheLife({ expire: 299 }) // 1 second below the threshold of 5 minutes
+                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                   > Export encountered errors on following paths:
+                   > Export encountered errors on 1 path:
                    	/use-cache-low-expire/fast/page: /use-cache-low-expire/fast"
                   `)
                 } else {
@@ -2521,15 +2585,12 @@ describe('Cache Components Errors', () => {
                 }
               } else {
                 if (isDebugPrerender) {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at <FIXME-library-internal>
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                   > Export encountered errors on following paths:
-                   	/use-cache-low-expire/fast/page: /use-cache-low-expire/fast"
-                  `)
+                  // Webpack does not ignore the stack frame that points into
+                  // Next.js internals, and is also flaky on resolving the exact
+                  // location, so we don't assert on the stack frames here.
+                  expect(output).toInclude(
+                    'Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2586,6 +2647,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
                This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -2629,13 +2691,18 @@ describe('Cache Components Errors', () => {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
+                       at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
+                     1 | import { cacheLife } from 'next/cache'
+                     2 |
+                   > 3 | export default async function Page() {
+                       |                ^
+                     4 |   'use cache: remote'
+                     5 |
+                     6 |   cacheLife({ expire: 299 }) // 1 second below the threshold of 5 minutes
+                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                   > Export encountered errors on following paths:
+                   > Export encountered errors on 1 path:
                    	/use-cache-low-expire/slow/page: /use-cache-low-expire/slow"
                   `)
                 } else {
@@ -2653,15 +2720,12 @@ describe('Cache Components Errors', () => {
                 }
               } else {
                 if (isDebugPrerender) {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at <FIXME-library-internal>
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                   > Export encountered errors on following paths:
-                   	/use-cache-low-expire/slow/page: /use-cache-low-expire/slow"
-                  `)
+                  // Webpack does not ignore the stack frame that points into
+                  // Next.js internals, and is also flaky on resolving the exact
+                  // location, so we don't assert on the stack frames here.
+                  expect(output).toInclude(
+                    'Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2718,6 +2782,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": "A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -2755,10 +2820,10 @@ describe('Cache Components Errors', () => {
                      21 |   } catch {}
                      22 |
                      23 |   return (
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                   > Export encountered errors on following paths:
+                   > Export encountered errors on 1 path:
                    	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
                   `)
                 } else {
@@ -2791,10 +2856,10 @@ describe('Cache Components Errors', () => {
                      21 |   } catch {}
                      22 |
                      23 |   return (
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                   > Export encountered errors on following paths:
+                   > Export encountered errors on 1 path:
                    	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
                   `)
                 } else {
@@ -2822,6 +2887,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
                This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -2865,13 +2931,18 @@ describe('Cache Components Errors', () => {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
+                       at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
+                     1 | import { cacheLife } from 'next/cache'
+                     2 |
+                   > 3 | export default async function Page() {
+                       |                ^
+                     4 |   'use cache: remote'
+                     5 |
+                     6 |   cacheLife({ revalidate: 0 })
+                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                   > Export encountered errors on following paths:
+                   > Export encountered errors on 1 path:
                    	/use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast"
                   `)
                 } else {
@@ -2889,15 +2960,12 @@ describe('Cache Components Errors', () => {
                 }
               } else {
                 if (isDebugPrerender) {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at <FIXME-library-internal>
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                   > Export encountered errors on following paths:
-                   	/use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast"
-                  `)
+                  // Webpack does not ignore the stack frame that points into
+                  // Next.js internals, and is also flaky on resolving the exact
+                  // location, so we don't assert on the stack frames here.
+                  expect(output).toInclude(
+                    'Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2954,6 +3022,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
+                 "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
                This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -2997,13 +3066,18 @@ describe('Cache Components Errors', () => {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
+                       at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
+                     1 | import { cacheLife } from 'next/cache'
+                     2 |
+                   > 3 | export default async function Page() {
+                       |                ^
+                     4 |   'use cache: remote'
+                     5 |
+                     6 |   cacheLife({ revalidate: 0 })
+                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                   > Export encountered errors on following paths:
+                   > Export encountered errors on 1 path:
                    	/use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow"
                   `)
                 } else {
@@ -3021,15 +3095,12 @@ describe('Cache Components Errors', () => {
                 }
               } else {
                 if (isDebugPrerender) {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at <FIXME-library-internal>
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                   > Export encountered errors on following paths:
-                   	/use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow"
-                  `)
+                  // Webpack does not ignore the stack frame that points into
+                  // Next.js internals, and is also flaky on resolving the exact
+                  // location, so we don't assert on the stack frames here.
+                  expect(output).toInclude(
+                    'Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3088,6 +3159,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": "A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3125,10 +3197,10 @@ describe('Cache Components Errors', () => {
                      21 |   } catch {}
                      22 |
                      23 |   return (
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                   > Export encountered errors on following paths:
+                   > Export encountered errors on 1 path:
                    	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
                   `)
                 } else {
@@ -3161,10 +3233,10 @@ describe('Cache Components Errors', () => {
                      21 |   } catch {}
                      22 |
                      23 |   return (
-                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                   > Export encountered errors on following paths:
+                   > Export encountered errors on 1 path:
                    	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
                   `)
                 } else {
@@ -3191,6 +3263,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
              This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -3232,13 +3305,15 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                     at Page [Server] (<anonymous>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
+                     at Root [Server] (<anonymous>)
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-params/[slug]/page: /use-cache-params/[slug]"
                 `)
               } else {
@@ -3258,11 +3333,12 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                     at Page [Server] (<anonymous>)
                      at <FIXME-library-internal>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-params/[slug]/page: /use-cache-params/[slug]"
                 `)
               } else {
@@ -3360,7 +3436,13 @@ describe('Cache Components Errors', () => {
                "⨯ Error: Kaputt!
                    at throwAnError (<next-dist-dir>)
                    at ThrowingComponent (<next-dist-dir>)
-                   at Object.then (<next-dist-dir>) {
+                   at Object.then (<next-dist-dir>)
+                   at resolveErrorDev (<next-dist-dir>)
+                   at processFullStringRow (<next-dist-dir>)
+                   at processFullBinaryRow (<next-dist-dir>)
+                   at processBinaryChunk (<next-dist-dir>)
+                   at progress (<next-dist-dir>) {
+                 environmentName: 'Cache',
                  digest: '<error-digest>'
                }"
               `)
@@ -3421,12 +3503,15 @@ describe('Cache Components Errors', () => {
 
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "⨯ Error: Kaputt!
+               "Error: Kaputt!
                    at throwAnError (<next-dist-dir>)
-                   at Object.then (<next-dist-dir>) {
-                 digest: '<error-digest>'
-               }
-               [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+                   at Object.then (<next-dist-dir>)
+                   at resolveErrorDev (<next-dist-dir>)
+                   at processFullStringRow (<next-dist-dir>)
+                   at processFullBinaryRow (<next-dist-dir>)
+                   at processBinaryChunk (<next-dist-dir>)
+                   at progress (<next-dist-dir>) {
+                 environmentName: 'Cache',
                  digest: '<error-digest>'
                }"
               `)
@@ -3458,6 +3543,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3473,6 +3559,7 @@ describe('Cache Components Errors', () => {
             } else {
               await expect(browser).toDisplayRedbox(`
                {
+                 "code": "E394",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3513,10 +3600,10 @@ describe('Cache Components Errors', () => {
                    22 |   'use cache: private'
                    23 |
                    24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
                 `)
               } else {
@@ -3531,10 +3618,10 @@ describe('Cache Components Errors', () => {
                    22 |   'use cache: private'
                    23 |
                    24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
                 `)
               }
@@ -3583,19 +3670,20 @@ describe('Cache Components Errors', () => {
             )
 
             await expect(browser).toDisplayRedbox(`
-               {
-                 "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
-               > 15 | async function Private() {
-                    | ^",
-                 "stack": [
-                   "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
-                   "stringify <anonymous>",
-                 ],
-               }
-              `)
+             {
+               "code": "E394",
+               "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
+             > 15 | async function Private() {
+                  | ^",
+               "stack": [
+                 "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                 "stringify <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -3614,9 +3702,8 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at stringify (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -3626,29 +3713,16 @@ describe('Cache Components Errors', () => {
                    18 |   return <p>Private</p> {
                    digest: '<error-digest>'
                  }
-                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at stringify (<anonymous>)
-                   13 | }
-                   14 |
-                 > 15 | async function Private() {
-                      | ^
-                   16 |   'use cache: private'
-                   17 |
-                   18 |   return <p>Private</p> {
-                   digest: '<error-digest>'
-                 }
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
                 `)
               } else
                 expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at stringify (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -3658,22 +3732,10 @@ describe('Cache Components Errors', () => {
                    18 |   return <p>Private</p> {
                    digest: '<error-digest>'
                  }
-                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at stringify (<anonymous>)
-                   13 | }
-                   14 |
-                 > 15 | async function Private() {
-                      | ^
-                   16 |   'use cache: private'
-                   17 |
-                   18 |   return <p>Private</p> {
-                   digest: '<error-digest>'
-                 }
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
                 `)
             } else {
@@ -3742,6 +3804,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
              This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -3786,13 +3849,19 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                     at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
+                     at Page (app/use-cache-private-without-suspense/page.tsx:10:7)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
+                 > Export encountered errors on 1 path:
                  	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
                 `)
               } else {
@@ -3810,15 +3879,12 @@ describe('Cache Components Errors', () => {
               }
             } else {
               if (isDebugPrerender) {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at <FIXME-library-internal>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                 > Export encountered errors on following paths:
-                 	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
-                `)
+                // Webpack does not ignore the stack frame that points into
+                // Next.js internals, and is also flaky on resolving the exact
+                // location, so we don't assert on the stack frames here.
+                expect(output).toInclude(
+                  'Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                )
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3915,6 +3981,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-current-time/date" used \`Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -3946,32 +4013,34 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date" used \`Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
+                   at Page (app/sync-io-current-time/date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date()}</div>
                     |                ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-current-time/date/page: /sync-io-current-time/date"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date" used \`Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
+                   at Page (webpack:///app/sync-io-current-time/date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date()}</div>
                     |                ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-current-time/date/page: /sync-io-current-time/date"
               `)
             }
@@ -4017,6 +4086,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-current-time/date-now" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4048,32 +4118,34 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
+                   at Page (app/sync-io-current-time/date-now/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date.now()}</div>
                     |                     ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-current-time/date-now/page: /sync-io-current-time/date-now"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
+                   at Page (webpack:///app/sync-io-current-time/date-now/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date.now()}</div>
                     |                     ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-current-time/date-now/page: /sync-io-current-time/date-now"
               `)
             }
@@ -4119,6 +4191,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-current-time/new-date" used \`new Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4150,32 +4223,34 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date" used \`new Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
+                   at Page (app/sync-io-current-time/new-date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{new Date().toString()}</div>
                     |                ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-current-time/new-date/page: /sync-io-current-time/new-date"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date" used \`new Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
+                   at Page (webpack:///app/sync-io-current-time/new-date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{new Date().toString()}</div>
                     |                ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-current-time/new-date/page: /sync-io-current-time/new-date"
               `)
             }
@@ -4221,6 +4296,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-random/math-random" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4252,32 +4328,34 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
+                   at Page (app/sync-io-random/math-random/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Math.random()}</div>
                     |                     ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-random/math-random/page: /sync-io-random/math-random"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
+                   at Page (webpack:///app/sync-io-random/math-random/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Math.random()}</div>
                     |                     ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-random/math-random/page: /sync-io-random/math-random"
               `)
             }
@@ -4323,6 +4401,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-web-crypto/get-random-value" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4354,6 +4433,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
+                   at Page (app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
                  18 |   await new Promise((r) => process.nextTick(r))
                  19 |   const buffer = new Uint8Array(8)
                > 20 |   crypto.getRandomValues(buffer)
@@ -4361,16 +4441,17 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{buffer.toString()}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
+                   at Page (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
                  18 |   await new Promise((r) => process.nextTick(r))
                  19 |   const buffer = new Uint8Array(8)
                > 20 |   crypto.getRandomValues(buffer)
@@ -4378,10 +4459,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{buffer.toString()}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value"
               `)
             }
@@ -4428,6 +4509,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E394",
              "description": "Route "/sync-io-web-crypto/random-uuid" used \`crypto.randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -4459,32 +4541,34 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid" used \`crypto.randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
+                   at Page (app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{crypto.randomUUID()}</div>
                     |                       ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid" used \`crypto.randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
+                   at Page (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{crypto.randomUUID()}</div>
                     |                       ^
                  20 | }
                  21 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid"
               `)
             }
@@ -4531,6 +4615,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-key-pair-sync" used \`require('node:crypto').generateKeyPairSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4546,6 +4631,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-key-pair-sync" used \`require('node:crypto').generateKeyPairSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4578,6 +4664,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync" used \`require('node:crypto').generateKeyPairSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
+                   at Page (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
@@ -4585,10 +4672,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first.publicKey}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/generate-key-pair-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/generate-key-pair-sync/page: /sync-io-node-crypto/generate-key-pair-sync"
               `)
             } else {
@@ -4614,6 +4701,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync" used \`require('node:crypto').generateKeyPairSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
@@ -4621,10 +4709,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first.publicKey}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/generate-key-pair-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/generate-key-pair-sync/page: /sync-io-node-crypto/generate-key-pair-sync"
               `)
             } else {
@@ -4653,6 +4741,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-key-sync" used \`require('node:crypto').generateKeySync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4668,6 +4757,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-key-sync" used \`require('node:crypto').generateKeySync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4700,6 +4790,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync" used \`require('node:crypto').generateKeySync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
+                   at Page (app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = crypto
                > 21 |     .generateKeySync('hmac', {
@@ -4707,10 +4798,10 @@ describe('Cache Components Errors', () => {
                  22 |       length: 512,
                  23 |     })
                  24 |     .export()
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/generate-key-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/generate-key-sync/page: /sync-io-node-crypto/generate-key-sync"
               `)
             } else {
@@ -4736,6 +4827,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync" used \`require('node:crypto').generateKeySync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto
@@ -4743,10 +4835,10 @@ describe('Cache Components Errors', () => {
                  21 |     .generateKeySync('hmac', {
                  22 |       length: 512,
                  23 |     })
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/generate-key-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/generate-key-sync/page: /sync-io-node-crypto/generate-key-sync"
               `)
             } else {
@@ -4775,6 +4867,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-prime-sync" used \`require('node:crypto').generatePrimeSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4790,6 +4883,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/generate-prime-sync" used \`require('node:crypto').generatePrimeSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4822,6 +4916,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync" used \`require('node:crypto').generatePrimeSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
+                   at Page (app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
@@ -4829,10 +4924,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first.toString()}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/generate-prime-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/generate-prime-sync/page: /sync-io-node-crypto/generate-prime-sync"
               `)
             } else {
@@ -4858,6 +4953,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync" used \`require('node:crypto').generatePrimeSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
+                   at Page (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
@@ -4865,10 +4961,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first.toString()}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/generate-prime-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/generate-prime-sync/page: /sync-io-node-crypto/generate-prime-sync"
               `)
             } else {
@@ -4897,6 +4993,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/get-random-values" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4912,6 +5009,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/get-random-values" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4944,6 +5042,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
+                   at Page (app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(8)
                > 21 |   crypto.getRandomValues(first)
@@ -4951,10 +5050,10 @@ describe('Cache Components Errors', () => {
                  22 |   return <div>{first.toString()}</div>
                  23 | }
                  24 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/get-random-values". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/get-random-values/page: /sync-io-node-crypto/get-random-values"
               `)
             } else {
@@ -4980,6 +5079,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
+                   at Page (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(8)
                > 21 |   crypto.getRandomValues(first)
@@ -4987,10 +5087,10 @@ describe('Cache Components Errors', () => {
                  22 |   return <div>{first.toString()}</div>
                  23 | }
                  24 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/get-random-values". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/get-random-values/page: /sync-io-node-crypto/get-random-values"
               `)
             } else {
@@ -5019,6 +5119,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-bytes" used \`require('node:crypto').randomBytes(size)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5034,6 +5135,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-bytes" used \`require('node:crypto').randomBytes(size)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5066,6 +5168,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes" used \`require('node:crypto').randomBytes(size)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
+                   at Page (app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomBytes(8)
@@ -5073,10 +5176,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first.toString()}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-bytes". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-bytes/page: /sync-io-node-crypto/random-bytes"
               `)
             } else {
@@ -5102,6 +5205,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes" used \`require('node:crypto').randomBytes(size)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomBytes(8)
@@ -5109,10 +5213,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first.toString()}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-bytes". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-bytes/page: /sync-io-node-crypto/random-bytes"
               `)
             } else {
@@ -5141,6 +5245,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-fill-sync" used \`require('node:crypto').randomFillSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5156,6 +5261,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-fill-sync" used \`require('node:crypto').randomFillSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5188,6 +5294,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync" used \`require('node:crypto').randomFillSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
+                   at Page (app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(16)
                > 21 |   crypto.randomFillSync(first, 4, 8)
@@ -5195,10 +5302,10 @@ describe('Cache Components Errors', () => {
                  22 |   return <div>{first.toString()}</div>
                  23 | }
                  24 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-fill-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-fill-sync/page: /sync-io-node-crypto/random-fill-sync"
               `)
             } else {
@@ -5224,6 +5331,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync" used \`require('node:crypto').randomFillSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
+                   at Page (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(16)
                > 21 |   crypto.randomFillSync(first, 4, 8)
@@ -5231,10 +5339,10 @@ describe('Cache Components Errors', () => {
                  22 |   return <div>{first.toString()}</div>
                  23 | }
                  24 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-fill-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-fill-sync/page: /sync-io-node-crypto/random-fill-sync"
               `)
             } else {
@@ -5263,6 +5371,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-int-between" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5278,6 +5387,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-int-between" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5310,6 +5420,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
+                   at Page (app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128, 256)
@@ -5317,10 +5428,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-int-between". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-int-between/page: /sync-io-node-crypto/random-int-between"
               `)
             } else {
@@ -5346,6 +5457,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128, 256)
@@ -5353,10 +5465,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-int-between". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-int-between/page: /sync-io-node-crypto/random-int-between"
               `)
             } else {
@@ -5385,6 +5497,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5400,6 +5513,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5432,6 +5546,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
+                   at Page (app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128)
@@ -5439,10 +5554,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-int-up-to". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-int-up-to/page: /sync-io-node-crypto/random-int-up-to"
               `)
             } else {
@@ -5468,6 +5583,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128)
@@ -5475,10 +5591,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-int-up-to". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-int-up-to/page: /sync-io-node-crypto/random-int-up-to"
               `)
             } else {
@@ -5507,6 +5623,7 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-uuid" used \`require('node:crypto').randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5522,6 +5639,7 @@ describe('Cache Components Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
+               "code": "E394",
                "description": "Route "/sync-io-node-crypto/random-uuid" used \`require('node:crypto').randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -5554,6 +5672,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid" used \`require('node:crypto').randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
+                   at Page (app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomUUID()
@@ -5561,10 +5680,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-uuid/page: /sync-io-node-crypto/random-uuid"
               `)
             } else {
@@ -5590,6 +5709,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid" used \`require('node:crypto').randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomUUID()
@@ -5597,10 +5717,10 @@ describe('Cache Components Errors', () => {
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/sync-io-node-crypto/random-uuid/page: /sync-io-node-crypto/random-uuid"
               `)
             } else {
@@ -5628,6 +5748,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "code": "E1084",
              "description": "Data that blocks navigation was accessed outside of <Suspense>
 
            This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -5670,20 +5791,19 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at Client (app/client-awaited-io/client.tsx:5:26)
-                   at body (<anonymous>)
-                   at html (<anonymous>)
-                 3 | import { use } from 'react'
+                   at Client (app/client-awaited-io/client.tsx:6:19)
+                   at Page (app/client-awaited-io/page.tsx:5:10)
                  4 |
-               > 5 | export function Client({ io }: { io: Promise<string> }) {
-                   |                          ^
-                 6 |   const data = use(io)
+                 5 | export function Client({ io }: { io: Promise<string> }) {
+               > 6 |   const data = use(io)
+                   |                   ^
                  7 |   return <div>Data: {data}</div>
                  8 | }
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+                 9 |
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
                Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/client-awaited-io/page: /client-awaited-io"
               `)
             } else {
@@ -5710,12 +5830,19 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at Client (webpack:///app/client-awaited-io/client.tsx:5:26)
-                   at <FIXME-library-internal>
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+                   at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
+                   at Page (webpack:///app/client-awaited-io/page.tsx:5:10)
+                 4 |
+                 5 | export function Client({ io }: { io: Promise<string> }) {
+               > 6 |   const data = use(io)
+                   |                   ^
+                 7 |   return <div>Data: {data}</div>
+                 8 | }
+                 9 |
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
                Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
+               > Export encountered errors on 1 path:
                	/client-awaited-io/page: /client-awaited-io"
               `)
             } else {

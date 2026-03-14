@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
+    NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileContent, LinkType};
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
+use turbo_tasks_hash::HashAlgorithm;
 
 use crate::asset::AssetContent;
 
@@ -66,13 +65,6 @@ pub struct VersionedAssetContent {
     // Otherwise, reading `content` and `version` at two different instants in
     // time might return inconsistent values.
     asset_content: ReadRef<AssetContent>,
-}
-
-#[turbo_tasks::value]
-#[derive(Clone)]
-enum AssetContentSnapshot {
-    File(ReadRef<FileContent>),
-    Redirect { target: String, link_type: LinkType },
 }
 
 #[turbo_tasks::value_impl]
@@ -232,17 +224,15 @@ impl FileHashVersion {
     /// Computes a new [`Vc<FileHashVersion>`] from a path.
     pub async fn compute(asset_content: &AssetContent) -> Result<Vc<Self>> {
         match asset_content {
-            AssetContent::File(file_vc) => match &*file_vc.await? {
-                FileContent::Content(file) => {
-                    let hash = hash_xxh3_hash64(file.content());
-                    let hex_hash = encode_hex(hash);
-                    Ok(Self::cell(FileHashVersion {
-                        hash: hex_hash.into(),
-                    }))
-                }
-                FileContent::NotFound => Err(anyhow!("file not found")),
-            },
-            AssetContent::Redirect { .. } => Err(anyhow!("not a file")),
+            AssetContent::File(file_vc) => {
+                let hash = file_vc
+                    .content_hash(HashAlgorithm::Xxh3Hash128Base40)
+                    .owned()
+                    .await?
+                    .context("file not found")?;
+                Ok(Self::cell(FileHashVersion { hash }))
+            }
+            AssetContent::Redirect { .. } => bail!("not a file"),
         }
     }
 }

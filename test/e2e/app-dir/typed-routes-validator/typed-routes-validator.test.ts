@@ -1,5 +1,6 @@
+import execa from 'execa'
 import { nextTestSetup } from 'e2e-utils'
-import { getDistDir } from 'next-test-utils'
+import { getDistDir, retry } from 'next-test-utils'
 
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
@@ -22,9 +23,55 @@ describe('typed-routes-validator', () => {
     } else {
       await next.build()
     }
-    const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
-    // sanity check that dev generation is working
-    expect(dts).toContain('const handler = {} as typeof import(')
+
+    try {
+      const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
+      // sanity check that dev generation is working
+      expect(dts).toContain('const handler = {} as typeof import(')
+    } finally {
+      if (isNextDev) {
+        await next.stop()
+      }
+    }
+  })
+
+  it('should have passing tsc after the server generated types', async () => {
+    if (isNextDev) {
+      await next.start()
+    } else {
+      await next.build()
+    }
+    try {
+      if (isNextDev) {
+        // In dev mode, route types are generated asynchronously after the server starts.
+        // Might take a few tries before all the relevant types exist.
+        await retry(async () => {
+          const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+            cwd: next.testDir,
+            reject: false,
+          })
+
+          expect({ stdout, stderr }).toEqual({
+            stdout: '',
+            stderr: '',
+          })
+        })
+      } else {
+        const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+          cwd: next.testDir,
+          reject: false,
+        })
+
+        expect({ stdout, stderr }).toEqual({
+          stdout: '',
+          stderr: '',
+        })
+      }
+    } finally {
+      if (isNextDev) {
+        await next.stop()
+      }
+    }
   })
 
   if (isNextStart) {

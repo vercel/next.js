@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0ko._turbopack-tests_tests_snapshot_minification_paren-remover_input_index_0f2bib6.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)",(t,e,s)=>{var a,i,o,p,n,r;a=Math.round,r="1.2345".split("."),p=Math.pow(10,i=2===r.length?Math.min(Math.max(r[1].length,1),2):1),n=(a("1.2345e+"+i)/p).toFixed(i),1>2-i&&(o=RegExp("\\.?0{1,"+(1-(2-i))+"}$"),n=n.replace(o,""))}]);
+
+//# sourceMappingURL=0ko._turbopack-tests_tests_snapshot_minification_paren-remover_input_index_0f2bib6.js.map

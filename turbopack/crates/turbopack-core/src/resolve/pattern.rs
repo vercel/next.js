@@ -19,7 +19,8 @@ use turbo_tasks_fs::{
 use turbo_unix_path::normalize_path;
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug, Default)]
+#[derive(Hash, Clone, Debug, Default, ValueToString)]
+#[value_to_string(self.describe_as_string())]
 pub enum Pattern {
     Constant(RcStr),
     #[default]
@@ -1483,14 +1484,6 @@ impl Pattern {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for Pattern {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.describe_as_string().into())
-    }
-}
-
 #[derive(
     Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
@@ -1909,6 +1902,7 @@ mod tests {
 
     use rstest::*;
     use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
@@ -2663,22 +2657,28 @@ mod tests {
             noop_backing_storage(),
         ));
         tt.run_once(async {
-            let root = DiskFileSystem::new(
-                rcstr!("test"),
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("tests/pattern/read_matches")
-                    .to_str()
-                    .unwrap()
-                    .into(),
-            )
-            .root()
-            .owned()
-            .await?;
+            #[turbo_tasks::value]
+            struct ReadMatchesOutput {
+                dynamic: Vec<String>,
+                dynamic_file_suffix: Vec<String>,
+                node_modules_dynamic: Vec<String>,
+            }
 
-            // node_modules shouldn't be matched by Dynamic here
-            assert_eq!(
-                vec!["index.js", "sub", "sub/", "sub/foo-a.js", "sub/foo-b.js"],
-                read_matches(
+            #[turbo_tasks::function(operation)]
+            async fn read_matches_operation() -> anyhow::Result<Vc<ReadMatchesOutput>> {
+                let root = DiskFileSystem::new(
+                    rcstr!("test"),
+                    Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("tests/pattern/read_matches")
+                        .to_str()
+                        .unwrap()
+                        .into(),
+                )
+                .root()
+                .owned()
+                .await?;
+
+                let dynamic = read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
@@ -2686,14 +2686,10 @@ mod tests {
                 )
                 .await?
                 .into_iter()
-                .map(|m| m.name())
-                .collect::<Vec<_>>()
-            );
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
 
-            // basic dynamic file suffix
-            assert_eq!(
-                vec!["sub/foo-a.js", "sub/foo-b.js"],
-                read_matches(
+                let dynamic_file_suffix = read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
@@ -2704,27 +2700,47 @@ mod tests {
                 )
                 .await?
                 .into_iter()
-                .map(|m| m.name())
-                .collect::<Vec<_>>()
-            );
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
 
-            // read_matches "node_modules/<dynamic>" should not return anything inside. We never
-            // want to enumerate the list of packages here.
-            assert_eq!(
-                vec!["node_modules"] as Vec<&str>,
-                read_matches(
-                    root.clone(),
+                let node_modules_dynamic = read_matches(
+                    root,
                     rcstr!(""),
                     false,
                     Pattern::new(Pattern::Constant(rcstr!("node_modules")).or_any_nested_file()),
                 )
                 .await?
                 .into_iter()
-                .map(|m| m.name())
-                .collect::<Vec<_>>()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
+                Ok(ReadMatchesOutput {
+                    dynamic,
+                    dynamic_file_suffix,
+                    node_modules_dynamic,
+                }
+                .cell())
+            }
+
+            let matches = read_matches_operation().read_strongly_consistent().await?;
+
+            // node_modules shouldn't be matched by Dynamic here
+            assert_eq!(
+                matches.dynamic,
+                &["index.js", "sub", "sub/", "sub/foo-a.js", "sub/foo-b.js"]
             );
 
-            anyhow::Ok(())
+            // basic dynamic file suffix
+            assert_eq!(
+                matches.dynamic_file_suffix,
+                &["sub/foo-a.js", "sub/foo-b.js"]
+            );
+
+            // read_matches "node_modules/<dynamic>" should not return anything inside. We never
+            // want to enumerate the list of packages here.
+            assert_eq!(matches.node_modules_dynamic, &["node_modules"]);
+
+            Ok(())
         })
         .await
         .unwrap();

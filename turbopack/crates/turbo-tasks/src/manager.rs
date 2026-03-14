@@ -94,6 +94,12 @@ pub trait TurboTasksCallApi: Sync + Send {
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
     fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>);
+
+    /// Sends a compilation event to subscribers.
+    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
+
+    /// Returns a human-readable name for the given task.
+    fn get_task_name(&self, task: TaskId) -> String;
 }
 
 /// A type-erased subset of [`TurboTasks`] stored inside a thread local when we're in a turbo task
@@ -171,7 +177,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
-    fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32);
     fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
@@ -190,7 +195,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>>;
-    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
 
     // Returns true if TurboTasks is configured to track dependencies.
     fn is_tracking_dependencies(&self) -> bool;
@@ -513,8 +517,17 @@ struct CurrentTaskState {
     execution_id: ExecutionId,
     priority: TaskPriority,
 
+    /// True if the current task has state in cells (interior mutability).
+    /// Only tracked when verify_determinism feature is enabled.
+    #[cfg(feature = "verify_determinism")]
+    stateful: bool,
+
     /// True if the current task uses an external invalidator
     has_invalidator: bool,
+
+    /// True if we're in a top-level task (e.g. `.run_once(...)` or `.run(...)`).
+    /// Eventually consistent reads are not allowed in top-level tasks.
+    in_top_level_task: bool,
 
     /// Tracks how many cells of each type has been allocated so far during this task execution.
     /// When a task is re-executed, the cell count may not match the existing cell vec length.
@@ -531,24 +544,39 @@ struct CurrentTaskState {
 }
 
 impl CurrentTaskState {
-    fn new(task_id: TaskId, execution_id: ExecutionId, priority: TaskPriority) -> Self {
+    fn new(
+        task_id: TaskId,
+        execution_id: ExecutionId,
+        priority: TaskPriority,
+        in_top_level_task: bool,
+    ) -> Self {
         Self {
             task_id: Some(task_id),
             execution_id,
             priority,
+            #[cfg(feature = "verify_determinism")]
+            stateful: false,
             has_invalidator: false,
+            in_top_level_task,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
             local_task_tracker: None,
         }
     }
 
-    fn new_temporary(execution_id: ExecutionId, priority: TaskPriority) -> Self {
+    fn new_temporary(
+        execution_id: ExecutionId,
+        priority: TaskPriority,
+        in_top_level_task: bool,
+    ) -> Self {
         Self {
             task_id: None,
             execution_id,
             priority,
+            #[cfg(feature = "verify_determinism")]
+            stateful: false,
             has_invalidator: false,
+            in_top_level_task,
             cell_counters: None,
             local_tasks: Vec::new(),
             local_task_tracker: None,
@@ -590,6 +618,12 @@ task_local! {
     static TURBO_TASKS: Arc<dyn TurboTasksApi>;
 
     static CURRENT_TASK_STATE: Arc<RwLock<CurrentTaskState>>;
+
+    /// Temporarily suppresses the eventual consistency check in top-level tasks.
+    /// This is used by strongly consistent reads to allow them to succeed in top-level tasks.
+    /// This is NOT shared across local tasks (unlike CURRENT_TASK_STATE), so it's safe
+    /// to set/unset without race conditions.
+    pub(crate) static SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK: bool;
 }
 
 impl<B: Backend + 'static> TurboTasks<B> {
@@ -689,6 +723,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     ) -> Result<T> {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.spawn_once_task(async move {
+            mark_top_level_task();
             let result = future.await;
             tx.send(result)
                 .map_err(|_| anyhow!("unable to send result"))?;
@@ -709,6 +744,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new_temporary(
             execution_id,
             TaskPriority::initial(),
+            true, // in_top_level_task
         )));
 
         let result = TURBO_TASKS
@@ -1137,14 +1173,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     fn finish_current_task_state(&self) -> FinishedTaskState {
-        let has_invalidator = CURRENT_TASK_STATE.with(|cell| {
-            let CurrentTaskState {
-                has_invalidator, ..
-            } = &mut *cell.write().unwrap();
-            *has_invalidator
-        });
-
-        FinishedTaskState { has_invalidator }
+        CURRENT_TASK_STATE.with(|cell| {
+            let current_task_state = &*cell.write().unwrap();
+            FinishedTaskState {
+                #[cfg(feature = "verify_determinism")]
+                stateful: current_task_state.stateful,
+                has_invalidator: current_task_state.has_invalidator,
+            }
+        })
     }
 
     pub fn backend(&self) -> &B {
@@ -1177,6 +1213,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             task_id,
                             execution_id,
                             priority,
+                            false, // in_top_level_task
                         )));
                         let single_execution_future = async {
                             if this.stopped.load(Ordering::Acquire) {
@@ -1203,15 +1240,16 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                                 };
 
-                                let FinishedTaskState { has_invalidator } =
-                                    this.finish_current_task_state();
+                                let finihed_state = this.finish_current_task_state();
                                 let cell_counters = CURRENT_TASK_STATE
                                     .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                                 this.backend.task_execution_completed(
                                     task_id,
                                     result,
                                     &cell_counters,
-                                    has_invalidator,
+                                    #[cfg(feature = "verify_determinism")]
+                                    finihed_state.stateful,
+                                    finihed_state.has_invalidator,
                                     &*this,
                                 )
                             }
@@ -1274,7 +1312,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             Ok(raw_vc) => OutputContent::Link(raw_vc),
                             Err(err) => OutputContent::Error(
                                 TurboTasksExecutionError::from(err)
-                                    .with_task_context(task_type, None),
+                                    .with_local_task_context(task_type.to_string()),
                             ),
                         };
 
@@ -1305,6 +1343,11 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
 }
 
 struct FinishedTaskState {
+    /// True if the task has state in cells (interior mutability).
+    /// Only tracked when verify_determinism feature is enabled.
+    #[cfg(feature = "verify_determinism")]
+    stateful: bool,
+
     /// True if the task uses an external invalidator
     has_invalidator: bool,
 }
@@ -1374,6 +1417,16 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
         self.start_once_process(future)
     }
+
+    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
+        if let Err(e) = self.compilation_events.send(event) {
+            tracing::warn!("Failed to send compilation event: {e}");
+        }
+    }
+
+    fn get_task_name(&self, task: TaskId) -> String {
+        self.backend.get_task_name(task, self)
+    }
 }
 
 impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
@@ -1395,11 +1448,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_serialization(task, self);
     }
 
+    #[track_caller]
     fn try_read_task_output(
         &self,
         task: TaskId,
         options: ReadOutputOptions,
     ) -> Result<Result<RawVc, EventListener>> {
+        if options.consistency == ReadConsistency::Eventual {
+            debug_assert_not_in_top_level_task("read_task_output");
+        }
         self.backend.try_read_task_output(
             task,
             current_task_if_available("reading Vcs"),
@@ -1408,19 +1465,19 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         )
     }
 
+    #[track_caller]
     fn try_read_task_cell(
         &self,
         task: TaskId,
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.backend.try_read_task_cell(
-            task,
-            index,
-            current_task_if_available("reading Vcs"),
-            options,
-            self,
-        )
+        let reader = current_task_if_available("reading Vcs");
+        if cfg!(debug_assertions) && reader != Some(task) {
+            debug_assert_not_in_top_level_task("read_task_cell");
+        }
+        self.backend
+            .try_read_task_cell(task, index, reader, options, self)
     }
 
     fn try_read_own_task_cell(
@@ -1433,11 +1490,13 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             .try_read_own_task_cell(current_task, index, options, self)
     }
 
+    #[track_caller]
     fn try_read_local_output(
         &self,
         execution_id: ExecutionId,
         local_task_id: LocalTaskId,
     ) -> Result<Result<RawVc, EventListener>> {
+        debug_assert_not_in_top_level_task("read_local_output");
         CURRENT_TASK_STATE.with(|gts| {
             let gts_read = gts.read().unwrap();
 
@@ -1455,6 +1514,8 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     }
 
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap {
+        // TODO: Add assert_not_in_top_level_task("read_task_collectibles") check here.
+        // Collectible reads are eventually consistent.
         self.backend.read_task_collectibles(
             task,
             trait_id,
@@ -1534,11 +1595,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
-    fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32) {
-        self.backend
-            .set_own_task_aggregation_number(task, aggregation_number, self);
-    }
-
     fn mark_own_task_as_session_dependent(&self, task: TaskId) {
         self.backend.mark_own_task_as_session_dependent(task, self);
     }
@@ -1578,12 +1634,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>> {
         self.compilation_events.subscribe(event_types)
-    }
-
-    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
-        if let Err(e) = self.compilation_events.send(event) {
-            tracing::warn!("Failed to send compilation event: {e}");
-        }
     }
 
     fn is_tracking_dependencies(&self) -> bool {
@@ -1680,6 +1730,33 @@ pub(crate) fn current_task(from: &str) -> TaskId {
         Ok(None) | Err(_) => {
             panic!("{from} can only be used in the context of a turbo_tasks task execution")
         }
+    }
+}
+
+#[track_caller]
+fn debug_assert_not_in_top_level_task(operation: &str) {
+    if !cfg!(debug_assertions) {
+        return;
+    }
+
+    // HACK: We set this inside of `ReadRawVcFuture` to suppress warnings about an internal
+    // consistency bug
+    let suppressed = SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK
+        .try_with(|&suppressed| suppressed)
+        .unwrap_or(false);
+    if suppressed {
+        return;
+    }
+
+    let in_top_level = CURRENT_TASK_STATE
+        .try_with(|ts| ts.read().unwrap().in_top_level_task)
+        .unwrap_or(false);
+    if in_top_level {
+        panic!(
+            "Eventually consistent read ({operation}) cannot be performed from a top-level task. \
+             Top-level tasks (e.g. code inside `.run_once(...)`) must use strongly consistent \
+             reads to avoid leaking inconsistent return values."
+        );
     }
 }
 
@@ -1798,6 +1875,7 @@ pub fn with_turbo_tasks_for_testing<T>(
                 current_task,
                 execution_id,
                 TaskPriority::initial(),
+                false, // in_top_level_task
             ))),
             f,
         ),
@@ -1823,14 +1901,6 @@ pub fn mark_session_dependent() {
     });
 }
 
-/// Marks the current task as a root in the aggregation graph.  This means it starts with the
-/// correct aggregation number instead of needing to recompute it after the fact.
-pub fn mark_root() {
-    with_turbo_tasks(|tt| {
-        tt.set_own_task_aggregation_number(current_task("turbo_tasks::mark_root()"), u32::MAX)
-    });
-}
-
 /// Marks the current task as finished. This excludes it from waiting for
 /// strongly consistency.
 pub fn mark_finished() {
@@ -1840,10 +1910,22 @@ pub fn mark_finished() {
 }
 
 /// Returns a [`SerializationInvalidator`] that can be used to invalidate the
-/// serialization of the current task cells
+/// serialization of the current task cells.
+///
+/// Also marks the current task as stateful when the `verify_determinism` feature is enabled,
+/// since State allocation implies interior mutability.
 pub fn get_serialization_invalidator() -> SerializationInvalidator {
     CURRENT_TASK_STATE.with(|cell| {
-        let CurrentTaskState { task_id, .. } = &mut *cell.write().unwrap();
+        let CurrentTaskState {
+            task_id,
+            #[cfg(feature = "verify_determinism")]
+            stateful,
+            ..
+        } = &mut *cell.write().unwrap();
+        #[cfg(feature = "verify_determinism")]
+        {
+            *stateful = true;
+        }
         let Some(task_id) = *task_id else {
             panic!(
                 "get_serialization_invalidator() can only be used in the context of a turbo_tasks \
@@ -1861,6 +1943,51 @@ pub fn mark_invalidator() {
         } = &mut *cell.write().unwrap();
         *has_invalidator = true;
     })
+}
+
+/// Marks the current task as stateful. This is used to indicate that the task
+/// has interior mutability (e.g., via State or TransientState), which means
+/// the task may produce different outputs even with the same inputs.
+///
+/// Only has an effect when the `verify_determinism` feature is enabled.
+pub fn mark_stateful() {
+    #[cfg(feature = "verify_determinism")]
+    {
+        CURRENT_TASK_STATE.with(|cell| {
+            let CurrentTaskState { stateful, .. } = &mut *cell.write().unwrap();
+            *stateful = true;
+        })
+    }
+    // No-op when verify_determinism is not enabled
+}
+
+/// Marks the current task context as being in a top-level task. When in a top-level task,
+/// eventually consistent reads will panic. It is almost always a mistake to perform an eventually
+/// consistent read at the top-level of the application.
+pub fn mark_top_level_task() {
+    if cfg!(debug_assertions) {
+        CURRENT_TASK_STATE.with(|cell| {
+            cell.write().unwrap().in_top_level_task = true;
+        })
+    }
+}
+
+/// Unmarks the current task context as being in a top-level task. The opposite of
+/// [`mark_top_level_task`].
+///
+/// This utility can be okay in unit tests, where we're observing the internal behavior of
+/// turbo-tasks, but otherwise, it is probably a mistake to call this function.
+///
+/// Calling this will allow eventually-consistent reads at the top-level, potentially exposing
+/// incomplete computations and internal errors caused by eventual consistency that would've been
+/// caught when the function was re-run. A strongly-consistent read re-runs parts of a task until
+/// all of the dependencies have settled.
+pub fn unmark_top_level_task_may_leak_eventually_consistent_state() {
+    if cfg!(debug_assertions) {
+        CURRENT_TASK_STATE.with(|cell| {
+            cell.write().unwrap().in_top_level_task = false;
+        })
+    }
 }
 
 pub fn prevent_gc() {

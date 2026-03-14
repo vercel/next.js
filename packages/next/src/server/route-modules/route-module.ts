@@ -65,7 +65,7 @@ import {
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
-import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -137,9 +137,28 @@ export abstract class RouteModule<
   }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
-    this.isDev = process.env.NODE_ENV === 'development'
+    this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
+  }
+
+  private getRouterServerContext(
+    req: NextIncomingMessage
+  ): RouterServerContext[string] | undefined {
+    const hostname = getRequestMeta(req, 'hostname')
+    const revalidate = getRequestMeta(req, 'revalidate')
+    const render404 = getRequestMeta(req, 'render404')
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+
+    return {
+      ...routerServerContext,
+      ...(hostname !== undefined ? { hostname } : {}),
+      ...(revalidate !== undefined ? { revalidate } : {}),
+      ...(render404 !== undefined ? { render404 } : {}),
+    }
   }
 
   public normalizeUrl(
@@ -347,6 +366,7 @@ export abstract class RouteModule<
           : loadManifestFromRelativePath<RequiredServerFilesManifest>({
               projectDir,
               distDir: this.distDir,
+              shouldCache: true,
               manifest: `${SERVER_FILES_MANIFEST}.json`,
             }),
         this.isDev
@@ -356,11 +376,13 @@ export abstract class RouteModule<
               distDir: this.distDir,
               manifest: BUILD_ID_FILE,
               skipParse: true,
+              shouldCache: true,
             }),
         loadManifestFromRelativePath<any>({
           projectDir,
           distDir: this.distDir,
           manifest: DYNAMIC_CSS_MANIFEST,
+          shouldCache: !this.isDev,
           handleMissing: true,
         }),
       ]
@@ -526,10 +548,7 @@ export abstract class RouteModule<
     let serverFilesManifest = self.__SERVER_FILES_MANIFEST as any as
       | RequiredServerFilesManifest
       | undefined
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 
@@ -566,6 +585,7 @@ export abstract class RouteModule<
     | {
         buildId: string
         deploymentId: string
+        clientAssetToken: string
         locale?: string
         locales?: readonly string[]
         defaultLocale?: string
@@ -628,15 +648,12 @@ export abstract class RouteModule<
       // onRequestError below
       ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = await this.loadManifests(srcPage, absoluteProjectDir)
+    const manifests = this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
 
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 
@@ -1023,6 +1040,8 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
+      clientAssetToken:
+        nextConfig.experimental.immutableAssetToken || deploymentId,
     }
   }
 

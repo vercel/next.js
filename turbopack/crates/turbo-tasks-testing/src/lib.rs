@@ -11,7 +11,7 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
@@ -155,6 +155,16 @@ impl TurboTasksCallApi for VcStorage {
     ) {
         unreachable!()
     }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
+        unimplemented!()
+    }
+
+    fn get_task_name(&self, task: TaskId) -> String {
+        format!("Task({})", task)
+    }
 }
 
 impl TurboTasksApi for VcStorage {
@@ -186,7 +196,7 @@ impl TurboTasksApi for VcStorage {
             Task::Spawned(event) => Ok(Err(event.listen())),
             Task::Finished(result) => match result {
                 Ok(vc) => Ok(Ok(*vc)),
-                Err(err) => Err(anyhow!(err.clone())),
+                Err(err) => bail!(err.clone()),
             },
         }
     }
@@ -288,10 +298,6 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn set_own_task_aggregation_number(&self, _task: TaskId, _aggregation_number: u32) {
-        // no-op
-    }
-
     fn spawn_detached_for_testing(
         &self,
         _f: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
@@ -313,12 +319,6 @@ impl TurboTasksApi for VcStorage {
         &self,
         _event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>> {
-        unimplemented!()
-    }
-
-    /// Should not be called on the testing VcStorage. These methods are only implemented for
-    /// structs with access to a `MessageQueue` like `TurboTasks`.
-    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
         unimplemented!()
     }
 

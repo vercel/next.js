@@ -117,6 +117,7 @@ declare module 'react-server-dom-webpack/client.browser' {
     debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
     startTime?: number
     endTime?: number
+    unstable_allowPartialStream?: boolean
   }
 
   export function createFromFetch<T>(
@@ -525,10 +526,6 @@ declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
   export = m
-}
-
-declare module 'next/dist/compiled/babel/code-frame' {
-  export * from '@babel/code-frame'
 }
 
 declare module 'next/dist/compiled/@next/font/dist/google' {

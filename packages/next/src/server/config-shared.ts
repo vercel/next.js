@@ -16,6 +16,14 @@ import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
+/**
+ * Resolved form of the prefetchInlining config after normalization in
+ * config.ts. User input (true, partial objects) is converted to this shape.
+ */
+export type PrefetchInliningConfig =
+  | false
+  | { maxSize: number; maxBundleSize: number }
+
 export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
@@ -24,7 +32,10 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: ExperimentalConfig
+  experimental: ExperimentalConfig & {
+    // Normalized by config.ts: true and partial objects become resolved objects
+    prefetchInlining?: PrefetchInliningConfig
+  }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
@@ -148,6 +159,7 @@ export type TurbopackModuleType =
   | 'raw'
   | 'node'
   | 'bytes'
+  | 'text'
 
 export type TurbopackRuleConfigItem = {
   /** Loaders to apply to matched files. */
@@ -214,6 +226,19 @@ export interface TurbopackOptions {
    * @see https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md TC39 Debug ID Proposal
    */
   debugIds?: boolean
+
+  /**
+   * An array of issue filter rules to ignore specific Turbopack issues.
+   * Each rule must have a `path` field (mandatory) and optionally `title`
+   * and `description`. String paths are treated as glob patterns. String
+   * titles/descriptions are exact matches. RegExp values match anywhere
+   * within the string (use `^` and `$` anchors for full-string matching).
+   */
+  ignoreIssue?: Array<{
+    path: string | RegExp
+    title?: string | RegExp
+    description?: string | RegExp
+  }>
 }
 
 export interface WebpackConfigContext {
@@ -321,8 +346,55 @@ export interface LoggingConfig {
   browserToTerminal?: boolean | 'error' | 'warn'
 }
 
+/**
+ * All recognized lightningcss feature names.
+ * Individual features map 1:1 to lightningcss `Features` bitflags.
+ * Composite names (`selectors`, `media-queries`, `colors`) enable a group of
+ * related individual features at once.
+ *
+ * The name→bitmask mapping is duplicated in:
+ * - JS:   `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
+ * - Rust: `crates/next-core/src/next_config.rs` (`lightningcss_feature_names_to_mask`)
+ */
+export const LIGHTNINGCSS_FEATURE_NAMES = [
+  // Individual features (bit 0–20)
+  'nesting',
+  'not-selector-list',
+  'dir-selector',
+  'lang-selector-list',
+  'is-selector',
+  'text-decoration-thickness-percent',
+  'media-interval-syntax',
+  'media-range-syntax',
+  'custom-media-queries',
+  'clamp-function',
+  'color-function',
+  'oklab-colors',
+  'lab-colors',
+  'p3-colors',
+  'hex-alpha-colors',
+  'space-separated-color-notation',
+  'font-family-system-ui',
+  'double-position-gradients',
+  'vendor-prefixes',
+  'logical-properties',
+  'light-dark',
+  // Composite groups
+  'selectors',
+  'media-queries',
+  'colors',
+] as const
+
+export type LightningCssFeature = (typeof LIGHTNINGCSS_FEATURE_NAMES)[number]
+
+export interface LightningCssFeatures {
+  include?: LightningCssFeature[]
+  exclude?: LightningCssFeature[]
+}
+
 export interface ExperimentalConfig {
   adapterPath?: string
+  appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']
@@ -337,9 +409,21 @@ export interface ExperimentalConfig {
    * rewrites will get the rewrite headers.
    */
   clientParamParsingOrigins?: string[]
+  cachedNavigations?: boolean
+  /**
+   * Enables partial fallback shells for cache-components routes while the
+   * feature stabilizes.
+   */
+  partialFallbacks?: boolean
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
+  prefetchInlining?:
+    | boolean
+    | {
+        maxSize?: number
+        maxBundleSize?: number
+      }
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -368,8 +452,8 @@ export interface ExperimentalConfig {
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
   /**
-   * Exposes the experimental testing API (`__EXPERIMENTAL_NEXT_TESTING__`) in
-   * production builds. This API is always available in development mode.
+   * Exposes the Instant Navigation Testing API in production builds. This
+   * API is always available in development mode.
    *
    * The testing API allows e2e tests to control navigation timing, enabling
    * deterministic assertions on prefetched/cached UI before dynamic data
@@ -379,6 +463,12 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Show the Instant Navigation Mode toggle in the dev tools indicator.
+   * When enabled, a menu item lets you lock navigations to only show
+   * the cached/prefetched state.
+   */
+  instantNavigationDevToolsToggle?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -481,6 +571,11 @@ export interface ExperimentalConfig {
   turbopackMemoryLimit?: number
 
   /**
+   * Selects the runtime backend used by Turbopack for Node.js evaluation.
+   */
+  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+
+  /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   turbopackMinify?: boolean
@@ -489,6 +584,11 @@ export interface ExperimentalConfig {
    * Enable support for `with {type: "bytes"}` for ESM imports.
    */
   turbopackImportTypeBytes?: boolean
+
+  /**
+   * Enable support for `with {type: "text"}` for ESM imports.
+   */
+  turbopackImportTypeText?: boolean
 
   /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
@@ -738,6 +838,13 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
+   * Configure which CSS features lightningcss should always transpile
+   * (include) or never transpile (exclude), regardless of browser targets.
+   * Requires `useLightningcss: true`.
+   */
+  lightningCssFeatures?: LightningCssFeatures
+
+  /**
    * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
    */
   viewTransition?: boolean
@@ -931,6 +1038,12 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
+   * A different token to use for static assets (as opposed to config.deploymentId) which
+   * doesn't have to be unique per deployment.
+   */
+  immutableAssetToken?: string
+
+  /**
    * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
    * This allows conditional requests to the server, which can help with development
    * workflows that benefit from caching validation.
@@ -1021,6 +1134,16 @@ export type ExportPathMap = {
      * @internal
      */
     _allowEmptyStaticShell?: boolean
+
+    /**
+     * When true, run build-time instant validation for this export path.
+     * Only set on the first export entry per page, since validation uses
+     * unstable_instant.samples (not actual params from generateStaticParams),
+     * so the result is the same for all param combinations.
+     *
+     * @internal
+     */
+    _runInstantValidation?: boolean
   }
 }
 
@@ -1602,6 +1725,7 @@ export const defaultConfig = Object.freeze({
   },
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+    appNewScrollHandler: false,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
@@ -1611,8 +1735,11 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
+    cachedNavigations: false,
+    partialFallbacks: false,
     dynamicOnHover: false,
     varyParams: false,
+    prefetchInlining: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1669,7 +1796,7 @@ export const defaultConfig = Object.freeze({
       static: 300,
     },
     allowDevelopmentBuild: undefined,
-    reactDebugChannel: false,
+    reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
@@ -1688,6 +1815,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
+    turbopackPluginRuntimeStrategy: 'childProcesses',
     devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,
@@ -1757,6 +1885,7 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'optimisticRouting'
     | 'inlineCss'
+    | 'prefetchInlining'
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
@@ -1787,7 +1916,10 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
+    | 'cachedNavigations'
+    | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
+    | 'immutableAssetToken'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1820,10 +1952,14 @@ export function getNextConfigRuntime(
         dynamicOnHover: ex.dynamicOnHover,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
+        prefetchInlining: ex.prefetchInlining,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        adapterPath: ex.adapterPath,
+        // The full adapterPath might be non-deterministic across builds and doesn't actually matter
+        // at runtime, as it's only used to determine whether the adapter was used or not, not to
+        // execute it again. So replace it with a placeholder if it's set.
+        adapterPath: ex.adapterPath ? '<ommited but set>' : undefined,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
@@ -1851,7 +1987,10 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
+        cachedNavigations: ex.cachedNavigations,
+        partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        immutableAssetToken: ex.immutableAssetToken,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

@@ -10,8 +10,8 @@ import {
 import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
+  type PrerenderStoreModernServer,
   type PrerenderStorePPR,
-  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
@@ -65,7 +65,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       )
     }
     case 'prerender':
-    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy': {
       return createPrerenderRootParamPromise(
@@ -75,9 +74,34 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         apiName
       )
     }
-    case 'private-cache':
-    case 'prerender-runtime':
+    case 'validation-client':
+    case 'prerender-client': {
+      throw new InvariantError(
+        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
+      )
+    }
     case 'request': {
+      if (
+        process.env.__NEXT_CACHE_COMPONENTS &&
+        workUnitStore.validationSamples
+      ) {
+        const { assertRootParamInSamples } =
+          require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+        // If we error, make sure we return a rejected promise instead of erroring synchronously.
+        try {
+          assertRootParamInSamples(
+            workStore,
+            workUnitStore.validationSamples.params,
+            paramName
+          )
+        } catch (err) {
+          return Promise.reject(err)
+        }
+      }
+      break
+    }
+    case 'private-cache':
+    case 'prerender-runtime': {
       break
     }
     default: {
@@ -92,15 +116,13 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
 function createPrerenderRootParamPromise(
   paramName: string,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore,
+  prerenderStore:
+    | PrerenderStorePPR
+    | PrerenderStoreLegacy
+    | PrerenderStoreModernServer,
   apiName: string
 ): Promise<ParamValue> {
   switch (prerenderStore.type) {
-    case 'prerender-client': {
-      throw new InvariantError(
-        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
-      )
-    }
     case 'prerender':
     case 'prerender-legacy':
     case 'prerender-ppr':

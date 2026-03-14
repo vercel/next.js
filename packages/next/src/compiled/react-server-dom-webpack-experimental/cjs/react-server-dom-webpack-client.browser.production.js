@@ -261,6 +261,8 @@ function processReply(
                 "$T"
               );
           }
+          if (void 0 !== temporaryReferences && modelRoot === value)
+            return (modelRoot = null), "$T";
           throw Error(
             "React Element cannot be passed to Server Functions from the Client without a temporary reference set. Pass a TemporaryReferenceSet to the options."
           );
@@ -591,6 +593,9 @@ function readChunk(chunk) {
       throw chunk.reason;
   }
 }
+function createPendingChunk() {
+  return new ReactPromise("pending", null, null);
+}
 function wakeChunk(response, listeners, value, chunk) {
   for (var i = 0; i < listeners.length; i++) {
     var listener = listeners[i];
@@ -751,7 +756,7 @@ function initializeModelChunk(chunk) {
   chunk.value = null;
   chunk.reason = null;
   try {
-    var value = JSON.parse(resolvedModel, response._fromJSON),
+    var value = parseModel(response, resolvedModel),
       resolveListeners = chunk.value;
     if (null !== resolveListeners)
       for (
@@ -774,6 +779,7 @@ function initializeModelChunk(chunk) {
     }
     chunk.status = "fulfilled";
     chunk.value = value;
+    chunk.reason = null;
   } catch (error) {
     (chunk.status = "rejected"), (chunk.reason = error);
   } finally {
@@ -785,6 +791,7 @@ function initializeModuleChunk(chunk) {
     var value = requireModule(chunk.value);
     chunk.status = "fulfilled";
     chunk.value = value;
+    chunk.reason = null;
   } catch (error) {
     (chunk.status = "rejected"), (chunk.reason = error);
   }
@@ -807,9 +814,14 @@ function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
   chunk ||
-    ((chunk = response._closed
-      ? new ReactPromise("rejected", null, response._closedReason)
-      : new ReactPromise("pending", null, null)),
+    (response._closed
+      ? response._allowPartialStream
+        ? ((response = chunk = createPendingChunk()),
+          (response.status = "halted"),
+          (response.value = null),
+          (response.reason = null))
+        : (chunk = new ReactPromise("rejected", null, response._closedReason))
+      : (chunk = createPendingChunk()),
     chunks.set(id, chunk));
   return chunk;
 }
@@ -1324,7 +1336,8 @@ function ResponseInstance(
   callServer,
   encodeFormAction,
   nonce,
-  temporaryReferences
+  temporaryReferences,
+  allowPartialStream
 ) {
   var chunks = new Map();
   this._bundlerConfig = bundlerConfig;
@@ -1335,11 +1348,10 @@ function ResponseInstance(
   this._nonce = nonce;
   this._chunks = chunks;
   this._stringDecoder = new TextDecoder();
-  this._fromJSON = null;
   this._closed = !1;
   this._closedReason = null;
+  this._allowPartialStream = allowPartialStream;
   this._tempRefs = temporaryReferences;
-  this._fromJSON = createFromJSONCallback(this);
 }
 function resolveBuffer(response, id, buffer) {
   response = response._chunks;
@@ -1352,7 +1364,7 @@ function resolveBuffer(response, id, buffer) {
 function resolveModule(response, id, model) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
-  model = JSON.parse(model, response._fromJSON);
+  model = parseModel(response, model);
   var clientReference = resolveClientReference(response._bundlerConfig, model);
   if ((model = preloadModule(clientReference))) {
     if (chunk) {
@@ -1423,7 +1435,7 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$55 = new ReactPromise("pending", null, null);
+        var chunk$55 = createPendingChunk();
         chunk$55.then(
           function (v) {
             return controller.enqueue(v);
@@ -1491,7 +1503,7 @@ function startAsyncIterable(response, id, iterator) {
             { done: !0, value: void 0 },
             null
           );
-        buffer[nextReadIndex] = new ReactPromise("pending", null, null);
+        buffer[nextReadIndex] = createPendingChunk();
       }
       return buffer[nextReadIndex++];
     });
@@ -1572,11 +1584,7 @@ function startAsyncIterable(response, id, iterator) {
           for (
             closed = !0,
               nextWriteIndex === buffer.length &&
-                (buffer[nextWriteIndex] = new ReactPromise(
-                  "pending",
-                  null,
-                  null
-                ));
+                (buffer[nextWriteIndex] = createPendingChunk());
             nextWriteIndex < buffer.length;
 
           )
@@ -1680,7 +1688,7 @@ function processFullBinaryRow(response, streamState, id, tag, buffer, chunk) {
     case 72:
       id = buffer[0];
       buffer = buffer.slice(1);
-      response = JSON.parse(buffer, response._fromJSON);
+      response = parseModel(response, buffer);
       buffer = ReactDOMSharedInternals.d;
       switch (id) {
         case "D":
@@ -1773,45 +1781,67 @@ function processFullBinaryRow(response, streamState, id, tag, buffer, chunk) {
             tag.set(id, response));
   }
 }
-function createFromJSONCallback(response) {
-  return function (key, value) {
-    if ("__proto__" !== key) {
-      if ("string" === typeof value)
-        return parseModelString(response, this, key, value);
-      if ("object" === typeof value && null !== value) {
-        if (value[0] === REACT_ELEMENT_TYPE) {
-          if (
-            ((key = {
+function parseModel(response, json) {
+  json = JSON.parse(json);
+  return reviveModel(response, json, { "": json }, "");
+}
+function reviveModel(response, value, parentObject, key) {
+  if ("string" === typeof value)
+    return "$" === value[0]
+      ? parseModelString(response, parentObject, key, value)
+      : value;
+  if ("object" !== typeof value || null === value) return value;
+  if (isArrayImpl(value)) {
+    for (var i = 0; i < value.length; i++)
+      value[i] = reviveModel(response, value[i], value, "" + i);
+    return value[0] === REACT_ELEMENT_TYPE
+      ? (value[0] === REACT_ELEMENT_TYPE
+          ? ((response = {
               $$typeof: REACT_ELEMENT_TYPE,
               type: value[1],
               key: value[2],
               ref: null,
               props: value[3]
             }),
-            null !== initializingHandler)
-          )
-            if (
+            null !== initializingHandler &&
               ((value = initializingHandler),
               (initializingHandler = value.parent),
-              value.errored)
-            )
-              (key = new ReactPromise("rejected", null, value.reason)),
-                (key = createLazyChunkWrapper(key));
-            else if (0 < value.deps) {
-              var blockedChunk = new ReactPromise("blocked", null, null);
-              value.value = key;
-              value.chunk = blockedChunk;
-              key = createLazyChunkWrapper(blockedChunk);
-            }
-        } else key = value;
-        return key;
-      }
-      return value;
-    }
-  };
+              value.errored
+                ? ((response = new ReactPromise(
+                    "rejected",
+                    null,
+                    value.reason
+                  )),
+                  (response = createLazyChunkWrapper(response)))
+                : 0 < value.deps &&
+                  ((i = new ReactPromise("blocked", null, null)),
+                  (value.value = response),
+                  (value.chunk = i),
+                  (response = createLazyChunkWrapper(i)))))
+          : (response = value),
+        response)
+      : value;
+  }
+  for (i in value)
+    "__proto__" === i
+      ? delete value[i]
+      : ((parentObject = reviveModel(response, value[i], value, i)),
+        void 0 !== parentObject ? (value[i] = parentObject) : delete value[i]);
+  return value;
 }
 function close(weakResponse) {
-  reportGlobalError(weakResponse, Error("Connection closed."));
+  weakResponse._allowPartialStream
+    ? ((weakResponse._closed = !0),
+      weakResponse._chunks.forEach(function (chunk) {
+        "pending" === chunk.status
+          ? ((chunk.status = "halted"),
+            (chunk.value = null),
+            (chunk.reason = null))
+          : "fulfilled" === chunk.status &&
+            null !== chunk.reason &&
+            chunk.reason.close('"$undefined"');
+      }))
+    : reportGlobalError(weakResponse, Error("Connection closed."));
 }
 function createResponseFromOptions(options) {
   return new ResponseInstance(
@@ -1823,7 +1853,10 @@ function createResponseFromOptions(options) {
     void 0,
     options && options.temporaryReferences
       ? options.temporaryReferences
-      : void 0
+      : void 0,
+    options && options.unstable_allowPartialStream
+      ? options.unstable_allowPartialStream
+      : !1
   );
 }
 function startReadingFromStream(response, stream, onDone) {

@@ -244,7 +244,6 @@ export type RenderOptsPartial = {
   assetPrefix?: string
   err?: Error | null
   isBuildTimePrerendering?: boolean
-  dev?: boolean
   ErrorDebug?: PagesDevOverlayBridgeType
   isNextDataRequest?: boolean
   params?: ParsedUrlQuery
@@ -304,9 +303,14 @@ export type PagesSharedContext = {
   buildId: string
 
   /**
-   * The deployment ID if the user is deploying to a platform that provides one.
+   * See NextConfig.deploymentId
    */
-  deploymentId: string
+  deploymentId: string | undefined
+
+  /**
+   * Either NextConfig.experimental.immutableAssetToken or NextConfig.deploymentId
+   */
+  clientAssetToken: string | undefined
 
   /**
    * True if the user is using a custom server.
@@ -454,12 +458,10 @@ export async function renderToHTMLImpl(
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
-  const metadata: PagesRenderResultMetadata = {}
+  let baseAssetQueryString =
+    (process.env.__NEXT_DEV_SERVER && renderOpts.assetQueryString) || ''
 
-  metadata.assetQueryString =
-    (renderOpts.dev && renderOpts.assetQueryString) || ''
-
-  if (renderOpts.dev && !metadata.assetQueryString) {
+  if (process.env.__NEXT_DEV_SERVER && !baseAssetQueryString) {
     const userAgent = (req.headers['user-agent'] || '').toLowerCase()
     if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
       // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -467,15 +469,23 @@ export async function renderToHTMLImpl(
       // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
       // Note: The workaround breaks breakpoints on reload since the script url always changes,
       // so we only apply it to Safari.
-      metadata.assetQueryString = `?ts=${Date.now()}`
+      baseAssetQueryString = `?ts=${Date.now()}`
     }
   }
 
-  // if deploymentId is provided we append it to all asset requests
-  if (sharedContext.deploymentId) {
-    metadata.assetQueryString += `${metadata.assetQueryString ? '&' : '?'}dpl=${
-      sharedContext.deploymentId
-    }`
+  const mutableAssetQueryString =
+    baseAssetQueryString +
+    (sharedContext.deploymentId
+      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.deploymentId}`
+      : '')
+  const assetQueryString =
+    baseAssetQueryString +
+    (sharedContext.clientAssetToken
+      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
+      : '')
+  const metadata: PagesRenderResultMetadata = {
+    assetQueryString,
+    mutableAssetQueryString,
   }
 
   // don't modify original query object
@@ -483,7 +493,6 @@ export async function renderToHTMLImpl(
 
   const {
     err,
-    dev = false,
     pageConfig = {},
     buildManifest,
     reactLoadableManifest,
@@ -501,8 +510,6 @@ export async function renderToHTMLImpl(
     expireTime,
   } = renderOpts
   const { App } = extra
-
-  const assetQueryString = metadata.assetQueryString
 
   let Document = extra.Document
 
@@ -554,7 +561,7 @@ export async function renderToHTMLImpl(
   // would normally be automatically statically optimized
   // ensure we set cache header so it's not rendered on-demand
   // every request
-  if (isAutoExport && !dev && isExperimentalCompile) {
+  if (isAutoExport && !process.env.__NEXT_DEV_SERVER && isExperimentalCompile) {
     res.setHeader(
       'Cache-Control',
       getCacheControlHeader({ revalidate: false, expire: expireTime })
@@ -602,7 +609,7 @@ export async function renderToHTMLImpl(
 
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
-  if (dev) {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
@@ -836,7 +843,7 @@ export async function renderToHTMLImpl(
   const nextExport =
     !isSSG &&
     (renderOpts.isBuildTimePrerendering ||
-      (dev && (isAutoExport || isFallback)))
+      (process.env.__NEXT_DEV_SERVER && (isAutoExport || isFallback)))
 
   const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()
@@ -964,7 +971,7 @@ export async function renderToHTMLImpl(
     }
 
     if (
-      (dev || isBuildTimeSSG) &&
+      (process.env.__NEXT_DEV_SERVER || isBuildTimeSSG) &&
       !metadata.isNotFound &&
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
@@ -1183,7 +1190,7 @@ export async function renderToHTMLImpl(
     }
 
     if (
-      (dev || isBuildTimeSSG) &&
+      (process.env.__NEXT_DEV_SERVER || isBuildTimeSSG) &&
       !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -1301,7 +1308,10 @@ export async function renderToHTMLImpl(
           return { html, head }
         }
 
-        if (dev && (props.router || props.Component)) {
+        if (
+          process.env.__NEXT_DEV_SERVER &&
+          (props.router || props.Component)
+        ) {
           throw new Error(
             `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
           )
@@ -1483,7 +1493,9 @@ export async function renderToHTMLImpl(
         dynamicImportsIds.size === 0
           ? undefined
           : Array.from(dynamicImportsIds),
-      err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+      err: renderOpts.err
+        ? serializeError(!!process.env.__NEXT_DEV_SERVER, renderOpts.err)
+        : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
       customServer: sharedContext.customServer,
@@ -1494,13 +1506,16 @@ export async function renderToHTMLImpl(
       defaultLocale,
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
-      notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
+      notFoundSrcPage:
+        notFoundSrcPage && process.env.__NEXT_DEV_SERVER
+          ? notFoundSrcPage
+          : undefined,
     },
     nonce,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,
-    isDevelopment: !!dev,
+    isDevelopment: !!process.env.__NEXT_DEV_SERVER,
     deploymentId: sharedContext.deploymentId,
     dynamicImports: Array.from(dynamicImports),
     dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),
@@ -1511,7 +1526,8 @@ export async function renderToHTMLImpl(
         ? pageConfig.unstable_runtimeJS
         : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
-    assetQueryString,
+    assetQueryString: assetQueryString || '',
+    mutableAssetQueryString: mutableAssetQueryString || '',
     scriptLoader,
     locale,
     disableOptimizedLoading,

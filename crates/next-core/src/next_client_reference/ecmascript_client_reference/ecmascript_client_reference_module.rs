@@ -3,13 +3,13 @@ use std::{io::Write, iter::once};
 use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{IntoTraitRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule,
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+        ChunkingType,
     },
     code_builder::CodeBuilder,
     context::AssetContext,
@@ -281,6 +281,17 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         self.proxy_module().get_exports()
     }
+
+    #[turbo_tasks::function]
+    fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        bail!("Attempted to get chunk_item_content for EcmascriptClientReferenceModule")
+    }
 }
 
 /// This wrapper only exists to overwrite the `asset_ident` method of the
@@ -339,6 +350,8 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
 }
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string(self.description)]
 pub(crate) struct EcmascriptClientReference {
     module: ResolvedVc<Box<dyn Module>>,
     ty: ChunkGroupType,
@@ -365,28 +378,16 @@ impl EcmascriptClientReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EcmascriptClientReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
-            _ty: self.ty,
-            merge_tag: self.merge_tag.clone(),
-        }))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ModuleReference for EcmascriptClientReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(self.module)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptClientReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.description.clone())
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Isolated {
+            _ty: self.ty,
+            merge_tag: self.merge_tag.clone(),
+        })
     }
 }

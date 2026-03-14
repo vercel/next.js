@@ -2,10 +2,10 @@ import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 import type { NextRequest } from '../../web/spec-extension/request'
-import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import {
   RouteModule,
@@ -114,7 +114,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: WorkStoreContext['renderOpts'] &
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
-  prerenderManifest: DeepReadonly<PrerenderManifest>
+  previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
 }
 
@@ -323,10 +323,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const handlerContext: AppRouteHandlerFnContext = {
       params: context.params
-        ? createServerParamsForRoute(
-            parsedUrlQueryToParams(context.params),
-            workStore
-          )
+        ? createServerParamsForRoute(parsedUrlQueryToParams(context.params))
         : undefined,
     }
 
@@ -726,7 +723,7 @@ export class AppRouteRouteModule extends RouteModule<
       req.nextUrl,
       implicitTags,
       undefined,
-      context.prerenderManifest.preview
+      context.previewProps
     )
 
     const workStore = createWorkStore(staticGenerationContext)
@@ -1215,6 +1212,7 @@ function trackDynamic(
           workUnitStore
         )
       case 'prerender-client':
+      case 'validation-client':
         throw new InvariantError(
           'A client prerender store should not be used for a route handler.'
         )

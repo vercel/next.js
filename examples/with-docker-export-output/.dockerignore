@@ -1,0 +1,129 @@
+############################################################
+# Production-ready .dockerignore for a Next.js (Vercel-style) app
+# Keeps Docker builds fast, lean, and free of development files.
+############################################################
+
+# Dependencies (installed inside Docker, never copied)
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Next.js build outputs (always generated during `next build`)
+.next/
+out/
+dist/
+build/
+.vercel/
+
+# Tests and testing output (not needed in production images)
+coverage/
+.nyc_output/
+__tests__/
+__mocks__/
+jest/
+cypress/
+cypress/screenshots/
+cypress/videos/
+playwright-report/
+test-results/
+.vitest/
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.jsx
+*.spec.ts
+*.spec.tsx
+*.spec.js
+*.spec.jsx
+
+
+# Local development and editor files
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.log
+
+# Environment variables (only commit template files)
+.env
+.env*.local
+.env.development
+.env.test
+.env.production.local
+
+# Docker configuration files (not needed inside build context)
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Documentation
+*.md
+docs/
+
+# CI/CD configuration files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+Jenkinsfile
+
+# Cache directories and temporary data
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.turbo/
+.tmp/
+.temp/
+
+# TypeScript build metadata
+*.tsbuildinfo
+.tsbuildinfo
+
+# Sensitive or unnecessary configuration files
+*.pem
+.editorconfig
+.prettierrc*
+.eslintrc*
+.stylelintrc*
+.babelrc*
+*.iml
+*.ipr
+*.iws
+
+# OS-specific junk
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# AI/ML tool metadata and configs
+.cursor/
+.cursorrules
+.copilot/
+.copilotignore
+.github/copilot/
+.gemini/
+.anthropic/
+.kiro
+.claude
+
+# AI-generated temp files
+*.aider*
+*.copilot*
+*.chatgpt*
+*.claude*
+*.gemini*
+*.openai*
+*.anthropic*

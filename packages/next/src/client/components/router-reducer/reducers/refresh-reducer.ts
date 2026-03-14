@@ -3,6 +3,7 @@ import type {
   ReducerState,
   RefreshAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import {
   convertServerPatchToFullTree,
   navigateToKnownRoute,
@@ -25,7 +26,7 @@ export function refreshReducer(
   // preserve prefetched data when refreshing after an MPA navigation. This is
   // only used for testing and is not exposed in production builds by default.
   const bypassCacheInvalidation =
-    process.env.__NEXT_EXPOSE_TESTING_API && action.devBypassCacheInvalidation
+    process.env.__NEXT_EXPOSE_TESTING_API && action.bypassCacheInvalidation
   if (!bypassCacheInvalidation) {
     const currentNextUrl = state.nextUrl
     const currentRouterState = state.tree
@@ -56,7 +57,7 @@ export function refreshDynamicData(
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
-  const shouldScroll = false
+  const scrollBehavior = ScrollBehavior.NoScroll
 
   // Create a NavigationSeed from the current FlightRouterState.
   // TODO: Eventually we will store this type directly on the state object
@@ -82,7 +83,7 @@ export function refreshDynamicData(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
     null,
     // Refresh navigations don't use route prediction, so there's no route

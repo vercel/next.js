@@ -44,13 +44,36 @@ use crate::{
         module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
     },
     output::{OutputAssets, OutputAssetsReference},
-    reference::ModuleReference,
-    resolve::BindingUsage,
 };
+
+#[derive(
+    Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub enum ContentHashing {
+    /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
+    /// Benefit: No hash manifest needed.
+    /// Downside: Causes cascading hash invalidation.
+    Direct {
+        /// The length of the content hash in base40 chars. Anything lower than 7 is not
+        /// recommended due to the high risk of collisions.
+        length: u8,
+    },
+}
 
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared, operation)]
-#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize)]
+#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize, ValueToString)]
 #[serde(untagged)]
 pub enum ModuleId {
     Number(u64),
@@ -63,14 +86,6 @@ impl Display for ModuleId {
             ModuleId::Number(i) => write!(f, "{i}"),
             ModuleId::String(s) => write!(f, "{s}"),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleId {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.to_string().into())
     }
 }
 
@@ -387,31 +402,6 @@ impl ChunkingType {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ChunkingTypeOption(Option<ChunkingType>);
-
-/// A [ModuleReference] implementing this trait and returning Some(_) for
-/// [ChunkableModuleReference::chunking_type] are considered as potentially
-/// chunkable references. When all [Module]s of such a reference implement
-/// [ChunkableModule] they are placed in [Chunk]s during chunking.
-/// They are even potentially placed in the same [Chunk] when a chunk type
-/// specific interface is implemented.
-#[turbo_tasks::value_trait]
-pub trait ChunkableModuleReference: ModuleReference + ValueToString {
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }))
-    }
-
-    #[turbo_tasks::function]
-    fn binding_usage(self: Vc<Self>) -> Vc<BindingUsage> {
-        BindingUsage::all()
-    }
-}
-
 pub struct ChunkGroupContent {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
@@ -506,9 +496,6 @@ pub struct ChunkItemWithAsyncModuleInfo {
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt {
     /// Returns the module id of this chunk item.

@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2024"
 name = "next-custom-transforms"
 version = "0.0.0"
 publish = false
@@ -66,6 +66,7 @@ swc_relay = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
 urlencoding = { workspace = true }
+next-taskless = { workspace = true }
 
 react_remove_properties = { workspace = true }
 remove_console = { workspace = true }

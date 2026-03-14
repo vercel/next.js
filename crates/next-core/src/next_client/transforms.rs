@@ -32,6 +32,12 @@ pub async fn get_next_client_transforms_rules(
 
     let modularize_imports_config = &next_config.modularize_imports().await?;
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+    let page_extensions: Vec<String> = next_config
+        .page_extensions()
+        .await?
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
 
     if !foreign_code {
         rules.push(get_next_lint_transform_rule(enable_mdx_rs));
@@ -77,6 +83,7 @@ pub async fn get_next_client_transforms_rules(
                     ExportFilter::StripDataExports,
                     enable_mdx_rs,
                     vec![],
+                    &page_extensions,
                 )?);
                 rules.push(get_next_disallow_export_all_in_page_rule(
                     enable_mdx_rs,

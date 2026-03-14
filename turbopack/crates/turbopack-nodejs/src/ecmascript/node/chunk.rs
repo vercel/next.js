@@ -17,6 +17,8 @@ use crate::NodeJsChunkingContext;
 
 /// Production Ecmascript chunk targeting Node.js.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Build Node Chunk")]
 pub(crate) struct EcmascriptBuildNodeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
     chunk: ResolvedVc<EcmascriptChunk>,
@@ -45,14 +47,6 @@ impl EcmascriptBuildNodeChunk {
             this.chunk.ident().with_modifier(modifier()),
             Vc::upcast(self),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBuildNodeChunk {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Chunk"))
     }
 }
 

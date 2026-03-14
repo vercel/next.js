@@ -20,7 +20,7 @@ impl Registration {
 
 #[macro_export]
 macro_rules! register {
-    ($($other_register_fns:expr),* $(,)?) => {{
+    () => {{
         use std::sync::Arc;
 
         use turbo_tasks::TurboTasksApi;
@@ -70,7 +70,7 @@ fn closure_to_name<T>(value: &T) -> String {
 
 pub async fn run_once<T, F>(
     registration: &Registration,
-    fut: impl Fn() -> F + Send + 'static,
+    mut fut: impl FnMut() -> F + Send + 'static,
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,
@@ -81,7 +81,7 @@ where
 
 pub async fn run<T, F>(
     registration: &Registration,
-    fut: impl Fn() -> F + Send + 'static,
+    mut fut: impl FnMut() -> F + Send + 'static,
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,
@@ -92,7 +92,7 @@ where
 
 pub async fn run_with_tt<T, F>(
     registration: &Registration,
-    fut: impl Fn(Arc<dyn TurboTasksApi>) -> F + Send + 'static,
+    mut fut: impl FnMut(Arc<dyn TurboTasksApi>) -> F + Send + 'static,
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,

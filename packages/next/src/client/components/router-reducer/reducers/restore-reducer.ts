@@ -45,8 +45,8 @@ export function restoreReducer(
 
   const now = Date.now()
   const accumulation: NavigationRequestAccumulation = {
-    scrollableSegments: null,
     separateRefreshUrls: null,
+    scrollRef: null,
   }
   const restoreSeed = convertServerPatchToFullTree(
     treeToRestore,
@@ -81,7 +81,9 @@ export function restoreReducer(
     // cache entry to mark as having a dynamic rewrite on mismatch. If a
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
-    null
+    null,
+    // History traversal always uses 'replace'.
+    'replace'
   )
   return completeTraverseNavigation(
     state,

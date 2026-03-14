@@ -14,7 +14,7 @@ use crate::{
         DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
         split_function_attributes,
     },
-    global_name::global_name,
+    global_name::{global_name_for_method, global_name_for_trait_method_impl},
     ident::{
         get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
         get_trait_impl_function_ident, get_type_ident,
@@ -116,14 +116,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             let inline_function_ident = turbo_fn.inline_ident();
             let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
             let inline_attrs = filter_inline_attributes(attrs.iter().copied());
-            let function_path_string = format!("{ty}::{ident}", ty = ty.to_token_stream());
             let native_fn = NativeFn {
-                function_global_name: global_name(&function_path_string),
-                function_path_string,
+                function_global_name: global_name_for_method(ty, ident),
+                function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
                 function_path: quote! { <#ty>::#inline_function_ident },
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: None, // not a trait method
+                is_root: false,
             };
 
             let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -149,14 +149,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         pub(self) #inline_signature #inline_block
                     }
 
-                    static #native_function_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
-
-                    // Register the function for deserialization
-                    turbo_tasks::macro_helpers::inventory_submit! {
-                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
-                    }
+                    turbo_tasks::macro_helpers::turbo_register!(
+                        #native_function_ident: #native_function_ty = #native_function_def
+                    );
                 })
         }
 
@@ -233,12 +228,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
                 let native_fn = NativeFn {
-                    // This global name breaks the pattern.  It isn't clear if it is intentional
-                    function_global_name: global_name(format!(
-                        "{ty}::{trait_path}::{ident}",
-                        ty = ty.to_token_stream(),
-                        trait_path = trait_path.to_token_stream()
-                    )),
+                    function_global_name: global_name_for_trait_method_impl(ty, trait_path, ident),
                     function_path_string: format!(
                         "<{ty} as {trait_path}>::{ident}",
                         ty = ty.to_token_stream(),
@@ -250,6 +240,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_method: turbo_fn.is_method(),
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
+                    is_root: false,
                 };
 
                 let native_function_ident =
@@ -282,22 +273,17 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #inline_signature #inline_block
                     }
 
-                    static #native_function_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
-
-                    // Register the function for deserialization
-                    turbo_tasks::macro_helpers::inventory_submit! {
-                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
-                    }
+                    turbo_tasks::macro_helpers::turbo_register!(
+                        #native_function_ident: #native_function_ty = #native_function_def
+                    );
                 });
 
+                let method_name_str = syn::LitStr::new(&ident.to_string(), ident.span());
                 trait_methods.push(quote! {
-                    (stringify!(#ident), &#native_function_ident),
+                    (#method_name_str, &#native_function_ident)
                 });
             }
         }
-        let value_name = global_name(quote! {stringify!(#ty_ident)});
         quote! {
             // Register all the function impls so the ValueType can find them
             // This means objects resolve as
@@ -305,13 +291,16 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // 2 TraitTypes (requires functions)
             // 3 ValueTypes (requires functions and TraitTypeIds)
             // 4.VTableRegistries (requires ValueTypeIds)
-            turbo_tasks::macro_helpers::inventory_submit!{
-                turbo_tasks::macro_helpers::CollectableTraitMethods(
-                    #value_name,
-                    || (<::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
-                        vec![#(#trait_methods)*])
-                )
-            }
+            turbo_tasks::macro_helpers::inventory_submit!{{
+                const LEN: usize = <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::TraitVtablePrototype>::LEN;
+                static METHODS: [&turbo_tasks::macro_helpers::NativeFunction; LEN] = turbo_tasks::macro_helpers::build_trait_vtable::<::std::boxed::Box<dyn #trait_path>, LEN>(&[#(#trait_methods),*]);
+
+                turbo_tasks::macro_helpers::CollectableTraitMethods {
+                    value_type: <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
+                    trait_type: <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
+                    methods: &METHODS,
+                }
+            }}
 
             // These can execute later so they can reference trait_types during registration
 
