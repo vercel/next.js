@@ -866,14 +866,16 @@ export default function OuterLayoutRouter({
     }
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
+      const isHidden = stateKey !== activeStateKey
       child = (
-        <Activity
-          name={debugNameToDisplay}
-          key={stateKey}
-          mode={stateKey === activeStateKey ? 'visible' : 'hidden'}
-        >
-          {child}
-        </Activity>
+        <div key={stateKey} hidden={isHidden}>
+          <Activity
+            name={debugNameToDisplay}
+            mode={isHidden ? 'hidden' : 'visible'}
+          >
+            {child}
+          </Activity>
+        </div>
       )
     }
 
