@@ -90,6 +90,49 @@ describe('PrerenderManifestMatcher', () => {
 
         expect(result).toBe(route)
       })
+
+      it('should match unknown root branches against the generic source shell', () => {
+        const generatedRootRoute = createMockDynamicRoute({
+          fallbackSourceRoute: '/root-gsp/[lang]/[slug]',
+          routeRegex: '^/root-gsp/en/([^/]+?)(?:/)?$',
+          fallbackRootParams: [],
+          fallbackRouteParams: [
+            {
+              paramName: 'slug',
+              paramType: 'dynamic',
+            },
+          ],
+        })
+
+        const genericRootRoute = createMockDynamicRoute({
+          fallbackSourceRoute: '/root-gsp/[lang]/[slug]',
+          routeRegex: '^/root-gsp/([^/]+?)/([^/]+?)(?:/)?$',
+          fallbackRootParams: ['lang'],
+          fallbackRouteParams: [
+            {
+              paramName: 'lang',
+              paramType: 'dynamic',
+            },
+            {
+              paramName: 'slug',
+              paramType: 'dynamic',
+            },
+          ],
+        })
+
+        const manifest = createMockPrerenderManifest({
+          '/root-gsp/en/[slug]': generatedRootRoute,
+          '/root-gsp/[lang]/[slug]': genericRootRoute,
+        })
+
+        const matcher = new PrerenderManifestMatcher(
+          '/root-gsp/[lang]/[slug]',
+          manifest
+        )
+
+        expect(matcher.match('/root-gsp/en/two')).toBe(generatedRootRoute)
+        expect(matcher.match('/root-gsp/fr/two')).toBe(genericRootRoute)
+      })
     })
 
     describe('no match scenarios', () => {

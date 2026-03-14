@@ -37,6 +37,7 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
 
@@ -1591,6 +1592,7 @@ export async function handleBuildComplete({
           fallbackStatus,
           fallbackSourceRoute,
           fallbackRootParams,
+          remainingPrerenderableParams,
           allowHeader,
           dataRoute,
           renderingMode,
@@ -1602,19 +1604,32 @@ export async function handleBuildComplete({
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
-        const allowQuery = Object.values(
+        const routeKeys =
           routesManifest.dynamicRoutes.find(
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
-        )
+        const allowQuery = Object.values(routeKeys)
         const partialFallbacksEnabled =
           config.experimental.partialFallbacks === true
         const partialFallback =
           partialFallbacksEnabled &&
           isAppPage &&
+          remainingPrerenderableParams !== undefined &&
+          remainingPrerenderableParams.length > 0 &&
           renderingMode === RenderingMode.PARTIALLY_STATIC &&
           typeof fallback === 'string' &&
           Boolean(meta.postponed)
+
+        // Today, consumers of this build output can only upgrade a fallback shell
+        // when all remaining route params become concrete in the upgraded entry.
+        // They cannot yet represent intermediate shells like `/[foo]/[bar] -> /foo/[bar]`,
+        // because we do not emit which fallback params should remain deferred after
+        // the upgrade. Until that contract exists, only emit `partialFallback` for
+        // the conservative case where the upgraded entry can become fully concrete.
+        const canEmitPartialFallback =
+          partialFallback &&
+          fallbackRootParams?.length === 0 &&
+          allowQuery.length === remainingPrerenderableParams?.length
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -1632,12 +1647,18 @@ export async function handleBuildComplete({
           // RSC shell.
           else if (meta.postponed) {
             // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
-            // For opt-in partial fallbacks in cache components, keep route
-            // allowQuery so fallback shells can be upgraded per-param instead
-            // of sharing one cache key.
+            // For opt-in partial fallbacks in cache components, keep only the
+            // params that can still complete this shell.
+            const remainingPrerenderableQueryKeys = new Set(
+              (remainingPrerenderableParams ?? []).map(
+                (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+              )
+            )
             htmlAllowQuery =
-              partialFallback && routesManifest.rsc.clientParamParsing
-                ? allowQuery
+              canEmitPartialFallback && routesManifest.rsc.clientParamParsing
+                ? Object.values(routeKeys).filter((routeKey) =>
+                    remainingPrerenderableQueryKeys.has(routeKey)
+                  )
                 : []
           }
         }
@@ -1683,7 +1704,7 @@ export async function handleBuildComplete({
             allowQuery: htmlAllowQuery,
             allowHeader,
             renderingMode,
-            partialFallback: partialFallback || undefined,
+            partialFallback: canEmitPartialFallback || undefined,
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },

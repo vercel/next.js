@@ -28,4 +28,24 @@ describe('partial-fallback-shell-upgrade', () => {
       expect($('#fallback').length).toBe(0)
     })
   })
+
+  it('should not upgrade a route shell when no params were prerendered', async () => {
+    const pathname = '/no-gsp/two'
+    const start = Date.now()
+
+    await retry(
+      async () => {
+        const $ = await next.render$(pathname)
+        expect($('#fallback').text()).toBe('loading...')
+        expect($('#slug').closest('[hidden]').length).toBe(1)
+
+        if (Date.now() - start < 5000) {
+          throw new Error('continue polling fallback shell')
+        }
+      },
+      6000,
+      500,
+      'no-gsp fallback shell should remain unupgraded'
+    )
+  })
 })
