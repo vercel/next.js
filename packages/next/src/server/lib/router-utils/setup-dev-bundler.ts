@@ -34,7 +34,10 @@ import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
-import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
+import {
+  generateInterceptionRoutesRewrites,
+  isInterceptionRouteRewrite,
+} from '../../../lib/generate-interception-routes-rewrites'
 
 import {
   CLIENT_STATIC_FILES_PATH,
@@ -529,15 +532,13 @@ async function startWatcher(
 
         const isAppPath = Boolean(
           appDir &&
-            normalizePathSep(fileName).startsWith(
-              normalizePathSep(appDir) + '/'
-            )
+          normalizePathSep(fileName).startsWith(normalizePathSep(appDir) + '/')
         )
         const isPagePath = Boolean(
           pagesDir &&
-            normalizePathSep(fileName).startsWith(
-              normalizePathSep(pagesDir) + '/'
-            )
+          normalizePathSep(fileName).startsWith(
+            normalizePathSep(pagesDir) + '/'
+          )
         )
 
         const rootFile = absolutePathToPage(fileName, {
@@ -990,6 +991,10 @@ async function startWatcher(
         )
       )
 
+      opts.fsChecker.rewrites.beforeFiles =
+        opts.fsChecker.rewrites.beforeFiles.filter(
+          (r) => !isInterceptionRouteRewrite(r)
+        )
       opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
 
       const exportPathMap =
