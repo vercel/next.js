@@ -458,6 +458,43 @@ for (const cacheEnabled of [false, true]) {
           expect(typeof tags.task_count).toBe('number')
         }
       )
+
+      // Production-only: verify that SSG runs in parallel with persistence
+      // (not blocked waiting for the Turbopack shutdown to complete).
+      ;(process.env.IS_TURBOPACK_TEST && !isNextDev ? it : it.skip)(
+        'should run SSG in parallel with persistence flush',
+        async () => {
+          // beforeEach already called start() which triggers a build.
+          // The trace-build file was written during that build.
+          const traceBuildPath = path.join(next.testDir, '.next/trace-build')
+          expect(existsSync(traceBuildPath)).toBe(true)
+
+          const events = parseTraceFile(traceBuildPath)
+
+          const ssgEvents = events.filter((e) => e.name === 'static-generation')
+          const persistenceEvents = events.filter(
+            (e) => e.name === 'turbopack-persistence'
+          )
+
+          expect(ssgEvents.length).toBe(1)
+          expect(persistenceEvents.length).toBeGreaterThan(0)
+
+          const ssg = ssgEvents[0]
+          const persistence = persistenceEvents[0]
+
+          // Both spans carry a startTime field (Date.now() epoch ms) that
+          // is comparable across processes.  For manualTraceChild spans
+          // (like turbopack-persistence) startTime is set when the JS
+          // side processes the event — roughly when persistence finishes.
+          //
+          // The key invariant: SSG must start before persistence finishes.
+          // If SSG were blocked on the shutdown promise, it would only
+          // start *after* persistence completes.
+          expect(ssg.startTime).toBeDefined()
+          expect(persistence.startTime).toBeDefined()
+          expect(ssg.startTime).toBeLessThan(persistence.startTime!)
+        }
+      )
     }
   })
 }
