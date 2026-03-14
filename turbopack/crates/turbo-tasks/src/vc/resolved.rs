@@ -202,7 +202,6 @@ where
     /// Upcasts the given `ResolvedVc<T>` to a `ResolvedVc<Box<dyn K>>`.
     ///
     /// See also: [`Vc::upcast`].
-    #[inline(always)]
     pub fn upcast<K>(this: Self) -> ResolvedVc<K>
     where
         T: UpcastStrict<K>,
@@ -216,7 +215,6 @@ where
     /// This has a loose type constraint which would allow upcasting to the same type, prefer using
     /// [`ResolvedVc::upcast`] when possible. See also: [`Vc::upcast_non_strict`].  This is
     /// useful for extension traits and other more generic usecases.
-    #[inline(always)]
     pub fn upcast_non_strict<K>(this: Self) -> ResolvedVc<K>
     where
         T: Upcast<K>,
@@ -230,7 +228,6 @@ where
     /// Upcasts the given `Vec<ResolvedVc<T>>` to a `Vec<ResolvedVc<K>>`.
     ///
     /// See also: [`Vc::upcast`].
-    #[inline(always)]
     pub fn upcast_vec<K>(vec: Vec<Self>) -> Vec<ResolvedVc<K>>
     where
         T: UpcastStrict<K>,

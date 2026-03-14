@@ -102,11 +102,9 @@ const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
 
 impl RcStr {
-    #[inline(always)]
     fn tag(&self) -> u8 {
         self.unsafe_data.tag_byte() & TAG_MASK
     }
-    #[inline(always)]
     fn location(&self) -> u8 {
         self.unsafe_data.tag_byte() & LOCATION_MASK
     }
@@ -295,7 +293,6 @@ impl From<RcStr> for PathBuf {
 }
 
 impl Clone for RcStr {
-    #[inline(always)]
     fn clone(&self) -> Self {
         let alias = self.unsafe_data;
         // We only need to increment the ref count for DYNAMIC_TAG values
@@ -418,7 +415,6 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
 }
 
 #[doc(hidden)]
-#[inline(always)]
 pub fn from_static(s: &'static PrehashedString) -> RcStr {
     dynamic::new_static_atom(s)
 }
@@ -458,7 +454,6 @@ macro_rules! rcstr {
 
 /// noop
 impl ShrinkToFit for RcStr {
-    #[inline(always)]
     fn shrink_to_fit(&mut self) {}
 }
 

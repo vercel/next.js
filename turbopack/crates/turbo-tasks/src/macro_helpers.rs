@@ -68,7 +68,6 @@ macro_rules! stringify_path {
 
 /// Rexport std::ptr::metadata so not every crate needs to enable the feature when they use our
 /// macros.
-#[inline(always)]
 pub const fn metadata<T: ?Sized>(ptr: *const T) -> <T as std::ptr::Pointee>::Metadata {
     // Ideally we would just `pub use std::ptr::metadata;` but this doesn't seem to work.
     std::ptr::metadata(ptr)

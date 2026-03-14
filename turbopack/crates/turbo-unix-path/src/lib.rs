@@ -4,7 +4,6 @@ use std::borrow::Cow;
 
 /// Converts system paths into Unix paths. This is a noop on Unix systems, and replaces backslash
 /// directory separators with forward slashes on Windows.
-#[inline]
 pub fn sys_to_unix(path: &str) -> Cow<'_, str> {
     #[cfg(not(target_family = "windows"))]
     {
@@ -18,7 +17,6 @@ pub fn sys_to_unix(path: &str) -> Cow<'_, str> {
 
 /// Converts Unix paths into system paths. This is a noop on Unix systems, and replaces forward
 /// slash directory separators with backslashes on Windows.
-#[inline]
 pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
     #[cfg(not(target_family = "windows"))]
     {

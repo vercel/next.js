@@ -103,7 +103,6 @@ impl TurboMalloc {
 }
 
 /// Get the allocator for this platform that we should wrap with TurboMalloc.
-#[inline]
 fn base_alloc() -> &'static impl GlobalAlloc {
     #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
     return &mimalloc::MiMalloc;

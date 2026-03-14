@@ -292,7 +292,6 @@ where
     /// Upcasts the given `Vc<T>` to a `Vc<Box<dyn K>>`.
     ///
     /// This is also available as an `Into`/`From` conversion.
-    #[inline(always)]
     pub fn upcast<K>(vc: Self) -> Vc<K>
     where
         T: UpcastStrict<K>,
@@ -319,7 +318,6 @@ where
     /// `UpcastStrict<...>` instead of `Upcast<...>` you would disallow calling this function if you
     /// already had a `ResolvedVc<Box<dyn MyTrait>>`. So this function has a looser type constraint
     /// to make these functions easier to write and use.
-    #[inline(always)]
     pub fn upcast_non_strict<K>(vc: Self) -> Vc<K>
     where
         T: Upcast<K>,

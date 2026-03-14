@@ -296,7 +296,6 @@ pub struct StorageWriteGuard<'a> {
 
 impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task
-    #[inline(always)]
     pub fn track_modification(
         &mut self,
         category: SpecificTaskDataCategory,

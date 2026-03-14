@@ -95,7 +95,6 @@ impl<T: ?Sized> OperationVc<T> {
     /// Upcasts the given `OperationVc<T>` to a `OperationVc<Box<dyn K>>`.
     ///
     /// This is also available as an `Into`/`From` conversion.
-    #[inline(always)]
     pub fn upcast<K>(vc: Self) -> OperationVc<K>
     where
         T: UpcastStrict<K>,

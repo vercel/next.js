@@ -15,7 +15,6 @@ macro_rules! deterministic_hash_number {
 macro_rules! impl_write_number {
     ($(($ty:ident, $meth:ident),)*) => {$(
         /// Writes a single `$ty` to this hasher
-        #[inline]
         fn $meth(&mut self, i: $ty) {
             // Apple silicon and Intel chips both use little endian, so this should be fast.
             let little_endian = i.to_le_bytes();
@@ -47,13 +46,11 @@ pub trait DeterministicHasher {
     fn write_bytes(&mut self, bytes: &[u8]);
 
     /// Writes a single `u8` to this hasher
-    #[inline]
     fn write_u8(&mut self, i: u8) {
         self.write_bytes(&[i]);
     }
 
     /// Writes a single `usize` to this hasher
-    #[inline]
     fn write_usize(&mut self, i: usize) {
         // usize can be 4 or 8 bytes, standardize on the larger.
         // As long as the original value is smaller than 4 bytes, the two will hash
@@ -62,7 +59,6 @@ pub trait DeterministicHasher {
     }
 
     /// Writes a single `isize` to this hasher
-    #[inline]
     fn write_isize(&mut self, i: isize) {
         // isize can be 4 or 8 bytes, standardize on the larger.
         // As long as the original value is smaller than 4 bytes, the two will hash

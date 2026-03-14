@@ -117,7 +117,6 @@ fn init() {
     create_custom_tokio_runtime(rt);
 }
 
-#[inline]
 fn get_compiler() -> Compiler {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 

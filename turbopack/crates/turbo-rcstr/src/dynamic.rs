@@ -86,7 +86,6 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
     }
 }
 
-#[inline(always)]
 pub(crate) fn new_static_atom(string: &'static PrehashedString) -> RcStr {
     let mut entry = string as *const PrehashedString;
     debug_assert!(0 == entry as u8 & TAG_MASK);
@@ -130,7 +129,6 @@ const SEED1: u64 = 0x243f6a8885a308d3;
 const SEED2: u64 = 0x13198a2e03707344;
 const PREVENT_TRIVIAL_ZERO_COLLAPSE: u64 = 0xa4093822299f31d0;
 
-#[inline]
 const fn multiply_mix(x: u64, y: u64) -> u64 {
     #[cfg(target_pointer_width = "64")]
     {
@@ -175,7 +173,6 @@ const fn multiply_mix(x: u64, y: u64) -> u64 {
 // Const compatible helper function to read a u64 from a byte array at a given
 // offset
 // SAFETY: The caller must ensure that `bytes.len() >= offset + 8`
-#[inline(always)]
 const unsafe fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
     debug_assert!(offset + 8 <= bytes.len());
     // Reinterpret the pointer as an array of length 8 at the given offset
@@ -189,7 +186,6 @@ const unsafe fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
 // Const compatible helper function to read a u32 from a byte array at a given
 // offset
 // SAFETY: The caller must ensure that `bytes.len() >= offset + 4`
-#[inline(always)]
 const unsafe fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
     debug_assert!(offset + 4 <= bytes.len());
     // SAFETY: it is our callers responsibility to ensure the offset is in range
@@ -216,7 +212,6 @@ const unsafe fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
 ///
 /// We don't bother avalanching here as we'll feed this hash into a
 /// multiplication after which we take the high bits, which avalanches for us.
-#[inline]
 #[doc(hidden)]
 pub const fn hash_bytes(bytes: &[u8]) -> u64 {
     let len = bytes.len();

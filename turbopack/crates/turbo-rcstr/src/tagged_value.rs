@@ -50,7 +50,6 @@ pub(crate) struct TaggedValue {
 }
 
 impl TaggedValue {
-    #[inline(always)]
     pub fn new_ptr<T>(value: NonNull<T>) -> Self {
         #[cfg(any(
             target_pointer_width = "32",
@@ -78,7 +77,6 @@ impl TaggedValue {
         }
     }
 
-    #[inline(always)]
     pub const fn new_tag(value: NonZeroU8) -> Self {
         let value = value.get() as RawTaggedValue;
         Self {
@@ -87,7 +85,6 @@ impl TaggedValue {
         }
     }
 
-    #[inline(always)]
     pub fn get_ptr(&self) -> *const c_void {
         #[cfg(any(
             target_pointer_width = "32",
@@ -111,12 +108,10 @@ impl TaggedValue {
         }
     }
 
-    #[inline(always)]
     fn get_value(&self) -> RawTaggedValue {
         unsafe { std::mem::transmute(Some(self.value)) }
     }
 
-    #[inline(always)]
     pub fn tag_byte(&self) -> u8 {
         (self.get_value() & 0xff) as u8
     }

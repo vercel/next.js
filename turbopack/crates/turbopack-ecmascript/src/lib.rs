@@ -2617,7 +2617,6 @@ impl CodeGenResultComments {
     const CONTINUATION_BIT: u32 = 1 << 31;
     const SIGN_EXTENSION_BIT: u32 = 1 << 30;
 
-    #[inline]
     fn encode_bytepos_impl(
         modules_header_width: u32,
         module: u32,

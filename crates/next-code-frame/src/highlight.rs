@@ -386,7 +386,6 @@ impl<'a> Scanner<'a> {
     }
 
     /// Check whether a byte range `[start, end)` overlaps any output range.
-    #[inline]
     fn overlaps_output(&self, start: usize, end: usize) -> bool {
         // Ranges are sorted and there are typically ≤6, so linear scan
         // is faster than binary search for the common case.

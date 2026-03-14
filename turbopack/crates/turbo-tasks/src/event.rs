@@ -37,7 +37,6 @@ pub struct EventDescription {
 }
 
 impl EventDescription {
-    #[inline(always)]
     pub fn new<InnerFn>(#[allow(unused_variables)] description: impl FnOnce() -> InnerFn) -> Self
     where
         InnerFn: Fn() -> String + Sync + Send + 'static,
@@ -86,7 +85,6 @@ impl Event {
     ///
     /// The outer closure allows avoiding extra lookups (e.g. task type info) that may be needed to
     /// capture information needed for constructing (moving into) the inner closure.
-    #[inline(always)]
     pub fn new(#[allow(unused_variables)] description: impl EventDescriptor) -> Self {
         #[cfg(not(feature = "hanging_detection"))]
         return Self {

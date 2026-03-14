@@ -130,7 +130,6 @@ pub mod macro_helpers {
 
     /// Blanket impl: uses synchronous `Display::to_string()` for owned values.
     impl<T: Display + Send + Sync> ValueToStringify<1> for &ValueToStringifyWrap<&T> {
-        #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
             let s = (self.0).to_string();
             async move { Ok(StringifyType::String(s)) }
@@ -141,7 +140,6 @@ pub mod macro_helpers {
     where
         T: ValueToString,
     {
-        #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
             let vc = self.0;
             async move {
@@ -155,7 +153,6 @@ pub mod macro_helpers {
     where
         T: ValueToString,
     {
-        #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
             let vc = self.0;
             async move {
@@ -169,7 +166,6 @@ pub mod macro_helpers {
     where
         T: ValueToStringRef,
     {
-        #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> {
             let s = self.0.to_string_ref();
             async move { Ok(StringifyType::RcStr(s.await?)) }
