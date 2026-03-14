@@ -146,17 +146,17 @@ export async function turbopackBuild(): Promise<{
         }
       : undefined
   )
-  try {
-    const buildEventsSpan = trace('turbopack-build-events')
-    // Stop immediately: this span is only used as a parent for
-    // manualTraceChild calls which carry their own timestamps.
-    buildEventsSpan.stop()
-    const compilationEventsController = new AbortController()
-    const compilationEvents = backgroundLogCompilationEvents(project, {
-      parentSpan: buildEventsSpan,
-      signal: compilationEventsController.signal,
-    })
+  const buildEventsSpan = trace('turbopack-build-events')
+  // Stop immediately: this span is only used as a parent for
+  // manualTraceChild calls which carry their own timestamps.
+  buildEventsSpan.stop()
+  const compilationEventsController = new AbortController()
+  const compilationEvents = backgroundLogCompilationEvents(project, {
+    parentSpan: buildEventsSpan,
+    signal: compilationEventsController.signal,
+  })
 
+  try {
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
@@ -284,6 +284,8 @@ export async function turbopackBuild(): Promise<{
       shutdownPromise,
     }
   } catch (err) {
+    compilationEventsController.abort()
+    await compilationEvents.catch(() => {})
     await project.shutdown()
     throw err
   }
