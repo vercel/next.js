@@ -141,6 +141,7 @@ describe('trace-build-file', () => {
                   "static-generation",
                   "telemetry-flush",
                   "turbopack-build-events",
+                  "turbopack-persistence",
                 ]
               `)
       } else {
