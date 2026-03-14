@@ -335,8 +335,8 @@ styled_components = "0.140.0"
 styled_jsx = "0.115.0"
 swc_emotion = "0.116.0"
 swc_relay = "0.86.0"
-react_remove_properties = "0.65.0"
-remove_console = "0.66.0"
+react_remove_properties = "0.66.0"
+remove_console = "0.67.0"
 preset_env_base = "7.0.0"
 
 

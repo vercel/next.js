@@ -6254,16 +6254,16 @@ dependencies = [
 
 [[package]]
 name = "react_remove_properties"
-version = "0.65.0"
+version = "0.66.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bead81b34bf32a2f083bd988043e1d4e8b14b3e658667dd5dfbfa876ab62a3f7"
+checksum = "85b0620c19066c4458c181b9c11426e6ae7ba4dbd272784ed3185b593b818d1e"
 dependencies = [
  "serde",
  "swc_atoms",
  "swc_cached",
- "swc_common 18.0.1",
- "swc_ecma_ast 20.0.1",
- "swc_ecma_visit 20.0.0",
+ "swc_common 19.0.0",
+ "swc_ecma_ast 21.0.0",
+ "swc_ecma_visit 21.0.0",
 ]
 
 [[package]]
@@ -6392,16 +6392,16 @@ checksum = "c707298afce11da2efef2f600116fa93ffa7a032b5d7b628aa17711ec81383ca"
 
 [[package]]
 name = "remove_console"
-version = "0.66.0"
+version = "0.67.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47673e63af1c8df859dd797ab70beec7e02ba66b5e2e99248bb4b567d3ad78bd"
+checksum = "5d04131bee38ade89b46177cdd8a1e23a83aa6c24d8c2997c109dcd906499ba8"
 dependencies = [
  "serde",
  "swc_atoms",
  "swc_cached",
- "swc_common 18.0.1",
- "swc_ecma_ast 20.0.1",
- "swc_ecma_visit 20.0.0",
+ "swc_common 19.0.0",
+ "swc_ecma_ast 21.0.0",
+ "swc_ecma_visit 21.0.0",
 ]
 
 [[package]]
