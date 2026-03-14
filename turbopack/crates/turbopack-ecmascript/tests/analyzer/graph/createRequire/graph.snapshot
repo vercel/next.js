@@ -58,12 +58,7 @@
             Module(
                 ModuleValue {
                     module: "node:module",
-                    annotations: ImportAnnotations {
-                        map: {},
-                        turbopack_loader: None,
-                        turbopack_rename_as: None,
-                        turbopack_module_type: None,
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
