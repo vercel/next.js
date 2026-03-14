@@ -32,9 +32,18 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 export async function copy_docs(task, opts) {
-  // Copy documentation from repo root into the package
+  // Copy documentation from repo root into the package.
+  // Rename .mdx → .md so AI agents find them when globbing for *.md.
   const docsSource = join(__dirname, '../../docs')
-  await task.source(join(docsSource, '**/*')).target('dist/docs')
+  await task
+    .source(join(docsSource, '**/*'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
