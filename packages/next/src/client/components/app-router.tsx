@@ -29,6 +29,7 @@ import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { useCacheNodeRsc } from './layout-router'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
@@ -134,7 +135,6 @@ function Head({
 }): React.ReactNode {
   return useCacheNodeRsc(headCacheNode.head, headCacheNode.prefetchHead)
 }
-
 
 /**
  * The global router that wraps the application components.
@@ -480,7 +480,9 @@ function Router({
     // segment tree to mount (which may be delayed by deferred rendering).
     const { SegmentViewStateNode } =
       require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
-    devtoolsRouteStateNode = <SegmentViewStateNode page={pathname} />
+    devtoolsRouteStateNode = (
+      <SegmentViewStateNode page={normalizeAppPath(canonicalUrl)} />
+    )
   }
 
   let content = (
