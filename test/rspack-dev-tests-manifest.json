@@ -426,12 +426,12 @@
     "passed": [
       "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a event handler error",
-      "pages/ error recovery stuck error",
-      "pages/ error recovery syntax > runtime error"
+      "pages/ error recovery stuck error"
     ],
     "failed": [
       "pages/ error recovery logbox: can recover from a syntax error without losing state",
-      "pages/ error recovery render error not shown right after syntax error"
+      "pages/ error recovery render error not shown right after syntax error",
+      "pages/ error recovery syntax > runtime error"
     ],
     "pending": [],
     "flakey": [],
@@ -984,13 +984,14 @@
   },
   "test/development/app-dir/instant-navs-devtools/instant-navs-devtools.test.ts": {
     "passed": [
-      "instant-nav-panel should auto-open panel on page load when cookie is already set",
       "instant-nav-panel should not set cookie when closing panel from waiting state",
       "instant-nav-panel should open panel in waiting state without setting cookie",
       "instant-nav-panel should show client nav state after clicking Start and navigating",
       "instant-nav-panel should show loading skeleton during SPA navigation after clicking Start"
     ],
-    "failed": [],
+    "failed": [
+      "instant-nav-panel should auto-open panel on page load when cookie is already set"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4157,6 +4158,7 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -4218,8 +4220,7 @@
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
     ],
     "failed": [
-      "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5863,6 +5864,7 @@
   },
   "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
     "passed": [
+      "instant-navigation-testing-api - root params includes root param in instant shell",
       "instant-navigation-testing-api clears cookie after instant scope exits",
       "instant-navigation-testing-api clears cookie even when callback throws",
       "instant-navigation-testing-api does not leak runtime data from hover prefetch into instant shell",
@@ -5879,6 +5881,8 @@
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during client navigation",
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during page load",
       "instant-navigation-testing-api sets cookie before first navigation when using baseURL",
+      "instant-navigation-testing-api statically generated params are included in instant shell includes statically generated param values in instant shell during client navigation",
+      "instant-navigation-testing-api statically generated params are included in instant shell includes statically generated param values in instant shell during page load",
       "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
       "instant-navigation-testing-api successive MPA navigations within instant scope",
       "instant-navigation-testing-api throws descriptive error on fresh page without baseURL",
@@ -8386,6 +8390,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/partial-fallback-root-blocking/partial-fallback-root-blocking.test.ts": {
+    "passed": ["partial-fallback-root-blocking skipped in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
     "passed": ["partial-fallback-shell-upgrade skipped in dev"],
     "failed": [],
@@ -9659,6 +9670,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/max-prefetch-inlining/max-prefetch-inlining.test.ts": {
+    "passed": ["max prefetch inlining disabled in development"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": ["segment cache memory pressure disabled in development"],
     "failed": [],
@@ -9681,10 +9699,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9706,7 +9724,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
-    "passed": ["prefetch inlining disabled in development"],
+    "passed": [
+      "prefetch inlining prefetch hints are only computed during build"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9722,8 +9742,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
-    "passed": [],
-    "failed": ["prefetch-partial-rsc resolves after a client-side navigation"],
+    "passed": ["prefetch-partial-rsc resolves after a client-side navigation"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9882,6 +9902,7 @@
       "app-dir - server source maps logged errors collapse deeply nested causes at depth 2",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
+      "app-dir - server source maps logged errors in client components during ssr have a sourcemapped stack with a codeframe",
       "app-dir - server source maps logged errors include `[errors]` for AggregateError",
       "app-dir - server source maps logged errors preserve their name",
       "app-dir - server source maps stack frames are ignore-listed in ssr",
@@ -9916,6 +9937,7 @@
       "shallow-routing pushState should support setting a different pathname reflected on usePathname",
       "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
       "shallow-routing pushState should support setting a different url using a string",
+      "shallow-routing pushState should support setting data",
       "shallow-routing pushState should work when given a null state value",
       "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
       "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
@@ -9925,7 +9947,7 @@
       "shallow-routing replaceState should work when given an undefined state value",
       "shallow-routing should work when given an undefined state value"
     ],
-    "failed": ["shallow-routing pushState should support setting data"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10126,10 +10148,9 @@
   },
   "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
     "passed": [
-      "typed-links should generate types for next/link",
       "typed-links should include handler route from app/api-test/route.ts in generated link route definitions"
     ],
-    "failed": [],
+    "failed": ["typed-links should generate types for next/link"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10138,12 +10159,11 @@
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
       "typed-routes should generate RouteContext type for route handlers",
+      "typed-routes should generate route types correctly",
+      "typed-routes should have passing tsc after start",
       "typed-routes should update route types file when routes change"
     ],
-    "failed": [
-      "typed-routes should generate route types correctly",
-      "typed-routes should have passing tsc after start"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10811,6 +10831,18 @@
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Invalid position config should validate position config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/cache-handlers-upstream-wiring/index.test.ts": {
+    "passed": [
+      "cache-handlers-upstream-wiring cacheComponents disabled, edge app router uses configured cacheHandler for edge app page and edge app route",
+      "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router uses configured cacheHandlers for custom app-router cache kind",
+      "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router wires revalidateTag and revalidatePath to the custom cache handler",
+      "cache-handlers-upstream-wiring pages router non-edge wires res.revalidate() through the configured custom cacheHandler"
     ],
     "failed": [],
     "pending": [],
