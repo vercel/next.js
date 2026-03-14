@@ -10,6 +10,6 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 once_cell = { workspace = true }
-swc_plugin_runner = { version = "24.0.0", default-features = false }
+swc_plugin_runner = { version = "25.0.0", default-features = false }
 wasmtime = { workspace = true }
 wasmtime-wasi = { workspace = true }

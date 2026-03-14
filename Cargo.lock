@@ -4818,7 +4818,7 @@ dependencies = [
  "serde_path_to_error",
  "smallvec",
  "swc_core 58.0.4",
- "swc_sourcemap 9.3.4",
+ "swc_sourcemap 10.0.2",
  "thiserror 1.0.69",
  "tracing",
  "turbo-bincode",
@@ -7608,11 +7608,11 @@ dependencies = [
  "swc_error_reporters 21.0.0",
  "swc_node_comments",
  "swc_plugin_backend_wasmer",
- "swc_plugin_proxy 21.0.0",
- "swc_plugin_runner 25.0.0",
+ "swc_plugin_proxy",
+ "swc_plugin_runner",
  "swc_sourcemap 10.0.2",
  "swc_timer",
- "swc_transform_common 13.0.0",
+ "swc_transform_common",
  "swc_visit",
  "tokio",
  "tracing",
@@ -7857,8 +7857,8 @@ dependencies = [
  "swc_ecma_transforms_typescript",
  "swc_ecma_utils 27.0.0",
  "swc_ecma_visit 21.0.0",
- "swc_plugin_proxy 21.0.0",
- "swc_plugin_runner 25.0.0",
+ "swc_plugin_proxy",
+ "swc_plugin_runner",
  "testing 20.0.0",
  "vergen",
 ]
@@ -9077,7 +9077,7 @@ dependencies = [
  "enumset",
  "parking_lot",
  "swc_common 19.0.0",
- "swc_plugin_runner 25.0.0",
+ "swc_plugin_runner",
  "wasmer",
  "wasmer-compiler-cranelift",
  "wasmer-wasix",
@@ -9089,7 +9089,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "once_cell",
- "swc_plugin_runner 24.0.0",
+ "swc_plugin_runner",
  "wasmtime",
  "wasmtime-wasi",
 ]
@@ -9103,20 +9103,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.104",
-]
-
-[[package]]
-name = "swc_plugin_proxy"
-version = "20.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e78e1a9d26be495289cb07b9d73222f92f60b74d47904169d3ce4977600ec11e"
-dependencies = [
- "better_scoped_tls",
- "rustc-hash 2.1.1",
- "swc_common 18.0.1",
- "swc_ecma_ast 20.0.1",
- "swc_trace_macro",
- "tracing",
 ]
 
 [[package]]
@@ -9136,25 +9122,6 @@ dependencies = [
 
 [[package]]
 name = "swc_plugin_runner"
-version = "24.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a48f119fba50bb6bbf54366fc37a7e0c4d94a641936a082330cc6ab8e3f947d"
-dependencies = [
- "anyhow",
- "parking_lot",
- "rustc-hash 2.1.1",
- "serde",
- "serde_json",
- "swc_atoms",
- "swc_common 18.0.1",
- "swc_plugin_proxy 20.0.0",
- "swc_transform_common 12.0.0",
- "tracing",
- "vergen",
-]
-
-[[package]]
-name = "swc_plugin_runner"
 version = "25.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6a0d20fa98d2a94ddb82d924ac98175a7e10d607d3bfd007bf72981b1dcc218"
@@ -9168,8 +9135,8 @@ dependencies = [
  "swc_atoms",
  "swc_common 19.0.0",
  "swc_ecma_ast 21.0.0",
- "swc_plugin_proxy 21.0.0",
- "swc_transform_common 13.0.0",
+ "swc_plugin_proxy",
+ "swc_transform_common",
  "tracing",
  "vergen",
 ]
@@ -9247,18 +9214,6 @@ checksum = "dfd2b4b0adb82e36f2ac688d00a6a67132c7f4170c772617516793a701be89e8"
 dependencies = [
  "quote",
  "syn 2.0.104",
-]
-
-[[package]]
-name = "swc_transform_common"
-version = "12.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cc4a0e2aa9fac44d383127e01327710416dda5b637b0d134b7b8cf2ba6bde8e"
-dependencies = [
- "better_scoped_tls",
- "rustc-hash 2.1.1",
- "serde",
- "swc_common 18.0.1",
 ]
 
 [[package]]
@@ -10745,7 +10700,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "swc_core 58.0.4",
- "swc_sourcemap 9.3.4",
+ "swc_sourcemap 10.0.2",
  "tempfile",
  "tokio",
  "tracing",
@@ -10870,7 +10825,7 @@ dependencies = [
  "smallvec",
  "strsim 0.11.1",
  "swc_core 58.0.4",
- "swc_sourcemap 9.3.4",
+ "swc_sourcemap 10.0.2",
  "tokio",
  "tracing",
  "turbo-bincode",
