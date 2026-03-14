@@ -729,6 +729,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
 
+  const normalizedRootParams =
+    typeof rootParams === 'string' ? [rootParams] : rootParams || []
+
   // All normalized app paths for computing static siblings across route groups
   const allNormalizedAppPaths = allNormalizedAppPathsOption ?? []
 
@@ -1007,7 +1010,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       page: loaderOptions.page,
       name,
       pagePath,
-      rootParams,
+      rootParams: normalizedRootParams,
       resolveAppRoute,
       pageExtensions,
       nextConfigOutput,

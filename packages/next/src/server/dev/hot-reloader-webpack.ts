@@ -121,7 +121,6 @@ import {
   sendSerializedErrorsToClientForHtmlRequest,
   setErrorsRscStreamForHtmlRequest,
 } from './serialized-errors'
-import type { AppPageStaticInfo } from '../../build/analysis/get-page-static-info'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -1039,10 +1038,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                           entryData.absolutePagePath
                         ).replace(/\\/g, '/')
                       ),
-                      rootParams:
-                        (staticInfo as AppPageStaticInfo).rootParams?.map(
-                          (p) => p.param
-                        ) || [],
+                      rootParams: staticInfo?.rootParams || [],
                       appDir: this.appDir!,
                       pageExtensions: this.config.pageExtensions,
                       rootDir: this.dir,
@@ -1167,10 +1163,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     appPaths: entryData.appPaths,
                     allNormalizedAppPaths: null, // Not available in dev mode
                     pagePath,
-                    rootParams:
-                      (staticInfo as AppPageStaticInfo).rootParams?.map(
-                        (p) => p.param
-                      ) || [],
+                    rootParams: staticInfo?.rootParams || [],
                     appDir: this.appDir!,
                     pageExtensions: this.config.pageExtensions,
                     rootDir: this.dir,

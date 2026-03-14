@@ -76,7 +76,7 @@ pub async fn get_app_route_entry(
         serde_json::to_string(
             &root_params_vec
                 .iter()
-                .map(|param| param.param.as_str())
+                .map(|param| param.as_str())
                 .collect::<Vec<_>>(),
         )?
     } else {

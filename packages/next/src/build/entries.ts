@@ -4,12 +4,7 @@ import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-route-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type {
-  AppPageStaticInfo,
-  ProxyConfig,
-  ProxyMatcher,
-  PageStaticInfo,
-} from './analysis/get-page-static-info'
+import type { ProxyConfig, ProxyMatcher } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
@@ -473,7 +468,7 @@ export async function createEntrypoints(
         (absolutePagePath.startsWith(APP_DIR_ALIAS) ||
           absolutePagePath.startsWith(appDir))
 
-      const staticInfo: PageStaticInfo = await getStaticInfoIncludingLayouts({
+      const staticInfo = await getStaticInfoIncludingLayouts({
         isInsideAppDir,
         pageExtensions,
         pageFilePath,
@@ -518,10 +513,7 @@ export async function createEntrypoints(
               page,
               name: serverBundlePath,
               pagePath: absolutePagePath,
-              rootParams:
-                (staticInfo as AppPageStaticInfo).rootParams?.map(
-                  (p) => p.param
-                ) || [],
+              rootParams: staticInfo.rootParams || [],
               appDir,
               appPaths: matchedAppPaths,
               allNormalizedAppPaths: Object.keys(appPathsPerRoute),
@@ -601,10 +593,7 @@ export async function createEntrypoints(
                 name: serverBundlePath,
                 page,
                 pagePath: absolutePagePath,
-                rootParams:
-                  (staticInfo as AppPageStaticInfo).rootParams?.map(
-                    (p) => p.param
-                  ) || [],
+                rootParams: staticInfo.rootParams || [],
                 appDir: appDir!,
                 appPaths: matchedAppPaths,
                 allNormalizedAppPaths: Object.keys(appPathsPerRoute),
