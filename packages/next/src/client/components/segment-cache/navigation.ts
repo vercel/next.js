@@ -2,6 +2,7 @@ import type {
   CacheNodeSeedData,
   FlightRouterState,
   FlightSegmentPath,
+  ScrollRef,
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
@@ -34,6 +35,7 @@ import { PrefetchPriority, FetchStrategy } from './types'
 import { getLinkForCurrentNavigation } from '../links'
 import type { PageVaryPath } from './vary-path'
 import type { AppRouterState } from '../router-reducer/router-reducer-types'
+import { ScrollBehavior } from '../router-reducer/router-reducer-types'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 
@@ -54,7 +56,7 @@ export function navigate(
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean,
+  scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): AppRouterState | Promise<AppRouterState> {
   // Instant Navigation Testing API: when the lock is active, ensure a
@@ -76,7 +78,7 @@ export function navigate(
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,
-        shouldScroll,
+        scrollBehavior,
         navigateType
       )
     }
@@ -91,7 +93,7 @@ export function navigate(
     currentFlightRouterState,
     nextUrl,
     freshnessPolicy,
-    shouldScroll,
+    scrollBehavior,
     navigateType
   )
 }
@@ -105,7 +107,7 @@ function navigateImpl(
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean,
+  scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
@@ -125,7 +127,7 @@ function navigateImpl(
       currentCacheNode,
       currentFlightRouterState,
       freshnessPolicy,
-      shouldScroll,
+      scrollBehavior,
       navigateType,
       route
     )
@@ -161,7 +163,7 @@ function navigateImpl(
           currentCacheNode,
           currentFlightRouterState,
           freshnessPolicy,
-          shouldScroll,
+          scrollBehavior,
           navigateType,
           optimisticRoute
         )
@@ -184,7 +186,7 @@ function navigateImpl(
     currentCacheNode,
     currentFlightRouterState,
     freshnessPolicy,
-    shouldScroll,
+    scrollBehavior,
     navigateType
   ).catch(() => {
     // If the navigation fails, return the current state
@@ -204,7 +206,7 @@ export function navigateToKnownRoute(
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
   nextUrl: string | null,
-  shouldScroll: boolean,
+  scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   debugInfo: Array<unknown> | null,
   // The route cache entry used for this navigation, if it came from route
@@ -223,8 +225,8 @@ export function navigateToKnownRoute(
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
   const accumulation: NavigationRequestAccumulation = {
-    scrollableSegments: null,
     separateRefreshUrls: null,
+    scrollRef: null,
   }
   // We special case navigations to the exact same URL as the current location.
   // It's a common UI pattern for apps to refresh when you click a link to the
@@ -280,8 +282,8 @@ export function navigateToKnownRoute(
       navigationSeed.renderedSearch,
       canonicalUrl,
       navigateType,
-      shouldScroll,
-      accumulation.scrollableSegments,
+      scrollBehavior,
+      accumulation.scrollRef,
       debugInfo
     )
   }
@@ -299,7 +301,7 @@ function navigateUsingPrefetchedRouteTree(
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean,
+  scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry
 ): AppRouterState {
@@ -325,7 +327,7 @@ function navigateUsingPrefetchedRouteTree(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrl,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
     null,
     route
@@ -354,7 +356,7 @@ async function navigateToUnknownRoute(
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean,
+  scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
@@ -509,7 +511,7 @@ async function navigateToUnknownRoute(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrl,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
     debugInfo,
     // Unknown route navigations don't use route prediction - the route tree
@@ -564,8 +566,8 @@ export function completeSoftNavigation(
   renderedSearch: string,
   canonicalUrl: string,
   navigateType: 'push' | 'replace',
-  shouldScroll: boolean,
-  scrollableSegments: Array<FlightSegmentPath> | null,
+  scrollBehavior: ScrollBehavior,
+  scrollRef: ScrollRef | null,
   collectedDebugInfo: Array<unknown> | null
 ) {
   // The "Next-Url" is a special representation of the URL that Next.js
@@ -594,20 +596,72 @@ export function completeSoftNavigation(
     url.search === oldUrl.search &&
     url.hash !== oldUrl.hash
 
-  // During a hash-only change, setting scrollableSegments to an empty
-  // array triggers a scroll for all new and updated segments. See
-  // `ScrollAndFocusHandler` for more details.
+  // Determine whether and how the page should scroll after this
+  // navigation.
   //
-  // TODO: Given the previous comment, I don't know why shouldScroll =
-  // false sets this to an empty array. Seems like an accident. I'm just
-  // preserving the logic that was already here. Clean this up when we
-  // move the per-segment scroll state to the CacheNode.
-  const segmentPathsToScrollTo =
-    onlyHashChange || !shouldScroll
-      ? []
-      : scrollableSegments !== null
-        ? scrollableSegments
-        : oldState.focusAndScrollRef.segmentPaths
+  // By default, we scroll to the segments that were navigated to — i.e.
+  // segments in the new part of the route, as opposed to shared segments
+  // that were already part of the previous route. All newly navigated
+  // segments share a single ScrollRef. When they mount, the first one
+  // to mount initiates the scroll. They share a ref so that only one
+  // scroll happens per navigation.
+  //
+  // If a subsequent navigation produces new segments, those supersede
+  // any pending scroll from the previous navigation by invalidating its
+  // ScrollRef. If a navigation doesn't produce any new segments (e.g.
+  // a refresh where the route structure didn't change), any pending
+  // scrolls from previous navigations are unaffected.
+  //
+  // The branches below handle special cases layered on top of this
+  // default model.
+  let activeScrollRef: ScrollRef | null
+  let forceScroll: boolean
+  if (scrollBehavior === ScrollBehavior.NoScroll) {
+    // The user explicitly opted out of scrolling (e.g. scroll={false}
+    // on a Link or router.push).
+    //
+    // If this navigation created new scroll targets (scrollRef !== null),
+    // neutralize them. If it didn't, any prior scroll targets carried
+    // forward on the cache nodes via reuseSharedCacheNode remain active.
+    if (scrollRef !== null) {
+      scrollRef.current = false
+    }
+    activeScrollRef = oldState.focusAndScrollRef.scrollRef
+    forceScroll = false
+  } else if (onlyHashChange) {
+    // Hash-only navigations should scroll regardless of per-node state.
+    // Create a fresh ref so the first segment to scroll consumes it.
+    //
+    // Invalidate any scroll ref from a prior navigation that hasn't
+    // been consumed yet.
+    const oldScrollRef = oldState.focusAndScrollRef.scrollRef
+    if (oldScrollRef !== null) {
+      oldScrollRef.current = false
+    }
+    // Also invalidate any per-node refs that were accumulated during
+    // this navigation's tree construction — the hash-only ref
+    // supersedes them.
+    if (scrollRef !== null) {
+      scrollRef.current = false
+    }
+    activeScrollRef = { current: true }
+    forceScroll = true
+  } else {
+    // Default case. Use the accumulated scrollRef (may be null if no
+    // new segments were created). The handler checks per-node refs, so
+    // unchanged parallel route slots won't scroll.
+    activeScrollRef = scrollRef
+
+    // If this navigation created new scroll targets, invalidate any
+    // pending scroll from a previous navigation.
+    if (scrollRef !== null) {
+      const oldScrollRef = oldState.focusAndScrollRef.scrollRef
+      if (oldScrollRef !== null) {
+        oldScrollRef.current = false
+      }
+    }
+    forceScroll = false
+  }
 
   const newState: AppRouterState = {
     canonicalUrl,
@@ -618,13 +672,8 @@ export function completeSoftNavigation(
       preserveCustomHistoryState: false,
     },
     focusAndScrollRef: {
-      // TODO: We should track all the per-segment scroll state on the CacheNode
-      // instead of using the paths.
-      apply: shouldScroll
-        ? segmentPathsToScrollTo !== null
-          ? true
-          : oldState.focusAndScrollRef.apply
-        : oldState.focusAndScrollRef.apply,
+      scrollRef: activeScrollRef,
+      forceScroll,
       onlyHashChange,
       hashFragment:
         // Remove leading # and decode hash to make non-latin hashes work.
@@ -633,10 +682,9 @@ export function completeSoftNavigation(
         // view. #top is handled in layout-router.
         //
         // Refer to `ScrollAndFocusHandler` for details on how this is used.
-        shouldScroll && url.hash !== ''
+        scrollBehavior !== ScrollBehavior.NoScroll && url.hash !== ''
           ? decodeURIComponent(url.hash.slice(1))
           : oldState.focusAndScrollRef.hashFragment,
-      segmentPaths: segmentPathsToScrollTo,
     },
     cache,
     tree,
@@ -887,7 +935,7 @@ async function ensurePrefetchThenNavigate(
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean,
+  scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
@@ -926,7 +974,7 @@ async function ensurePrefetchThenNavigate(
     currentFlightRouterState,
     nextUrl,
     freshnessPolicy,
-    shouldScroll,
+    scrollBehavior,
     navigateType
   )
 

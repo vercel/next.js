@@ -30,7 +30,6 @@ import {
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
-import { matchSegment } from './match-segments'
 import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/router/utils/disable-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
@@ -142,114 +141,102 @@ function getHashFragmentDomNode(hashFragment: string) {
 interface ScrollAndMaybeFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
-  segmentPath: FlightSegmentPath
+  cacheNode: CacheNode
 }
 class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusHandlerProps> {
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once.
-    const { focusAndScrollRef, segmentPath } = this.props
+    const { focusAndScrollRef, cacheNode } = this.props
 
-    if (focusAndScrollRef.apply) {
-      // segmentPaths is an array of segment paths that should be scrolled to
-      // if the current segment path is not in the array, the scroll is not applied
-      // unless the array is empty, in which case the scroll is always applied
-      if (
-        focusAndScrollRef.segmentPaths.length !== 0 &&
-        !focusAndScrollRef.segmentPaths.some((scrollRefSegmentPath) =>
-          segmentPath.every((segment, index) =>
-            matchSegment(segment, scrollRefSegmentPath[index])
-          )
-        )
-      ) {
-        return
-      }
+    const scrollRef = focusAndScrollRef.forceScroll
+      ? focusAndScrollRef.scrollRef
+      : cacheNode.scrollRef
+    if (scrollRef === null || !scrollRef.current) return
 
-      let domNode:
-        | ReturnType<typeof getHashFragmentDomNode>
-        | ReturnType<typeof findDOMNode> = null
-      const hashFragment = focusAndScrollRef.hashFragment
+    let domNode:
+      | ReturnType<typeof getHashFragmentDomNode>
+      | ReturnType<typeof findDOMNode> = null
+    const hashFragment = focusAndScrollRef.hashFragment
 
-      if (hashFragment) {
-        domNode = getHashFragmentDomNode(hashFragment)
-      }
+    if (hashFragment) {
+      domNode = getHashFragmentDomNode(hashFragment)
+    }
 
-      // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
-      // This already caused a bug where the first child was a <link/> in head.
-      if (!domNode) {
-        domNode = findDOMNode(this)
-      }
+    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+    // This already caused a bug where the first child was a <link/> in head.
+    if (!domNode) {
+      domNode = findDOMNode(this)
+    }
 
-      // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
-      if (!(domNode instanceof Element)) {
-        return
-      }
+    // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
+    if (!(domNode instanceof Element)) {
+      return
+    }
 
-      // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
-      // If the element is skipped, try to select the next sibling and try again.
-      while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
-        if (process.env.NODE_ENV !== 'production') {
-          if (domNode.parentElement?.localName === 'head') {
-            // We enter this state when metadata was rendered as part of the page or via Next.js.
-            // This is always a bug in Next.js and caused by React hoisting metadata.
-            // Fixed with `experimental.appNewScrollHandler`
-          }
+    // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
+    // If the element is skipped, try to select the next sibling and try again.
+    while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
+      if (process.env.NODE_ENV !== 'production') {
+        if (domNode.parentElement?.localName === 'head') {
+          // We enter this state when metadata was rendered as part of the page or via Next.js.
+          // This is always a bug in Next.js and caused by React hoisting metadata.
+          // Fixed with `experimental.appNewScrollHandler`
         }
+      }
 
-        // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
-        if (domNode.nextElementSibling === null) {
+      // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
+      if (domNode.nextElementSibling === null) {
+        return
+      }
+      domNode = domNode.nextElementSibling
+    }
+
+    // Mark as scrolled so no other segment scrolls for this navigation.
+    scrollRef.current = false
+
+    disableSmoothScrollDuringRouteTransition(
+      () => {
+        // In case of hash scroll, we only need to scroll the element into view
+        if (hashFragment) {
+          domNode.scrollIntoView()
+
           return
         }
-        domNode = domNode.nextElementSibling
-      }
+        // Store the current viewport height because reading `clientHeight` causes a reflow,
+        // and it won't change during this function.
+        const htmlElement = document.documentElement
+        const viewportHeight = htmlElement.clientHeight
 
-      // State is mutated to ensure that the focus and scroll is applied only once.
-      focusAndScrollRef.apply = false
-      focusAndScrollRef.hashFragment = null
-      focusAndScrollRef.segmentPaths = []
-
-      disableSmoothScrollDuringRouteTransition(
-        () => {
-          // In case of hash scroll, we only need to scroll the element into view
-          if (hashFragment) {
-            domNode.scrollIntoView()
-
-            return
-          }
-          // Store the current viewport height because reading `clientHeight` causes a reflow,
-          // and it won't change during this function.
-          const htmlElement = document.documentElement
-          const viewportHeight = htmlElement.clientHeight
-
-          // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(domNode, viewportHeight)) {
-            return
-          }
-
-          // Otherwise, try scrolling go the top of the document to be backward compatible with pages
-          // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
-          // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
-          // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
-          htmlElement.scrollTop = 0
-
-          // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode, viewportHeight)) {
-            // Scroll into view doesn't scroll horizontally by default when not needed
-            domNode.scrollIntoView()
-          }
-        },
-        {
-          // We will force layout by querying domNode position
-          dontForceLayout: true,
-          onlyHashChange: focusAndScrollRef.onlyHashChange,
+        // If the element's top edge is already in the viewport, exit early.
+        if (topOfElementInViewport(domNode, viewportHeight)) {
+          return
         }
-      )
 
-      // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
-      focusAndScrollRef.onlyHashChange = false
+        // Otherwise, try scrolling go the top of the document to be backward compatible with pages
+        // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+        // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+        // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+        htmlElement.scrollTop = 0
 
-      // Set focus on the element
-      domNode.focus()
-    }
+        // Scroll to domNode if domNode is not in viewport when scrolled to top of document
+        if (!topOfElementInViewport(domNode, viewportHeight)) {
+          // Scroll into view doesn't scroll horizontally by default when not needed
+          domNode.scrollIntoView()
+        }
+      },
+      {
+        // We will force layout by querying domNode position
+        dontForceLayout: true,
+        onlyHashChange: focusAndScrollRef.onlyHashChange,
+      }
+    )
+
+    // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
+    focusAndScrollRef.onlyHashChange = false
+    focusAndScrollRef.hashFragment = null
+
+    // Set focus on the element
+    domNode.focus()
   }
 
   componentDidMount() {
@@ -274,101 +261,88 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
 
   useLayoutEffect(
     () => {
-      const { focusAndScrollRef, segmentPath } = props
-      // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
+      const { focusAndScrollRef, cacheNode } = props
 
-      if (focusAndScrollRef.apply) {
-        // segmentPaths is an array of segment paths that should be scrolled to
-        // if the current segment path is not in the array, the scroll is not applied
-        // unless the array is empty, in which case the scroll is always applied
-        if (
-          focusAndScrollRef.segmentPaths.length !== 0 &&
-          !focusAndScrollRef.segmentPaths.some((scrollRefSegmentPath) =>
-            segmentPath.every((segment, index) =>
-              matchSegment(segment, scrollRefSegmentPath[index])
-            )
-          )
-        ) {
-          return
-        }
+      const scrollRef = focusAndScrollRef.forceScroll
+        ? focusAndScrollRef.scrollRef
+        : cacheNode.scrollRef
+      if (scrollRef === null || !scrollRef.current) return
 
-        let instance: FragmentInstance | HTMLElement | null = null
-        const hashFragment = focusAndScrollRef.hashFragment
+      let instance: FragmentInstance | HTMLElement | null = null
+      const hashFragment = focusAndScrollRef.hashFragment
 
-        if (hashFragment) {
-          instance = getHashFragmentDomNode(hashFragment)
-        }
-
-        if (!instance) {
-          instance = childrenRef.current
-        }
-
-        // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
-        if (instance === null) {
-          return
-        }
-
-        // State is mutated to ensure that the focus and scroll is applied only once.
-        focusAndScrollRef.apply = false
-        focusAndScrollRef.hashFragment = null
-        focusAndScrollRef.segmentPaths = []
-
-        const activeElement = document.activeElement
-        if (
-          activeElement !== null &&
-          'blur' in activeElement &&
-          typeof activeElement.blur === 'function'
-        ) {
-          // Trying to match hard navigations.
-          // Ideally we'd move the internal focus cursor either to the top
-          // or at least before the segment. But there's no DOM API to do that,
-          // so we just blur.
-          // We could workaround this by moving focus to a temporary element in
-          // the body. But adding elements might trigger layout or other effects
-          // so it should be well motivated.
-          activeElement.blur()
-        }
-
-        disableSmoothScrollDuringRouteTransition(
-          () => {
-            // In case of hash scroll, we only need to scroll the element into view
-            if (hashFragment) {
-              instance.scrollIntoView()
-
-              return
-            }
-            // Store the current viewport height because reading `clientHeight` causes a reflow,
-            // and it won't change during this function.
-            const htmlElement = document.documentElement
-            const viewportHeight = htmlElement.clientHeight
-
-            // If the element's top edge is already in the viewport, exit early.
-            if (topOfElementInViewport(instance, viewportHeight)) {
-              return
-            }
-
-            // Otherwise, try scrolling go the top of the document to be backward compatible with pages
-            // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
-            // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
-            // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
-            htmlElement.scrollTop = 0
-
-            // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-            if (!topOfElementInViewport(instance, viewportHeight)) {
-              // Scroll into view doesn't scroll horizontally by default when not needed
-              instance.scrollIntoView()
-            }
-          },
-          {
-            // We will force layout by querying domNode position
-            dontForceLayout: true,
-            onlyHashChange: focusAndScrollRef.onlyHashChange,
-          }
-        )
-
-        // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
-        focusAndScrollRef.onlyHashChange = false
+      if (hashFragment) {
+        instance = getHashFragmentDomNode(hashFragment)
       }
+
+      if (!instance) {
+        instance = childrenRef.current
+      }
+
+      // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
+      if (instance === null) {
+        return
+      }
+
+      // Mark as scrolled so no other segment scrolls for this navigation.
+      scrollRef.current = false
+
+      const activeElement = document.activeElement
+      if (
+        activeElement !== null &&
+        'blur' in activeElement &&
+        typeof activeElement.blur === 'function'
+      ) {
+        // Trying to match hard navigations.
+        // Ideally we'd move the internal focus cursor either to the top
+        // or at least before the segment. But there's no DOM API to do that,
+        // so we just blur.
+        // We could workaround this by moving focus to a temporary element in
+        // the body. But adding elements might trigger layout or other effects
+        // so it should be well motivated.
+        activeElement.blur()
+      }
+
+      disableSmoothScrollDuringRouteTransition(
+        () => {
+          // In case of hash scroll, we only need to scroll the element into view
+          if (hashFragment) {
+            instance.scrollIntoView()
+
+            return
+          }
+          // Store the current viewport height because reading `clientHeight` causes a reflow,
+          // and it won't change during this function.
+          const htmlElement = document.documentElement
+          const viewportHeight = htmlElement.clientHeight
+
+          // If the element's top edge is already in the viewport, exit early.
+          if (topOfElementInViewport(instance, viewportHeight)) {
+            return
+          }
+
+          // Otherwise, try scrolling go the top of the document to be backward compatible with pages
+          // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+          // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+          // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+          htmlElement.scrollTop = 0
+
+          // Scroll to domNode if domNode is not in viewport when scrolled to top of document
+          if (!topOfElementInViewport(instance, viewportHeight)) {
+            // Scroll into view doesn't scroll horizontally by default when not needed
+            instance.scrollIntoView()
+          }
+        },
+        {
+          // We will force layout by querying domNode position
+          dontForceLayout: true,
+          onlyHashChange: focusAndScrollRef.onlyHashChange,
+        }
+      )
+
+      // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
+      focusAndScrollRef.onlyHashChange = false
+      focusAndScrollRef.hashFragment = null
     },
     // Used to run on every commit. We may be able to be smarter about this
     // but be prepared for lots of manual testing.
@@ -383,11 +357,11 @@ const InnerScrollAndMaybeFocusHandler = enableNewScrollHandler
   : InnerScrollAndFocusHandlerOld
 
 function ScrollAndMaybeFocusHandler({
-  segmentPath,
   children,
+  cacheNode,
 }: {
-  segmentPath: FlightSegmentPath
   children: React.ReactNode
+  cacheNode: CacheNode
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
@@ -396,8 +370,8 @@ function ScrollAndMaybeFocusHandler({
 
   return (
     <InnerScrollAndMaybeFocusHandler
-      segmentPath={segmentPath}
       focusAndScrollRef={context.focusAndScrollRef}
+      cacheNode={cacheNode}
     >
       {children}
     </InnerScrollAndMaybeFocusHandler>
@@ -787,7 +761,7 @@ export default function OuterLayoutRouter({
     const debugNameToDisplay = isVirtual ? undefined : debugNameContext
 
     let templateValue = (
-      <ScrollAndMaybeFocusHandler segmentPath={segmentPath}>
+      <ScrollAndMaybeFocusHandler cacheNode={cacheNode}>
         <ErrorBoundary
           errorComponent={error}
           errorStyles={errorStyles}

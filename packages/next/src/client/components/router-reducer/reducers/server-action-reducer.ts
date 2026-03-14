@@ -29,6 +29,7 @@ import type {
   ReducerState,
   ServerActionAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
@@ -416,7 +417,7 @@ export function serverActionReducer(
       const redirectUrl =
         redirectLocation !== undefined ? redirectLocation : currentUrl
       const currentFlightRouterState = state.tree
-      const shouldScroll = true
+      const scrollBehavior = ScrollBehavior.Default
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
@@ -472,7 +473,7 @@ export function serverActionReducer(
           currentFlightRouterState,
           freshnessPolicy,
           nextUrl,
-          shouldScroll,
+          scrollBehavior,
           navigateType,
           null,
           // Server action redirects don't use route prediction - we already
@@ -494,7 +495,7 @@ export function serverActionReducer(
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,
-        shouldScroll,
+        scrollBehavior,
         navigateType
       )
     },
