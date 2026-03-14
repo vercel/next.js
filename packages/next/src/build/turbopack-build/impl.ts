@@ -151,8 +151,10 @@ export async function turbopackBuild(): Promise<{
     // Stop immediately: this span is only used as a parent for
     // manualTraceChild calls which carry their own timestamps.
     buildEventsSpan.stop()
+    const compilationEventsController = new AbortController()
     const compilationEvents = backgroundLogCompilationEvents(project, {
       parentSpan: buildEventsSpan,
+      signal: compilationEventsController.signal,
     })
 
     // Write an empty file in a known location to signal this was built with Turbopack
@@ -265,13 +267,13 @@ export async function turbopackBuild(): Promise<{
     }
 
     // Shutdown triggers persistence/compaction which emit TraceEvent
-    // compilation events.  After shutdown we explicitly stop the
-    // iterator and wait for it to drain so that getTraceEvents()
+    // compilation events.  After shutdown we abort the signal to close
+    // the iterator and wait for it to drain so that getTraceEvents()
     // collects them in waitForShutdown.  The iterator also self-closes
-    // when the Rust subscription drops, but we stop it explicitly for
+    // when the Rust subscription drops, but we abort explicitly for
     // deterministic ordering.
     const shutdownPromise = project.shutdown().then(() => {
-      compilationEvents.stop()
+      compilationEventsController.abort()
       return compilationEvents.catch(() => {})
     })
 
